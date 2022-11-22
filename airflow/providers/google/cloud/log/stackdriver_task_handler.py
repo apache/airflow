@@ -173,7 +173,6 @@ class StackdriverTaskHandler(logging.Handler):
         :return: a tuple of (
             list of (one element tuple with two element tuple - hostname and logs)
             and list of metadata)
-        :rtype: Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, str]]]
         """
         if try_number is not None and try_number < 1:
             logs = f"Error fetching the logs. Try number {try_number} is invalid."
@@ -249,7 +248,6 @@ class StackdriverTaskHandler(logging.Handler):
             * string with logs
             * Boolean value describing whether there are more logs,
             * token of the next page
-        :rtype: Tuple[str, bool, str]
         """
         messages = []
         new_messages, next_page_token = self._read_single_logs_page(
@@ -280,7 +278,6 @@ class StackdriverTaskHandler(logging.Handler):
         :param page_token: The token of the page to be downloaded. If None is passed, the first page will be
             downloaded.
         :return: Downloaded logs and next page token
-        :rtype: Tuple[str, str]
         """
         _, project = self._credentials_and_project
         request = ListLogEntriesRequest(
@@ -328,7 +325,6 @@ class StackdriverTaskHandler(logging.Handler):
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from.
         :return: URL to the external log collection service
-        :rtype: str
         """
         _, project_id = self._credentials_and_project
 

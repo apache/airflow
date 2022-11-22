@@ -22,7 +22,7 @@ import json
 import re
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Sequence
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlsplit
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -72,7 +72,6 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: dict
     """
 
     template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
@@ -149,7 +148,6 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: dict
     """
 
     template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain")
@@ -243,7 +241,6 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: dict
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger", "gcp_conn_id")
@@ -394,7 +391,6 @@ class CloudBuildGetBuildOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: dict
     """
 
     template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
@@ -467,7 +463,6 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: dict
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id")
@@ -542,7 +537,6 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: List[dict]
     """
 
     template_fields: Sequence[str] = ("location", "project_id", "gcp_conn_id")
@@ -622,7 +616,6 @@ class CloudBuildListBuildsOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: List[dict]
     """
 
     template_fields: Sequence[str] = ("location", "project_id", "gcp_conn_id")
@@ -698,7 +691,6 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: dict
     """
 
     template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
@@ -779,7 +771,6 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: dict
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "source", "gcp_conn_id")
@@ -861,7 +852,6 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: dict
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "trigger", "gcp_conn_id")
@@ -964,7 +954,6 @@ class BuildProcessor:
         Processes the body passed in the constructor
 
         :return: the body.
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         if "source" in self.build:
             self._verify_source()
@@ -983,7 +972,7 @@ class BuildProcessor:
             https://source.cloud.google.com/airflow-project/airflow-repo/+/branch-name:
 
         """
-        url_parts = urlparse(source)
+        url_parts = urlsplit(source)
 
         match = REGEX_REPO_PATH.search(url_parts.path)
 
@@ -1017,7 +1006,7 @@ class BuildProcessor:
             gs://bucket-name/object-name.tar.gz
 
         """
-        url_parts = urlparse(storage_url)
+        url_parts = urlsplit(storage_url)
 
         if url_parts.scheme != "gs" or not url_parts.hostname or not url_parts.path or url_parts.path == "/":
             raise AirflowException(

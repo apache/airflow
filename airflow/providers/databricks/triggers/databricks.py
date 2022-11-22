@@ -18,20 +18,10 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any
 
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-
-try:
-    from airflow.triggers.base import BaseTrigger, TriggerEvent
-except ImportError:
-    logging.getLogger(__name__).warning(
-        "Deferrable Operators only work starting Airflow 2.2",
-        exc_info=True,
-    )
-    BaseTrigger = object  # type: ignore
-    TriggerEvent = None  # type: ignore
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class DatabricksExecutionTrigger(BaseTrigger):

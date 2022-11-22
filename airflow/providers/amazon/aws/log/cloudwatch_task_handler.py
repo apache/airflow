@@ -84,11 +84,21 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def _read(self, task_instance, try_number, metadata=None):
         stream_name = self._render_filename(task_instance, try_number)
-        return (
-            f"*** Reading remote log from Cloudwatch log_group: {self.log_group} "
-            f"log_stream: {stream_name}.\n{self.get_cloudwatch_logs(stream_name=stream_name)}\n",
-            {"end_of_log": True},
-        )
+        try:
+            return (
+                f"*** Reading remote log from Cloudwatch log_group: {self.log_group} "
+                f"log_stream: {stream_name}.\n{self.get_cloudwatch_logs(stream_name=stream_name)}\n",
+                {"end_of_log": True},
+            )
+        except Exception as e:
+            log = (
+                f"*** Unable to read remote logs from Cloudwatch (log_group: {self.log_group}, log_stream: "
+                f"{stream_name})\n*** {str(e)}\n\n"
+            )
+            self.log.error(log)
+            local_log, metadata = super()._read(task_instance, try_number, metadata)
+            log += local_log
+            return log, metadata
 
     def get_cloudwatch_logs(self, stream_name: str) -> str:
         """
@@ -97,17 +107,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         :param stream_name: name of the Cloudwatch log stream to get all logs from
         :return: string of all logs from the given log stream
         """
-        try:
-            events = self.hook.get_log_events(
-                log_group=self.log_group,
-                log_stream_name=stream_name,
-                start_from_head=True,
-            )
-            return "\n".join(self._event_to_str(event) for event in events)
-        except Exception:
-            msg = f"Could not read remote logs from log_group: {self.log_group} log_stream: {stream_name}."
-            self.log.exception(msg)
-            return msg
+        events = self.hook.get_log_events(
+            log_group=self.log_group,
+            log_stream_name=stream_name,
+            start_from_head=True,
+        )
+        return "\n".join(self._event_to_str(event) for event in events)
 
     def _event_to_str(self, event: dict) -> str:
         event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)

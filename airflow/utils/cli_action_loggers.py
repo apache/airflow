@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Callable, List
+from typing import Callable
 
 
 def register_pre_exec_callback(action_logger):
@@ -67,7 +67,7 @@ def on_pre_execution(**kwargs):
         try:
             callback(**kwargs)
         except Exception:
-            logging.exception('Failed on pre-execution callback using %s', callback)
+            logging.exception("Failed on pre-execution callback using %s", callback)
 
 
 def on_post_execution(**kwargs):
@@ -85,7 +85,7 @@ def on_post_execution(**kwargs):
         try:
             callback(**kwargs)
         except Exception:
-            logging.exception('Failed on post-execution callback using %s', callback)
+            logging.exception("Failed on post-execution callback using %s", callback)
 
 
 def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_name, full_command, **_):
@@ -103,21 +103,21 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
 
     try:
         with create_session() as session:
-            extra = json.dumps({'host_name': host_name, 'full_command': full_command})
+            extra = json.dumps({"host_name": host_name, "full_command": full_command})
             # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early
             # on in the CLI
             session.bulk_insert_mappings(
                 Log,
                 [
                     {
-                        'event': f'cli_{sub_command}',
-                        'task_instance': None,
-                        'owner': user,
-                        'extra': extra,
-                        'task_id': task_id,
-                        'dag_id': dag_id,
-                        'execution_date': execution_date,
-                        'dttm': timezone.utcnow(),
+                        "event": f"cli_{sub_command}",
+                        "task_instance": None,
+                        "owner": user,
+                        "extra": extra,
+                        "task_id": task_id,
+                        "dag_id": dag_id,
+                        "execution_date": execution_date,
+                        "dttm": timezone.utcnow(),
                     }
                 ],
             )
@@ -125,8 +125,8 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
         logging.warning("Failed to log action with %s", error)
 
 
-__pre_exec_callbacks = []  # type: List[Callable]
-__post_exec_callbacks = []  # type: List[Callable]
+__pre_exec_callbacks: list[Callable] = []
+__post_exec_callbacks: list[Callable] = []
 
 # By default, register default action log into pre-execution callback
 register_pre_exec_callback(default_action_log)

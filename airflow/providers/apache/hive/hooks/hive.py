@@ -204,6 +204,8 @@ class HiveCliHook(BaseHook):
         """
         conn = self.conn
         schema = schema or conn.schema
+        if "!" in schema or ";" in schema:
+            raise RuntimeError(f"The schema `{schema}` contains invalid characters (!;)")
         if schema:
             hql = f"USE {schema};\n{hql}"
 
@@ -560,7 +562,6 @@ class HiveMetastoreHook(BaseHook):
         :param table: Name of hive table @partition belongs to
         :param partition: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :rtype: bool
 
         >>> hh = HiveMetastoreHook()
         >>> t = 'static_babynames_partitioned'
@@ -581,7 +582,6 @@ class HiveMetastoreHook(BaseHook):
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
         :param partition_name: Name of the partitions to check for (eg `a=b/c=d`)
-        :rtype: bool
 
         >>> hh = HiveMetastoreHook()
         >>> t = 'static_babynames_partitioned'
@@ -669,7 +669,6 @@ class HiveMetastoreHook(BaseHook):
                            Only partitions matching all partition_key:partition_value
                            pairs will be considered as candidates of max partition.
         :return: Max partition or None if part_specs is empty.
-        :rtype: basestring
         """
         if not part_specs:
             return None
@@ -924,7 +923,6 @@ class HiveServer2Hook(DbApiHook):
         :param fetch_size: max size of result to fetch.
         :param hive_conf: hive_conf to execute alone with the hql.
         :return: results of hql execution, dict with data (list of results) and header
-        :rtype: dict
         """
         results_iter = self._get_results(sql, schema, fetch_size=fetch_size, hive_conf=hive_conf)
         header = next(results_iter)
@@ -991,7 +989,6 @@ class HiveServer2Hook(DbApiHook):
         :param sql: hql to be executed.
         :param parameters: optional configuration passed to get_results
         :return: result of hive execution
-        :rtype: list
 
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
@@ -1016,7 +1013,6 @@ class HiveServer2Hook(DbApiHook):
         :param hive_conf: hive_conf to execute alone with the hql.
         :param kwargs: (optional) passed into pandas.DataFrame constructor
         :return: result of hive execution
-        :rtype: DataFrame
 
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"

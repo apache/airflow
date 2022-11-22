@@ -20,7 +20,6 @@ Tests for Google Cloud Firestore
 from __future__ import annotations
 
 import unittest
-from typing import Optional
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -49,7 +48,7 @@ TEST_PROJECT_ID = "firestore--project-id"
 
 
 class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+    hook: CloudFirestoreHook | None = None
 
     def setUp(self):
         with mock.patch(
@@ -128,7 +127,7 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
 
 
 class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+    hook: CloudFirestoreHook | None = None
 
     def setUp(self):
         with mock.patch(
@@ -222,7 +221,7 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
 
 
 class TestCloudFirestoreHookWithoutProjectId(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+    hook: CloudFirestoreHook | None = None
 
     def setUp(self):
         with mock.patch(

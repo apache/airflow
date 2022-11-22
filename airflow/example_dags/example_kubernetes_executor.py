@@ -32,8 +32,8 @@ from airflow.example_dags.libs.helper import print_stuff
 
 log = logging.getLogger(__name__)
 
-worker_container_repository = conf.get('kubernetes_executor', 'worker_container_repository')
-worker_container_tag = conf.get('kubernetes_executor', 'worker_container_tag')
+worker_container_repository = conf.get("kubernetes_executor", "worker_container_repository")
+worker_container_tag = conf.get("kubernetes_executor", "worker_container_tag")
 
 try:
     from kubernetes.client import models as k8s
@@ -47,11 +47,11 @@ except ImportError:
 
 if k8s:
     with DAG(
-        dag_id='example_kubernetes_executor',
+        dag_id="example_kubernetes_executor",
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
-        tags=['example3'],
+        tags=["example3"],
     ) as dag:
         # You can use annotations on your kubernetes pods!
         start_task_executor_config = {
@@ -90,8 +90,8 @@ if k8s:
             Tests whether the volume has been mounted.
             """
 
-            with open('/foo/volume_mount_test.txt', 'w') as foo:
-                foo.write('Hello')
+            with open("/foo/volume_mount_test.txt", "w") as foo:
+                foo.write("Hello")
 
             return_code = os.system("cat /foo/volume_mount_test.txt")
             if return_code != 0:
@@ -112,7 +112,7 @@ if k8s:
                         k8s.V1Container(
                             name="sidecar",
                             image="ubuntu",
-                            args=["echo \"retrieved from mount\" > /shared/test.txt"],
+                            args=['echo "retrieved from mount" > /shared/test.txt'],
                             command=["bash", "-cx"],
                             volume_mounts=[k8s.V1VolumeMount(mount_path="/shared/", name="shared-empty-dir")],
                         ),
@@ -154,7 +154,7 @@ if k8s:
 
         executor_config_other_ns = {
             "pod_override": k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(namespace="test-namespace", labels={'release': 'stable'})
+                metadata=k8s.V1ObjectMeta(namespace="test-namespace", labels={"release": "stable"})
             )
         }
 
@@ -193,21 +193,21 @@ if k8s:
                     k8s.V1PodAffinityTerm(
                         label_selector=k8s.V1LabelSelector(
                             match_expressions=[
-                                k8s.V1LabelSelectorRequirement(key='app', operator='In', values=['airflow'])
+                                k8s.V1LabelSelectorRequirement(key="app", operator="In", values=["airflow"])
                             ]
                         ),
-                        topology_key='kubernetes.io/hostname',
+                        topology_key="kubernetes.io/hostname",
                     )
                 ]
             )
         )
 
         # Use k8s_client.V1Toleration to define node tolerations
-        k8s_tolerations = [k8s.V1Toleration(key='dedicated', operator='Equal', value='airflow')]
+        k8s_tolerations = [k8s.V1Toleration(key="dedicated", operator="Equal", value="airflow")]
 
         # Use k8s_client.V1ResourceRequirements to define resource limits
         k8s_resource_requirements = k8s.V1ResourceRequirements(
-            requests={'memory': '512Mi'}, limits={'memory': '512Mi'}
+            requests={"memory": "512Mi"}, limits={"memory": "512Mi"}
         )
 
         kube_exec_config_resource_limits = {

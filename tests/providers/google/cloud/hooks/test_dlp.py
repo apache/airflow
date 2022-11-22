@@ -22,7 +22,7 @@ functions in CloudDLPHook
 from __future__ import annotations
 
 import unittest
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -35,7 +35,7 @@ from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
-API_RESPONSE = {}  # type: Dict[Any, Any]
+API_RESPONSE: dict[Any, Any] = {}
 ORGANIZATION_ID = "test-org"
 ORGANIZATION_PATH = f"organizations/{ORGANIZATION_ID}"
 PROJECT_ID = "test-project"

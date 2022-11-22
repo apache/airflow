@@ -41,7 +41,7 @@ class LocalKubernetesExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = True
     callback_sink: BaseCallbackSink | None = None
 
-    KUBERNETES_QUEUE = conf.get('local_kubernetes_executor', 'kubernetes_queue')
+    KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
 
     def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
@@ -166,7 +166,6 @@ class LocalKubernetesExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: list[airflow.models.TaskInstance]
         """
         local_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
@@ -191,7 +190,6 @@ class LocalKubernetesExecutor(LoggingMixin):
 
         :param simple_task_instance: SimpleTaskInstance
         :return: local_executor or kubernetes_executor
-        :rtype: Union[LocalExecutor, KubernetesExecutor]
         """
         if simple_task_instance.queue == self.KUBERNETES_QUEUE:
             return self.kubernetes_executor

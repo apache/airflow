@@ -302,7 +302,6 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         Drops empty query in queries.
 
         :param queries: queries
-        :rtype: None
         """
         if queries and queries[-1] == "":
             del queries[-1]

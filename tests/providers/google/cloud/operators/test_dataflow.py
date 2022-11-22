@@ -29,6 +29,7 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowCreatePythonJobOperator,
     DataflowStartFlexTemplateOperator,
     DataflowStartSqlJobOperator,
+    DataflowStopJobOperator,
     DataflowTemplatedJobStartOperator,
 )
 from airflow.version import version
@@ -560,4 +561,57 @@ class TestDataflowSqlOperator(unittest.TestCase):
         start_sql.on_kill()
         mock_hook.return_value.cancel_job.assert_called_once_with(
             job_id="test-job-id", project_id=None, location=None
+        )
+
+
+class TestDataflowStopJobOperator(unittest.TestCase):
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    def test_exec_job_id(self, dataflow_mock):
+        self.dataflow = DataflowStopJobOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            job_id=JOB_ID,
+            poll_sleep=POLL_SLEEP,
+            location=TEST_LOCATION,
+        )
+        """
+        Test DataflowHook is created and the right args are passed to cancel_job.
+        """
+        cancel_job_hook = dataflow_mock.return_value.cancel_job
+        self.dataflow.execute(None)
+        assert dataflow_mock.called
+        cancel_job_hook.assert_called_once_with(
+            job_name=None,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=JOB_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    def test_exec_job_name_prefix(self, dataflow_mock):
+        self.dataflow = DataflowStopJobOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            job_name_prefix=JOB_NAME,
+            poll_sleep=POLL_SLEEP,
+            location=TEST_LOCATION,
+        )
+        """
+        Test DataflowHook is created and the right args are passed to cancel_job
+        and is_job_dataflow_running.
+        """
+        is_job_running_hook = dataflow_mock.return_value.is_job_dataflow_running
+        cancel_job_hook = dataflow_mock.return_value.cancel_job
+        self.dataflow.execute(None)
+        assert dataflow_mock.called
+        is_job_running_hook.assert_called_once_with(
+            name=JOB_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+        cancel_job_hook.assert_called_once_with(
+            job_name=JOB_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=None,
         )

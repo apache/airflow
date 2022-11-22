@@ -978,7 +978,7 @@ def test_task_fail_duration(app, admin_client, dag_maker, session):
 
 def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
     """Test that the graph view doesn't fail on a recursion error."""
-    from airflow.utils.helpers import chain
+    from airflow.models.baseoperator import chain
 
     with dag_maker("test_fails_with_recursion") as dag:
 
@@ -1017,6 +1017,7 @@ def test_task_instances(admin_client):
             "max_tries": 0,
             "next_kwargs": None,
             "next_method": None,
+            "notes": None,
             "operator": "BashOperator",
             "pid": None,
             "pool": "default_pool",
@@ -1047,6 +1048,7 @@ def test_task_instances(admin_client):
             "max_tries": 0,
             "next_kwargs": None,
             "next_method": None,
+            "notes": None,
             "operator": "BashOperator",
             "pid": None,
             "pool": "default_pool",
@@ -1077,6 +1079,7 @@ def test_task_instances(admin_client):
             "max_tries": 0,
             "next_kwargs": None,
             "next_method": None,
+            "notes": None,
             "operator": "EmptyOperator",
             "pid": None,
             "pool": "default_pool",
@@ -1107,6 +1110,7 @@ def test_task_instances(admin_client):
             "max_tries": 0,
             "next_kwargs": None,
             "next_method": None,
+            "notes": None,
             "operator": "BashOperator",
             "pid": None,
             "pool": "default_pool",
@@ -1137,6 +1141,7 @@ def test_task_instances(admin_client):
             "max_tries": 0,
             "next_kwargs": None,
             "next_method": None,
+            "notes": None,
             "operator": "BashOperator",
             "pid": None,
             "pool": "default_pool",
@@ -1167,6 +1172,7 @@ def test_task_instances(admin_client):
             "max_tries": 0,
             "next_kwargs": None,
             "next_method": None,
+            "notes": None,
             "operator": "BashOperator",
             "pid": None,
             "pool": "default_pool",
@@ -1197,6 +1203,7 @@ def test_task_instances(admin_client):
             "max_tries": 0,
             "next_kwargs": None,
             "next_method": None,
+            "notes": None,
             "operator": "BashOperator",
             "pid": None,
             "pool": "default_pool",

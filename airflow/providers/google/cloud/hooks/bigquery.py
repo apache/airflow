@@ -30,7 +30,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Any, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -57,6 +57,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 from airflow.utils.helpers import convert_camel_to_snake
@@ -928,8 +929,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             in request body.
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :param project_id: The Google Cloud Project ID
-        :rtype: dataset
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         """
         warnings.warn("This method is deprecated. Please use ``update_dataset``.", DeprecationWarning)
         project_id = project_id or self.project_id
@@ -1390,7 +1389,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         :param retry: How to retry the RPC.
-        :rtype: bool
         """
         location = location or self.location
         job = self.get_client(project_id=project_id, location=location).get_job(job_id=job_id)
@@ -1421,9 +1419,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         """
+        project_id = project_id or self.project_id
         location = location or self.location
 
-        if self.poll_job_complete(job_id=job_id):
+        if self.poll_job_complete(job_id=job_id, project_id=project_id, location=location):
             self.log.info("No running BigQuery jobs to cancel.")
             return
 
@@ -1437,17 +1436,18 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_complete = False
         while polling_attempts < max_polling_attempts and not job_complete:
             polling_attempts += 1
-            job_complete = self.poll_job_complete(job_id)
+            job_complete = self.poll_job_complete(job_id=job_id, project_id=project_id, location=location)
             if job_complete:
                 self.log.info("Job successfully canceled: %s, %s", project_id, job_id)
             elif polling_attempts == max_polling_attempts:
                 self.log.info(
-                    "Stopping polling due to timeout. Job with id %s "
+                    "Stopping polling due to timeout. Job %s, %s "
                     "has not completed cancel and may or may not finish.",
+                    project_id,
                     job_id,
                 )
             else:
-                self.log.info("Waiting for canceled job with id %s to finish.", job_id)
+                self.log.info("Waiting for canceled job %s, %s to finish.", project_id, job_id)
                 time.sleep(5)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -2107,7 +2107,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if cluster_fields:
             cluster_fields = {"fields": cluster_fields}  # type: ignore
 
-        query_param_list = [
+        query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
             (sql, "query", None, (str,)),
             (priority, "priority", "INTERACTIVE", (str,)),
             (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
@@ -2119,7 +2119,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             (schema_update_options, "schemaUpdateOptions", None, list),
             (destination_dataset_table, "destinationTable", None, dict),
             (cluster_fields, "clustering", None, dict),
-        ]  # type: List[Tuple]
+        ]
 
         for param, param_name, param_default, param_type in query_param_list:
             if param_name not in configuration["query"] and param in [None, {}, ()]:
@@ -2250,7 +2250,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if project_id is None:
             if var_name is not None:
                 self.log.info(
-                    'Project not included in %s: %s; using project "%s"',
+                    'Project is not included in %s: %s; using project "%s"',
                     var_name,
                     table_input,
                     default_project_id,
@@ -2311,7 +2311,7 @@ class BigQueryBaseCursor(LoggingMixin):
         if api_resource_configs:
             _validate_value("api_resource_configs", api_resource_configs, dict)
         self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
-        self.running_job_id = None  # type: Optional[str]
+        self.running_job_id: str | None = None
         self.location = location
         self.num_retries = num_retries
         self.labels = labels
@@ -2657,12 +2657,12 @@ class BigQueryCursor(BigQueryBaseCursor):
             location=location,
             num_retries=num_retries,
         )
-        self.buffersize = None  # type: Optional[int]
-        self.page_token = None  # type: Optional[str]
-        self.job_id = None  # type: Optional[str]
-        self.buffer = []  # type: list
-        self.all_pages_loaded = False  # type: bool
-        self._description = []  # type: List
+        self.buffersize: int | None = None
+        self.page_token: str | None = None
+        self.job_id: str | None = None
+        self.buffer: list = []
+        self.all_pages_loaded: bool = False
+        self._description: list = []
 
     @property
     def description(self) -> list:
@@ -2741,7 +2741,7 @@ class BigQueryCursor(BigQueryBaseCursor):
                 rows = query_results["rows"]
 
                 for dict_row in rows:
-                    typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
+                    typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                     self.buffer.append(typed_row)
 
                 if not self.page_token:
@@ -2824,7 +2824,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 def _bind_parameters(operation: str, parameters: dict) -> str:
     """Helper method that binds parameters to a SQL query"""
     # inspired by MySQL Python Connector (conversion.py)
-    string_parameters = {}  # type Dict[str, str]
+    string_parameters = {}  # type dict[str, str]
     for (name, value) in parameters.items():
         if value is None:
             string_parameters[name] = "NULL"
@@ -2844,25 +2844,6 @@ def _escape(s: str) -> str:
     e = e.replace("'", "\\'")
     e = e.replace('"', '\\"')
     return e
-
-
-def _bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
-    """
-    Helper method that casts a BigQuery row to the appropriate data types.
-    This is useful because BigQuery returns all fields as strings.
-    """
-    if string_field is None:
-        return None
-    elif bq_type == "INTEGER":
-        return int(string_field)
-    elif bq_type in ("FLOAT", "TIMESTAMP"):
-        return float(string_field)
-    elif bq_type == "BOOLEAN":
-        if string_field not in ["true", "false"]:
-            raise ValueError(f"{string_field} must have value 'true' or 'false'")
-        return string_field == "true"
-    else:
-        return string_field
 
 
 def split_tablename(
@@ -2916,7 +2897,7 @@ def split_tablename(
     if project_id is None:
         if var_name is not None:
             log.info(
-                'Project not included in %s: %s; using project "%s"',
+                'Project is not included in %s: %s; using project "%s"',
                 var_name,
                 table_input,
                 default_project_id,
@@ -2940,7 +2921,7 @@ def _cleanse_time_partitioning(
     return time_partitioning_out
 
 
-def _validate_value(key: Any, value: Any, expected_type: type) -> None:
+def _validate_value(key: Any, value: Any, expected_type: type | tuple[type]) -> None:
     """Function to check expected type and raise error if type is not correct"""
     if not isinstance(value, expected_type):
         raise TypeError(f"{key} argument must have a type {expected_type} not {type(value)}")
@@ -3068,8 +3049,10 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         buffer = []
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
+            fields = query_results["schema"]["fields"]
+            col_types = [field["type"] for field in fields]
             for dict_row in rows:
-                typed_row = [vs["v"] for vs in dict_row["f"]]
+                typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                 buffer.append(typed_row)
         return buffer
 

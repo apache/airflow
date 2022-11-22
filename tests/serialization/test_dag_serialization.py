@@ -78,7 +78,7 @@ class CustomDepOperator(BashOperator):
 
 class CustomDependencyDetector(DependencyDetector):
     """
-    Prior to deprecation of custom dependency detector, the return type as Optional[DagDependency].
+    Prior to deprecation of custom dependency detector, the return type as DagDependency | None.
     This class verifies that custom dependency detector classes which assume that return type will still
     work until support for them is removed in 3.0.
 
@@ -1408,7 +1408,7 @@ class TestStringifiedDAGs:
     )
     def test_custom_dep_detector(self):
         """
-        Prior to deprecation of custom dependency detector, the return type was Optional[DagDependency].
+        Prior to deprecation of custom dependency detector, the return type was DagDependency | None.
         This class verifies that custom dependency detector classes which assume that return type will still
         work until support for them is removed in 3.0.
 
@@ -2296,7 +2296,9 @@ def test_mapped_task_group_serde():
         @task_group
         def tg(a: str) -> None:
             BaseOperator(task_id="op1")
-            BashOperator.partial(task_id="op2").expand(bash_command=["ls", a])
+            with pytest.raises(NotImplementedError) as ctx:
+                BashOperator.partial(task_id="op2").expand(bash_command=["ls", a])
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
 
         tg.expand(a=[".", ".."])
 
@@ -2307,7 +2309,7 @@ def test_mapped_task_group_serde():
             "_group_id": "tg",
             "children": {
                 "tg.op1": ("operator", "tg.op1"),
-                "tg.op2": ("operator", "tg.op2"),
+                # "tg.op2": ("operator", "tg.op2"),
             },
             "downstream_group_ids": [],
             "downstream_task_ids": [],

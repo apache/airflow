@@ -48,14 +48,11 @@ def generate_presto_client_info() -> str:
         )
         for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
     }
-    # try_number isn't available in context for airflow < 2.2.5
-    # https://github.com/apache/airflow/issues/23059
-    try_number = context_var.get("try_number", "")
     task_info = {
         "dag_id": context_var["dag_id"],
         "task_id": context_var["task_id"],
         "execution_date": context_var["execution_date"],
-        "try_number": try_number,
+        "try_number": context_var["try_number"],
         "dag_run_id": context_var["dag_run_id"],
         "dag_owner": context_var["dag_owner"],
     }
@@ -148,8 +145,7 @@ class PrestoHook(DbApiHook):
         self,
         sql: str | list[str] = "",
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
         try:
@@ -157,7 +153,7 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_first(self, sql: str | list[str] = "", parameters: dict | None = None) -> Any:
+    def get_first(self, sql: str | list[str] = "", parameters: Iterable | Mapping | None = None) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
         try:
@@ -228,3 +224,15 @@ class PrestoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every)
+
+    @staticmethod
+    def _serialize_cell(cell: Any, conn: Connection | None = None) -> Any:
+        """
+        Presto will adapt all arguments to the execute() method internally,
+        hence we return cell without any conversion.
+
+        :param cell: The cell to insert into the table
+        :param conn: The database connection
+        :return: The cell
+        """
+        return cell

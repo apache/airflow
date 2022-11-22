@@ -213,6 +213,48 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
+Make sure to use variable with template in operator, not in the top level code.
+
+Bad example:
+
+.. code-block:: python
+
+    from airflow.models import Variable
+
+    foo_var = Variable.get("foo")  # DON'T DO THAT
+    bash_use_variable_bad_1 = BashOperator(
+        task_id="bash_use_variable_bad_1", bash_command="echo variable foo=${foo_env}", env={"foo_env": foo_var}
+    )
+
+    bash_use_variable_bad_2 = BashOperator(
+        task_id="bash_use_variable_bad_2",
+        bash_command=f"echo variable foo=${Variable.get('foo')}",  # DON'T DO THAT
+    )
+
+    bash_use_variable_bad_3 = BashOperator(
+        task_id="bash_use_variable_bad_3",
+        bash_command="echo variable foo=${foo_env}",
+        env={"foo_env": Variable.get("foo")},  # DON'T DO THAT
+    )
+
+
+Good example:
+
+.. code-block:: python
+
+    bash_use_variable_good = BashOperator(
+        task_id="bash_use_variable_good",
+        bash_command="echo variable foo=${foo_env}",
+        env={"foo_env": "{{ var.value.get('foo') }}"},
+    )
+
+.. code-block:: python
+
+  @task
+  def my_task():
+      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan dags.
+      print(var)
+
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
 for any variable that contains sensitive data.
 
@@ -233,7 +275,7 @@ Bad example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
-        def __init__(self, *args, something=Variable.get('something'), **kwargs):
+        def __init__(self, *args, something=Variable.get("something"), **kwargs):
             self._something = something
             super().__init__(*args, **kwargs)
 
@@ -246,7 +288,7 @@ Good example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
-        def __init__(self, *args, something='something', **kwargs):
+        def __init__(self, *args, something="something", **kwargs):
             self._something = Variable.get(something)
             super().__init__(*args, **kwargs)
 

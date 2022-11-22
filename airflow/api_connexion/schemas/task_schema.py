@@ -31,7 +31,7 @@ from airflow.models.operator import Operator
 
 
 class TaskSchema(Schema):
-    """Task schema"""
+    """Task schema."""
 
     class_ref = fields.Method("_get_class_reference", dump_only=True)
     operator_name = fields.Method("_get_operator_name", dump_only=True)
@@ -59,7 +59,7 @@ class TaskSchema(Schema):
     template_fields = fields.List(fields.String(), dump_only=True)
     sub_dag = fields.Nested(DAGSchema, dump_only=True)
     downstream_task_ids = fields.List(fields.String(), dump_only=True)
-    params = fields.Method('get_params', dump_only=True)
+    params = fields.Method("get_params", dump_only=True)
     is_mapped = fields.Boolean(dump_only=True)
 
     def _get_class_reference(self, obj):
@@ -71,20 +71,20 @@ class TaskSchema(Schema):
 
     @staticmethod
     def get_params(obj):
-        """Get the Params defined in a Task"""
+        """Get the Params defined in a Task."""
         params = obj.params
         return {k: v.dump() for k, v in params.items()}
 
 
 class TaskCollection(NamedTuple):
-    """List of Tasks with metadata"""
+    """List of Tasks with metadata."""
 
     tasks: list[Operator]
     total_entries: int
 
 
 class TaskCollectionSchema(Schema):
-    """Schema for TaskCollection"""
+    """Schema for TaskCollection."""
 
     tasks = fields.List(fields.Nested(TaskSchema))
     total_entries = fields.Int()

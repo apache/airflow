@@ -17,16 +17,9 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import Any, Sequence
 
-try:
-    from airflow.utils.types import NOTSET
-except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
-
-    class ArgNotSet:
-        """Sentinel type for annotations, useful when None is not viable."""
-
-    NOTSET = ArgNotSet()  # type: ignore[assignment]
+from airflow.utils.types import NOTSET
 
 
 class ConnectionExtraConfig:
@@ -84,3 +77,41 @@ class ConnectionExtraConfig:
         if value != default:
             value = int(value)
         return value
+
+
+def parse_filename(
+    filename: str, supported_file_formats: Sequence[str], fallback: str | None = None
+) -> tuple[str, str | None]:
+    """
+    Parse filetype and compression from given filename.
+    :param filename: filename to parse.
+    :param supported_file_formats: list of supported file extensions.
+    :param fallback: fallback to given file format.
+    :returns: filetype and compression (if specified)
+    """
+    if not filename:
+        raise ValueError("Expected 'filename' parameter is missing.")
+    if fallback and fallback not in supported_file_formats:
+        raise ValueError(f"Invalid fallback value {fallback!r}, expected one of {supported_file_formats}.")
+
+    parts = filename.rsplit(".", 2)
+    try:
+        if len(parts) == 1:
+            raise ValueError(f"No file extension specified in filename {filename!r}.")
+        if parts[-1] in supported_file_formats:
+            return parts[-1], None
+        elif len(parts) == 2:
+            raise ValueError(
+                f"Unsupported file format {parts[-1]!r}, expected one of {supported_file_formats}."
+            )
+        else:
+            if parts[-2] not in supported_file_formats:
+                raise ValueError(
+                    f"Unsupported file format '{parts[-2]}.{parts[-1]}', "
+                    f"expected one of {supported_file_formats} with compression extension."
+                )
+            return parts[-2], parts[-1]
+    except ValueError as ex:
+        if fallback:
+            return fallback, None
+        raise ex from None

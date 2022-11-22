@@ -28,7 +28,6 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -66,8 +65,7 @@ class MsSqlToHiveOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("sql", "partition", "hive_table")
     template_ext: Sequence[str] = (".sql",)
-    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-    template_fields_renderers = {"sql": "tsql" if "tsql" in wwwutils.get_attr_renderer() else "sql"}
+    template_fields_renderers = {"sql": "tsql"}
     ui_color = "#a0e08c"
 
     def __init__(

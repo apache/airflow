@@ -20,6 +20,8 @@ import os
 import sys
 from enum import Enum
 
+from airflow_breeze.utils.shared_options import get_forced_answer
+
 STANDARD_TIMEOUT = 10
 
 
@@ -27,14 +29,6 @@ class Answer(Enum):
     YES = "y"
     NO = "n"
     QUIT = "q"
-
-
-forced_answer: str | None = None
-
-
-def set_forced_answer(answer: str | None):
-    global forced_answer
-    forced_answer = answer
 
 
 def user_confirm(
@@ -46,7 +40,6 @@ def user_confirm(
     """
     Ask the user for confirmation.
 
-    :rtype: object
     :param message: message to display to the user (should end with the question mark)
     :param timeout: time given user to answer
     :param default_answer: default value returned on timeout. If no default - is set, the timeout is ignored.
@@ -58,7 +51,7 @@ def user_confirm(
     allowed_answers = "y/n/q" if quit_allowed else "y/n"
     while True:
         try:
-            force = forced_answer or os.environ.get("ANSWER")
+            force = get_forced_answer() or os.environ.get("ANSWER")
             if force:
                 user_status = force
                 print(f"Forced answer for '{message}': {force}")

@@ -223,7 +223,7 @@ for index, location in enumerate(locations, 1):
         table_check = BigQueryTableCheckOperator(
             task_id="table_check",
             table=f"{DATASET}.{TABLE_1}",
-            checks={"row_count_check": {"check_statement": {"COUNT(*) = 4"}}},
+            checks={"row_count_check": {"check_statement": "COUNT(*) = 4"}},
         )
         # [END howto_operator_bigquery_table_check]
 

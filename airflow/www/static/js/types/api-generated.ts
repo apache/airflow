@@ -92,6 +92,44 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/setNote": {
+    /**
+     * Update the manual user note of a non-mapped Task Instance.
+     *
+     * *New in version 2.5.0*
+     */
+    patch: operations["set_task_instance_notes"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote": {
+    /**
+     * Update the manual user note of a mapped Task Instance.
+     *
+     * *New in version 2.5.0*
+     */
+    patch: operations["set_mapped_task_instance_notes"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+  };
   "/dags/{dag_id}/updateTaskInstancesState": {
     /** Updates the state for multiple task instances simultaneously. */
     post: operations["post_set_task_instances_state"];
@@ -158,6 +196,22 @@ export interface paths {
      * *New in version 2.4.0*
      */
     get: operations["get_upstream_dataset_events"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+      };
+    };
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/setNote": {
+    /**
+     * Update the manual user note of a DagRun.
+     *
+     * *New in version 2.5.0*
+     */
+    patch: operations["set_dag_run_notes"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -285,6 +339,11 @@ export interface paths {
   };
   "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
     get: operations["get_task_instance"];
+    /**
+     * Updates the state for single task instance.
+     * *New in version 2.5.0*
+     */
+    patch: operations["patch_task_instance"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -303,6 +362,11 @@ export interface paths {
      * *New in version 2.3.0*
      */
     get: operations["get_mapped_task_instance"];
+    /**
+     * Updates the state for single mapped task instance.
+     * *New in version 2.5.0*
+     */
+    patch: operations["patch_mapped_task_instance"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -974,6 +1038,12 @@ export interface components {
        * field of an existing object, the request fails with an BAD_REQUEST error.
        */
       conf?: { [key: string]: unknown };
+      /**
+       * @description Contains manually entered notes by the user about the DagRun.
+       *
+       * *New in version 2.5.0*
+       */
+      notes?: string | null;
     };
     /**
      * @description Modify the state of a DAG run.
@@ -1012,6 +1082,10 @@ export interface components {
     DagWarningCollection: {
       import_errors?: components["schemas"]["DagWarning"][];
     } & components["schemas"]["CollectionInfo"];
+    SetDagRunNote: {
+      /** @description Custom notes left by users for this Dag Run. */
+      notes?: string;
+    };
     /** @description Log of user operations via CLI or Web UI. */
     EventLog: {
       /** @description The event log ID */
@@ -1146,7 +1220,7 @@ export interface components {
       timestamp?: string;
       description?: string | null;
       notification_sent?: boolean;
-    };
+    } | null;
     Trigger: {
       id?: number;
       classpath?: string;
@@ -1210,6 +1284,12 @@ export interface components {
       rendered_fields?: { [key: string]: unknown };
       trigger?: components["schemas"]["Trigger"] | null;
       triggerer_job?: components["schemas"]["Job"] | null;
+      /**
+       * @description Contains manually entered notes by the user about the TaskInstance.
+       *
+       * *New in version 2.5.0*
+       */
+      notes?: string | null;
     };
     /**
      * @description Collection of task instances.
@@ -1732,6 +1812,24 @@ export interface components {
        * @enum {string}
        */
       new_state?: "success" | "failed";
+    };
+    UpdateTaskInstance: {
+      /**
+       * @description If set, don't actually run this operation. The response will contain the task instance
+       * planned to be affected, but won't be modified in any way.
+       *
+       * @default false
+       */
+      dry_run?: boolean;
+      /**
+       * @description Expected new state.
+       * @enum {string}
+       */
+      new_state?: "success" | "failed";
+    };
+    SetTaskInstanceNote: {
+      /** @description The custom note to set for this Task Instance. */
+      notes: string;
     };
     ListDagRunsForm: {
       /**
@@ -2540,6 +2638,78 @@ export interface operations {
       };
     };
   };
+  /**
+   * Update the manual user note of a non-mapped Task Instance.
+   *
+   * *New in version 2.5.0*
+   */
+  set_task_instance_notes: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of set Task Instance note. */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetTaskInstanceNote"];
+      };
+    };
+  };
+  /**
+   * Update the manual user note of a mapped Task Instance.
+   *
+   * *New in version 2.5.0*
+   */
+  set_mapped_task_instance_notes: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of set Task Instance note. */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetTaskInstanceNote"];
+      };
+    };
+  };
   /** Updates the state for multiple task instances simultaneously. */
   post_set_task_instances_state: {
     parameters: {
@@ -2807,6 +2977,39 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Update the manual user note of a DagRun.
+   *
+   * *New in version 2.5.0*
+   */
+  set_dag_run_notes: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DAGRun"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of set DagRun note. */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetDagRunNote"];
+      };
     };
   };
   /** List log entries from event log. */
@@ -3138,6 +3341,39 @@ export interface operations {
     };
   };
   /**
+   * Updates the state for single task instance.
+   * *New in version 2.5.0*
+   */
+  patch_task_instance: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceReference"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of action */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTaskInstance"];
+      };
+    };
+  };
+  /**
    * Get details of a mapped task instance.
    *
    * *New in version 2.3.0*
@@ -3165,6 +3401,41 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Updates the state for single mapped task instance.
+   * *New in version 2.5.0*
+   */
+  patch_mapped_task_instance: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceReference"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of action */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTaskInstance"];
+      };
     };
   };
   /**
@@ -4150,6 +4421,7 @@ export type UpdateDagRunState = CamelCasedPropertiesDeep<components['schemas']['
 export type DAGRunCollection = CamelCasedPropertiesDeep<components['schemas']['DAGRunCollection']>;
 export type DagWarning = CamelCasedPropertiesDeep<components['schemas']['DagWarning']>;
 export type DagWarningCollection = CamelCasedPropertiesDeep<components['schemas']['DagWarningCollection']>;
+export type SetDagRunNote = CamelCasedPropertiesDeep<components['schemas']['SetDagRunNote']>;
 export type EventLog = CamelCasedPropertiesDeep<components['schemas']['EventLog']>;
 export type EventLogCollection = CamelCasedPropertiesDeep<components['schemas']['EventLogCollection']>;
 export type ImportError = CamelCasedPropertiesDeep<components['schemas']['ImportError']>;
@@ -4201,6 +4473,8 @@ export type VersionInfo = CamelCasedPropertiesDeep<components['schemas']['Versio
 export type ClearDagRun = CamelCasedPropertiesDeep<components['schemas']['ClearDagRun']>;
 export type ClearTaskInstances = CamelCasedPropertiesDeep<components['schemas']['ClearTaskInstances']>;
 export type UpdateTaskInstancesState = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstancesState']>;
+export type UpdateTaskInstance = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstance']>;
+export type SetTaskInstanceNote = CamelCasedPropertiesDeep<components['schemas']['SetTaskInstanceNote']>;
 export type ListDagRunsForm = CamelCasedPropertiesDeep<components['schemas']['ListDagRunsForm']>;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<components['schemas']['ListTaskInstanceForm']>;
 export type ScheduleInterval = CamelCasedPropertiesDeep<components['schemas']['ScheduleInterval']>;
@@ -4235,6 +4509,8 @@ export type GetDagVariables = CamelCasedPropertiesDeep<operations['get_dag']['pa
 export type DeleteDagVariables = CamelCasedPropertiesDeep<operations['delete_dag']['parameters']['path']>;
 export type PatchDagVariables = CamelCasedPropertiesDeep<operations['patch_dag']['parameters']['path'] & operations['patch_dag']['parameters']['query'] & operations['patch_dag']['requestBody']['content']['application/json']>;
 export type PostClearTaskInstancesVariables = CamelCasedPropertiesDeep<operations['post_clear_task_instances']['parameters']['path'] & operations['post_clear_task_instances']['requestBody']['content']['application/json']>;
+export type SetTaskInstanceNotesVariables = CamelCasedPropertiesDeep<operations['set_task_instance_notes']['parameters']['path'] & operations['set_task_instance_notes']['requestBody']['content']['application/json']>;
+export type SetMappedTaskInstanceNotesVariables = CamelCasedPropertiesDeep<operations['set_mapped_task_instance_notes']['parameters']['path'] & operations['set_mapped_task_instance_notes']['requestBody']['content']['application/json']>;
 export type PostSetTaskInstancesStateVariables = CamelCasedPropertiesDeep<operations['post_set_task_instances_state']['parameters']['path'] & operations['post_set_task_instances_state']['requestBody']['content']['application/json']>;
 export type GetDagRunsVariables = CamelCasedPropertiesDeep<operations['get_dag_runs']['parameters']['path'] & operations['get_dag_runs']['parameters']['query']>;
 export type PostDagRunVariables = CamelCasedPropertiesDeep<operations['post_dag_run']['parameters']['path'] & operations['post_dag_run']['requestBody']['content']['application/json']>;
@@ -4244,6 +4520,7 @@ export type DeleteDagRunVariables = CamelCasedPropertiesDeep<operations['delete_
 export type UpdateDagRunStateVariables = CamelCasedPropertiesDeep<operations['update_dag_run_state']['parameters']['path'] & operations['update_dag_run_state']['requestBody']['content']['application/json']>;
 export type ClearDagRunVariables = CamelCasedPropertiesDeep<operations['clear_dag_run']['parameters']['path'] & operations['clear_dag_run']['requestBody']['content']['application/json']>;
 export type GetUpstreamDatasetEventsVariables = CamelCasedPropertiesDeep<operations['get_upstream_dataset_events']['parameters']['path']>;
+export type SetDagRunNotesVariables = CamelCasedPropertiesDeep<operations['set_dag_run_notes']['parameters']['path'] & operations['set_dag_run_notes']['requestBody']['content']['application/json']>;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<operations['get_event_logs']['parameters']['query']>;
 export type GetEventLogVariables = CamelCasedPropertiesDeep<operations['get_event_log']['parameters']['path']>;
 export type GetImportErrorsVariables = CamelCasedPropertiesDeep<operations['get_import_errors']['parameters']['query']>;
@@ -4255,7 +4532,9 @@ export type DeletePoolVariables = CamelCasedPropertiesDeep<operations['delete_po
 export type PatchPoolVariables = CamelCasedPropertiesDeep<operations['patch_pool']['parameters']['path'] & operations['patch_pool']['parameters']['query'] & operations['patch_pool']['requestBody']['content']['application/json']>;
 export type GetTaskInstancesVariables = CamelCasedPropertiesDeep<operations['get_task_instances']['parameters']['path'] & operations['get_task_instances']['parameters']['query']>;
 export type GetTaskInstanceVariables = CamelCasedPropertiesDeep<operations['get_task_instance']['parameters']['path']>;
+export type PatchTaskInstanceVariables = CamelCasedPropertiesDeep<operations['patch_task_instance']['parameters']['path'] & operations['patch_task_instance']['requestBody']['content']['application/json']>;
 export type GetMappedTaskInstanceVariables = CamelCasedPropertiesDeep<operations['get_mapped_task_instance']['parameters']['path']>;
+export type PatchMappedTaskInstanceVariables = CamelCasedPropertiesDeep<operations['patch_mapped_task_instance']['parameters']['path'] & operations['patch_mapped_task_instance']['requestBody']['content']['application/json']>;
 export type GetMappedTaskInstancesVariables = CamelCasedPropertiesDeep<operations['get_mapped_task_instances']['parameters']['path'] & operations['get_mapped_task_instances']['parameters']['query']>;
 export type GetTaskInstancesBatchVariables = CamelCasedPropertiesDeep<operations['get_task_instances_batch']['requestBody']['content']['application/json']>;
 export type GetVariablesVariables = CamelCasedPropertiesDeep<operations['get_variables']['parameters']['query']>;

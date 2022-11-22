@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
 
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.containerinstance.models import ContainerGroup
@@ -67,7 +66,6 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :return: A tuple with the state, exitcode, and details.
             If the exitcode is unknown 0 is returned.
-        :rtype: tuple(state,exitcode,details)
         """
         warnings.warn(
             "get_state_exitcode_details() is deprecated. Related method is get_state()",
@@ -85,7 +83,6 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param resource_group: the name of the resource group
         :param name: the name of the container group
         :return: A list of the event messages
-        :rtype: list[str]
         """
         warnings.warn(
             "get_messages() is deprecated. Related method is get_state()", DeprecationWarning, stacklevel=2
@@ -94,14 +91,13 @@ class AzureContainerInstanceHook(AzureBaseHook):
         instance_view = cg_state.containers[0].instance_view
         return [event.message for event in instance_view.events]
 
-    def get_state(self, resource_group: str, name: str) -> Any:
+    def get_state(self, resource_group: str, name: str) -> ContainerGroup:
         """
         Get the state of a container group
 
         :param resource_group: the name of the resource group
         :param name: the name of the container group
         :return: ContainerGroup
-        :rtype: ~azure.mgmt.containerinstance.models.ContainerGroup
         """
         return self.connection.container_groups.get(resource_group, name, raw=False)
 
@@ -113,7 +109,6 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :param tail: the size of the tail
         :return: A list of log messages
-        :rtype: list[str]
         """
         logs = self.connection.container.list_logs(resource_group, name, name, tail=tail)
         return logs.content.splitlines(True)

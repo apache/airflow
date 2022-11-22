@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -31,7 +30,7 @@ BAD_LOCAL_PATH = "test/**"
 REMOTE_PATH = "TEST-DIR"
 
 
-class TestADLSUploadOperator(unittest.TestCase):
+class TestADLSUploadOperator:
     @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook")
     def test_execute_success(self, mock_hook):
         operator = LocalFilesystemToADLSOperator(

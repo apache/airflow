@@ -24,11 +24,17 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
+from pytest import param
 
 from airflow.exceptions import AirflowException
+from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator, _suppress
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+    KubernetesPodOperator,
+    _suppress,
+    _task_id_to_pod_name,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -97,6 +103,41 @@ class TestKubernetesPodOperator:
 
         patch.stopall()
 
+    def test_templates(self, create_task_instance_of_operator):
+        dag_id = "TestKubernetesPodOperator"
+        ti = create_task_instance_of_operator(
+            KubernetesPodOperator,
+            dag_id=dag_id,
+            task_id="task-id",
+            namespace="{{ dag.dag_id }}",
+            container_resources=k8s.V1ResourceRequirements(
+                requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
+                limits={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
+            ),
+            pod_template_file="{{ dag.dag_id }}",
+            config_file="{{ dag.dag_id }}",
+            labels="{{ dag.dag_id }}",
+            env_vars=["{{ dag.dag_id }}"],
+            arguments="{{ dag.dag_id }}",
+            cmds="{{ dag.dag_id }}",
+            image="{{ dag.dag_id }}",
+        )
+
+        rendered = ti.render_templates()
+
+        assert dag_id == rendered.container_resources.limits["memory"]
+        assert dag_id == rendered.container_resources.limits["cpu"]
+        assert dag_id == rendered.container_resources.requests["memory"]
+        assert dag_id == rendered.container_resources.requests["cpu"]
+        assert dag_id == ti.task.image
+        assert dag_id == ti.task.cmds
+        assert dag_id == ti.task.namespace
+        assert dag_id == ti.task.config_file
+        assert dag_id == ti.task.labels
+        assert dag_id == ti.task.pod_template_file
+        assert dag_id == ti.task.arguments
+        assert dag_id == ti.task.env_vars[0]
+
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id="dag") as dag:
             operator.dag = dag
@@ -142,18 +183,17 @@ class TestKubernetesPodOperator:
             in_cluster=None,
         )
 
-    def test_env_vars(self):
+    @pytest.mark.parametrize(
+        "input",
+        [
+            param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
+            param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
+        ],
+    )
+    def test_env_vars(self, input):
         k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            env_vars=[k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")],
-            labels={"foo": "bar"},
-            name="test",
+            env_vars=input,
             task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
         )
         k.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
         assert k.env_vars[0].value == "footemplated"
@@ -179,9 +219,7 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].security_context == container_security_context
 
-    def test_envs_from_configmaps(
-        self,
-    ):
+    def test_envs_from_configmaps(self):
         env_from = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-config-map"))]
         k = KubernetesPodOperator(
             task_id="task",
@@ -189,6 +227,28 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].env_from == env_from
+
+    def test_envs_from_configmaps_backcompat(self):
+        # todo: formally deprecate / remove this?
+        k = KubernetesPodOperator(
+            task_id="task",
+            configmaps=["test-config-map"],
+        )
+        expected = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-config-map"))]
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[0].env_from == expected
+
+    def test_envs_from_secrets(self):
+        secret_ref = "secret_name"
+        secrets = [Secret("env", None, secret_ref)]
+        k = KubernetesPodOperator(
+            secrets=secrets,
+            task_id="test",
+        )
+        pod = k.build_pod_request_obj()
+        assert pod.spec.containers[0].env_from == [
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
+        ]
 
     @pytest.mark.parametrize(("in_cluster",), ([True], [False]))
     @patch(HOOK_CLASS)
@@ -252,15 +312,21 @@ class TestKubernetesPodOperator:
             "already_checked!=True,!airflow-worker"
         )
 
-    def test_image_pull_secrets_correctly_set(self):
-        fake_pull_secrets = "fakeSecret"
+    @pytest.mark.parametrize(
+        "val",
+        [
+            param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
+            param("fakeSecret", id="backcompat"),
+        ],
+    )
+    def test_image_pull_secrets_correctly_set(self, val):
         k = KubernetesPodOperator(
             task_id="task",
-            image_pull_secrets=[k8s.V1LocalObjectReference(fake_pull_secrets)],
+            image_pull_secrets=val,
         )
 
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.image_pull_secrets == [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
+        assert pod.spec.image_pull_secrets == [k8s.V1LocalObjectReference(name="fakeSecret")]
 
     def test_omitted_name(self):
         k = KubernetesPodOperator(task_id="this-task-name")
@@ -412,6 +478,28 @@ class TestKubernetesPodOperator:
             context=context,
         )
         mock_find.assert_called_once_with("default", context=context)
+
+    @patch(HOOK_CLASS)
+    def test_xcom_sidecar_container_image_default(self, hook_mock):
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].image == "alpine"
+
+    @patch(HOOK_CLASS)
+    def test_xcom_sidecar_container_image_custom(self, hook_mock):
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = "private.repo/alpine:3.13"
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].image == "private.repo/alpine:3.13"
 
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
@@ -810,20 +898,6 @@ class TestKubernetesPodOperator:
         assert isinstance(pod.spec.node_selector, dict)
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
 
-        # repeat tests using deprecated parameter
-        with pytest.warns(
-            DeprecationWarning, match="node_selectors is deprecated. Please use node_selector instead."
-        ):
-            k = KubernetesPodOperator(
-                task_id="task",
-                node_selectors=node_selector,
-            )
-
-        pod = k.build_pod_request_obj(create_context(k))
-        sanitized_pod = self.sanitize_for_serialization(pod)
-        assert isinstance(pod.spec.node_selector, dict)
-        assert sanitized_pod["spec"]["nodeSelector"] == node_selector
-
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
@@ -913,11 +987,64 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
+    def test_task_id_as_name(self):
+        k = KubernetesPodOperator(
+            task_id=".hi.-_09HI",
+            random_name_suffix=False,
+        )
+        pod = k.build_pod_request_obj({})
+        assert pod.metadata.name == "0.hi.--09hi"
 
-def test__suppress():
-    with patch("logging.Logger.error") as mock_error:
+    def test_task_id_as_name_with_suffix(self):
+        k = KubernetesPodOperator(
+            task_id=".hi.-_09HI",
+            random_name_suffix=True,
+        )
+        pod = k.build_pod_request_obj({})
+        expected = "0.hi.--09hi"
+        assert pod.metadata.name.startswith(expected)
+        assert re.match(rf"{expected}-[a-z0-9-]+", pod.metadata.name) is not None
 
-        with _suppress(ValueError):
-            raise ValueError("failure")
+    def test_task_id_as_name_with_suffix_very_long(self):
+        k = KubernetesPodOperator(
+            task_id="a" * 250,
+            random_name_suffix=True,
+        )
+        pod = k.build_pod_request_obj({})
+        assert re.match(r"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-[a-z0-9-]+", pod.metadata.name) is not None
 
-        mock_error.assert_called_once_with("failure", exc_info=True)
+    def test_task_id_as_name_dag_id_is_ignored(self):
+        dag = DAG(dag_id="this_is_a_dag_name", start_date=pendulum.now())
+        k = KubernetesPodOperator(
+            task_id="a_very_reasonable_task_name",
+            dag=dag,
+        )
+        pod = k.build_pod_request_obj({})
+        assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
+
+
+def test__suppress(caplog):
+    with _suppress(ValueError):
+        raise ValueError("failure")
+
+    assert "ValueError: failure" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "val, expected",
+    [
+        ("task-id", "task-id"),  # no problem
+        ("task_id", "task-id"),  # underscores
+        ("task.id", "task.id"),  # dots ok
+        (".task.id", "0.task.id"),  # leading dot invalid
+        ("-90Abc*&", "0-90abc--0"),  # invalid ends
+        ("90AçLbˆˆç˙ßß˜˜˙c*a", "90a-lb---------c-a"),  # weird unicode
+    ],
+)
+def test_task_id_to_pod_name(val, expected):
+    assert _task_id_to_pod_name(val) == expected
+
+
+def test_task_id_to_pod_name_long():
+    with pytest.raises(ValueError, match="longer than 253"):
+        _task_id_to_pod_name("0" * 254)

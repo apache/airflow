@@ -75,9 +75,10 @@ Code contribution
 Community contributions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.  Was instrumental in triaging issues
-2.  Improved documentation of Airflow in significant way
-3.  Lead change and improvements introduction in the "community" processes and tools
+1.  Actively participates in `triaging issues <ISSUE_TRIAGE_PROCESS.rst>`_ showing their understanding
+    of various areas of Airflow and willingness to help other community members.
+2.  Improves documentation of Airflow in significant way
+3.  Leads/implements changes and improvements introduction in the "community" processes and tools
 4.  Actively spreads the word about Airflow, for example organising Airflow summit, workshops for
     community members, giving and recording talks, writing blogs
 5.  Reporting bugs with detailed reproduction steps

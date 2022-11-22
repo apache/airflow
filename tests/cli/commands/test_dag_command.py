@@ -59,6 +59,9 @@ class TestCliDags:
         clear_db_runs()
         clear_db_dags()
 
+    def setup_method(self):
+        clear_db_runs()  # clean-up all dag run before start each test
+
     def test_reserialize(self):
         # Assert that there are serialized Dags
         with create_session() as session:
@@ -127,6 +130,7 @@ class TestCliDags:
             run_backwards=False,
             verbose=False,
             continue_on_failures=False,
+            disable_retry=False,
         )
         mock_run.reset_mock()
         dag = self.dagbag.get_dag("example_bash_operator")
@@ -199,6 +203,7 @@ class TestCliDags:
             run_backwards=False,
             verbose=False,
             continue_on_failures=False,
+            disable_retry=False,
         )
         mock_run.reset_mock()
 
@@ -334,6 +339,7 @@ class TestCliDags:
             run_backwards=False,
             verbose=False,
             continue_on_failures=False,
+            disable_retry=False,
         )
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
@@ -374,6 +380,7 @@ class TestCliDags:
             run_backwards=True,
             verbose=False,
             continue_on_failures=False,
+            disable_retry=False,
         )
 
     def test_next_execution(self):

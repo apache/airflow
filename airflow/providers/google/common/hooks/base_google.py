@@ -26,7 +26,7 @@ import tempfile
 import warnings
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
-from typing import Any, Callable, Dict, Generator, Optional, Sequence, TypeVar, cast
+from typing import Any, Callable, Generator, Sequence, TypeVar, cast
 
 import google.auth
 import google.auth.credentials
@@ -118,7 +118,7 @@ class retry_if_operation_in_progress(tenacity.retry_if_exception):
 
 
 # A fake project_id to use in functions decorated by fallback_to_default_project_id
-# This allows the 'project_id' argument to be of type str instead of Optional[str],
+# This allows the 'project_id' argument to be of type str instead of str | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
 PROVIDE_PROJECT_ID: str = cast(str, None)
@@ -228,7 +228,7 @@ class GoogleBaseHook(BaseHook):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
+        self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
         self._cached_credentials: google.auth.credentials.Credentials | None = None
         self._cached_project_id: str | None = None
 
@@ -338,7 +338,6 @@ class GoogleBaseHook(BaseHook):
         Returns project id.
 
         :return: id of the project
-        :rtype: str
         """
         _, project_id = self.get_credentials_and_project_id()
         return project_id
@@ -349,7 +348,6 @@ class GoogleBaseHook(BaseHook):
         Returns num_retries from Connection.
 
         :return: the number of times each API request should be retried
-        :rtype: int
         """
         field_value = self._get_field("num_retries", default=5)
         if field_value is None:
@@ -389,9 +387,8 @@ class GoogleBaseHook(BaseHook):
         Return OAuth 2.0 scopes.
 
         :return: Returns the scope defined in the connection configuration, or the default scope
-        :rtype: Sequence[str]
         """
-        scope_value = self._get_field("scope", None)  # type: Optional[str]
+        scope_value: str | None = self._get_field("scope", None)
 
         return _get_scopes(scope_value)
 

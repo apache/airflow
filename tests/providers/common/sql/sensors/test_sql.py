@@ -263,8 +263,8 @@ class TestSqlSensor(TestHiveEnvironment):
             conn_id="postgres_default",
             sql="SELECT 1",
             hook_params={
-                "schema": "public",
+                "log_sql": False,
             },
         )
         hook = op._get_hook()
-        assert hook.schema == "public"
+        assert hook.log_sql == op.hook_params["log_sql"]

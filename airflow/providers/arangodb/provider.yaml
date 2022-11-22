@@ -22,10 +22,11 @@ description: |
     `ArangoDB <https://www.arangodb.com/>`__
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
   - python-arango>=7.3.2
 
 versions:
+  - 2.1.0
   - 2.0.0
   - 1.0.0
 

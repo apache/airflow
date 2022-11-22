@@ -109,6 +109,7 @@ option_dry_run = click.option(
     "--dry-run",
     is_flag=True,
     help="Do not make any changes, just show what would have been done",
+    envvar="DRY_RUN",
 )
 
 option_skip_assigned = click.option(

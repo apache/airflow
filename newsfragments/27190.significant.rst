@@ -1,0 +1,3 @@
+``ExternalTaskSensor`` no longer hangs indefinitely when ``failed_states`` is set, an ``execute_date_fn`` is used, and some but not all of the dependent tasks fail. Instead, an ``AirflowException`` is thrown as soon as any of the dependent tasks fail.
+
+Any code handling this failure in addition to timeouts should move to cathing the ``AirflowException`` baseclass and not only the ``AirflowSensorTimeout`` subclass.

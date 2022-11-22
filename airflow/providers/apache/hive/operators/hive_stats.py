@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import warnings
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, List, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -89,7 +89,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}
-        self.excluded_columns = excluded_columns or []  # type: List[str]
+        self.excluded_columns: list[str] = excluded_columns or []
         self.metastore_conn_id = metastore_conn_id
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id

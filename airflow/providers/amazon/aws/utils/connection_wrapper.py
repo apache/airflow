@@ -29,15 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
-
-try:
-    from airflow.utils.types import NOTSET, ArgNotSet
-except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
-
-    class ArgNotSet:  # type: ignore[no-redef]
-        """Sentinel type for annotations, useful when None is not viable."""
-
-    NOTSET = ArgNotSet()
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection  # Avoid circular imports.

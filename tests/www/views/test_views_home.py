@@ -118,7 +118,7 @@ def client_single_dag(app, user_single_dag):
     )
 
 
-TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc"]
+TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
 
 
 def _process_file(file_path, session):
@@ -183,6 +183,14 @@ def test_home_dag_list_filtered_singledag_user(working_dags, client_single_dag):
     # But not the rest
     for dag_id in TEST_FILTER_DAG_IDS[1:]:
         check_content_not_in_response(f"dag_id={dag_id}", resp)
+
+
+def test_home_dag_list_search(working_dags, user_client):
+    resp = user_client.get("home?search=filter_test", follow_redirects=True)
+    check_content_in_response("dag_id=filter_test_1", resp)
+    check_content_in_response("dag_id=filter_test_2", resp)
+    check_content_not_in_response("dag_id=filter.test", resp)
+    check_content_not_in_response("dag_id=a_first_dag_id_asc", resp)
 
 
 def test_home_robots_header_in_response(user_client):

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -87,7 +87,6 @@ class EmrBaseSensor(BaseSensorOperator):
         Make an API call with boto3 and get response.
 
         :return: response
-        :rtype: dict[str, Any]
         """
         raise NotImplementedError("Please implement get_emr_response() in subclass")
 
@@ -98,7 +97,6 @@ class EmrBaseSensor(BaseSensorOperator):
 
         :param response: response from AWS API
         :return: state
-        :rtype: str
         """
         raise NotImplementedError("Please implement state_from_response() in subclass")
 
@@ -109,7 +107,6 @@ class EmrBaseSensor(BaseSensorOperator):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
         raise NotImplementedError("Please implement failure_message_from_response() in subclass")
 
@@ -172,7 +169,6 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
         return response["jobRun"]["stateDetails"]
 
@@ -229,7 +225,6 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
         return response["application"]["stateDetails"]
 
@@ -349,7 +344,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.describe_cluster
 
         :return: response
-        :rtype: dict[str, Any]
         """
         emr_client = self.get_hook().get_conn()
 
@@ -363,7 +357,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
         :param response: response from AWS API
         :return: current state of the cluster
-        :rtype: str
         """
         return response["Cluster"]["Status"]["State"]
 
@@ -374,7 +367,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
         cluster_status = response["Cluster"]["Status"]
         state_change_reason = cluster_status.get("StateChangeReason")
@@ -386,6 +378,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         return None
 
 
+@poke_mode_only
 class EmrStepSensor(EmrBaseSensor):
     """
     Asks for the state of the step until it reaches any of the target states.
@@ -431,7 +424,6 @@ class EmrStepSensor(EmrBaseSensor):
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.describe_step
 
         :return: response
-        :rtype: dict[str, Any]
         """
         emr_client = self.get_hook().get_conn()
 
@@ -445,7 +437,6 @@ class EmrStepSensor(EmrBaseSensor):
 
         :param response: response from AWS API
         :return: execution state of the cluster step
-        :rtype: str
         """
         return response["Step"]["Status"]["State"]
 
@@ -456,7 +447,6 @@ class EmrStepSensor(EmrBaseSensor):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
         fail_details = response["Step"]["Status"].get("FailureDetails")
         if fail_details:

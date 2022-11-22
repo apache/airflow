@@ -144,23 +144,11 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm=None,
+        operator: BaseOperator,
         *,
-        ti_key: TaskInstanceKey | None = None,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            run_page_url = XCom.get_value(key=XCOM_RUN_PAGE_URL_KEY, ti_key=ti_key)
-        else:
-            assert dttm
-            run_page_url = XCom.get_one(
-                key=XCOM_RUN_PAGE_URL_KEY,
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-            )
-
-        return run_page_url
+        return XCom.get_value(key=XCOM_RUN_PAGE_URL_KEY, ti_key=ti_key)
 
 
 class DatabricksSubmitRunOperator(BaseOperator):

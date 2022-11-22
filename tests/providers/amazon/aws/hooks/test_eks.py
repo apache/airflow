@@ -22,19 +22,15 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
-from urllib.parse import ParseResult, urlparse
+from urllib.parse import ParseResult, urlsplit
 
 import pytest
 import yaml
 from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
 from freezegun import freeze_time
-
-try:
-    from moto.core import DEFAULT_ACCOUNT_ID
-except ImportError:
-    from moto.core import ACCOUNT_ID as DEFAULT_ACCOUNT_ID
-
+from moto import mock_eks
+from moto.core import DEFAULT_ACCOUNT_ID
 from moto.core.exceptions import AWSError
 from moto.eks.exceptions import (
     InvalidParameterException,
@@ -73,7 +69,6 @@ from ..utils.eks_test_constants import (
     NON_EXISTING_CLUSTER_NAME,
     NON_EXISTING_FARGATE_PROFILE_NAME,
     NON_EXISTING_NODEGROUP_NAME,
-    PACKAGE_NOT_PRESENT_MSG,
     PARTITION,
     POD_EXECUTION_ROLE_ARN,
     REGION,
@@ -99,11 +94,6 @@ from ..utils.eks_test_utils import (
     iso_date,
     region_matches_partition,
 )
-
-try:
-    from moto import mock_eks
-except ImportError:
-    mock_eks = None
 
 
 @pytest.fixture(scope="function")
@@ -228,7 +218,6 @@ def nodegroup_builder(cluster_builder):
     return _execute
 
 
-@pytest.mark.skipif(mock_eks is None, reason=PACKAGE_NOT_PRESENT_MSG)
 class TestEksHooks:
     def test_hook(self, cluster_builder) -> None:
         eks_hook, _ = cluster_builder()
@@ -1358,7 +1347,7 @@ def assert_result_matches_expected_list(
 
 
 def assert_is_valid_uri(value: str) -> None:
-    result: ParseResult = urlparse(value)
+    result: ParseResult = urlsplit(value)
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value

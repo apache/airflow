@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, Optional
+from typing import Any, Callable, Iterable, Mapping, cast
 
 import sqlparse
 from packaging.version import Version
@@ -28,8 +27,6 @@ from typing_extensions import Protocol
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers_manager import ProvidersManager
-from airflow.utils.module_loading import import_string
 from airflow.version import version
 
 
@@ -41,25 +38,12 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
         return None
 
 
-def _backported_get_hook(connection, *, hook_params=None):
-    """Return hook based on conn_type
-    For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-    when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
-    """
-    hook = ProvidersManager().hooks.get(connection.conn_type, None)
-
-    if hook is None:
-        raise AirflowException(f'Unknown hook type "{connection.conn_type}"')
-    try:
-        hook_class = import_string(hook.hook_class_name)
-    except ImportError:
-        warnings.warn(
-            f"Could not import {hook.hook_class_name} when discovering {hook.hook_name} {hook.package_name}",
-        )
-        raise
-    if hook_params is None:
-        hook_params = {}
-    return hook_class(**{hook.connection_id_attribute_name: connection.conn_id}, **hook_params)
+def fetch_one_handler(cursor) -> list[tuple] | None:
+    """Handler for DbApiHook.run() to return results"""
+    if cursor.description is not None:
+        return cursor.fetchone()
+    else:
+        return None
 
 
 class ConnectorProtocol(Protocol):
@@ -102,13 +86,13 @@ class DbApiHook(BaseForDbApiHook):
     """
 
     # Override to provide the connection name.
-    conn_name_attr = None  # type: str
+    conn_name_attr: str
     # Override to have a default connection id for a particular dbHook
     default_conn_name = "default_conn_id"
     # Override if this db supports autocommit.
     supports_autocommit = False
     # Override with the object that exposes the connect method
-    connector = None  # type: Optional[ConnectorProtocol]
+    connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
     # Override with the db-specific value used for placeholders
@@ -133,7 +117,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_conn(self):
         """Returns a connection object"""
-        db = self.get_connection(getattr(self, self.conn_name_attr))
+        db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
@@ -202,38 +186,23 @@ class DbApiHook(BaseForDbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         """
         Executes the sql and returns a set of records.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchall()
+        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
-    def get_first(self, sql: str | list[str], parameters=None):
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchone()
+        return self.run(sql=sql, parameters=parameters, handler=fetch_one_handler)
 
     @staticmethod
     def strip_sql_string(sql: str) -> str:
@@ -334,7 +303,7 @@ class DbApiHook(BaseForDbApiHook):
             )
         conn.autocommit = autocommit
 
-    def get_autocommit(self, conn):
+    def get_autocommit(self, conn) -> bool:
         """
         Get autocommit setting for the provided connection.
         Return True if conn.autocommit is set to True.
@@ -343,7 +312,6 @@ class DbApiHook(BaseForDbApiHook):
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting.
-        :rtype: bool
         """
         return getattr(conn, "autocommit", False) and self.supports_autocommit
 
@@ -352,7 +320,7 @@ class DbApiHook(BaseForDbApiHook):
         return self.get_conn().cursor()
 
     @classmethod
-    def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs):
+    def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs) -> str:
         """
         Helper class method that generates the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
@@ -362,7 +330,6 @@ class DbApiHook(BaseForDbApiHook):
         :param target_fields: The names of the columns to fill in the table
         :param replace: Whether to replace instead of insert
         :return: The generated INSERT or REPLACE SQL statement
-        :rtype: str
         """
         placeholders = [
             cls.placeholder,
@@ -417,14 +384,13 @@ class DbApiHook(BaseForDbApiHook):
         self.log.info("Done loading. Loaded a total of %s rows into %s", i, table)
 
     @staticmethod
-    def _serialize_cell(cell, conn=None):
+    def _serialize_cell(cell, conn=None) -> str | None:
         """
         Returns the SQL literal of the cell as a string.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The serialized cell
-        :rtype: str
         """
         if cell is None:
             return None

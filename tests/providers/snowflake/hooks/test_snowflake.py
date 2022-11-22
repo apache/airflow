@@ -553,23 +553,23 @@ class TestPytestSnowflakeHook:
         assert hook.query_ids == expected_query_ids
         cur.close.assert_called()
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
-    def test_connection_success(self, mock_run):
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
+    def test_connection_success(self, mock_get_first):
         with unittest.mock.patch.dict(
             "os.environ", AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**BASE_CONNECTION_KWARGS).get_uri()
         ):
             hook = SnowflakeHook()
-            mock_run.return_value = [{"1": 1}]
+            mock_get_first.return_value = [{"1": 1}]
             status, msg = hook.test_connection()
             assert status is True
             assert msg == "Connection successfully tested"
-            mock_run.assert_called_once_with(sql="select 1")
+            mock_get_first.assert_called_once_with("select 1")
 
     @mock.patch(
-        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run",
+        "airflow.providers.common.sql.hooks.sql.DbApiHook.get_first",
         side_effect=Exception("Connection Errors"),
     )
-    def test_connection_failure(self, mock_run):
+    def test_connection_failure(self, mock_get_first):
         with unittest.mock.patch.dict(
             "os.environ", AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**BASE_CONNECTION_KWARGS).get_uri()
         ):
@@ -577,7 +577,7 @@ class TestPytestSnowflakeHook:
             status, msg = hook.test_connection()
             assert status is False
             assert msg == "Connection Errors"
-            mock_run.assert_called_once_with(sql="select 1")
+            mock_get_first.assert_called_once_with("select 1")
 
     def test_empty_sql_parameter(self):
         hook = SnowflakeHook()

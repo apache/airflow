@@ -39,7 +39,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_image_pull_secrets,
     convert_pod_runtime_info_env,
     convert_port,
-    convert_resources,
     convert_toleration,
     convert_volume,
     convert_volume_mount,
@@ -61,6 +60,31 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.utils.context import Context
+
+
+def _task_id_to_pod_name(val: str) -> str:
+    """
+    Given a task_id, convert it to a pod name.
+    Adds a 0 if start or end char is invalid.
+    Replaces any other invalid char with `-`.
+
+    :param val: non-empty string, presumed to be a task id
+    :return valid kubernetes object name.
+    """
+    if not val:
+        raise ValueError("_task_id_to_pod_name requires non-empty string.")
+    val = val.lower()
+    if not re.match(r"[a-z0-9]", val[0]):
+        val = f"0{val}"
+    if not re.match(r"[a-z0-9]", val[-1]):
+        val = f"{val}0"
+    val = re.sub(r"[^a-z0-9\-.]", "-", val)
+    if len(val) > 253:
+        raise ValueError(
+            f"Pod name {val} is longer than 253 characters. "
+            "See https://kubernetes.io/docs/concepts/overview/working-with-objects/names/."
+        )
+    return val
 
 
 class PodReattachFailure(AirflowException):
@@ -113,12 +137,10 @@ class KubernetesPodOperator(BaseOperator):
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :param container_resources: resources for the launched pod.
+    :param container_resources: resources for the launched pod. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
-    :param node_selectors: (Deprecated) A dict containing a group of scheduling rules.
-        Please use node_selector instead.
     :param node_selector: A dict containing a group of scheduling rules.
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -163,6 +185,7 @@ class KubernetesPodOperator(BaseOperator):
         "config_file",
         "pod_template_file",
         "namespace",
+        "container_resources",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -193,7 +216,6 @@ class KubernetesPodOperator(BaseOperator):
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
-        node_selectors: dict | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
@@ -213,21 +235,23 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
-        resources: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-
-        if isinstance(resources, k8s.V1ResourceRequirements):
-            warnings.warn(
+        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
+        # container_resources parameter.
+        if isinstance(kwargs.get("resources"), k8s.V1ResourceRequirements):
+            raise AirflowException(
                 "Specifying resources for the launched pod with 'resources' is deprecated. "
-                "Use 'container_resources' instead.",
-                category=DeprecationWarning,
-                stacklevel=2,
+                "Use 'container_resources' instead."
             )
-            container_resources = resources
-            resources = None
-
-        super().__init__(resources=resources, **kwargs)
+        # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
+        # node_selector parameter.
+        if "node_selectors" in kwargs:
+            raise ValueError(
+                "Param `node_selectors` supplied. This param is no longer supported. "
+                "Use `node_selector` instead."
+            )
+        super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
         self.image = image
@@ -251,19 +275,10 @@ class KubernetesPodOperator(BaseOperator):
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
-        if node_selectors:
-            # Node selectors is incorrect based on k8s API
-            warnings.warn(
-                "node_selectors is deprecated. Please use node_selector instead.", DeprecationWarning
-            )
-            self.node_selector = node_selectors
-        elif node_selector:
-            self.node_selector = node_selector
-        else:
-            self.node_selector = {}
+        self.node_selector = node_selector or {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
-        self.k8s_resources = convert_resources(container_resources) if container_resources else {}
+        self.container_resources = container_resources
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
@@ -306,6 +321,11 @@ class KubernetesPodOperator(BaseOperator):
             self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
             return
 
+        if id(content) not in seen_oids and isinstance(content, k8s.V1ResourceRequirements):
+            seen_oids.add(id(content))
+            self._do_render_template_fields(content, ("limits", "requests"), context, jinja_env, seen_oids)
+            return
+
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
     @staticmethod
@@ -329,8 +349,7 @@ class KubernetesPodOperator(BaseOperator):
             "kubernetes_pod_operator": "True",
         }
 
-        # If running on Airflow 2.3+:
-        map_index = getattr(ti, "map_index", -1)
+        map_index = ti.map_index
         if map_index >= 0:
             labels["map_index"] = map_index
 
@@ -554,7 +573,7 @@ class KubernetesPodOperator(BaseOperator):
                         command=self.cmds,
                         ports=self.ports,
                         image_pull_policy=self.image_pull_policy,
-                        resources=self.k8s_resources,
+                        resources=self.container_resources,
                         volume_mounts=self.volume_mounts,
                         args=self.arguments,
                         env=self.env_vars,
@@ -577,13 +596,15 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = self.task_id
+            pod.metadata.name = _task_id_to_pod_name(self.task_id)
 
         if self.random_name_suffix:
             pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
 
         if not pod.metadata.namespace:
-            hook_namespace = self.hook.conn_extras.get("extra__kubernetes__namespace")
+            # todo: replace with call to `hook.get_namespace` in 6.0, when it doesn't default to `default`.
+            # if namespace not actually defined in hook, we want to check k8s if in cluster
+            hook_namespace = self.hook._get_namespace()
             pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
             pod.metadata.namespace = pod_namespace
 
@@ -592,7 +613,9 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(pod)
+            pod = xcom_sidecar.add_xcom_sidecar(
+                pod, sidecar_container_image=self.hook.get_xcom_sidecar_container_image()
+            )
 
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
@@ -641,5 +664,5 @@ class _suppress(AbstractContextManager):
         if caught_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
-            logger.error(str(excinst), exc_info=True)
+            logger.exception(excinst)
         return caught_error

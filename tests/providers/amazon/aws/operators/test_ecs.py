@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import sys
-import unittest
 from copy import deepcopy
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
@@ -39,11 +37,6 @@ from airflow.providers.amazon.aws.operators.ecs import (
     EcsTaskLogFetcher,
 )
 from airflow.providers.amazon.aws.sensors.ecs import EcsClusterStateSensor, EcsTaskDefinitionStateSensor
-
-try:
-    from moto import mock_ecs
-except ImportError:
-    mock_ecs = None
 
 CLUSTER_NAME = "test_cluster"
 CONTAINER_NAME = "e1ed7aac-d9b2-4315-8726-d2432bf11868"
@@ -125,8 +118,7 @@ class TestEcsBaseOperator:
         assert op.client is client
 
 
-@pytest.mark.skipif(mock_ecs is None, reason="mock_ecs package not present")
-class TestEcsRunTaskOperator(unittest.TestCase):
+class TestEcsRunTaskOperator:
     def set_up_operator(self, **kwargs):
         self.ecs_operator_args = {
             "task_id": "task",
@@ -145,7 +137,7 @@ class TestEcsRunTaskOperator(unittest.TestCase):
         }
         self.ecs = EcsRunTaskOperator(**self.ecs_operator_args, **kwargs)
 
-    def setUp(self):
+    def setup_method(self):
         self.set_up_operator()
         self.mock_context = mock.MagicMock()
 
@@ -177,7 +169,8 @@ class TestEcsRunTaskOperator(unittest.TestCase):
             "wait_for_completion",
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "launch_type, capacity_provider_strategy,platform_version,tags,expected_args",
         [
             [
                 "EC2",
@@ -248,23 +241,22 @@ class TestEcsRunTaskOperator(unittest.TestCase):
                     "platformVersion": "LATEST",
                 },
             ],
-        ]
+        ],
     )
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
     @mock.patch.object(EcsRunTaskOperator, "_check_success_task")
     @mock.patch.object(EcsBaseOperator, "client")
     def test_execute_without_failures(
         self,
+        client_mock,
+        check_mock,
+        wait_mock,
         launch_type,
         capacity_provider_strategy,
         platform_version,
         tags,
         expected_args,
-        client_mock,
-        check_mock,
-        wait_mock,
     ):
-
         self.set_up_operator(
             launch_type=launch_type,
             capacity_provider_strategy=capacity_provider_strategy,
@@ -493,13 +485,14 @@ class TestEcsRunTaskOperator(unittest.TestCase):
         self.ecs._check_success_task()
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "launch_type, tags",
         [
             ["EC2", None],
             ["FARGATE", None],
             ["EC2", {"testTagKey": "testTagValue"}],
             ["", {"testTagKey": "testTagValue"}],
-        ]
+        ],
     )
     @mock.patch.object(EcsRunTaskOperator, "_xcom_del")
     @mock.patch.object(
@@ -513,14 +506,14 @@ class TestEcsRunTaskOperator(unittest.TestCase):
     @mock.patch.object(EcsBaseOperator, "client")
     def test_reattach_successful(
         self,
-        launch_type,
-        tags,
         client_mock,
         start_mock,
         check_mock,
         wait_mock,
         xcom_pull_mock,
         xcom_del_mock,
+        launch_type,
+        tags,
     ):
 
         self.set_up_operator(launch_type=launch_type, tags=tags)
@@ -559,13 +552,14 @@ class TestEcsRunTaskOperator(unittest.TestCase):
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
         assert self.ecs.ecs_task_id == TASK_ID
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "launch_type, tags",
         [
             ["EC2", None],
             ["FARGATE", None],
             ["EC2", {"testTagKey": "testTagValue"}],
             ["", {"testTagKey": "testTagValue"}],
-        ]
+        ],
     )
     @mock.patch.object(EcsRunTaskOperator, "_xcom_del")
     @mock.patch.object(EcsRunTaskOperator, "_try_reattach_task")
@@ -574,13 +568,13 @@ class TestEcsRunTaskOperator(unittest.TestCase):
     @mock.patch.object(EcsBaseOperator, "client")
     def test_reattach_save_task_arn_xcom(
         self,
-        launch_type,
-        tags,
         client_mock,
         check_mock,
         wait_mock,
         reattach_mock,
         xcom_del_mock,
+        launch_type,
+        tags,
     ):
 
         self.set_up_operator(launch_type=launch_type, tags=tags)
@@ -639,8 +633,7 @@ class TestEcsRunTaskOperator(unittest.TestCase):
         assert self.ecs.execute(None) is None
 
 
-@pytest.mark.skipif(mock_ecs is None, reason="mock_ecs package not present")
-class TestEcsCreateClusterOperator(unittest.TestCase):
+class TestEcsCreateClusterOperator:
     @mock.patch.object(EcsClusterStateSensor, "poke")
     @mock.patch.object(EcsHook, "conn")
     def test_execute(self, mock_conn, mock_sensor):
@@ -662,8 +655,7 @@ class TestEcsCreateClusterOperator(unittest.TestCase):
         assert result is not None
 
 
-@pytest.mark.skipif(mock_ecs is None, reason="mock_ecs package not present")
-class TestEcsDeleteClusterOperator(unittest.TestCase):
+class TestEcsDeleteClusterOperator:
     @mock.patch.object(EcsClusterStateSensor, "poke")
     @mock.patch.object(EcsHook, "conn")
     def test_execute(self, mock_client, mock_sensor):
@@ -685,8 +677,7 @@ class TestEcsDeleteClusterOperator(unittest.TestCase):
         assert result is not None
 
 
-@pytest.mark.skipif(mock_ecs is None, reason="mock_ecs package not present")
-class TestEcsDeregisterTaskDefinitionOperator(unittest.TestCase):
+class TestEcsDeregisterTaskDefinitionOperator:
     @mock.patch.object(EcsTaskDefinitionStateSensor, "poke")
     @mock.patch.object(EcsHook, "conn")
     def test_execute(self, mock_conn, mock_sensor):
@@ -710,8 +701,7 @@ class TestEcsDeregisterTaskDefinitionOperator(unittest.TestCase):
         assert result is not None
 
 
-@pytest.mark.skipif(mock_ecs is None, reason="mock_ecs package not present")
-class TestEcsRegisterTaskDefinitionOperator(unittest.TestCase):
+class TestEcsRegisterTaskDefinitionOperator:
     @mock.patch.object(EcsTaskDefinitionStateSensor, "poke")
     @mock.patch.object(EcsHook, "conn")
     def test_execute(self, mock_conn, mock_sensor):

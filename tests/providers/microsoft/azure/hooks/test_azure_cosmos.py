@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-import unittest
 import uuid
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -31,12 +30,13 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
 from airflow.utils import db
+from tests.test_utils.providers import get_provider_min_airflow_version
 
 
-class TestAzureCosmosDbHook(unittest.TestCase):
+class TestAzureCosmosDbHook:
 
     # Set up an environment to test with
-    def setUp(self):
+    def setup_method(self):
         # set up some test variables
         self.test_end_point = "https://test_endpoint:443"
         self.test_master_key = "magic_test_key"
@@ -254,3 +254,21 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Authentication failed."
+
+    def test_get_ui_field_behaviour_placeholders(self):
+        """
+        Check that ensure_prefixes decorator working properly
+
+        Note: remove this test and the _ensure_prefixes decorator after min airflow version >= 2.5.0
+        """
+        assert list(AzureCosmosDBHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+            "login",
+            "password",
+            "extra__azure_cosmos__database_name",
+            "extra__azure_cosmos__collection_name",
+        ]
+        if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
+            raise Exception(
+                "You must now remove `_ensure_prefixes` from azure utils."
+                " The functionality is now taken care of by providers manager."
+            )

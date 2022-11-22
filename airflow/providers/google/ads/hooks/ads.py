@@ -71,7 +71,6 @@ class GoogleAdsHook(BaseHook):
     :param api_version: The Google Ads API version to use.
 
     :return: list of Google Ads Row object(s)
-    :rtype: list[GoogleAdsRow]
     """
 
     default_api_version = "v10"
@@ -107,7 +106,6 @@ class GoogleAdsHook(BaseHook):
         :param query: Google Ads Query Language query.
         :param page_size: Number of results to return per page. Max 10000.
         :return: Google Ads API response, converted to Google Ads Row objects
-        :rtype: list[GoogleAdsRow]
         """
         data_proto_plus = self._search(client_ids, query, page_size, **kwargs)
         data_native_pb = [row._pb for row in data_proto_plus]
@@ -125,7 +123,6 @@ class GoogleAdsHook(BaseHook):
         :param query: Google Ads Query Language query.
         :param page_size: Number of results to return per page. Max 10000.
         :return: Google Ads API response, converted to Google Ads Row objects
-        :rtype: list[GoogleAdsRow]
         """
         return self._search(client_ids, query, page_size, **kwargs)
 
@@ -221,13 +218,12 @@ class GoogleAdsHook(BaseHook):
         :param page_size: Number of results to return per page. Max 10000.
 
         :return: Google Ads API response, converted to Google Ads Row objects
-        :rtype: list[GoogleAdsRow]
         """
         service = self._get_service
 
         iterators = []
         for client_id in client_ids:
-            request = self._get_client.get_type("SearchGoogleAdsRequest")  # type: SearchGoogleAdsRequest
+            request: SearchGoogleAdsRequest = self._get_client.get_type("SearchGoogleAdsRequest")
             request.customer_id = client_id
             request.query = query
             request.page_size = page_size
@@ -246,7 +242,6 @@ class GoogleAdsHook(BaseHook):
         :param iterators: List of Google Page Iterator (GRPCIterator) objects
 
         :return: API response for all clients in the form of Google Ads Row object(s)
-        :rtype: list[GoogleAdsRow]
         """
         try:
             self.log.info("Extracting data from returned Google Ads Iterators")

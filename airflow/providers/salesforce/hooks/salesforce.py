@@ -164,7 +164,6 @@ class SalesforceHook(BaseHook):
         :param include_deleted: True if the query should include deleted records.
         :param query_params: Additional optional arguments
         :return: The query result.
-        :rtype: dict
         """
         conn = self.get_conn()
 
@@ -186,7 +185,6 @@ class SalesforceHook(BaseHook):
 
         :param obj: The name of the Salesforce object that we are getting a description of.
         :return: the description of the Salesforce object.
-        :rtype: dict
         """
         conn = self.get_conn()
 
@@ -198,7 +196,6 @@ class SalesforceHook(BaseHook):
 
         :param obj: The name of the Salesforce object that we are getting a description of.
         :return: the names of the fields.
-        :rtype: list(str)
         """
         obj_description = self.describe_object(obj)
 
@@ -215,7 +212,6 @@ class SalesforceHook(BaseHook):
         :param obj: The object name to get from Salesforce.
         :param fields: The fields to get from the object.
         :return: all instances of the object from Salesforce.
-        :rtype: dict
         """
         query = f"SELECT {','.join(fields)} FROM {obj}"
 
@@ -233,7 +229,6 @@ class SalesforceHook(BaseHook):
 
         :param column: A Series object representing a column of a dataframe.
         :return: a new series that maintains the same index as the original
-        :rtype: pandas.Series
         """
         # try and convert the column to datetimes
         # the column MUST have a four digit year somewhere in the string
@@ -301,7 +296,6 @@ class SalesforceHook(BaseHook):
         :param record_time_added: True if you want to add a Unix timestamp field
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :return: the dataframe that gets written to the file.
-        :rtype: pandas.Dataframe
         """
         fmt = fmt.lower()
         if fmt not in ["csv", "json", "ndjson"]:
@@ -359,7 +353,6 @@ class SalesforceHook(BaseHook):
         :param record_time_added: True if you want to add a Unix timestamp field
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :return: the dataframe.
-        :rtype: pandas.Dataframe
         """
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column

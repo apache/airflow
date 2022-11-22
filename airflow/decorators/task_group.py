@@ -30,23 +30,19 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Mapping, Sequence, TypeVar, overload
 
 import attr
-from sqlalchemy.orm import Session
 
 from airflow.decorators.base import ExpandableFactory
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
-    ExpandInput,
     ListOfDictsExpandInput,
+    MappedArgument,
     OperatorExpandArgument,
     OperatorExpandKwargsArgument,
 )
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec
-from airflow.utils.context import Context
 from airflow.utils.helpers import prevent_duplicates
-from airflow.utils.mixins import ResolveMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
@@ -56,17 +52,6 @@ FParams = ParamSpec("FParams")
 FReturn = TypeVar("FReturn", None, DAGNode)
 
 task_group_sig = inspect.signature(TaskGroup.__init__)
-
-
-@attr.define(kw_only=True)
-class _MappedArgument(ResolveMixin):
-    _input: ExpandInput
-    _key: str
-
-    @provide_session
-    def resolve(self, context: Context, *, session: Session = NEW_SESSION) -> Any:
-        data, _ = self._input.resolve(context, session=session)
-        return data[self._key]
 
 
 @attr.define()
@@ -146,7 +131,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         return self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,
-            **{k: _MappedArgument(input=expand_input, key=k) for k in kwargs},
+            **{k: MappedArgument(input=expand_input, key=k) for k in kwargs},
         )
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument) -> DAGNode:
@@ -175,7 +160,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         return self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,
-            **{k: _MappedArgument(input=expand_input, key=k) for k in map_kwargs},
+            **{k: MappedArgument(input=expand_input, key=k) for k in map_kwargs},
         )
 
 

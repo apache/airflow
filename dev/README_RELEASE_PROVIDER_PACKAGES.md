@@ -151,6 +151,16 @@ are updated, run it in non-interactive mode:
 breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
 
+NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
+specify the base branch via `--base-branch` parameter.
+For example if you try to build a `cncf.kubernetes` provider that is build from `provider-cncf-kubernetes/v4-4`
+branch should be prepared like this:
+
+```shell script
+breeze release-management prepare-provider-documentation \
+ --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
+```
+
 ## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
@@ -740,7 +750,7 @@ cd "<ROOT_OF_YOUR_RELEASE_REPO>"
 # Update to latest version
 svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
 
-SOURCE_DIR="${PWD}/dev/airflow/providers"
+SOURCE_DIR="${PWD}/asf-dist/dev/airflow/providers"
 
 # Create providers folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
@@ -755,7 +765,7 @@ ls *<provider>*
 svn rm *<provider>*
 
 # Copy your providers with the target name to dist directory and to SVN
-rm "${AIRFLOW_REPO_ROOT}"/dist/*
+rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
 
 for file in "${SOURCE_DIR}"/*
 do
@@ -764,13 +774,11 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need python 3.7+)
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
-    --directory .
+# Check which old packages will be removed (you need Python 3.7+ and dev/requirements.txt installed)
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory .
 
 # Remove those packages
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
-    --directory . --execute
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory . --execute
 
 
 # Commit to SVN

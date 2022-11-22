@@ -21,6 +21,114 @@
 
 .. towncrier release notes start
 
+Airflow 2.4.3 (2022-11-14)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Make ``RotatingFilehandler`` used in ``DagProcessor`` non-caching (#27223)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+  In case you want to decrease cache memory when ``CONFIG_PROCESSOR_MANAGER_LOGGER=True``, and you have your local settings created before,
+  you can update ``processor_manager_handler`` to use ``airflow.utils.log.non_caching_file_handler.NonCachingRotatingFileHandler`` handler instead of ``logging.RotatingFileHandler``. (#27065)
+
+Bug Fixes
+^^^^^^^^^
+- Fix double logging with some task logging handler (#27591)
+- Replace FAB url filtering function with Airflow's (#27576)
+- Fix mini scheduler expansion of mapped task  (#27506)
+- ``SLAMiss`` is nullable and not always given back when pulling task instances (#27423)
+- Fix behavior of ``_`` when searching for DAGs (#27448)
+- Fix getting the ``dag/task`` ids from BaseExecutor (#27550)
+- Fix SQLAlchemy primary key black-out error on DDRQ (#27538)
+- Fix IntegrityError during webserver startup (#27297)
+- Add case insensitive constraint to username (#27266)
+- Fix python external template keys (#27256)
+- Reduce extraneous task log requests (#27233)
+- Make ``RotatingFilehandler`` used in ``DagProcessor`` non-caching (#27223)
+- Listener: Set task on SQLAlchemy TaskInstance object (#27167)
+- Fix dags list page auto-refresh & jump search null state (#27141)
+- Set ``executor.job_id`` to ``BackfillJob.id`` for backfills (#27020)
+
+Misc/Internal
+^^^^^^^^^^^^^
+- Bump loader-utils from ``1.4.0`` to ``1.4.1`` in ``/airflow/www`` (#27552)
+- Reduce log level for k8s ``TCP_KEEPALIVE`` etc warnings (#26981)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+- Use correct executable in docker compose docs (#27529)
+- Fix wording in DAG Runs description (#27470)
+- Document that ``KubernetesExecutor`` overwrites container args (#27450)
+- Fix ``BaseOperator`` links (#27441)
+- Correct timer units to seconds from milliseconds. (#27360)
+- Add missed import in the Trigger Rules example (#27309)
+- Update SLA wording to reflect it is relative to ``Dag Run`` start. (#27111)
+- Add ``kerberos`` environment variables to the docs (#27028)
+
+Airflow 2.4.2 (2022-10-23)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default for ``[webserver] expose_stacktrace`` changed to ``False`` (#27059)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+  The default for ``[webserver] expose_stacktrace`` has been set to ``False``, instead of ``True``. This means administrators must opt-in to expose tracebacks to end users.
+
+Bug Fixes
+^^^^^^^^^
+- Make tracebacks opt-in (#27059)
+- Add missing AUTOINC/SERIAL for FAB tables (#26885)
+- Add separate error handler for 405(Method not allowed) errors (#26880)
+- Don't re-patch pods that are already controlled by current worker (#26778)
+- Handle mapped tasks in task duration chart (#26722)
+- Fix task duration cumulative chart (#26717)
+- Avoid 500 on dag redirect (#27064)
+- Filter dataset dependency data on webserver (#27046)
+- Remove double collection of dags in ``airflow dags reserialize``  (#27030)
+- Fix auto refresh for graph view (#26926)
+- Don't overwrite connection extra with invalid json (#27142)
+- Fix next run dataset modal links (#26897)
+- Change dag audit log sort by date from asc to desc (#26895)
+- Bump min version of jinja2 (#26866)
+- Add missing colors to ``state_color_mapping`` jinja global (#26822)
+- Fix running debuggers inside ``airflow tasks test`` (#26806)
+- Fix warning when using xcomarg dependencies (#26801)
+- demote Removed state in priority for displaying task summaries (#26789)
+- Ensure the log messages from operators during parsing go somewhere (#26779)
+- Add restarting state to TaskState Enum in REST API (#26776)
+- Allow retrieving error message from data.detail (#26762)
+- Simplify origin string cleaning (#27143)
+- Remove DAG parsing from StandardTaskRunner (#26750)
+- Fix non-hidden cumulative chart on duration view (#26716)
+- Remove TaskFail duplicates check (#26714)
+- Fix airflow tasks run --local when dags_folder differs from that of processor (#26509)
+- Fix yarn warning from d3-color (#27139)
+- Fix version for a couple configurations (#26491)
+- Revert "No grid auto-refresh for backfill dag runs (#25042)" (#26463)
+- Retry on Airflow Schedule DAG Run DB Deadlock (#26347)
+
+Misc/Internal
+^^^^^^^^^^^^^
+- Clean-ups around task-mapping code (#26879)
+- Move user-facing string to template (#26815)
+- add icon legend to datasets graph (#26781)
+- Bump ``sphinx`` and ``sphinx-autoapi`` (#26743)
+- Simplify ``RTIF.delete_old_records()`` (#26667)
+- Bump FAB to ``4.1.4`` (#26393)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+- Fixed triple quotes in task group example (#26829)
+- Documentation fixes (#26819)
+- make consistency on markup title string level (#26696)
+- Add a note against use of top level code in timetable (#26649)
+- Fix broken URL for ``docker-compose.yaml`` (#26726)
+
+
 Airflow 2.4.1 (2022-09-30)
 --------------------------
 
@@ -87,16 +195,16 @@ A dataset is identified by a URI:
     from airflow import Dataset
 
     # The URI doesn't have to be absolute
-    dataset = Dataset(uri='my-dataset')
+    dataset = Dataset(uri="my-dataset")
     # Or you can use a scheme to show where it lives.
-    dataset2 = Dataset(uri='s3://bucket/prefix')
+    dataset2 = Dataset(uri="s3://bucket/prefix")
 
 To create a DAG that runs whenever a Dataset is updated use the new ``schedule`` parameter (see below) and
 pass a list of 1 or more Datasets:
 
 ..  code-block:: python
 
-    with DAG(dag_id='dataset-consmer', schedule=[dataset]):
+    with DAG(dag_id='dataset-consumer', schedule=[dataset]):
         ...
 
 And to mark a task as producing a dataset pass the dataset(s) to the ``outlets`` attribute:
@@ -179,9 +287,9 @@ If you previously used the ``@daily`` cron preset, your DAG may have looked like
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
-        schedule_interval='@daily',
+        schedule_interval="@daily",
     ):
         ...
 
@@ -190,9 +298,9 @@ Going forward, you should use the ``schedule`` argument instead:
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
-        schedule='@daily',
+        schedule="@daily",
     ):
         ...
 
@@ -201,7 +309,7 @@ The same is true if you used a custom timetable.  Previously you would have used
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
         timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
     ):
@@ -212,7 +320,7 @@ Now you should use the ``schedule`` argument:
 .. code-block:: python
 
     with DAG(
-        dag_id='my_example',
+        dag_id="my_example",
         start_date=datetime(2021, 1, 1),
         schedule=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
     ):

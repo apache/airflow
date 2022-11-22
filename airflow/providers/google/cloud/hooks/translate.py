@@ -18,7 +18,7 @@
 """This module contains a Google Cloud Translate Hook."""
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.cloud.translate_v2 import Client
 
@@ -45,14 +45,13 @@ class CloudTranslateHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[Client]
+        self._client: Client | None = None
 
     def get_conn(self) -> Client:
         """
         Retrieves connection to Cloud Translate
 
         :return: Google Cloud Translate client object.
-        :rtype: google.cloud.translate_v2.Client
         """
         if not self._client:
             self._client = Client(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -81,7 +80,6 @@ class CloudTranslateHook(GoogleBaseHook):
                                 be translated.
         :param model: (Optional) The model used to translate the text, such
                       as ``'base'`` or ``'nmt'``.
-        :rtype: str or list
         :returns: A list of dictionaries for each queried value. Each
                   dictionary typically contains three keys (though not
                   all will be present in all cases)

@@ -21,7 +21,6 @@ import warnings
 from typing import Sequence
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.www import utils as wwwutils
 
 
 class MySqlOperator(SQLExecuteQueryOperator):
@@ -46,9 +45,8 @@ class MySqlOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = ("sql", "parameters")
-    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
     template_fields_renderers = {
-        "sql": "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql",
+        "sql": "mysql",
         "parameters": "json",
     }
     template_ext: Sequence[str] = (".sql", ".json")

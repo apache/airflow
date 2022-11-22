@@ -52,7 +52,7 @@ def create_evaluate_ops(
     version_name: str | None = None,
     dag: DAG | None = None,
     py_interpreter="python3",
-):
+) -> tuple[MLEngineStartBatchPredictionJobOperator, BeamRunPythonPipelineOperator, PythonOperator]:
     """
     Creates Operators needed for model evaluation and returns.
 
@@ -182,7 +182,6 @@ def create_evaluate_ops(
         issues check: https://issues.apache.org/jira/browse/BEAM-1251
 
     :returns: a tuple of three operators, (prediction, summary, validation)
-    :rtype: tuple(DataFlowPythonOperator, DataFlowPythonOperator,
                   PythonOperator)
     """
     batch_prediction_job_id = batch_prediction_job_id or ""

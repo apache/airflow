@@ -108,7 +108,6 @@ class EksHook(AwsBaseHook):
         :param resourcesVpcConfig: The VPC configuration used by the cluster control plane.
 
         :return: Returns descriptive information about the created EKS Cluster.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -139,7 +138,6 @@ class EksHook(AwsBaseHook):
         :param tags: Optional tags to apply to your nodegroup.
 
         :return: Returns descriptive information about the created EKS Managed Nodegroup.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -185,7 +183,6 @@ class EksHook(AwsBaseHook):
         :param selectors: The selectors to match for pods to use this Fargate profile.
 
         :return: Returns descriptive information about the created Fargate profile.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -211,7 +208,6 @@ class EksHook(AwsBaseHook):
         :param name: The name of the cluster to delete.
 
         :return: Returns descriptive information about the deleted EKS Cluster.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -228,7 +224,6 @@ class EksHook(AwsBaseHook):
         :param nodegroupName: The name of the nodegroup to delete.
 
         :return: Returns descriptive information about the deleted EKS Managed Nodegroup.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -249,7 +244,6 @@ class EksHook(AwsBaseHook):
         :param fargateProfileName: The name of the Fargate profile to delete.
 
         :return: Returns descriptive information about the deleted Fargate profile.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -272,7 +266,6 @@ class EksHook(AwsBaseHook):
         :param verbose: Provides additional logging if set to True.  Defaults to False.
 
         :return: Returns descriptive information about a specific EKS Cluster.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -295,7 +288,6 @@ class EksHook(AwsBaseHook):
         :param verbose: Provides additional logging if set to True.  Defaults to False.
 
         :return: Returns descriptive information about a specific EKS Nodegroup.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -325,7 +317,6 @@ class EksHook(AwsBaseHook):
         :param verbose: Provides additional logging if set to True.  Defaults to False.
 
         :return: Returns descriptive information about an AWS Fargate profile.
-        :rtype: Dict
         """
         eks_client = self.conn
 
@@ -352,7 +343,6 @@ class EksHook(AwsBaseHook):
         :param clusterName: The name of the cluster to check.
 
         :return: Returns the current status of a given Amazon EKS Cluster.
-        :rtype: ClusterStates
         """
         eks_client = self.conn
 
@@ -371,7 +361,6 @@ class EksHook(AwsBaseHook):
         :param fargateProfileName: The name of the Fargate profile to check.
 
         :return: Returns the current status of a given AWS Fargate profile.
-        :rtype: AWS FargateProfileStates
         """
         eks_client = self.conn
 
@@ -396,7 +385,6 @@ class EksHook(AwsBaseHook):
         :param nodegroupName: The name of the nodegroup to check.
 
         :return: Returns the current status of a given Amazon EKS Nodegroup.
-        :rtype: NodegroupStates
         """
         eks_client = self.conn
 
@@ -421,7 +409,6 @@ class EksHook(AwsBaseHook):
         :param verbose: Provides additional logging if set to True.  Defaults to False.
 
         :return: A List containing the cluster names.
-        :rtype: List
         """
         eks_client = self.conn
         list_cluster_call = partial(eks_client.list_clusters)
@@ -440,7 +427,6 @@ class EksHook(AwsBaseHook):
         :param verbose: Provides additional logging if set to True.  Defaults to False.
 
         :return: A List of nodegroup names within the given cluster.
-        :rtype: List
         """
         eks_client = self.conn
         list_nodegroups_call = partial(eks_client.list_nodegroups, clusterName=clusterName)
@@ -459,7 +445,6 @@ class EksHook(AwsBaseHook):
         :param verbose: Provides additional logging if set to True.  Defaults to False.
 
         :return: A list of Fargate profile names within a given cluster.
-        :rtype: List
         """
         eks_client = self.conn
         list_fargate_profiles_call = partial(eks_client.list_fargate_profiles, clusterName=clusterName)
@@ -477,7 +462,6 @@ class EksHook(AwsBaseHook):
         :param verbose: Provides additional logging if set to True.  Defaults to False.
 
         :return: A List of the combined results of the provided API call.
-        :rtype: List
         """
         name_collection: list = []
         token = DEFAULT_PAGINATION_TOKEN

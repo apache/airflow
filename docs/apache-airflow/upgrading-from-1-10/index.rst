@@ -564,7 +564,7 @@ Appendix
 Changed Parameters for the KubernetesPodOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Port has migrated from a List[Port] to a List[V1ContainerPort]**
+**Port has migrated from a list[Port] to a list[V1ContainerPort]**
 
 Before:
 
@@ -598,7 +598,7 @@ After:
         task_id="task",
     )
 
-**Volume_mounts have migrated from a List[VolumeMount] to a List[V1VolumeMount]**
+**Volume_mounts have migrated from a list[VolumeMount] to a list[V1VolumeMount]**
 
 Before:
 
@@ -635,7 +635,7 @@ After:
     )
 
 
-**Volume has migrated from a List[Volume] to a List[V1Volume]**
+**Volume has migrated from a list[Volume] to a list[V1Volume]**
 
 Before:
 
@@ -673,7 +673,7 @@ After:
         task_id="task",
     )
 
-**env_vars has migrated from a Dict to a List[V1EnvVar]**
+**env_vars has migrated from a dict to a list[V1EnvVar]**
 
 Before:
 
@@ -843,7 +843,7 @@ After:
     )
 
 
-**image_pull_secrets has migrated from a String to a List[k8s.V1LocalObjectReference]**
+**image_pull_secrets has migrated from a String to a list[k8s.V1LocalObjectReference]**
 
 Before:
 

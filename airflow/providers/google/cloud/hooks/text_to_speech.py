@@ -18,7 +18,7 @@
 """This module contains a Google Cloud Text to Speech Hook."""
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -66,14 +66,13 @@ class CloudTextToSpeechHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[TextToSpeechClient]
+        self._client: TextToSpeechClient | None = None
 
     def get_conn(self) -> TextToSpeechClient:
         """
         Retrieves connection to Cloud Text to Speech.
 
         :return: Google Cloud Text to Speech client object.
-        :rtype: google.cloud.texttospeech_v1.TextToSpeechClient
         """
         if not self._client:
 
@@ -105,7 +104,6 @@ class CloudTextToSpeechHook(GoogleBaseHook):
             Note that if retry is specified, the timeout applies to each individual attempt.
         :return: SynthesizeSpeechResponse See more:
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesizeSpeechResponse
-        :rtype: object
         """
         client = self.get_conn()
         self.log.info("Synthesizing input: %s", input_data)

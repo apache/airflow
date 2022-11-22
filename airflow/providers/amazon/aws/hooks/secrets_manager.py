@@ -44,7 +44,6 @@ class SecretsManagerHook(AwsBaseHook):
 
         :param secret_name: name of the secrets.
         :return: Union[str, bytes] with the information about the secrets
-        :rtype: Union[str, bytes]
         """
         # Depending on whether the secret is a string or binary, one of
         # these fields will be populated.
@@ -61,6 +60,5 @@ class SecretsManagerHook(AwsBaseHook):
 
         :param secret_name: name of the secrets.
         :return: dict with the information about the secrets
-        :rtype: dict
         """
         return json.loads(self.get_secret(secret_name))

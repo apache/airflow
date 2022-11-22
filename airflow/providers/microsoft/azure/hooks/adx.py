@@ -25,6 +25,7 @@ This module contains Azure Data Explorer hook.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from azure.kusto.data.exceptions import KustoServiceError
@@ -33,6 +34,7 @@ from azure.kusto.data.response import KustoResponseDataSetV2
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import _ensure_prefixes
 
 
 class AzureDataExplorerHook(BaseHook):
@@ -82,21 +84,18 @@ class AzureDataExplorerHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__azure_data_explorer__tenant": StringField(
-                lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_explorer__auth_method": StringField(
-                lazy_gettext("Authentication Method"), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure_data_explorer__certificate": PasswordField(
+            "tenant": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "auth_method": StringField(lazy_gettext("Authentication Method"), widget=BS3TextFieldWidget()),
+            "certificate": PasswordField(
                 lazy_gettext("Application PEM Certificate"), widget=BS3PasswordFieldWidget()
             ),
-            "extra__azure_data_explorer__thumbprint": PasswordField(
+            "thumbprint": PasswordField(
                 lazy_gettext("Application Certificate Thumbprint"), widget=BS3PasswordFieldWidget()
             ),
         }
 
     @staticmethod
+    @_ensure_prefixes(conn_type="azure_data_explorer")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
@@ -108,43 +107,64 @@ class AzureDataExplorerHook(BaseHook):
             "placeholders": {
                 "login": "Varies with authentication method",
                 "password": "Varies with authentication method",
-                "extra__azure_data_explorer__auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE",
-                "extra__azure_data_explorer__tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
-                "extra__azure_data_explorer__certificate": "Used with AAD_APP_CERT",
-                "extra__azure_data_explorer__thumbprint": "Used with AAD_APP_CERT",
+                "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE",
+                "tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
+                "certificate": "Used with AAD_APP_CERT",
+                "thumbprint": "Used with AAD_APP_CERT",
             },
         }
 
     def __init__(self, azure_data_explorer_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_data_explorer_conn_id
-        self.connection = self.get_conn()
+        self.connection = self.get_conn()  # todo: make this a property, or just delete
 
     def get_conn(self) -> KustoClient:
         """Return a KustoClient object."""
         conn = self.get_connection(self.conn_id)
+        extras = conn.extra_dejson
         cluster = conn.host
         if not cluster:
             raise AirflowException("Host connection option is required")
 
+        def warn_if_collison(key, backcompat_key):
+            if backcompat_key in extras:
+                warnings.warn(
+                    f"Conflicting params `{key}` and `{backcompat_key}` found in extras for conn "
+                    f"{self.conn_id}. Using value for `{key}`.  Please ensure this is the correct value "
+                    f"and remove the backcompat key `{backcompat_key}`."
+                )
+
         def get_required_param(name: str) -> str:
-            """Extract required parameter value from connection, raise exception if not found"""
-            value = conn.extra_dejson.get(name)
+            """
+            Extract required parameter value from connection, raise exception if not found.
+
+            Warns if both ``foo`` and ``extra__azure_data_explorer__foo`` found in conn extra.
+
+            Prefers unprefixed field.
+            """
+            backcompat_prefix = "extra__azure_data_explorer__"
+            backcompat_key = f"{backcompat_prefix}{name}"
+            value = extras.get(name)
+            if value:
+                warn_if_collison(name, backcompat_key)
+            if not value:
+                value = extras.get(backcompat_key)
             if not value:
                 raise AirflowException(f"Required connection parameter is missing: `{name}`")
             return value
 
-        auth_method = get_required_param("extra__azure_data_explorer__auth_method")
+        auth_method = get_required_param("auth_method")
 
         if auth_method == "AAD_APP":
-            tenant = get_required_param("extra__azure_data_explorer__tenant")
+            tenant = get_required_param("tenant")
             kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
                 cluster, conn.login, conn.password, tenant
             )
         elif auth_method == "AAD_APP_CERT":
-            certificate = get_required_param("extra__azure_data_explorer__certificate")
-            thumbprint = get_required_param("extra__azure_data_explorer__thumbprint")
-            tenant = get_required_param("extra__azure_data_explorer__tenant")
+            certificate = get_required_param("certificate")
+            thumbprint = get_required_param("thumbprint")
+            tenant = get_required_param("tenant")
             kcsb = KustoConnectionStringBuilder.with_aad_application_certificate_authentication(
                 cluster,
                 conn.login,
@@ -153,7 +173,7 @@ class AzureDataExplorerHook(BaseHook):
                 tenant,
             )
         elif auth_method == "AAD_CREDS":
-            tenant = get_required_param("extra__azure_data_explorer__tenant")
+            tenant = get_required_param("tenant")
             kcsb = KustoConnectionStringBuilder.with_aad_user_password_authentication(
                 cluster, conn.login, conn.password, tenant
             )

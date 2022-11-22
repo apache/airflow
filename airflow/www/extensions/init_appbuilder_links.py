@@ -31,17 +31,17 @@ def init_appbuilder_links(app):
     # Docs links
     appbuilder.add_link(name="Documentation", label="Documentation", href=get_docs_url(), category="Docs")
     appbuilder.add_link(
-        name="Documentation", label="Airflow Website", href='https://airflow.apache.org', category="Docs"
+        name="Documentation", label="Airflow Website", href="https://airflow.apache.org", category="Docs"
     )
     appbuilder.add_link(
-        name="Documentation", label="GitHub Repo", href='https://github.com/apache/airflow', category="Docs"
+        name="Documentation", label="GitHub Repo", href="https://github.com/apache/airflow", category="Docs"
     )
     appbuilder.add_link(
         name="Documentation",
         label="REST API Reference (Swagger UI)",
-        href='/api/v1./api/v1_swagger_ui_index',
+        href="/api/v1./api/v1_swagger_ui_index",
         category="Docs",
     )
     appbuilder.add_link(
-        name="Documentation", label="REST API Reference (Redoc)", href="RedocView.redoc", category='Docs'
+        name="Documentation", label="REST API Reference (Redoc)", href="RedocView.redoc", category="Docs"
     )

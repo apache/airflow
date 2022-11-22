@@ -71,7 +71,6 @@ class CloudBuildHook(GoogleBaseHook):
             version to
 
         :return: Cloud Build ID
-        :rtype: str
         """
         try:
             return operation.metadata.build.id
@@ -83,7 +82,6 @@ class CloudBuildHook(GoogleBaseHook):
         Retrieves the connection to Google Cloud Build.
 
         :return: Google Cloud Build client object.
-        :rtype: `google.cloud.devtools.cloudbuild_v1.CloudBuildClient`
         """
         if not self._client:
             self._client = CloudBuildClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -110,7 +108,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
@@ -150,7 +147,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
@@ -196,7 +192,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
         client = self.get_conn()
 
@@ -268,7 +263,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
@@ -306,7 +300,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
         client = self.get_conn()
 
@@ -348,7 +341,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
         client = self.get_conn()
 
@@ -399,7 +391,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: List[`google.cloud.devtools.cloudbuild_v1.types.Build`]
         """
         client = self.get_conn()
 
@@ -448,7 +439,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
@@ -498,7 +488,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
@@ -546,7 +535,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
         client = self.get_conn()
 

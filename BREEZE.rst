@@ -66,6 +66,15 @@ Here is an example configuration with more than 200GB disk space for Docker:
              alt="Disk space MacOS">
     </div>
 
+
+- **Docker is not running** - even if it is running with Docker Desktop. This is an issue
+  specific to Docker Desktop 4.13.0 (released in late October 2022). Please upgrade Docker
+  Desktop to 4.13.1 or later to resolve the issue. For technical details, see also
+  `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
+
+Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
+/CONTRIBUTORS_QUICK_START.rst>`__
+
 Docker Compose
 --------------
 
@@ -232,7 +241,7 @@ Those are all available commands for Breeze and details about the commands are d
 
 Breeze installed this way is linked to your checked out sources of Airflow so Breeze will
 automatically use latest version of sources from ``./dev/breeze``. Sometimes, when dependencies are
-updated ``breeze`` commands with offer you to run self-upgrade (you just need to answer ``y`` when asked).
+updated ``breeze`` commands with offer you to run self-upgrade.
 
 You can always run such self-upgrade at any time:
 
@@ -695,7 +704,7 @@ For example this will only run provider tests for airbyte and http providers:
 
 .. code-block:: bash
 
-   breeze testing tests --test-type "Providers[airbyte,http]``
+   breeze testing tests --test-type "Providers[airbyte,http]"
 
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test

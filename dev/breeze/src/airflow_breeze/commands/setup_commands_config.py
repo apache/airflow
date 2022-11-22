@@ -34,7 +34,6 @@ SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Self-upgrade flags",
             "options": [
                 "--use-current-airflow-sources",
-                "--force",
             ],
         }
     ],
@@ -67,6 +66,7 @@ SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--force",
                 "--command",
+                "--check-only",
             ],
         },
     ],
