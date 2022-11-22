@@ -213,7 +213,7 @@ class Connection(Base, LoggingMixin):
             )
 
         # SQLAlchemy expects postgresql:// as scheme
-        self.conn_type == "postgres":
+        if self.conn_type == "postgres":
             scheme = "postgresql"
         else:
             scheme = self.conn_type.lower().replace("_", "-")
