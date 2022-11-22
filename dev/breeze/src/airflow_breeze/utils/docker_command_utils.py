@@ -404,7 +404,7 @@ def check_if_buildx_plugin_installed(exit_on_missing: bool = False) -> bool | No
     :param exit_on_missing: If set to true, then when the buildx is missing, display installation instructions
         and exit with status code 1.
     :return True if the buildx plugin is installed.
-        If :param:`exit_on_error` is `True` and buildx then the program exits with return code 1
+        If :param:`exit_on_error` is `True` and buildx is missing then the program exits with return code 1
     """
     check_buildx = ["docker", "buildx", "version"]
     docker_buildx_version_result = run_command(
