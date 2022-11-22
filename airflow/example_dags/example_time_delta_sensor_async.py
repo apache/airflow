@@ -26,6 +26,7 @@ import datetime
 import pendulum
 
 from airflow import DAG
+from airflow.models.taskinstance import TaskNote
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.time_delta import TimeDeltaSensorAsync
 
@@ -39,3 +40,37 @@ with DAG(
     wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=10))
     finish = EmptyOperator(task_id="finish")
     wait >> finish
+#
+#
+# from uuid import uuid4
+# import pendulum
+# from airflow import DAG
+# from airflow.models import DagModel, DagRun, TaskInstance as TI
+# from airflow.models.taskinstance import TaskNote
+# from airflow.operators.bash import BashOperator
+# from airflow.settings import Session
+#
+# session = Session()
+# run_id = str(uuid4())
+#
+# dm = DagModel(dag_id=run_id)
+# dag = DAG(dag_id=run_id, start_date=pendulum.now())
+# op = BashOperator(bash_command="", task_id="hi", dag=dag)
+# dr = DagRun(dag_id=run_id, run_id=run_id, run_type="hi")
+# ti = TI(task=op, run_id=run_id)
+# session.add(dm)
+# session.add(dr)
+# session.add(ti)
+# session.commit()
+# ti.task_note is None
+# ti.note is None
+# ti.task_note = TaskNote("yo", None)
+# ti.note = {"content": run_id, "user_id": None}
+# session.commit()
+# session.rollback()
+# ti = session.query(TI).filter(TI.run_id == run_id).one()
+# ti.note = {"content": "something else", "user_id": None}
+# session.commit()
+# ti.note = "this is wacky"
+# session.commit()
+# session.rollback()
