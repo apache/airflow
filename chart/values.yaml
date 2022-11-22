@@ -93,7 +93,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
-    tag: v3.4.0
+    tag: v3.6.1
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -1832,7 +1832,8 @@ dags:
     # interval between git sync attempts in seconds
     # high values are more likely to cause DAGs to become out of sync between different components
     # low values cause more traffic to the remote git repository
-    wait: 5
+    period: 5
+    wait: 5 # Deprecated: use 'period'
     containerName: git-sync
     uid: 65533
 

@@ -214,8 +214,10 @@ If release name contains chart name it will be used as a full name.
       value: "repo"
     - name: GIT_SYNC_ADD_USER
       value: "true"
-    - name: GIT_SYNC_WAIT
+    - name: GIT_SYNC_WAIT # Deprecated: use GIT_SYNC_PERIOD
       value: {{ .Values.dags.gitSync.wait | quote }}
+    - name: GIT_SYNC_PERIOD
+      value: {{ .Values.dags.gitSync.period | quote }}
     - name: GIT_SYNC_MAX_SYNC_FAILURES
       value: {{ .Values.dags.gitSync.maxFailures | quote }}
     {{- if .is_init }}
