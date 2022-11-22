@@ -377,19 +377,21 @@ section "Having sensors return XOM values" of :doc:`apache-airflow-providers:how
 
 Multiple outputs inference
 --------------------------
-Tasks can also infer multiple outputs by using dict Python typing.
+In case a task has multiple return values, Airflow can unroll these in separate values if using
+Python dict typing. The values then become available as separate arguments to downstream tasks.
 
 .. code-block:: python
 
-   @task
+   @task(multiple_outputs=True)
    def identity_dict(x: int, y: int) -> dict[str, int]:
        return {"x": x, "y": y}
 
 By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter
 is automatically set to true.
 
-Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
-the parameter value is used.
+Note, before Airflow 2.5, Airflow would automatically unroll ``dict`` return values and you would need to set
+``multiple_outputs=False` explicitly. This was deemed confusing and now always defaults to ``False``.
+
 
 Adding dependencies between decorated and traditional tasks
 -----------------------------------------------------------

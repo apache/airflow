@@ -1,0 +1,2 @@
+Airflow no longer automatically unrolls dict values into separate arguments requiring an explicit
+``multiple_outputs=True`` if unrolling is required.
