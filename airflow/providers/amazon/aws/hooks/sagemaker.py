@@ -974,7 +974,7 @@ class SageMakerHook(AwsBaseHook):
         """
         Returns the number of processing jobs found with the provided name prefix.
         :param processing_job_name: The prefix to look for.
-        :param job_name_suffix: The optional suffix which may be appended to dedupe an existing job name.
+        :param job_name_suffix: The optional suffix which may be appended to deduplicate an existing job name.
         :param throttle_retry_delay: Seconds to wait if a ThrottlingException is hit.
         :param retries: The max number of times to retry.
         :returns: The number of processing jobs that start with the provided prefix.
