@@ -674,7 +674,7 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
                 flask_session[FILTER_TAGS_COOKIE] = None
-                return redirect(url_for('Airflow.index'))
+                return redirect(url_for("Airflow.index"))
 
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
