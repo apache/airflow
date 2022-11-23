@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Optional
-
 from airflow.api_connexion.schemas.health_schema import health_schema
 from airflow.api_connexion.types import APIResponse
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -33,7 +31,7 @@ def get_health() -> APIResponse:
     latest_scheduler_heartbeat = None
     latest_triggerer_heartbeat = None
     scheduler_status = UNHEALTHY
-    triggerer_status: Optional[str] = UNHEALTHY
+    triggerer_status: str | None = UNHEALTHY
     try:
         scheduler_job = SchedulerJob.most_recent_job()
 
