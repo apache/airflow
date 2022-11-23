@@ -59,7 +59,7 @@ def upgrade():
     )
 
     op.create_table(
-        "task_note",
+        "task_instance_note",
         sa.Column("user_id", sa.Integer(), nullable=True),
         sa.Column("task_id", StringID(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
@@ -70,7 +70,9 @@ def upgrade():
         ),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
-        sa.PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name=op.f("task_note_pkey")),
+        sa.PrimaryKeyConstraint(
+            "task_id", "dag_id", "run_id", "map_index", name=op.f("task_instance_note_pkey")
+        ),
         sa.ForeignKeyConstraint(
             ("dag_id", "task_id", "run_id", "map_index"),
             [
@@ -79,14 +81,14 @@ def upgrade():
                 "task_instance.run_id",
                 "task_instance.map_index",
             ],
-            name="task_notes_ti_fkey",
+            name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
         ),
-        sa.ForeignKeyConstraint(("user_id",), ["ab_user.id"], name="task_notes_user_fkey"),
+        sa.ForeignKeyConstraint(("user_id",), ["ab_user.id"], name="task_instance_note_user_fkey"),
     )
 
 
 def downgrade():
     """Unapply Add DagRunNote and TaskRunNote"""
-    op.drop_table("task_note")
+    op.drop_table("task_instance_note")
     op.drop_table("dag_run_note")

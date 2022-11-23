@@ -318,11 +318,11 @@ def _creator_note(val):
     """Custom creator for the ``note`` association proxy."""
     # breakpoint()
     if isinstance(val, str):
-        return TaskNote(content=val)
+        return TaskInstanceNote(content=val)
     elif isinstance(val, dict):
-        return TaskNote(**val)
+        return TaskInstanceNote(**val)
     else:
-        return TaskNote(*val)
+        return TaskInstanceNote(*val)
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -427,8 +427,8 @@ class TaskInstance(Base, LoggingMixin):
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
     execution_date = association_proxy("dag_run", "execution_date")
-    task_note = relationship("TaskNote", back_populates="task_instance", uselist=False)
-    notes = association_proxy("task_note", "content", creator=_creator_note)
+    task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
+    notes = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
 
     def __init__(
@@ -2686,10 +2686,10 @@ class SimpleTaskInstance:
         return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
 
 
-class TaskNote(Base):
+class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
-    __tablename__ = "task_note"
+    __tablename__ = "task_instance_note"
 
     user_id = Column(Integer, nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
@@ -2700,24 +2700,24 @@ class TaskNote(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    task_instance = relationship("TaskInstance", back_populates="task_note")
+    task_instance = relationship("TaskInstance", back_populates="task_instance_note")
 
     __table_args__ = (
         ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
+            (dag_id, task_id, run_id, map_index),
             [
                 "task_instance.dag_id",
                 "task_instance.task_id",
                 "task_instance.run_id",
                 "task_instance.map_index",
             ],
-            name="task_notes_ti_fkey",
+            name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
-            [user_id],
+            (user_id,),
             [User.id],
-            name="task_notes_user_fkey",
+            name="task_instance_note_user_fkey",
         ),
     )
 

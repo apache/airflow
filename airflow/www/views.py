@@ -101,7 +101,7 @@ from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, TaskNote
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
@@ -263,7 +263,7 @@ def dag_to_grid(dag, dag_runs, session):
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            func.min(TaskNote.content).label("notes"),
+            func.min(TaskInstanceNote.content).label("notes"),
             func.count(sqla.func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label(
                 "state_count"
             ),
@@ -271,7 +271,7 @@ def dag_to_grid(dag, dag_runs, session):
             func.max(TaskInstance.end_date).label("end_date"),
             func.max(TaskInstance._try_number).label("_try_number"),
         )
-        .join(TaskInstance.task_note, isouter=True)
+        .join(TaskInstance.task_instance_note, isouter=True)
         .filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),

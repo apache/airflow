@@ -274,11 +274,11 @@
 <text text-anchor="start" x="822.17" y="-1424.05" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="761.53" y="-1495.95" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
-<!-- task_note -->
+<!-- task_instance_note -->
 <g id="node10" class="node">
-<title>task_note</title>
+<title>task_instance_note</title>
 <polygon fill="none" stroke="black" points="1236,-1424 1236,-1452 1497,-1452 1497,-1424 1236,-1424"/>
-<text text-anchor="start" x="1322.5" y="-1435.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">task_note</text>
+<text text-anchor="start" x="1280.5" y="-1435.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">task_instance_note</text>
 <polygon fill="none" stroke="black" points="1236,-1399 1236,-1424 1497,-1424 1497,-1399 1236,-1399"/>
 <text text-anchor="start" x="1241" y="-1408.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dag_id</text>
 <text text-anchor="start" x="1287" y="-1408.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
@@ -310,9 +310,9 @@
 <text text-anchor="start" x="1241" y="-1233.8" font-family="Helvetica,sans-Serif" font-size="14.00">user_id</text>
 <text text-anchor="start" x="1292" y="-1233.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 </g>
-<!-- ab_user&#45;&#45;task_note -->
+<!-- ab_user&#45;&#45;task_instance_note -->
 <g id="edge10" class="edge">
-<title>ab_user&#45;&#45;task_note</title>
+<title>ab_user&#45;&#45;task_instance_note</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M761.5,-1603.78C866.51,-1561.87 1011.32,-1502.8 1137,-1447 1166.37,-1433.96 1197.6,-1419.46 1227.22,-1405.4"/>
 <text text-anchor="start" x="1196.22" y="-1394.2" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="761.5" y="-1592.58" font-family="Times,serif" font-size="14.00">{0,1}</text>
@@ -951,30 +951,30 @@
 <text text-anchor="start" x="1178.82" y="-1057.99" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="766.64" y="-1008.04" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
-<!-- task_instance&#45;&#45;task_note -->
-<g id="edge40" class="edge">
-<title>task_instance&#45;&#45;task_note</title>
+<!-- task_instance&#45;&#45;task_instance_note -->
+<g id="edge36" class="edge">
+<title>task_instance&#45;&#45;task_instance_note</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1117.33,-1022.27C1143.5,-1078.87 1174.26,-1134.76 1210,-1184 1219.09,-1196.53 1229.71,-1208.54 1241.05,-1219.97"/>
 <text text-anchor="start" x="1210.05" y="-1208.77" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1117.33" y="-1026.07" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
-<!-- task_instance&#45;&#45;task_note -->
-<g id="edge41" class="edge">
-<title>task_instance&#45;&#45;task_note</title>
+<!-- task_instance&#45;&#45;task_instance_note -->
+<g id="edge37" class="edge">
+<title>task_instance&#45;&#45;task_instance_note</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1109.28,-1022.22C1137.13,-1085.12 1170.52,-1147.62 1210,-1202 1215.31,-1209.32 1221.15,-1216.46 1227.34,-1223.4"/>
 <text text-anchor="start" x="1196.34" y="-1227.2" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1068.28" y="-1026.02" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
-<!-- task_instance&#45;&#45;task_note -->
-<g id="edge42" class="edge">
-<title>task_instance&#45;&#45;task_note</title>
+<!-- task_instance&#45;&#45;task_instance_note -->
+<g id="edge38" class="edge">
+<title>task_instance&#45;&#45;task_instance_note</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1101.68,-1022.35C1131,-1091.46 1166.86,-1160.58 1210,-1220 1215.31,-1227.32 1221.15,-1234.46 1227.34,-1241.38"/>
 <text text-anchor="start" x="1196.34" y="-1245.18" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1101.68" y="-1011.15" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
-<!-- task_instance&#45;&#45;task_note -->
-<g id="edge43" class="edge">
-<title>task_instance&#45;&#45;task_note</title>
+<!-- task_instance&#45;&#45;task_instance_note -->
+<g id="edge39" class="edge">
+<title>task_instance&#45;&#45;task_instance_note</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1094.36,-1022.29C1124.97,-1097.67 1163.21,-1173.54 1210,-1238 1215.31,-1245.32 1221.15,-1252.46 1227.34,-1259.36"/>
 <text text-anchor="start" x="1196.34" y="-1263.16" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1053.36" y="-1026.09" font-family="Times,serif" font-size="14.00">{0,1}</text>
@@ -1157,28 +1157,28 @@
 <text text-anchor="start" x="1365" y="-471.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- task_instance&#45;&#45;task_map -->
-<g id="edge36" class="edge">
+<g id="edge40" class="edge">
 <title>task_instance&#45;&#45;task_map</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1137.09,-594.32C1167.64,-585.17 1199.78,-576.35 1229.98,-568.83"/>
 <text text-anchor="start" x="1198.98" y="-557.63" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1137.09" y="-583.12" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- task_instance&#45;&#45;task_map -->
-<g id="edge37" class="edge">
+<g id="edge41" class="edge">
 <title>task_instance&#45;&#45;task_map</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1137.09,-607.51C1167.64,-598.82 1199.78,-589.95 1229.98,-581.87"/>
 <text text-anchor="start" x="1198.98" y="-585.67" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1137.09" y="-611.31" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- task_instance&#45;&#45;task_map -->
-<g id="edge38" class="edge">
+<g id="edge42" class="edge">
 <title>task_instance&#45;&#45;task_map</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1137.09,-620.7C1167.64,-612.47 1199.78,-603.55 1229.98,-594.9"/>
 <text text-anchor="start" x="1198.98" y="-598.7" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1137.09" y="-624.5" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
 <!-- task_instance&#45;&#45;task_map -->
-<g id="edge39" class="edge">
+<g id="edge43" class="edge">
 <title>task_instance&#45;&#45;task_map</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1137.09,-633.89C1167.64,-626.12 1199.78,-617.14 1229.98,-607.94"/>
 <text text-anchor="start" x="1198.98" y="-611.74" font-family="Times,serif" font-size="14.00">0..N</text>

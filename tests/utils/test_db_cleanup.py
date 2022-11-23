@@ -273,7 +273,7 @@ class TestDBCleanup:
             "task_outlet_dataset_reference",  # leave alone for now
             "dataset_dag_run_queue",  # self-managed
             "dataset_event_dag_run",  # foreign keys
-            "task_note",  # foreign keys
+            "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
         }
 
