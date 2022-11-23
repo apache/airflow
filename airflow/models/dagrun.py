@@ -28,6 +28,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     PickleType,
@@ -40,6 +41,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
@@ -66,6 +68,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
+from airflow.www.fab_security.sqla.models import User
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -83,6 +86,17 @@ class TISchedulingDecision(NamedTuple):
     changed_tis: bool
     unfinished_tis: list[TI]
     finished_tis: list[TI]
+
+
+def _creator_note(val):
+    """Custom creator for the ``note`` association proxy."""
+    # breakpoint()
+    if isinstance(val, str):
+        return DagRunNote(content=val)
+    elif isinstance(val, dict):
+        return DagRunNote(**val)
+    else:
+        return DagRunNote(*val)
 
 
 class DagRun(Base, LoggingMixin):
@@ -111,7 +125,6 @@ class DagRun(Base, LoggingMixin):
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
-    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -163,6 +176,8 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         viewonly=True,
     )
+    dag_run_note = relationship("DagRunNote", back_populates="dag_run", uselist=False)
+    notes = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",
@@ -1295,3 +1310,41 @@ class DagRun(Base, LoggingMixin):
             stacklevel=2,
         )
         return self.get_log_template(session=session).filename
+
+
+class DagRunNote(Base):
+    """For storage of arbitrary notes concerning the dagrun instance."""
+
+    __tablename__ = "dag_run_note"
+
+    user_id = Column(Integer, nullable=True)
+    dag_run_id = Column(Integer, primary_key=True, nullable=False)
+    content = Column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dag_run = relationship("DagRun", back_populates="dag_run_note")
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (dag_run_id,),
+            ["dag_run.id"],
+            name="dag_run_note_dr_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            (user_id,),
+            [User.id],
+            name="dag_run_note_user_fkey",
+        ),
+    )
+
+    def __init__(self, content, user_id=None):
+        self.content = content
+        self.user_id = user_id
+
+    def __repr__(self):
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.dagrun_id} {self.run_id}"
+        if self.map_index != -1:
+            prefix += f" map_index={self.map_index}"
+        return prefix + ">"

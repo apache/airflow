@@ -437,6 +437,13 @@ def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SE
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    dag_run.notes = new_value_for_notes or None
+    from flask_login import current_user
+
+    current_user_id = getattr(current_user, "id", None)
+    if dag_run.dag_run_note is None:
+        dag_run.notes = (new_value_for_notes, current_user_id)
+    else:
+        dag_run.dag_run_note.content = new_value_for_notes
+        dag_run.dag_run_note.user_id = current_user_id
     session.commit()
     return dagrun_schema.dump(dag_run)

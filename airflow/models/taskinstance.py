@@ -2691,7 +2691,6 @@ class TaskNote(Base):
 
     __tablename__ = "task_note"
 
-    # id = Column(Integer, primary_key=True)
     user_id = Column(Integer, nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
@@ -2699,12 +2698,11 @@ class TaskNote(Base):
     map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     task_instance = relationship("TaskInstance", back_populates="task_note")
 
     __table_args__ = (
-        Index("idx_task_notes_task_instance", dag_id, task_id, run_id, map_index),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
