@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+import collections.abc
 import functools
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
@@ -153,7 +154,7 @@ class TriggerRuleDep(BaseTIDep):
                 return True
             if relevant == upstream.map_index:
                 return True
-            if isinstance(relevant, range) and upstream.map_index in relevant:
+            if isinstance(relevant, collections.abc.Container) and upstream.map_index in relevant:
                 return True
             return False
 
@@ -189,16 +190,16 @@ class TriggerRuleDep(BaseTIDep):
                 # expanded at this point, we also depend on the non-expanded ti
                 # to ensure at least one ti is included for the task.
                 yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index < 0)
-                if isinstance(map_indexes, int):
-                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
-                elif isinstance(map_indexes, range) and map_indexes.step == 1:
+                if isinstance(map_indexes, range) and map_indexes.step == 1:
                     yield and_(
                         TaskInstance.task_id == upstream_id,
                         TaskInstance.map_index >= map_indexes.start,
                         TaskInstance.map_index < map_indexes.stop,
                     )
-                else:
+                elif isinstance(map_indexes, collections.abc.Container):
                     yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index.in_(map_indexes))
+                else:
+                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
 
         # Optimization: Don't need to hit the database if all upstreams are
         # "simple" tasks (no task or task group mapping involved).
