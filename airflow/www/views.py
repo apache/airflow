@@ -869,11 +869,12 @@ class Airflow(AirflowBaseView):
         else:
             filter_dag_ids = allowed_dag_ids
 
-        dataset_triggered_dag_ids = (
-            session.query(DagModel.dag_id)
+        dataset_triggered_dag_ids = [
+            dag.dag_id
+            for dag in session.query(DagModel.dag_id)
             .filter(DagModel.dag_id.in_(filter_dag_ids))
             .filter(DagModel.schedule_interval == "Dataset")
-        )
+        ]
 
         dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
             dataset_triggered_dag_ids, session=session

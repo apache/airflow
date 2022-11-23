@@ -283,7 +283,7 @@ function nextRunDatasetsSummaryHandler(json) {
     if (!nextDatasetsInfo.uri) {
       const newSummary = `${nextDatasetsInfo.ready} of ${nextDatasetsInfo.total} datasets updated`;
 
-      // Only updated the element if the summary has changed
+      // Only update the element if the summary has changed
       if (previousSummary !== newSummary) {
         $(el).attr('data-summary', newSummary);
         $(el).text(newSummary);
