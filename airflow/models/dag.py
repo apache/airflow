@@ -3231,15 +3231,6 @@ class DagModel(Base):
     def get_current(cls, dag_id, session=NEW_SESSION):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
 
-    @staticmethod
-    @provide_session
-    def get_all_paused_dag_ids(session: Session = NEW_SESSION) -> set[str]:
-        """Get a set of paused DAG ids"""
-        paused_dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_paused == expression.true()).all()
-
-        paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
-        return paused_dag_ids
-
     @provide_session
     def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
         return get_last_dagrun(
