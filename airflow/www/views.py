@@ -3525,7 +3525,7 @@ class Airflow(AirflowBaseView):
                     ),
                     isouter=True,
                 )
-                .filter(DagScheduleDatasetReference.dag_id == dag_id)
+                .filter(DagScheduleDatasetReference.dag_id == dag_id, DatasetModel.is_orphaned.is_(False))
                 .group_by(DatasetModel.id, DatasetModel.uri)
                 .order_by(DatasetModel.uri)
                 .all()
@@ -3648,7 +3648,7 @@ class Airflow(AirflowBaseView):
             if has_event_filters:
                 count_query = count_query.join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
 
-            filters = []
+            filters = [DatasetModel.is_orphaned.is_(False)]
             if uri_pattern:
                 filters.append(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
             if updated_after:

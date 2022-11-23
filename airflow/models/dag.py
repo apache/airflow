@@ -2828,6 +2828,7 @@ class DAG(LoggingMixin):
         for dataset in all_datasets:
             stored_dataset = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).first()
             if stored_dataset:
+                stored_dataset.is_orphaned = False
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
                 session.add(dataset)
@@ -2869,6 +2870,31 @@ class DAG(LoggingMixin):
             session.bulk_save_objects(task_refs_to_add)
             for obj in task_refs_stored - task_refs_needed:
                 session.delete(obj)
+
+        # Remove any orphaned datasets
+        orphaned_dataset_query = (
+            session.query(DatasetModel)
+            .join(
+                DagScheduleDatasetReference,
+                DagScheduleDatasetReference.dataset_id == DatasetModel.id,
+                isouter=True,
+            )
+            .join(
+                TaskOutletDatasetReference,
+                TaskOutletDatasetReference.dataset_id == DatasetModel.id,
+                isouter=True,
+            )
+            .group_by(DatasetModel.id)
+            .having(
+                and_(
+                    func.count(DagScheduleDatasetReference.dag_id) == 0,
+                    func.count(TaskOutletDatasetReference.dag_id) == 0,
+                )
+            )
+        )
+        for dataset in orphaned_dataset_query.all():
+            dataset.is_orphaned = True
+            session.add(dataset)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit
