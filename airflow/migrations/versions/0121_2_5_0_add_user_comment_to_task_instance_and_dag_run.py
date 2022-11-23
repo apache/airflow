@@ -47,17 +47,8 @@ def upgrade():
         else:
             batch_op.add_column(sa.Column("notes", sa.String(length=1000), nullable=True))
 
-    with op.batch_alter_table("task_instance") as batch_op:
-        if conn.dialect.name == "mysql":
-            batch_op.add_column(sa.Column("notes", sa.Text(length=1000), nullable=True))
-        else:
-            batch_op.add_column(sa.Column("notes", sa.String(length=1000), nullable=True))
-
 
 def downgrade():
     """Unapply add user comment to task_instance and dag_run"""
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.drop_column("notes")
-
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("notes")
