@@ -5261,7 +5261,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
-        # "notes",
+        # "notes",  # todo: maybe make notes work with TI search?
         "hostname",
         "priority_weight",
         "queue",
