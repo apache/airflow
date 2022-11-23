@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-22T20:54:27Z
+# This constraints file was automatically generated on 2022-11-23T11:21:04Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -102,9 +102,9 @@ billiard==3.6.4.0
 black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.14
+boto3==1.26.15
 boto==2.49.0
-botocore==1.29.14
+botocore==1.29.15
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -313,7 +313,7 @@ msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-appflow==1.26.13.post16
+mypy-boto3-appflow==1.26.15
 mypy-boto3-rds==1.26.11.post1
 mypy-boto3-redshift-data==1.26.0.post1
 mypy-extensions==0.4.3
