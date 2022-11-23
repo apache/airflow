@@ -315,7 +315,6 @@ class TaskInstanceKey(NamedTuple):
 
 def _creator_note(val):
     """Custom creator for the ``note`` association proxy."""
-    # breakpoint()
     if isinstance(val, str):
         return TaskInstanceNote(content=val)
     elif isinstance(val, dict):
