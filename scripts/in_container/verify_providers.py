@@ -176,6 +176,11 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
         " adheres to: 'pyarrow<3.1.0,>=3.0.0; extra == \"pandas\"'",
         "snowflake",
     ),
+    (
+        "You have an incompatible version of 'pyarrow' installed (9.0.0), please install a version that"
+        " adheres to: 'pyarrow<8.1.0,>=8.0.0; extra == \"pandas\"'",
+        "snowflake",
+    ),
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
     ("This module is deprecated. Please use `airflow.operators.empty`.", "dbt"),
