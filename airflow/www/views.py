@@ -5229,6 +5229,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "duration",
+        "notes",
         "job_id",
         "hostname",
         "unixname",
@@ -5260,6 +5261,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
+        # "notes",
         "hostname",
         "priority_weight",
         "queue",
@@ -5276,6 +5278,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "state",
+        "notes",
     ]
 
     add_exclude_columns = ["next_method", "next_kwargs", "trigger_id"]
