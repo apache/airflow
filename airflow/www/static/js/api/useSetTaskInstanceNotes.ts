@@ -25,8 +25,8 @@ import useErrorToast from 'src/utils/useErrorToast';
 
 import type { API } from 'src/types';
 
-const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
-const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_notes');
+const setTaskInstancesNotesURI = getMetaValue('set_task_instance_note');
+const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_note');
 
 interface Props {
   dagId: string;

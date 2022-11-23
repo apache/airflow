@@ -27,7 +27,7 @@ import useErrorToast from 'src/utils/useErrorToast';
 import { emptyGridData } from './useGridData';
 import type { GridData } from './useGridData';
 
-const setDagRunNotesURI = getMetaValue('set_dag_run_notes');
+const setDagRunNotesURI = getMetaValue('set_dag_run_note');
 
 interface Props {
   dagId: string;
