@@ -271,6 +271,7 @@ def dag_to_grid(dag, dag_runs, session):
             func.max(TaskInstance.end_date).label("end_date"),
             func.max(TaskInstance._try_number).label("_try_number"),
         )
+        .join(TaskInstance.task_note, isouter=True)
         .filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
@@ -298,7 +299,7 @@ def dag_to_grid(dag, dag_runs, session):
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
                     "try_number": try_count,
-                    "notes": "hello",
+                    "notes": task_instance.notes,
                 }
 
             def _mapped_summary(ti_summaries):

@@ -672,12 +672,11 @@ def set_task_instance_notes(
     ti, sla_miss = result
     from flask_login import current_user
 
-    # breakpoint()
-    # session.merge(ti)
+    current_user_id = getattr(current_user, "id", None)
     if ti.task_note is None:
-        ti.notes = (new_value_for_notes, current_user.id)
+        ti.notes = (new_value_for_notes, current_user_id)
     else:
         ti.task_note.content = new_value_for_notes
-        ti.task_note.user_id = current_user.id
+        ti.task_note.user_id = current_user_id
     session.commit()
     return task_instance_schema.dump((ti, sla_miss))
