@@ -1823,7 +1823,6 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             json={"notes": new_notes_value},
             environ_overrides={"REMOTE_USER": "test"},
         )
-
         assert response.status_code == 200, response.text
         assert response.json == {
             "dag_id": "example_python_operator",
@@ -1868,7 +1867,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
 
         # in each loop, we should get the right mapped TI back
         for map_index in (1, 2):
-            new_notes_value = f"My super cool TaskInstance note {map_index}"
+            new_notes_value = f"My super cool TaskInstance notes {map_index}"
             response = self.client.patch(
                 "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
                 f"print_the_context/{map_index}/setNote",
