@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from time import sleep
+import time
 from typing import Callable
 
 from airflow.exceptions import AirflowException
@@ -62,7 +62,7 @@ def waiter(
         if countdown >= check_interval_seconds:
             countdown -= check_interval_seconds
             log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
-            sleep(check_interval_seconds)
+            time.sleep(check_interval_seconds)
             state = get_state(get_state_callable(**get_state_args), parse_response)
         else:
             message = f"{object_type.title()} still not {action.lower()} after the allocated time limit."
