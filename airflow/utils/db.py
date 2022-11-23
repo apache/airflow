@@ -182,6 +182,15 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="cloudera_data_engineering_default",
+            conn_type="cloudera_data_engineering",
+            host="https://<VC_ENDPOINT>",
+            extra="""{"insecure" : true, "region": "<CDE_CP_REGION>"}""",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="databricks_default",
             conn_type="databricks",
             host="localhost",

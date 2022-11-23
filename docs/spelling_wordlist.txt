@@ -30,6 +30,7 @@ allAuthenticatedUsers
 allowinsert
 allUsers
 Alphasort
+altus
 amazonaws
 amqp
 analyse
@@ -91,6 +92,7 @@ auth
 authenticator
 Authlib
 authMechanism
+authn
 authorised
 autoclass
 autocommit
@@ -195,6 +197,9 @@ catchup
 cattrs
 ccache
 cdc
+cde
+cdpcurl
+cdw
 Celect
 celeryd
 celltags
@@ -225,6 +230,7 @@ ClassifyTextResponse
 classname
 classpath
 classpaths
+cldr
 cleartext
 cli
 clientId
@@ -232,6 +238,8 @@ Cloudant
 cloudant
 cloudbuild
 CloudBuildClient
+Cloudera
+cloudera
 cloudml
 cloudsqldatabehook
 CloudTasksClient
@@ -466,6 +474,7 @@ dsn
 dttm
 dtypes
 durations
+dwx
 dylib
 Dynamodb
 dynamodb
@@ -676,6 +685,7 @@ hotfix
 Hou
 howto
 hql
+hs
 html
 htmlcontent
 Http
@@ -832,6 +842,7 @@ lastname
 latencies
 latin
 LaunchTemplateParameters
+lbodor
 ldap
 ldaps
 leq
@@ -1205,6 +1216,7 @@ repos
 repr
 req
 reqs
+RequestException
 Reserialize
 reserialize
 reserialized
@@ -1549,6 +1561,7 @@ Url
 url
 urlencoded
 urlparse
+urls
 useHCatalog
 useLegacySQL
 useQueryCache
@@ -1565,6 +1578,7 @@ utils
 uuid
 validator
 vals
+vcluster
 vCPU
 ve
 vendored
@@ -1621,6 +1635,7 @@ xcomresult
 XComs
 Xero
 Xiaodong
+xkg
 xml
 xpath
 xyz

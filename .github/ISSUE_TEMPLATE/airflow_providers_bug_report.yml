@@ -43,6 +43,7 @@ body:
         - atlassian-jira
         - celery
         - cloudant
+        - cloudera
         - cncf-kubernetes
         - common-sql
         - databricks
