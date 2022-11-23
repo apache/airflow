@@ -1614,7 +1614,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
 
         dr = session.query(DagRun).filter(DagRun.run_id == created_dr.run_id).first()
         assert response.status_code == 200, response.text
-        assert dr.note == new_notes_value
+        assert dr.note == new_note_value
         assert response.json == {
             "conf": {},
             "dag_id": dr.dag_id,
@@ -1629,7 +1629,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "data_interval_end": None,
             "last_scheduling_decision": None,
             "run_type": dr.run_type,
-            "note": new_notes_value,
+            "note": new_note_value,
         }
         assert dr.dag_run_note.user_id is not None
 
