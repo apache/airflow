@@ -103,7 +103,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     """
 
     ui_color: str = "#e6f1f2"
-    valid_modes = ["poke", "reschedule"]  # type: Iterable[str]
+    valid_modes: Iterable[str] = ["poke", "reschedule"]
 
     # Adds one additional dependency for all sensor operators that checks if a
     # sensor task instance can be rescheduled.
