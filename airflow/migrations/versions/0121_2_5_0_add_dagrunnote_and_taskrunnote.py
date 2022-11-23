@@ -29,6 +29,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -60,15 +61,16 @@ def upgrade():
     op.create_table(
         "task_note",
         sa.Column("user_id", sa.Integer(), nullable=True),
-        sa.Column("task_id", sa.String(length=250), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column("run_id", sa.String(length=250), nullable=False),
-        sa.Column("map_index", sa.Integer(), server_default=sa.text("-1"), nullable=False),
+        sa.Column("task_id", StringID(), nullable=False),
+        sa.Column("dag_id", StringID(), nullable=False),
+        sa.Column("run_id", StringID(), nullable=False),
+        sa.Column("map_index", sa.Integer(), nullable=False),
         sa.Column(
             "content", sa.String(length=1000).with_variant(sa.Text(length=1000), "mysql"), nullable=True
         ),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name=op.f("task_note_pkey")),
         sa.ForeignKeyConstraint(
             ("dag_id", "task_id", "run_id", "map_index"),
             [
@@ -81,7 +83,6 @@ def upgrade():
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(("user_id",), ["ab_user.id"], name="task_notes_user_fkey"),
-        sa.PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name=op.f("task_note_pkey")),
     )
 
 
