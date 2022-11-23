@@ -21,13 +21,13 @@ import copy
 import re
 import shlex
 import sys
-import unittest
-from concurrent.futures import Future
+from asyncio import Future
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
+from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import BeamCommandRunner, BeamHook
@@ -1894,6 +1894,16 @@ class TestDataflow:
             dataflow.wait_for_done()
 
 
+@pytest.fixture()
+def make_mock_awaitable():
+    def func(mock_obj, return_value):
+        f = Future()
+        f.set_result(return_value)
+        mock_obj.return_value = f
+
+    return func
+
+
 class TestAsyncHook:
     @pytest.fixture
     def hook(self):
@@ -1902,10 +1912,11 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch.object(JobsV1Beta3AsyncClient, "__init__", lambda self: None)
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.JobsV1Beta3AsyncClient.get_job")
-    async def test_get_job(self, mock_method, hook):
-        mock_method.return_value = Future()
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.initialize_client")
+    async def test_get_job(self, initialize_client_mock, hook, make_mock_awaitable):
+        client = initialize_client_mock.return_value
+        make_mock_awaitable(client.get_job, None)
+
         await hook.get_job(
             project_id=TEST_PROJECT_ID,
             job_id=TEST_JOB_ID,
@@ -1920,6 +1931,7 @@ class TestAsyncHook:
             )
         )
 
-        mock_method.assert_called_once_with(
+        initialize_client_mock.assert_called_once()
+        client.get_job.assert_called_once_with(
             request=request,
         )

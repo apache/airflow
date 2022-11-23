@@ -54,7 +54,7 @@ class TemplateJobStartTrigger(BaseTrigger):
     def __init__(
         self,
         job_id: str,
-        project_id: str,
+        project_id: str | None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
@@ -129,6 +129,7 @@ class TemplateJobStartTrigger(BaseTrigger):
                             "message": f"Dataflow job with id {self.job_id} was stopped",
                         }
                     )
+                    return
                 else:
                     self.log.info("Job is still running...")
                     self.log.info("Current job status is: %s", status)

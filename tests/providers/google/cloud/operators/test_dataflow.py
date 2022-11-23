@@ -512,9 +512,7 @@ class TestDataflowTemplateOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator.defer")
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator._get_hook"
-    )
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator.hook")
     def test_execute_with_deferrable_mode(self, mock_hook, mock_defer_method, deferrable_operator):
         deferrable_operator.execute(mock.MagicMock())
         mock_defer_method.assert_called_once()

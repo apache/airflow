@@ -27,6 +27,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
+from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -58,8 +59,8 @@ class CheckJobRunning(Enum):
 
 class DataflowConfiguration:
     """Dataflow configuration that can be passed to
-    :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` and
-    :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
+    :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` and
+    :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
     :param job_name: The 'jobName' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
@@ -69,9 +70,8 @@ class DataflowConfiguration:
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :param location: Job location.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority, if any.
+        For this to work, the service account making the request must have domain-wide delegation enabled.
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
@@ -85,7 +85,6 @@ class DataflowConfiguration:
         account from the list granting this role to the originating account (templated).
 
         .. warning::
-
             This option requires Apache Beam 2.39.0 or newer.
 
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
@@ -104,7 +103,6 @@ class DataflowConfiguration:
         * for the batch pipeline, wait for the jobs to complete.
 
         .. warning::
-
             You cannot call ``PipelineResult.wait_until_finish`` method in your pipeline code for the operator
             to work properly. i. e. you must use asynchronous execution. Otherwise, your pipeline will
             always wait until finished. For more information, look at:
@@ -112,10 +110,8 @@ class DataflowConfiguration:
             <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#python_10>`__
 
         The process of starting the Dataflow job in Airflow consists of two steps:
-
         * running a subprocess and reading the stderr/stderr log for the job id.
-        * loop waiting for the end of the job ID from the previous step.
-          This loop checks the status of the job.
+        * loop waiting for the end of the job ID from the previous step by checking its status.
 
         Step two is started just after step one has finished, so if you have wait_until_finished in your
         pipeline code, step two will not start until the process stops. When this process stops,
@@ -127,13 +123,10 @@ class DataflowConfiguration:
         If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
     :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs. Supported only by
-        :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
+        :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
     :param check_if_running: Before running job, validate that a previous run is not in process.
-        IgnoreJob = do not check if running.
-        FinishIfRunning = if job is running finish with nothing.
-        WaitForRun = wait until job finished and the run job.
         Supported only by:
-        :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
+        :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
     :param service_account: Run the job as a specific service account, instead of the default GCE robot.
     """
 
@@ -233,6 +226,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         with key ``'jobName'`` in ``options`` will be overwritten.
     :param dataflow_default_options: Map of default job options.
     :param options: Map of job specific options.The key must be a dictionary.
+
         The value can contain different types:
 
         * If the value is None, the single option - ``--key`` (without value) will be added.
@@ -244,6 +238,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         * Other value types will be replaced with the Python textual representation.
 
         When defining labels (``labels`` option), you can also provide a dictionary.
+
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :param location: Job location.
@@ -597,6 +592,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
             For more detail on job template execution have a look at the reference:
             https://cloud.google.com/dataflow/docs/templates/executing-templates
+
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = (
@@ -617,8 +614,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: str,
         template: str,
+        project_id: str | None = None,
         job_name: str = "{{task.task_id}}",
         options: dict[str, Any] | None = None,
         dataflow_default_options: dict[str, Any] | None = None,
@@ -659,7 +656,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.deferrable = deferrable
 
         self.job: dict | None = None
-        self._hook: DataflowHook | None = None
 
         self._validate_deferrable_params()
 
@@ -674,6 +670,18 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         if self.deferrable and self.wait_until_finished is None:
             self.wait_until_finished = False
 
+    @cached_property
+    def hook(self) -> DataflowHook:
+        hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            poll_sleep=self.poll_sleep,
+            impersonation_chain=self.impersonation_chain,
+            cancel_timeout=self.cancel_timeout,
+            wait_until_finished=self.wait_until_finished,
+        )
+        return hook
+
     def execute(self, context: Context):
         def set_current_job(current_job):
             self.job = current_job
@@ -682,7 +690,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         options = self.dataflow_default_options
         options.update(self.options)
 
-        self.job = self._get_hook().start_template_dataflow(
+        self.job = self.hook.start_template_dataflow(
             job_name=self.job_name,
             variables=options,
             parameters=self.parameters,
@@ -725,30 +733,20 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
 
+        job_id = event["job_id"]
         self.log.info("Task %s completed with response %s", self.task_id, event["message"])
+        return job_id
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
         if self.job is not None:
-            self.log.info("Cancel job %s", self.job_name)
-            self._get_hook().cancel_job(
+            self.log.info("Cancelling job %s", self.job_name)
+            self.hook.cancel_job(
                 job_name=self.job_name,
                 job_id=self.job.get("id"),
                 project_id=self.job.get("projectId"),
                 location=self.job.get("location"),
             )
-
-    def _get_hook(self) -> DataflowHook:
-        if self._hook is None:
-            self._hook = DataflowHook(
-                gcp_conn_id=self.gcp_conn_id,
-                delegate_to=self.delegate_to,
-                poll_sleep=self.poll_sleep,
-                impersonation_chain=self.impersonation_chain,
-                cancel_timeout=self.cancel_timeout,
-                wait_until_finished=self.wait_until_finished,
-            )
-        return self._hook
 
 
 class DataflowStartFlexTemplateOperator(BaseOperator):
@@ -814,6 +812,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
@@ -823,7 +822,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self,
         body: dict,
         location: str,
-        project_id: str,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         drain_pipeline: bool = False,
@@ -848,7 +847,6 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job: dict | None = None
-        self.hook: DataflowHook | None = None
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
 
@@ -865,8 +863,9 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         if self.deferrable and self.wait_until_finished is None:
             self.wait_until_finished = False
 
-    def execute(self, context: Context):
-        self.hook = DataflowHook(
+    @cached_property
+    def hook(self) -> DataflowHook:
+        hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             drain_pipeline=self.drain_pipeline,
@@ -874,7 +873,9 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
             wait_until_finished=self.wait_until_finished,
             impersonation_chain=self.impersonation_chain,
         )
+        return hook
 
+    def execute(self, context: Context):
         self._append_uuid_to_job_name()
 
         def set_current_job(current_job):
@@ -926,10 +927,12 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
         job_id = event["job_id"]
         self.log.info("Task %s completed with response %s", job_id, event["message"])
+        job = self.hook.get_job(job_id=job_id, project_id=self.project_id, location=self.location)
+        return job
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
-        if self.job is not None and self.hook is not None:
+        if self.job is not None:
             self.hook.cancel_job(
                 job_id=self.job.get("id"),
                 project_id=self.job.get("projectId"),

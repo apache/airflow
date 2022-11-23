@@ -34,7 +34,11 @@ from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
 
@@ -646,7 +650,10 @@ class DataflowHook(GoogleBaseHook):
         """
         name = self.build_dataflow_job_name(job_name, append_job_name)
 
-        environment = self._update_environment(environment, variables)
+        environment = self._update_environment(
+            variables=variables,
+            environment=environment,
+        )
 
         service = self.get_conn()
 
@@ -695,11 +702,11 @@ class DataflowHook(GoogleBaseHook):
         jobs_controller.wait_for_done()
         return response["job"]
 
-    def _update_environment(self, environment: dict | None, variables: dict) -> dict:
+    def _update_environment(self, variables: dict, environment: dict | None = None) -> dict:
         environment = environment or {}
         # available keys for runtime environment are listed here:
         # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
-        environment_keys = [
+        environment_keys = {
             "numWorkers",
             "maxWorkers",
             "zone",
@@ -715,17 +722,17 @@ class DataflowHook(GoogleBaseHook):
             "ipConfiguration",
             "workerRegion",
             "workerZone",
-        ]
+        }
 
-        for key in variables:
-            if key in environment_keys:
-                if key in environment:
-                    self.log.warning(
-                        "'%s' parameter in 'variables' will override of "
-                        "the same one passed in 'environment'!",
-                        key,
-                    )
-                environment.update({key: variables[key]})
+        def _check_one(key, val):
+            if key in environment:
+                self.log.warning(
+                    "%r parameter in 'variables' will override of " "the same one passed in 'environment'!",
+                    key,
+                )
+            return key, val
+
+        environment.update(_check_one(key, val) for key, val in variables.items() if key in environment_keys)
 
         return environment
 
@@ -1047,7 +1054,7 @@ class DataflowHook(GoogleBaseHook):
     def get_job(
         self,
         job_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> dict:
         """
@@ -1182,11 +1189,28 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
 
     sync_hook_class = DataflowHook
 
-    @GoogleBaseHook.fallback_to_default_project_id
+    async def initialize_client(self, client_class):
+        """
+        Initialize object of the given class.
+
+        Method is used to initialize asynchronous client. Because of the big amount of the classes which are
+        used for Dataflow service it was decided to initialize them the same way with credentials which are
+        received from the method of the GoogleBaseHook class.
+        :param client_class: Class of the Google cloud SDK
+        """
+        credentials = (await self.get_sync_hook()).get_credentials()
+        return client_class(
+            credentials=credentials,
+        )
+
+    async def get_project_id(self) -> str:
+        project_id = (await self.get_sync_hook()).project_id
+        return project_id
+
     async def get_job(
         self,
-        project_id: str,
         job_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         job_view: int = JobView.JOB_VIEW_SUMMARY,
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> Job:
@@ -1199,9 +1223,9 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         :param job_view: Optional. JobView object which determines representation of the returned data
         :param location: Optional. The location of the Dataflow job (for example europe-west1). See:
             https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
-        :return: google.cloud.dataflow_v1beta3.Job
         """
-        client = JobsV1Beta3AsyncClient()
+        project_id = project_id or (await self.get_project_id())
+        client = await self.initialize_client(JobsV1Beta3AsyncClient)
 
         request = GetJobRequest(
             dict(
@@ -1218,11 +1242,10 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
 
         return job
 
-    @GoogleBaseHook.fallback_to_default_project_id
     async def get_job_status(
         self,
-        project_id: str,
         job_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         job_view: int = JobView.JOB_VIEW_SUMMARY,
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> JobState:
@@ -1235,7 +1258,6 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         :param job_view: Optional. JobView object which determines representation of the returned data
         :param location: Optional. The location of the Dataflow job (for example europe-west1). See:
             https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
-        :return: google.cloud.dataflow_v1beta3.JobState
         """
         job = await self.get_job(
             project_id=project_id,
