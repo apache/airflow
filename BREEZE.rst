@@ -85,7 +85,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 Calima
 ******
 
-- **Version**: Install the latest stable `Calima <https://github.com/abiosoft/colima/blob/main/docs/INSTALL.md>`_
+- **Version**: Install the latest stable `Colima <https://github.com/abiosoft/colima/blob/main/docs/INSTALL.md>`_
   and add make sure it is in your ``PATH``.
 - **buildx plugin**: it is not pre-installed so you have to install it manually. For details, see:
   `FAQ - Installing Buildx <https://github.com/abiosoft/colima/blob/main/docs/FAQ.md#installing-buildx>`_
