@@ -117,7 +117,6 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
-from airflow.www.fab_security.sqla.models import User
 
 TR = TaskReschedule
 
@@ -2716,7 +2715,7 @@ class TaskInstanceNote(Base):
         ),
         ForeignKeyConstraint(
             (user_id,),
-            [User.id],
+            ["ab_user.id"],
             name="task_instance_note_user_fkey",
         ),
     )

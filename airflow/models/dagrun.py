@@ -68,7 +68,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
-from airflow.www.fab_security.sqla.models import User
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -1332,7 +1331,7 @@ class DagRunNote(Base):
         ),
         ForeignKeyConstraint(
             (user_id,),
-            [User.id],
+            ["ab_user.id"],
             name="dag_run_note_user_fkey",
         ),
     )
