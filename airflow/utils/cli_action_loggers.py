@@ -130,7 +130,8 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
             "log' doesn't exist",  # mysql
             "Invalid object name 'log'",  # mssql
         ]
-        if e.args and not any(x in e.args[0] for x in expected):
+        error_is_ok = e.args and any(x in e.args[0] for x in expected)
+        if not error_is_ok:
             logging.warning("Failed to log action %s", e)
     except Exception as e:
         logging.warning("Failed to log action %s", e)
