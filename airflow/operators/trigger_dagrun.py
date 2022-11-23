@@ -144,7 +144,6 @@ class TriggerDagRunOperator(BaseOperator):
                 conf=self.conf,
                 execution_date=parsed_execution_date,
                 replace_microseconds=False,
-                notes=self.dag_run_notes,
             )
 
         except DagRunAlreadyExists as e:
