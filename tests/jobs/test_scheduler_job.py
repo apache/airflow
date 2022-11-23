@@ -4517,6 +4517,50 @@ class TestSchedulerJob:
             .scalar()
         ) > (timezone.utcnow() - timedelta(days=2))
 
+    def test_update_dagrun_state_for_paused_dag(self, dag_maker, session):
+        """Test that _update_dagrun_state_for_paused_dag puts DagRuns in terminal states"""
+
+        with dag_maker("testdag") as dag:
+            EmptyOperator(task_id="task1")
+
+        scheduled_run = dag_maker.create_dagrun(
+            execution_date=datetime.datetime(2022, 1, 1),
+            run_type=DagRunType.SCHEDULED,
+        )
+        scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
+        ti = scheduled_run.get_task_instances()[0]
+        ti.set_state(TaskInstanceState.RUNNING)
+        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm.is_paused = True
+        session.merge(dm)
+        session.merge(ti)
+        session.flush()
+
+        assert scheduled_run.state == State.RUNNING
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor()
+        self.scheduler_job._update_dag_run_state_for_paused_dags(session=session)
+        session.flush()
+
+        # TI still running, DagRun left in running
+        (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
+        assert scheduled_run.state == State.RUNNING
+        prior_last_scheduling_decision = scheduled_run.last_scheduling_decision
+
+        # Make sure we don't constantly try dagruns over and over
+        self.scheduler_job._update_dag_run_state_for_paused_dags(session=session)
+        (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
+        assert scheduled_run.state == State.RUNNING
+        # last_scheduling_decision is bumped by update_state, so check that to determine if we tried again
+        assert prior_last_scheduling_decision == scheduled_run.last_scheduling_decision
+
+        # Once the TI is in a terminal state though, DagRun goes to success
+        ti.set_state(TaskInstanceState.SUCCESS)
+        self.scheduler_job._update_dag_run_state_for_paused_dags(session=session)
+        (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
+        assert scheduled_run.state == State.SUCCESS
+
     def test_update_dagrun_state_for_paused_dag_not_for_backfill(self, dag_maker, session):
         """Test that the _update_dagrun_state_for_paused_dag does not affect backfilled dagruns"""
 
@@ -4525,6 +4569,7 @@ class TestSchedulerJob:
 
         # Backfill run
         backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        backfill_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
         ti = backfill_run.get_task_instances()[0]
         ti.set_state(TaskInstanceState.SUCCESS)
         dm = DagModel.get_dagmodel(dag.dag_id)
@@ -4533,21 +4578,7 @@ class TestSchedulerJob:
         session.merge(ti)
         session.flush()
 
-        # scheduled run
-        scheduled_run = dag_maker.create_dagrun(
-            execution_date=datetime.datetime(2022, 1, 1), run_type=DagRunType.SCHEDULED
-        )
-        ti = scheduled_run.get_task_instances()[0]
-        ti.set_state(TaskInstanceState.SUCCESS)
-        dm = DagModel.get_dagmodel(dag.dag_id)
-        dm.is_paused = True
-        session.merge(dm)
-        session.merge(ti)
-        session.flush()
-
-        assert dag.dag_id in DagModel.get_all_paused_dag_ids()
         assert backfill_run.state == State.RUNNING
-        assert scheduled_run.state == State.RUNNING
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.executor = MockExecutor()
@@ -4556,9 +4587,6 @@ class TestSchedulerJob:
 
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
         assert backfill_run.state == State.RUNNING
-
-        (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
-        assert scheduled_run.state == State.SUCCESS
 
 
 @pytest.mark.need_serialized_dag
