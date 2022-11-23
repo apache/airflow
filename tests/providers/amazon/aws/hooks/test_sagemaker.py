@@ -714,16 +714,43 @@ class TestSageMakerHook:
 
     @mock_sagemaker
     def test_delete_model(self):
-        hook = SageMakerHook(aws_conn_id="aws_default")
+        hook = SageMakerHook()
         with patch.object(hook.conn, "delete_model") as mock_delete:
             hook.delete_model(model_name="test")
         mock_delete.assert_called_once_with(ModelName="test")
 
     @mock_sagemaker
     def test_delete_model_when_not_exist(self):
-        hook = SageMakerHook(aws_conn_id="aws_default")
+        hook = SageMakerHook()
         with pytest.raises(ClientError) as raised_exception:
             hook.delete_model(model_name="test")
         ex = raised_exception.value
         assert ex.operation_name == "DeleteModel"
         assert ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_create_model_package_group(self, mock_conn):
+        created = SageMakerHook().create_model_package_group("group-name")
+
+        mock_conn().create_model_package_group.assert_called_once_with(
+            ModelPackageGroupName="group-name",
+            ModelPackageGroupDescription="",
+        )
+        assert created
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_create_model_package_group_returns_false_if_exists(self, mock_conn):
+        mock_conn().create_model_package_group.side_effect = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "ValidationException",
+                    "Message": "Model Package Group already exists: arn:aws:sagemaker:us-west-2:123456:model-package-group/test-package-group",
+                }
+            },
+            operation_name="empty",
+        )
+        hook = SageMakerHook()
+
+        created = hook.create_model_package_group("group-name")
+
+        assert created == False
