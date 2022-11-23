@@ -384,7 +384,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         for idx in (1, 2):
             ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "notes"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
@@ -1861,14 +1861,14 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
         for idx in (1, 2):
             ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "notes"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
 
         # in each loop, we should get the right mapped TI back
         for map_index in (1, 2):
-            new_note_value = f"My super cool TaskInstance note {map_index}"
+            new_notes_value = f"My super cool TaskInstance note {map_index}"
             response = self.client.patch(
                 "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
                 f"print_the_context/{map_index}/setNote",
