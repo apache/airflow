@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, cast
+from typing import Any, Callable, Iterable, Mapping, Sequence, cast
 
 import sqlparse
 from packaging.version import Version
@@ -111,9 +111,11 @@ class DbApiHook(BaseForDbApiHook):
         # We should not make schema available in deriving hooks for backwards compatibility
         # If a hook deriving from DBApiHook has a need to access schema, then it should retrieve it
         # from kwargs and store it on its own. We do not run "pop" here as we want to give the
-        # Hook deriving from the DBApiHook to still have access to the field in it's constructor
+        # Hook deriving from the DBApiHook to still have access to the field in its constructor
         self.__schema = schema
         self.log_sql = log_sql
+        self.scalar_return_last = False
+        self.last_description: Sequence[Sequence] | None = None
 
     def get_conn(self):
         """Returns a connection object"""
@@ -244,7 +246,7 @@ class DbApiHook(BaseForDbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the ALL SQL expressions if handler was provided.
         """
-        scalar_return_last = isinstance(sql, str) and return_last
+        self.scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 sql = self.split_sql_string(sql)
@@ -268,6 +270,7 @@ class DbApiHook(BaseForDbApiHook):
                     if handler is not None:
                         result = handler(cur)
                         results.append(result)
+                self.last_description = cur.description
 
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
@@ -275,7 +278,7 @@ class DbApiHook(BaseForDbApiHook):
 
         if handler is None:
             return None
-        elif scalar_return_last:
+        elif self.scalar_return_last:
             return results[-1]
         else:
             return results
