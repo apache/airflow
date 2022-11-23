@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Any, NamedTuple, cast
 
 from setproctitle import setproctitle
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
@@ -48,6 +49,7 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import errors
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetModel, TaskOutletDatasetReference
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
@@ -433,8 +435,10 @@ class DagFileProcessorManager(LoggingMixin):
         self.last_stat_print_time = 0
         # Last time we cleaned up DAGs which are no longer in files
         self.last_deactivate_stale_dags_time = timezone.make_aware(datetime.fromtimestamp(0))
-        # How often to check for DAGs which are no longer in files
-        self.deactivate_stale_dags_interval = conf.getint("scheduler", "deactivate_stale_dags_interval")
+        # How often to clean up:
+        # * DAGs which are no longer in files
+        # * datasets that are no longer referenced by any DAG schedule parameters or task outlets
+        self.cleanup_interval = conf.getint("scheduler", "cleanup_interval")
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
@@ -489,6 +493,36 @@ class DagFileProcessorManager(LoggingMixin):
         return self._run_parsing_loop()
 
     @provide_session
+    def _orphan_unreferenced_datasets(self, session=None):
+        """
+        Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
+        sets the dataset is_orphaned flags to True
+        """
+        orphaned_dataset_query = (
+            session.query(DatasetModel)
+            .join(
+                DagScheduleDatasetReference,
+                DagScheduleDatasetReference.dataset_id == DatasetModel.id,
+                isouter=True,
+            )
+            .join(
+                TaskOutletDatasetReference,
+                TaskOutletDatasetReference.dataset_id == DatasetModel.id,
+                isouter=True,
+            )
+            .group_by(DatasetModel.id)
+            .having(
+                and_(
+                    func.count(DagScheduleDatasetReference.dag_id) == 0,
+                    func.count(TaskOutletDatasetReference.dag_id) == 0,
+                )
+            )
+        )
+        for dataset in orphaned_dataset_query.all():
+            self.log.info("Orphaning dataset '%s'", dataset.uri)
+            dataset.is_orphaned = True
+
+    @provide_session
     def _deactivate_stale_dags(self, session=None):
         """
         Detects DAGs which are no longer present in files
@@ -497,7 +531,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_deactivate_stale_dags_time).total_seconds()
-        if elapsed_time_since_refresh > self.deactivate_stale_dags_interval:
+        if elapsed_time_since_refresh > self.cleanup_interval:
             last_parsed = {
                 fp: self.get_last_finish_time(fp) for fp in self.file_paths if self.get_last_finish_time(fp)
             }
@@ -532,6 +566,8 @@ class DagFileProcessorManager(LoggingMixin):
                 for dag_id in to_deactivate:
                     SerializedDagModel.remove_dag(dag_id)
                     self.log.info("Deleted DAG %s in serialized_dag table", dag_id)
+
+            self._orphan_unreferenced_datasets(session=session)
 
             self.last_deactivate_stale_dags_time = timezone.utcnow()
 
