@@ -635,7 +635,7 @@ def set_task_instance_note(
     """Set the note for a Task instance. This supports both Mapped and non-Mapped Task instances."""
     try:
         post_body = set_task_instance_note_form_schema.load(get_json_request_dict())
-        new_note = post_body["notes"]
+        new_note = post_body["note"]
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
@@ -674,7 +674,7 @@ def set_task_instance_note(
 
     current_user_id = getattr(current_user, "id", None)
     if ti.task_instance_note is None:
-        ti.notes = (new_note, current_user_id)
+        ti.note = (new_note, current_user_id)
     else:
         ti.task_instance_note.content = new_note
         ti.task_instance_note.user_id = current_user_id
