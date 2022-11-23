@@ -1421,7 +1421,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             "execution_date": dr.execution_date.isoformat(),
             "external_trigger": False,
             "logical_date": dr.logical_date.isoformat(),
-            "start_date": dr.logical_date.isoformat(),
+            "start_date": None,
             "state": "queued",
             "data_interval_start": dr.data_interval_start.isoformat(),
             "data_interval_end": dr.data_interval_end.isoformat(),

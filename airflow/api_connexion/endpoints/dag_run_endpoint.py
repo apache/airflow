@@ -317,6 +317,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 conf=post_body.get("conf"),
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                session=session,
             )
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
@@ -412,7 +413,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             include_parentdag=True,
             only_failed=False,
         )
-        dag_run.refresh_from_db()
+        dag_run = session.query(DagRun).filter(DagRun.id == dag_run.id).one()
         return dagrun_schema.dump(dag_run)
 
 
