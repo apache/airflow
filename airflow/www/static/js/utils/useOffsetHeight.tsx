@@ -27,6 +27,7 @@ const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('bo
 // For an html element, keep it within view height by calculating the top offset and footer height
 const useOffsetHeight = (
   contentRef: React.RefObject<HTMLDivElement | HTMLPreElement>,
+  dataToWatch?: any, // recalculate height if this changes
   minHeight: number = 300,
 ) => {
   const [height, setHeight] = useState(0);
@@ -47,7 +48,7 @@ const useOffsetHeight = (
     return () => {
       window.removeEventListener('resize', calculateHeight);
     };
-  }, [contentRef, minHeight]);
+  }, [contentRef, minHeight, dataToWatch]);
 
   return height;
 };
