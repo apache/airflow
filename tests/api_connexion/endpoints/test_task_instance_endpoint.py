@@ -201,7 +201,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "note": "placeholder-note",
+            "notes": "placeholder-note",
             "operator": None,
             "pid": 100,
             "pool": "default_pool",
@@ -256,7 +256,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "note": "placeholder-note",
+            "notes": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -301,7 +301,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "note": "placeholder-note",
+            "notes": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -349,7 +349,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "note": "placeholder-note",
+            "notes": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -407,7 +407,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "hostname": "",
                 "map_index": map_index,
                 "max_tries": 0,
-                "note": "placeholder-note",
+                "notes": "placeholder-note",
                 "operator": "_PythonDecoratedOperator",
                 "pid": 100,
                 "pool": "default_pool",
@@ -1816,11 +1816,11 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
     @provide_session
     def test_should_respond_200(self, session):
         self.create_task_instances(session)
-        new_note_value = "My super cool TaskInstance note."
+        new_notes_value = "My super cool TaskInstance notes."
         response = self.client.patch(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
             "print_the_context/setNote",
-            json={"note": new_note_value},
+            json={"notes": new_notes_value},
             environ_overrides={"REMOTE_USER": "test"},
         )
 
@@ -1834,7 +1834,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "note": new_note_value,
+            "notes": new_notes_value,
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -1872,7 +1872,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             response = self.client.patch(
                 "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
                 f"print_the_context/{map_index}/setNote",
-                json={"note": new_note_value},
+                json={"notes": new_notes_value},
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200, response.text
@@ -1886,7 +1886,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "hostname": "",
                 "map_index": map_index,
                 "max_tries": 0,
-                "note": new_note_value,
+                "notes": new_notes_value,
                 "operator": "_PythonDecoratedOperator",
                 "pid": 100,
                 "pool": "default_pool",
@@ -1914,7 +1914,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             )
             response = self.client.patch(
                 url,
-                json={"note": "I am setting a note while being unauthenticated."},
+                json={"notes": "I am setting a note while being unauthenticated."},
             )
             assert_401(response)
 
@@ -1923,7 +1923,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             response = self.client.patch(
                 "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
                 f"print_the_context{map_index}/setNote",
-                json={"note": "I am setting a note without the proper permissions."},
+                json={"notes": "I am setting a note without the proper permissions."},
                 environ_overrides={"REMOTE_USER": "test_no_permissions"},
             )
             assert response.status_code == 403
@@ -1934,7 +1934,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             response = self.client.patch(
                 f"api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
                 f"{map_index}/setNote",
-                json={"note": "I am setting a note on a DAG that doesn't exist."},
+                json={"notes": "I am setting a note on a DAG that doesn't exist."},
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 404
