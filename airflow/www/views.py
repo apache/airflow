@@ -263,8 +263,10 @@ def dag_to_grid(dag, dag_runs, session):
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            func.min(TaskInstanceNote.content).label("notes"),
-            func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
+            func.min(TaskInstanceNote.content).label("note"),
+            func.count(sqla.func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label(
+                "state_count"
+            ),
             func.min(TaskInstance.start_date).label("start_date"),
             func.max(TaskInstance.end_date).label("end_date"),
             func.max(TaskInstance._try_number).label("_try_number"),
@@ -297,7 +299,7 @@ def dag_to_grid(dag, dag_runs, session):
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
                     "try_number": try_count,
-                    "notes": task_instance.notes,
+                    "note": task_instance.note,
                 }
 
             def _mapped_summary(ti_summaries):
@@ -4894,7 +4896,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        "notes",
+        "note",
         "external_trigger",
         "conf",
         "duration",
@@ -4907,7 +4909,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_type",
         "start_date",
         "end_date",
-        # "notes",  # todo: maybe figure out how to re-enable this
+        # "note",  # todo: maybe figure out how to re-enable this
         "external_trigger",
     ]
     label_columns = {
@@ -4921,7 +4923,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "end_date",
         "run_id",
         "conf",
-        "notes",
+        "note",
     ]
 
     # duration is not a DB column, its derived
@@ -4934,7 +4936,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        "notes",
+        "note",
         "external_trigger",
         "conf",
     ]
@@ -5267,7 +5269,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "duration",
-        "notes",
+        "note",
         "job_id",
         "hostname",
         "unixname",
@@ -5299,7 +5301,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
-        # "notes",  # todo: maybe make notes work with TI search?
+        # "note",  # todo: maybe make note work with TI search?
         "hostname",
         "priority_weight",
         "queue",
@@ -5316,7 +5318,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "state",
-        "notes",
+        "note",
     ]
 
     add_exclude_columns = ["next_method", "next_kwargs", "trigger_id"]
