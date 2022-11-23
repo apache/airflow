@@ -255,6 +255,7 @@ class TestDBCleanup:
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})
         exclusion_list = {
+            "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
             "trigger",  # self-maintaining
