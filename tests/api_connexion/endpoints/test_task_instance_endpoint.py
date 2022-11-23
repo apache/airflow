@@ -1815,7 +1815,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
 
     @provide_session
     def test_should_respond_200(self, session):
-        self.create_task_instances(session)
+        tis = self.create_task_instances(session)
         new_notes_value = "My super cool TaskInstance notes."
         response = self.client.patch(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
@@ -1852,6 +1852,8 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
         }
+        ti = tis[0]
+        assert ti.task_instance_note.user_id is not None
 
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
         """Verify we don't duplicate rows through join to RTIF"""

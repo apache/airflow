@@ -1631,6 +1631,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "run_type": dr.run_type,
             "notes": new_notes_value,
         }
+        assert dr.dag_run_note.user_id is not None
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.patch(
