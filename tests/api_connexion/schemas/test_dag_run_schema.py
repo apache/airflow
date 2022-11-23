@@ -77,7 +77,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             "data_interval_start": None,
             "last_scheduling_decision": None,
             "run_type": "manual",
-            "notes": None,
+            "note": None,
         }
 
     @pytest.mark.parametrize(
@@ -171,7 +171,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
                 {
                     "dag_id": "my-dag-run",
@@ -187,7 +187,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
             ],
             "total_entries": 2,
