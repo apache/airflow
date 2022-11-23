@@ -4869,7 +4869,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_type",
         "start_date",
         "end_date",
-        "notes",
+        # "notes",  # todo: maybe figure out how to re-enable this
         "external_trigger",
     ]
     label_columns = {
