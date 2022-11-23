@@ -130,10 +130,10 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
             "log' doesn't exist",  # mysql
             "Invalid object name 'log'",  # mssql
         ]
-        if getattr(e, "args", None) and not any(x in e.args[0] for x in expected):
+        if e.args and not any(x in e.args[0] for x in expected):
             logging.warning("Failed to log action %s", e)
     except Exception as e:
-        logging.error("Failed to log action %s", e)
+        logging.warning("Failed to log action %s", e)
 
 
 __pre_exec_callbacks: list[Callable] = []
