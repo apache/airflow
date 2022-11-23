@@ -1043,7 +1043,7 @@ export interface components {
        *
        * *New in version 2.5.0*
        */
-      notes?: string | null;
+      note?: string | null;
     };
     /**
      * @description Modify the state of a DAG run.
@@ -1084,7 +1084,7 @@ export interface components {
     } & components["schemas"]["CollectionInfo"];
     SetDagRunNote: {
       /** @description Custom notes left by users for this Dag Run. */
-      notes?: string;
+      note?: string;
     };
     /** @description Log of user operations via CLI or Web UI. */
     EventLog: {
@@ -1289,7 +1289,7 @@ export interface components {
        *
        * *New in version 2.5.0*
        */
-      notes?: string | null;
+      note?: string | null;
     };
     /**
      * @description Collection of task instances.
@@ -1829,7 +1829,7 @@ export interface components {
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */
-      notes: string;
+      note: string;
     };
     ListDagRunsForm: {
       /**
