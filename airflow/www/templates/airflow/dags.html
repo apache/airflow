@@ -320,7 +320,7 @@
                       {% if ds_info.total == 1 -%}
                         On {{ ds_info.uri[0:40] + '…' if ds_info.uri and ds_info.uri|length > 40 else ds_info.uri|default('', true) }}
                       {%- else -%}
-                        <span class="js-datasets-ready">{{ ds_info.ready }}</span> of  <span class="js-datasets-total">{{ ds_info.total }}</span> datasets updated
+                        {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
                       {%- endif %}
                     </div>
                   </span>

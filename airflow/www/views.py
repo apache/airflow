@@ -875,12 +875,9 @@ class Airflow(AirflowBaseView):
             .filter(DagModel.schedule_interval == "Dataset")
         )
 
-        if dataset_triggered_dag_ids:
-            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
-                dataset_triggered_dag_ids, session=session
-            )
-        else:
-            dataset_triggered_next_run_info = {}
+        dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
+            dataset_triggered_dag_ids, session=session
+        )
 
         return flask.json.jsonify(dataset_triggered_next_run_info)
 
