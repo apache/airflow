@@ -434,8 +434,9 @@ ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
 ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
 ARG_REPLACE_MICRO = Arg(
-    ("--replace-microseconds",),
+    ("--no-replace-microseconds",),
     help="whether microseconds should be zeroed",
+    dest="replace_microseconds",
     action="store_false",
     default=True,
 )
