@@ -39,7 +39,7 @@ revision = "2243be94a694"
 down_revision = "65a852f26899"
 branch_labels = None
 depends_on = None
-airflow_version = '2.5.0'
+airflow_version = "2.5.0"
 
 
 def upgrade():
@@ -64,7 +64,7 @@ def upgrade():
             ],
             ondelete="CASCADE",
         ),
-        sa.ForeignKeyConstraint(("user_id",), ["ab_user.user_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(("user_id",), ["ab_user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index"),
     )
 
