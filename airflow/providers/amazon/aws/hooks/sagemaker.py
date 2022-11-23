@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import collections
 import os
+import re
 import tarfile
 import tempfile
 import time
@@ -954,33 +955,49 @@ class SageMakerHook(AwsBaseHook):
         )
         return bool(self.count_processing_jobs_by_name(processing_job_name))
 
+    @staticmethod
+    def _name_matches_pattern(
+        processing_job_name: str,
+        found_name: str,
+        job_name_suffix: str | None = None,
+    ) -> bool:
+        pattern = re.compile(f"^{processing_job_name}({job_name_suffix})?$")
+        return pattern.fullmatch(found_name) is not None
+
     def count_processing_jobs_by_name(
         self,
         processing_job_name: str,
+        job_name_suffix: str | None = None,
         throttle_retry_delay: int = 2,
         retries: int = 3,
     ) -> int:
         """
         Returns the number of processing jobs found with the provided name prefix.
         :param processing_job_name: The prefix to look for.
+        :param job_name_suffix: The optional suffix which may be appended to deduplicate an existing job name.
         :param throttle_retry_delay: Seconds to wait if a ThrottlingException is hit.
         :param retries: The max number of times to retry.
         :returns: The number of processing jobs that start with the provided prefix.
         """
         try:
             jobs = self.get_conn().list_processing_jobs(NameContains=processing_job_name)
-            return len(jobs["ProcessingJobSummaries"])
+            # We want to make sure the job name starts with the provided name, not just contains it.
+            matching_jobs = [
+                job["ProcessingJobName"]
+                for job in jobs["ProcessingJobSummaries"]
+                if self._name_matches_pattern(processing_job_name, job["ProcessingJobName"], job_name_suffix)
+            ]
+            return len(matching_jobs)
         except ClientError as e:
             if e.response["Error"]["Code"] == "ResourceNotFound":
                 # No jobs found with that name.  This is good, return 0.
                 return 0
-            if e.response["Error"]["Code"] == "ThrottlingException":
+            if e.response["Error"]["Code"] == "ThrottlingException" and retries:
                 # If we hit a ThrottlingException, back off a little and try again.
-                if retries:
-                    time.sleep(throttle_retry_delay)
-                    return self.count_processing_jobs_by_name(
-                        processing_job_name, throttle_retry_delay * 2, retries - 1
-                    )
+                time.sleep(throttle_retry_delay)
+                return self.count_processing_jobs_by_name(
+                    processing_job_name, job_name_suffix, throttle_retry_delay * 2, retries - 1
+                )
             raise
 
     def delete_model(self, model_name: str):

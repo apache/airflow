@@ -181,7 +181,10 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
         processing_job_name = self.config["ProcessingJobName"]
-        existing_jobs_found = self.hook.count_processing_jobs_by_name(processing_job_name)
+        processing_job_dedupe_pattern = "-[0-9]+$"
+        existing_jobs_found = self.hook.count_processing_jobs_by_name(
+            processing_job_name, processing_job_dedupe_pattern
+        )
         if existing_jobs_found:
             if self.action_if_job_exists == "fail":
                 raise AirflowException(
