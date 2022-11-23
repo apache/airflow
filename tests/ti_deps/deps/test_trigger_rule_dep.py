@@ -23,6 +23,7 @@ from typing import Iterator
 import pytest
 
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.ti_deps.dep_context import DepContext
@@ -896,3 +897,53 @@ class TestTriggerRuleDep:
         )
 
         assert len(dep_statuses) == 0
+
+
+def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
+    from airflow.decorators import task, task_group
+
+    with dag_maker(session=session):
+
+        @task
+        def t(x):
+            return x
+
+        @task_group
+        def tg(x):
+            t1 = t.override(task_id="t1")(x=x)
+            return t.override(task_id="t2")(x=t1)
+
+        t2 = tg.expand(x=[1, 2, 3])
+        t.override(task_id="t3")(x=t2)
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    def _one_scheduling_decision_iteration() -> dict[tuple[str, int], TaskInstance]:
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        return {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+
+    # Initial decision.
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t1", 0), ("tg.t1", 1), ("tg.t1", 2)]
+
+    # After running the first t1, the first t2 becomes immediately available.
+    tis["tg.t1", 0].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t1", 1), ("tg.t1", 2), ("tg.t2", 0)]
+
+    # Similarly for the subsequent t2 instances.
+    tis["tg.t1", 2].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t1", 1), ("tg.t2", 0), ("tg.t2", 2)]
+
+    # But running t2 partially does not make t3 available.
+    tis["tg.t1", 1].run()
+    tis["tg.t2", 0].run()
+    tis["tg.t2", 2].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t2", 1)]
+
+    # Only after all t2 instances are run does t3 become available.
+    tis["tg.t2", 1].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("t3", -1)]
