@@ -272,6 +272,8 @@ class TestDBCleanup:
             "task_outlet_dataset_reference",  # leave alone for now
             "dataset_dag_run_queue",  # self-managed
             "dataset_event_dag_run",  # foreign keys
+            "task_note",  # foreign keys
+            "dag_run_note",  # foreign keys
         }
 
         from airflow.utils.db_cleanup import config_dict

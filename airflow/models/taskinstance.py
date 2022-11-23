@@ -427,7 +427,14 @@ class TaskInstance(Base, LoggingMixin):
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
     execution_date = association_proxy("dag_run", "execution_date")
-    task_note = relationship("TaskNote", back_populates="task_instance", uselist=False)
+    task_note = relationship(
+        "TaskNote",
+        back_populates="task_instance",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
+        single_parent=True,
+        passive_deletes=True,
+    )
     notes = association_proxy("task_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
 
@@ -2704,7 +2711,7 @@ class TaskNote(Base):
 
     __table_args__ = (
         ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
+            (dag_id, task_id, run_id, map_index),
             [
                 "task_instance.dag_id",
                 "task_instance.task_id",
@@ -2715,7 +2722,7 @@ class TaskNote(Base):
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
-            [user_id],
+            (user_id,),
             [User.id],
             name="task_notes_user_fkey",
         ),
