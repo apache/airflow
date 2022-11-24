@@ -330,7 +330,7 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
             # including all development releases. When you specify dependency as >= X.Y.Z, and you
             # have packages X.Y.Zdev0 or X.Y.Zrc1 in a local file, such package is not considered
             # as fulfilling the requirement even if `--pre` switch is used.
-            return install_clause + ".*"
+            return install_clause + ".dev0"
         return install_clause
 
     install_requires = [
