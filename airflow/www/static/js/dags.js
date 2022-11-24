@@ -20,6 +20,7 @@
 /* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, autoRefreshInterval,
  localStorage */
 
+import { throttle } from 'lodash';
 import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
@@ -40,6 +41,7 @@ const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
 const gridUrl = getMetaValue('grid_url');
 const datasetsUrl = getMetaValue('datasets_url');
+const nextRunDatasetsSummaryUrl = getMetaValue('next_run_datasets_summary_url');
 
 const nextDatasets = {};
 let nextDatasetsError;
@@ -271,6 +273,25 @@ function dagStatsHandler(selector, json) {
   });
 }
 
+function nextRunDatasetsSummaryHandler(json) {
+  [...document.getElementsByClassName('next-dataset-triggered')].forEach((el) => {
+    const dagId = $(el).attr('data-dag-id');
+    const previousSummary = $(el).attr('data-summary');
+    const nextDatasetsInfo = json[dagId];
+
+    // Only update dags that depend on multiple datasets
+    if (!nextDatasetsInfo.uri) {
+      const newSummary = `${nextDatasetsInfo.ready} of ${nextDatasetsInfo.total} datasets updated`;
+
+      // Only update the element if the summary has changed
+      if (previousSummary !== newSummary) {
+        $(el).attr('data-summary', newSummary);
+        $(el).text(newSummary);
+      }
+    }
+  });
+}
+
 function getDagIds({ activeDagsOnly = false } = {}) {
   let dagIds = $('[id^=toggle]');
   if (activeDagsOnly) {
@@ -387,6 +408,9 @@ function handleRefresh({ activeDagsOnly = false } = {}) {
     d3.json(taskStatsUrl)
       .header('X-CSRFToken', csrfToken)
       .post(params, (error, json) => refreshDagStatsHandler(TASK_INSTANCE, json));
+    d3.json(nextRunDatasetsSummaryUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, (error, json) => nextRunDatasetsSummaryHandler(json));
   }
   setTimeout(() => {
     $('#loading-dots').css('display', 'none');
@@ -479,6 +503,11 @@ $('.next-dataset-triggered').on('click', (e) => {
   }
 });
 
+const getTooltipInfo = throttle(
+  (dagId, run, setNextDatasets) => getDatasetTooltipInfo(dagId, run, setNextDatasets),
+  1000,
+);
+
 $('.js-dataset-triggered').each((i, cell) => {
   $(cell).on('mouseover', () => {
     const run = $(cell).children();
@@ -492,7 +521,7 @@ $('.js-dataset-triggered').each((i, cell) => {
 
     // Only update the tooltip info if there are multiple datasets
     if (!singleDatasetUri) {
-      getDatasetTooltipInfo(dagId, run, setNextDatasets);
+      getTooltipInfo(dagId, run, setNextDatasets);
     }
   });
 });
