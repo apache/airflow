@@ -34,7 +34,7 @@ import {
 import ResizeTextarea from 'react-textarea-autosize';
 
 import { getMetaValue } from 'src/utils';
-import { useSetDagRunNotes, useSetTaskInstanceNotes } from 'src/api';
+import { useSetDagRunNote, useSetTaskInstanceNote } from 'src/api';
 import { MdEdit } from 'react-icons/md';
 
 interface Props {
@@ -49,15 +49,15 @@ const NotesAccordion = ({
   dagId, runId, taskId, mapIndex, initialValue,
 }: Props) => {
   const canEdit = getMetaValue('can_edit') === 'True';
-  const [notes, setNotes] = useState(initialValue ?? '');
+  const [note, setNote] = useState(initialValue ?? '');
   const [editMode, setEditMode] = useState(false);
 
   const {
     mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading,
-  } = useSetDagRunNotes({ dagId, runId });
+  } = useSetDagRunNote({ dagId, runId });
   const {
     mutateAsync: apiCallToSetTINote, isLoading: tiIsLoading,
-  } = useSetTaskInstanceNotes({
+  } = useSetTaskInstanceNote({
     dagId,
     runId,
     taskId: taskId ?? '',
@@ -70,9 +70,9 @@ const NotesAccordion = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (taskId == null) {
-      await apiCallToSetDagRunNote(notes);
+      await apiCallToSetDagRunNote(note);
     } else {
-      await apiCallToSetTINote(notes);
+      await apiCallToSetTINote(note);
     }
     setEditMode(false);
   };
@@ -104,8 +104,8 @@ const NotesAccordion = ({
                     minRows={3}
                     maxRows={10}
                     as={ResizeTextarea}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
                     data-testid="notes-input"
                   />
                 </Box>
@@ -114,7 +114,7 @@ const NotesAccordion = ({
                     Save Note
                   </Button>
                   <Button
-                    onClick={() => { setNotes(initialValue ?? ''); setEditMode(false); }}
+                    onClick={() => { setNote(initialValue ?? ''); setEditMode(false); }}
                     isLoading={isLoading}
                     ml={3}
                   >
@@ -124,17 +124,17 @@ const NotesAccordion = ({
               </form>
             ) : (
               <>
-                <Text whiteSpace="pre-line">{notes}</Text>
+                <Text whiteSpace="pre-line">{note}</Text>
                 <Button
                   onClick={() => setEditMode(true)}
                   isDisabled={!canEdit}
                   isLoading={isLoading}
-                  title={`${!notes ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
-                  aria-label={`${!notes ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                  title={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                  aria-label={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
                   mt={2}
                   leftIcon={<MdEdit />}
                 >
-                  {!notes ? 'Add Note' : 'Edit Note'}
+                  {!note ? 'Add Note' : 'Edit Note'}
                 </Button>
               </>
             )}

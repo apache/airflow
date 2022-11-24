@@ -45,7 +45,7 @@ const generateRuns = (length: number): DagRun[] => (
     externalTrigger: false,
     conf: null,
     confIsJson: false,
-    notes: 'someRandomValue',
+    note: 'someRandomValue',
   }))
 );
 
@@ -66,7 +66,7 @@ describe('Test DagRuns', () => {
         externalTrigger: false,
         conf: null,
         confIsJson: false,
-        notes: 'someRandomValue',
+        note: 'someRandomValue',
       },
       {
         runId: 'run2',
@@ -82,7 +82,7 @@ describe('Test DagRuns', () => {
         externalTrigger: false,
         conf: null,
         confIsJson: false,
-        notes: 'someRandomValue',
+        note: 'someRandomValue',
       },
     ];
     const data = {

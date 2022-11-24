@@ -132,7 +132,7 @@ describe('Test getDagRunLabel', () => {
     externalTrigger: false,
     conf: null,
     confIsJson: false,
-    notes: 'someRandomValue',
+    note: 'someRandomValue',
   } as DagRun;
 
   test('Defaults to dataIntervalEnd', async () => {

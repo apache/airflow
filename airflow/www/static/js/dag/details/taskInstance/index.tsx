@@ -174,7 +174,7 @@ const TaskInstance = ({
                   runId={runId}
                   taskId={taskId}
                   mapIndex={instance.mapIndex}
-                  initialValue={instance.notes}
+                  initialValue={instance.note}
                   key={dagId + runId + taskId + instance.mapIndex}
                 />
               )}

@@ -241,7 +241,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             "data_interval_start": None,
             "last_scheduling_decision": None,
             "run_type": "manual",
-            "notes": None,
+            "note": None,
         }
 
     def test_should_respond_404(self):
@@ -299,7 +299,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -315,7 +315,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
             ],
             "total_entries": 2,
@@ -371,7 +371,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -387,7 +387,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
             ],
             "total_entries": 2,
@@ -636,7 +636,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -652,7 +652,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
             ],
             "total_entries": 2,
@@ -695,7 +695,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -711,7 +711,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
             ],
             "total_entries": 2,
@@ -752,7 +752,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -768,7 +768,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
-                    "notes": None,
+                    "note": None,
                 },
             ],
             "total_entries": 2,
@@ -1068,7 +1068,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "data_interval_start": expected_logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
-            "notes": None,
+            "note": None,
         }
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
@@ -1118,7 +1118,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "data_interval_start": logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
-            "notes": None,
+            "note": None,
         }
 
     def test_should_response_400_for_conflicting_execution_date_logical_date(self):
@@ -1331,7 +1331,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             "data_interval_end": dr.data_interval_end.isoformat(),
             "last_scheduling_decision": None,
             "run_type": run_type,
-            "notes": None,
+            "note": None,
         }
 
     @pytest.mark.parametrize("invalid_state", ["running"])
@@ -1427,7 +1427,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             "data_interval_end": dr.data_interval_end.isoformat(),
             "last_scheduling_decision": None,
             "run_type": dr.run_type,
-            "notes": None,
+            "note": None,
         }
 
         ti.refresh_from_db()
@@ -1605,16 +1605,16 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         session.commit()
         created_dr: DagRun = dag_runs[0]
 
-        new_notes_value = "My super cool DagRun notes"
+        new_note_value = "My super cool DagRun notes"
         response = self.client.patch(
             f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
-            json={"notes": new_notes_value},
+            json={"note": new_note_value},
             environ_overrides={"REMOTE_USER": "test"},
         )
 
         dr = session.query(DagRun).filter(DagRun.run_id == created_dr.run_id).first()
         assert response.status_code == 200, response.text
-        assert dr.notes == new_notes_value
+        assert dr.note == new_note_value
         assert response.json == {
             "conf": {},
             "dag_id": dr.dag_id,
@@ -1629,21 +1629,21 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "data_interval_end": None,
             "last_scheduling_decision": None,
             "run_type": dr.run_type,
-            "notes": new_notes_value,
+            "note": new_note_value,
         }
         assert dr.dag_run_note.user_id is not None
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.patch(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
-            json={"notes": "I am setting a note while being unauthenticated."},
+            json={"note": "I am setting a note while being unauthenticated."},
         )
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
         response = self.client.patch(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
-            json={"notes": "I am setting a note without the proper permissions."},
+            json={"note": "I am setting a note without the proper permissions."},
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
@@ -1651,7 +1651,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
     def test_should_respond_404(self):
         response = self.client.patch(
             "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/setNote",
-            json={"notes": "I am setting a note on a DAG that doesn't exist."},
+            json={"note": "I am setting a note on a DAG that doesn't exist."},
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404

@@ -175,7 +175,7 @@ class DagRun(Base, LoggingMixin):
         viewonly=True,
     )
     dag_run_note = relationship("DagRunNote", back_populates="dag_run", uselist=False)
-    notes = association_proxy("dag_run_note", "content", creator=_creator_note)
+    note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",

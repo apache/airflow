@@ -85,7 +85,7 @@ const TaskInstances = ({
           className={`js-${runId}`}
           data-selected={isSelected}
           transition="background-color 0.2s"
-          key={`${runId}-${task.id}-${instance ? instance.notes : ''}`}
+          key={`${runId}-${task.id}-${instance ? instance.note : ''}`}
           bg={isSelected ? 'blue.100' : undefined}
         >
           {instance
@@ -95,7 +95,7 @@ const TaskInstances = ({
                 group={task}
                 onSelect={onSelect}
                 isActive={hoveredTaskState === undefined || hoveredTaskState === instance.state}
-                containsNotes={!!instance.notes}
+                containsNotes={!!instance.note}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}

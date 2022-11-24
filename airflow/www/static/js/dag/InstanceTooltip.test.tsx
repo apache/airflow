@@ -33,7 +33,7 @@ const instance = {
   state: 'success' as TaskState,
   runId: 'run',
   taskId: 'task',
-  notes: '',
+  note: '',
 };
 
 describe('Test Task InstanceTooltip', () => {
@@ -84,7 +84,7 @@ describe('Test Task InstanceTooltip', () => {
                   state: 'success',
                   startDate: '',
                   endDate: '',
-                  notes: '',
+                  note: '',
                 },
               ],
             },
@@ -104,7 +104,7 @@ describe('Test Task InstanceTooltip', () => {
     const { getByText } = render(
       <InstanceTooltip
         group={{ id: 'task', label: 'task', instances: [] }}
-        instance={{ ...instance, notes: 'note' }}
+        instance={{ ...instance, note: 'note' }}
       />,
       { wrapper: Wrapper },
     );

@@ -424,7 +424,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
     ],
 )
 @provide_session
-def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set the note for a dag run."""
     dag_run: DagRun | None = (
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
@@ -434,7 +434,7 @@ def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SE
         raise NotFound(error_message)
     try:
         post_body = set_dagrun_note_form_schema.load(get_json_request_dict())
-        new_value_for_notes = post_body["notes"]
+        new_note = post_body["note"]
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
@@ -442,9 +442,9 @@ def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SE
 
     current_user_id = getattr(current_user, "id", None)
     if dag_run.dag_run_note is None:
-        dag_run.notes = (new_value_for_notes, current_user_id)
+        dag_run.note = (new_note, current_user_id)
     else:
-        dag_run.dag_run_note.content = new_value_for_notes
+        dag_run.dag_run_note.content = new_note
         dag_run.dag_run_note.user_id = current_user_id
     session.commit()
     return dagrun_schema.dump(dag_run)

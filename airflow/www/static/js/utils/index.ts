@@ -125,8 +125,8 @@ const getDagRunLabel = ({
   ordering = ['dataIntervalEnd', 'executionDate'],
 }: RunLabelProps) => dagRun[ordering[0]] ?? dagRun[ordering[1]];
 
-const getStatusBackgroundColor = (color: string, hasNotes: boolean) => (
-  hasNotes
+const getStatusBackgroundColor = (color: string, hasNote: boolean) => (
+  hasNote
     ? `linear-gradient(-135deg, ${Color(color).hex()}60 5px, ${color} 0);`
     : color
 );

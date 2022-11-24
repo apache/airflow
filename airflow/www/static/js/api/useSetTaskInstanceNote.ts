@@ -25,8 +25,8 @@ import useErrorToast from 'src/utils/useErrorToast';
 
 import type { API } from 'src/types';
 
-const setTaskInstancesNotesURI = getMetaValue('set_task_instance_notes');
-const setMappedTaskInstancesNotesURI = getMetaValue('set_mapped_task_instance_notes');
+const setTaskInstancesNoteURI = getMetaValue('set_task_instance_note');
+const setMappedTaskInstancesNoteURI = getMetaValue('set_mapped_task_instance_note');
 
 interface Props {
   dagId: string;
@@ -35,7 +35,7 @@ interface Props {
   mapIndex?: number;
 }
 
-export default function useSetTaskInstanceNotes({
+export default function useSetTaskInstanceNote({
   dagId, runId, taskId, mapIndex = -1,
 }: Props) {
   const queryClient = useQueryClient();
@@ -43,17 +43,17 @@ export default function useSetTaskInstanceNotes({
   // Note: Werkzeug does not like the META URL on dag.html with an integer. It can not put
   // _MAP_INDEX_ there as it interprets that as the integer. Hence, we pass 0 as the integer.
   // To avoid we replace other stuff, we add the surrounding strings to the replacement query.
-  const url = (mapIndex >= 0 ? setMappedTaskInstancesNotesURI : setTaskInstancesNotesURI)
+  const url = (mapIndex >= 0 ? setMappedTaskInstancesNoteURI : setTaskInstancesNoteURI)
     .replace('_DAG_RUN_ID_', runId)
     .replace('_TASK_ID_/0/setNote', `_TASK_ID_/${mapIndex}/setNote`)
     .replace('_TASK_ID_', taskId);
 
   return useMutation(
     ['setTaskInstanceNotes', dagId, runId, taskId, mapIndex],
-    (notes: string | null) => axios.patch<AxiosResponse, API.TaskInstance>(url, { notes }),
+    (note: string | null) => axios.patch<AxiosResponse, API.TaskInstance>(url, { note }),
     {
       onSuccess: async (data) => {
-        const notes = data.notes ?? null;
+        const note = data.note ?? null;
 
         const updateMappedInstancesResult = (oldMappedInstances?: API.TaskInstanceCollection) => {
           if (!oldMappedInstances) {
@@ -67,7 +67,7 @@ export default function useSetTaskInstanceNotes({
             ...oldMappedInstances,
             taskInstances: oldMappedInstances.taskInstances?.map((ti) => (
               ti.dagRunId === runId && ti.taskId === taskId && ti.mapIndex === mapIndex
-                ? { ...ti, notes }
+                ? { ...ti, note }
                 : ti
             )),
           };
@@ -85,7 +85,7 @@ export default function useSetTaskInstanceNotes({
           ) {
             return {
               ...oldTaskInstance,
-              notes,
+              note,
             };
           }
           return oldTaskInstance;
