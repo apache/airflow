@@ -70,15 +70,6 @@ def test_home(capture_templates, admin_client):
     assert templates[0].local_context["state_color"] == state_color_mapping
 
 
-def test_home_filter_tags(admin_client):
-    with admin_client:
-        admin_client.get("home?tags=example&tags=data", follow_redirects=True)
-        assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
-
-        admin_client.get("home?reset_tags", follow_redirects=True)
-        assert flask.session[FILTER_TAGS_COOKIE] is None
-
-
 def test_home_status_filter_cookie(admin_client):
     with admin_client:
         admin_client.get("home", follow_redirects=True)
@@ -119,6 +110,7 @@ def client_single_dag(app, user_single_dag):
 
 
 TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
+TEST_TAGS = ["example", "test", "team", "group"]
 
 
 def _process_file(file_path, session):
@@ -128,13 +120,13 @@ def _process_file(file_path, session):
 
 @pytest.fixture()
 def working_dags(tmpdir):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}')"
+    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
 
     with create_session() as session:
-        for dag_id in TEST_FILTER_DAG_IDS:
+        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
-                f.writelines(dag_contents_template.format(dag_id))
+                f.writelines(dag_contents_template.format(dag_id, tag))
             _process_file(filename, session)
 
 
@@ -146,6 +138,15 @@ def broken_dags(tmpdir, working_dags):
             with open(filename, "w") as f:
                 f.writelines("airflow DAG")
             _process_file(filename, session)
+
+
+def test_home_filter_tags(working_dags, admin_client):
+    with admin_client:
+        admin_client.get("home?tags=example&tags=data", follow_redirects=True)
+        assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
+
+        admin_client.get("home?reset_tags", follow_redirects=True)
+        assert flask.session[FILTER_TAGS_COOKIE] is None
 
 
 def test_home_importerrors(broken_dags, user_client):
