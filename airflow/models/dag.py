@@ -77,7 +77,6 @@ from airflow.models.base import Base, StringID
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
@@ -207,6 +206,8 @@ def get_dataset_triggered_next_run_info(
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated"
     """
+    from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ, DatasetModel
+
     return {
         x.dag_id: {
             "uri": x.uri,
@@ -3230,15 +3231,6 @@ class DagModel(Base):
     def get_current(cls, dag_id, session=NEW_SESSION):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
 
-    @staticmethod
-    @provide_session
-    def get_all_paused_dag_ids(session: Session = NEW_SESSION) -> set[str]:
-        """Get a set of paused DAG ids"""
-        paused_dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_paused == expression.true()).all()
-
-        paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
-        return paused_dag_ids
-
     @provide_session
     def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
         return get_last_dagrun(
@@ -3340,6 +3332,8 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
+        from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
+
         # these dag ids are triggered by datasets, and they are ready to go.
         dataset_triggered_dag_info = {
             x.dag_id: (x.first_queued_time, x.last_queued_time)

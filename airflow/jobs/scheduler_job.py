@@ -34,6 +34,7 @@ from sqlalchemy import func, not_, or_, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
@@ -783,25 +784,27 @@ class SchedulerJob(BaseJob):
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
-            paused_dag_ids = DagModel.get_all_paused_dag_ids()
-            for dag_id in paused_dag_ids:
-                if dag_id in self._paused_dag_without_running_dagruns:
-                    continue
-
-                dag = SerializedDagModel.get_dag(dag_id)
-                if dag is None:
-                    continue
-                dag_runs = session.query(DagRun).filter(
-                    DagRun.dag_id == dag_id,
+            paused_runs = (
+                session.query(DagRun)
+                .join(DagRun.dag_model)
+                .join(TaskInstance)
+                .filter(
+                    DagModel.is_paused == expression.true(),
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                for dag_run in dag_runs:
-                    dag_run.dag = dag
-                    _, callback_to_run = dag_run.update_state(execute_callbacks=False)
-                    if callback_to_run:
-                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
-                self._paused_dag_without_running_dagruns.add(dag_id)
+                .having(DagRun.last_scheduling_decision <= func.max(TaskInstance.updated_at))
+                .group_by(DagRun)
+            )
+            for dag_run in paused_runs:
+                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+                if dag is None:
+                    continue
+
+                dag_run.dag = dag
+                _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
+                if callback_to_run:
+                    self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", str(e))
 
@@ -1213,7 +1216,6 @@ class SchedulerJob(BaseJob):
                 Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
 
         for dag_run in dag_runs:
-
             dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
@@ -1230,6 +1232,7 @@ class SchedulerJob(BaseJob):
             else:
                 active_runs_of_dags[dag_run.dag_id] += 1
                 _update_state(dag, dag_run)
+                dag_run.notify_dagrun_state_changed()
 
     @retry_db_transaction
     def _schedule_all_dag_runs(self, guard, dag_runs, session):
@@ -1294,6 +1297,7 @@ class SchedulerJob(BaseJob):
                 msg="timed_out",
             )
 
+            dag_run.notify_dagrun_state_changed()
             return callback_to_execute
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
@@ -1518,7 +1522,6 @@ class SchedulerJob(BaseJob):
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
         for ti, file_loc in zombies:
-
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,

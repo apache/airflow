@@ -51,6 +51,35 @@ def _parse_boolean(val: str) -> str | bool:
     raise ValueError(f"{val!r} is not a boolean-like string value")
 
 
+def _get_failed_checks(checks, col=None):
+    """
+    IMPORTANT!!! Keep it for compatibility with released 8.4.0 version of google provider.
+
+    Unfortunately the provider used _get_failed_checks and parse_boolean as imports and we should
+    keep those methods to avoid 8.4.0 version from failing.
+    """
+    if col:
+        return [
+            f"Column: {col}\nCheck: {check},\nCheck Values: {check_values}\n"
+            for check, check_values in checks.items()
+            if not check_values["success"]
+        ]
+    return [
+        f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
+        for check, check_values in checks.items()
+        if not check_values["success"]
+    ]
+
+
+parse_boolean = _parse_boolean
+"""
+IMPORTANT!!! Keep it for compatibility with released 8.4.0 version of google provider.
+
+Unfortunately the provider used _get_failed_checks and parse_boolean as imports and we should
+keep those methods to avoid 8.4.0 version from failing.
+"""
+
+
 _PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
