@@ -24,6 +24,26 @@
 Changelog
 ---------
 
+1.3.1
+.....
+
+This release fixes a few errors that were introduced in common.sql operator while refactoring common parts:
+
+* ``_process_output`` method in ``SQLExecuteQueryOperator`` has now consistent semantics and typing, it
+  can also modify the returned (and stored in XCom) values in the operators that derive from the
+  ``SQLExecuteQueryOperator``).
+* last description of the cursor whether to return scalar values are now stored in DBApiHook
+
+Lack of consistency in the operator caused ``1.3.0`` to be yanked - the ``1.3.0`` should not be used - if
+you have ``1.3.0`` installed, upgrade to ``1.3.1``.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Restore removed (but used) methods in common.sql (#27843)``
+* ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+
+
 1.3.0
 .....
 
