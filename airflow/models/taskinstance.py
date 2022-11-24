@@ -313,6 +313,16 @@ class TaskInstanceKey(NamedTuple):
         return self
 
 
+def _creator_note(val):
+    """Custom creator for the ``note`` association proxy."""
+    if isinstance(val, str):
+        return TaskInstanceNote(content=val)
+    elif isinstance(val, dict):
+        return TaskInstanceNote(**val)
+    else:
+        return TaskInstanceNote(*val)
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance. This table is the
@@ -355,7 +365,6 @@ class TaskInstance(Base, LoggingMixin):
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
-    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
 
     external_executor_id = Column(StringID())
@@ -415,9 +424,9 @@ class TaskInstance(Base, LoggingMixin):
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
-
     execution_date = association_proxy("dag_run", "execution_date")
-
+    task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
+    notes = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
 
     def __init__(
@@ -794,7 +803,6 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
-            self.notes = ti.notes
         else:
             self.state = None
 
@@ -2674,6 +2682,52 @@ class SimpleTaskInstance:
         if end_date_str:
             end_date = timezone.parse(end_date_str)
         return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
+
+
+class TaskInstanceNote(Base):
+    """For storage of arbitrary notes concerning the task instance."""
+
+    __tablename__ = "task_instance_note"
+
+    user_id = Column(Integer, nullable=True)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    run_id = Column(StringID(), primary_key=True, nullable=False)
+    map_index = Column(Integer, primary_key=True, nullable=False)
+    content = Column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    task_instance = relationship("TaskInstance", back_populates="task_instance_note")
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (dag_id, task_id, run_id, map_index),
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="task_instance_note_ti_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            (user_id,),
+            ["ab_user.id"],
+            name="task_instance_note_user_fkey",
+        ),
+    )
+
+    def __init__(self, content, user_id=None):
+        self.content = content
+        self.user_id = user_id
+
+    def __repr__(self):
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
+        if self.map_index != -1:
+            prefix += f" map_index={self.map_index}"
+        return prefix + ">"
 
 
 STATICA_HACK = True

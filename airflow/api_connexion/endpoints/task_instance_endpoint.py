@@ -670,7 +670,13 @@ def set_task_instance_notes(
         raise NotFound(error_message)
 
     ti, sla_miss = result
-    ti.notes = new_value_for_notes or None
-    session.commit()
+    from flask_login import current_user
 
+    current_user_id = getattr(current_user, "id", None)
+    if ti.task_instance_note is None:
+        ti.notes = (new_value_for_notes, current_user_id)
+    else:
+        ti.task_instance_note.content = new_value_for_notes
+        ti.task_instance_note.user_id = current_user_id
+    session.commit()
     return task_instance_schema.dump((ti, sla_miss))
