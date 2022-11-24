@@ -851,6 +851,37 @@ class Airflow(AirflowBaseView):
             state_color_mapping=state_color_mapping,
         )
 
+    @expose("/next_run_datasets_summary", methods=["POST"])
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
+    @provide_session
+    def next_run_datasets_summary(self, session=None):
+        """Next run info for dataset triggered DAGs."""
+        allowed_dag_ids = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+
+        if not allowed_dag_ids:
+            return flask.json.jsonify({})
+
+        # Filter by post parameters
+        selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
+
+        if selected_dag_ids:
+            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
+        else:
+            filter_dag_ids = allowed_dag_ids
+
+        dataset_triggered_dag_ids = [
+            dag.dag_id
+            for dag in session.query(DagModel.dag_id)
+            .filter(DagModel.dag_id.in_(filter_dag_ids))
+            .filter(DagModel.schedule_interval == "Dataset")
+        ]
+
+        dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
+            dataset_triggered_dag_ids, session=session
+        )
+
+        return flask.json.jsonify(dataset_triggered_next_run_info)
+
     @expose("/dag_stats", methods=["POST"])
     @auth.has_access(
         [
