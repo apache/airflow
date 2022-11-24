@@ -349,7 +349,6 @@ class TestDeleteClusterOperator:
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
             wait_for_completion=False,
-            retry=True,
         )
         redshift_operator.execute(None)
 
@@ -369,7 +368,6 @@ class TestDeleteClusterOperator:
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
             wait_for_completion=False,
-            retry=True,
         )
         with pytest.raises(returned_exception):
             redshift_operator.execute(None)
