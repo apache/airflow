@@ -154,7 +154,7 @@ Bug Fixes
 - Continue on exception when retrieving metadata (#27665)
 - External task sensor fail fix (#27190)
 - Add the default None when pop actions (#27537)
-- Display parameter values from serialized dag in trigger dag view. (#27482)
+- Display parameter values from serialized dag in trigger dag view. (#27482, #27944)
 - Move TriggerDagRun conf check to execute (#27035)
 - Resolve trigger assignment race condition (#27072)
 - Update google_analytics.html (#27226)
