@@ -81,7 +81,7 @@ const DagRun = ({ runId }: Props) => {
     externalTrigger,
     conf,
     confIsJson,
-    notes,
+    note,
   } = run;
   const graphParams = new URLSearchParamsWrapper({
     execution_date: executionDate,
@@ -117,7 +117,7 @@ const DagRun = ({ runId }: Props) => {
           <NotesAccordion
             dagId={dagId}
             runId={runId}
-            initialValue={notes}
+            initialValue={note}
             key={dagId + runId}
           />
         </Box>

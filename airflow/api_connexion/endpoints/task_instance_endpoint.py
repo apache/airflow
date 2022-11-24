@@ -34,7 +34,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     clear_task_instance_form,
     set_single_task_instance_state_form,
-    set_task_instance_notes_form_schema,
+    set_task_instance_note_form_schema,
     set_task_instance_state_form,
     task_instance_batch_form,
     task_instance_collection_schema,
@@ -550,11 +550,11 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     return task_instance_reference_collection_schema.dump(TaskInstanceReferenceCollection(task_instances=tis))
 
 
-def set_mapped_task_instance_notes(
+def set_mapped_task_instance_note(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int
 ) -> APIResponse:
     """Set the note for a Mapped Task instance."""
-    return set_task_instance_notes(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
+    return set_task_instance_note(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
 
 
 @security.requires_access(
@@ -629,13 +629,13 @@ def patch_mapped_task_instance(
     ],
 )
 @provide_session
-def set_task_instance_notes(
+def set_task_instance_note(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Set the note for a Task instance. This supports both Mapped and non-Mapped Task instances."""
     try:
-        post_body = set_task_instance_notes_form_schema.load(get_json_request_dict())
-        new_value_for_notes = post_body["notes"]
+        post_body = set_task_instance_note_form_schema.load(get_json_request_dict())
+        new_note = post_body["note"]
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
@@ -674,9 +674,9 @@ def set_task_instance_notes(
 
     current_user_id = getattr(current_user, "id", None)
     if ti.task_instance_note is None:
-        ti.notes = (new_value_for_notes, current_user_id)
+        ti.note = (new_note, current_user_id)
     else:
-        ti.task_instance_note.content = new_value_for_notes
+        ti.task_instance_note.content = new_note
         ti.task_instance_note.user_id = current_user_id
     session.commit()
     return task_instance_schema.dump((ti, sla_miss))

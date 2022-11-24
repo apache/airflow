@@ -56,7 +56,7 @@ const DagRunTooltip = ({ dagRun }: Props) => {
         {' '}
         {dagRun.runType}
       </Text>
-      {dagRun.notes && (
+      {dagRun.note && (
         <Text>Contains a note</Text>
       )}
     </Box>
