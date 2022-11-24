@@ -2808,6 +2808,9 @@ class TaskInstanceNote(Base):
     task_instance = relationship("TaskInstance", back_populates="task_instance_note")
 
     __table_args__ = (
+        PrimaryKeyConstraint(
+            "task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey", mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             (dag_id, task_id, run_id, map_index),
             [
