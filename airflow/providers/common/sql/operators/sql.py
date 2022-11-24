@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs, overload
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.typing_compat import Literal
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -224,6 +225,33 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.split_statements = split_statements
         self.return_last = return_last
 
+    @overload
+    def _process_output(
+        self, results: Any, description: Sequence[Sequence] | None, scalar_results: Literal[True]
+    ) -> Any:
+        pass
+
+    @overload
+    def _process_output(
+        self, results: list[Any], description: Sequence[Sequence] | None, scalar_results: Literal[False]
+    ) -> Any:
+        pass
+
+    def _process_output(
+        self, results: Any | list[Any], description: Sequence[Sequence] | None, scalar_results: bool
+    ) -> Any:
+        """
+        Can be overridden by the subclass in case some extra processing is needed.
+        The "process_output" method can override the returned output - augmenting or processing the
+        output as needed - the output returned will be returned as execute return value and if
+        do_xcom_push is set to True, it will be set as XCom returned
+
+        :param results: results in the form of list of rows.
+        :param description: as returned by ``cur.description`` in the Python DBAPI
+        :param scalar_results: True if result is single scalar value rather than list of rows
+        """
+        return results
+
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
@@ -244,11 +272,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
                 split_statements=self.split_statements,
             )
 
-        if hasattr(self, "_process_output"):
-            for out in output:
-                self._process_output(*out)
-
-        return output
+        return self._process_output(output, hook.last_description, hook.scalar_return_last)
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""

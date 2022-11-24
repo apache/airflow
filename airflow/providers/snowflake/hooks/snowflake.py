@@ -350,7 +350,7 @@ class SnowflakeHook(DbApiHook):
         """
         self.query_ids = []
 
-        scalar_return_last = isinstance(sql, str) and return_last
+        self.scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 split_statements_tuple = util_text.split_statements(StringIO(sql))
@@ -387,7 +387,7 @@ class SnowflakeHook(DbApiHook):
 
         if handler is None:
             return None
-        elif scalar_return_last:
+        elif self.scalar_return_last:
             return results[-1]
         else:
             return results

@@ -120,12 +120,21 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         }
         return DatabricksSqlHook(self.databricks_conn_id, **hook_params)
 
-    def _process_output(self, schema, results):
+    def _process_output(
+        self, results: Any | list[Any], description: Sequence[Sequence] | None, scalar_results: bool
+    ) -> Any:
         if not self._output_path:
-            return
+            return description, results
         if not self._output_format:
             raise AirflowException("Output format should be specified!")
-        field_names = [field[0] for field in schema]
+        if description is None:
+            self.log.warning("Description of the cursor is missing. Will not process the output")
+            return description, results
+        field_names = [field[0] for field in description]
+        if scalar_results:
+            list_results: list[Any] = [results]
+        else:
+            list_results = results
         if self._output_format.lower() == "csv":
             with open(self._output_path, "w", newline="") as file:
                 if self._csv_params:
@@ -138,18 +147,19 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
                 writer = csv.DictWriter(file, fieldnames=field_names, **csv_params)
                 if write_header:
                     writer.writeheader()
-                for row in results:
+                for row in list_results:
                     writer.writerow(row.asDict())
         elif self._output_format.lower() == "json":
             with open(self._output_path, "w") as file:
-                file.write(json.dumps([row.asDict() for row in results]))
+                file.write(json.dumps([row.asDict() for row in list_results]))
         elif self._output_format.lower() == "jsonl":
             with open(self._output_path, "w") as file:
-                for row in results:
+                for row in list_results:
                     file.write(json.dumps(row.asDict()))
                     file.write("\n")
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
+        return description, results
 
 
 COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "BINARYFILE"]
