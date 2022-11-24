@@ -666,6 +666,15 @@ class Airflow(AirflowBaseView):
 
             dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
+            filtered_dag_count = dags_query.count()
+            if filtered_dag_count == 0 and len(arg_tags_filter):
+                flash(
+                    "No matching DAG tags found.",
+                    "warning",
+                )
+                flask_session[FILTER_TAGS_COOKIE] = None
+                return redirect(url_for("Airflow.index"))
+
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
             paused_dags = dags_query.filter(DagModel.is_paused)
