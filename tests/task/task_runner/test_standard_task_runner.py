@@ -72,6 +72,7 @@ class TestStandardTaskRunner:
         (as the test environment does not have enough context for the normal
         way to run) and ensures they reset back to normal on the way out.
         """
+        get_listener_manager().clear()
         clear_db_runs()
         dictConfig(LOGGING_CONFIG)
         yield
@@ -79,6 +80,7 @@ class TestStandardTaskRunner:
         airflow_logger.handlers = []
         clear_db_runs()
         dictConfig(DEFAULT_LOGGING_CONFIG)
+        get_listener_manager().clear()
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()
