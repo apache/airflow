@@ -33,7 +33,7 @@ interface Props {
 const InstanceTooltip = ({
   group,
   instance: {
-    startDate, endDate, state, runId, mappedStates, notes,
+    startDate, endDate, state, runId, mappedStates, note,
   },
 }: Props) => {
   if (!group) return null;
@@ -103,7 +103,7 @@ const InstanceTooltip = ({
         {' '}
         {formatDuration(getDuration(startDate, endDate))}
       </Text>
-      {notes && (
+      {note && (
         <Text>Contains a note</Text>
       )}
     </Box>

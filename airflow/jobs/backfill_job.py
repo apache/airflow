@@ -50,7 +50,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.abstractoperator import AbstractOperator
 
 
 class BackfillJob(BaseJob):
@@ -236,7 +236,7 @@ class BackfillJob(BaseJob):
 
     def _manage_executor_state(
         self, running, session
-    ) -> Iterator[tuple[MappedOperator, str, Sequence[TaskInstance], int]]:
+    ) -> Iterator[tuple[AbstractOperator, str, Sequence[TaskInstance], int]]:
         """
         Checks if the executor agrees with the state of task instances
         that are running.
@@ -271,10 +271,20 @@ class BackfillJob(BaseJob):
                 self.log.error(msg)
                 ti.handle_failure(error=msg)
                 continue
+
+            def _iter_task_needing_expansion() -> Iterator[AbstractOperator]:
+                from airflow.models.mappedoperator import AbstractOperator
+
+                for node in self.dag.get_task(ti.task_id, include_subdags=True).iter_mapped_dependants():
+                    if isinstance(node, AbstractOperator):
+                        yield node
+                    else:  # A (mapped) task group. All its children need expansion.
+                        yield from node.iter_tasks()
+
             if ti.state not in self.STATES_COUNT_AS_RUNNING:
                 # Don't use ti.task; if this task is mapped, that attribute
                 # would hold the unmapped task. We need to original task here.
-                for node in self.dag.get_task(ti.task_id, include_subdags=True).iter_mapped_dependants():
+                for node in _iter_task_needing_expansion():
                     new_tis, num_mapped_tis = node.expand_mapped_task(ti.run_id, session=session)
                     yield node, ti.run_id, new_tis, num_mapped_tis
 

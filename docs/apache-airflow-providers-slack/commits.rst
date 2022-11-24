@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.1.0
+.....
+
+Latest change: 2022-11-24
+
+=================================================================================================  ===========  =================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`c609477260 <https://github.com/apache/airflow/commit/c60947726082905f7b369a90e8d37fcdb873149f>`_  2022-11-16   ``Implements SqlToSlackApiFileOperator (#26374)``
+=================================================================================================  ===========  =================================================
+
 7.0.0
 .....
 
-Latest change: 2022-11-14
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `00af5c007e <https://github.com/apache/airflow/commit/00af5c007ef2200401b53c40236e664758e47f27>`_  2022-11-14   ``Replace urlparse with urlsplit (#27389)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``

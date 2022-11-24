@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,45 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
----
-package-name: apache-airflow-providers-odbc
-name: ODBC
-description: |
-    `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
+import logging
 
-versions:
-  - 3.2.1
-  - 3.2.0
-  - 3.1.2
-  - 3.1.1
-  - 3.1.0
-  - 3.0.0
-  - 2.0.4
-  - 2.0.3
-  - 2.0.2
-  - 2.0.1
-  - 2.0.0
-  - 1.0.1
-  - 1.0.0
+from airflow.cli.commands.task_command import TaskCommandMarker
+from airflow.listeners import hookimpl
 
-dependencies:
-  - apache-airflow>=2.3.0
-  - apache-airflow-providers-common-sql>=1.3.1
-  - pyodbc
-
-integrations:
-  - integration-name: ODBC
-    external-doc-url: https://github.com/mkleehammer/pyodbc/wiki
-    logo: /integration-logos/odbc/ODBC.png
-    tags: [protocol]
-
-hooks:
-  - integration-name: ODBC
-    python-modules:
-      - airflow.providers.odbc.hooks.odbc
+log = logging.getLogger(__name__)
 
 
-connection-types:
-  - hook-class-name: airflow.providers.odbc.hooks.odbc.OdbcHook
-    connection-type: odbc
+class FileWriteListener:
+    def __init__(self, path):
+        self.path = path
+
+    def write(self, line: str):
+        with open(self.path, "a") as f:
+            f.write(line + "\n")
+
+    @hookimpl
+    def on_starting(self, component):
+        if isinstance(component, TaskCommandMarker):
+            self.write("on_starting")
+
+    @hookimpl
+    def before_stopping(self, component):
+        if isinstance(component, TaskCommandMarker):
+            self.write("before_stopping")

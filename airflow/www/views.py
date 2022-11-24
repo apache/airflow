@@ -101,7 +101,7 @@ from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
@@ -263,19 +263,18 @@ def dag_to_grid(dag, dag_runs, session):
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            TaskInstance.notes,
-            sqla.func.count(sqla.func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label(
-                "state_count"
-            ),
-            sqla.func.min(TaskInstance.start_date).label("start_date"),
-            sqla.func.max(TaskInstance.end_date).label("end_date"),
-            sqla.func.max(TaskInstance._try_number).label("_try_number"),
+            func.min(TaskInstanceNote.content).label("note"),
+            func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
+            func.min(TaskInstance.start_date).label("start_date"),
+            func.max(TaskInstance.end_date).label("end_date"),
+            func.max(TaskInstance._try_number).label("_try_number"),
         )
+        .join(TaskInstance.task_instance_note, isouter=True)
         .filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         )
-        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance.notes)
+        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state)
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
@@ -298,7 +297,7 @@ def dag_to_grid(dag, dag_runs, session):
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
                     "try_number": try_count,
-                    "notes": task_instance.notes,
+                    "note": task_instance.note,
                 }
 
             def _mapped_summary(ti_summaries):
@@ -666,6 +665,15 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
             dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+
+            filtered_dag_count = dags_query.count()
+            if filtered_dag_count == 0 and len(arg_tags_filter):
+                flash(
+                    "No matching DAG tags found.",
+                    "warning",
+                )
+                flask_session[FILTER_TAGS_COOKIE] = None
+                return redirect(url_for("Airflow.index"))
 
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
@@ -4886,7 +4894,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        "notes",
+        "note",
         "external_trigger",
         "conf",
         "duration",
@@ -4899,7 +4907,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_type",
         "start_date",
         "end_date",
-        "notes",
+        # "note",  # todo: maybe figure out how to re-enable this
         "external_trigger",
     ]
     label_columns = {
@@ -4913,7 +4921,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "end_date",
         "run_id",
         "conf",
-        "notes",
+        "note",
     ]
 
     # duration is not a DB column, its derived
@@ -4926,7 +4934,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        "notes",
+        "note",
         "external_trigger",
         "conf",
     ]
@@ -5259,7 +5267,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "duration",
-        "notes",
+        "note",
         "job_id",
         "hostname",
         "unixname",
@@ -5291,7 +5299,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
-        "notes",
+        # "note",  # todo: maybe make note work with TI search?
         "hostname",
         "priority_weight",
         "queue",
@@ -5308,7 +5316,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "state",
-        "notes",
+        "note",
     ]
 
     add_exclude_columns = ["next_method", "next_kwargs", "trigger_id"]
