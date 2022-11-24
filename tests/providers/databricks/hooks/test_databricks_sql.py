@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+#
 from __future__ import annotations
 
 import unittest
@@ -70,17 +71,17 @@ class TestDatabricksSqlHookQueryByName(unittest.TestCase):
         type(mock_requests.get.return_value).status_code = status_code_mock
 
         test_fields = ["id", "value"]
-        test_schema = [(field,) for field in test_fields]
+        test_description = [(field,) for field in test_fields]
 
         conn = mock_conn.return_value
-        cur = mock.MagicMock(rowcount=0, description=test_schema)
+        cur = mock.MagicMock(rowcount=0, description=test_description)
         cur.fetchall.return_value = []
         conn.cursor.return_value = cur
 
         query = "select * from test.test;"
-        schema, results = self.hook.run(sql=query, handler=fetch_all_handler)
+        results = self.hook.run(sql=query, handler=fetch_all_handler)
 
-        assert schema == test_schema
+        assert self.hook.last_description == test_description
         assert results == []
 
         cur.execute.assert_has_calls([mock.call(q) for q in [query]])
