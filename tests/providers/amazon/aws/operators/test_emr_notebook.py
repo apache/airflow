@@ -23,7 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.emr import (
-    EmrNotebookStartExecutionOperator,
+    EmrStartNotebookExecutionOperator,
     EmrStopNotebookExecutionOperator,
 )
 
@@ -43,7 +43,7 @@ PARAMS = {
 }
 
 
-class TestEmrNotebookStartExecutionOperator:
+class TestEmrStartNotebookExecutionOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_start_notebook_execution_wait_for_completion(self, mock_conn):
         test_execution_id = "test-execution-id"
@@ -55,7 +55,7 @@ class TestEmrNotebookStartExecutionOperator:
         }
         mock_conn.describe_notebook_execution.return_value = {"NotebookExecution": {"Status": "FINISHED"}}
 
-        op = EmrNotebookStartExecutionOperator(
+        op = EmrStartNotebookExecutionOperator(
             task_id="test-id",
             editor_id=PARAMS["EditorId"],
             relative_path=PARAMS["RelativePath"],
@@ -84,7 +84,7 @@ class TestEmrNotebookStartExecutionOperator:
             },
         }
 
-        op = EmrNotebookStartExecutionOperator(
+        op = EmrStartNotebookExecutionOperator(
             task_id="test-id",
             editor_id=PARAMS["EditorId"],
             relative_path=PARAMS["RelativePath"],
@@ -112,7 +112,7 @@ class TestEmrNotebookStartExecutionOperator:
                 "HTTPStatusCode": 400,
             },
         }
-        op = EmrNotebookStartExecutionOperator(
+        op = EmrStartNotebookExecutionOperator(
             task_id="test-id",
             editor_id=PARAMS["EditorId"],
             relative_path=PARAMS["RelativePath"],
@@ -146,7 +146,7 @@ class TestEmrNotebookStartExecutionOperator:
             {"NotebookExecution": {"Status": "FINISHED"}},
         ]
 
-        op = EmrNotebookStartExecutionOperator(
+        op = EmrStartNotebookExecutionOperator(
             task_id="test-id",
             editor_id=PARAMS["EditorId"],
             relative_path=PARAMS["RelativePath"],
@@ -177,7 +177,7 @@ class TestEmrNotebookStartExecutionOperator:
         }
         mock_conn.describe_notebook_execution.return_value = {"NotebookExecution": {"Status": "FAILED"}}
 
-        op = EmrNotebookStartExecutionOperator(
+        op = EmrStartNotebookExecutionOperator(
             task_id="test-id",
             editor_id=PARAMS["EditorId"],
             relative_path=PARAMS["RelativePath"],

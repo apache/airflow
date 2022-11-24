@@ -74,11 +74,7 @@ class EmrBaseSensor(BaseSensorOperator):
             return True
 
         if state in self.failed_states:
-            final_message = "EMR job failed"
-            failure_message = self.failure_message_from_response(response)
-            if failure_message:
-                final_message += " " + failure_message
-            raise AirflowException(final_message)
+            raise AirflowException(f"EMR job failed: {self.failure_message_from_response(response)}")
 
         return False
 
@@ -93,7 +89,7 @@ class EmrBaseSensor(BaseSensorOperator):
     @staticmethod
     def state_from_response(response: dict[str, Any]) -> str:
         """
-        Get state from response dictionary.
+        Get state from boto3 response.
 
         :param response: response from AWS API
         :return: state
@@ -103,7 +99,7 @@ class EmrBaseSensor(BaseSensorOperator):
     @staticmethod
     def failure_message_from_response(response: dict[str, Any]) -> str | None:
         """
-        Get failure message from response dictionary.
+        Get state from boto3 response.
 
         :param response: response from AWS API
         :return: failure message
@@ -301,9 +297,13 @@ class EmrContainerSensor(BaseSensorOperator):
 
 class EmrNotebookExecutionSensor(EmrBaseSensor):
     """
-    Polls the state of the EMR Notebook execution until it reaches
+    Polls the state of the EMR notebook execution until it reaches
     any of the target states.
-    If it fails, the sensor errors, failing the task.
+    If a failure state is reached, the sensor throws an error, and fails the task.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrNotebookExecutionSensor`
 
     :param notebook_execution_id: Unique id of the notebook execution to be poked.
     :target_states: the states the sensor will wait for the execution to reach.
@@ -311,6 +311,8 @@ class EmrNotebookExecutionSensor(EmrBaseSensor):
     :failed_states: if the execution reaches any of the failed_states, the sensor will fail.
         Default failed_states is ``FAILED``.
     """
+
+    template_fields: Sequence[str] = ("notebook_execution_id",)
 
     FAILURE_STATES = {"FAILED"}
     COMPLETED_STATES = {"FINISHED"}
@@ -329,7 +331,7 @@ class EmrNotebookExecutionSensor(EmrBaseSensor):
 
     def get_emr_response(self) -> dict[str, Any]:
         emr_client = self.get_hook().get_conn()
-        self.log.info("Poking Notebook %s", self.notebook_execution_id)
+        self.log.info("Poking notebook %s", self.notebook_execution_id)
 
         return emr_client.describe_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
 
