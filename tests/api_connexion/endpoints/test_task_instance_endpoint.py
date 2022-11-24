@@ -380,18 +380,13 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
         """Verify we don't duplicate rows through join to RTIF"""
         tis = self.create_task_instances(session)
-        session.query()
-        ti = tis[0]
-        ti.map_index = 1
-        rendered_fields = RTIF(ti, render_templates=False)
-        session.add(rendered_fields)
-        session.commit()
-        new_ti = TaskInstance(task=ti.task, run_id=ti.run_id, map_index=2)
-        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "notes"]:
-            setattr(new_ti, attr, getattr(ti, attr))
-        session.add(new_ti)
-        rendered_fields = RTIF(new_ti, render_templates=False)
-        session.add(rendered_fields)
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "notes"]:
+                setattr(ti, attr, getattr(old_ti, attr))
+            session.add(ti)
         session.commit()
 
         # in each loop, we should get the right mapped TI back
@@ -1688,15 +1683,12 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json["state"] == NEW_STATE
 
     def test_should_update_mapped_task_instance_state(self, session):
-
         NEW_STATE = "failed"
         map_index = 1
-
         tis = self.create_task_instances(session)
-        ti = tis[0]
-        ti.map_index = map_index
-        rendered_fields = RTIF(ti, render_templates=False)
-        session.add(rendered_fields)
+        ti = TaskInstance(task=tis[0].task, run_id=tis[0].run_id, map_index=map_index)
+        ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+        session.add(ti)
         session.commit()
 
         self.client.patch(
@@ -1823,7 +1815,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
 
     @provide_session
     def test_should_respond_200(self, session):
-        self.create_task_instances(session)
+        tis = self.create_task_instances(session)
         new_notes_value = "My super cool TaskInstance notes."
         response = self.client.patch(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
@@ -1860,22 +1852,19 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
         }
+        ti = tis[0]
+        assert ti.task_instance_note.user_id is not None
 
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
         """Verify we don't duplicate rows through join to RTIF"""
         tis = self.create_task_instances(session)
-        session.query()
-        ti = tis[0]
-        ti.map_index = 1
-        rendered_fields = RTIF(ti, render_templates=False)
-        session.add(rendered_fields)
-        session.commit()
-        new_ti = TaskInstance(task=ti.task, run_id=ti.run_id, map_index=2)
-        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "notes"]:
-            setattr(new_ti, attr, getattr(ti, attr))
-        session.add(new_ti)
-        rendered_fields = RTIF(new_ti, render_templates=False)
-        session.add(rendered_fields)
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "notes"]:
+                setattr(ti, attr, getattr(old_ti, attr))
+            session.add(ti)
         session.commit()
 
         # in each loop, we should get the right mapped TI back

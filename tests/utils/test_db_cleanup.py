@@ -255,6 +255,7 @@ class TestDBCleanup:
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})
         exclusion_list = {
+            "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
             "trigger",  # self-maintaining
@@ -272,6 +273,8 @@ class TestDBCleanup:
             "task_outlet_dataset_reference",  # leave alone for now
             "dataset_dag_run_queue",  # self-managed
             "dataset_event_dag_run",  # foreign keys
+            "task_instance_note",  # foreign keys
+            "dag_run_note",  # foreign keys
         }
 
         from airflow.utils.db_cleanup import config_dict

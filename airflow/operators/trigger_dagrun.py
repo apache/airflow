@@ -99,7 +99,6 @@ class TriggerDagRunOperator(BaseOperator):
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
-        dag_run_notes: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -111,7 +110,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.poke_interval = poke_interval
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or [State.FAILED]
-        self.dag_run_notes = dag_run_notes
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
@@ -144,7 +142,6 @@ class TriggerDagRunOperator(BaseOperator):
                 conf=self.conf,
                 execution_date=parsed_execution_date,
                 replace_microseconds=False,
-                notes=self.dag_run_notes,
             )
 
         except DagRunAlreadyExists as e:

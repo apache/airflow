@@ -1421,7 +1421,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             "execution_date": dr.execution_date.isoformat(),
             "external_trigger": False,
             "logical_date": dr.logical_date.isoformat(),
-            "start_date": dr.logical_date.isoformat(),
+            "start_date": None,
             "state": "queued",
             "data_interval_start": dr.data_interval_start.isoformat(),
             "data_interval_end": dr.data_interval_end.isoformat(),
@@ -1631,6 +1631,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "run_type": dr.run_type,
             "notes": new_notes_value,
         }
+        assert dr.dag_run_note.user_id is not None
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.patch(
