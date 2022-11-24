@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typing problem revealed after recent Neo4J release (#27759)``
+
 3.2.0
 .....
 

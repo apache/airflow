@@ -33,15 +33,14 @@ This release of provider is only available for Airflow 2.3+ as explained in the
 Misc
 ~~~~
 
-In GrpcHook, non-prefixed extra fields are supported and are preferred.  E.g. ``auth_type`` will
-be preferred if ``extra__grpc__auth_type`` is also present.
-
 * ``Move min airflow version to 2.3.0 for all providers (#27196)``
 
 Features
 ~~~~~~~~
 
-* ``Look for 'extra__' instead of 'extra_' in 'get_field' (#27489)``
+In GrpcHook, non-prefixed extra fields are supported and are preferred.  E.g. ``auth_type`` will
+be preferred if ``extra__grpc__auth_type`` is also present.
+
 * ``Allow and prefer non-prefixed extra fields for GrpcHook (#27045)``
 
 Bug Fixes
@@ -49,6 +48,7 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+  * ``Look for 'extra__' instead of 'extra_' in 'get_field' (#27489)``
   * ``Add documentation for July 2022 Provider's release (#25030)``
   * ``Enable string normalization in python formatting - providers (#27205)``
   * ``Update docs for September Provider's release (#26731)``

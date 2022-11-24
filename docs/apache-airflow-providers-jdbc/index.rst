@@ -87,7 +87,7 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.3.0``
-``apache-airflow-providers-common-sql``  ``>=1.3.0``
+``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``jaydebeapi``                           ``>=1.1.1``
 =======================================  ==================
 

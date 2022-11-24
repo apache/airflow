@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 6.2.0
   - 6.1.0
   - 6.0.0
   - 5.1.0

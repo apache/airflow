@@ -28,14 +28,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.0
+.....
+
+Latest change: 2022-11-24
+
+=================================================================================================  ===========  ================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`336e065e6a <https://github.com/apache/airflow/commit/336e065e6ae497689ea8e198032257fcd7b44e4f>`_  2022-11-23   ``Correct job name matching in SagemakerProcessingOperator (#27634)``
+`239440df23 <https://github.com/apache/airflow/commit/239440df23210355dc02f71b6c5aea7734651055>`_  2022-11-17   ``System Test for EMR (AIP-47) (#27286)``
+`2bba98f109 <https://github.com/apache/airflow/commit/2bba98f109cc7737f4293a195e03a0cc21a624cb>`_  2022-11-17   ``Use Boto waiters instead of customer _await_status method for RDS Operators (#27410)``
+`2063e141e4 <https://github.com/apache/airflow/commit/2063e141e445d2567149154cdf90955a941e45b4>`_  2022-11-17   ``Handle transient state errors in 'RedshiftResumeClusterOperator' and 'RedshiftPauseClusterOperator' (#27276)``
+=================================================================================================  ===========  ================================================================================================================
+
 6.1.0
 .....
 
-Latest change: 2022-11-14
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  =============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `00af5c007e <https://github.com/apache/airflow/commit/00af5c007ef2200401b53c40236e664758e47f27>`_  2022-11-14   ``Replace urlparse with urlsplit (#27389)``
 `0a059eea67 <https://github.com/apache/airflow/commit/0a059eea6721cc8c8f33e288003dd4f9559774ae>`_  2022-11-11   ``sagemaker operators: mutualize init of aws_conn_id (#27579)``
 `c490a328f4 <https://github.com/apache/airflow/commit/c490a328f4d0073052d8b5205c7c4cab96c3d559>`_  2022-11-11   ``CloudWatch task handler doesn't fall back to local logs when Amazon CloudWatch logs aren't found (#27564)``

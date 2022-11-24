@@ -66,7 +66,7 @@ Package apache-airflow-providers-trino
 `Trino <https://trino.io/>`__
 
 
-Release: 4.2.0
+Release: 4.3.0
 
 Provider package
 ----------------
@@ -88,7 +88,7 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.3.0``
-``apache-airflow-providers-common-sql``  ``>=1.3.0``
+``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``pandas``                               ``>=0.17.1``
 ``trino``                                ``>=0.318.0``
 =======================================  ==================
@@ -119,7 +119,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-trino 4.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-4.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-4.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-4.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-trino 4.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-4.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-4.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-4.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-trino 4.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-4.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-4.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-4.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-trino 4.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-4.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-4.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-4.3.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/trino/CHANGELOG.rst

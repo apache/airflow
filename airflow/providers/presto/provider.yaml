@@ -22,6 +22,7 @@ description: |
     `Presto <https://prestodb.github.io/>`__
 
 versions:
+  - 4.2.0
   - 4.1.0
   - 4.0.1
   - 4.0.0

@@ -23,17 +23,11 @@
 Changelog
 ---------
 
-3.0.0
+2.1.0
 .....
 
 This release of provider is only available for Airflow 2.3+ as explained in the
 `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
-
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-* In AsanaHook, non-prefixed extra fields are supported and are preferred.  So if you should update your
-  connection to replace ``extra__asana__workspace`` with ``workspace`` etc.
 
 Misc
 ~~~~
@@ -43,6 +37,10 @@ Misc
 Features
 ~~~~~~~~
 
+In AsanaHook, non-prefixed extra fields are supported and are preferred. You should update your
+connection to replace ``extra__asana__workspace`` with ``workspace`` etc.
+
+
 * ``Allow and prefer non-prefixed extra fields for AsanaHook (#27043)``
 
 .. Below changes are excluded from the changelog. Move them to
@@ -50,7 +48,7 @@ Features
    * ``Enable string normalization in python formatting - providers (#27205)``
    * ``Update docs for September Provider's release (#26731)``
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
-
+   * ``pRepare docs for November 2022 wave of Providers (#27613)``
 
 2.0.1
 .....

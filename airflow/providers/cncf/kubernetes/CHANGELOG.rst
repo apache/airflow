@@ -52,14 +52,10 @@ the corresponding objects from the kubernetes library:
 * ``airflow.providers.cncf.kubernetes.backcompat.volume``
 * ``airflow.providers.cncf.kubernetes.backcompat.volume_mount``
 
-In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we
-currently return 'default'; this behavior is deprecated. In the next release, we'll return ``None``.
-
 * ``Remove deprecated backcompat objects for KPO (#27518)``
 * ``Remove support for node_selectors param in KPO (#27515)``
 * ``Remove unused backcompat method in k8s hook (#27490)``
 * ``Drop support for providing ''resource'' as dict in ''KubernetesPodOperator'' (#27197)``
-* ``Deprecate use of core get_kube_client in PodManager (#26848)``
 * ``Don't consider airflow core conf for KPO (#26849)``
 
 Misc
@@ -71,17 +67,22 @@ Misc
 Features
 ~~~~~~~~
 
-Previously, ``name`` was a required argument for KubernetesPodOperator (when also not supplying pod
-template or full pod spec). Now, if ``name`` is not supplied, ``task_id`` will be used.
+KubernetesPodOperator argument ``name`` is now optional. Previously, ``name`` was a
+required argument for KubernetesPodOperator when also not supplying pod
+template or full pod spec. Now, if ``name`` is not supplied, ``task_id`` will be used.
 
-KubernetsPodOperator argument ``namespace`` is now optional.  If not supplied via KPO param or pod
+KubernetesPodOperator argument ``namespace`` is now optional.  If not supplied via KPO param or pod
 template file or full pod spec, then we'll check the airflow conn,
 then if in a k8s pod, try to infer the namespace from the container, then finally
 will use the ``default`` namespace.
 
+When using an Airflow connection of type ``kubernetes``, if defining the connection in an env var
+or secrets backend, it's no longer necessary to prefix the "extra" fields with ``extra__kubernetes__``.
+If ``extra`` contains duplicate fields (one with prefix, one without) then the non-prefixed
+one will be used.
 
+* ``Remove extra__kubernetes__ prefix from k8s hook extras (#27021)``
 * ``Add container_resources as KubernetesPodOperator templatable (#27457)``
-* ``Add deprecation warning re unset namespace in k8s hook (#27202)``
 * ``add container_name option for SparkKubernetesSensor (#26560)``
 * ``Allow xcom sidecar container image to be configurable in KPO (#26766)``
 * ``Improve task_id to pod name conversion (#27524)``
@@ -94,7 +95,6 @@ Bug Fixes
 
 * ``Fix KubernetesHook fail on an attribute absence (#25787)``
 * ``Fix log message for kubernetes hooks (#26999)``
-* ``Remove extra__kubernetes__ prefix from k8s hook extras (#27021)``
 * ``KPO should use hook's get namespace method to get namespace (#27516)``
 
 .. Below changes are excluded from the changelog. Move them to
@@ -102,6 +102,14 @@ Bug Fixes
   * ``Update old style typing (#26872)``
   * ``Enable string normalization in python formatting - providers (#27205)``
   * ``Update docs for September Provider's release (#26731)``
+
+New deprecations
+~~~~~~~~~~~~~~~~
+
+* In ``KubernetesHook.get_namespace``, if a connection is defined but a namespace isn't set, we
+   currently return 'default'; this behavior is deprecated (#27202). In the next release, we'll return ``None``.
+* ``Deprecate use of core get_kube_client in PodManager (#26848)``
+
 
 4.4.0
 .....
