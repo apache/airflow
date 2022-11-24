@@ -32,6 +32,7 @@ from sqlalchemy import (
     Index,
     Integer,
     PickleType,
+    PrimaryKeyConstraint,
     String,
     Text,
     UniqueConstraint,
@@ -1322,6 +1323,7 @@ class DagRunNote(Base):
     dag_run = relationship("DagRun", back_populates="dag_run_note")
 
     __table_args__ = (
+        PrimaryKeyConstraint("dag_run_id", name="dag_run_note_pkey"),
         ForeignKeyConstraint(
             (dag_run_id,),
             ["dag_run.id"],
