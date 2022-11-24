@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
+    from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
 
 
@@ -507,6 +508,15 @@ class MappedTaskGroup(TaskGroup):
     def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
+        for op, _ in expand_input.iter_references():
+            self.set_upstream(op)
+
+    def iter_mapped_dependencies(self) -> Iterator[Operator]:
+        """Upstream dependencies that provide XComs used by this mapped task group."""
+        from airflow.models.xcom_arg import XComArg
+
+        for op, _ in XComArg.iter_xcom_references(self._expand_input):
+            yield op
 
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:

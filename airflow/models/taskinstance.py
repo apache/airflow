@@ -97,7 +97,7 @@ from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
-from airflow.typing_compat import Literal
+from airflow.typing_compat import Literal, TypeGuard
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
 from airflow.utils.email import send_email
@@ -277,6 +277,19 @@ def clear_task_instances(
                 dr.last_scheduling_decision = None
                 dr.start_date = None
     session.flush()
+
+
+def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
+    """Whether a value can be used for task mapping.
+
+    We only allow collections with guaranteed ordering, but exclude character
+    sequences since that's usually not what users would expect to be mappable.
+    """
+    if not isinstance(value, (collections.abc.Sequence, dict)):
+        return False
+    if isinstance(value, (bytearray, bytes, str)):
+        return False
+    return True
 
 
 class TaskInstanceKey(NamedTuple):
@@ -2234,18 +2247,14 @@ class TaskInstance(Base, LoggingMixin):
             return
         # TODO: We don't push TaskMap for mapped task instances because it's not
         # currently possible for a downstream to depend on one individual mapped
-        # task instance. This will change when we implement task group mapping,
-        # and we'll need to further analyze the mapped task case.
+        # task instance. This will change when we implement task mapping inside
+        # a mapped task group, and we'll need to further analyze the case.
         if task.is_mapped:
             return
         if value is None:
             raise XComForMappingNotPushed()
-        if not isinstance(value, (collections.abc.Sequence, dict)):
+        if not _is_mappable_value(value):
             raise UnmappableXComTypePushed(value)
-        if isinstance(value, (bytes, str)):
-            raise UnmappableXComTypePushed(value)
-        if TYPE_CHECKING:  # The isinstance() checks above guard this.
-            assert isinstance(value, collections.abc.Collection)
         task_map = TaskMap.from_task_instance_xcom(self, value)
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
         if task_map.length > max_map_length:
