@@ -54,9 +54,9 @@ New Features
 - Add DagRun state change to the Listener plugin system(#27113)
 - Metric for raw task return codes (#27155)
 - Add logic for XComArg to pull specific map indexes (#27771)
-- Clear TaskGroup (#26658)
+- Clear TaskGroup (#26658, #28003)
 - Add critical section query duration metric (#27700)
-- Add: #23880 :: Audit log for ``AirflowModelViews(Variables/Connection)`` (#24079)
+- Add: #23880 :: Audit log for ``AirflowModelViews(Variables/Connection)`` (#24079, #27994, #27923)
 - Add postgres 15 support (#27444)
 - Expand tasks in mapped group at run time (#27491)
 - reset commits, clean submodules (#27560)
@@ -138,6 +138,7 @@ Improvements
 
 Bug Fixes
 ^^^^^^^^^
+- Gracefully handle whole config sections being renamed (#28008)
 - Add allow list for imports during deserialization (#27887)
 - Soft delete datasets that are no longer referenced in DAG schedules or task outlets (#27828)
 - Redirect to home view when there are no valid tags in the URL (#25715)
@@ -166,6 +167,7 @@ Bug Fixes
 - template rendering issue fix (#26390)
 - Clear ``autoregistered`` DAGs if there are any import errors (#26398)
 - Fix ``from airflow import version`` lazy import (#26239)
+- allow scroll in triggered dag runs modal (#27965)
 
 Misc/Internal
 ^^^^^^^^^^^^^
