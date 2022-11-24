@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-24T00:14:29Z
+# This constraints file was automatically generated on 2022-11-24T18:23:21Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -253,7 +253,7 @@ gcloud-aio-storage==7.0.1
 gcsfs==2022.11.0
 geomet==0.2.1.post1
 gevent==22.10.2
-gitdb==4.0.9
+gitdb==4.0.10
 google-ads==18.0.0
 google-api-core==2.8.2
 google-api-python-client==1.12.11
