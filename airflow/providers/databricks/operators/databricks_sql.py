@@ -120,21 +120,17 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         }
         return DatabricksSqlHook(self.databricks_conn_id, **hook_params)
 
-    def _process_output(
-        self, results: Any | list[Any], description: Sequence[Sequence] | None, scalar_results: bool
-    ) -> Any:
+    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         if not self._output_path:
-            return description, results
+            return list(zip(descriptions, results))
         if not self._output_format:
             raise AirflowException("Output format should be specified!")
-        if description is None:
-            self.log.warning("Description of the cursor is missing. Will not process the output")
-            return description, results
-        field_names = [field[0] for field in description]
-        if scalar_results:
-            list_results: list[Any] = [results]
-        else:
-            list_results = results
+        # Output to a file only the result of last query
+        last_description = descriptions[-1]
+        last_results = results[-1]
+        if last_description is None:
+            raise AirflowException("There is missing description present for the output file. .")
+        field_names = [field[0] for field in last_description]
         if self._output_format.lower() == "csv":
             with open(self._output_path, "w", newline="") as file:
                 if self._csv_params:
@@ -147,19 +143,19 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
                 writer = csv.DictWriter(file, fieldnames=field_names, **csv_params)
                 if write_header:
                     writer.writeheader()
-                for row in list_results:
+                for row in last_results:
                     writer.writerow(row.asDict())
         elif self._output_format.lower() == "json":
             with open(self._output_path, "w") as file:
-                file.write(json.dumps([row.asDict() for row in list_results]))
+                file.write(json.dumps([row.asDict() for row in last_results]))
         elif self._output_format.lower() == "jsonl":
             with open(self._output_path, "w") as file:
-                for row in list_results:
+                for row in last_results:
                     file.write(json.dumps(row.asDict()))
                     file.write("\n")
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
-        return description, results
+        return list(zip(descriptions, results))
 
 
 COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "BINARYFILE"]
