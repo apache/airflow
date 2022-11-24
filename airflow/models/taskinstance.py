@@ -85,6 +85,7 @@ from airflow.exceptions import (
 )
 from airflow.models.base import Base, StringID
 from airflow.models.log import Log
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
@@ -2250,7 +2251,7 @@ class TaskInstance(Base, LoggingMixin):
         # currently possible for a downstream to depend on one individual mapped
         # task instance. This will change when we implement task mapping inside
         # a mapped task group, and we'll need to further analyze the case.
-        if task.is_mapped:
+        if isinstance(task, MappedOperator):
             return
         if value is None:
             raise XComForMappingNotPushed()
@@ -2679,7 +2680,7 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
 
 def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
-    if operator.is_mapped:
+    if isinstance(operator, MappedOperator):
         return True
     task_group = operator.task_group
     while task_group is not None and task_group.group_id != container.group_id:

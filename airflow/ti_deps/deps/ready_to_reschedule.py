@@ -41,7 +41,9 @@ class ReadyToRescheduleDep(BaseTIDep):
         considered as passed. This dependency fails if the latest reschedule
         request's reschedule date is still in future.
         """
-        is_mapped = ti.task.is_mapped
+        from airflow.models.mappedoperator import MappedOperator
+
+        is_mapped = isinstance(ti.task, MappedOperator)
         if not is_mapped and not getattr(ti.task, "reschedule", False):
             # Mapped sensors don't have the reschedule property (it can only
             # be calculated after unmapping), so we don't check them here.
