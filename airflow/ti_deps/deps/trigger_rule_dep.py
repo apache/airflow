@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from collections import Counter
+import collections
+import collections.abc
+import functools
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep, TIDepStatus
@@ -29,6 +31,7 @@ from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.taskinstance import TaskInstance
 
@@ -47,14 +50,13 @@ class _UpstreamTIStates(NamedTuple):
     done: int
 
     @classmethod
-    def calculate(cls, ti: TaskInstance, finished_tis: list[TaskInstance]) -> _UpstreamTIStates:
+    def calculate(cls, finished_upstreams: Iterator[TaskInstance]) -> _UpstreamTIStates:
         """Calculate states for a task instance.
 
         :param ti: the ti that we want to calculate deps for
         :param finished_tis: all the finished tasks of the dag_run
         """
-        task = ti.task
-        counter = Counter(ti.state for ti in finished_tis if ti.task_id in task.upstream_task_ids)
+        counter = collections.Counter(ti.state for ti in finished_upstreams)
         return _UpstreamTIStates(
             success=counter.get(TaskInstanceState.SUCCESS, 0),
             skipped=counter.get(TaskInstanceState.SKIPPED, 0),
@@ -81,44 +83,18 @@ class TriggerRuleDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
-        # Checking that all upstream dependencies have succeeded
-        if not ti.task.upstream_list:
+        # Checking that all upstream dependencies have succeeded.
+        if not ti.task.upstream_task_ids:
             yield self._passing_status(reason="The task instance did not have any upstream tasks.")
             return
-
         if ti.task.trigger_rule == TR.ALWAYS:
             yield self._passing_status(reason="The task had a always trigger rule set.")
             return
-
         yield from self._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
-
-    @staticmethod
-    def _count_upstreams(ti: TaskInstance, *, session: Session):
-        from airflow.models.taskinstance import TaskInstance
-
-        # Optimization: Don't need to hit the database if no upstreams are mapped.
-        upstream_task_ids = ti.task.upstream_task_ids
-        if ti.task.dag and not any(ti.task.dag.get_task(tid).is_mapped for tid in upstream_task_ids):
-            return len(upstream_task_ids)
-
-        # We don't naively count task instances because it is not guaranteed
-        # that all upstreams have been created in the database at this point.
-        # Instead, we look for already-expanded tasks, and add them to the raw
-        # task count without considering mapping.
-        mapped_tis_addition = (
-            session.query(func.count())
-            .filter(
-                TaskInstance.dag_id == ti.dag_id,
-                TaskInstance.run_id == ti.run_id,
-                TaskInstance.task_id.in_(upstream_task_ids),
-                TaskInstance.map_index > 0,
-            )
-            .scalar()
-        )
-        return len(upstream_task_ids) + mapped_tis_addition
 
     def _evaluate_trigger_rule(
         self,
+        *,
         ti: TaskInstance,
         dep_context: DepContext,
         session: Session,
@@ -129,8 +105,65 @@ class TriggerRuleDep(BaseTIDep):
         :param dep_context: The current dependency context.
         :param session: Database session.
         """
-        finished_tis = dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
-        upstream_states = _UpstreamTIStates.calculate(ti, finished_tis)
+        from airflow.models.taskinstance import TaskInstance
+
+        task = ti.task
+        upstream_tasks = {t.task_id: t for t in task.upstream_list}
+        trigger_rule = task.trigger_rule
+
+        @functools.lru_cache()
+        def _get_expanded_ti_count() -> int:
+            """Get how many tis the current task is supposed to be expanded into.
+
+            This extra closure allows us to query the database only when needed,
+            and at most once.
+            """
+            return task.get_mapped_ti_count(ti.run_id, session=session)
+
+        @functools.lru_cache()
+        def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
+            """Get the given task's map indexes relevant to the current ti.
+
+            This extra closure allows us to query the database only when needed,
+            and at most once for each task (instead of once for each expanded
+            task instance of the same task).
+            """
+            return ti.get_relevant_upstream_map_indexes(
+                upstream_tasks[upstream_id],
+                _get_expanded_ti_count(),
+                session=session,
+            )
+
+        def _is_relevant_upstream(upstream: TaskInstance) -> bool:
+            """Whether a task instance is a "relevant upstream" of the current task."""
+            # Not actually an upstream task.
+            if upstream.task_id not in task.upstream_task_ids:
+                return False
+            # The current task is not in a mapped task group. All tis from an
+            # upstream task are relevant.
+            if task.get_closest_mapped_task_group() is None:
+                return True
+            # The upstream ti is not expanded. The upstream may be mapped or
+            # not, but the ti is relevant either way.
+            if upstream.map_index < 0:
+                return True
+            # Now we need to perform fine-grained check on whether this specific
+            # upstream ti's map index is relevant.
+            relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
+            if relevant is None:
+                return True
+            if relevant == upstream.map_index:
+                return True
+            if isinstance(relevant, collections.abc.Container) and upstream.map_index in relevant:
+                return True
+            return False
+
+        finished_upstream_tis = (
+            finished_ti
+            for finished_ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+            if _is_relevant_upstream(finished_ti)
+        )
+        upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
 
         success = upstream_states.success
         skipped = upstream_states.skipped
@@ -139,9 +172,46 @@ class TriggerRuleDep(BaseTIDep):
         removed = upstream_states.removed
         done = upstream_states.done
 
-        task = ti.task
-        trigger_rule = task.trigger_rule
-        upstream = self._count_upstreams(ti, session=session)
+        def _iter_upstream_conditions() -> Iterator[ColumnOperators]:
+            # Optimization: If the current task is not in a mapped task group,
+            # it depends on all upstream task instances.
+            if task.get_closest_mapped_task_group() is None:
+                yield TaskInstance.task_id.in_(upstream_tasks)
+                return
+            # Otherwise we need to figure out which map indexes are depended on
+            # for each upstream by the current task instance.
+            for upstream_id in upstream_tasks:
+                map_indexes = _get_relevant_upstream_map_indexes(upstream_id)
+                if map_indexes is None:  # All tis of this upstream are dependencies.
+                    yield (TaskInstance.task_id == upstream_id)
+                    continue
+                # At this point we know we want to depend on only selected tis
+                # of this upstream task. Since the upstream may not have been
+                # expanded at this point, we also depend on the non-expanded ti
+                # to ensure at least one ti is included for the task.
+                yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index < 0)
+                if isinstance(map_indexes, range) and map_indexes.step == 1:
+                    yield and_(
+                        TaskInstance.task_id == upstream_id,
+                        TaskInstance.map_index >= map_indexes.start,
+                        TaskInstance.map_index < map_indexes.stop,
+                    )
+                elif isinstance(map_indexes, collections.abc.Container):
+                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index.in_(map_indexes))
+                else:
+                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
+
+        # Optimization: Don't need to hit the database if all upstreams are
+        # "simple" tasks (no task or task group mapping involved).
+        if not any(t.is_mapped or t.get_closest_mapped_task_group() for t in upstream_tasks.values()):
+            upstream = len(upstream_tasks)
+        else:
+            upstream = (
+                session.query(func.count())
+                .filter(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                .filter(or_(*_iter_upstream_conditions()))
+                .scalar()
+            )
         upstream_done = done >= upstream
 
         changed = False
