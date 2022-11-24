@@ -131,10 +131,11 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             self.log.warning("Description of the cursor is missing. Will not process the output")
             return description, results
         field_names = [field[0] for field in description]
+        # We always need only the last results as we have only one description
         if scalar_results:
-            list_results: list[Any] = [results]
-        else:
             list_results = results
+        else:
+            list_results = results[-1]
         if self._output_format.lower() == "csv":
             with open(self._output_path, "w", newline="") as file:
                 if self._csv_params:
@@ -159,7 +160,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
                     file.write("\n")
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
-        return description, results
+        return results
 
 
 COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "BINARYFILE"]

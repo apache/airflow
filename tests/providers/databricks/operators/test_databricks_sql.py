@@ -48,7 +48,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         op = DatabricksSqlOperator(task_id=TASK_ID, sql=sql, do_xcom_push=True)
         db_mock = db_mock_class.return_value
         mock_description = [("id",), ("value",)]
-        mock_results = [Row(id=1, value="value1")]
+        mock_results = [[Row(id=1, value="value1")]]
         db_mock.run.return_value = mock_results
         db_mock.last_description = mock_description
         db_mock.scalar_return_last = False
@@ -85,7 +85,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         op = DatabricksSqlOperator(task_id=TASK_ID, sql=sql, output_path=tempfile_path)
         db_mock = db_mock_class.return_value
         mock_description = [("id",), ("value",)]
-        mock_results = [Row(id=1, value="value1")]
+        mock_results = [[Row(id=1, value="value1")]]
         db_mock.run.return_value = mock_results
         db_mock.last_description = mock_description
         db_mock.scalar_return_last = False

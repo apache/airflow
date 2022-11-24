@@ -175,8 +175,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
 
-        results = []
+        results: list[Any] = []
         for sql_statement in sql:
+            if return_last:
+                results = []  # it makes no sense to pile up previous results
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             with closing(self.get_conn()) as conn:
                 self.set_autocommit(conn, autocommit)
@@ -193,7 +195,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
         if handler is None:
             return None
-        elif self.scalar_return_last:
+
+        if self.scalar_return_last:
             return results[-1]
         else:
             return results
