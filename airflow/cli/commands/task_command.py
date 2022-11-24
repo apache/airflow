@@ -37,6 +37,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -313,6 +314,10 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
             root_logger.handlers[:] = orig_handlers
 
 
+class TaskCommandMarker:
+    """Marker for listener hooks, to properly detect from which component they are called."""
+
+
 @cli_utils.action_cli(check_db=False)
 def task_run(args, dag=None):
     """
@@ -364,6 +369,8 @@ def task_run(args, dag=None):
     # processing hundreds of simultaneous tasks.
     settings.reconfigure_orm(disable_connection_pool=True)
 
+    get_listener_manager().hook.on_starting(component=TaskCommandMarker())
+
     if args.pickle:
         print(f"Loading pickle id: {args.pickle}")
         dag = get_dag_by_pickle(args.pickle)
@@ -380,11 +387,17 @@ def task_run(args, dag=None):
 
     log.info("Running %s on host %s", ti, hostname)
 
-    if args.interactive:
-        _run_task_by_selected_method(args, dag, ti)
-    else:
-        with _capture_task_logs(ti):
+    try:
+        if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
+        else:
+            with _capture_task_logs(ti):
+                _run_task_by_selected_method(args, dag, ti)
+    finally:
+        try:
+            get_listener_manager().hook.before_stopping(component=TaskCommandMarker())
+        except Exception:
+            pass
 
 
 @cli_utils.action_cli(check_db=False)
