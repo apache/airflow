@@ -51,7 +51,7 @@ Package apache-airflow-providers-pagerduty
 `Pagerduty <https://www.pagerduty.com/>`__
 
 
-Release: 3.0.0
+Release: 3.1.0
 
 Provider package
 ----------------
@@ -72,7 +72,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``pdpyras``         ``>=4.1.2``
 ==================  ==================
 

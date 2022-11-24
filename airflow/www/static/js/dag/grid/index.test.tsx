@@ -44,6 +44,7 @@ const mockGridData = {
             state: 'success',
             taskId: 'group_1',
             tryNumber: 1,
+            note: 'abc',
           },
         ],
         children: [
@@ -59,6 +60,7 @@ const mockGridData = {
                 state: 'success',
                 taskId: 'group_1.task_1',
                 tryNumber: 1,
+                note: 'abc',
               },
             ],
             children: [
@@ -75,6 +77,7 @@ const mockGridData = {
                     state: 'success',
                     taskId: 'group_1.task_1.sub_task_1',
                     tryNumber: 1,
+                    note: 'abc',
                   },
                 ],
               },
@@ -97,6 +100,7 @@ const mockGridData = {
       runType: 'scheduled',
       executionDate: '2021-11-08T21:14:19.704433+00:00',
       lastSchedulingDecision: '2021-11-08T21:14:19.704433+00:00',
+      note: 'myCoolDagRun',
       externalTrigger: false,
       conf: null,
       confIsJson: false,

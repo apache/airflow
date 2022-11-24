@@ -158,6 +158,7 @@ class TestTaskInstanceEndpoint:
                 session.add(dr)
             ti = TaskInstance(task=tasks[i], **self.ti_init)
             ti.dag_run = dr
+            ti.note = "placeholder-note"
 
             for key, value in self.ti_extras.items():
                 setattr(ti, key, value)
@@ -200,6 +201,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
+            "note": "placeholder-note",
             "operator": None,
             "pid": 100,
             "pool": "default_pool",
@@ -254,6 +256,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
+            "note": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -298,6 +301,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
+            "note": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -345,6 +349,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
+            "note": "placeholder-note",
             "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -375,18 +380,13 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
         """Verify we don't duplicate rows through join to RTIF"""
         tis = self.create_task_instances(session)
-        session.query()
-        ti = tis[0]
-        ti.map_index = 1
-        rendered_fields = RTIF(ti, render_templates=False)
-        session.add(rendered_fields)
-        session.commit()
-        new_ti = TaskInstance(task=ti.task, run_id=ti.run_id, map_index=2)
-        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue"]:
-            setattr(new_ti, attr, getattr(ti, attr))
-        session.add(new_ti)
-        rendered_fields = RTIF(new_ti, render_templates=False)
-        session.add(rendered_fields)
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+                setattr(ti, attr, getattr(old_ti, attr))
+            session.add(ti)
         session.commit()
 
         # in each loop, we should get the right mapped TI back
@@ -407,6 +407,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "hostname": "",
                 "map_index": map_index,
                 "max_tries": 0,
+                "note": "placeholder-note",
                 "operator": "_PythonDecoratedOperator",
                 "pid": 100,
                 "pool": "default_pool",
@@ -1682,15 +1683,12 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json["state"] == NEW_STATE
 
     def test_should_update_mapped_task_instance_state(self, session):
-
         NEW_STATE = "failed"
         map_index = 1
-
         tis = self.create_task_instances(session)
-        ti = tis[0]
-        ti.map_index = map_index
-        rendered_fields = RTIF(ti, render_templates=False)
-        session.add(rendered_fields)
+        ti = TaskInstance(task=tis[0].task, run_id=tis[0].run_id, map_index=map_index)
+        ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+        session.add(ti)
         session.commit()
 
         self.client.patch(
@@ -1805,3 +1803,139 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 400
         assert response.json["detail"] == expected
+        assert response.json["detail"] == expected
+
+
+class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @provide_session
+    def test_should_respond_200(self, session):
+        tis = self.create_task_instances(session)
+        new_note_value = "My super cool TaskInstance note."
+        response = self.client.patch(
+            "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/setNote",
+            json={"note": new_note_value},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "note": new_note_value,
+            "operator": "_PythonDecoratedOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 11,
+            "queue": "default_queue",
+            "queued_when": None,
+            "sla_miss": None,
+            "start_date": "2020-01-02T00:00:00+00:00",
+            "state": "running",
+            "task_id": "print_the_context",
+            "try_number": 0,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
+        }
+        ti = tis[0]
+        assert ti.task_instance_note.user_id is not None
+
+    def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
+        """Verify we don't duplicate rows through join to RTIF"""
+        tis = self.create_task_instances(session)
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+                setattr(ti, attr, getattr(old_ti, attr))
+            session.add(ti)
+        session.commit()
+
+        # in each loop, we should get the right mapped TI back
+        for map_index in (1, 2):
+            new_note_value = f"My super cool TaskInstance note {map_index}"
+            response = self.client.patch(
+                "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+                f"print_the_context/{map_index}/setNote",
+                json={"note": new_note_value},
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 200, response.text
+
+            assert response.json == {
+                "dag_id": "example_python_operator",
+                "duration": 10000.0,
+                "end_date": "2020-01-03T00:00:00+00:00",
+                "execution_date": "2020-01-01T00:00:00+00:00",
+                "executor_config": "{}",
+                "hostname": "",
+                "map_index": map_index,
+                "max_tries": 0,
+                "note": new_note_value,
+                "operator": "_PythonDecoratedOperator",
+                "pid": 100,
+                "pool": "default_pool",
+                "pool_slots": 1,
+                "priority_weight": 11,
+                "queue": "default_queue",
+                "queued_when": None,
+                "sla_miss": None,
+                "start_date": "2020-01-02T00:00:00+00:00",
+                "state": "running",
+                "task_id": "print_the_context",
+                "try_number": 0,
+                "unixname": getuser(),
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "trigger": None,
+                "triggerer_job": None,
+            }
+
+    def test_should_raises_401_unauthenticated(self):
+        for map_index in ["", "/0"]:
+            url = (
+                "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+                f"print_the_context{map_index}/setNote"
+            )
+            response = self.client.patch(
+                url,
+                json={"note": "I am setting a note while being unauthenticated."},
+            )
+            assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        for map_index in ["", "/0"]:
+            response = self.client.patch(
+                "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+                f"print_the_context{map_index}/setNote",
+                json={"note": "I am setting a note without the proper permissions."},
+                environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            )
+            assert response.status_code == 403
+
+    def test_should_respond_404(self, session):
+        self.create_task_instances(session)
+        for map_index in ["", "/0"]:
+            response = self.client.patch(
+                f"api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+                f"{map_index}/setNote",
+                json={"note": "I am setting a note on a DAG that doesn't exist."},
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 404

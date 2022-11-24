@@ -24,6 +24,57 @@
 Changelog
 ---------
 
+1.3.1
+.....
+
+This release fixes a few errors that were introduced in common.sql operator while refactoring common parts:
+
+* ``_process_output`` method in ``SQLExecuteQueryOperator`` has now consistent semantics and typing, it
+  can also modify the returned (and stored in XCom) values in the operators that derive from the
+  ``SQLExecuteQueryOperator``).
+* last description of the cursor whether to return scalar values are now stored in DBApiHook
+
+Lack of consistency in the operator caused ``1.3.0`` to be yanked - the ``1.3.0`` should not be used - if
+you have ``1.3.0`` installed, upgrade to ``1.3.1``.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Restore removed (but used) methods in common.sql (#27843)``
+* ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+1.3.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add SQLExecuteQueryOperator (#25717)``
+* ``Use DbApiHook.run for DbApiHook.get_records and DbApiHook.get_first (#26944)``
+* ``DbApiHook consistent insert_rows logging (#26758)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Common sql bugfixes and improvements (#26761)``
+* ``Use unused SQLCheckOperator.parameters in SQLCheckOperator.execute. (#27599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+   * ``Update docs for September Provider's release (#26731)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
 1.2.0
 .....
 

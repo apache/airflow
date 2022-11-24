@@ -28,7 +28,7 @@ import copy
 import platform
 import time
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import aiohttp
 import requests
@@ -186,7 +186,7 @@ class BaseDatabricksHook(BaseHook):
             assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
 
         """
-        urlparse_host = urlparse(host).hostname
+        urlparse_host = urlsplit(host).hostname
         if urlparse_host:
             # In this case, host = https://xx.cloud.databricks.com
             return urlparse_host

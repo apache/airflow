@@ -65,7 +65,7 @@ Package apache-airflow-providers-salesforce
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.1.0
+Release: 5.2.0
 
 Provider package
 ----------------
@@ -86,7 +86,7 @@ Requirements
 =====================  ==================
 PIP package            Version required
 =====================  ==================
-``apache-airflow``     ``>=2.2.0``
+``apache-airflow``     ``>=2.3.0``
 ``simple-salesforce``  ``>=1.0.0``
 ``pandas``             ``>=0.17.1``
 =====================  ==================

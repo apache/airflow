@@ -77,13 +77,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.4.2",
+            "default": "2.4.3",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.4.2",
+            "default": "2.4.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -3305,6 +3305,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to this job",
+                    "type": "boolean",
+                    "default": true
+                },
                 "env": {
                     "description": "Add additional env vars to the create user job pod.",
                     "type": "array",
@@ -3535,6 +3540,11 @@
                 },
                 "useHelmHooks": {
                     "description": "Specify if you want to use the default Helm Hook annotations",
+                    "type": "boolean",
+                    "default": true
+                },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to this job",
                     "type": "boolean",
                     "default": true
                 }
@@ -5959,9 +5969,9 @@
                             "default": "tests/dags"
                         },
                         "wait": {
-                            "description": "Interval between git sync attempts in seconds.",
+                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
                             "type": "integer",
-                            "default": 60
+                            "default": 5
                         },
                         "containerName": {
                             "description": "Git sync container name.",

@@ -53,7 +53,7 @@ JobFlow configuration
 
 To create a job flow on EMR, you need to specify the configuration for the EMR cluster:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
     :language: python
     :start-after: [START howto_operator_emr_steps_config]
     :end-before: [END howto_operator_emr_steps_config]
@@ -76,7 +76,7 @@ Create the Job Flow
 
 In the following code we are creating a new job flow using the configuration as explained above.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_emr_create_job_flow]
@@ -90,7 +90,7 @@ Add Steps to an EMR job flow
 To add steps to an existing EMR Job flow you can use
 :class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_emr_add_steps]
@@ -104,7 +104,7 @@ Terminate an EMR job flow
 To terminate an EMR Job Flow you can use
 :class:`~airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_emr_terminate_job_flow]
@@ -118,7 +118,7 @@ Modify Amazon EMR container
 To modify an existing EMR container you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_emr_modify_cluster]
@@ -135,7 +135,7 @@ Wait on an Amazon EMR job flow state
 To monitor the state of an EMR job flow you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_emr_job_flow]
@@ -145,15 +145,6 @@ To monitor the state of an EMR job flow you can use
 
 Wait on an Amazon EMR step state
 ================================
-
-To monitor the state of a step running an existing EMR Job flow you can use
-:class:`~airflow.providers.amazon.aws.sensors.emr.EmrStepSensor`.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_emr_step]
-    :end-before: [END howto_sensor_emr_step]
 
 Reference
 ---------

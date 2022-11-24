@@ -50,7 +50,7 @@ Local machine development
 
 If you do not work with remote development environment, you need those prerequisites.
 
-1. Docker Community Edition
+1. Docker Community Edition (you can also use Colima, see instructions below)
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
 
@@ -99,6 +99,24 @@ Note : After adding user to docker group Logout and Login again for group member
 .. code-block:: bash
 
   $ docker run hello-world
+
+Colima
+------
+If you use Colima as your container runtimes engine, please follow the next steps:
+
+1. `Install buildx manually <https://https://github.com/docker/buildx#manual-download>`_ and follow it's instructions
+
+2. Link the Colima socket to the default socket path. Note that this may break other Docker servers.
+
+.. code-block:: bash
+
+  $ sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
+
+3. Change docker context to use default:
+
+.. code-block:: bash
+
+  $ docker context use default
 
 Docker Compose
 --------------
@@ -300,7 +318,7 @@ Using Breeze
      * 26379 -> forwarded to Redis broker -> redis:6379
 
    Here are links to those services that you can use on host:
-     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
+     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
      * Webserver: http://127.0.0.1:28080
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
@@ -504,7 +522,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. code-block:: bash
 
-  $ pre-commit run  --files airflow/decorators.py tests/utils/test_task_group.py
+  $ pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
 
 
 

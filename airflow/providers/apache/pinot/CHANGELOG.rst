@@ -24,17 +24,27 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
 4.0.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the Apache Airflow
-providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
 The admin command is now hard-coded to ``pinot-admin.sh``. The ``pinot-admin.sh`` command must be available
 on the path in order to use PinotAdminHook.
+
+* ``The pinot-admin.sh command is now hard-coded. (#27641)``
 
 Misc
 ~~~~

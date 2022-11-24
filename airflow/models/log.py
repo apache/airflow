@@ -69,3 +69,6 @@ class Log(Base):
             self.map_index = kwargs["map_index"]
 
         self.owner = owner or task_owner
+
+    def __str__(self) -> str:
+        return f"Log({self.event}, {self.task_id}, {self.owner}, {self.extra})"

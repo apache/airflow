@@ -22,6 +22,8 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 versions:
+  - 4.0.0
+  - 3.4.0
   - 3.3.0
   - 3.2.0
   - 3.1.0
@@ -41,7 +43,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
-  - apache-airflow-providers-common-sql>=1.3.0
+  - apache-airflow-providers-common-sql>=1.3.1
   - requests>=2.27,<3
   - databricks-sql-connector>=2.0.0, <3.0.0
   - aiohttp>=3.6.3, <4

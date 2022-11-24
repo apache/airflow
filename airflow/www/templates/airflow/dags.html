@@ -70,6 +70,7 @@
   <meta name="task_stats_url" content="{{ url_for('Airflow.task_stats') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
   <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
+  <meta name="next_run_datasets_summary_url" content="{{ url_for('Airflow.next_run_datasets_summary') }}">
   <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id='__DAG_ID__') }}">
 {% endblock %}
 
@@ -319,7 +320,7 @@
                       {% if ds_info.total == 1 -%}
                         On {{ ds_info.uri[0:40] + '…' if ds_info.uri and ds_info.uri|length > 40 else ds_info.uri|default('', true) }}
                       {%- else -%}
-                      {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                        {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
                       {%- endif %}
                     </div>
                   </span>

@@ -79,6 +79,7 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
+    :param notes: Set a custom note for the newly created DagRun.
     """
 
     template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
@@ -156,7 +157,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
                 dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
-                dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
+                dag_run = e.dag_run
             else:
                 raise e
         if dag_run is None:

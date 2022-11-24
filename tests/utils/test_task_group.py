@@ -1263,3 +1263,38 @@ def test_mapped_task_group_id_prefix_task_id():
 
     dag.get_task("t1") == t1
     dag.get_task("g.t2") == t2
+
+
+def test_iter_tasks():
+    with DAG("test_dag", start_date=pendulum.parse("20200101")) as dag:
+        with TaskGroup("section_1") as tg1:
+            EmptyOperator(task_id="task1")
+
+        with TaskGroup("section_2") as tg2:
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
+            mapped_bash_operator = BashOperator.partial(task_id="bash_task").expand(
+                bash_command=[
+                    "echo hello 1",
+                    "echo hello 2",
+                    "echo hello 3",
+                ]
+            )
+            task2 >> task3 >> mapped_bash_operator
+
+    tg1 >> tg2
+    root_group = dag.task_group
+    assert [t.task_id for t in root_group.iter_tasks()] == [
+        "section_1.task1",
+        "section_2.task2",
+        "section_2.task3",
+        "section_2.bash_task",
+    ]
+    assert [t.task_id for t in tg1.iter_tasks()] == [
+        "section_1.task1",
+    ]
+    assert [t.task_id for t in tg2.iter_tasks()] == [
+        "section_2.task2",
+        "section_2.task3",
+        "section_2.bash_task",
+    ]

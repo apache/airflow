@@ -60,7 +60,7 @@ Package apache-airflow-providers-tableau
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 3.0.1
+Release: 4.0.0
 
 Provider package
 ----------------
@@ -81,7 +81,7 @@ Requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
-``apache-airflow``       ``>=2.2.0``
+``apache-airflow``       ``>=2.3.0``
 ``tableauserverclient``
 =======================  ==================
 

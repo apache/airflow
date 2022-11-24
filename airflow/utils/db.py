@@ -74,6 +74,7 @@ REVISION_HEADS_MAP = {
     "2.4.0": "ecb43d2a1842",
     "2.4.1": "ecb43d2a1842",
     "2.4.2": "b0d31815b5a6",
+    "2.4.3": "e07f49787c9d",
 }
 
 
@@ -1599,7 +1600,6 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         drop_airflow_models(connection)
-        drop_flask_models(connection)
         drop_airflow_moved_tables(session)
 
     if not skip_init:
@@ -1706,18 +1706,6 @@ def drop_airflow_moved_tables(session):
     for tbl in to_delete:
         tbl.drop(settings.engine, checkfirst=False)
         Base.metadata.remove(tbl)
-
-
-def drop_flask_models(connection):
-    """
-    Drops all Flask models.
-
-    :param connection: SQLAlchemy Connection
-    :return: None
-    """
-    from airflow.www.fab_security.sqla.models import Base
-
-    Base.metadata.drop_all(connection)
 
 
 @provide_session

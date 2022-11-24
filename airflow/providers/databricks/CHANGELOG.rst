@@ -24,6 +24,63 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``DatabricksSqlHook`` is now conforming to the same semantics as all the other ``DBApiHook``
+implementations and returns the same kind of response in its ``run`` method. Previously (pre 4.* versions
+of the provider, the Hook returned Tuple of ("cursor description", "results") which was not compatible
+with other DBApiHooks that return just "results". After this change (and dependency on common.sql >= 1.3.1),
+The ``DatabricksSqlHook`` returns now "results" only. The ``description`` can be retrieved via
+``last_description`` field of the hook after ``run`` method completes.
+
+That makes the ``DatabricksSqlHook`` suitable for generic SQL operator and detailed lineage analysis.
+
+If you had custom hooks or used the Hook in your TaskFlow code or custom operators that relied on this
+behaviour, you need to adapt your DAGs.
+
+The Databricks ``DatabricksSQLOperator`` is also more standard and derives from common
+``SQLExecuteQueryOperator`` and uses more consistent approach to process output when SQL queries are run.
+However in this case the result returned by ``execute`` method is unchanged (it still returns Tuple of
+("description", "results") and this Tuple is pushed to XCom, so your DAGs relying on this behaviour
+should continue working without any change.
+
+* ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix templating fields and do_xcom_push in DatabricksSQLOperator (#27868)``
+
+
+3.4.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Replace urlparse with urlsplit (#27389)``
+
+Features
+~~~~~~~~
+
+* ``Add SQLExecuteQueryOperator (#25717)``
+* ``Use new job search API for triggering Databricks job by name (#27446)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 3.3.0
 .....
 

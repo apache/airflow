@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from flask import Flask
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
@@ -38,7 +38,7 @@ def _root_app(env: WSGIEnvironment, resp: StartResponse) -> Iterable[bytes]:
 def init_wsgi_middleware(flask_app: Flask) -> None:
     """Handle X-Forwarded-* headers and base_url support"""
     # Apply DispatcherMiddleware
-    base_url = urlparse(conf.get("webserver", "base_url"))[2]
+    base_url = urlsplit(conf.get("webserver", "base_url"))[2]
     if not base_url or base_url == "/":
         base_url = ""
     if base_url:

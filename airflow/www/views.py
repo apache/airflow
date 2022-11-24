@@ -101,7 +101,7 @@ from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
@@ -231,7 +231,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v, allow_empty=False):
+def _safe_parse_datetime(v, allow_empty=False) -> datetime | None:
     """
     Parse datetime and return error message for invalid dates
 
@@ -263,13 +263,13 @@ def dag_to_grid(dag, dag_runs, session):
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            sqla.func.count(sqla.func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label(
-                "state_count"
-            ),
-            sqla.func.min(TaskInstance.start_date).label("start_date"),
-            sqla.func.max(TaskInstance.end_date).label("end_date"),
-            sqla.func.max(TaskInstance._try_number).label("_try_number"),
+            func.min(TaskInstanceNote.content).label("note"),
+            func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
+            func.min(TaskInstance.start_date).label("start_date"),
+            func.max(TaskInstance.end_date).label("end_date"),
+            func.max(TaskInstance._try_number).label("_try_number"),
         )
+        .join(TaskInstance.task_instance_note, isouter=True)
         .filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
@@ -297,6 +297,7 @@ def dag_to_grid(dag, dag_runs, session):
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
                     "try_number": try_count,
+                    "note": task_instance.note,
                 }
 
             def _mapped_summary(ti_summaries):
@@ -665,6 +666,15 @@ class Airflow(AirflowBaseView):
 
             dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
+            filtered_dag_count = dags_query.count()
+            if filtered_dag_count == 0 and len(arg_tags_filter):
+                flash(
+                    "No matching DAG tags found.",
+                    "warning",
+                )
+                flask_session[FILTER_TAGS_COOKIE] = None
+                return redirect(url_for("Airflow.index"))
+
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
             paused_dags = dags_query.filter(DagModel.is_paused)
@@ -848,6 +858,37 @@ class Airflow(AirflowBaseView):
             "airflow/datasets.html",
             state_color_mapping=state_color_mapping,
         )
+
+    @expose("/next_run_datasets_summary", methods=["POST"])
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
+    @provide_session
+    def next_run_datasets_summary(self, session=None):
+        """Next run info for dataset triggered DAGs."""
+        allowed_dag_ids = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+
+        if not allowed_dag_ids:
+            return flask.json.jsonify({})
+
+        # Filter by post parameters
+        selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
+
+        if selected_dag_ids:
+            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
+        else:
+            filter_dag_ids = allowed_dag_ids
+
+        dataset_triggered_dag_ids = [
+            dag.dag_id
+            for dag in session.query(DagModel.dag_id)
+            .filter(DagModel.dag_id.in_(filter_dag_ids))
+            .filter(DagModel.schedule_interval == "Dataset")
+        ]
+
+        dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
+            dataset_triggered_dag_ids, session=session
+        )
+
+        return flask.json.jsonify(dataset_triggered_next_run_info)
 
     @expose("/dag_stats", methods=["POST"])
     @auth.has_access(
@@ -1316,7 +1357,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     @provide_session
-    def rendered_k8s(self, session: Session = NEW_SESSION):
+    def rendered_k8s(self, *, session: Session = NEW_SESSION):
         """Get rendered k8s yaml."""
         if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
             abort(404)
@@ -1969,13 +2010,14 @@ class Airflow(AirflowBaseView):
     def _clear_dag_tis(
         self,
         dag: DAG,
-        start_date,
-        end_date,
-        origin,
+        start_date: datetime | None,
+        end_date: datetime | None,
+        origin: str,
         task_ids=None,
         recursive=False,
         confirmed=False,
         only_failed=False,
+        session: Session = NEW_SESSION,
     ):
         if confirmed:
             count = dag.clear(
@@ -1985,6 +2027,7 @@ class Airflow(AirflowBaseView):
                 include_subdags=recursive,
                 include_parentdag=recursive,
                 only_failed=only_failed,
+                session=session,
             )
 
             msg = f"{count} task instances have been cleared"
@@ -1999,6 +2042,7 @@ class Airflow(AirflowBaseView):
                 include_parentdag=recursive,
                 only_failed=only_failed,
                 dry_run=True,
+                session=session,
             )
         except AirflowException as ex:
             return redirect_or_json(origin, msg=str(ex), status="error", status_code=500)
@@ -2025,20 +2069,22 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def clear(self):
-        """Clears the Dag."""
+    @provide_session
+    def clear(self, *, session: Session = NEW_SESSION):
+        """Clears DAG tasks."""
         dag_id = request.form.get("dag_id")
         task_id = request.form.get("task_id")
         origin = get_safe_url(request.form.get("origin"))
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        group_id = request.form.get("group_id")
 
         if "map_index" not in request.form:
             map_indexes: list[int] | None = None
         else:
             map_indexes = request.form.getlist("map_index", type=int)
 
-        execution_date = request.form.get("execution_date")
-        execution_date = _safe_parse_datetime(execution_date)
+        execution_date_str = request.form.get("execution_date")
+        execution_date = _safe_parse_datetime(execution_date_str)
         confirmed = request.form.get("confirmed") == "true"
         upstream = request.form.get("upstream") == "true"
         downstream = request.form.get("downstream") == "true"
@@ -2047,14 +2093,44 @@ class Airflow(AirflowBaseView):
         recursive = request.form.get("recursive") == "true"
         only_failed = request.form.get("only_failed") == "true"
 
-        task_ids: list[str | tuple[str, int]]
-        if map_indexes is None:
-            task_ids = [task_id]
-        else:
-            task_ids = [(task_id, map_index) for map_index in map_indexes]
+        task_ids: list[str | tuple[str, int]] = []
+
+        end_date = execution_date if not future else None
+        start_date = execution_date if not past else None
+
+        locked_dag_run_ids: list[int] = []
+
+        if group_id is not None:
+            task_group_dict = dag.task_group.get_task_group_dict()
+            task_group = task_group_dict.get(group_id)
+            if task_group is None:
+                return redirect_or_json(
+                    origin, msg=f"TaskGroup {group_id} could not be found", status="error", status_code=404
+                )
+            task_ids = task_ids_or_regex = [t.task_id for t in task_group.iter_tasks()]
+
+            # Lock the related dag runs to prevent from possible dead lock.
+            # https://github.com/apache/airflow/pull/26658
+            dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == dag_id).with_for_update()
+            if start_date is None and end_date is None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
+            else:
+                if start_date is not None:
+                    dag_runs_query = dag_runs_query.filter(DagRun.execution_date >= start_date)
+
+                if end_date is not None:
+                    dag_runs_query = dag_runs_query.filter(DagRun.execution_date <= end_date)
+
+            locked_dag_run_ids = dag_runs_query.all()
+        elif task_id:
+            if map_indexes is None:
+                task_ids = [task_id]
+            else:
+                task_ids = [(task_id, map_index) for map_index in map_indexes]
+            task_ids_or_regex = [task_id]
 
         dag = dag.partial_subset(
-            task_ids_or_regex=[task_id],
+            task_ids_or_regex=task_ids_or_regex,
             include_downstream=downstream,
             include_upstream=upstream,
         )
@@ -2063,10 +2139,7 @@ class Airflow(AirflowBaseView):
             # If we had upstream/downstream etc then also include those!
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
 
-        end_date = execution_date if not future else None
-        start_date = execution_date if not past else None
-
-        return self._clear_dag_tis(
+        response = self._clear_dag_tis(
             dag,
             start_date,
             end_date,
@@ -2075,7 +2148,12 @@ class Airflow(AirflowBaseView):
             recursive=recursive,
             confirmed=confirmed,
             only_failed=only_failed,
+            session=session,
         )
+
+        del locked_dag_run_ids
+
+        return response
 
     @expose("/dagrun_clear", methods=["POST"])
     @auth.has_access(
@@ -3321,7 +3399,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     @provide_session
-    def extra_links(self, session: Session = NEW_SESSION):
+    def extra_links(self, *, session: Session = NEW_SESSION):
         """
         A restful endpoint that returns external links for a given Operator
 
@@ -3822,12 +3900,35 @@ class DagFilter(BaseFilter):
 
 
 class AirflowModelView(ModelView):
-    """Airflow Mode View."""
+    """Airflow Mode View.
+
+    Overridden `__getattribute__` to wraps REST methods with action_logger
+    """
 
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
+
+    def __getattribute__(self, attr):
+        """Wraps action REST methods with `action_logging` wrapper
+        Overriding enables differentiating resource and generation of event name at the decorator level.
+
+        if attr in ["show", "list", "read", "get", "get_list"]:
+            return action_logging(event="RESOURCE_NAME"."action_name")(attr)
+        else:
+            return attr
+        """
+        attribute = object.__getattribute__(self, attr)
+        if (
+            callable(attribute)
+            and hasattr(attribute, "_permission_name")
+            and attribute._permission_name in self.method_permission_name
+        ):
+            permission_str = self.method_permission_name[attribute._permission_name]
+            if permission_str not in ["show", "list", "read", "get", "get_list"]:
+                return action_logging(event=f"{self.route_base.strip('/')}.{permission_str}")(attribute)
+        return attribute
 
 
 class AirflowPrivilegeVerifierModelView(AirflowModelView):
@@ -3931,6 +4032,65 @@ class SlaMissModelView(AirflowModelView):
         "dag_id": wwwutils.dag_link,
         "map_index": wwwutils.format_map_index,
     }
+
+    @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
+    def action_muldelete(self, items):
+        """Multiple delete action."""
+        self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action(
+        "mulnotificationsent",
+        "Set notification sent to true",
+        "Are you sure you want to set all these notifications to sent?",
+        single=False,
+    )
+    def action_mulnotificationsent(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "notification_sent", True)
+
+    @action(
+        "mulnotificationsentfalse",
+        "Set notification sent to false",
+        "Are you sure you want to mark these SLA alerts as notification not sent yet?",
+        single=False,
+    )
+    def action_mulnotificationsentfalse(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "notification_sent", False)
+
+    @action(
+        "mulemailsent",
+        "Set email sent to true",
+        "Are you sure you want to mark these SLA alerts as emails were sent?",
+        single=False,
+    )
+    def action_mulemailsent(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "email_sent", True)
+
+    @action(
+        "mulemailsentfalse",
+        "Set email sent to false",
+        "Are you sure you want to mark these SLA alerts as emails not sent yet?",
+        single=False,
+    )
+    def action_mulemailsentfalse(self, items: list[SlaMiss]):
+        return self._set_notification_property(items, "email_sent", False)
+
+    @provide_session
+    def _set_notification_property(self, items: list[SlaMiss], attr: str, new_value: bool, session=None):
+        try:
+            count = 0
+            for sla in items:
+                count += 1
+                setattr(sla, attr, new_value)
+                session.merge(sla)
+            session.commit()
+            flash(f"{count} SLAMisses had {attr} set to {new_value}.")
+        except Exception as ex:
+            flash(str(ex), "error")
+            flash("Failed to set state", "error")
+        self.update_redirect()
+        return redirect(self.get_default_url())
 
 
 class XComModelView(AirflowModelView):
@@ -4620,7 +4780,7 @@ class VariableModelView(AirflowModelView):
 
     @expose("/varimport", methods=["POST"])
     @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
-    @action_logging
+    @action_logging(event=f"{permissions.RESOURCE_VARIABLE.lower()}.varimport")
     def varimport(self):
         """Import variables"""
         try:
@@ -4734,6 +4894,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
+        "note",
         "external_trigger",
         "conf",
         "duration",
@@ -4746,12 +4907,22 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_type",
         "start_date",
         "end_date",
+        # "note",  # todo: maybe figure out how to re-enable this
         "external_trigger",
     ]
     label_columns = {
         "execution_date": "Logical Date",
     }
-    edit_columns = ["state", "dag_id", "execution_date", "start_date", "end_date", "run_id", "conf"]
+    edit_columns = [
+        "state",
+        "dag_id",
+        "execution_date",
+        "start_date",
+        "end_date",
+        "run_id",
+        "conf",
+        "note",
+    ]
 
     # duration is not a DB column, its derived
     order_columns = [
@@ -4763,6 +4934,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
+        "note",
         "external_trigger",
         "conf",
     ]
@@ -5095,6 +5267,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "duration",
+        "note",
         "job_id",
         "hostname",
         "unixname",
@@ -5126,6 +5299,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
+        # "note",  # todo: maybe make note work with TI search?
         "hostname",
         "priority_weight",
         "queue",
@@ -5136,9 +5310,13 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     ]
 
     edit_columns = [
-        "state",
+        "dag_id",
+        "task_id",
+        "execution_date",
         "start_date",
         "end_date",
+        "state",
+        "note",
     ]
 
     add_exclude_columns = ["next_method", "next_kwargs", "trigger_id"]

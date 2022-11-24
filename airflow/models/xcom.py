@@ -21,6 +21,7 @@ import collections.abc
 import contextlib
 import datetime
 import inspect
+import itertools
 import json
 import logging
 import pickle
@@ -51,6 +52,7 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one, is_container
+from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -495,7 +497,9 @@ class BaseXCom(Base, LoggingMixin):
         elif dag_ids is not None:
             query = query.filter(cls.dag_id == dag_ids)
 
-        if is_container(map_indexes):
+        if isinstance(map_indexes, range) and map_indexes.step == 1:
+            query = query.filter(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
+        elif is_container(map_indexes):
             query = query.filter(cls.map_index.in_(map_indexes))
         elif map_indexes is not None:
             query = query.filter(cls.map_index == map_indexes)
@@ -620,31 +624,41 @@ class BaseXCom(Base, LoggingMixin):
         if conf.getboolean("core", "enable_xcom_pickling"):
             return pickle.dumps(value)
         try:
-            return json.dumps(value).encode("UTF-8")
-        except (ValueError, TypeError):
+            return json.dumps(value, cls=XComEncoder).encode("UTF-8")
+        except (ValueError, TypeError) as ex:
             log.error(
-                "Could not serialize the XCom value into JSON."
+                "%s."
                 " If you are using pickle instead of JSON for XCom,"
                 " then you need to enable pickle support for XCom"
-                " in your airflow config."
+                " in your airflow config or make sure to decorate your"
+                " object with attr.",
+                ex,
             )
             raise
 
     @staticmethod
-    def deserialize_value(result: XCom) -> Any:
-        """Deserialize XCom value from str or pickle object"""
+    def _deserialize_value(result: XCom, orm: bool) -> Any:
+        object_hook = None
+        if orm:
+            object_hook = XComDecoder.orm_object_hook
+
         if result.value is None:
             return None
         if conf.getboolean("core", "enable_xcom_pickling"):
             try:
                 return pickle.loads(result.value)
             except pickle.UnpicklingError:
-                return json.loads(result.value.decode("UTF-8"))
+                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
         else:
             try:
-                return json.loads(result.value.decode("UTF-8"))
+                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return pickle.loads(result.value)
+
+    @staticmethod
+    def deserialize_value(result: XCom) -> Any:
+        """Deserialize XCom value from str or pickle object"""
+        return BaseXCom._deserialize_value(result, False)
 
     def orm_deserialize_value(self) -> Any:
         """
@@ -655,7 +669,7 @@ class BaseXCom(Base, LoggingMixin):
         creating XCom orm model. This is used when viewing XCom listing
         in the webserver, for example.
         """
-        return BaseXCom.deserialize_value(self)
+        return BaseXCom._deserialize_value(self, True)
 
 
 class _LazyXComAccessIterator(collections.abc.Iterator):
@@ -686,30 +700,28 @@ class LazyXComAccess(collections.abc.Sequence):
     Note that since the session bound to the parent query may have died when we
     actually access the sequence's content, we must create a new session
     for every function call with ``with_session()``.
+
+    :meta private:
     """
 
-    dag_id: str
-    run_id: str
-    task_id: str
-    _query: Query = attr.ib(repr=False)
-    _len: int | None = attr.ib(init=False, repr=False, default=None)
+    _query: Query
+    _len: int | None = attr.ib(init=False, default=None)
 
     @classmethod
-    def build_from_single_xcom(cls, first: XCom, query: Query) -> LazyXComAccess:
-        return cls(
-            dag_id=first.dag_id,
-            run_id=first.run_id,
-            task_id=first.task_id,
-            query=query.with_entities(XCom.value)
-            .filter(
-                XCom.run_id == first.run_id,
-                XCom.task_id == first.task_id,
-                XCom.dag_id == first.dag_id,
-                XCom.map_index >= 0,
-            )
-            .order_by(None)
-            .order_by(XCom.map_index.asc()),
-        )
+    def build_from_xcom_query(cls, query: Query) -> LazyXComAccess:
+        return cls(query=query.with_entities(XCom.value))
+
+    def __repr__(self) -> str:
+        return f"LazyXComAccess([{len(self)} items])"
+
+    def __str__(self) -> str:
+        return str(list(self))
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, (list, LazyXComAccess)):
+            z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
+            return all(x == y for x, y in z)
+        return NotImplemented
 
     def __len__(self):
         if self._len is None:

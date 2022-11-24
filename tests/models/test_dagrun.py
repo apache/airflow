@@ -1700,11 +1700,15 @@ def test_mapped_task_group_expands_at_create(dag_maker, session):
             # Normal operator in mapped task group, expands to 2 tis.
             MockOperator(task_id="t1")
             # Mapped operator expands *again* against mapped task group arguments to 4 tis.
-            MockOperator.partial(task_id="t2").expand(arg1=literal)
+            with pytest.raises(NotImplementedError) as ctx:
+                MockOperator.partial(task_id="t2").expand(arg1=literal)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
             # Normal operator referencing mapped task group arguments does not further expand, only 2 tis.
             MockOperator(task_id="t3", arg1=x)
             # It can expand *again* (since each item in x is a list) but this is not done at parse time.
-            MockOperator.partial(task_id="t4").expand(arg1=x)
+            with pytest.raises(NotImplementedError) as ctx:
+                MockOperator.partial(task_id="t4").expand(arg1=x)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
 
         tg.expand(x=literal)
 
@@ -1717,13 +1721,13 @@ def test_mapped_task_group_expands_at_create(dag_maker, session):
     assert query.all() == [
         ("tg.t1", 0, None),
         ("tg.t1", 1, None),
-        ("tg.t2", 0, None),
-        ("tg.t2", 1, None),
-        ("tg.t2", 2, None),
-        ("tg.t2", 3, None),
+        # ("tg.t2", 0, None),
+        # ("tg.t2", 1, None),
+        # ("tg.t2", 2, None),
+        # ("tg.t2", 3, None),
         ("tg.t3", 0, None),
         ("tg.t3", 1, None),
-        ("tg.t4", -1, None),
+        # ("tg.t4", -1, None),
     ]
 
 
@@ -2009,3 +2013,89 @@ def test_mapped_expand_against_params(dag_maker, partial_params, mapped_params, 
         ti.run()
 
     assert sorted(results) == expected
+
+
+def test_mapped_task_group_expands(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task_group
+        def tg(x, y):
+            return MockOperator(task_id="task_2", arg1=x, arg2=y)
+
+        task_1 = BaseOperator(task_id="task_1")
+        tg.expand(x=task_1.output, y=[1, 2, 3])
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    # Not expanding task_2 yet since it depends on result from task_1.
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert {(ti.task_id, ti.map_index, ti.state) for ti in decision.tis} == {
+        ("task_1", -1, None),
+        ("tg.task_2", -1, None),
+    }
+
+    # Simulate task_1 execution to produce TaskMap.
+    (ti_1,) = decision.schedulable_tis
+    assert ti_1.task_id == "task_1"
+    ti_1.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(ti_1, ["a", "b"]))
+    session.flush()
+
+    # Now task_2 in mapped tagk group is expanded.
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert {(ti.task_id, ti.map_index, ti.state) for ti in decision.schedulable_tis} == {
+        ("tg.task_2", 0, None),
+        ("tg.task_2", 1, None),
+        ("tg.task_2", 2, None),
+        ("tg.task_2", 3, None),
+        ("tg.task_2", 4, None),
+        ("tg.task_2", 5, None),
+    }
+
+
+def test_operator_mapped_task_group_receives_value(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def t(value, *, ti=None):
+            results[(ti.task_id, ti.map_index)] = value
+            return value
+
+        @task_group
+        def tg(va):
+            # Each expanded group has one t1 and t2 each.
+            t1 = t.override(task_id="t1")(va)
+            t2 = t.override(task_id="t2")(t1)
+
+            with pytest.raises(NotImplementedError) as ctx:
+                t.override(task_id="t4").expand(value=va)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+
+            return t2
+
+        # The group is mapped by 3.
+        t2 = tg.expand(va=[["a", "b"], [4], ["z"]])
+
+        # Aggregates results from task group.
+        t.override(task_id="t3")(t2)
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert results == {("tg.t1", 0): ["a", "b"], ("tg.t1", 1): [4], ("tg.t1", 2): ["z"]}
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert results == {("tg.t2", 0): ["a", "b"], ("tg.t2", 1): [4], ("tg.t2", 2): ["z"]}
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert len(results) == 1
+    assert list(results[("t3", -1)]) == [["a", "b"], [4], ["z"]]
