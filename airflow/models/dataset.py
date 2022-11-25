@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
 from sqlalchemy import (
+    Boolean,
     Column,
     ForeignKey,
     ForeignKeyConstraint,
@@ -64,6 +65,7 @@ class DatasetModel(Base):
     extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    is_orphaned = Column(Boolean, default=False, nullable=False, server_default="0")
 
     consuming_dags = relationship("DagScheduleDatasetReference", back_populates="dataset")
     producing_tasks = relationship("TaskOutletDatasetReference", back_populates="dataset")

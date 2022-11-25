@@ -1,0 +1,3 @@
+The Airflow config option ``scheduler.deactivate_stale_dags_interval`` has been renamed to ``scheduler.parsing_cleanup_interval``.
+
+The old option will continue to work but will issue deprecation warnings, and will be removed entirely in Airflow 3.

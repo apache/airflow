@@ -66,6 +66,7 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
+    clear_db_datasets,
     clear_db_import_errors,
     clear_db_jobs,
     clear_db_pools,
@@ -123,6 +124,7 @@ class TestSchedulerJob:
         clear_db_sla_miss()
         clear_db_import_errors()
         clear_db_jobs()
+        clear_db_datasets()
         # DO NOT try to run clear_db_serialized_dags() here - this will break the tests
         # The tests expect DAGs to be fully loaded here via setUpClass method below
 
@@ -4587,6 +4589,44 @@ class TestSchedulerJob:
 
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
         assert backfill_run.state == State.RUNNING
+
+    def test_dataset_orphaning(self, dag_maker, session):
+        dataset1 = Dataset(uri="ds1")
+        dataset2 = Dataset(uri="ds2")
+        dataset3 = Dataset(uri="ds3")
+        dataset4 = Dataset(uri="ds4")
+
+        with dag_maker(dag_id="datasets-1", schedule=[dataset1, dataset2], session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset3, dataset4])
+
+        non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
+        assert non_orphaned_dataset_count == 4
+        orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
+        assert orphaned_dataset_count == 0
+
+        # now remove 2 dataset references
+        with dag_maker(dag_id="datasets-1", schedule=[dataset1], session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset3])
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job._orphan_unreferenced_datasets(session=session)
+        session.flush()
+
+        # and find the orphans
+        non_orphaned_datasets = [
+            dataset.uri
+            for dataset in session.query(DatasetModel.uri)
+            .filter(~DatasetModel.is_orphaned)
+            .order_by(DatasetModel.uri)
+        ]
+        assert non_orphaned_datasets == ["ds1", "ds3"]
+        orphaned_datasets = [
+            dataset.uri
+            for dataset in session.query(DatasetModel.uri)
+            .filter(DatasetModel.is_orphaned)
+            .order_by(DatasetModel.uri)
+        ]
+        assert orphaned_datasets == ["ds2", "ds4"]
 
 
 @pytest.mark.need_serialized_dag

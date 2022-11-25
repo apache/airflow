@@ -97,12 +97,14 @@ class TestDag:
     def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        clear_db_datasets()
         self.patcher_dag_code = mock.patch("airflow.models.dag.DagCode.bulk_sync_to_db")
         self.patcher_dag_code.start()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        clear_db_datasets()
         self.patcher_dag_code.stop()
 
     @staticmethod
@@ -938,6 +940,55 @@ class TestDag:
             .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {(task_id, dag_id1, d2_orm.id)}
+
+    def test_bulk_write_to_db_unorphan_datasets(self):
+        """
+        Datasets can lose their last reference and be orphaned, but then if a reference to them reappears, we
+        need to un-orphan those datasets
+        """
+        with create_session() as session:
+            # Create four datasets - two that have references and two that are unreferenced and marked as
+            # orphans
+            dataset1 = Dataset(uri="ds1")
+            dataset2 = Dataset(uri="ds2")
+            session.add(DatasetModel(uri=dataset2.uri, is_orphaned=True))
+            dataset3 = Dataset(uri="ds3")
+            dataset4 = Dataset(uri="ds4")
+            session.add(DatasetModel(uri=dataset4.uri, is_orphaned=True))
+            session.flush()
+
+            dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1])
+            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[dataset3])
+
+            DAG.bulk_write_to_db([dag1], session=session)
+
+            # Double check
+            non_orphaned_datasets = [
+                dataset.uri
+                for dataset in session.query(DatasetModel.uri)
+                .filter(~DatasetModel.is_orphaned)
+                .order_by(DatasetModel.uri)
+            ]
+            assert non_orphaned_datasets == ["ds1", "ds3"]
+            orphaned_datasets = [
+                dataset.uri
+                for dataset in session.query(DatasetModel.uri)
+                .filter(DatasetModel.is_orphaned)
+                .order_by(DatasetModel.uri)
+            ]
+            assert orphaned_datasets == ["ds2", "ds4"]
+
+            # Now add references to the two unreferenced datasets
+            dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1, dataset2])
+            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[dataset3, dataset4])
+
+            DAG.bulk_write_to_db([dag1], session=session)
+
+            # and count the orphans and non-orphans
+            non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
+            assert non_orphaned_dataset_count == 4
+            orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
+            assert orphaned_dataset_count == 0
 
     def test_sync_to_db(self):
         dag = DAG(

@@ -255,6 +255,7 @@ class AirflowConfigParser(ConfigParser):
                 "worker_pods_pending_timeout_batch_size",
             )
         },
+        ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
     }
 
     # A mapping of old default values that we want to change and warn the user
