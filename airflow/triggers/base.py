@@ -66,10 +66,13 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         and then rely on cleanup() being called when they are no longer needed.
         """
         raise NotImplementedError("Triggers must implement run()")
+        yield  # To convince Mypy this is an async iterator.
 
     def cleanup(self) -> None:
         """
-        Called when the trigger is no longer needed and it's being removed
+        Cleanup the trigger.
+
+        Called when the trigger is no longer needed, and it's being removed
         from the active triggerer process.
         """
 

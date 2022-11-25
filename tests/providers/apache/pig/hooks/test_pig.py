@@ -43,7 +43,6 @@ class TestPigCliHook(unittest.TestCase):
 
     def test_init(self):
         self.pig_hook()
-        self.extra_dejson.get.assert_called_once_with("pig_properties", "")
 
     @mock.patch("subprocess.Popen")
     def test_run_cli_success(self, popen_mock):
@@ -80,8 +79,7 @@ class TestPigCliHook(unittest.TestCase):
         proc_mock.stdout.readline.return_value = b""
         popen_mock.return_value = proc_mock
 
-        hook = self.pig_hook()
-        hook.pig_properties = test_properties
+        hook = self.pig_hook(pig_properties=["one", "two"])
 
         stdout = hook.run_cli("")
         assert stdout == ""
@@ -89,6 +87,15 @@ class TestPigCliHook(unittest.TestCase):
         popen_first_arg = popen_mock.call_args[0][0]
         for pig_prop in test_properties.split():
             assert pig_prop in popen_first_arg
+
+    def test_runtime_exception_not_raised_by_default(self):
+        PigCliHook()
+
+    @mock.patch("airflow.providers.apache.pig.hooks.pig.PigCliHook.get_connection")
+    def test_runtime_exception_when_properties_passed_by_connection(self, mock_get_connection):
+        mock_get_connection.return_value.extra_dejson = {"pig_properties": "one two three"}
+        with pytest.raises(RuntimeError):
+            PigCliHook()
 
     @mock.patch("subprocess.Popen")
     def test_run_cli_verbose(self, popen_mock):

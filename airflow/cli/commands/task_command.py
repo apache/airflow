@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Task sub-commands"""
+"""Task sub-commands."""
 from __future__ import annotations
 
 import datetime
@@ -37,10 +37,12 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.operator import needs_expansion
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
@@ -146,10 +148,10 @@ def _get_ti(
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
 ) -> tuple[TaskInstance, bool]:
-    """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
+    """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    if task.is_mapped:
+    if needs_expansion(task):
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
     elif map_index >= 0:
@@ -179,7 +181,9 @@ def _get_ti(
 
 def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
     """
-    Runs the task in one of 3 modes
+    Runs the task based on a mode.
+
+    Any of the 3 modes are available:
 
     - using LocalTaskJob
     - as raw task
@@ -195,8 +199,9 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
 
 def _run_task_by_executor(args, dag, ti):
     """
-    Sends the task to the executor for execution. This can result in the task being started by another host
-    if the executor implementation does
+    Sends the task to the executor for execution.
+
+    This can result in the task being started by another host if the executor implementation does.
     """
     pickle_id = None
     if args.ship_dag:
@@ -207,9 +212,9 @@ def _run_task_by_executor(args, dag, ti):
                 session.add(pickle)
             pickle_id = pickle.id
             # TODO: This should be written to a log
-            print(f'Pickled dag {dag} as pickle_id: {pickle_id}')
+            print(f"Pickled dag {dag} as pickle_id: {pickle_id}")
         except Exception as e:
-            print('Could not pickle the DAG')
+            print("Could not pickle the DAG")
             print(e)
             raise e
     executor = ExecutorLoader.get_default_executor()
@@ -231,7 +236,7 @@ def _run_task_by_executor(args, dag, ti):
 
 
 def _run_task_by_local_task_job(args, ti):
-    """Run LocalTaskJob, which monitors the raw task execution process"""
+    """Run LocalTaskJob, which monitors the raw task execution process."""
     run_job = LocalTaskJob(
         task_instance=ti,
         mark_success=args.mark_success,
@@ -260,7 +265,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 
 def _run_raw_task(args, ti: TaskInstance) -> None:
-    """Runs the main task handling code"""
+    """Runs the main task handling code."""
     ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -276,7 +281,8 @@ def _extract_external_executor_id(args) -> str | None:
 
 @contextmanager
 def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
-    """Manage logging context for a task run
+    """
+    Manage logging context for a task run.
 
     - Replace the root logger configuration with the airflow.task configuration
       so we can capture logs from any custom loggers used in the task.
@@ -288,7 +294,7 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
     modify = not settings.DONOT_MODIFY_HANDLERS
 
     if modify:
-        root_logger, task_logger = logging.getLogger(), logging.getLogger('airflow.task')
+        root_logger, task_logger = logging.getLogger(), logging.getLogger("airflow.task")
 
         orig_level = root_logger.level
         root_logger.setLevel(task_logger.level)
@@ -309,9 +315,14 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
             root_logger.handlers[:] = orig_handlers
 
 
+class TaskCommandMarker:
+    """Marker for listener hooks, to properly detect from which component they are called."""
+
+
 @cli_utils.action_cli(check_db=False)
 def task_run(args, dag=None):
-    """Run a single task instance.
+    """
+    Run a single task instance.
 
     Note that there must be at least one DagRun for this to start,
     i.e. it must have been scheduled and/or triggered previously.
@@ -330,8 +341,8 @@ def task_run(args, dag=None):
         unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
 
         if unsupported_options:
-            unsupported_raw_task_flags = ', '.join(f'--{o}' for o in RAW_TASK_UNSUPPORTED_OPTION)
-            unsupported_flags = ', '.join(f'--{o}' for o in unsupported_options)
+            unsupported_raw_task_flags = ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION)
+            unsupported_flags = ", ".join(f"--{o}" for o in unsupported_options)
             raise AirflowException(
                 "Option --raw does not work with some of the other options on this command. "
                 "You can't use --raw option and the following options: "
@@ -359,11 +370,13 @@ def task_run(args, dag=None):
     # processing hundreds of simultaneous tasks.
     settings.reconfigure_orm(disable_connection_pool=True)
 
+    get_listener_manager().hook.on_starting(component=TaskCommandMarker())
+
     if args.pickle:
-        print(f'Loading pickle id: {args.pickle}')
+        print(f"Loading pickle id: {args.pickle}")
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
-        dag = get_dag(args.subdir, args.dag_id, include_examples=False)
+        dag = get_dag(args.subdir, args.dag_id)
     else:
         # Use DAG from parameter
         pass
@@ -375,16 +388,24 @@ def task_run(args, dag=None):
 
     log.info("Running %s on host %s", ti, hostname)
 
-    if args.interactive:
-        _run_task_by_selected_method(args, dag, ti)
-    else:
-        with _capture_task_logs(ti):
+    try:
+        if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
+        else:
+            with _capture_task_logs(ti):
+                _run_task_by_selected_method(args, dag, ti)
+    finally:
+        try:
+            get_listener_manager().hook.before_stopping(component=TaskCommandMarker())
+        except Exception:
+            pass
 
 
 @cli_utils.action_cli(check_db=False)
 def task_failed_deps(args):
     """
+    Get task instance dependencies that were not met.
+
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
@@ -426,7 +447,7 @@ def task_state(args):
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 def task_list(args, dag=None):
-    """Lists the tasks within a DAG at the command line"""
+    """Lists the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
     if args.tree:
         dag.tree_view()
@@ -445,8 +466,9 @@ SUPPORTED_DEBUGGER_MODULES: list[str] = [
 
 def _guess_debugger():
     """
-    Trying to guess the debugger used by the user. When it doesn't find any user-installed debugger,
-    returns ``pdb``.
+    Trying to guess the debugger used by the user.
+
+    When it doesn't find any user-installed debugger, returns ``pdb``.
 
     List of supported debuggers:
 
@@ -467,7 +489,7 @@ def _guess_debugger():
 @suppress_logs_and_warning
 @provide_session
 def task_states_for_dag_run(args, session=None):
-    """Get the status of all task instances in a DagRun"""
+    """Get the status of all task instances in a DagRun."""
     dag_run = (
         session.query(DagRun)
         .filter(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
@@ -510,23 +532,23 @@ def task_states_for_dag_run(args, session=None):
 
 @cli_utils.action_cli(check_db=False)
 def task_test(args, dag=None):
-    """Tests task for a given dag_id"""
+    """Tests task for a given dag_id."""
     # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
 
     settings.MASK_SECRETS_IN_LOGS = True
 
-    handlers = logging.getLogger('airflow.task').handlers
+    handlers = logging.getLogger("airflow.task").handlers
     already_has_stream_handler = False
     for handler in handlers:
         already_has_stream_handler = isinstance(handler, logging.StreamHandler)
         if already_has_stream_handler:
             break
     if not already_has_stream_handler:
-        logging.getLogger('airflow.task').propagate = True
+        logging.getLogger("airflow.task").propagate = True
 
-    env_vars = {'AIRFLOW_TEST_MODE': 'True'}
+    env_vars = {"AIRFLOW_TEST_MODE": "True"}
     if args.env_vars:
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
@@ -562,7 +584,7 @@ def task_test(args, dag=None):
         if not already_has_stream_handler:
             # Make sure to reset back to normal. When run for CLI this doesn't
             # matter, but it does for test suite
-            logging.getLogger('airflow.task').propagate = False
+            logging.getLogger("airflow.task").propagate = False
         if dr_created:
             with create_session() as session:
                 session.delete(ti.dag_run)
@@ -571,7 +593,7 @@ def task_test(args, dag=None):
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 def task_render(args):
-    """Renders and displays templated fields for a given task"""
+    """Renders and displays templated fields for a given task."""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
@@ -592,7 +614,7 @@ def task_render(args):
 
 @cli_utils.action_cli(check_db=False)
 def task_clear(args):
-    """Clears all task instances or only those matched by regex for a DAG(s)"""
+    """Clears all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:

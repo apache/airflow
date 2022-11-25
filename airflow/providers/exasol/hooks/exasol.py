@@ -82,7 +82,6 @@ class ExasolHook(DbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
     ) -> list[dict | tuple[Any, ...]]:
         """
         Executes the sql and returns a set of records.
@@ -95,7 +94,7 @@ class ExasolHook(DbApiHook):
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: dict | None = None) -> Any | None:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
@@ -158,7 +157,7 @@ class ExasolHook(DbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the LAST SQL expression if handler was provided.
         """
-        scalar_return_last = isinstance(sql, str) and return_last
+        self.scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 sql = self.split_sql_string(sql)
@@ -188,7 +187,7 @@ class ExasolHook(DbApiHook):
 
         if handler is None:
             return None
-        elif scalar_return_last:
+        elif self.scalar_return_last:
             return results[-1]
         else:
             return results

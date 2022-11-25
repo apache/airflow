@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, cast
+from typing import Any, Callable, Iterable, Mapping, Sequence, cast
 
 import sqlparse
 from packaging.version import Version
@@ -34,6 +34,14 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
     """Handler for DbApiHook.run() to return results"""
     if cursor.description is not None:
         return cursor.fetchall()
+    else:
+        return None
+
+
+def fetch_one_handler(cursor) -> list[tuple] | None:
+    """Handler for DbApiHook.run() to return results"""
+    if cursor.description is not None:
+        return cursor.fetchone()
     else:
         return None
 
@@ -103,9 +111,11 @@ class DbApiHook(BaseForDbApiHook):
         # We should not make schema available in deriving hooks for backwards compatibility
         # If a hook deriving from DBApiHook has a need to access schema, then it should retrieve it
         # from kwargs and store it on its own. We do not run "pop" here as we want to give the
-        # Hook deriving from the DBApiHook to still have access to the field in it's constructor
+        # Hook deriving from the DBApiHook to still have access to the field in its constructor
         self.__schema = schema
         self.log_sql = log_sql
+        self.scalar_return_last = False
+        self.last_description: Sequence[Sequence] | None = None
 
     def get_conn(self):
         """Returns a connection object"""
@@ -178,38 +188,23 @@ class DbApiHook(BaseForDbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         """
         Executes the sql and returns a set of records.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchall()
+        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
-    def get_first(self, sql: str | list[str], parameters=None):
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchone()
+        return self.run(sql=sql, parameters=parameters, handler=fetch_one_handler)
 
     @staticmethod
     def strip_sql_string(sql: str) -> str:
@@ -251,7 +246,7 @@ class DbApiHook(BaseForDbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the ALL SQL expressions if handler was provided.
         """
-        scalar_return_last = isinstance(sql, str) and return_last
+        self.scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 sql = self.split_sql_string(sql)
@@ -275,6 +270,7 @@ class DbApiHook(BaseForDbApiHook):
                     if handler is not None:
                         result = handler(cur)
                         results.append(result)
+                self.last_description = cur.description
 
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
@@ -282,7 +278,7 @@ class DbApiHook(BaseForDbApiHook):
 
         if handler is None:
             return None
-        elif scalar_return_last:
+        elif self.scalar_return_last:
             return results[-1]
         else:
             return results

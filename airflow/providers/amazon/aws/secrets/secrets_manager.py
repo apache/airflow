@@ -28,10 +28,6 @@ from airflow.providers.amazon.aws.utils import get_airflow_version, trim_none_va
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-if TYPE_CHECKING:
-    # Avoid circular import problems when instantiating the backend during configuration.
-    from airflow.models.connection import Connection
-
 
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
@@ -132,7 +128,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 " will support both URL-encoded and JSON-encoded secrets at the same time. The encoding"
                 " of the secret will be determined automatically.",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
         if kwargs.get("are_secret_values_urlencoded") is not None:
@@ -240,6 +236,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             # This means we need to deserialize then re-serialize the secret if it's a JSON, potentially
             # renaming some keys in the process.
             import ast
+
             # secret_dict = json.loads(secret)
             secret_dict = ast.literal_eval(secret)
             standardized_secret_dict = self._standardize_secret_keys(secret_dict)

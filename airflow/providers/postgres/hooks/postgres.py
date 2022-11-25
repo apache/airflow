@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from contextlib import closing
 from copy import deepcopy
 from typing import Any, Iterable, Union
@@ -67,10 +68,38 @@ class PostgresHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
+        if "schema" in kwargs:
+            warnings.warn(
+                'The "schema" arg has been renamed to "database" as it contained the database name.'
+                'Please use "database" to set the database name.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["database"] = kwargs["schema"]
         super().__init__(*args, **kwargs)
         self.connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
-        self.schema: str | None = kwargs.pop("schema", None)
+        self.database: str | None = kwargs.pop("database", None)
+
+    @property
+    def schema(self):
+        warnings.warn(
+            'The "schema" variable has been renamed to "database" as it contained the database name.'
+            'Please use "database" to get the database name.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.database
+
+    @schema.setter
+    def schema(self, value):
+        warnings.warn(
+            'The "schema" variable has been renamed to "database" as it contained the database name.'
+            'Please use "database" to set the database name.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.database = value
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
@@ -95,7 +124,7 @@ class PostgresHook(DbApiHook):
             host=conn.host,
             user=conn.login,
             password=conn.password,
-            dbname=self.schema or conn.schema,
+            dbname=self.database or conn.schema,
             port=conn.port,
         )
         raw_cursor = conn.extra_dejson.get("cursor", False)
@@ -143,7 +172,9 @@ class PostgresHook(DbApiHook):
         Extract the URI from the connection.
         :return: the extracted uri.
         """
-        uri = super().get_uri().replace("postgres://", "postgresql://")
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn.schema = self.database or conn.schema
+        uri = conn.get_uri().replace("postgres://", "postgresql://")
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
@@ -196,7 +227,7 @@ class PostgresHook(DbApiHook):
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
                 DbUser=login,
-                DbName=self.schema or conn.schema,
+                DbName=self.database or conn.schema,
                 ClusterIdentifier=cluster_identifier,
                 AutoCreate=False,
             )
@@ -231,9 +262,9 @@ class PostgresHook(DbApiHook):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
-    @staticmethod
+    @classmethod
     def _generate_insert_sql(
-        table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+        cls, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """
         Static helper method that generates the INSERT SQL statement.
@@ -248,7 +279,7 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         """
         placeholders = [
-            "%s",
+            cls.placeholder,
         ] * len(values)
         replace_index = kwargs.get("replace_index")
 
@@ -261,16 +292,20 @@ class PostgresHook(DbApiHook):
         sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
 
         if replace:
-            if target_fields is None:
+            if not target_fields:
                 raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires column names")
-            if replace_index is None:
+            if not replace_index:
                 raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires an unique index")
             if isinstance(replace_index, str):
                 replace_index = [replace_index]
-            replace_index_set = set(replace_index)
 
-            replace_target = [
-                "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
-            ]
-            sql += f" ON CONFLICT ({', '.join(replace_index)}) DO UPDATE SET {', '.join(replace_target)}"
+            on_conflict_str = f" ON CONFLICT ({', '.join(replace_index)})"
+            replace_target = [f for f in target_fields if f not in replace_index]
+
+            if replace_target:
+                replace_target_str = ", ".join(f"{col} = excluded.{col}" for col in replace_target)
+                sql += f"{on_conflict_str} DO UPDATE SET {replace_target_str}"
+            else:
+                sql += f"{on_conflict_str} DO NOTHING"
+
         return sql

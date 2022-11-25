@@ -51,9 +51,10 @@ class SageMakerBaseOperator(BaseOperator):
     ui_color: str = "#ededed"
     integer_fields: list[list[Any]] = []
 
-    def __init__(self, *, config: dict, **kwargs):
+    def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
         super().__init__(**kwargs)
         self.config = config
+        self.aws_conn_id = aws_conn_id
 
     def parse_integer(self, config: dict, field: list[str] | str) -> None:
         """Recursive method for parsing string fields holding integer values to integers."""
@@ -150,14 +151,13 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         action_if_job_exists: str = "increment",
         **kwargs,
     ):
-        super().__init__(config=config, **kwargs)
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         if action_if_job_exists not in ("increment", "fail"):
             raise AirflowException(
                 f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
         self.action_if_job_exists = action_if_job_exists
-        self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
@@ -181,11 +181,21 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
         processing_job_name = self.config["ProcessingJobName"]
-        if self.hook.find_processing_job_by_name(processing_job_name):
-            raise AirflowException(
-                f"A SageMaker processing job with name {processing_job_name} already exists."
-            )
-        self.log.info("Creating SageMaker processing job %s.", self.config["ProcessingJobName"])
+        processing_job_dedupe_pattern = "-[0-9]+$"
+        existing_jobs_found = self.hook.count_processing_jobs_by_name(
+            processing_job_name, processing_job_dedupe_pattern
+        )
+        if existing_jobs_found:
+            if self.action_if_job_exists == "fail":
+                raise AirflowException(
+                    f"A SageMaker processing job with name {processing_job_name} already exists."
+                )
+            elif self.action_if_job_exists == "increment":
+                self.log.info("Found existing processing job with name '%s'.", processing_job_name)
+                new_processing_job_name = f"{processing_job_name}-{existing_jobs_found + 1}"
+                self.config["ProcessingJobName"] = new_processing_job_name
+                self.log.info("Incremented processing job name to '%s'.", new_processing_job_name)
+
         response = self.hook.create_processing_job(
             self.config,
             wait_for_completion=self.wait_for_completion,
@@ -222,9 +232,7 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         aws_conn_id: str = DEFAULT_CONN_ID,
         **kwargs,
     ):
-        super().__init__(config=config, **kwargs)
-        self.config = config
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -303,9 +311,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         operation: str = "create",
         **kwargs,
     ):
-        super().__init__(config=config, **kwargs)
-        self.config = config
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
@@ -432,9 +438,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         action_if_job_exists: str = "increment",
         **kwargs,
     ):
-        super().__init__(config=config, **kwargs)
-        self.config = config
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
@@ -545,9 +549,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         max_ingestion_time: int | None = None,
         **kwargs,
     ):
-        super().__init__(config=config, **kwargs)
-        self.config = config
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
@@ -608,9 +610,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     """
 
     def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
-        super().__init__(config=config, **kwargs)
-        self.config = config
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def expand_role(self) -> None:
         """Expands an IAM role name into an ARN."""
@@ -670,8 +670,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         action_if_job_exists: str = "increment",
         **kwargs,
     ):
-        super().__init__(config=config, **kwargs)
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
@@ -745,9 +744,7 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
     """
 
     def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
-        super().__init__(config=config, **kwargs)
-        self.config = config
-        self.aws_conn_id = aws_conn_id
+        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def execute(self, context: Context) -> Any:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)

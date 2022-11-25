@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs, overload
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.typing_compat import Literal
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -49,6 +50,35 @@ def _parse_boolean(val: str) -> str | bool:
     if val in ("n", "no", "f", "false", "off", "0"):
         return False
     raise ValueError(f"{val!r} is not a boolean-like string value")
+
+
+def _get_failed_checks(checks, col=None):
+    """
+    IMPORTANT!!! Keep it for compatibility with released 8.4.0 version of google provider.
+
+    Unfortunately the provider used _get_failed_checks and parse_boolean as imports and we should
+    keep those methods to avoid 8.4.0 version from failing.
+    """
+    if col:
+        return [
+            f"Column: {col}\nCheck: {check},\nCheck Values: {check_values}\n"
+            for check, check_values in checks.items()
+            if not check_values["success"]
+        ]
+    return [
+        f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
+        for check, check_values in checks.items()
+        if not check_values["success"]
+    ]
+
+
+parse_boolean = _parse_boolean
+"""
+IMPORTANT!!! Keep it for compatibility with released 8.4.0 version of google provider.
+
+Unfortunately the provider used _get_failed_checks and parse_boolean as imports and we should
+keep those methods to avoid 8.4.0 version from failing.
+"""
 
 
 _PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
@@ -195,6 +225,33 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.split_statements = split_statements
         self.return_last = return_last
 
+    @overload
+    def _process_output(
+        self, results: Any, description: Sequence[Sequence] | None, scalar_results: Literal[True]
+    ) -> Any:
+        pass
+
+    @overload
+    def _process_output(
+        self, results: list[Any], description: Sequence[Sequence] | None, scalar_results: Literal[False]
+    ) -> Any:
+        pass
+
+    def _process_output(
+        self, results: Any | list[Any], description: Sequence[Sequence] | None, scalar_results: bool
+    ) -> Any:
+        """
+        Can be overridden by the subclass in case some extra processing is needed.
+        The "process_output" method can override the returned output - augmenting or processing the
+        output as needed - the output returned will be returned as execute return value and if
+        do_xcom_push is set to True, it will be set as XCom returned
+
+        :param results: results in the form of list of rows.
+        :param description: as returned by ``cur.description`` in the Python DBAPI
+        :param scalar_results: True if result is single scalar value rather than list of rows
+        """
+        return results
+
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
@@ -215,11 +272,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
                 split_statements=self.split_statements,
             )
 
-        if hasattr(self, "_process_output"):
-            for out in output:
-                self._process_output(*out)
-
-        return output
+        return self._process_output(output, hook.last_description, hook.scalar_return_last)
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
@@ -608,6 +661,7 @@ class SQLCheckOperator(BaseSQLOperator):
     :param sql: the sql to be executed. (templated)
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
+    :param parameters: (optional) the parameters to render the SQL query with.
     """
 
     template_fields: Sequence[str] = ("sql",)
@@ -619,14 +673,21 @@ class SQLCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     def __init__(
-        self, *, sql: str, conn_id: str | None = None, database: str | None = None, **kwargs
+        self,
+        *,
+        sql: str,
+        conn_id: str | None = None,
+        database: str | None = None,
+        parameters: Iterable | Mapping | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
+        self.parameters = parameters
 
     def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
-        records = self.get_db_hook().get_first(self.sql)
+        records = self.get_db_hook().get_first(self.sql, self.parameters)
 
         self.log.info("Record: %s", records)
         if not records:

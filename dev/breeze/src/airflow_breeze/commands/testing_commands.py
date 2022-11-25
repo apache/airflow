@@ -66,7 +66,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_DIR
+from airflow_breeze.utils.path_utils import FILES_DIR, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
@@ -409,6 +409,7 @@ def tests(
         forward_ports=False,
         test_type=test_type,
     )
+    cleanup_python_generated_files()
     if run_in_parallel:
         run_tests_in_parallel(
             exec_shell_params=exec_shell_params,
@@ -446,6 +447,7 @@ def tests(
 )
 @option_image_tag_for_running
 @option_mount_sources
+@option_github_repository
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -453,15 +455,18 @@ def helm_tests(
     extra_pytest_args: tuple,
     image_tag: str | None,
     mount_sources: str,
+    github_repository: str,
 ):
     exec_shell_params = ShellParams(
         image_tag=image_tag,
         mount_sources=mount_sources,
+        github_repository=github_repository,
     )
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"
     env_variables["TEST_TYPE"] = "Helm"
     perform_environment_checks()
+    cleanup_python_generated_files()
     cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow"]
     cmd.extend(list(extra_pytest_args))
     result = run_command(cmd, env=env_variables, check=False, output_outside_the_group=True)

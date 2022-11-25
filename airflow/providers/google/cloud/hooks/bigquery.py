@@ -57,6 +57,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 from airflow.utils.helpers import convert_camel_to_snake
@@ -1418,9 +1419,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         """
+        project_id = project_id or self.project_id
         location = location or self.location
 
-        if self.poll_job_complete(job_id=job_id):
+        if self.poll_job_complete(job_id=job_id, project_id=project_id, location=location):
             self.log.info("No running BigQuery jobs to cancel.")
             return
 
@@ -1434,17 +1436,18 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_complete = False
         while polling_attempts < max_polling_attempts and not job_complete:
             polling_attempts += 1
-            job_complete = self.poll_job_complete(job_id)
+            job_complete = self.poll_job_complete(job_id=job_id, project_id=project_id, location=location)
             if job_complete:
                 self.log.info("Job successfully canceled: %s, %s", project_id, job_id)
             elif polling_attempts == max_polling_attempts:
                 self.log.info(
-                    "Stopping polling due to timeout. Job with id %s "
+                    "Stopping polling due to timeout. Job %s, %s "
                     "has not completed cancel and may or may not finish.",
+                    project_id,
                     job_id,
                 )
             else:
-                self.log.info("Waiting for canceled job with id %s to finish.", job_id)
+                self.log.info("Waiting for canceled job %s, %s to finish.", project_id, job_id)
                 time.sleep(5)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -2247,7 +2250,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if project_id is None:
             if var_name is not None:
                 self.log.info(
-                    'Project not included in %s: %s; using project "%s"',
+                    'Project is not included in %s: %s; using project "%s"',
                     var_name,
                     table_input,
                     default_project_id,
@@ -2738,7 +2741,7 @@ class BigQueryCursor(BigQueryBaseCursor):
                 rows = query_results["rows"]
 
                 for dict_row in rows:
-                    typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
+                    typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                     self.buffer.append(typed_row)
 
                 if not self.page_token:
@@ -2843,25 +2846,6 @@ def _escape(s: str) -> str:
     return e
 
 
-def _bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
-    """
-    Helper method that casts a BigQuery row to the appropriate data types.
-    This is useful because BigQuery returns all fields as strings.
-    """
-    if string_field is None:
-        return None
-    elif bq_type == "INTEGER":
-        return int(string_field)
-    elif bq_type in ("FLOAT", "TIMESTAMP"):
-        return float(string_field)
-    elif bq_type == "BOOLEAN":
-        if string_field not in ["true", "false"]:
-            raise ValueError(f"{string_field} must have value 'true' or 'false'")
-        return string_field == "true"
-    else:
-        return string_field
-
-
 def split_tablename(
     table_input: str, default_project_id: str, var_name: str | None = None
 ) -> tuple[str, str, str]:
@@ -2913,7 +2897,7 @@ def split_tablename(
     if project_id is None:
         if var_name is not None:
             log.info(
-                'Project not included in %s: %s; using project "%s"',
+                'Project is not included in %s: %s; using project "%s"',
                 var_name,
                 table_input,
                 default_project_id,
@@ -3065,8 +3049,10 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         buffer = []
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
+            fields = query_results["schema"]["fields"]
+            col_types = [field["type"] for field in fields]
             for dict_row in rows:
-                typed_row = [vs["v"] for vs in dict_row["f"]]
+                typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                 buffer.append(typed_row)
         return buffer
 

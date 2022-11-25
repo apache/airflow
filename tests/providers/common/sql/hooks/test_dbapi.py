@@ -25,7 +25,7 @@ import pytest
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
 
 
 class DbApiHookInProvider(DbApiHook):
@@ -41,7 +41,7 @@ class TestDbApiHook(unittest.TestCase):
         super().setUp()
 
         self.cur = mock.MagicMock(
-            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "close"]
+            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
         )
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
@@ -430,3 +430,21 @@ class TestDbApiHook(unittest.TestCase):
 
         self.cur.fetchall.side_effect = Exception("Should not get called !")
         assert rows == self.db_hook.run(sql=query, handler=fetch_all_handler)
+
+    def test_run_fetch_one_handler_select_1(self):
+        self.cur.rowcount = -1  # can be -1 according to pep249
+        self.cur.description = (tuple([None] * 7),)
+        query = "SELECT 1"
+        rows = [[1]]
+
+        self.cur.fetchone.return_value = rows
+        assert rows == self.db_hook.run(sql=query, handler=fetch_one_handler)
+
+    def test_run_fetch_one_handler_print(self):
+        self.cur.rowcount = -1
+        self.cur.description = None
+        query = "PRINT('Hello World !')"
+        rows = None
+
+        self.cur.fetchone.side_effect = Exception("Should not get called !")
+        assert rows == self.db_hook.run(sql=query, handler=fetch_one_handler)

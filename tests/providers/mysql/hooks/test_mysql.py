@@ -154,6 +154,15 @@ class TestMySqlHookConn(unittest.TestCase):
         assert kwargs["ssl"] == SSL_DICT
 
     @mock.patch("MySQLdb.connect")
+    def test_get_ssl_mode(self, mock_connect):
+        self.connection.extra = json.dumps({"ssl_mode": "DISABLED"})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["ssl_mode"] == "DISABLED"
+
+    @mock.patch("MySQLdb.connect")
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
     def test_get_conn_rds_iam(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true}'
@@ -215,6 +224,17 @@ class TestMySqlHookConnMySqlConnectorPython(unittest.TestCase):
         args, kwargs = mock_connect.call_args
         assert args == ()
         assert kwargs["allow_local_infile"] == 1
+
+    @mock.patch("mysql.connector.connect")
+    def test_get_ssl_mode(self, mock_connect):
+        extra_dict = self.connection.extra_dejson
+        extra_dict.update(ssl_disabled=True)
+        self.connection.extra = json.dumps(extra_dict)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["ssl_disabled"] == 1
 
 
 class MockMySQLConnectorConnection:

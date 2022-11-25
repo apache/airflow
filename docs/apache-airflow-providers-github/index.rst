@@ -71,7 +71,7 @@ Package apache-airflow-providers-github
 `GitHub <https://www.github.com/>`__
 
 
-Release: 2.1.0
+Release: 2.2.0
 
 Provider package
 ----------------
@@ -92,7 +92,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``pygithub``
 ==================  ==================
 

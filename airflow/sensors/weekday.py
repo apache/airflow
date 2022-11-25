@@ -29,9 +29,10 @@ from airflow.utils.weekday import WeekDay
 
 class DayOfWeekSensor(BaseSensorOperator):
     """
-    Waits until the first specified day of the week. For example, if the execution
-    day of the task is '2018-12-22' (Saturday) and you pass 'FRIDAY', the task will wait
-    until next Friday.
+    Waits until the first specified day of the week.
+
+    For example, if the execution day of the task is '2018-12-22' (Saturday)
+    and you pass 'FRIDAY', the task will wait until next Friday.
 
     **Example** (with single day): ::
 
@@ -105,11 +106,11 @@ class DayOfWeekSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         self.log.info(
-            'Poking until weekday is in %s, Today is %s',
+            "Poking until weekday is in %s, Today is %s",
             self.week_day,
             WeekDay(timezone.utcnow().isoweekday()).name,
         )
         if self.use_task_logical_date:
-            return context['logical_date'].isoweekday() in self._week_day_num
+            return context["logical_date"].isoweekday() in self._week_day_num
         else:
             return timezone.utcnow().isoweekday() in self._week_day_num

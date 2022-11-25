@@ -1135,7 +1135,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         super().on_kill()
         if self.hook is not None:
             self.log.info("Cancelling running query")
-            self.hook.cancel_query()
+            self.hook.cancel_job(self.hook.running_job_id)
 
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):
@@ -2511,7 +2511,7 @@ class BigQueryInsertJobOperator(BaseOperator):
 
 
     :param configuration: The configuration parameter maps directly to BigQuery's
-        configuration field in the job  object. For more details see
+        configuration field in the job object. For more details see
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
     :param job_id: The ID of the job. It will be suffixed with hash of job configuration
         unless ``force_rerun`` is True.

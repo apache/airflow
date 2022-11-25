@@ -93,6 +93,7 @@ Name                                        Description
 ``scheduler_heartbeat``                     Scheduler heartbeats
 ``dag_processing.processes``                Number of currently running DAG parsing processes
 ``dag_processing.processor_timeouts``       Number of file processors that have been killed due to taking too long
+``dag_file_processor_timeouts``             (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
 ``dag_processing.manager_stalls``           Number of stalled ``DagFileProcessorManager``
 ``dag_file_refresh_error``                  Number of failures loading any DAG files
 ``scheduler.tasks.killed_externally``       Number of tasks killed externally
@@ -155,12 +156,14 @@ Name                                                Description
 ``dagrun.dependency-check.<dag_id>``                Milliseconds taken to check DAG dependencies
 ``dag.<dag_id>.<task_id>.duration``                 Milliseconds taken to finish a task
 ``dag_processing.last_duration.<dag_file>``         Milliseconds taken to load the given DAG file
-``dagrun.duration.success.<dag_id>``                Milliseconds taken for a DagRun to reach success state
+``dagrun.duration.success.<dag_id>``                Seconds taken for a DagRun to reach success state
 ``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state
-``dagrun.schedule_delay.<dag_id>``                  Milliseconds of delay between the scheduled DagRun
+``dagrun.schedule_delay.<dag_id>``                  Seconds of delay between the scheduled DagRun
                                                     start date and the actual DagRun start date
 ``scheduler.critical_section_duration``             Milliseconds spent in the critical section of scheduler loop --
                                                     only a single scheduler can enter this loop at a time
-``dagrun.<dag_id>.first_task_scheduling_delay``     Milliseconds elapsed between first task start_date and dagrun expected start
+``scheduler.critical_section_query_duration``       Milliseconds spent running the critical section task instance query
+``scheduler.scheduler_loop_duration``               Milliseconds spent running one scheduler loop
+``dagrun.<dag_id>.first_task_scheduling_delay``     Seconds elapsed between first task start_date and dagrun expected start
 ``collect_db_dags``                                 Milliseconds taken for fetching all Serialized Dags from DB
 =================================================== ========================================================================

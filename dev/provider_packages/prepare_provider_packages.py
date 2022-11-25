@@ -330,7 +330,7 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
             # including all development releases. When you specify dependency as >= X.Y.Z, and you
             # have packages X.Y.Zdev0 or X.Y.Zrc1 in a local file, such package is not considered
             # as fulfilling the requirement even if `--pre` switch is used.
-            return install_clause + ".*"
+            return install_clause + ".dev0"
         return install_clause
 
     install_requires = [
@@ -732,9 +732,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     if verbose:
         console.print(f"Running command: '{' '.join(fetch_command)}'")
     try:
-        subprocess.check_call(
-            fetch_command,
-        )
+        subprocess.check_call(fetch_command)
     except subprocess.CalledProcessError as e:
         console.print(
             "[yellow]Error when fetching tags from remote. Your tags might not be refreshed. "

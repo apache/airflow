@@ -156,7 +156,7 @@ class CreateBatchPredictionJobOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields = ("region", "project_id", "model_name", "impersonation_chain")
     operator_extra_links = (VertexAIBatchPredictionJobLink(),)
 
     def __init__(

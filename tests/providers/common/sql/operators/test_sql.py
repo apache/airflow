@@ -448,7 +448,6 @@ class TestSQLCheckOperatorDbHook:
         if database:
             self._operator.database = database
         assert isinstance(self._operator._hook, PostgresHook)
-        assert self._operator._hook.schema == database
         mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self, mock_get_conn):
@@ -484,7 +483,7 @@ class TestSQLCheckOperatorDbHook:
 
 class TestCheckOperator(unittest.TestCase):
     def setUp(self):
-        self._operator = SQLCheckOperator(task_id="test_task", sql="sql")
+        self._operator = SQLCheckOperator(task_id="test_task", sql="sql", parameters="parameters")
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_execute_no_records(self, mock_get_db_hook):
@@ -499,6 +498,11 @@ class TestCheckOperator(unittest.TestCase):
 
         with pytest.raises(AirflowException, match=r"Test failed."):
             self._operator.execute({})
+
+    @mock.patch.object(SQLCheckOperator, "get_db_hook")
+    def test_sqlcheckoperator_parameters(self, mock_get_db_hook):
+        self._operator.execute({})
+        mock_get_db_hook.return_value.get_first.assert_called_once_with("sql", "parameters")
 
 
 class TestValueCheckOperator(unittest.TestCase):

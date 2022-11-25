@@ -23,6 +23,84 @@
 Changelog
 ---------
 
+8.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Persist DataprocLink for workflow operators regardless of job status (#26986)``
+* ``Deferrable mode for BigQueryToGCSOperator (#27683)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix to read location parameter properly in BigQueryToBigQueryOperator (#27661)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+8.5.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Rename  hook bigquery function '_bq_cast' to 'bq_cast' (#27543)``
+* ``Use non-deprecated method for on_kill in BigQueryHook (#27547)``
+* ``Typecast biquery job response col value (#27236)``
+* ``Remove <2 limit on google-cloud-storage (#26922)``
+* ``Replace urlparse with urlsplit (#27389)``
+
+Features
+~~~~~~~~
+
+When defining a connection in environment variables or secrets backend, previously ``extra`` fields
+needed to be defined with prefix ``extra__google_cloud_platform__``.  Now this is no longer required.
+So for example you may store the keyfile json as ``keyfile_dict`` instead of
+``extra__google_cloud_platform__keyfile_dict``.  If both are present, the short name will be preferred.
+
+* ``Add backward compatibility with old versions of Apache Beam (#27263)``
+* ``Add deferrable mode to GCPToBigQueryOperator + tests (#27052)``
+* ``Add system tests for Vertex AI operators in new approach (#27053)``
+* ``Dataform operators, links, update system tests and docs (#27144)``
+* ``Allow values in WorkflowsCreateExecutionOperator execution argument to be dicts (#27361)``
+* ``DataflowStopJobOperator Operator (#27033)``
+* ``Allow for the overriding of stringify_dict for json/jsonb column data type in Postgres #26875 (#26876)``
+* ``Allow and prefer non-prefixed extra fields for dataprep hook (#27039)``
+* ``Update google hooks to prefer non-prefixed extra fields (#27023)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add new Compute Engine Operators and fix system tests (#25608)``
+* ``Common sql bugfixes and improvements (#26761)``
+* ``Fix delay in Dataproc CreateBatch operator (#26126)``
+* ``Remove unnecessary newlines around single arg in signature (#27525)``
+* ``set project_id and location when canceling BigQuery job (#27521)``
+* ``use the proper key to retrieve the dataflow job_id (#27336)``
+* ``Make GSheetsHook return an empty list when there are no values (#27261)``
+* ``Cloud ML Engine operators assets (#26836)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change dataprep system tests assets (#26488)``
+   * ``Upgrade dependencies in order to avoid backtracking (#27531)``
+   * ``Migration of System Tests: Cloud Composer (AIP-47)  (#27227)``
+   * ``Rewrite system tests for ML Engine service (#26915)``
+   * ``Migration of System Tests: Cloud BigQuery Data Transfer (AIP-47) (#27312)``
+   * ``Migration of System Tests: Dataplex (AIP-47) (#26989)``
+   * ``Migration of System Tests: Cloud Vision Operators (AIP-47) (#26963)``
+   * ``Google Drive to local - system tests migrations (AIP-47) (#26798)``
+   * ``Migrate Bigtable operators system tests according to AIP-47 (#26911)``
+   * ``Migrate Dataproc Metastore system tests according to AIP-47 (#26858)``
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+   * ``Local filesystem to Google Drive Operator - system tests migration (AIP-47) (#26797)``
+   * ``SFTP to Google Cloud Storage Transfer system tests migration (AIP-47) (#26799)``
+
 8.4.0
 .....
 

@@ -27,14 +27,14 @@ from airflow.models.connection import Connection
 
 
 class ConnectionCollectionItemSchema(SQLAlchemySchema):
-    """Schema for a connection item"""
+    """Schema for a connection item."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Connection
 
-    connection_id = auto_field('conn_id', required=True)
+    connection_id = auto_field("conn_id", required=True)
     conn_type = auto_field(required=True)
     description = auto_field()
     host = auto_field()
@@ -44,10 +44,10 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
 
 
 class ConnectionSchema(ConnectionCollectionItemSchema):
-    """Connection schema"""
+    """Connection schema."""
 
     password = auto_field(load_only=True)
-    extra = fields.Method('serialize_extra', deserialize='deserialize_extra', allow_none=True)
+    extra = fields.Method("serialize_extra", deserialize="deserialize_extra", allow_none=True)
 
     @staticmethod
     def serialize_extra(obj: Connection):
@@ -68,21 +68,21 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
 
 
 class ConnectionCollection(NamedTuple):
-    """List of Connections with meta"""
+    """List of Connections with meta."""
 
     connections: list[Connection]
     total_entries: int
 
 
 class ConnectionCollectionSchema(Schema):
-    """Connection Collection Schema"""
+    """Connection Collection Schema."""
 
     connections = fields.List(fields.Nested(ConnectionCollectionItemSchema))
     total_entries = fields.Int()
 
 
 class ConnectionTestSchema(Schema):
-    """connection Test Schema"""
+    """connection Test Schema."""
 
     status = fields.Boolean(required=True)
     message = fields.String(required=True)

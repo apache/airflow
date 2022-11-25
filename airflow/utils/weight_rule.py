@@ -25,9 +25,9 @@ from airflow.compat.functools import cache
 class WeightRule(str, Enum):
     """Weight rules."""
 
-    DOWNSTREAM = 'downstream'
-    UPSTREAM = 'upstream'
-    ABSOLUTE = 'absolute'
+    DOWNSTREAM = "downstream"
+    UPSTREAM = "upstream"
+    ABSOLUTE = "absolute"
 
     @classmethod
     def is_valid(cls, weight_rule: str) -> bool:

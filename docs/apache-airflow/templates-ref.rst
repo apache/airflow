@@ -33,49 +33,48 @@ Variables
 The Airflow engine passes a few variables by default that are accessible
 in all templates
 
-==========================================  ====================================
-Variable                                    Description
-==========================================  ====================================
-``{{ data_interval_start }}``               Start of the data interval (`pendulum.DateTime`_).
-``{{ data_interval_end }}``                 End of the data interval (`pendulum.DateTime`_).
-``{{ ds }}``                                The DAG run's logical date as ``YYYY-MM-DD``.
-                                            Same as ``{{ dag_run.logical_date | ds }}``.
-``{{ ds_nodash }}``                         Same as ``{{ dag_run.logical_date | ds_nodash }}``.
-``{{ ts }}``                                Same as ``{{ dag_run.logical_date | ts }}``.
-                                            Example: ``2018-01-01T00:00:00+00:00``.
-``{{ ts_nodash_with_tz }}``                 Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
-                                            Example: ``20180101T000000+0000``.
-``{{ ts_nodash }}``                         Same as ``{{ dag_run.logical_date | ts_nodash }}``.
-                                            Example: ``20180101T000000``.
-``{{ prev_data_interval_start_success }}``  Start of the data interval from prior successful DAG run
-                                            (`pendulum.DateTime`_ or ``None``).
-``{{ prev_data_interval_end_success }}``    End of the data interval from prior successful DAG run
-                                            (`pendulum.DateTime`_ or ``None``).
-``{{ prev_start_date_success }}``           Start date from prior successful dag run (if available)
-                                            (`pendulum.DateTime`_ or ``None``).
-``{{ dag }}``                               The DAG object.
-``{{ task }}``                              The Task object.
-``{{ macros }}``                            A reference to the macros package, described below.
-``{{ task_instance }}``                     The task_instance object.
-``{{ ti }}``                                Same as ``{{ task_instance }}``.
-``{{ params }}``                            A reference to the user-defined params dictionary which can be
-                                            overridden by the dictionary passed through ``trigger_dag -c`` if
-                                            you enabled ``dag_run_conf_overrides_params`` in ``airflow.cfg``.
-``{{ var.value.my_var }}``                  Global defined variables represented as a dictionary.
-``{{ var.json.my_var.path }}``              Global defined variables represented as a dictionary.
-                                            With deserialized JSON object, append the path to the key within
-                                            the JSON object.
-``{{ conn.my_conn_id }}``                   Connection represented as a dictionary.
-``{{ task_instance_key_str }}``             A unique, human-readable key to the task instance formatted
-                                            ``{dag_id}__{task_id}__{ds_nodash}``.
-``{{ conf }}``                              The full configuration object located at
-                                            ``airflow.configuration.conf`` which represents the content of
-                                            your ``airflow.cfg``.
-``{{ run_id }}``                            The ``run_id`` of the current DAG run.
-``{{ dag_run }}``                           A reference to the DagRun object.
-``{{ test_mode }}``                         Whether the task instance was called using the CLI's test
-                                            subcommand.
-==========================================  ====================================
+=========================================== ===================== ===================================================================
+Variable                                    Type                  Description
+=========================================== ===================== ===================================================================
+``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.3.
+``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.3.
+``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
+                                                                  | Same as ``{{ dag_run.logical_date | ds }}``.
+``{{ ds_nodash }}``                         str                   Same as ``{{ dag_run.logical_date | ds_nodash }}``.
+``{{ ts }}``                                str                   | Same as ``{{ dag_run.logical_date | ts }}``.
+                                                                  | Example: ``2018-01-01T00:00:00+00:00``.
+``{{ ts_nodash_with_tz }}``                 str                   | Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
+                                                                  | Example: ``20180101T000000+0000``.
+``{{ ts_nodash }}``                         str                   | Same as ``{{ dag_run.logical_date | ts_nodash }}``.
+                                                                  | Example: ``20180101T000000``.
+``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful DAG run.
+                                            | ``None``            | Added in version 2.3.
+``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful DAG run.
+                                            | ``None``            | Added in version 2.3.
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful dag run (if available).
+                                            | ``None``
+``{{ dag }}``                               DAG                   The currently running DAG.
+``{{ task }}``                              BaseOperator          | The currently running task.
+``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
+``{{ task_instance }}``                     TaskInstance          The currently running task instance.
+``{{ ti }}``                                TaskInstance          Same as ``{{ task_instance }}``.
+``{{ params }}``                            dict[str, Any]        | The user-defined params. This can be overridden by the mapping
+                                                                  | passed to ``trigger_dag -c`` if ``dag_run_conf_overrides_params``
+                                                                  | is enabled in ``airflow.cfg``.
+``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
+``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
+``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.
+``{{ task_instance_key_str }}``             str                   | A unique, human-readable key to the task instance. The format is
+                                                                  | ``{dag_id}__{task_id}__{ds_nodash}``.
+``{{ conf }}``                              AirflowConfigParser   | The full configuration object representing the content of your
+                                                                  | ``airflow.cfg``. See :mod:`airflow.configuration.conf`.
+``{{ run_id }}``                            str                   The currently running DAG run's run ID.
+``{{ dag_run }}``                           DagRun                The currently running DAG run.
+``{{ test_mode }}``                         bool                  Whether the task instance was run by the ``airflow test`` CLI.
+``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
+                                                                  | the current task is not mapped, this should be ``None``.
+                                                                  | Added in version 2.5.
+=========================================== ===================== ===================================================================
 
 .. note::
 
