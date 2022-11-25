@@ -91,8 +91,11 @@ class AthenaHook(AwsBaseHook):
         }
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
+        self.log.info("Running query_context:%s, query:\n%s", query_context, query)
         response = self.get_conn().start_query_execution(**params)
-        return response["QueryExecutionId"]
+        query_execution_id = response["QueryExecutionId"]
+        self.log.info("Query execution id: %s", query_execution_id)
+        return query_execution_id
 
     def check_query_status(self, query_execution_id: str) -> str | None:
         """
