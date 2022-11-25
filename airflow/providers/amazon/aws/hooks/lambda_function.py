@@ -95,9 +95,9 @@ class LambdaHook(AwsBaseHook):
     ) -> dict:
         if package_type == "Zip":
             if handler is None:
-                raise ValueError("Parameter 'handler' is required if 'package_type' is 'Zip'")
+                raise TypeError("Parameter 'handler' is required if 'package_type' is 'Zip'")
             if runtime is None:
-                raise ValueError("Parameter 'runtime' is required if 'package_type' is 'Zip'")
+                raise TypeError("Parameter 'runtime' is required if 'package_type' is 'Zip'")
 
         """Create a Lambda Function"""
         create_function_args = {

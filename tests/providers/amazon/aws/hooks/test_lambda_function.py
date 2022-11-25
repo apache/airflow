@@ -82,7 +82,7 @@ class TestLambdaHook:
         mock_conn().create_function.return_value = {}
 
         hook = LambdaHook(aws_conn_id="aws_default")
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             hook.create_lambda(
                 function_name=FUNCTION_NAME,
                 role=ROLE,
@@ -98,7 +98,7 @@ class TestLambdaHook:
         mock_conn().create_function.return_value = {}
 
         hook = LambdaHook(aws_conn_id="aws_default")
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             hook.create_lambda(
                 function_name=FUNCTION_NAME,
                 runtime=RUNTIME,
