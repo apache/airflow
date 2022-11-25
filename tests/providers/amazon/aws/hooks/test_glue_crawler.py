@@ -114,6 +114,7 @@ class TestGlueCrawlerHook(unittest.TestCase):
 
         mock_config_two = deepcopy(mock_config)
         mock_config_two["Role"] = "test-2-role"
+        del mock_config_two["Tags"]
         response = self.hook.update_crawler(**mock_config_two)
         self.assertEqual(response, True)
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
