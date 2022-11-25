@@ -4608,11 +4608,11 @@ class TestSchedulerJob:
         with dag_maker(dag_id="datasets-1", schedule=[dataset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset3])
 
-        # and find the orphans
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job._orphan_unreferenced_datasets(session=session)
         session.flush()
 
+        # and find the orphans
         non_orphaned_datasets = [
             dataset.uri
             for dataset in session.query(DatasetModel.uri)

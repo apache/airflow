@@ -1590,18 +1590,16 @@ class SchedulerJob(BaseJob):
     def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
         """
         Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
-        sets the dataset is_orphaned flags to True
+        sets the dataset is_orphaned flag to True
         """
         orphaned_dataset_query = (
             session.query(DatasetModel)
             .join(
                 DagScheduleDatasetReference,
-                DagScheduleDatasetReference.dataset_id == DatasetModel.id,
                 isouter=True,
             )
             .join(
                 TaskOutletDatasetReference,
-                TaskOutletDatasetReference.dataset_id == DatasetModel.id,
                 isouter=True,
             )
             .group_by(DatasetModel.id)
