@@ -86,6 +86,7 @@ class BigQueryToGCSOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "source_project_dataset_table",
         "destination_cloud_storage_uris",
+        "export_format",
         "labels",
         "impersonation_chain",
     )
