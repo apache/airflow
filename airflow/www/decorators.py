@@ -29,6 +29,7 @@ from flask import after_this_request, g, request
 from pendulum.parsing.exceptions import ParserError
 
 from airflow.models import Log
+from airflow.utils.log import secrets_masker
 from airflow.utils.session import create_session
 
 T = TypeVar("T", bound=Callable)
@@ -52,7 +53,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
 
                 fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [
-                    (k, v)
+                    (k, secrets_masker.redact(v, k))
                     for k, v in chain(request.values.items(multi=True), request.view_args.items())
                     if k not in fields_skip_logging
                 ]
