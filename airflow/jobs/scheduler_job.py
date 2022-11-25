@@ -1612,4 +1612,4 @@ class SchedulerJob(BaseJob):
         )
         for dataset in orphaned_dataset_query:
             self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
-            dataset.is_orphaned = True_()
+            dataset.is_orphaned = expression.true()
