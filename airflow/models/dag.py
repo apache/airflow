@@ -2552,7 +2552,6 @@ class DAG(LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
-        notes: str | None = None,
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
@@ -2569,7 +2568,6 @@ class DAG(LoggingMixin):
         :param session: database session
         :param dag_hash: Hash of Serialized DAG
         :param data_interval: Data interval of the DagRun
-        :param notes: A custom note for the DAGRun.
         """
         logical_date = timezone.coerce_datetime(execution_date)
 
@@ -2628,7 +2626,6 @@ class DAG(LoggingMixin):
             dag_hash=dag_hash,
             creating_job_id=creating_job_id,
             data_interval=data_interval,
-            notes=notes,
         )
         session.add(run)
         session.flush()
@@ -3230,15 +3227,6 @@ class DagModel(Base):
     @provide_session
     def get_current(cls, dag_id, session=NEW_SESSION):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
-
-    @staticmethod
-    @provide_session
-    def get_all_paused_dag_ids(session: Session = NEW_SESSION) -> set[str]:
-        """Get a set of paused DAG ids"""
-        paused_dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_paused == expression.true()).all()
-
-        paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
-        return paused_dag_ids
 
     @provide_session
     def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):

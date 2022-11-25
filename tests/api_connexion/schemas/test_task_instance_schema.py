@@ -55,7 +55,7 @@ class TestTaskInstanceSchema:
             "duration": 10000,
             "pool": "default_pool",
             "queue": "default_queue",
-            "notes": "added some notes",
+            "note": "added some notes",
         }
 
         yield
@@ -76,7 +76,7 @@ class TestTaskInstanceSchema:
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "notes": "added some notes",
+            "note": "added some notes",
             "operator": "EmptyOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -121,7 +121,7 @@ class TestTaskInstanceSchema:
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "notes": "added some notes",
+            "note": "added some notes",
             "operator": "EmptyOperator",
             "pid": 100,
             "pool": "default_pool",

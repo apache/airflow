@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add _serialize_cell method to TrinoHook and PrestoHook (#27724)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
 4.2.0
 .....
 

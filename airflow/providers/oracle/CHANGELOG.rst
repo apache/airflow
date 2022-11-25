@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
 3.5.0
 .....
 
