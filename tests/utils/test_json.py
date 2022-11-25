@@ -30,6 +30,7 @@ import pytest
 
 from airflow.datasets import Dataset
 from airflow.utils import json as utils_json
+from tests.test_utils.config import conf_vars
 
 
 class Z:
@@ -215,3 +216,18 @@ class TestAirflowJsonEncoder:
         s = json.dumps(z, cls=utils_json.XComEncoder)
         o = json.loads(s, cls=utils_json.XComDecoder, object_hook=utils_json.XComDecoder.orm_object_hook)
         assert o == f"{Z.__module__}.{Z.__qualname__}@version={Z.version}(x={x})"
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "airflow[.].*",
+        }
+    )
+    def test_allow_list_for_imports(self):
+        x = 14
+        z = Z(x=x)
+        s = json.dumps(z, cls=utils_json.XComEncoder)
+
+        with pytest.raises(ImportError) as e:
+            json.loads(s, cls=utils_json.XComDecoder)
+
+        assert f"{Z.__module__}.{Z.__qualname__} was not found in allow list" in str(e.value)
