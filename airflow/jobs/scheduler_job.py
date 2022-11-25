@@ -855,17 +855,25 @@ class SchedulerJob(BaseJob):
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
 
         if self._standalone_dag_processor:
-            cleanup_interval = conf.getfloat("scheduler", "deactivate_stale_dags_interval", fallback=60.0)
-            if cleanup_interval:
+            parsing_cleanup_interval = conf.getfloat(
+                "scheduler",
+                "deactivate_stale_dags_interval",
+                fallback=60.0,
+            )
+            if parsing_cleanup_interval:
                 warnings.warn(
                     "The 'scheduler.deactivate_stale_dags_interval' configuration option is deprecated. "
-                    "Please use 'scheduler.cleanup_interval instead'.",
+                    "Please use 'scheduler.parsing_cleanup_interval instead'.",
                     RemovedInAirflow3Warning,
                     stacklevel=2,
                 )
-            cleanup_interval = conf.getfloat("scheduler", "cleanup_interval", fallback=cleanup_interval)
+            parsing_cleanup_interval = conf.getfloat(
+                "scheduler",
+                "parsing_cleanup_interval",
+                fallback=parsing_cleanup_interval,
+            )
             timers.call_regular_interval(
-                cleanup_interval,
+                parsing_cleanup_interval,
                 self._cleanup_stale_dags,
             )
 

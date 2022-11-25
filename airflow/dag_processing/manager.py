@@ -438,7 +438,7 @@ class DagFileProcessorManager(LoggingMixin):
         # How often to clean up:
         # * DAGs which are no longer in files
         # * datasets that are no longer referenced by any DAG schedule parameters or task outlets
-        self.cleanup_interval = conf.getint("scheduler", "cleanup_interval")
+        self.parsing_cleanup_interval = conf.getint("scheduler", "parsing_cleanup_interval")
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
@@ -531,7 +531,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_deactivate_stale_dags_time).total_seconds()
-        if elapsed_time_since_refresh > self.cleanup_interval:
+        if elapsed_time_since_refresh > self.parsing_cleanup_interval:
             last_parsed = {
                 fp: self.get_last_finish_time(fp) for fp in self.file_paths if self.get_last_finish_time(fp)
             }
