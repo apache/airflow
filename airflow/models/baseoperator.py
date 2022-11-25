@@ -1475,8 +1475,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    is_mapped: ClassVar[bool] = False
-
     @property
     def inherits_from_empty_operator(self):
         """Used to determine if an Operator is inherited from EmptyOperator"""

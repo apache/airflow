@@ -35,7 +35,7 @@ import pytest
 from freezegun import freeze_time
 
 from airflow import models, settings
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
     AirflowException,
@@ -3002,24 +3002,39 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
-    def test_not_recorded_if_irrelevant(self, dag_maker, xcom_value):
+    @pytest.mark.parametrize("xcom_1", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
+    @pytest.mark.parametrize("xcom_4", [[1, 2, 3], {"a": 1, "b": 2}])
+    def test_not_recorded_if_irrelevant(self, dag_maker, xcom_1, xcom_4):
         """Return value should only be recorded if a mapped downstream uses the it."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
             @dag.task()
             def push_1():
-                return xcom_value
+                return xcom_1
 
             @dag.task()
             def push_2():
                 return [-1, -2]
 
             @dag.task()
+            def push_3():
+                return ["x", "y"]
+
+            @dag.task()
+            def push_4():
+                return xcom_4
+
+            @dag.task()
             def show(arg1, arg2):
                 print(arg1, arg2)
 
+            @task_group()
+            def tg(arg):
+                show(arg1=task_3, arg2=arg)
+
+            task_3 = push_3()
             show.partial(arg1=push_1()).expand(arg2=push_2())
+            tg.expand(arg=push_4())
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
 
@@ -3028,6 +3043,12 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         tis["push_2"].run()
         assert dag_maker.session.query(TaskMap).count() == 1
+
+        tis["push_3"].run()
+        assert dag_maker.session.query(TaskMap).count() == 1
+
+        tis["push_4"].run()
+        assert dag_maker.session.query(TaskMap).count() == 2
 
     @pytest.mark.parametrize(
         "return_value, exception_type, error_message",
@@ -3080,6 +3101,76 @@ class TestTaskInstanceRecordTaskMapXComPush:
                 return return_value
 
             MockOperator.partial(task_id="pull").expand_kwargs(push())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
+        with pytest.raises(exception_type) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_task_group_expand_error_if_unmappable_type(
+        self,
+        dag_maker,
+        return_value,
+        exception_type,
+        error_message,
+    ):
+        """If an unmappable return value is used , fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_task_group_expand_error_if_unmappable_type") as dag:
+
+            @dag.task()
+            def push():
+                return return_value
+
+            @task_group
+            def tg(arg):
+                MockOperator(task_id="pull", arg1=arg)
+
+            tg.expand(arg=push())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
+        with pytest.raises(exception_type) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_task_group_expand_kwargs_error_if_unmappable_type(
+        self,
+        dag_maker,
+        return_value,
+        exception_type,
+        error_message,
+    ):
+        """If an unmappable return value is used, fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_task_group_expand_kwargs_error_if_unmappable_type") as dag:
+
+            @dag.task()
+            def push():
+                return return_value
+
+            @task_group
+            def tg(arg):
+                MockOperator(task_id="pull", arg1=arg)
+
+            tg.expand_kwargs(push())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
         with pytest.raises(exception_type) as ctx:

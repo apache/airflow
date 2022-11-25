@@ -45,6 +45,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.api_connexion.types import APIResponse
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
+from airflow.models.operator import needs_expansion
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -202,7 +203,7 @@ def get_mapped_task_instances(
         if not task:
             error_message = f"Task id {task_id} not found"
             raise NotFound(error_message)
-        if not task.is_mapped:
+        if not needs_expansion(task):
             error_message = f"Task id {task_id} is not mapped"
             raise NotFound(error_message)
 
