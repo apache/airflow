@@ -21,7 +21,6 @@ import time
 
 import boto3
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -106,38 +105,25 @@ class GlueJobHook(AwsBaseHook):
         s3_log_path = f"s3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}"
         execution_role = self.get_iam_execution_role()
 
-        if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
-            return dict(
-                Name=self.job_name,
-                Description=self.desc,
-                LogUri=s3_log_path,
-                Role=execution_role["Role"]["Arn"],
-                ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                Command=command,
-                MaxRetries=self.retry_limit,
-                **self.create_job_kwargs,
-            )
-        else:
-            return dict(
-                Name=self.job_name,
-                Description=self.desc,
-                LogUri=s3_log_path,
-                Role=execution_role["Role"]["Arn"],
-                ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                Command=command,
-                MaxRetries=self.retry_limit,
-                MaxCapacity=self.num_of_dpus,
-                **self.create_job_kwargs,
-            )
+        ret_config = {
+            "Name": self.job_name,
+            "Description": self.desc,
+            "LogUri": s3_log_path,
+            "Role": execution_role["Role"]["Arn"],
+            "ExecutionProperty": {"MaxConcurrentRuns": self.concurrent_run_limit},
+            "Command": command,
+            "MaxRetries": self.retry_limit,
+            **self.create_job_kwargs,
+        }
 
-    @cached_property
-    def glue_client(self):
-        """:return: AWS Glue client"""
-        return self.get_conn()
+        if hasattr(self, "num_of_dpus"):
+            ret_config["MaxCapacity"] = self.num_of_dpus
+
+        return ret_config
 
     def list_jobs(self) -> list:
         """:return: Lists of Jobs"""
-        return self.glue_client.get_jobs()
+        return self.get_conn().get_jobs()
 
     def get_iam_execution_role(self) -> dict:
         """:return: iam role for job execution"""
@@ -167,7 +153,7 @@ class GlueJobHook(AwsBaseHook):
 
         try:
             job_name = self.create_or_update_glue_job()
-            return self.glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
+            return self.get_conn().start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
@@ -180,7 +166,7 @@ class GlueJobHook(AwsBaseHook):
         :param run_id: The job-run ID of the predecessor job run
         :return: State of the Glue job
         """
-        job_run = self.glue_client.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
+        job_run = self.get_conn().get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
         return job_run["JobRun"]["JobRunState"]
 
     def print_job_logs(
@@ -277,7 +263,7 @@ class GlueJobHook(AwsBaseHook):
         :param job_name: unique job name per AWS account
         :return: Nested dictionary of job configurations
         """
-        return self.glue_client.get_job(JobName=job_name)["Job"]
+        return self.get_conn().get_job(JobName=job_name)["Job"]
 
     def has_job(self, job_name) -> bool:
         """
@@ -291,7 +277,7 @@ class GlueJobHook(AwsBaseHook):
         try:
             self.get_job(job_name)
             return True
-        except self.glue_client.exceptions.EntityNotFoundException:
+        except self.get_conn().exceptions.EntityNotFoundException:
             return False
 
     def update_job(self, **job_kwargs) -> bool:
@@ -309,7 +295,7 @@ class GlueJobHook(AwsBaseHook):
         }
         if update_config != {}:
             self.log.info("Updating job: %s", job_name)
-            self.glue_client.update_job(JobName=job_name, JobUpdate=job_kwargs)
+            self.get_conn().update_job(JobName=job_name, JobUpdate=job_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
         else:
@@ -324,7 +310,7 @@ class GlueJobHook(AwsBaseHook):
         """
         job_name = job_kwargs["Name"]
         self.log.info("Creating job: %s", job_name)
-        return self.glue_client.create_job(**job_kwargs)
+        return self.get_conn().create_job(**job_kwargs)
 
     def create_or_update_glue_job(self) -> str | None:
         """
