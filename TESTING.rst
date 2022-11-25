@@ -87,13 +87,10 @@ this in two clicks.
    a. From the settings menu, navigate to Tools > External Tools
    b. Click the little plus symbol to open the "Create Tool" popup and fill it out:
 
-      * Program: `breeze`
-      * Arguments: `testing tests \$FilePathRelativeToProjectRoot\$`
-      * Working Directory: `$ProjectFileDir$`
-
 .. image:: images/pycharm/pycharm_create_tool.png
     :align: center
     :alt: Installing Python extension
+
 
 2. Add the tool to the context menu:
 
@@ -102,9 +99,9 @@ this in two clicks.
    c. Click the little plus at the top of the popup window
    d. Find your "External Tool" in the new "Choose Actions to Add" popup and click OK.  If you followed the image above, it will be at External Tools > External Tools > Breeze
 
- **Note:** That only adds the option to that one menu.  If you would like to add it to the context menu
- when right-clicking on a tab at the top of the editor, for example, follow the steps above again
- and place it in the "Editor Tab Popup Menu"
+**Note:** That only adds the option to that one menu.  If you would like to add it to the context menu
+when right-clicking on a tab at the top of the editor, for example, follow the steps above again
+and place it in the "Editor Tab Popup Menu"
 
 .. image:: images/pycharm/pycharm_add_to_context.png
     :align: center
