@@ -381,3 +381,23 @@ def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, f
         raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
     duplicated_keys_display = ", ".join(sorted(duplicated_keys))
     raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
+
+def is_ascii(s):
+    """Check if a string is ascii"""
+    return all(ord(c) < 128 for c in s)
+
+
+def replace_invalid_ascii_char(value, delimiter="."):
+    """
+    Substitute unacceptable characters for acceptable equivalent
+        Args:
+        value: str
+        delimiter: str e.g ('.', '-')
+    """
+    str = value
+
+    for char in str:
+        if not KEY_REGEX.match(char):
+            str = str.replace(char, delimiter)
+
+    return str

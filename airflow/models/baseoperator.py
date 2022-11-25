@@ -51,6 +51,8 @@ import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
+import text_unidecode
+
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred
@@ -84,7 +86,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import is_ascii, replace_invalid_ascii_char, validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
@@ -767,6 +769,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 category=RemovedInAirflow3Warning,
                 stacklevel=3,
             )
+
+        if not is_ascii(task_id):
+            # # using text_unidecode to make non-ascii characters ascii equivalent
+            unicoded_string = text_unidecode.unidecode(task_id).replace(" ", "-")
+            task_id = replace_invalid_ascii_char(unicoded_string)
+
         validate_key(task_id)
 
         dag = dag or DagContext.get_current_dag()

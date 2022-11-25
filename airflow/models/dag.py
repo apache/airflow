@@ -51,6 +51,7 @@ from urllib.parse import urlsplit
 
 import jinja2
 import pendulum
+import text_unidecode
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
@@ -91,7 +92,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import at_most_one, exactly_one, validate_key
+from airflow.utils.helpers import is_ascii, replace_invalid_ascii_char, at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, tuple_in_condition, with_row_locks
@@ -438,6 +439,11 @@ class DAG(LoggingMixin):
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
+
+        if not is_ascii(dag_id):
+            # using text_unidecode to make non-ascii characters ascii equivalent
+            unicoded_string = text_unidecode.unidecode(dag_id).replace(" ", "-")
+            dag_id = replace_invalid_ascii_char(unicoded_string)
 
         validate_key(dag_id)
 
