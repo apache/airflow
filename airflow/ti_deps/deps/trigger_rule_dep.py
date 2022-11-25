@@ -105,6 +105,7 @@ class TriggerRuleDep(BaseTIDep):
         :param dep_context: The current dependency context.
         :param session: Database session.
         """
+        from airflow.models.operator import needs_expansion
         from airflow.models.taskinstance import TaskInstance
 
         task = ti.task
@@ -203,7 +204,7 @@ class TriggerRuleDep(BaseTIDep):
 
         # Optimization: Don't need to hit the database if all upstreams are
         # "simple" tasks (no task or task group mapping involved).
-        if not any(t.is_mapped or t.get_closest_mapped_task_group() for t in upstream_tasks.values()):
+        if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
         else:
             upstream = (
