@@ -433,9 +433,7 @@ class DagFileProcessorManager(LoggingMixin):
         self.last_stat_print_time = 0
         # Last time we cleaned up DAGs which are no longer in files
         self.last_deactivate_stale_dags_time = timezone.make_aware(datetime.fromtimestamp(0))
-        # How often to clean up:
-        # * DAGs which are no longer in files
-        # * datasets that are no longer referenced by any DAG schedule parameters or task outlets
+        # How often to check for DAGs which are no longer in files
         self.parsing_cleanup_interval = conf.getint("scheduler", "parsing_cleanup_interval")
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
