@@ -34,7 +34,7 @@ from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
-from sqlalchemy.sql import expression
+from sqlalchemy.sql import True_, expression
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
@@ -1614,4 +1614,4 @@ class SchedulerJob(BaseJob):
         )
         for dataset in orphaned_dataset_query:
             self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
-            dataset.is_orphaned = True
+            dataset.is_orphaned = True_()
