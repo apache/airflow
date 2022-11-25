@@ -34,7 +34,7 @@ from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
-from sqlalchemy.sql import True_, expression
+from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
@@ -1602,7 +1602,9 @@ class SchedulerJob(BaseJob):
                 TaskOutletDatasetReference,
                 isouter=True,
             )
-            .group_by(DatasetModel.id)
+            # MSSQL doesn't like it when we select a column that we haven't grouped by. All other DBs let us
+            # group by id and select all columns.
+            .group_by(DatasetModel if session.get_bind().dialect.name == "mssql" else DatasetModel.id)
             .having(
                 and_(
                     func.count(DagScheduleDatasetReference.dag_id) == 0,
