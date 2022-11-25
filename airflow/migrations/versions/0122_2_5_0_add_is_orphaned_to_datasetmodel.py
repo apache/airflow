@@ -39,11 +39,9 @@ airflow_version = "2.5.0"
 
 def upgrade():
     """Add is_orphaned to DatasetModel"""
-    with op.batch_alter_table("dataset") as batch_op:
-        batch_op.add_column(sa.Column("is_orphaned", sa.Boolean, nullable=False, server_default="False"))
+    op.add_column("dataset", sa.Column("is_orphaned", sa.Boolean, nullable=False, server_default="False"))
 
 
 def downgrade():
-    """Remove is_orphaned to DatasetModel"""
-    with op.batch_alter_table("dataset", schema=None) as batch_op:
-        batch_op.drop_column("is_orphaned")
+    """Remove is_orphaned from DatasetModel"""
+    op.drop_column("dataset", "is_orphaned")
