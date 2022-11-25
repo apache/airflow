@@ -88,8 +88,8 @@ this in two clicks.
   b. Click the little plus symbol to open the "Create Tool" popup and fill it out:
 
     * Program: `breeze`
-    * Arguments: `testing tests $FilePathRelativeToProjectRoot$`
-    * Working Directory: `$ProjectFileDir$`
+    * Arguments: `testing tests \$FilePathRelativeToProjectRoot\$`
+    * Working Directory: `\$ProjectFileDir\$`
 
 .. image:: images/pycharm/pycharm_create_tool.png
     :align: center
