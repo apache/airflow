@@ -17,32 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Union
+import logging
 
-from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.mappedoperator import MappedOperator
-from airflow.typing_compat import TypeGuard
+from airflow.cli.commands.task_command import TaskCommandMarker
+from airflow.listeners import hookimpl
 
-Operator = Union[BaseOperator, MappedOperator]
+log = logging.getLogger(__name__)
 
 
-def needs_expansion(task: AbstractOperator) -> TypeGuard[Operator]:
-    """Whether a task needs expansion at runtime.
+class FileWriteListener:
+    def __init__(self, path):
+        self.path = path
 
-    A task needs expansion if it either
+    def write(self, line: str):
+        with open(self.path, "a") as f:
+            f.write(line + "\n")
 
-    * Is a mapped operator, or
-    * Is in a mapped task group.
+    @hookimpl
+    def on_starting(self, component):
+        if isinstance(component, TaskCommandMarker):
+            self.write("on_starting")
 
-    This is implemented as a free function (instead of a property) so we can
-    make it a type guard.
-    """
-    if isinstance(task, MappedOperator):
-        return True
-    if task.get_closest_mapped_task_group() is not None:
-        return True
-    return False
-
-
-__all__ = ["Operator", "needs_expansion"]
+    @hookimpl
+    def before_stopping(self, component):
+        if isinstance(component, TaskCommandMarker):
+            self.write("before_stopping")

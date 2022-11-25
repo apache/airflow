@@ -66,7 +66,7 @@ const MappedInstances = ({
         <StatusWithNotes
           state={mi.state === undefined || mi.state === 'none' ? null : mi.state}
           mx={2}
-          containsNotes={!!mi.notes}
+          containsNotes={!!mi.note}
         />
         {mi.state || 'no status'}
       </Flex>

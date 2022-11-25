@@ -19,7 +19,7 @@
 """Add is_orphaned to DatasetModel
 
 Revision ID: 290244fb8b83
-Revises: 65a852f26899
+Revises: 1986afd32c1b
 Create Date: 2022-11-22 00:12:53.432961
 
 """
@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "290244fb8b83"
-down_revision = "65a852f26899"
+down_revision = "1986afd32c1b"
 branch_labels = None
 depends_on = None
 airflow_version = "2.5.0"

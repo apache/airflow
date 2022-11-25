@@ -229,7 +229,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
             return set()
         return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
 
-    def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator]:
+    def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
 
         For now, this walks the entire DAG to find mapped nodes that has this
@@ -264,12 +264,12 @@ class AbstractOperator(LoggingMixin, DAGNode):
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
-            if not isinstance(child, MappedOperator):
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
                 continue
             if self.node_id in child.upstream_task_ids:
                 yield child
 
-    def iter_mapped_dependants(self) -> Iterator[MappedOperator]:
+    def iter_mapped_dependants(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that depend on the current task the expansion.
 
         For now, this walks the entire DAG to find mapped nodes that has this

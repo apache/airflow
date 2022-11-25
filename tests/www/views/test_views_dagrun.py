@@ -218,7 +218,7 @@ def test_muldelete_dag_runs_action(session, admin_client, running_dag_run):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert session.query(TaskInstance).count() == 0  # Deletes associated TIs.
+    assert session.query(TaskInstance).count() == 0  # associated TIs are deleted
     assert session.query(DagRun).filter(DagRun.id == dag_run_id).count() == 0
 
 
