@@ -39,9 +39,6 @@ airflow_version = "2.5.0"
 
 def upgrade():
     """Add is_orphaned to DatasetModel"""
-    # We pass in sa.sql.False_() for server_default, since that handles the string
-    # representation of False for different databases for us
-    # https://github.com/miguelgrinberg/Flask-Migrate/issues/265#issuecomment-937057519
     with op.batch_alter_table("dataset") as batch_op:
         batch_op.add_column(
             sa.Column(
