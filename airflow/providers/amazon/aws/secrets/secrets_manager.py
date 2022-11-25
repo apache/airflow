@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import unquote
 
 from airflow.compat.functools import cached_property
