@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-24T18:45:10Z
+# This constraints file was automatically generated on 2022-11-25T18:41:10Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-5-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -93,7 +93,7 @@ greenlet==2.0.1
 gssapi==1.8.2
 gunicorn==20.1.0
 h11==0.14.0
-httpcore==0.16.1
+httpcore==0.16.2
 httpx==0.23.1
 humanize==4.4.0
 idna==3.4
@@ -182,6 +182,6 @@ websocket-client==1.4.2
 wrapt==1.14.1
 yarl==1.8.1
 zict==2.2.0
-zipp==3.10.0
+zipp==3.11.0
 zope.event==4.5.0
 zope.interface==5.5.2
