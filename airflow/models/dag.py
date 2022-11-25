@@ -2825,6 +2825,10 @@ class DAG(LoggingMixin):
         for dataset in all_datasets:
             stored_dataset = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).first()
             if stored_dataset:
+                # Some datasets may have been previously unreferenced, and therefore orphaned by the
+                # scheduler. But if we're here, then we have found that dataset again in our DAGs, which
+                # means that it is no longer an orphan, so set is_orphaned to False.
+                stored_dataset.is_orphaned = expression.false()
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
                 session.add(dataset)
