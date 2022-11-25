@@ -44,7 +44,13 @@ def upgrade():
     # https://github.com/miguelgrinberg/Flask-Migrate/issues/265#issuecomment-937057519
     with op.batch_alter_table("dataset") as batch_op:
         batch_op.add_column(
-            sa.Column("is_orphaned", sa.Boolean, nullable=False, server_default=sa.sql.expression.false())
+            sa.Column(
+                "is_orphaned",
+                sa.Boolean,
+                default=False,
+                nullable=False,
+                server_default=sa.sql.expression.false(),
+            )
         )
 
 
