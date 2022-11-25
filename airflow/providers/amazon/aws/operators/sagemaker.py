@@ -766,6 +766,10 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
     Registers an Amazon SageMaker model by creating a model version that specifies the model group to which it
     belongs. Will create the model group if it does not exist already.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerRegisterModelVersionOperator`
+
     :param image_uri: The Amazon EC2 Container Registry (Amazon ECR) path where inference code is stored.
     :param model_url: The Amazon S3 path where the model artifacts (the trained weights of the model), which
         result from model training, are stored. This path must point to a single gzip compressed tar archive

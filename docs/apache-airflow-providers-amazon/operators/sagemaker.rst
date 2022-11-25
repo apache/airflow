@@ -146,6 +146,22 @@ To create an Amazon Sagemaker endpoint you can use
     :start-after: [START howto_operator_sagemaker_endpoint]
     :end-before: [END howto_operator_sagemaker_endpoint]
 
+Register a Sagemaker Model Version
+==================================
+
+To register a model version, you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerRegisterModelVersionOperator`.
+The result of executing this operator is a model package.
+A model package is a reusable model artifacts abstraction that packages all ingredients necessary for inference.
+It consists of an inference specification that defines the inference image to use along with a model weights location.
+A model package group is a collection of model packages.
+You can use this operator to add a new version and model package to the group for every DAG run.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_register]
+    :end-before: [END howto_operator_sagemaker_register]
+
 Sensors
 -------
 
