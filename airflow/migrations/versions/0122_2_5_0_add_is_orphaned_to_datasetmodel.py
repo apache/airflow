@@ -46,7 +46,7 @@ def upgrade():
                 sa.Boolean,
                 default=False,
                 nullable=False,
-                server_default=sa.sql.expression.false(),
+                server_default="0",
             )
         )
 
