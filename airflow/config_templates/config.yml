@@ -1946,22 +1946,12 @@
       type: string
       example: ~
       default: "30"
-    - name: deactivate_stale_dags_interval
-      description: |
-        [DEPRECATED] How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
-        the expected files) which should be deactivated. This is deprecated in favor of
-        parsing_cleanup_interval, and is ignored when that is set.
-      version_added: 2.2.5
-      type: integer
-      example: ~
-      default: "60"
     - name: parsing_cleanup_interval
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
         the expected files) which should be deactivated, as well as datasets that are no longer
-        referenced and should be marked as orphaned. If this is set, then deactivate_stale_dags_interval is
-        ignored.
-      version_added: 2.4.5
+        referenced and should be marked as orphaned.
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "60"
