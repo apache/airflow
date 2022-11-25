@@ -87,9 +87,9 @@ this in two clicks.
    a. From the settings menu, navigate to Tools > External Tools
    b. Click the little plus symbol to open the "Create Tool" popup and fill it out:
 
-      * Program: ``breeze``
-      * Arguments: ``testing tests $FilePathRelativeToProjectRoot$``
-      * Working Directory: ``$ProjectFileDir$``
+      * Program: `breeze`
+      * Arguments: `testing tests $$FilePathRelativeToProjectRoot$$`
+      * Working Directory: `$$ProjectFileDir$$`
 
 .. image:: images/pycharm/pycharm_create_tool.png
     :align: center
