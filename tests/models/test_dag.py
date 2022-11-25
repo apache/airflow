@@ -97,12 +97,14 @@ class TestDag:
     def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        clear_db_datasets()
         self.patcher_dag_code = mock.patch("airflow.models.dag.DagCode.bulk_sync_to_db")
         self.patcher_dag_code.start()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        clear_db_datasets()
         self.patcher_dag_code.stop()
 
     @staticmethod
