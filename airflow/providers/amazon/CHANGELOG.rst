@@ -24,6 +24,263 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use Boto waiters instead of customer _await_status method for RDS Operators (#27410)``
+* ``Handle transient state errors in 'RedshiftResumeClusterOperator' and 'RedshiftPauseClusterOperator' (#27276)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Correct job name matching in SagemakerProcessingOperator (#27634)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``System Test for EMR (AIP-47) (#27286)``
+
+
+6.1.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Replace urlparse with urlsplit (#27389)``
+
+Features
+~~~~~~~~
+
+* ``Add info about JSON Connection format for AWS SSM Parameter Store Secrets Backend (#27134)``
+* ``Add default name to EMR Serverless jobs (#27458)``
+* ``Adding 'preserve_file_name' param to 'S3Hook.download_file' method (#26886)``
+* ``Add GlacierUploadArchiveOperator (#26652)``
+* ``Add RdsStopDbOperator and RdsStartDbOperator (#27076)``
+* ``'GoogleApiToS3Operator' : add 'gcp_conn_id' to template fields (#27017)``
+* ``Add SQLExecuteQueryOperator (#25717)``
+* ``Add information about Amazon Elastic MapReduce Connection (#26687)``
+* ``Add BatchOperator template fields (#26805)``
+* ``Improve testing AWS Connection response (#26953)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``SagemakerProcessingOperator stopped honoring 'existing_jobs_found' (#27456)``
+* ``CloudWatch task handler doesn't fall back to local logs when Amazon CloudWatch logs aren't found (#27564)``
+* ``Fix backwards compatibility for RedshiftSQLOperator (#27602)``
+* ``Fix typo in redshift sql hook get_ui_field_behaviour (#27533)``
+* ``Fix example_emr_serverless system test (#27149)``
+* ``Fix param in docstring RedshiftSQLHook get_table_primary_key method (#27330)``
+* ``Adds s3_key_prefix to template fields (#27207)``
+* ``Fix assume role if user explicit set credentials (#26946)``
+* ``Fix failure state in waiter call for EmrServerlessStartJobOperator. (#26853)``
+* ``Fix a bunch of deprecation warnings AWS tests (#26857)``
+* ``Fix null strings bug in SqlToS3Operator in non parquet formats (#26676)``
+* ``Sagemaker hook: remove extra call at the end when waiting for completion (#27551)``
+* ``ECS Buglette (#26921)``
+* ``Avoid circular imports in AWS Secrets Backends if obtain secrets from config (#26784)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``sagemaker operators: mutualize init of aws_conn_id (#27579)``
+   * ``Upgrade dependencies in order to avoid backtracking (#27531)``
+   * ``Code quality improvements on sagemaker operators/hook (#27453)``
+   * ``Update old style typing (#26872)``
+   * ``System test for SQL to S3 Transfer (AIP-47) (#27097)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+   * ``Convert emr_eks example dag to system test (#26723)``
+   * ``System test for Dynamo DB (#26729)``
+   * ``ECS System Test (#26808)``
+   * ``RDS Instance System Tests (#26733)``
+
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of provider Amazon S3 Connection (``conn_type="s3"``) removed due to the fact that it was always
+  an alias to AWS connection ``conn_type="aws"``
+  In practice the only impact is you won't be able to ``test`` the connection in the web UI / API.
+  In order to restore ability to test connection you need to change connection type from **Amazon S3** (``conn_type="s3"``)
+  to **Amazon Web Services** (``conn_type="aws"``) manually.
+
+* ``Remove Amazon S3 Connection Type (#25980)``
+
+Features
+~~~~~~~~
+
+* ``Add RdsDbSensor to amazon provider package (#26003)``
+* ``Set template_fields on RDS operators (#26005)``
+* ``Auto tail file logs in Web UI (#26169)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SageMakerEndpointConfigOperator's return value (#26541)``
+* ``EMR Serverless Fix for Jobs marked as success even on failure (#26218)``
+* ``Fix AWS Connection warn condition for invalid 'profile_name' argument (#26464)``
+* ``Athena and EMR operator max_retries mix-up fix (#25971)``
+* ``Fixes SageMaker operator return values (#23628)``
+* ``Remove redundant catch exception in Amazon Log Task Handlers (#26442)``
+
+Misc
+~~~~
+
+* ``Remove duplicated connection-type within the provider (#26628)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Redshift to S3 and S3 to Redshift System test (AIP-47) (#26613)``
+   * ``Convert example_eks_with_fargate_in_one_step.py and example_eks_with_fargate_profile to AIP-47 (#26537)``
+   * ``Redshift System Test (AIP-47) (#26187)``
+   * ``GoogleAPIToS3Operator System Test (AIP-47) (#26370)``
+   * ``Convert EKS with Nodegroups sample DAG to a system test (AIP-47) (#26539)``
+   * ``Convert EC2 sample DAG to system test (#26540)``
+   * ``Convert S3 example DAG to System test (AIP-47) (#26535)``
+   * ``Convert 'example_eks_with_nodegroup_in_one_step' sample DAG to system test (AIP-47) (#26410)``
+   * ``Migrate DMS sample dag to system test (#26270)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``D400 first line should end with period batch02 (#25268)``
+   * ``Change links to 'boto3' documentation (#26708)``
+
+5.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Additional mask aws credentials (#26014)``
+* ``Add RedshiftDeleteClusterSnapshotOperator (#25975)``
+* ``Add redshift create cluster snapshot operator (#25857)``
+* ``Add common-sql lower bound for common-sql (#25789)``
+* ``Allow AWS Secrets Backends use AWS Connection capabilities (#25628)``
+* ``Implement 'EmrEksCreateClusterOperator' (#25816)``
+* ``Improve error handling/messaging around bucket exist check (#25805)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix display aws connection info (#26025)``
+* ``Fix 'EcsBaseOperator' and 'EcsBaseSensor' arguments (#25989)``
+* ``Fix RDS system test (#25839)``
+* ``Avoid circular import problems when instantiating AWS SM backend (#25810)``
+* ``fix bug construction of Connection object in version 5.0.0rc3 (#25716)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix EMR serverless system test (#25969)``
+   * ``Add 'output' property to MappedOperator (#25604)``
+   * ``Add Airflow specific warning classes (#25799)``
+   * ``Replace SQL with Common SQL in pre commit (#26058)``
+   * ``Hook into Mypy to get rid of those cast() (#26023)``
+   * ``Raise an error on create bucket if use regional endpoint for us-east-1 and region not set (#25945)``
+   * ``Update AWS system tests to use SystemTestContextBuilder (#25748)``
+   * ``Convert Quicksight Sample DAG to System Test (#25696)``
+   * ``Consolidate to one 'schedule' param (#25410)``
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Avoid requirement that AWS Secret Manager JSON values be urlencoded. (#25432)``
+* ``Remove deprecated modules (#25543)``
+* ``Resolve Amazon Hook's 'region_name' and 'config' in wrapper (#25336)``
+* ``Resolve and validate AWS Connection parameters in wrapper (#25256)``
+* ``Standardize AwsLambda (#25100)``
+* ``Refactor monolithic ECS Operator into Operators, Sensors, and a Hook (#25413)``
+* ``Remove deprecated modules from Amazon provider package (#25609)``
+
+Features
+~~~~~~~~
+
+* ``Add EMR Serverless Operators and Hooks (#25324)``
+* ``Hide unused fields for Amazon Web Services connection (#25416)``
+* ``Enable Auto-incrementing Transform job name in SageMakerTransformOperator (#25263)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+* ``SQSPublishOperator should allow sending messages to a FIFO Queue (#25171)``
+* ``Glue Job Driver logging (#25142)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Enable multiple query execution in RedshiftDataOperator (#25619)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix S3Hook transfer config arguments validation (#25544)``
+* ``Fix BatchOperator links on wait_for_completion = True (#25228)``
+* ``Makes changes to SqlToS3Operator method _fix_int_dtypes (#25083)``
+* ``refactor: Deprecate parameter 'host' as an extra attribute for the connection. Depreciation is happening in favor of 'endpoint_url' in extra. (#25494)``
+* ``Get boto3.session.Session by appropriate method (#25569)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``System test for EMR Serverless  (#25559)``
+   * ``Convert Local to S3 example DAG to System Test (AIP-47) (#25345)``
+   * ``Convert ECS Fargate Sample DAG to System Test (#25316)``
+   * ``Sagemaker System Tests - Part 3 of 3 - example_sagemaker_endpoint.py (AIP-47) (#25134)``
+   * ``Convert RDS Export Sample DAG to System Test (AIP-47) (#25205)``
+   * ``AIP-47 - Migrate redshift DAGs to new design #22438 (#24239)``
+   * ``Convert Glue Sample DAG to System Test (#25136)``
+   * ``Convert the batch sample dag to system tests (AIP-47) (#24448)``
+   * ``Migrate datasync sample dag to system tests (AIP-47) (#24354)``
+   * ``Sagemaker System Tests - Part 2 of 3 - example_sagemaker.py (#25079)``
+   * ``Migrate lambda sample dag to system test (AIP-47) (#24355)``
+   * ``SageMaker system tests - Part 1 of 3 - Prep Work (AIP-47) (#25078)``
+   * ``Prepare docs for new providers release (August 2022) (#25618)``
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add test_connection method to AWS hook (#24662)``
+* ``Add AWS operators to create and delete RDS Database (#24099)``
+* ``Add batch option to 'SqsSensor' (#24554)``
+* ``Add AWS Batch & AWS CloudWatch Extra Links (#24406)``
+* ``Refactoring EmrClusterLink and add for other AWS EMR Operators (#24294)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+* ``Amazon appflow (#24057)``
+* ``Make extra_args in S3Hook immutable between calls (#24527)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refactor and fix AWS secret manager invalid exception (#24898)``
+* ``fix: RedshiftDataHook and RdsHook not use cached connection (#24387)``
+* ``Fix links to sources for examples (#24386)``
+* ``Fix S3KeySensor. See #24321 (#24378)``
+* ``Fix: 'emr_conn_id' should be optional in 'EmrCreateJobFlowOperator' (#24306)``
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Convert RDS Event and Snapshot Sample DAGs to System Tests (#24932)``
+   * ``Convert Step Functions Example DAG to System Test (AIP-47) (#24643)``
+   * ``Update AWS Connection docs and deprecate some extras (#24670)``
+   * ``Remove 'xcom_push' flag from providers (#24823)``
+   * ``Align Black and blacken-docs configs (#24785)``
+   * ``Restore Optional value of script_location (#24754)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Use our yaml util in all providers (#24720)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+   * ``Convert SQS Sample DAG to System Test (#24513)``
+   * ``Convert Cloudformation Sample DAG to System Test (#24447)``
+   * ``Convert SNS Sample DAG to System Test (#24384)``
+
 4.0.0
 .....
 

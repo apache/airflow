@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google PubSub sensor."""
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
@@ -83,11 +85,11 @@ class PubSubPullSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'subscription',
-        'impersonation_chain',
+        "project_id",
+        "subscription",
+        "impersonation_chain",
     )
-    ui_color = '#ff7f50'
+    ui_color = "#ff7f50"
 
     def __init__(
         self,
@@ -96,10 +98,10 @@ class PubSubPullSensor(BaseSensorOperator):
         subscription: str,
         max_messages: int = 5,
         ack_messages: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
-        messages_callback: Optional[Callable[[List[ReceivedMessage], "Context"], Any]] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -115,12 +117,12 @@ class PubSubPullSensor(BaseSensorOperator):
 
         self._return_value = None
 
-    def execute(self, context: "Context") -> Any:
+    def execute(self, context: Context) -> Any:
         """Overridden to allow messages to be passed"""
         super().execute(context)
         return self._return_value
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -149,8 +151,8 @@ class PubSubPullSensor(BaseSensorOperator):
 
     def _default_message_callback(
         self,
-        pulled_messages: List[ReceivedMessage],
-        context: "Context",
+        pulled_messages: list[ReceivedMessage],
+        context: Context,
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.

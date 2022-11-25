@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import dill
 from sqlalchemy import BigInteger, Column, Integer, PickleType
@@ -45,7 +46,7 @@ class DagPickle(Base):
 
     def __init__(self, dag):
         self.dag_id = dag.dag_id
-        if hasattr(dag, 'template_env'):
+        if hasattr(dag, "template_env"):
             dag.template_env = None
         self.pickle_hash = hash(dag)
         self.pickle = dag

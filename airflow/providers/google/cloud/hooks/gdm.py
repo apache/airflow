@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -34,8 +34,8 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -44,30 +44,25 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> Resource:
-        """
-        Returns a Google Deployment Manager service object.
-
-        :rtype: googleapiclient.discovery.Resource
-        """
+        """Returns a Google Deployment Manager service object."""
         http_authorized = self._authorize()
-        return build('deploymentmanager', 'v2', http=http_authorized, cache_discovery=False)
+        return build("deploymentmanager", "v2", http=http_authorized, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(
         self,
-        project_id: Optional[str] = None,
-        deployment_filter: Optional[str] = None,
-        order_by: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        project_id: str | None = None,
+        deployment_filter: str | None = None,
+        order_by: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Lists deployments in a google cloud project.
 
         :param project_id: The project ID for this request.
         :param deployment_filter: A filter expression which limits resources returned in the response.
         :param order_by: A field name to order by, ex: "creationTimestamp desc"
-        :rtype: list
         """
-        deployments = []  # type: List[Dict]
+        deployments: list[dict] = []
         conn = self.get_conn()
 
         request = conn.deployments().list(project=project_id, filter=deployment_filter, orderBy=order_by)
@@ -81,7 +76,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_deployment(
-        self, project_id: Optional[str], deployment: Optional[str] = None, delete_policy: Optional[str] = None
+        self, project_id: str | None, deployment: str | None = None, delete_policy: str | None = None
     ) -> None:
         """
         Deletes a deployment and all associated resources in a google cloud project.
@@ -89,8 +84,6 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         :param project_id: The project ID for this request.
         :param deployment: The name of the deployment for this request.
         :param delete_policy: Sets the policy to use for deleting resources. (ABANDON | DELETE)
-
-        :rtype: None
         """
         conn = self.get_conn()
 
@@ -98,7 +91,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
             project=project_id, deployment=deployment, deletePolicy=delete_policy
         )
         resp = request.execute()
-        if 'error' in resp.keys():
+        if "error" in resp.keys():
             raise AirflowException(
-                'Errors deleting deployment: ', ', '.join(err['message'] for err in resp['error']['errors'])
+                "Errors deleting deployment: ", ", ".join(err["message"] for err in resp["error"]["errors"])
             )

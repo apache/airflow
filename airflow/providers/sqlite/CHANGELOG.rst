@@ -24,6 +24,73 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+3.3.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add SQLExecuteQueryOperator (#25717)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+   * ``Update docs for September Provider's release (#26731)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+3.2.1
+.....
+
+Features
+~~~~~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix placeholders in 'TrinoHook', 'PrestoHook', 'SqliteHook' (#25939)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Move all SQL classes to common-sql provider (#24836)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 

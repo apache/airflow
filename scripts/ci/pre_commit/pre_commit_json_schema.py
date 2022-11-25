@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import argparse
 import hashlib
@@ -22,7 +23,6 @@ import json
 import os
 import re
 import sys
-from typing import Dict, List, Optional
 
 import requests
 import yaml
@@ -59,7 +59,7 @@ def fetch_and_cache(url: str, output_filename: str):
     # Create cache directory
     os.makedirs(cache_dir, exist_ok=True)
     # Load cache metadata
-    cache_metadata: Dict[str, str] = {}
+    cache_metadata: dict[str, str] = {}
     if os.path.exists(cache_metadata_filepath):
         try:
             with open(cache_metadata_filepath) as cache_file:
@@ -82,10 +82,10 @@ def fetch_and_cache(url: str, output_filename: str):
         output_file.write(res.content)
 
     # Save cache metadata, if needed
-    etag = res.headers.get('etag', None)
+    etag = res.headers.get("etag", None)
     if etag:
         cache_metadata[cache_key] = etag
-        with open(cache_metadata_filepath, 'w') as cache_file:
+        with open(cache_metadata_filepath, "w") as cache_file:
             json.dump(cache_metadata, cache_file)
 
     return cache_filepath
@@ -97,31 +97,31 @@ class _ValidatorError(Exception):
 
 def load_file(file_path: str):
     """Loads a file using a serializer which guesses based on the file extension"""
-    if file_path.lower().endswith('.json'):
+    if file_path.lower().endswith(".json"):
         with open(file_path) as input_file:
             return json.load(input_file)
-    elif file_path.lower().endswith('.yaml') or file_path.lower().endswith('.yml'):
+    elif file_path.lower().endswith(".yaml") or file_path.lower().endswith(".yml"):
         with open(file_path) as input_file:
             return yaml.safe_load(input_file)
     raise _ValidatorError("Unknown file format. Supported extension: '.yaml', '.json'")
 
 
 def _get_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='Validates the file using JSON Schema specifications')
+    parser = argparse.ArgumentParser(description="Validates the file using JSON Schema specifications")
     parser.add_argument(
-        '--enforce-defaults', action='store_true', help="Values must match the default in the schema"
+        "--enforce-defaults", action="store_true", help="Values must match the default in the schema"
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--spec-file', help="The path to specification")
-    group.add_argument('--spec-url', help="The URL to specification")
+    group.add_argument("--spec-file", help="The path to specification")
+    group.add_argument("--spec-url", help="The URL to specification")
 
-    parser.add_argument('file', nargs='+')
+    parser.add_argument("file", nargs="+")
 
     return parser
 
 
-def _process_files(validator, file_paths: List[str]):
+def _process_files(validator, file_paths: list[str]):
     exit_code = 0
     for input_path in file_paths:
         print("Processing file: ", input_path)
@@ -146,7 +146,7 @@ def _default_validator(validator, default, instance, schema):
         yield ValidationError(f"{instance} is not equal to the default of {default}")
 
 
-def _load_spec(spec_file: Optional[str], spec_url: Optional[str]):
+def _load_spec(spec_file: str | None, spec_url: str | None):
     if spec_url:
         spec_file = fetch_and_cache(url=spec_url, output_filename=re.sub(r"[^a-zA-Z0-9]", "-", spec_url))
     if not spec_file:

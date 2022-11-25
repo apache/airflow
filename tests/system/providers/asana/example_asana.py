@@ -14,13 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
-
 """
 Example DAG showing how to use Asana TaskOperators.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 
@@ -31,6 +29,10 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaFindTaskOperator,
     AsanaUpdateTaskOperator,
 )
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 
 ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE", "update_task")
 ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE", "delete_task")

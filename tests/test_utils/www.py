@@ -14,7 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest import mock
+
+from airflow.models import Log
 
 
 def client_with_login(app, **kwargs):
@@ -28,20 +32,44 @@ def client_with_login(app, **kwargs):
 
 
 def check_content_in_response(text, resp, resp_code=200):
-    resp_html = resp.data.decode('utf-8')
+    resp_html = resp.data.decode("utf-8")
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
-            assert line in resp_html
+            assert line in resp_html, f"Couldn't find {line!r}"
     else:
-        assert text in resp_html
+        assert text in resp_html, f"Couldn't find {text!r}"
 
 
 def check_content_not_in_response(text, resp, resp_code=200):
-    resp_html = resp.data.decode('utf-8')
+    resp_html = resp.data.decode("utf-8")
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
             assert line not in resp_html
     else:
         assert text not in resp_html
+
+
+def _check_last_log(session, dag_id, event, execution_date):
+    logs = (
+        session.query(
+            Log.dag_id,
+            Log.task_id,
+            Log.event,
+            Log.execution_date,
+            Log.owner,
+            Log.extra,
+        )
+        .filter(
+            Log.dag_id == dag_id,
+            Log.event == event,
+            Log.execution_date == execution_date,
+        )
+        .order_by(Log.dttm.desc())
+        .limit(5)
+        .all()
+    )
+    assert len(logs) >= 1
+    assert logs[0].extra
+    session.query(Log).delete()

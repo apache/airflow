@@ -22,6 +22,11 @@ description: |
     `Presto <https://prestodb.github.io/>`__
 
 versions:
+  - 4.2.0
+  - 4.1.0
+  - 4.0.1
+  - 4.0.0
+  - 3.1.0
   - 3.0.0
   - 2.2.1
   - 2.2.0
@@ -34,8 +39,11 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.2.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - apache-airflow-providers-common-sql>=1.3.1
+  - presto-python-client>=0.8.2
+  - pandas>=0.17.1
 
 integrations:
   - integration-name: Presto
@@ -54,10 +62,6 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-presto/operators/transfer/gcs_to_presto.rst
     python-module: airflow.providers.presto.transfers.gcs_to_presto
 
-  - source-integration-name: Presto
-    target-integration-name: Slack
-    how-to-guide: /docs/apache-airflow-providers-presto/operators/transfer/presto_to_slack.rst
-    python-module: airflow.providers.presto.transfers.presto_to_slack
 
 connection-types:
   - hook-class-name: airflow.providers.presto.hooks.presto.PrestoHook

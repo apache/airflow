@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import MySQLdb
 import unicodecsv as csv
@@ -26,13 +27,9 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
-from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-# TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-MYSQL_RENDERER = 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql'
 
 
 class VerticaToMySqlOperator(BaseOperator):
@@ -57,23 +54,23 @@ class VerticaToMySqlOperator(BaseOperator):
         destination MySQL connection: {'local_infile': true}.
     """
 
-    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "sql": "sql",
-        "mysql_preoperator": MYSQL_RENDERER,
-        "mysql_postoperator": MYSQL_RENDERER,
+        "mysql_preoperator": "mysql",
+        "mysql_postoperator": "mysql",
     }
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
         sql: str,
         mysql_table: str,
-        vertica_conn_id: str = 'vertica_default',
-        mysql_conn_id: str = 'mysql_default',
-        mysql_preoperator: Optional[str] = None,
-        mysql_postoperator: Optional[str] = None,
+        vertica_conn_id: str = "vertica_default",
+        mysql_conn_id: str = "mysql_default",
+        mysql_preoperator: str | None = None,
+        mysql_postoperator: str | None = None,
         bulk_load: bool = False,
         *args,
         **kwargs,
@@ -87,7 +84,7 @@ class VerticaToMySqlOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.bulk_load = bulk_load
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
@@ -133,7 +130,7 @@ class VerticaToMySqlOperator(BaseOperator):
                     self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
                     self.log.info(self.sql)
 
-                    csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
+                    csv_writer = csv.writer(tmpfile, delimiter="\t", encoding="utf-8")
                     for row in cursor.iterate():
                         csv_writer.writerow(row)
                         count += 1

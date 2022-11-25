@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from http import HTTPStatus
-from typing import List, Optional
 
 from connexion import NoContent
 from flask import request
@@ -40,7 +41,7 @@ from airflow.www.fab_security.sqla.models import Role, User
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
 def get_user(*, username: str) -> APIResponse:
-    """Get a user"""
+    """Get a user."""
     ab_security_manager = get_airflow_app().appbuilder.sm
     user = ab_security_manager.find_user(username=username)
     if not user:
@@ -50,8 +51,8 @@ def get_user(*, username: str) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
 @format_parameters({"limit": check_limit})
-def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None) -> APIResponse:
-    """Get users"""
+def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
+    """Get users."""
     appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
@@ -60,7 +61,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
     order_param = order_by.strip("-")
     order_param = to_replace.get(order_param, order_param)
     allowed_filter_attrs = [
-        'id',
+        "id",
         "first_name",
         "last_name",
         "user_name",
@@ -82,7 +83,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)])
 def post_user() -> APIResponse:
-    """Create a new user"""
+    """Create a new user."""
     try:
         data = user_schema.load(request.json)
     except ValidationError as e:
@@ -125,7 +126,7 @@ def post_user() -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER)])
 def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
-    """Update a user"""
+    """Update a user."""
     try:
         data = user_schema.load(request.json)
     except ValidationError as e:
@@ -138,13 +139,13 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
         detail = f"The User with username `{username}` was not found"
         raise NotFound(title="User not found", detail=detail)
     # Check unique username
-    new_username = data.get('username')
+    new_username = data.get("username")
     if new_username and new_username != username:
         if security_manager.find_user(username=new_username):
             raise AlreadyExists(detail=f"The username `{new_username}` already exists")
 
     # Check unique email
-    email = data.get('email')
+    email = data.get("email")
     if email and email != user.email:
         if security_manager.find_user(email=email):
             raise AlreadyExists(detail=f"The email `{email}` already exists")
@@ -164,7 +165,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
             raise BadRequest(detail=detail)
         data = masked_data
 
-    roles_to_update: Optional[List[Role]]
+    roles_to_update: list[Role] | None
     if "roles" in data:
         roles_to_update = []
         missing_role_names = []
@@ -194,7 +195,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)])
 def delete_user(*, username: str) -> APIResponse:
-    """Delete a user"""
+    """Delete a user."""
     security_manager = get_airflow_app().appbuilder.sm
 
     user = security_manager.find_user(username=username)

@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """PostgreSQL to GCS operator."""
+from __future__ import annotations
 
 import datetime
 import json
 import time
 import uuid
 from decimal import Decimal
-from typing import Dict
 
 import pendulum
 
@@ -67,7 +67,7 @@ class _PostgresServerSideCursorDecorator:
 
 class PostgresToGCSOperator(BaseSQLToGCSOperator):
     """
-    Copy data from Postgres to Google Cloud Storage in JSON or CSV format.
+    Copy data from Postgres to Google Cloud Storage in JSON, CSV or Parquet format.
 
     :param postgres_conn_id: Reference to a specific Postgres hook.
     :param use_server_side_cursor: If server-side cursor should be used for querying postgres.
@@ -75,29 +75,29 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     :param cursor_itersize: How many records are fetched at a time in case of server-side cursor.
     """
 
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     type_map = {
-        1114: 'DATETIME',
-        1184: 'TIMESTAMP',
-        1082: 'DATE',
-        1083: 'TIME',
-        1005: 'INTEGER',
-        1007: 'INTEGER',
-        1016: 'INTEGER',
-        20: 'INTEGER',
-        21: 'INTEGER',
-        23: 'INTEGER',
-        16: 'BOOLEAN',
-        700: 'FLOAT',
-        701: 'FLOAT',
-        1700: 'FLOAT',
+        1114: "DATETIME",
+        1184: "TIMESTAMP",
+        1082: "DATE",
+        1083: "TIME",
+        1005: "INTEGER",
+        1007: "INTEGER",
+        1016: "INTEGER",
+        20: "INTEGER",
+        21: "INTEGER",
+        23: "INTEGER",
+        16: "BOOL",
+        700: "FLOAT",
+        701: "FLOAT",
+        1700: "FLOAT",
     }
 
     def __init__(
         self,
         *,
-        postgres_conn_id='postgres_default',
+        postgres_conn_id="postgres_default",
         use_server_side_cursor=False,
         cursor_itersize=2000,
         **kwargs,
@@ -121,11 +121,11 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             return _PostgresServerSideCursorDecorator(cursor)
         return cursor
 
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         return {
-            'name': field[0],
-            'type': self.type_map.get(field[1], "STRING"),
-            'mode': 'REPEATED' if field[1] in (1009, 1005, 1007, 1016) else 'NULLABLE',
+            "name": field[0],
+            "type": self.type_map.get(field[1], "STRING"),
+            "mode": "REPEATED" if field[1] in (1009, 1005, 1007, 1016) else "NULLABLE",
         }
 
     def convert_type(self, value, schema_type, stringify_dict=True):

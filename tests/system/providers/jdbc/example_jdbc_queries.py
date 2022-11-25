@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the JdbcOperator."""
+from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
@@ -27,6 +27,7 @@ try:
     from airflow.operators.empty import EmptyOperator
 except ModuleNotFoundError:
     from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
+
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -34,29 +35,29 @@ DAG_ID = "example_jdbc_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='0 0 * * *',
+    schedule="0 0 * * *",
     start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
-    run_this_last = EmptyOperator(task_id='run_this_last')
+    run_this_last = EmptyOperator(task_id="run_this_last")
 
     # [START howto_operator_jdbc_template]
     delete_data = JdbcOperator(
-        task_id='delete_data',
-        sql='delete from my_schema.my_table where dt = {{ ds }}',
-        jdbc_conn_id='my_jdbc_connection',
+        task_id="delete_data",
+        sql="delete from my_schema.my_table where dt = {{ ds }}",
+        jdbc_conn_id="my_jdbc_connection",
         autocommit=True,
     )
     # [END howto_operator_jdbc_template]
 
     # [START howto_operator_jdbc]
     insert_data = JdbcOperator(
-        task_id='insert_data',
-        sql='insert into my_schema.my_table select dt, value from my_schema.source_data',
-        jdbc_conn_id='my_jdbc_connection',
+        task_id="insert_data",
+        sql="insert into my_schema.my_table select dt, value from my_schema.source_data",
+        jdbc_conn_id="my_jdbc_connection",
         autocommit=True,
     )
     # [END howto_operator_jdbc]

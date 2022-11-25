@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS SQS hook"""
-import warnings
-from typing import Dict, Optional
+from __future__ import annotations
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -38,7 +36,7 @@ class SqsHook(AwsBaseHook):
         kwargs["client_type"] = "sqs"
         super().__init__(*args, **kwargs)
 
-    def create_queue(self, queue_name: str, attributes: Optional[Dict] = None) -> Dict:
+    def create_queue(self, queue_name: str, attributes: dict | None = None) -> dict:
         """
         Create queue using connection object
 
@@ -48,7 +46,6 @@ class SqsHook(AwsBaseHook):
 
         :return: dict with the information about the queue
             For details of the returned value see :py:meth:`SQS.create_queue`
-        :rtype: dict
         """
         return self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})
 
@@ -57,8 +54,9 @@ class SqsHook(AwsBaseHook):
         queue_url: str,
         message_body: str,
         delay_seconds: int = 0,
-        message_attributes: Optional[Dict] = None,
-    ) -> Dict:
+        message_attributes: dict | None = None,
+        message_group_id: str | None = None,
+    ) -> dict:
         """
         Send message to the queue
 
@@ -67,29 +65,19 @@ class SqsHook(AwsBaseHook):
         :param delay_seconds: seconds to delay the message
         :param message_attributes: additional attributes for the message (default: None)
             For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
+        :param message_group_id: This applies only to FIFO (first-in-first-out) queues. (default: None)
+            For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
 
         :return: dict with the information about the message sent
             For details of the returned value see :py:meth:`botocore.client.SQS.send_message`
-        :rtype: dict
         """
-        return self.get_conn().send_message(
-            QueueUrl=queue_url,
-            MessageBody=message_body,
-            DelaySeconds=delay_seconds,
-            MessageAttributes=message_attributes or {},
-        )
+        params = {
+            "QueueUrl": queue_url,
+            "MessageBody": message_body,
+            "DelaySeconds": delay_seconds,
+            "MessageAttributes": message_attributes or {},
+        }
+        if message_group_id:
+            params["MessageGroupId"] = message_group_id
 
-
-class SQSHook(SqsHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.sqs.SqsHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use :class:`airflow.providers.amazon.aws.hooks.sqs.SqsHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
+        return self.get_conn().send_message(**params)

@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Airflow System Test DAG that verifies BigQueryToBigQueryOperator.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -37,16 +38,21 @@ DAG_ID = "bigquery_to_bigquery"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 ORIGIN = "origin"
 TARGET = "target"
+LOCATION = "US"
 
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "bigquery"],
 ) as dag:
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset",
+        dataset_id=DATASET_NAME,
+        location=LOCATION,
+    )
 
     create_origin_table = BigQueryCreateEmptyTableOperator(
         task_id="create_origin_table",

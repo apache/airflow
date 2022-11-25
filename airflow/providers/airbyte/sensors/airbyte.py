@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
@@ -36,14 +38,14 @@ class AirbyteJobSensor(BaseSensorOperator):
     :param api_version: Optional. Airbyte API version.
     """
 
-    template_fields: Sequence[str] = ('airbyte_job_id',)
-    ui_color = '#6C51FD'
+    template_fields: Sequence[str] = ("airbyte_job_id",)
+    ui_color = "#6C51FD"
 
     def __init__(
         self,
         *,
         airbyte_job_id: int,
-        airbyte_conn_id: str = 'airbyte_default',
+        airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
         **kwargs,
     ) -> None:
@@ -52,10 +54,10 @@ class AirbyteJobSensor(BaseSensorOperator):
         self.airbyte_job_id = airbyte_job_id
         self.api_version = api_version
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job = hook.get_job(job_id=self.airbyte_job_id)
-        status = job.json()['job']['status']
+        status = job.json()["job"]["status"]
 
         if status == hook.FAILED:
             raise AirflowException(f"Job failed: \n{job}")

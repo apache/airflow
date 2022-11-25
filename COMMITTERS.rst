@@ -27,7 +27,7 @@ Before reading this document, you should be familiar with `Contributor's guide <
 Guidelines to become an Airflow Committer
 ------------------------------------------
 
-Committers are community members who have write access to the project’s
+Committers are community members who have write access to the project's
 repositories, i.e., they can modify the code, documentation, and website by themselves and also
 accept other contributions. There is no strict protocol for becoming a committer. Candidates for new
 committers are typically people that are active contributors and community members.
@@ -75,9 +75,10 @@ Code contribution
 Community contributions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.  Was instrumental in triaging issues
-2.  Improved documentation of Airflow in significant way
-3.  Lead change and improvements introduction in the “community” processes and tools
+1.  Actively participates in `triaging issues <ISSUE_TRIAGE_PROCESS.rst>`_ showing their understanding
+    of various areas of Airflow and willingness to help other community members.
+2.  Improves documentation of Airflow in significant way
+3.  Leads/implements changes and improvements introduction in the "community" processes and tools
 4.  Actively spreads the word about Airflow, for example organising Airflow summit, workshops for
     community members, giving and recording talks, writing blogs
 5.  Reporting bugs with detailed reproduction steps

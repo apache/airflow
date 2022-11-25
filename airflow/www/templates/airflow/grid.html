@@ -26,6 +26,7 @@
   <meta name="num_runs" content="{{ num_runs }}">
   <meta name="root" content="{{ root if root else '' }}">
   <meta name="base_date" content="{{ request.args.get('base_date') if request.args.get('base_date') else '' }}">
+  <meta name="default_wrap" content="{{ default_wrap }}">
 {% endblock %}
 
 {% block content %}

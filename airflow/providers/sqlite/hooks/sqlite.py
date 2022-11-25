@@ -15,19 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import sqlite3
 
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class SqliteHook(DbApiHook):
     """Interact with SQLite."""
 
-    conn_name_attr = 'sqlite_conn_id'
-    default_conn_name = 'sqlite_default'
-    conn_type = 'sqlite'
-    hook_name = 'Sqlite'
+    conn_name_attr = "sqlite_conn_id"
+    default_conn_name = "sqlite_default"
+    conn_type = "sqlite"
+    hook_name = "Sqlite"
+    placeholder = "?"
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
         """Returns a sqlite connection object"""
@@ -41,33 +43,3 @@ class SqliteHook(DbApiHook):
         conn_id = getattr(self, self.conn_name_attr)
         airflow_conn = self.get_connection(conn_id)
         return f"sqlite:///{airflow_conn.host}"
-
-    @staticmethod
-    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
-        """
-        Static helper method that generates the INSERT SQL statement.
-        The REPLACE variant is specific to MySQL syntax.
-
-        :param table: Name of the target table
-        :param values: The row to insert into the table
-        :param target_fields: The names of the columns to fill in the table
-        :param replace: Whether to replace instead of insert
-        :return: The generated INSERT or REPLACE SQL statement
-        :rtype: str
-        """
-        placeholders = [
-            "?",
-        ] * len(values)
-
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = f"({target_fields})"
-        else:
-            target_fields = ''
-
-        if not replace:
-            sql = "INSERT INTO "
-        else:
-            sql = "REPLACE INTO "
-        sql += f"{table} {target_fields} VALUES ({','.join(placeholders)})"
-        return sql

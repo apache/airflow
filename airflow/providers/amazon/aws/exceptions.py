@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
-import warnings
 
 
 class EcsTaskFailToStart(Exception):
@@ -42,19 +42,3 @@ class EcsOperatorError(Exception):
 
     def __reduce__(self):
         return EcsOperatorError, (self.failures, self.message)
-
-
-class ECSOperatorError(EcsOperatorError):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.exceptions.EcsOperatorError`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.exceptions.EcsOperatorError`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

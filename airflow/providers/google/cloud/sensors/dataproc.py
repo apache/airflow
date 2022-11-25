@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Dataproc Job sensor."""
+from __future__ import annotations
+
 # pylint: disable=C0302
 import time
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
@@ -43,17 +45,17 @@ class DataprocJobSensor(BaseSensorOperator):
     :param wait_timeout: How many seconds wait for job to be ready.
     """
 
-    template_fields: Sequence[str] = ('project_id', 'region', 'dataproc_job_id')
-    ui_color = '#f0eee4'
+    template_fields: Sequence[str] = ("project_id", "region", "dataproc_job_id")
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
         *,
         dataproc_job_id: str,
         region: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        wait_timeout: Optional[int] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        wait_timeout: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -62,16 +64,16 @@ class DataprocJobSensor(BaseSensorOperator):
         self.dataproc_job_id = dataproc_job_id
         self.region = region
         self.wait_timeout = wait_timeout
-        self.start_sensor_time: Optional[float] = None
+        self.start_sensor_time: float | None = None
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         self.start_sensor_time = time.monotonic()
         super().execute(context)
 
     def _duration(self):
         return time.monotonic() - self.start_sensor_time
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
         if self.wait_timeout:
             try:
@@ -93,13 +95,13 @@ class DataprocJobSensor(BaseSensorOperator):
 
         state = job.status.state
         if state == JobStatus.State.ERROR:
-            raise AirflowException(f'Job failed:\n{job}')
+            raise AirflowException(f"Job failed:\n{job}")
         elif state in {
             JobStatus.State.CANCELLED,
             JobStatus.State.CANCEL_PENDING,
             JobStatus.State.CANCEL_STARTED,
         }:
-            raise AirflowException(f'Job was cancelled:\n{job}')
+            raise AirflowException(f"Job was cancelled:\n{job}")
         elif JobStatus.State.DONE == state:
             self.log.debug("Job %s completed successfully.", self.dataproc_job_id)
             return True

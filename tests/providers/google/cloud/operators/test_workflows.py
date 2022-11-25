@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 from unittest import mock
 
@@ -278,10 +280,10 @@ class TestWorkflowExecutionsCreateExecutionOperator:
             context,
             key="workflow_execution",
             value={
-                'location_id': LOCATION,
-                'workflow_id': WORKFLOW_ID,
-                'execution_id': EXECUTION_ID,
-                'project_id': PROJECT_ID,
+                "location_id": LOCATION,
+                "workflow_id": WORKFLOW_ID,
+                "execution_id": EXECUTION_ID,
+                "project_id": PROJECT_ID,
             },
         )
         assert result == mock_object.to_dict.return_value

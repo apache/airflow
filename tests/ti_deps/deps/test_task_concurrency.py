@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-
-import unittest
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -27,9 +26,9 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 
 
-class TestTaskConcurrencyDep(unittest.TestCase):
+class TestTaskConcurrencyDep:
     def _get_task(self, **kwargs):
-        return BaseOperator(task_id='test_task', dag=DAG('test_dag'), **kwargs)
+        return BaseOperator(task_id="test_task", dag=DAG("test_dag"), **kwargs)
 
     def test_not_task_concurrency(self):
         task = self._get_task(start_date=datetime(2016, 1, 1))

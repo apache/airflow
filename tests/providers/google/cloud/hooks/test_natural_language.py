@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -27,7 +28,7 @@ from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLa
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
-API_RESPONSE = {}  # type: Dict[Any, Any]
+API_RESPONSE: dict[Any, Any] = {}
 DOCUMENT = Document(
     content="Airflow is a platform to programmatically author, schedule and monitor workflows."
 )
@@ -43,7 +44,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             self.hook = CloudNaturalLanguageHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook._get_credentials"
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_credentials"
     )
     @mock.patch("airflow.providers.google.cloud.hooks.natural_language.LanguageServiceClient")
     def test_language_service_client_creation(self, mock_client, mock_get_creds):

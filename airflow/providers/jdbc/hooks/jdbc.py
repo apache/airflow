@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import jaydebeapi
 
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models.connection import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class JdbcHook(DbApiHook):
@@ -33,41 +34,53 @@ class JdbcHook(DbApiHook):
     Raises an airflow error if the given connection id doesn't exist.
     """
 
-    conn_name_attr = 'jdbc_conn_id'
-    default_conn_name = 'jdbc_default'
-    conn_type = 'jdbc'
-    hook_name = 'JDBC Connection'
+    conn_name_attr = "jdbc_conn_id"
+    default_conn_name = "jdbc_default"
+    conn_type = "jdbc"
+    hook_name = "JDBC Connection"
     supports_autocommit = True
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
         return {
-            "extra__jdbc__drv_path": StringField(lazy_gettext('Driver Path'), widget=BS3TextFieldWidget()),
-            "extra__jdbc__drv_clsname": StringField(
-                lazy_gettext('Driver Class'), widget=BS3TextFieldWidget()
-            ),
+            "drv_path": StringField(lazy_gettext("Driver Path"), widget=BS3TextFieldWidget()),
+            "drv_clsname": StringField(lazy_gettext("Driver Class"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['port', 'schema', 'extra'],
-            "relabeling": {'host': 'Connection URL'},
+            "hidden_fields": ["port", "schema", "extra"],
+            "relabeling": {"host": "Connection URL"},
         }
+
+    def _get_field(self, extras: dict, field_name: str):
+        """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+        backcompat_prefix = "extra__jdbc__"
+        if field_name.startswith("extra__"):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+                "when using this method."
+            )
+        if field_name in extras:
+            return extras[field_name] or None
+        prefixed_name = f"{backcompat_prefix}{field_name}"
+        return extras.get(prefixed_name) or None
 
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        extras = conn.extra_dejson
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
-        jdbc_driver_loc: Optional[str] = conn.extra_dejson.get('extra__jdbc__drv_path')
-        jdbc_driver_name: Optional[str] = conn.extra_dejson.get('extra__jdbc__drv_clsname')
+        jdbc_driver_loc: str | None = self._get_field(extras, "drv_path")
+        jdbc_driver_name: str | None = self._get_field(extras, "drv_clsname")
 
         conn = jaydebeapi.connect(
             jclassname=jdbc_driver_name,
@@ -94,6 +107,5 @@ class JdbcHook(DbApiHook):
 
         :param conn: The connection.
         :return: connection autocommit setting.
-        :rtype: bool
         """
         return conn.jconn.getAutoCommit()

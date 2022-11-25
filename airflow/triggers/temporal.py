@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import asyncio
 import datetime
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
@@ -25,6 +26,8 @@ from airflow.utils import timezone
 
 class DateTimeTrigger(BaseTrigger):
     """
+    Trigger based on a datetime.
+
     A trigger that fires exactly once, at the given datetime, give or take
     a few seconds.
 
@@ -43,7 +46,7 @@ class DateTimeTrigger(BaseTrigger):
         else:
             self.moment = moment
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         return ("airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
 
     async def run(self):
@@ -67,6 +70,8 @@ class DateTimeTrigger(BaseTrigger):
 
 class TimeDeltaTrigger(DateTimeTrigger):
     """
+    Create DateTimeTriggers based on delays.
+
     Subclass to create DateTimeTriggers based on time delays rather
     than exact moments.
 

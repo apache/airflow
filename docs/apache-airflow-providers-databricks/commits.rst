@@ -28,14 +28,102 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2022-11-24
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`ea306c9462 <https://github.com/apache/airflow/commit/ea306c9462615d6b215d43f7f17d68f4c62951b1>`_  2022-11-24   ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+`a343bba1e3 <https://github.com/apache/airflow/commit/a343bba1e39a1b28c469974fc87eb106c9f67db8>`_  2022-11-23   ``Fix templating fields and do_xcom_push in DatabricksSQLOperator (#27868)``
+=================================================================================================  ===========  ==============================================================================
+
+3.4.0
+.....
+
+Latest change: 2022-11-15
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
+`00af5c007e <https://github.com/apache/airflow/commit/00af5c007ef2200401b53c40236e664758e47f27>`_  2022-11-14   ``Replace urlparse with urlsplit (#27389)``
+`eb06c65556 <https://github.com/apache/airflow/commit/eb06c655561737a82d6f99b233c28bbc7f32a28d>`_  2022-11-11   ``Use new job search API for triggering Databricks job by name (#27446)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`ecd4d6654f <https://github.com/apache/airflow/commit/ecd4d6654ff8e0da4a7b8f29fd23c37c9c219076>`_  2022-10-18   ``Add SQLExecuteQueryOperator (#25717)``
+=================================================================================================  ===========  =========================================================================
+
+3.3.0
+.....
+
+Latest change: 2022-09-28
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
+`89e44c46ad <https://github.com/apache/airflow/commit/89e44c46add19b37e82d0769ce08d57885732856>`_  2022-09-27   ``Remove duplicated connection-type within the provider (#26628)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`5066844513 <https://github.com/apache/airflow/commit/50668445137e4037bb4a3b652bec22e53d1eddd7>`_  2022-09-09   ``D400 first line should end with period batch02 (#25268)``
+`25a9c6a905 <https://github.com/apache/airflow/commit/25a9c6a9058b829fc038fdd3fc789890e563bd1d>`_  2022-08-26   ``DatabricksSubmitRunOperator dbt task support (#25623)``
+`9535ec0bba <https://github.com/apache/airflow/commit/9535ec0bbae112f78f0e8ccde6b5aff39f3fa75b>`_  2022-08-22   ``Databricks: fix provider name in the User-Agent string (#25873)``
+`ca9229b6fe <https://github.com/apache/airflow/commit/ca9229b6fe7eda198c7ce32da13afb97ab9f3e28>`_  2022-08-18   ``Add common-sql lower bound for common-sql (#25789)``
+=================================================================================================  ===========  ====================================================================================
+
+3.2.0
+.....
+
+Latest change: 2022-08-15
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`7d0525a55b <https://github.com/apache/airflow/commit/7d0525a55b93e5c8de8a9ef0c8dde0f9c93bb80c>`_  2022-08-15   ``Prepare documentation for RC4 release of providers (#25720)``
+`4d32f61fd0 <https://github.com/apache/airflow/commit/4d32f61fd049889b49b4ce8b664d8e134aecb053>`_  2022-08-12   ``Databricks: Fix provider for Airflow 2.2.x (#25674)``
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
+`52f2f5bfa8 <https://github.com/apache/airflow/commit/52f2f5bfa8ac83b5514f82ba22c710d659dc0b2f>`_  2022-08-07   ``Databricks: update user-agent string (#25578)``
+`0255a0a5e7 <https://github.com/apache/airflow/commit/0255a0a5e7b93f2daa3a51792cd38d19d6a373c0>`_  2022-08-04   ``Do not convert boolean values to string in deep_string_coerce function (#25394)``
+`679a85325a <https://github.com/apache/airflow/commit/679a85325a73fac814c805c8c34d752ae7a94312>`_  2022-08-03   ``Correctly handle output of the failed tasks (#25427)``
+`82f842ffc5 <https://github.com/apache/airflow/commit/82f842ffc56817eb039f1c4f1e2c090e6941c6af>`_  2022-07-28   ``updated documentation for databricks operator (#24599)``
+`54a8c4fd2a <https://github.com/apache/airflow/commit/54a8c4fd2a1d1af6166f43d588dca8ce24bd058b>`_  2022-07-27   ``More improvements in the Databricks operators (#25260)``
+`7438707747 <https://github.com/apache/airflow/commit/7438707747db20ace6afa38900d111df8611c558>`_  2022-07-26   ``Improved telemetry for Databricks provider (#25115)``
+`df00436569 <https://github.com/apache/airflow/commit/df00436569bb6fb79ce8c0b7ca71dddf02b854ef>`_  2022-07-22   ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+`2f70daf5ac <https://github.com/apache/airflow/commit/2f70daf5ac36100ff0bbd4ac66ce921a2bc6dea0>`_  2022-07-18   ``Databricks: fix test_connection implementation (#25114)``
+=================================================================================================  ===========  ===================================================================================
+
+3.1.0
+.....
+
+Latest change: 2022-07-13
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
+`8dfe7bf5ff <https://github.com/apache/airflow/commit/8dfe7bf5ff090a675353a49da21407dffe2fc15e>`_  2022-07-11   ``Added databricks_conn_id as templated field (#24945)``
+`acaa0635c8 <https://github.com/apache/airflow/commit/acaa0635c8477c98ab78da9f6d86e6f1bad2737d>`_  2022-07-08   ``Automatically detect if non-lazy logging interpolation is used (#24910)``
+`46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
+`96b01a8012 <https://github.com/apache/airflow/commit/96b01a8012d164df7c24c460149d3b79ecad3901>`_  2022-07-05   ``Remove "bad characters" from our codebase (#24841)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`ed37c3a0e8 <https://github.com/apache/airflow/commit/ed37c3a0e87f64e6942497c5d4c15078a5e02d16>`_  2022-06-28   ``Add 'test_connection' method to Databricks hook (#24617)``
+`9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
+=================================================================================================  ===========  =============================================================================
+
 3.0.0
 .....
 
-Latest change: 2022-06-07
+Latest change: 2022-06-09
 
 =================================================================================================  ===========  =======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``

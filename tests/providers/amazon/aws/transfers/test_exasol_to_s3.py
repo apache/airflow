@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from Exasol database into a S3 Bucket."""
+from __future__ import annotations
+
 from unittest import mock
 
 from airflow.providers.amazon.aws.transfers.exasol_to_s3 import ExasolToS3Operator

@@ -171,9 +171,3 @@ Airflow tries to only run triggers in one place at once, and maintains a heartbe
 This means it's possible, but unlikely, for triggers to run in multiple places at once; this is designed into the Trigger contract, however, and entirely expected. Airflow will de-duplicate events fired when a trigger is running in multiple places simultaneously, so this process should be transparent to your Operators.
 
 Note that every extra ``triggerer`` you run will result in an extra persistent connection to your database.
-
-
-Smart Sensors
--------------
-
-Deferrable Operators supersede :doc:`Smart Sensors <smart-sensors>`. They do solve fundamentally the same problem; Smart Sensors, however, only work for certain Sensor workload styles, have no redundancy, and require a custom DAG to run at all times.

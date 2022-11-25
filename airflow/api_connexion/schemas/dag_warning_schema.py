@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, NamedTuple
+from __future__ import annotations
+
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -23,10 +25,10 @@ from airflow.models.dagwarning import DagWarning
 
 
 class DagWarningSchema(SQLAlchemySchema):
-    """Import error schema"""
+    """Import error schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DagWarning
 
@@ -37,14 +39,14 @@ class DagWarningSchema(SQLAlchemySchema):
 
 
 class DagWarningCollection(NamedTuple):
-    """List of dag warnings with metadata"""
+    """List of dag warnings with metadata."""
 
-    dag_warnings: List[DagWarning]
+    dag_warnings: list[DagWarning]
     total_entries: int
 
 
 class DagWarningCollectionSchema(Schema):
-    """Import error collection schema"""
+    """Import error collection schema."""
 
     dag_warnings = fields.List(fields.Nested(DagWarningSchema))
     total_entries = fields.Int()

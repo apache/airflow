@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -40,17 +42,17 @@ class DisplayVideoSystemTest(GoogleSystemTest):
         self.delete_gcs_bucket(BUCKET)
         with provide_gcp_context(GCP_BIGQUERY_KEY, scopes=SCOPES):
             hook = BigQueryHook()
-            hook.delete_dataset(dataset_id='airflow_test', delete_contents=True)
+            hook.delete_dataset(dataset_id="airflow_test", delete_contents=True)
             super().tearDown()
 
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag(self):
-        self.run_dag('example_display_video', MARKETING_DAG_FOLDER)
+        self.run_dag("example_display_video", MARKETING_DAG_FOLDER)
 
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag_misc(self):
-        self.run_dag('example_display_video_misc', MARKETING_DAG_FOLDER)
+        self.run_dag("example_display_video_misc", MARKETING_DAG_FOLDER)
 
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag_sdf(self):
-        self.run_dag('example_display_video_sdf', MARKETING_DAG_FOLDER)
+        self.run_dag("example_display_video_sdf", MARKETING_DAG_FOLDER)

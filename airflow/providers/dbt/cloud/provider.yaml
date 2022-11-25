@@ -22,12 +22,17 @@ description: |
     `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
 versions:
+  - 2.3.0
+  - 2.2.0
+  - 2.1.0
+  - 2.0.1
   - 2.0.0
   - 1.0.2
   - 1.0.1
 
-additional-dependencies:
-  - apache-airflow>=2.2.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - apache-airflow-providers-http
 
 integrations:
   - integration-name: dbt Cloud

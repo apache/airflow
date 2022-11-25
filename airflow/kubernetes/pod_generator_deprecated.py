@@ -20,11 +20,12 @@ API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
 """
+from __future__ import annotations
+
 import copy
 import hashlib
 import re
 import uuid
-from typing import Dict, List, Optional, Union
 
 from kubernetes.client import models as k8s
 
@@ -36,15 +37,15 @@ MAX_LABEL_LEN = 63
 class PodDefaults:
     """Static defaults for Pods"""
 
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
+    XCOM_MOUNT_PATH = "/airflow/xcom"
+    SIDECAR_CONTAINER_NAME = "airflow-xcom-sidecar"
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
-    VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
+    VOLUME_MOUNT = k8s.V1VolumeMount(name="xcom", mount_path=XCOM_MOUNT_PATH)
+    VOLUME = k8s.V1Volume(name="xcom", empty_dir=k8s.V1EmptyDirVolumeSource())
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
+        command=["sh", "-c", XCOM_CMD],
+        image="alpine",
         volume_mounts=[VOLUME_MOUNT],
         resources=k8s.V1ResourceRequirements(
             requests={
@@ -117,38 +118,38 @@ class PodGenerator:
 
     def __init__(
         self,
-        image: Optional[str] = None,
-        name: Optional[str] = None,
-        namespace: Optional[str] = None,
-        volume_mounts: Optional[List[Union[k8s.V1VolumeMount, dict]]] = None,
-        envs: Optional[Dict[str, str]] = None,
-        cmds: Optional[List[str]] = None,
-        args: Optional[List[str]] = None,
-        labels: Optional[Dict[str, str]] = None,
-        node_selectors: Optional[Dict[str, str]] = None,
-        ports: Optional[List[Union[k8s.V1ContainerPort, dict]]] = None,
-        volumes: Optional[List[Union[k8s.V1Volume, dict]]] = None,
-        image_pull_policy: Optional[str] = None,
-        restart_policy: Optional[str] = None,
-        image_pull_secrets: Optional[str] = None,
-        init_containers: Optional[List[k8s.V1Container]] = None,
-        service_account_name: Optional[str] = None,
-        resources: Optional[Union[k8s.V1ResourceRequirements, dict]] = None,
-        annotations: Optional[Dict[str, str]] = None,
-        affinity: Optional[dict] = None,
+        image: str | None = None,
+        name: str | None = None,
+        namespace: str | None = None,
+        volume_mounts: list[k8s.V1VolumeMount | dict] | None = None,
+        envs: dict[str, str] | None = None,
+        cmds: list[str] | None = None,
+        args: list[str] | None = None,
+        labels: dict[str, str] | None = None,
+        node_selectors: dict[str, str] | None = None,
+        ports: list[k8s.V1ContainerPort | dict] | None = None,
+        volumes: list[k8s.V1Volume | dict] | None = None,
+        image_pull_policy: str | None = None,
+        restart_policy: str | None = None,
+        image_pull_secrets: str | None = None,
+        init_containers: list[k8s.V1Container] | None = None,
+        service_account_name: str | None = None,
+        resources: k8s.V1ResourceRequirements | dict | None = None,
+        annotations: dict[str, str] | None = None,
+        affinity: dict | None = None,
         hostnetwork: bool = False,
-        tolerations: Optional[list] = None,
-        security_context: Optional[Union[k8s.V1PodSecurityContext, dict]] = None,
-        configmaps: Optional[List[str]] = None,
-        dnspolicy: Optional[str] = None,
-        schedulername: Optional[str] = None,
+        tolerations: list | None = None,
+        security_context: k8s.V1PodSecurityContext | dict | None = None,
+        configmaps: list[str] | None = None,
+        dnspolicy: str | None = None,
+        schedulername: str | None = None,
         extract_xcom: bool = False,
-        priority_class_name: Optional[str] = None,
+        priority_class_name: str | None = None,
     ):
 
         self.pod = k8s.V1Pod()
-        self.pod.api_version = 'v1'
-        self.pod.kind = 'Pod'
+        self.pod.api_version = "v1"
+        self.pod.kind = "Pod"
 
         # Pod Metadata
         self.metadata = k8s.V1ObjectMeta()
@@ -158,7 +159,7 @@ class PodGenerator:
         self.metadata.annotations = annotations
 
         # Pod Container
-        self.container = k8s.V1Container(name='base')
+        self.container = k8s.V1Container(name="base")
         self.container.image = image
         self.container.env = []
 
@@ -204,7 +205,7 @@ class PodGenerator:
         self.spec.image_pull_secrets = []
 
         if image_pull_secrets:
-            for image_pull_secret in image_pull_secrets.split(','):
+            for image_pull_secret in image_pull_secrets.split(","):
                 self.spec.image_pull_secrets.append(k8s.V1LocalObjectReference(name=image_pull_secret))
 
         # Attach sidecar
@@ -240,7 +241,7 @@ class PodGenerator:
         return pod_cp
 
     @staticmethod
-    def from_obj(obj) -> Optional[k8s.V1Pod]:
+    def from_obj(obj) -> k8s.V1Pod | None:
         """Converts to pod from obj"""
         if obj is None:
             return None
@@ -250,8 +251,8 @@ class PodGenerator:
 
         if not isinstance(obj, dict):
             raise TypeError(
-                'Cannot convert a non-dictionary or non-PodGenerator '
-                'object into a KubernetesExecutorConfig'
+                "Cannot convert a non-dictionary or non-PodGenerator "
+                "object into a KubernetesExecutorConfig"
             )
 
         # We do not want to extract constant here from ExecutorLoader because it is just
@@ -261,25 +262,25 @@ class PodGenerator:
         if not namespaced:
             return None
 
-        resources = namespaced.get('resources')
+        resources = namespaced.get("resources")
 
         if resources is None:
             requests = {
-                'cpu': namespaced.get('request_cpu'),
-                'memory': namespaced.get('request_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage'),
+                "cpu": namespaced.get("request_cpu"),
+                "memory": namespaced.get("request_memory"),
+                "ephemeral-storage": namespaced.get("ephemeral-storage"),
             }
             limits = {
-                'cpu': namespaced.get('limit_cpu'),
-                'memory': namespaced.get('limit_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage'),
+                "cpu": namespaced.get("limit_cpu"),
+                "memory": namespaced.get("limit_memory"),
+                "ephemeral-storage": namespaced.get("ephemeral-storage"),
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):
                 resources = None
             else:
                 resources = k8s.V1ResourceRequirements(requests=requests, limits=limits)
-        namespaced['resources'] = resources
+        namespaced["resources"] = resources
         return PodGenerator(**namespaced).gen_pod()
 
     @staticmethod

@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """Add ``executor_config`` column to ``task_instance`` table
 
 Revision ID: 33ae817a1ff4
@@ -23,17 +21,18 @@ Revises: 947454bf1dff
 Create Date: 2017-09-11 15:26:47.598494
 
 """
+from __future__ import annotations
 
 import dill
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '27c6a30d7c24'
-down_revision = '33ae817a1ff4'
+revision = "27c6a30d7c24"
+down_revision = "33ae817a1ff4"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.0'
+airflow_version = "1.10.0"
 
 TASK_INSTANCE_TABLE = "task_instance"
 NEW_COLUMN = "executor_config"

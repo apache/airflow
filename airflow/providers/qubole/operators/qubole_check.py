@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import Callable, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Callable, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.operators.sql import SQLCheckOperator, SQLValueCheckOperator
+from airflow.providers.common.sql.operators.sql import SQLCheckOperator, SQLValueCheckOperator
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 
@@ -28,7 +29,7 @@ class _QuboleCheckOperatorMixin:
     """This is a Mixin for Qubole related check operators"""
 
     kwargs: dict
-    results_parser_callable: Optional[Callable]
+    results_parser_callable: Callable | None
 
     def execute(self, context=None) -> None:
         """Execute a check operation against Qubole"""
@@ -86,18 +87,14 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         :ref:`howto/operator:QuboleCheckOperator`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
+    :param results_parser_callable: This is an optional parameter to extend the flexibility of parsing the
+        results of Qubole command to the users. This is a Python callable which can hold the logic to parse
+        list of rows returned by Qubole command. By default, only the values on first row are used for
+        performing checks. This callable should return a list of records on which the checks have to be
+        performed.
 
     kwargs:
-
         Arguments specific to Qubole command can be referred from QuboleOperator docs.
-
-        :results_parser_callable: This is an optional parameter to
-            extend the flexibility of parsing the results of Qubole
-            command to the users. This is a python callable which
-            can hold the logic to parse list of rows returned by Qubole command.
-            By default, only the values on first row are used for performing checks.
-            This callable should return a list of records on
-            which the checks have to be performed.
 
     .. note:: All fields in common with template fields of
         QuboleOperator and SQLCheckOperator are template-supported.
@@ -108,17 +105,17 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         set(QuboleOperator.template_fields) | set(SQLCheckOperator.template_fields)
     )
     template_ext = QuboleOperator.template_ext
-    ui_fgcolor = '#000'
+    ui_fgcolor = "#000"
 
     def __init__(
         self,
         *,
         qubole_conn_id: str = "qubole_default",
-        results_parser_callable: Optional[Callable] = None,
+        results_parser_callable: Callable | None = None,
         **kwargs,
     ) -> None:
         sql = get_sql_from_qbol_cmd(kwargs)
-        kwargs.pop('sql', None)
+        kwargs.pop("sql", None)
         super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, **kwargs)
         self.results_parser_callable = results_parser_callable
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
@@ -138,27 +135,18 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
     is not within the permissible limit of expected value.
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-
     :param pass_value: Expected value of the query results.
-
-    :param tolerance: Defines the permissible pass_value range, for example if
-        tolerance is 2, the Qubole command output can be anything between
-        -2*pass_value and 2*pass_value, without the operator erring out.
-
-
+    :param tolerance: Defines the permissible pass_value range, for example if tolerance is 2, the Qubole
+        command output can be anything between -2*pass_value and 2*pass_value, without the operator erring
+        out.
+    :param results_parser_callable: This is an optional parameter to extend the flexibility of parsing the
+        results of Qubole command to the users. This is a Python callable which can hold the logic to parse
+        list of rows returned by Qubole command. By default, only the values on first row are used for
+        performing checks. This callable should return a list of records on which the checks have to be
+        performed.
 
     kwargs:
-
         Arguments specific to Qubole command can be referred from QuboleOperator docs.
-
-        :results_parser_callable: This is an optional parameter to
-            extend the flexibility of parsing the results of Qubole
-            command to the users. This is a python callable which
-            can hold the logic to parse list of rows returned by Qubole command.
-            By default, only the values on first row are used for performing checks.
-            This callable should return a list of records on
-            which the checks have to be performed.
-
 
     .. note:: All fields in common with template fields of
             QuboleOperator and SQLValueCheckOperator are template-supported.
@@ -166,19 +154,19 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
 
     template_fields = tuple(set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields))
     template_ext = QuboleOperator.template_ext
-    ui_fgcolor = '#000'
+    ui_fgcolor = "#000"
 
     def __init__(
         self,
         *,
-        pass_value: Union[str, int, float],
-        tolerance: Optional[Union[int, float]] = None,
-        results_parser_callable: Optional[Callable] = None,
+        pass_value: str | int | float,
+        tolerance: int | float | None = None,
+        results_parser_callable: Callable | None = None,
         qubole_conn_id: str = "qubole_default",
         **kwargs,
     ) -> None:
         sql = get_sql_from_qbol_cmd(kwargs)
-        kwargs.pop('sql', None)
+        kwargs.pop("sql", None)
         super().__init__(
             qubole_conn_id=qubole_conn_id, sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs
         )
@@ -190,11 +178,11 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
 
 def get_sql_from_qbol_cmd(params) -> str:
     """Get Qubole sql from Qubole command"""
-    sql = ''
-    if 'query' in params:
-        sql = params['query']
-    elif 'sql' in params:
-        sql = params['sql']
+    sql = ""
+    if "query" in params:
+        sql = params["query"]
+    elif "sql" in params:
+        sql = params["sql"]
     return sql
 
 
@@ -206,7 +194,7 @@ def handle_airflow_exception(airflow_exception, hook: QuboleCheckHook):
             qubole_command_results = hook.get_query_results()
             qubole_command_id = cmd.id
             exception_message = (
-                f'\nQubole Command Id: {qubole_command_id}\nQubole Command Results:\n{qubole_command_results}'
+                f"\nQubole Command Id: {qubole_command_id}\nQubole Command Results:\n{qubole_command_results}"
             )
             raise AirflowException(str(airflow_exception) + exception_message)
     raise AirflowException(str(airflow_exception))

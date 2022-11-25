@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from sqlalchemy.orm.session import Session
 
@@ -43,7 +44,7 @@ def get_extra_links(
     task_id: str,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get extra links for task instance"""
+    """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
     dagbag: DagBag = get_airflow_app().dag_bag
@@ -73,6 +74,6 @@ def get_extra_links(
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
     )
     all_extra_links = {
-        link_name: link_url if link_url else None for link_name, link_url in all_extra_link_pairs
+        link_name: link_url if link_url else None for link_name, link_url in sorted(all_extra_link_pairs)
     }
     return all_extra_links

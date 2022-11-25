@@ -14,26 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.utils.docs import get_docs_url
 
 
 def init_appbuilder_links(app):
-    """Add links to Docs menu in navbar"""
+    """Add links to the navbar"""
     appbuilder = app.appbuilder
+
+    appbuilder.add_link(name="DAGs", href="Airflow.index")
+    appbuilder.menu.menu.insert(0, appbuilder.menu.menu.pop())  # Place in the first menu slot
+    appbuilder.add_link(name="Datasets", href="Airflow.datasets")
+    appbuilder.menu.menu.insert(1, appbuilder.menu.menu.pop())  # Place in the second menu slot
+
+    # Docs links
     appbuilder.add_link(name="Documentation", label="Documentation", href=get_docs_url(), category="Docs")
     appbuilder.add_link(
-        name="Documentation", label="Airflow Website", href='https://airflow.apache.org', category="Docs"
+        name="Documentation", label="Airflow Website", href="https://airflow.apache.org", category="Docs"
     )
     appbuilder.add_link(
-        name="Documentation", label="GitHub Repo", href='https://github.com/apache/airflow', category="Docs"
+        name="Documentation", label="GitHub Repo", href="https://github.com/apache/airflow", category="Docs"
     )
     appbuilder.add_link(
         name="Documentation",
         label="REST API Reference (Swagger UI)",
-        href='/api/v1./api/v1_swagger_ui_index',
+        href="/api/v1./api/v1_swagger_ui_index",
         category="Docs",
     )
     appbuilder.add_link(
-        name="Documentation", label="REST API Reference (Redoc)", href="RedocView.redoc", category='Docs'
+        name="Documentation", label="REST API Reference (Redoc)", href="RedocView.redoc", category="Docs"
     )

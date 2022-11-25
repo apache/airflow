@@ -14,17 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
-from typing import TYPE_CHECKING, Set, Tuple
+from typing import TYPE_CHECKING
 
 from flask import current_app, g
 from flask_appbuilder.models.sqla import Model
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    UniqueConstraint,
+    event,
+    func,
+)
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship
 
@@ -134,7 +147,9 @@ class User(Model):
     id = Column(Integer, primary_key=True)
     first_name = Column(String(64), nullable=False)
     last_name = Column(String(64), nullable=False)
-    username = Column(String(256), unique=True, nullable=False)
+    username = Column(
+        String(256).with_variant(String(256, collation="NOCASE"), "sqlite"), unique=True, nullable=False
+    )
     password = Column(String(256))
     active = Column(Boolean)
     email = Column(String(256), unique=True, nullable=False)
@@ -194,7 +209,7 @@ class User(Model):
             # the path for every request. Avoid it if we can!
             if current_app:
                 sm = current_app.appbuilder.sm
-                self._perms: Set[Tuple[str, str]] = set(
+                self._perms: set[tuple[str, str]] = set(
                     sm.get_session.query(sm.action_model.name, sm.resource_model.name)
                     .join(sm.permission_model.action)
                     .join(sm.permission_model.resource)
@@ -227,8 +242,24 @@ class RegisterUser(Model):
     id = Column(Integer, primary_key=True)
     first_name = Column(String(64), nullable=False)
     last_name = Column(String(64), nullable=False)
-    username = Column(String(256), unique=True, nullable=False)
+    username = Column(
+        String(256).with_variant(String(256, collation="NOCASE"), "sqlite"), unique=True, nullable=False
+    )
     password = Column(String(256))
     email = Column(String(256), nullable=False)
     registration_date = Column(DateTime, default=datetime.datetime.now, nullable=True)
     registration_hash = Column(String(256))
+
+
+@event.listens_for(User.__table__, "before_create")
+def add_index_on_ab_user_username_postgres(table, conn, **kw):
+    if conn.dialect.name != "postgresql":
+        return
+    table.indexes.add(Index("idx_ab_user_username", func.lower(table.c.username), unique=True))
+
+
+@event.listens_for(RegisterUser.__table__, "before_create")
+def add_index_on_ab_register_user_username_postgres(table, conn, **kw):
+    if conn.dialect.name != "postgresql":
+        return
+    table.indexes.add(Index("idx_ab_register_user_username", func.lower(table.c.username), unique=True))

@@ -243,16 +243,14 @@ Here's an example:
 .. code-block:: python
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
         return {
-            "workspace": StringField(
-                lazy_gettext("Workspace"), widget=BS3TextFieldWidget()
-            ),
+            "workspace": StringField(lazy_gettext("Workspace"), widget=BS3TextFieldWidget()),
             "project": StringField(lazy_gettext("Project"), widget=BS3TextFieldWidget()),
         }
 
@@ -269,19 +267,22 @@ An example:
 .. code-block:: python
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["port", "host", "login", "schema"],
             "relabeling": {},
             "placeholders": {
                 "password": "Asana personal access token",
-                "extra__my_conn_type__workspace": "My workspace gid",
-                "extra__my_conn_type__project": "My project gid",
+                "workspace": "My workspace gid",
+                "project": "My project gid",
             },
         }
 
-Note here that *here* (in contrast with ``get_connection_form_widgets``) we must add the prefix ``extra__<conn type>__`` when referencing a custom field.  This is this is because it's possible to create a custom field whose name overlaps with a built-in field and we need to be able to reference it unambiguously.
+.. note::
+
+    If you want to add a form placeholder for an ``extra`` field whose name conflicts with a standard connection attribute (i.e. login, password, host, scheme, port, extra) then
+    you must prefix it with ``extra__<conn type>__``.  E.g. ``extra__myservice__password``.
 
 Take a look at providers for examples of what you can do, for example :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`
 and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of this feature.
@@ -413,9 +414,7 @@ You can verify a URI is parsed correctly like so:
 
     >>> from airflow.models.connection import Connection
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2")
     >>> print(c.login)
     my-login
     >>> print(c.password)
@@ -437,17 +436,13 @@ For example if your password has a ``/``, this fails:
 
 .. code-block:: pycon
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2")
     ValueError: invalid literal for int() with base 10: 'my-pa'
 
 To fix this, you can encode with :func:`~urllib.parse.quote_plus`:
 
 .. code-block:: pycon
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2")
     >>> print(c.password)
     my-pa/ssword

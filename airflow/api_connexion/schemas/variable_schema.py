@@ -14,19 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from marshmallow import Schema, fields
 
 
 class VariableSchema(Schema):
-    """Variable Schema"""
+    """Variable Schema."""
 
     key = fields.String(required=True)
     value = fields.String(attribute="val", required=True)
+    description = fields.String(attribute="description", required=False)
 
 
 class VariableCollectionSchema(Schema):
-    """Variable Collection Schema"""
+    """Variable Collection Schema."""
 
     variables = fields.List(fields.Nested(VariableSchema))
     total_entries = fields.Int()

@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import Any, Mapping, cast
 
 
 def get_json_request_dict() -> Mapping[str, Any]:
+    """Cast request dictionary to JSON."""
     from flask import request
 
     return cast(Mapping[str, Any], request.get_json())

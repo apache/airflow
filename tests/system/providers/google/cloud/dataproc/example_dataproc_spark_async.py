@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for DataprocSubmitJobOperator with async spark job.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -68,7 +69,7 @@ SPARK_JOB = {
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "dataproc"],
@@ -87,7 +88,7 @@ with models.DAG(
     )
 
     spark_task_async_sensor = DataprocJobSensor(
-        task_id='spark_task_async_sensor_task',
+        task_id="spark_task_async_sensor_task",
         region=REGION,
         project_id=PROJECT_ID,
         dataproc_job_id=spark_task_async.output,

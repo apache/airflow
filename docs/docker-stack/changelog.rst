@@ -55,6 +55,24 @@ here so that users affected can find the reason for the changes.
 |              |                     |                                         | on 17 Jan 2022         |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 
+Airflow 2.5
+~~~~~~~~~~~
+
+* 2.5.0
+
+  * The docker CLI binary is now added to the images by default (available on PATH). Version 20.10.9 is used.
+
+
+Airflow 2.4
+~~~~~~~~~~~
+
+* 2.4.0
+
+  * You can specify additional ``pip install`` flags when you build the image via ``ADDITIONAL_PIP_INSTALL_FLAGS``
+    build arg.
+  * Support for ``Debian Buster`` was dropped, including the possibility of building customized images as
+    ``Debian Buster`` reached end of life.
+
 
 Airflow 2.3
 ~~~~~~~~~~~
@@ -69,12 +87,12 @@ Airflow 2.3
     or by installing `the buildx plugin <https://docs.docker.com/buildx/working-with-buildx/>`_
     and running ``docker buildx build`` command.
   * Add Python 3.10 support
-  * Add support for Bullseye Debian release (Debian Buster is deprecated)
+  * Switch to ``Debian Bullseye`` based images. ``Debian Buster`` is deprecated and only available for
+    customized image building.
   * Add Multi-Platform support (AMD64/ARM64) in order to accommodate MacOS M1 users
   * Build parameters which control if packages and Airflow should be installed from context file were
     unified
-  * The ``INSTALL_FROM_PYPI`` arg was replaced to ``AIRFLOW_IS_IN_CONTEXT`` (with reverse meaning and
-    default changed to false)
+  * The ``INSTALL_FROM_PYPI`` arg was removed - it is automatically detected now.
   * The ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` arg changed to ``INSTALL_PACKAGES_FROM_CONTEXT``
 
 Airflow 2.2

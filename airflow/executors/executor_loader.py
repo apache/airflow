@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """All executors."""
+from __future__ import annotations
+
 import logging
 from contextlib import suppress
 from enum import Enum, unique
-from typing import TYPE_CHECKING, Optional, Tuple, Type
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowConfigException
 from airflow.executors.executor_constants import (
@@ -51,33 +53,33 @@ class ConnectorSource(Enum):
 class ExecutorLoader:
     """Keeps constants for all the currently available executors."""
 
-    _default_executor: Optional["BaseExecutor"] = None
+    _default_executor: BaseExecutor | None = None
     executors = {
-        LOCAL_EXECUTOR: 'airflow.executors.local_executor.LocalExecutor',
-        LOCAL_KUBERNETES_EXECUTOR: 'airflow.executors.local_kubernetes_executor.LocalKubernetesExecutor',
-        SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor.SequentialExecutor',
-        CELERY_EXECUTOR: 'airflow.executors.celery_executor.CeleryExecutor',
-        CELERY_KUBERNETES_EXECUTOR: 'airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor',
-        DASK_EXECUTOR: 'airflow.executors.dask_executor.DaskExecutor',
-        KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor.KubernetesExecutor',
-        DEBUG_EXECUTOR: 'airflow.executors.debug_executor.DebugExecutor',
+        LOCAL_EXECUTOR: "airflow.executors.local_executor.LocalExecutor",
+        LOCAL_KUBERNETES_EXECUTOR: "airflow.executors.local_kubernetes_executor.LocalKubernetesExecutor",
+        SEQUENTIAL_EXECUTOR: "airflow.executors.sequential_executor.SequentialExecutor",
+        CELERY_EXECUTOR: "airflow.executors.celery_executor.CeleryExecutor",
+        CELERY_KUBERNETES_EXECUTOR: "airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
+        DASK_EXECUTOR: "airflow.executors.dask_executor.DaskExecutor",
+        KUBERNETES_EXECUTOR: "airflow.executors.kubernetes_executor.KubernetesExecutor",
+        DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
     }
 
     @classmethod
-    def get_default_executor(cls) -> "BaseExecutor":
-        """Creates a new instance of the configured executor if none exists and returns it"""
+    def get_default_executor(cls) -> BaseExecutor:
+        """Creates a new instance of the configured executor if none exists and returns it."""
         if cls._default_executor is not None:
             return cls._default_executor
 
         from airflow.configuration import conf
 
-        executor_name = conf.get_mandatory_value('core', 'EXECUTOR')
+        executor_name = conf.get_mandatory_value("core", "EXECUTOR")
         cls._default_executor = cls.load_executor(executor_name)
 
         return cls._default_executor
 
     @classmethod
-    def load_executor(cls, executor_name: str) -> "BaseExecutor":
+    def load_executor(cls, executor_name: str) -> BaseExecutor:
         """
         Loads the executor.
 
@@ -107,7 +109,7 @@ class ExecutorLoader:
         return executor_cls()
 
     @classmethod
-    def import_executor_cls(cls, executor_name: str) -> Tuple[Type["BaseExecutor"], ConnectorSource]:
+    def import_executor_cls(cls, executor_name: str) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Imports the executor class.
 
@@ -133,8 +135,7 @@ class ExecutorLoader:
         return import_string(executor_name), ConnectorSource.CUSTOM_PATH
 
     @classmethod
-    def __load_celery_kubernetes_executor(cls) -> "BaseExecutor":
-        """:return: an instance of CeleryKubernetesExecutor"""
+    def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
         celery_executor = import_string(cls.executors[CELERY_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
@@ -142,8 +143,7 @@ class ExecutorLoader:
         return celery_kubernetes_executor_cls(celery_executor, kubernetes_executor)
 
     @classmethod
-    def __load_local_kubernetes_executor(cls) -> "BaseExecutor":
-        """:return: an instance of LocalKubernetesExecutor"""
+    def __load_local_kubernetes_executor(cls) -> BaseExecutor:
         local_executor = import_string(cls.executors[LOCAL_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 
 from airflow import DAG
@@ -22,58 +24,61 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
 from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
-from tests.system.providers.amazon.aws.utils import set_env_id
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-ENV_ID = set_env_id()
-DAG_ID = 'example_sqs'
-QUEUE_NAME = f'{ENV_ID}-example-queue'
+sys_test_context_task = SystemTestContextBuilder().build()
+
+DAG_ID = "example_sqs"
 
 
 @task
-def create_queue() -> str:
-    """Create the example queue"""
-    return SqsHook().create_queue(queue_name=QUEUE_NAME)['QueueUrl']
+def create_queue(queue_name) -> str:
+    return SqsHook().create_queue(queue_name=queue_name)["QueueUrl"]
 
 
-@task(trigger_rule='all_done')
+@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_queue(queue_url):
-    """Delete the example queue"""
     SqsHook().conn.delete_queue(QueueUrl=queue_url)
 
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context["ENV_ID"]
 
-    sqs_queue = create_queue()
+    sns_queue_name = f"{env_id}-example-queue"
+
+    sqs_queue = create_queue(sns_queue_name)
 
     # [START howto_operator_sqs]
     publish_to_queue_1 = SqsPublishOperator(
-        task_id='publish_to_queue_1',
+        task_id="publish_to_queue_1",
         sqs_queue=sqs_queue,
-        message_content='{{ task_instance }}-{{ logical_date }}',
+        message_content="{{ task_instance }}-{{ logical_date }}",
     )
     publish_to_queue_2 = SqsPublishOperator(
-        task_id='publish_to_queue_2',
+        task_id="publish_to_queue_2",
         sqs_queue=sqs_queue,
-        message_content='{{ task_instance }}-{{ logical_date }}',
+        message_content="{{ task_instance }}-{{ logical_date }}",
     )
     # [END howto_operator_sqs]
 
     # [START howto_sensor_sqs]
     read_from_queue = SqsSensor(
-        task_id='read_from_queue',
+        task_id="read_from_queue",
         sqs_queue=sqs_queue,
     )
     # Retrieve multiple batches of messages from SQS.
     # The SQS API only returns a maximum of 10 messages per poll.
     read_from_queue_in_batch = SqsSensor(
-        task_id='read_from_queue_in_batch',
-        sqs_queue=create_queue,
+        task_id="read_from_queue_in_batch",
+        sqs_queue=sqs_queue,
         # Get maximum 10 messages each poll
         max_messages=10,
         # Combine 3 polls before returning results
@@ -83,6 +88,7 @@ with DAG(
 
     chain(
         # TEST SETUP
+        test_context,
         sqs_queue,
         # TEST BODY
         publish_to_queue_1,

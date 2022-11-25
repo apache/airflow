@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
+import sys
 from unittest.mock import ANY, Mock, patch
 
 from pytest import raises
@@ -25,14 +26,16 @@ from sqlalchemy.exc import OperationalError
 
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
+from airflow.listeners.listener import get_listener_manager
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.listeners import lifecycle_listener
 from tests.test_utils.config import conf_vars
 
 
 class MockJob(BaseJob):
-    __mapper_args__ = {'polymorphic_identity': 'MockJob'}
+    __mapper_args__ = {"polymorphic_identity": "MockJob"}
 
     def __init__(self, func, **kwargs):
         self.func = func
@@ -58,6 +61,28 @@ class TestBaseJob:
 
         assert job.state == State.SUCCESS
         assert job.end_date is not None
+
+    def test_base_job_respects_plugin_hooks(self):
+
+        import sys
+
+        job = MockJob(lambda: sys.exit(0))
+        job.run()
+
+        assert job.state == State.SUCCESS
+        assert job.end_date is not None
+
+    def test_base_job_respects_plugin_lifecycle(self, dag_maker):
+        """
+        Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
+        """
+        get_listener_manager().add_listener(lifecycle_listener)
+
+        job = MockJob(lambda: sys.exit(0))
+        job.run()
+
+        assert lifecycle_listener.started_component is job
+        assert lifecycle_listener.stopped_component is job
 
     def test_state_failed(self):
         def abort():
@@ -102,7 +127,7 @@ class TestBaseJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @patch('airflow.jobs.base_job.create_session')
+    @patch("airflow.jobs.base_job.create_session")
     def test_heartbeat_failed(self, mock_create_session):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
         with create_session() as session:
@@ -120,13 +145,13 @@ class TestBaseJob:
 
     @conf_vars(
         {
-            ('scheduler', 'max_tis_per_query'): '100',
-            ('core', 'executor'): 'SequentialExecutor',
+            ("scheduler", "max_tis_per_query"): "100",
+            ("core", "executor"): "SequentialExecutor",
         }
     )
-    @patch('airflow.jobs.base_job.ExecutorLoader.get_default_executor')
-    @patch('airflow.jobs.base_job.get_hostname')
-    @patch('airflow.jobs.base_job.getuser')
+    @patch("airflow.jobs.base_job.ExecutorLoader.get_default_executor")
+    @patch("airflow.jobs.base_job.get_hostname")
+    @patch("airflow.jobs.base_job.getuser")
     def test_essential_attr(self, mock_getuser, mock_hostname, mock_default_executor):
         mock_sequential_executor = SequentialExecutor()
         mock_hostname.return_value = "test_hostname"
@@ -144,7 +169,7 @@ class TestBaseJob:
         assert test_job.executor == mock_sequential_executor
 
     def test_heartbeat(self, frozen_sleep, monkeypatch):
-        monkeypatch.setattr('airflow.jobs.base_job.sleep', frozen_sleep)
+        monkeypatch.setattr("airflow.jobs.base_job.sleep", frozen_sleep)
         with create_session() as session:
             job = MockJob(None, heartrate=10)
             job.latest_heartbeat = timezone.utcnow()

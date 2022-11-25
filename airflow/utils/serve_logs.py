@@ -14,10 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Serve logs process"""
+from __future__ import annotations
+
+import collections
 import logging
 import os
+import socket
 
 import gunicorn.app.base
 from flask import Flask, abort, request, send_from_directory
@@ -39,11 +42,11 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     flask_app = Flask(__name__, static_folder=None)
-    expiration_time_in_seconds = conf.getint('webserver', 'log_request_clock_grace', fallback=30)
-    log_directory = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
+    expiration_time_in_seconds = conf.getint("webserver", "log_request_clock_grace", fallback=30)
+    log_directory = os.path.expanduser(conf.get("logging", "BASE_LOG_FOLDER"))
 
     signer = JWTSigner(
-        secret_key=conf.get('webserver', 'secret_key'),
+        secret_key=conf.get("webserver", "secret_key"),
         expiration_time_in_seconds=expiration_time_in_seconds,
         audience="task-instance-logs",
     )
@@ -52,13 +55,13 @@ def create_app():
     @flask_app.before_request
     def validate_pre_signed_url():
         try:
-            auth = request.headers.get('Authorization')
+            auth = request.headers.get("Authorization")
             if auth is None:
                 logger.warning("The Authorization header is missing: %s.", request.headers)
                 abort(403)
             payload = signer.verify_token(auth)
             token_filename = payload.get("filename")
-            request_filename = request.view_args['filename']
+            request_filename = request.view_args["filename"]
             if token_filename is None:
                 logger.warning("The payload does not contain 'filename' key: %s.", payload)
                 abort(403)
@@ -101,11 +104,14 @@ def create_app():
             logger.warning("Unknown error", exc_info=True)
             abort(403)
 
-    @flask_app.route('/log/<path:filename>')
+    @flask_app.route("/log/<path:filename>")
     def serve_logs_view(filename):
         return send_from_directory(log_directory, filename, mimetype="application/json", as_attachment=False)
 
     return flask_app
+
+
+GunicornOption = collections.namedtuple("GunicornOption", ["key", "value"])
 
 
 class StandaloneGunicornApplication(gunicorn.app.base.BaseApplication):
@@ -120,13 +126,13 @@ class StandaloneGunicornApplication(gunicorn.app.base.BaseApplication):
     """
 
     def __init__(self, app, options=None):
-        self.options = options or {}
+        self.options = options or []
         self.application = app
         super().__init__()
 
     def load_config(self):
-        for key, value in self.options.items():
-            self.cfg.set(key.lower(), value)
+        for option in self.options:
+            self.cfg.set(option.key.lower(), option.value)
 
     def load(self):
         return self.application
@@ -137,13 +143,18 @@ def serve_logs():
     setproctitle("airflow serve-logs")
     wsgi_app = create_app()
 
-    worker_log_server_port = conf.getint('logging', 'WORKER_LOG_SERVER_PORT')
-    options = {
-        'bind': f"0.0.0.0:{worker_log_server_port}",
-        'workers': 2,
-    }
+    worker_log_server_port = conf.getint("logging", "WORKER_LOG_SERVER_PORT")
+
+    # If dual stack is available and IPV6_V6ONLY is not enabled on the socket
+    # then when IPV6 is bound to it will also bind to IPV4 automatically
+    if getattr(socket, "has_dualstack_ipv6", lambda: False)():
+        bind_option = GunicornOption("bind", f"[::]:{worker_log_server_port}")
+    else:
+        bind_option = GunicornOption("bind", f"0.0.0.0:{worker_log_server_port}")
+
+    options = [bind_option, GunicornOption("workers", 2)]
     StandaloneGunicornApplication(wsgi_app, options).run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     serve_logs()

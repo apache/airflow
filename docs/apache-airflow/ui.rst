@@ -46,6 +46,21 @@ For example:
 ------------
 
 
+.. _ui:datasets-view:
+
+Datasets View
+.............
+A combined listing of the current datasets and a graph illustrating how they are produced and consumed by DAGs.
+
+Clicking on any dataset in either the list or the graph will highlight it and its relationships, and filter the list to show the recent history of task instances that have updated that dataset and whether it has triggered further DAG runs.
+
+------------
+
+.. image:: img/datasets.png
+
+------------
+
+
 Grid View
 .........
 A bar chart and grid representation of the DAG that spans across time.
@@ -112,7 +127,7 @@ Variable View
 The variable view allows you to list, create, edit or delete the key-value pair
 of a variable used during jobs. Value of a variable will be hidden if the key contains
 any words in ('password', 'secret', 'passwd', 'authorization', 'api_key', 'apikey', 'access_token')
-by default, but can be configured to show in clear-text. See :ref:`security:mask-sensitive-values`.
+by default, but can be configured to show in cleartext. See :ref:`security:mask-sensitive-values`.
 
 ------------
 

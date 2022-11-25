@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -26,7 +27,7 @@ API_VERSION = "api_version"
 ADS_CLIENT = {"key": "value"}
 SECRET = "secret"
 EXTRAS = {
-    "extra__google_cloud_platform__keyfile_dict": SECRET,
+    "keyfile_dict": SECRET,
     "google_ads_client": ADS_CLIENT,
 }
 
@@ -69,9 +70,9 @@ class TestGoogleAdsHook:
         mock_hook.search(client_ids=client_ids, query=query, page_size=2)
         for i, client_id in enumerate(client_ids):
             name, args, kwargs = service.search.mock_calls[i]
-            assert kwargs['request'].customer_id == client_id
-            assert kwargs['request'].query == query
-            assert kwargs['request'].page_size == 2
+            assert kwargs["request"].customer_id == client_id
+            assert kwargs["request"].query == query
+            assert kwargs["request"].page_size == 2
 
     def test_extract_rows(self, mock_hook):
         iterators = [[1, 2, 3], [4, 5, 6]]

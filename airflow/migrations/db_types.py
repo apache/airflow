@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import context
 from lazy_object_proxy import Proxy
@@ -71,7 +72,7 @@ def __getattr__(name):
             module = globals()
 
             # Lookup the type based on the dialect specific type, or fallback to the generic type
-            type_ = module.get(f'_{dialect}_{name}', None) or module.get(f'_sa_{name}')
+            type_ = module.get(f"_{dialect}_{name}", None) or module.get(f"_sa_{name}")
             val = module[name] = type_()
             return val
 

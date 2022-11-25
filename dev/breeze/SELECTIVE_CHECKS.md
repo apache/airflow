@@ -32,8 +32,8 @@ contributors in case of simpler changes.
 
 We have the following Groups of files for CI that determine which tests are run:
 
-* `Environment files` - if any of those changes, that forces 'run everything' mode, because changes there might
-  simply change the whole environment of what is going on in CI (Container image, dependencies)
+* `Environment files` - if any of those changes, that forces 'full tests needed' mode, because changes
+  there might simply change the whole environment of what is going on in CI (Container image, dependencies)
 * `Python and Javascript production files` - this area is useful in CodeQL Security scanning - if any of
   the python or javascript files for airflow "production" changed, this means that the security scans should run
 * `API tests and codegen files` - those are OpenAPI definition files that impact Open API specification and
@@ -74,19 +74,26 @@ usage in one big test run, but also not to increase the number of jobs per each 
 
 The logic implements the following rules:
 
-* `Full tests` mode is enabled when the event is PUSH, or SCHEDULE or when "full tests needed" label is set.
-  That enables all matrix combinations of variables, and all possible tests
+* `Full tests mode` is enabled when the event is PUSH, or SCHEDULE or we miss commit info or any of the
+  important environment files (setup.py, setup.cfg, provider.yaml, Dockerfile, build scripts) changed or
+  when `full tests needed` label is set.  That enables all matrix combinations of variables (representative)
+  and all possible test type. No further checks are performed.
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode
   is enabled.
-* If "Commit" to work on cannot be determined, or `Full Test` mode is enabled or some of the important
-  environment files (setup.py, setup.cfg, Dockerfile, build scripts) changed - all unit tests are
-  executed - this is `run everything` mode. No further checks are performed.
 * `Python scans`, `Javascript scans`, `API tests/codegen`, `UI`, `WWW`, `Kubernetes` tests and `DOC builds`
   are enabled if any of the relevant files have been changed.
 * `Helm` tests are run only if relevant files have been changed and if current branch is `main`.
 * If no Source files are changed - no tests are run and no further rules below are checked.
 * `Image building` is enabled if either test are run, docs are build or kubernetes tests are run. All those
   need `CI` or `PROD` images to be built.
+* In case of `Providers` test in regular PRs, additional check is done in order to determine which
+  providers are affected and the actual selection is made based on that:
+  * if directly provider code is changed (either in the provider, test or system tests) then this provider
+    is selected.
+  * if there are any providers that depend on the affected providers, they are also included in the list
+    of affected providers (but not recursively - only direct dependencies are added)
+  * if there are any changes to "common" provider code not belonging to any provider (usually system tests
+    or tests), then tests for all Providers are run
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers`). The `Always` test type is added always if any unit tests are run.
   `Providers` tests are removed if current branch is different than `main`
@@ -96,3 +103,51 @@ The logic implements the following rules:
 * if `Image building` is disabled, only basic pre-commits are enabled - no 'image-depending` pre-commits
   are enabled.
 * If there are some setup files changed, `upgrade to newer dependencies` is enabled.
+
+The selective check outputs available are described below:
+
+| Output                             | Meaning of the output                                                                                  | Example value                                                 |
+|------------------------------------|--------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
+| all-python-versions                | List of all python versions there are available in the form of JSON array                              | ['3.7', '3.8', '3.9', '3.10']                                 |
+| all-python-versions-list-as-string | List of all python versions there are available in the form of space separated string                  | 3.7 3.8 3.9 3.10                                              |
+| basic-checks-only                  | Whether to run all static checks ("false") or only basic set of static checks ("true")                 | false                                                         |
+| cache-directive                    | Which cache should be be used for images ("registry", "local" , "disabled")                            | registry                                                      |
+| debug-resources                    | Whether resources usage should be printed during parallel job execution ("true"/ "false")              | false                                                         |
+| default-branch                     | Which branch is default for the the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)      | main                                                          |
+| default-constraints-branch         | Which branch is default for the the build ("constraints-main" for main branch, "constraints-2-4" etc.) | constraints-main                                              |
+| default-helm-version               | Which Helm version to use as default                                                                   | v3.9.4                                                        |
+| default-kind-version               | Which Kind version to use as default                                                                   | v0.16.0                                                       |
+| default-kubernetes-version         | Which Kubernetes version to use as default                                                             | v1.25.2                                                       |
+| default-mssql-version              | Which MsSQL version to use as default                                                                  | 2017-latest                                                   |
+| default-mysql-version              | Which MySQL version to use as default                                                                  | 5.7                                                           |
+| default-postgres-version           | Which Postgres version to use as default                                                               | 10                                                            |
+| default-python-version             | Which Python version to use as default                                                                 | 3.7                                                           |
+| docs-build                         | Whether to build documentation ("true"/"false")                                                        | true                                                          |
+| docs-filter                        | What filter to apply to docs building - used in non-main branches to skip provider and chart docs.     | --package-filter apache-airflow --package-filter docker-stack |
+| full-tests-needed                  | Whether this build runs complete set of tests or only subset (for faster PR builds).                   | false                                                         |
+| helm-version                       | Which Helm version to use for tests                                                                    | v3.9.4                                                        |
+| image-build                        | Whether CI image build is needed                                                                       | true                                                          |
+| kind-version                       | Which Kind version to use for tests                                                                    | v0.16.0                                                       |
+| kubernetes-combos                  | All combinations of Python version and Kubernetes version to use for tests as space-separated string   | 3.7-v1.25.2 3.8-v1.26.4                                       |
+| kubernetes-versions                | All Kubernetes versions to use for tests as JSON array                                                 | ['v1.25.2']                                                   |
+| kubernetes-versions-list-as-string | All Kubernetes versions to use for tests as space-separated string                                     | v1.25.2                                                       |
+| mssql-exclude                      | Which versions of MsSQL to exclude for tests as JSON array                                             | []                                                            |
+| mssql-versions                     | Which versions of MsSQL to use for tests as JSON array                                                 | ['2017-latest']                                               |
+| mysql-exclude                      | Which versions of MySQL to exclude for tests as JSON array                                             | []                                                            |
+| mysql-versions                     | Which versions of MySQL to use for tests as JSON array                                                 | ['5.7']                                                       |
+| needs-api-codegen                  | Whether "api-codegen" are needed to run ("true"/"false")                                               | true                                                          |
+| needs-api-tests                    | Whether "api-tests" are needed to run ("true"/"false")                                                 | true                                                          |
+| needs-helm-tests                   | Whether Helm tests are needed to run ("true"/"false")                                                  | true                                                          |
+| needs-javascript-scans             | Whether javascript CodeQL scans should be run ("true"/"false")                                         | true                                                          |
+| needs-python-scans                 | Whether Python CodeQL scans should be run ("true"/"false")                                             | true                                                          |
+| postgres-exclude                   | Which versions of Postgres to exclude for tests as JSON array                                          | []                                                            |
+| postgres-versions                  | Which versions of Postgres to use for tests as JSON array                                              | ['10']                                                        |
+| python-versions                    | Which versions of Python to use for tests as JSON array                                                | ['3.7']                                                       |
+| python-versions-list-as-string     | Which versions of MySQL to use for tests as space-separated string                                     | 3.7                                                           |
+| run-kubernetes-tests               | Whether Kubernetes tests should be run ("true"/"false")                                                | true                                                          |
+| run-tests                          | Whether unit tests should be run ("true"/"false")                                                      | true                                                          |
+| run-www-tests                      | Whether WWW tests should be run ("true"/"false")                                                       | true                                                          |
+| skip-pre-commits                   | Which pre-commits should be skipped during the static-checks run                                       | identity                                                      |
+| sqlite-exclude                     | Which versions of Sqlite to exclude for tests as JSON array                                            | []                                                            |
+| test-types                         | Which test types should be run for unit tests                                                          | API Always CLI Core Integration Other Providers WWW           |
+| upgrade-to-newer-dependencies      | Whether the image build should attempt to upgrade all dependencies                                     | false                                                         |

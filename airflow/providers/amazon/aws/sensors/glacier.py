@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -65,7 +67,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         vault_name: str,
         job_id: str,
         poke_interval: int = 60 * 20,
@@ -79,7 +81,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
         self.poke_interval = poke_interval
         self.mode = mode
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         response = hook.describe_job(vault_name=self.vault_name, job_id=self.job_id)
 

@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google BigQuery Sensors.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -31,6 +32,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery import (
+    BigQueryTableExistenceAsyncSensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
@@ -58,7 +60,7 @@ SCHEMA = [
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "bigquery"],
@@ -85,6 +87,15 @@ with models.DAG(
         task_id="check_table_exists", project_id=PROJECT_ID, dataset_id=DATASET_NAME, table_id=TABLE_NAME
     )
     # [END howto_sensor_bigquery_table]
+
+    # [START howto_sensor_async_bigquery_table]
+    check_table_exists_async = BigQueryTableExistenceAsyncSensor(
+        task_id="check_table_exists_async",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+    )
+    # [END howto_sensor_async_bigquery_table]
 
     execute_insert_query: BaseOperator = BigQueryInsertJobOperator(
         task_id="execute_insert_query",
@@ -116,7 +127,7 @@ with models.DAG(
     create_dataset >> create_table
     create_table >> [check_table_exists, execute_insert_query]
     execute_insert_query >> check_table_partition_exists
-    [check_table_exists, check_table_partition_exists] >> delete_dataset
+    [check_table_exists, check_table_exists_async, check_table_partition_exists] >> delete_dataset
 
     from tests.system.utils.watcher import watcher
 

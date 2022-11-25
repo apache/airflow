@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -36,12 +38,12 @@ def check_file(the_file: Path) -> int:
     error_num = 0
     res = yaml.safe_load(the_file.read_text())
     console.print(f"Checking file [yellow]{the_file}[/]")
-    for job in res['jobs'].values():
-        for step in job['steps']:
-            uses = step.get('uses')
+    for job in res["jobs"].values():
+        for step in job["steps"]:
+            uses = step.get("uses")
             pretty_step = yaml.safe_dump(step, indent=2)
-            if uses is not None and uses.startswith('actions/checkout'):
-                with_clause = step.get('with')
+            if uses is not None and uses.startswith("actions/checkout"):
+                with_clause = step.get("with")
                 if with_clause is None:
                     console.print(f"\n[red]The `with` clause is missing in step:[/]\n\n{pretty_step}")
                     error_num += 1
@@ -65,7 +67,7 @@ def check_file(the_file: Path) -> int:
     return error_num
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     total_err_num = 0
     for a_file in sys.argv[1:]:
         total_err_num += check_file(Path(a_file))
@@ -78,7 +80,7 @@ set to False.[/]
 For security reasons - make sure all of the checkout actions have persist_credentials set, similar to:
 
   - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-    uses: actions/checkout@v2
+    uses: actions/checkout@v3
     with:
       persist-credentials: false
 

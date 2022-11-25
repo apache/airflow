@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -32,20 +34,21 @@ from common_precommit_utils import insert_documentation  # isort: skip
 sys.path.append(str(AIRFLOW_SOURCES_DIR))
 
 MOUNTS_HEADER = (
-    '        # START automatically generated volumes from '
-    'NECESSARY_HOST_VOLUMES in docker_command_utils.py'
+    "        # START automatically generated volumes from "
+    "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
 )
 MOUNTS_FOOTER = (
-    '        # END automatically generated volumes from ' 'NECESSARY_HOST_VOLUMES in docker_command_utils.py'
+    "        # END automatically generated volumes from "
+    "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
 )
 
-if __name__ == '__main__':
-    from airflow_breeze.utils.docker_command_utils import NECESSARY_HOST_VOLUMES
+if __name__ == "__main__":
+    from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
 
-    local_mount_file_path = AIRFLOW_SOURCES_DIR / 'scripts' / 'ci' / 'docker-compose' / 'local.yml'
-    PREFIX = '      '
+    local_mount_file_path = AIRFLOW_SOURCES_DIR / "scripts" / "ci" / "docker-compose" / "local.yml"
+    PREFIX = "      "
     volumes = []
-    for (src, dest) in NECESSARY_HOST_VOLUMES:
+    for (src, dest) in VOLUMES_FOR_SELECTED_MOUNTS:
         volumes.extend(
             [
                 PREFIX + "- type: bind\n",

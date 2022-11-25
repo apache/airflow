@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -42,13 +43,12 @@ class TestPigCliHook(unittest.TestCase):
 
     def test_init(self):
         self.pig_hook()
-        self.extra_dejson.get.assert_called_once_with('pig_properties', '')
 
-    @mock.patch('subprocess.Popen')
+    @mock.patch("subprocess.Popen")
     def test_run_cli_success(self, popen_mock):
         proc_mock = mock.MagicMock()
         proc_mock.returncode = 0
-        proc_mock.stdout.readline.return_value = b''
+        proc_mock.stdout.readline.return_value = b""
         popen_mock.return_value = proc_mock
 
         hook = self.pig_hook()
@@ -56,11 +56,11 @@ class TestPigCliHook(unittest.TestCase):
 
         assert stdout == ""
 
-    @mock.patch('subprocess.Popen')
+    @mock.patch("subprocess.Popen")
     def test_run_cli_fail(self, popen_mock):
         proc_mock = mock.MagicMock()
         proc_mock.returncode = 1
-        proc_mock.stdout.readline.return_value = b''
+        proc_mock.stdout.readline.return_value = b""
         popen_mock.return_value = proc_mock
 
         hook = self.pig_hook()
@@ -70,17 +70,16 @@ class TestPigCliHook(unittest.TestCase):
         with pytest.raises(AirflowException):
             hook.run_cli("")
 
-    @mock.patch('subprocess.Popen')
+    @mock.patch("subprocess.Popen")
     def test_run_cli_with_properties(self, popen_mock):
         test_properties = "one two"
 
         proc_mock = mock.MagicMock()
         proc_mock.returncode = 0
-        proc_mock.stdout.readline.return_value = b''
+        proc_mock.stdout.readline.return_value = b""
         popen_mock.return_value = proc_mock
 
-        hook = self.pig_hook()
-        hook.pig_properties = test_properties
+        hook = self.pig_hook(pig_properties=["one", "two"])
 
         stdout = hook.run_cli("")
         assert stdout == ""
@@ -89,10 +88,19 @@ class TestPigCliHook(unittest.TestCase):
         for pig_prop in test_properties.split():
             assert pig_prop in popen_first_arg
 
-    @mock.patch('subprocess.Popen')
+    def test_runtime_exception_not_raised_by_default(self):
+        PigCliHook()
+
+    @mock.patch("airflow.providers.apache.pig.hooks.pig.PigCliHook.get_connection")
+    def test_runtime_exception_when_properties_passed_by_connection(self, mock_get_connection):
+        mock_get_connection.return_value.extra_dejson = {"pig_properties": "one two three"}
+        with pytest.raises(RuntimeError):
+            PigCliHook()
+
+    @mock.patch("subprocess.Popen")
     def test_run_cli_verbose(self, popen_mock):
         test_stdout_lines = [b"one", b"two", b""]
-        test_stdout_strings = [s.decode('utf-8') for s in test_stdout_lines]
+        test_stdout_strings = [s.decode("utf-8") for s in test_stdout_lines]
 
         proc_mock = mock.MagicMock()
         proc_mock.returncode = 0

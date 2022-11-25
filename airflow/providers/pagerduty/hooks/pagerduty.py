@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
+from __future__ import annotations
+
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pdpyras
 
@@ -49,16 +51,16 @@ class PagerdutyHook(BaseHook):
     hook_name = "Pagerduty"
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['port', 'login', 'schema', 'host'],
+            "hidden_fields": ["port", "login", "schema", "host"],
             "relabeling": {
-                'password': 'Pagerduty API token',
+                "password": "Pagerduty API token",
             },
         }
 
-    def __init__(self, token: Optional[str] = None, pagerduty_conn_id: Optional[str] = None) -> None:
+    def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None) -> None:
         super().__init__()
         self.routing_key = None
         self._session = None
@@ -75,7 +77,7 @@ class PagerdutyHook(BaseHook):
             self.token = token
 
         if self.token is None:
-            raise AirflowException('Cannot get token: No valid api token nor pagerduty_conn_id supplied.')
+            raise AirflowException("Cannot get token: No valid api token nor pagerduty_conn_id supplied.")
 
     def get_session(self) -> pdpyras.APISession:
         """
@@ -96,15 +98,15 @@ class PagerdutyHook(BaseHook):
         severity: str,
         source: str = "airflow",
         action: str = "trigger",
-        routing_key: Optional[str] = None,
-        dedup_key: Optional[str] = None,
-        custom_details: Optional[Any] = None,
-        group: Optional[str] = None,
-        component: Optional[str] = None,
-        class_type: Optional[str] = None,
-        images: Optional[List[Any]] = None,
-        links: Optional[List[Any]] = None,
-    ) -> Dict:
+        routing_key: str | None = None,
+        dedup_key: str | None = None,
+        custom_details: Any | None = None,
+        group: str | None = None,
+        component: str | None = None,
+        class_type: str | None = None,
+        images: list[Any] | None = None,
+        links: list[Any] | None = None,
+    ) -> dict:
         """
         Create event for service integration.
 
@@ -121,7 +123,7 @@ class PagerdutyHook(BaseHook):
         :param custom_details: Free-form details from the event. Can be a dictionary or a string.
             If a dictionary is passed it will show up in PagerDuty as a table.
         :param group: A cluster or grouping of sources. For example, sources
-            “prod-datapipe-02” and “prod-datapipe-03” might both be part of “prod-datapipe”
+            "prod-datapipe-02" and "prod-datapipe-03" might both be part of "prod-datapipe"
         :param component: The part or component of the affected system that is broken.
         :param class_type: The class/type of the event.
         :param images: List of images to include. Each dictionary in the list accepts the following keys:
@@ -134,7 +136,6 @@ class PagerdutyHook(BaseHook):
             `text`: [Optional] Plain text that describes the purpose of the link, and can be used as the
             link's text.
         :return: PagerDuty Events API v2 response.
-        :rtype: dict
         """
         warnings.warn(
             "This method will be deprecated. Please use the "

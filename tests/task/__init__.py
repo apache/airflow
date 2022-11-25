@@ -16,4 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # flake8: noqa
+from __future__ import annotations
+
 from .task_runner import *

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -83,8 +84,8 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'filter_',
-        'impersonation_chain',
+        "filter_",
+        "impersonation_chain",
     )
     operator_extra_links = (StackdriverPoliciesLink(),)
     ui_color = "#e5ffcc"
@@ -92,17 +93,17 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     def __init__(
         self,
         *,
-        format_: Optional[str] = None,
-        filter_: Optional[str] = None,
-        order_by: Optional[str] = None,
-        page_size: Optional[int] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        format_: str | None = None,
+        filter_: str | None = None,
+        order_by: str | None = None,
+        page_size: int | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -117,11 +118,11 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
-            'List Alert Policies: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
+            "List Alert Policies: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s",
             self.project_id,
             self.format_,
             self.filter_,
@@ -189,22 +190,22 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
     template_fields: Sequence[str] = (
-        'filter_',
-        'impersonation_chain',
+        "filter_",
+        "impersonation_chain",
     )
     operator_extra_links = (StackdriverPoliciesLink(),)
 
     def __init__(
         self,
         *,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -216,10 +217,10 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
-        self.log.info('Enable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
+    def execute(self, context: Context):
+        self.log.info("Enable Alert Policies: Project id: %s Filter: %s", self.project_id, self.filter_)
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -277,22 +278,22 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
     template_fields: Sequence[str] = (
-        'filter_',
-        'impersonation_chain',
+        "filter_",
+        "impersonation_chain",
     )
     operator_extra_links = (StackdriverPoliciesLink(),)
 
     def __init__(
         self,
         *,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -304,10 +305,10 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
-        self.log.info('Disable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
+    def execute(self, context: Context):
+        self.log.info("Disable Alert Policies: Project id: %s Filter: %s", self.project_id, self.filter_)
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -364,10 +365,10 @@ class StackdriverUpsertAlertOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'alerts',
-        'impersonation_chain',
+        "alerts",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.json',)
+    template_ext: Sequence[str] = (".json",)
     operator_extra_links = (StackdriverPoliciesLink(),)
 
     ui_color = "#e5ffcc"
@@ -376,13 +377,13 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self,
         *,
         alerts: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -394,10 +395,10 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
-        self.log.info('Upsert Alert Policies: Alerts: %s Project id: %s', self.alerts, self.project_id)
+    def execute(self, context: Context):
+        self.log.info("Upsert Alert Policies: Alerts: %s Project id: %s", self.alerts, self.project_id)
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -451,8 +452,8 @@ class StackdriverDeleteAlertOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'name',
-        'impersonation_chain',
+        "name",
+        "impersonation_chain",
     )
 
     ui_color = "#e5ffcc"
@@ -461,13 +462,13 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self,
         *,
         name: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -479,10 +480,10 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
-        self.log.info('Delete Alert Policy: Project id: %s Name: %s', self.project_id, self.name)
+    def execute(self, context: Context):
+        self.log.info("Delete Alert Policy: Project id: %s Name: %s", self.project_id, self.name)
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -547,8 +548,8 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'filter_',
-        'impersonation_chain',
+        "filter_",
+        "impersonation_chain",
     )
     operator_extra_links = (StackdriverNotificationsLink(),)
 
@@ -557,17 +558,17 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        format_: Optional[str] = None,
-        filter_: Optional[str] = None,
-        order_by: Optional[str] = None,
-        page_size: Optional[int] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        format_: str | None = None,
+        filter_: str | None = None,
+        order_by: str | None = None,
+        page_size: int | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -582,11 +583,11 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
-            'List Notification Channels: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
+            "List Notification Channels: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s",
             self.project_id,
             self.format_,
             self.filter_,
@@ -652,8 +653,8 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'filter_',
-        'impersonation_chain',
+        "filter_",
+        "impersonation_chain",
     )
     operator_extra_links = (StackdriverNotificationsLink(),)
 
@@ -662,14 +663,14 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -681,11 +682,11 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
-            'Enable Notification Channels: Project id: %s Filter: %s', self.project_id, self.filter_
+            "Enable Notification Channels: Project id: %s Filter: %s", self.project_id, self.filter_
         )
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -742,8 +743,8 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'filter_',
-        'impersonation_chain',
+        "filter_",
+        "impersonation_chain",
     )
     operator_extra_links = (StackdriverNotificationsLink(),)
 
@@ -752,14 +753,14 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -771,11 +772,11 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
-            'Disable Notification Channels: Project id: %s Filter: %s', self.project_id, self.filter_
+            "Disable Notification Channels: Project id: %s Filter: %s", self.project_id, self.filter_
         )
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -833,10 +834,10 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'channels',
-        'impersonation_chain',
+        "channels",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.json',)
+    template_ext: Sequence[str] = (".json",)
     operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
@@ -845,13 +846,13 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self,
         *,
         channels: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -863,11 +864,11 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
-            'Upsert Notification Channels: Channels: %s Project id: %s', self.channels, self.project_id
+            "Upsert Notification Channels: Channels: %s Project id: %s", self.channels, self.project_id
         )
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -922,8 +923,8 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'name',
-        'impersonation_chain',
+        "name",
+        "impersonation_chain",
     )
 
     ui_color = "#e5ffcc"
@@ -932,13 +933,13 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self,
         *,
         name: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        gcp_conn_id: str = 'google_cloud_default',
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        project_id: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -950,10 +951,10 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[StackdriverHook] = None
+        self.hook: StackdriverHook | None = None
 
-    def execute(self, context: 'Context'):
-        self.log.info('Delete Notification Channel: Project id: %s Name: %s', self.project_id, self.name)
+    def execute(self, context: Context):
+        self.log.info("Delete Notification Channel: Project id: %s Name: %s", self.project_id, self.name)
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,

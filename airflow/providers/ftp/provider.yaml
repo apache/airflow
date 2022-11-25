@@ -22,6 +22,8 @@ description: |
     `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 versions:
+  - 3.2.0
+  - 3.1.0
   - 3.0.0
   - 2.1.2
   - 2.1.1
@@ -31,6 +33,8 @@ versions:
   - 1.1.0
   - 1.0.1
   - 1.0.0
+
+dependencies: []
 
 integrations:
   - integration-name: File Transfer Protocol (FTP)

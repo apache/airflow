@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Campaign Manager sensor."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.sensors.base import BaseSensorOperator
@@ -62,7 +64,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         "impersonation_chain",
     )
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -81,10 +83,10 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         file_id: str,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         mode: str = "reschedule",
         poke_interval: int = 60 * 5,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

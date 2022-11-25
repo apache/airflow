@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Mask sensitive information from logs"""
+from __future__ import annotations
+
 import collections
 import logging
 import re
 import sys
-from typing import Any, Dict, Iterable, List, Optional, Set, TextIO, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterable, List, TextIO, Tuple, TypeVar, Union
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
@@ -31,23 +33,23 @@ log = logging.getLogger(__name__)
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
-        'access_token',
-        'api_key',
-        'apikey',
-        'authorization',
-        'passphrase',
-        'passwd',
-        'password',
-        'private_key',
-        'secret',
-        'token',
-        'keyfile_dict',
-        'service_account',
+        "access_token",
+        "api_key",
+        "apikey",
+        "authorization",
+        "passphrase",
+        "passwd",
+        "password",
+        "private_key",
+        "secret",
+        "token",
+        "keyfile_dict",
+        "service_account",
     }
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
-SECRETS_TO_SKIP_MASKING_FOR_TESTS = {'airflow'}
+SECRETS_TO_SKIP_MASKING_FOR_TESTS = {"airflow"}
 
 
 @cache
@@ -56,9 +58,9 @@ def get_sensitive_variables_fields():
     from airflow.configuration import conf
 
     sensitive_fields = DEFAULT_SENSITIVE_FIELDS.copy()
-    sensitive_variable_fields = conf.get('core', 'sensitive_var_conn_names')
+    sensitive_variable_fields = conf.get("core", "sensitive_var_conn_names")
     if sensitive_variable_fields:
-        sensitive_fields |= frozenset({field.strip() for field in sensitive_variable_fields.split(',')})
+        sensitive_fields |= frozenset({field.strip() for field in sensitive_variable_fields.split(",")})
     return sensitive_fields
 
 
@@ -72,7 +74,7 @@ def should_hide_value_for_key(name):
     return False
 
 
-def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) -> None:
+def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     """
     Mask a secret from appearing in the task logs.
 
@@ -90,14 +92,14 @@ def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) 
     _secrets_masker().add_mask(secret, name)
 
 
-def redact(value: Redactable, name: Optional[str] = None) -> Redacted:
+def redact(value: Redactable, name: str | None = None) -> Redacted:
     """Redact any secrets found in ``value``."""
     return _secrets_masker().redact(value, name)
 
 
 @cache
-def _secrets_masker() -> "SecretsMasker":
-    for flt in logging.getLogger('airflow.task').filters:
+def _secrets_masker() -> SecretsMasker:
+    for flt in logging.getLogger("airflow.task").filters:
         if isinstance(flt, SecretsMasker):
             return flt
     raise RuntimeError(
@@ -111,8 +113,8 @@ def _secrets_masker() -> "SecretsMasker":
 class SecretsMasker(logging.Filter):
     """Redact secrets from logs"""
 
-    replacer: Optional[re.Pattern] = None
-    patterns: Set[str]
+    replacer: re.Pattern | None = None
+    patterns: set[str]
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
     MAX_RECURSION_DEPTH = 5
@@ -140,7 +142,7 @@ class SecretsMasker(logging.Filter):
             exc_info=None,
             func="funcname",
         )
-        return frozenset(record.__dict__).difference({'msg', 'args'})
+        return frozenset(record.__dict__).difference({"msg", "args"})
 
     def _redact_exception_with_context(self, exception):
         # Exception class may not be modifiable (e.g. declared by an
@@ -177,7 +179,7 @@ class SecretsMasker(logging.Filter):
 
     def _redact_all(self, item: Redactable, depth: int) -> Redacted:
         if depth > self.MAX_RECURSION_DEPTH or isinstance(item, str):
-            return '***'
+            return "***"
         if isinstance(item, dict):
             return {dict_key: self._redact_all(subval, depth + 1) for dict_key, subval in item.items()}
         elif isinstance(item, (tuple, set)):
@@ -188,7 +190,7 @@ class SecretsMasker(logging.Filter):
         else:
             return item
 
-    def _redact(self, item: Redactable, name: Optional[str], depth: int) -> Redacted:
+    def _redact(self, item: Redactable, name: str | None, depth: int) -> Redacted:
         # Avoid spending too much effort on redacting on deeply nested
         # structures. This also avoid infinite recursion if a structure has
         # reference to self.
@@ -207,7 +209,7 @@ class SecretsMasker(logging.Filter):
                     # We can't replace specific values, but the key-based redacting
                     # can still happen, so we can't short-circuit, we need to walk
                     # the structure.
-                    return self.replacer.sub('***', item)
+                    return self.replacer.sub("***", item)
                 return item
             elif isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
@@ -229,7 +231,7 @@ class SecretsMasker(logging.Filter):
             )
             return item
 
-    def redact(self, item: Redactable, name: Optional[str] = None) -> Redacted:
+    def redact(self, item: Redactable, name: str | None = None) -> Redacted:
         """Redact an any secrets found in ``item``, if it is a string.
 
         If ``name`` is given, and it's a "sensitive" name (see
@@ -238,11 +240,11 @@ class SecretsMasker(logging.Filter):
         """
         return self._redact(item, name, depth=0)
 
-    def add_mask(self, secret: Union[str, dict, Iterable], name: Optional[str] = None):
+    def add_mask(self, secret: str | dict | Iterable, name: str | None = None):
         """Add a new secret to be masked to this filter instance."""
         from airflow.configuration import conf
 
-        test_mode: bool = conf.getboolean('core', 'unit_test_mode')
+        test_mode: bool = conf.getboolean("core", "unit_test_mode")
         if isinstance(secret, dict):
             for k, v in secret.items():
                 self.add_mask(v, k)
@@ -252,7 +254,7 @@ class SecretsMasker(logging.Filter):
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                 self.patterns.add(pattern)
-                self.replacer = re.compile('|'.join(self.patterns))
+                self.replacer = re.compile("|".join(self.patterns))
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
                 self.add_mask(v, name)
@@ -269,6 +271,7 @@ class RedactedIO(TextIO):
 
     def __init__(self):
         self.target = sys.stdout
+        self.fileno = sys.stdout.fileno
 
     def write(self, s: str) -> int:
         s = redact(s)

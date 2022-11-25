@@ -14,16 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class ConfigmapTest(unittest.TestCase):
+class TestConfigmap:
     def test_single_annotation(self):
         docs = render_chart(
             values={
@@ -47,14 +46,15 @@ class ConfigmapTest(unittest.TestCase):
         assert "value" == annotations.get("key")
         assert "value-two" == annotations.get("key-two")
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "af_version, secret_key, secret_key_name, expected",
         [
-            ('2.2.0', None, None, True),
-            ('2.2.0', "foo", None, False),
-            ('2.2.0', None, "foo", False),
-            ('2.1.3', None, None, False),
-            ('2.1.3', "foo", None, False),
-        ]
+            ("2.2.0", None, None, True),
+            ("2.2.0", "foo", None, False),
+            ("2.2.0", None, "foo", False),
+            ("2.1.3", None, None, False),
+            ("2.1.3", "foo", None, False),
+        ],
     )
     def test_default_airflow_local_settings(self, af_version, secret_key, secret_key_name, expected):
         docs = render_chart(
@@ -80,7 +80,7 @@ class ConfigmapTest(unittest.TestCase):
         )
 
         assert (
-            "# Well hello RELEASE-NAME!"
+            "# Well hello release-name!"
             == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
         )
 
@@ -112,4 +112,4 @@ metadata:
         )
 
         pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
-        assert "mylabel: RELEASE-NAME" in pod_template_file
+        assert "mylabel: release-name" in pod_template_file

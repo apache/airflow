@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from celery.app import control
 
@@ -36,13 +37,13 @@ class CeleryQueueSensor(BaseSensorOperator):
     :param target_task_id: Task id for checking
     """
 
-    def __init__(self, *, celery_queue: str, target_task_id: Optional[str] = None, **kwargs) -> None:
+    def __init__(self, *, celery_queue: str, target_task_id: str | None = None, **kwargs) -> None:
 
         super().__init__(**kwargs)
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id
 
-    def _check_task_id(self, context: 'Context') -> bool:
+    def _check_task_id(self, context: Context) -> bool:
         """
         Gets the returned Celery result from the Airflow task
         ID provided to the sensor, and returns True if the
@@ -50,13 +51,12 @@ class CeleryQueueSensor(BaseSensorOperator):
 
         :param context: Airflow's execution context
         :return: True if task has been executed, otherwise False
-        :rtype: bool
         """
-        ti = context['ti']
+        ti = context["ti"]
         celery_result = ti.xcom_pull(task_ids=self.target_task_id)
         return celery_result.ready()
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
 
         if self.target_task_id:
             return self._check_task_id(context)
@@ -71,8 +71,8 @@ class CeleryQueueSensor(BaseSensorOperator):
             scheduled = len(scheduled[self.celery_queue])
             active = len(active[self.celery_queue])
 
-            self.log.info('Checking if celery queue %s is empty.', self.celery_queue)
+            self.log.info("Checking if celery queue %s is empty.", self.celery_queue)
 
             return reserved == 0 and scheduled == 0 and active == 0
         except KeyError:
-            raise KeyError(f'Could not locate Celery queue {self.celery_queue}')
+            raise KeyError(f"Could not locate Celery queue {self.celery_queue}")

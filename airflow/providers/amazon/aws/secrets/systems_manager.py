@@ -16,21 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store"""
-import re
-import warnings
-from typing import Optional
+from __future__ import annotations
 
-import boto3
+import warnings
 
 from airflow.compat.functools import cached_property
-from airflow.providers.amazon.aws.utils import get_airflow_version
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-
-def _parse_version(val):
-    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return tuple(int(x) for x in val.split('.'))
 
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
@@ -56,15 +49,26 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         If set to None (null), requests for variables will not be sent to AWS SSM Parameter Store.
     :param config_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null), requests for configurations will not be sent to AWS SSM Parameter Store.
-    :param profile_name: The name of a profile to use. If not given, then the default profile is used.
+
+    You can also pass additional keyword arguments listed in AWS Connection Extra config
+    to this class, and they would be used for establish connection and passed on to Boto3 client.
+
+    .. code-block:: ini
+
+        [secrets]
+        backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
+        backend_kwargs = {"connections_prefix": "airflow/connections", "region_name": "eu-west-1"}
+
+    .. seealso::
+        :ref:`howto/connection:aws:configuring-the-connection`
+
     """
 
     def __init__(
         self,
-        connections_prefix: str = '/airflow/connections',
-        variables_prefix: str = '/airflow/variables',
-        config_prefix: str = '/airflow/config',
-        profile_name: Optional[str] = None,
+        connections_prefix: str = "/airflow/connections",
+        variables_prefix: str = "/airflow/variables",
+        config_prefix: str = "/airflow/config",
         **kwargs,
     ):
         super().__init__()
@@ -73,23 +77,43 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         else:
             self.connections_prefix = connections_prefix
         if variables_prefix is not None:
-            self.variables_prefix = variables_prefix.rstrip('/')
+            self.variables_prefix = variables_prefix.rstrip("/")
         else:
             self.variables_prefix = variables_prefix
         if config_prefix is not None:
-            self.config_prefix = config_prefix.rstrip('/')
+            self.config_prefix = config_prefix.rstrip("/")
         else:
             self.config_prefix = config_prefix
-        self.profile_name = profile_name
+
+        self.profile_name = kwargs.get("profile_name", None)
+        # Remove client specific arguments from kwargs
+        self.api_version = kwargs.pop("api_version", None)
+        self.use_ssl = kwargs.pop("use_ssl", None)
+
         self.kwargs = kwargs
 
     @cached_property
     def client(self):
         """Create a SSM client"""
-        session = boto3.Session(profile_name=self.profile_name)
-        return session.client("ssm", **self.kwargs)
+        from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
+        from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
-    def get_conn_value(self, conn_id: str) -> Optional[str]:
+        conn_id = f"{self.__class__.__name__}__connection"
+        conn_config = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=self.kwargs)
+        client_kwargs = trim_none_values(
+            {
+                "region_name": conn_config.region_name,
+                "verify": conn_config.verify,
+                "endpoint_url": conn_config.endpoint_url,
+                "api_version": self.api_version,
+                "use_ssl": self.use_ssl,
+            }
+        )
+
+        session = SessionFactory(conn=conn_config).create_session()
+        return session.client(service_name="ssm", **client_kwargs)
+
+    def get_conn_value(self, conn_id: str) -> str | None:
         """
         Get param value
 
@@ -100,25 +124,27 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
 
         As of Airflow version 2.3.0 this method is deprecated.
 
         :param conn_id: the connection id
-        :return: deserialized Connection
         """
-        if get_airflow_version() >= (2, 3):
-            warnings.warn(
-                f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-                "in a future release.  Please use method `get_conn_value` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        return self.get_conn_value(conn_id)
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+            "in a future release. Please use method `get_conn_value` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        value = self.get_conn_value(conn_id)
+        if value is None:
+            return None
 
-    def get_variable(self, key: str) -> Optional[str]:
+        return self.deserialize_connection(conn_id, value).get_uri()
+
+    def get_variable(self, key: str) -> str | None:
         """
         Get Airflow Variable from Environment Variable
 
@@ -130,7 +156,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.variables_prefix, key)
 
-    def get_config(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> str | None:
         """
         Get Airflow Configuration
 
@@ -142,7 +168,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+    def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
         """
         Get secret value from Parameter Store.
 

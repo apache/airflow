@@ -51,7 +51,7 @@ Package apache-airflow-providers-samba
 `Samba <https://www.samba.org/>`__
 
 
-Release: 4.0.0
+Release: 4.1.0
 
 Provider package
 ----------------
@@ -72,7 +72,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``smbprotocol``     ``>=1.5.0``
 ==================  ==================
 

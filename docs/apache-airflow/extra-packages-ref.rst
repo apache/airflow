@@ -158,6 +158,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | asana               | ``pip install 'apache-airflow[asana]'``             | Asana hooks and operators                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| atlassian.jira      | ``pip install 'apache-airflow[atlassian.jira]'``    | Jira hooks and operators                            |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | azure               | ``pip install 'apache-airflow[microsoft.azure]'``   | Microsoft Azure                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                       |
@@ -178,8 +180,6 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | hashicorp           | ``pip install 'apache-airflow[hashicorp]'``         | Hashicorp Services (Vault)                          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| jira                | ``pip install 'apache-airflow[jira]'``              | Jira hooks and operators                            |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | opsgenie            | ``pip install 'apache-airflow[opsgenie]'``          | OpsGenie hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | pagerduty           | ``pip install 'apache-airflow[pagerduty]'``         | Pagerduty hook                                      |
@@ -199,6 +199,8 @@ These are extras that add dependencies needed for integration with external serv
 | snowflake           | ``pip install 'apache-airflow[snowflake]'``         | Snowflake hooks and operators                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | tableau             | ``pip install 'apache-airflow[tableau]'``           | Tableau hooks and operators                         |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| tabular             | ``pip install 'apache-airflow[tabular]'``           | Tabular hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | telegram            | ``pip install 'apache-airflow[telegram]'``          | Telegram hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -268,7 +270,7 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | extra               | install command                                     | enables                              | Preinstalled |
 +=====================+=====================================================+======================================+==============+
-| core.sql            | ``pip install 'apache-airflow[core.sql]'``          | Core SQL Operators                   |              |
+| common.sql          | ``pip install 'apache-airflow[common.sql]'``        | Core SQL Operators                   |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

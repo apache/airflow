@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
@@ -71,7 +72,7 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         wait_for_completion: bool = True,
         check_interval: int = 30,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ):
         self.data_set_id = data_set_id
@@ -83,12 +84,12 @@ class QuickSightCreateIngestionOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = QuickSightHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-        self.log.info("Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s)", self.data_set_id)
+        self.log.info("Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s", self.data_set_id)
         return hook.create_ingestion(
             data_set_id=self.data_set_id,
             ingestion_id=self.ingestion_id,

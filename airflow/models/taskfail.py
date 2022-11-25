@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Taskfail tracks the failed run durations of each task instance"""
+from __future__ import annotations
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, text
 from sqlalchemy.orm import relationship
@@ -33,7 +34,7 @@ class TaskFail(Base):
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text('-1'))
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
@@ -48,7 +49,7 @@ class TaskFail(Base):
                 "task_instance.run_id",
                 "task_instance.map_index",
             ],
-            name='task_fail_ti_fkey',
+            name="task_fail_ti_fkey",
             ondelete="CASCADE",
         ),
     )
@@ -80,4 +81,4 @@ class TaskFail(Base):
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
-        return prefix + '>'
+        return prefix + ">"

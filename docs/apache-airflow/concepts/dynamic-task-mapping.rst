@@ -68,9 +68,32 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
 
-        _LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
+        LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
 
-    You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but please be aware of the potential performance implications if the list is large.
+    You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but since this would eagerly load values from *all* of the referenced upstream mapped tasks, you must be aware of the potential performance implications if the mapped number is large.
+
+    Note that the same also applies to when you push this proxy object into XCom. Airflow tries to be smart and coerce the value automatically, but will emit a warning for this so you are aware of this. For example:
+
+    .. code-block:: python
+
+        @task
+        def forward_values(values):
+            return values  # This is a lazy proxy!
+
+    will emit a warning like this:
+
+    .. code-block:: text
+
+        Coercing mapped lazy proxy return value from task forward_values to list, which may degrade
+        performance. Review resource requirements for this operation, and call list() explicitly to suppress this message. See Dynamic Task Mapping documentation for more information about lazy proxy objects.
+
+    The message can be suppressed by modifying the task like this:
+
+    .. code-block:: python
+
+        @task
+        def forward_values(values):
+            return list(values)
 
 .. note:: A reduce task is not required.
 
@@ -139,8 +162,6 @@ As well as a single parameter it is possible to pass multiple parameters to expa
 
 This would result in the add task being called 6 times. Please note however that the order of expansion is not guaranteed.
 
-It is not possible to achieve an effect similar to Python's ``zip`` function with mapped arguments.
-
 Task-generated Mapping
 ======================
 
@@ -173,27 +194,29 @@ It is possible to use ``partial`` and ``expand`` with classic style operators as
 
 .. code-block:: python
 
-    BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
-        bash_command=["echo 1", "echo 2"]
-    )
+    BashOperator.partial(task_id="bash", do_xcom_push=False).expand(bash_command=["echo 1", "echo 2"])
 
 .. note:: Only keyword arguments are allowed to be passed to ``partial()``.
 
 Mapping over result of classic operators
 ----------------------------------------
 
-If you want to map over the result of a classic operator you will need to create an ``XComArg`` object manually.
+If you want to map over the result of a classic operator, you should explicitly reference the *output*, instead of the operator itself.
 
 .. code-block:: python
 
-    from airflow import XComArg
+    # Create a list of data inputs.
+    extract = ExtractOperator(task_id="extract")
 
-    task = MyOperator(task_id="source")
+    # Expand the operator to transform each input.
+    transform = TransformOperator.partial(task_id="transform").expand(input=extract.output)
 
-    downstream = MyOperator2.partial(task_id="consumer").expand(input=XComArg(task))
+    # Collect the transformed inputs, expand the operator to load each one of them to the target.
+    load = LoadOperator.partial(task_id="load").expand(input=transform.output)
 
-Putting it all together
-=======================
+
+Mixing TaskFlow and classic operators
+=====================================
 
 In this example you have a regular data delivery to an S3 bucket and want to apply the same processing to every file that arrives, no matter how many arrive each time.
 
@@ -201,33 +224,162 @@ In this example you have a regular data delivery to an S3 bucket and want to app
 
     from datetime import datetime
 
-    from airflow import DAG, XComArg
+    from airflow import DAG
     from airflow.decorators import task
     from airflow.providers.amazon.aws.hooks.s3 import S3Hook
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
 
 
     with DAG(dag_id="mapped_s3", start_date=datetime(2020, 4, 7)) as dag:
-        files = S3ListOperator(
+        list_filenames = S3ListOperator(
             task_id="get_input",
             bucket="example-bucket",
             prefix='incoming/provider_a/{{ data_interval_start.strftime("%Y-%m-%d") }}',
         )
 
         @task
-        def count_lines(aws_conn_id, bucket, file):
+        def count_lines(aws_conn_id, bucket, filename):
             hook = S3Hook(aws_conn_id=aws_conn_id)
 
-            return len(hook.read_key(file, bucket).splitlines())
+            return len(hook.read_key(filename, bucket).splitlines())
 
         @task
         def total(lines):
             return sum(lines)
 
-        counts = count_lines.partial(aws_conn_id="aws_default", bucket=files.bucket).expand(
-            file=XComArg(files)
+        counts = count_lines.partial(aws_conn_id="aws_default", bucket=list_filenames.bucket).expand(
+            filename=list_filenames.output
         )
+
         total(lines=counts)
+
+Assigning multiple parameters to a non-TaskFlow operator
+========================================================
+
+Sometimes an upstream needs to specify multiple arguments to a downstream operator. To do this, you can use the ``expand_kwargs`` function, which takes a sequence of mappings to map against.
+
+.. code-block:: python
+
+    BashOperator.partial(task_id="bash").expand_kwargs(
+        [
+            {"bash_command": "echo $ENV1", "env": {"ENV1": "1"}},
+            {"bash_command": "printf $ENV2", "env": {"ENV2": "2"}},
+        ],
+    )
+
+This produces two task instances at run-time printing ``1`` and ``2`` respectively.
+
+Similar to ``expand``, you can also map against a XCom that returns a list of dicts, or a list of XComs each returning a dict. Re-using the S3 example above, you can use a mapped task to perform "branching" and copy files to different buckets:
+
+.. code-block:: python
+
+    list_filenames = S3ListOperator(...)  # Same as the above example.
+
+
+    @task
+    def create_copy_kwargs(filename):
+        if filename.rsplit(".", 1)[-1] not in ("json", "yml"):
+            dest_bucket_name = "my_text_bucket"
+        else:
+            dest_bucket_name = "my_other_bucket"
+        return {
+            "source_bucket_key": filename,
+            "dest_bucket_key": filename,
+            "dest_bucket_name": dest_bucket_name,
+        }
+
+
+    copy_kwargs = create_copy_kwargs.expand(filename=list_filenames.output)
+
+    # Copy files to another bucket, based on the file's extension.
+    copy_filenames = S3CopyObjectOperator.partial(
+        task_id="copy_files", source_bucket_name=list_filenames.bucket
+    ).expand_kwargs(copy_kwargs)
+
+Filtering items from an expanded task
+=====================================
+
+A mapped task can remove any elements from being passed on to its downstream tasks by returning ``None``. For example, if we want to *only* copy files from an S3 bucket to another with certain extensions, we could implement ``create_copy_kwargs`` like this instead:
+
+.. code-block:: python
+
+    @task
+    def create_copy_kwargs(filename):
+        # Skip files not ending with these suffixes.
+        if filename.rsplit(".", 1)[-1] not in ("json", "yml"):
+            return None
+        return {
+            "source_bucket_key": filename,
+            "dest_bucket_key": filename,
+            "dest_bucket_name": "my_other_bucket",
+        }
+
+
+    # copy_kwargs and copy_files are implemented the same.
+
+This makes ``copy_files`` only expand against ``.json`` and ``.yml`` files, while ignoring the rest.
+
+Transforming mapped data
+========================
+
+Since it is common to want to transform the output data format for task mapping, especially from a non-TaskFlow operator, where the output format is pre-determined and cannot be easily converted (such as ``create_copy_kwargs`` in the above example), a special ``map()`` function can be used to easily perform this kind of transformation. The above example can therefore be modified like this:
+
+.. code-block:: python
+
+    from airflow.exceptions import AirflowSkipException
+
+    list_filenames = S3ListOperator(...)  # Unchanged.
+
+
+    def create_copy_kwargs(filename):
+        if filename.rsplit(".", 1)[-1] not in ("json", "yml"):
+            raise AirflowSkipException(f"skipping {filename!r}; unexpected suffix")
+        return {
+            "source_bucket_key": filename,
+            "dest_bucket_key": filename,
+            "dest_bucket_name": "my_other_bucket",
+        }
+
+
+    copy_kwargs = list_filenames.output.map(create_copy_kwargs)
+
+    # Unchanged.
+    copy_filenames = S3CopyObjectOperator.partial(...).expand_kwargs(copy_kwargs)
+
+There are a couple of things to note:
+
+#. The callable argument of ``map()`` (``create_copy_kwargs`` in the example) **must not** be a task, but a plain Python function. The transformation is as a part of the "pre-processing" of the downstream task (i.e. ``copy_files``), not a standalone task in the DAG.
+#. The callable always take exactly one positional argument. This function is called for each item in the iterable used for task-mapping, similar to how Python's built-in ``map()`` works.
+#. Since the callable is executed as a part of the downstream task, you can use any existing techniques to write the task function. To mark a component as skipped, for example, you should raise ``AirflowSkipException``. Note that returning ``None`` **does not** work here.
+
+Combining upstream data (aka "zipping")
+=======================================
+
+It is also to want to combine multiple input sources into one task mapping iterable. This is generally known as "zipping" (like Python's built-in ``zip()`` function), and is also performed as pre-processing of the downstream task.
+
+This is especially useful for conditional logic in task mapping. For example, if you want to download files from S3, but rename those files, something like this would be possible:
+
+.. code-block:: python
+
+    list_filenames_a = S3ListOperator(
+        task_id="list_files_in_a",
+        bucket="bucket",
+        prefix="incoming/provider_a/{{ data_interval_start|ds }}",
+    )
+    list_filenames_b = ["rename_1", "rename_2", "rename_3", ...]
+
+    filenames_a_b = list_filenames_a.output.zip(list_filenames_b)
+
+
+    @task
+    def download_filea_from_a_rename(filenames_a_b):
+        fn_a, fn_b = filenames_a_b
+        S3Hook().download_file(fn_a, local_path=fn_b)
+
+
+    download_filea_from_a_rename.expand(filenames_a_b=filenames_a_b)
+
+The ``zip`` function takes arbitrary positional arguments, and return an iterable of tuples of the positional arguments' count. By default, the zipped iterable's length is the same as the shortest of the zipped iterables, with superfluous items dropped. An optional keyword argument ``default`` can be passed to switch the behavior to match Python's ``itertools.zip_longest``—the zipped iterable will have the same length as the *longest* of the zipped iterables, with missing items filled with the value provided by ``default``.
 
 What data types can be expanded?
 ================================
@@ -264,7 +416,7 @@ If you want to interpolate values either call ``task.render_template`` yourself,
 .. code-block:: python
 
     @task
-    def make_list(ds):
+    def make_list(ds=None):
         return [ds]
 
 
@@ -299,9 +451,7 @@ There are two limits that you can place on a task:
           return x + 1
 
 
-      BashOperator.partial(task_id="my_task", max_active_tis_per_dag=16).expand(
-          bash_command=commands
-      )
+      BashOperator.partial(task_id="my_task", max_active_tis_per_dag=16).expand(bash_command=commands)
 
 Automatically skipping zero-length maps
 =======================================

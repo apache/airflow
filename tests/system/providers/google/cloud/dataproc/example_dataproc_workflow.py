@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Dataproc workflow operators.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -63,7 +63,7 @@ WORKFLOW_TEMPLATE = {
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "dataproc"],
@@ -85,7 +85,7 @@ with models.DAG(
 
     # [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
     instantiate_inline_workflow_template = DataprocInstantiateInlineWorkflowTemplateOperator(
-        task_id='instantiate_inline_workflow_template', template=WORKFLOW_TEMPLATE, region=REGION
+        task_id="instantiate_inline_workflow_template", template=WORKFLOW_TEMPLATE, region=REGION
     )
     # [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
 

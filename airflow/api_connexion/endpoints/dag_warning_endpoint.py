@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
@@ -32,14 +31,14 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def get_dag_warnings(
     *,
     limit: int,
-    dag_id: Optional[str] = None,
-    warning_type: Optional[str] = None,
-    offset: Optional[int] = None,
+    dag_id: str | None = None,
+    warning_type: str | None = None,
+    offset: int | None = None,
     order_by: str = "timestamp",
     session: Session = NEW_SESSION,
 ) -> APIResponse:

@@ -15,21 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 from tests.providers.apache.hive import TestHiveEnvironment
 
-TEST_HDFS_CONN = 'webhdfs_default'
-TEST_HDFS_PATH = 'hdfs://user/hive/warehouse/airflow.db/static_babynames'
+TEST_HDFS_CONN = "webhdfs_default"
+TEST_HDFS_PATH = "hdfs://user/hive/warehouse/airflow.db/static_babynames"
 
 
 class TestWebHdfsSensor(TestHiveEnvironment):
-    @mock.patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook')
+    @mock.patch("airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook")
     def test_poke(self, mock_hook):
         sensor = WebHdfsSensor(
-            task_id='test_task',
+            task_id="test_task",
             webhdfs_conn_id=TEST_HDFS_CONN,
             filepath=TEST_HDFS_PATH,
         )
@@ -40,12 +41,12 @@ class TestWebHdfsSensor(TestHiveEnvironment):
         mock_hook.return_value.check_for_path.assert_called_once_with(hdfs_path=TEST_HDFS_PATH)
         mock_hook.assert_called_once_with(TEST_HDFS_CONN)
 
-    @mock.patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook')
+    @mock.patch("airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook")
     def test_poke_should_return_false_for_non_existing_table(self, mock_hook):
         mock_hook.return_value.check_for_path.return_value = False
 
         sensor = WebHdfsSensor(
-            task_id='test_task',
+            task_id="test_task",
             webhdfs_conn_id=TEST_HDFS_CONN,
             filepath=TEST_HDFS_PATH,
         )

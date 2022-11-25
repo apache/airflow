@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from typing import List, Optional
 
 import pytest
 
@@ -33,7 +33,7 @@ AWS_EKS_KEY = "aws_eks.json"
 
 
 @contextmanager
-def provide_aws_context(key_file_path: Optional[str] = None):
+def provide_aws_context(key_file_path: str | None = None):
     """
     Authenticates the context to be able use aws resources.
 
@@ -74,7 +74,7 @@ class AmazonSystemTest(SystemTest):
         return os.environ.get("REMOVE_RESOURCES", False)
 
     @classmethod
-    def execute_with_ctx(cls, cmd: List[str]):
+    def execute_with_ctx(cls, cmd: list[str]):
         """
         Executes command with context created by provide_aws_context.
         """

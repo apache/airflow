@@ -15,23 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import logging
 import warnings
 from json import JSONDecodeError
-from typing import Dict, Optional, Union
-from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException, RemovedInAirflow3Warning
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
@@ -41,7 +40,7 @@ log = logging.getLogger(__name__)
 
 def parse_netloc_to_hostname(*args, **kwargs):
     """This method is deprecated."""
-    warnings.warn("This method is deprecated.", DeprecationWarning)
+    warnings.warn("This method is deprecated.", RemovedInAirflow3Warning)
     return _parse_netloc_to_hostname(*args, **kwargs)
 
 
@@ -49,8 +48,8 @@ def parse_netloc_to_hostname(*args, **kwargs):
 # See: https://issues.apache.org/jira/browse/AIRFLOW-3615
 def _parse_netloc_to_hostname(uri_parts):
     """Parse a URI string to get correct Hostname."""
-    hostname = unquote(uri_parts.hostname or '')
-    if '/' in hostname:
+    hostname = unquote(uri_parts.hostname or "")
+    if "/" in hostname:
         hostname = uri_parts.netloc
         if "@" in hostname:
             hostname = hostname.rsplit("@", 1)[1]
@@ -83,35 +82,35 @@ class Connection(Base, LoggingMixin):
     :param uri: URI address describing connection parameters.
     """
 
-    EXTRA_KEY = '__extra__'
+    EXTRA_KEY = "__extra__"
 
     __tablename__ = "connection"
 
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
-    description = Column(Text().with_variant(Text(5000), 'mysql').with_variant(String(5000), 'sqlite'))
+    description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))
-    _password = Column('password', String(5000))
+    _password = Column("password", String(5000))
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    _extra = Column('extra', Text())
+    _extra = Column("extra", Text())
 
     def __init__(
         self,
-        conn_id: Optional[str] = None,
-        conn_type: Optional[str] = None,
-        description: Optional[str] = None,
-        host: Optional[str] = None,
-        login: Optional[str] = None,
-        password: Optional[str] = None,
-        schema: Optional[str] = None,
-        port: Optional[int] = None,
-        extra: Optional[Union[str, dict]] = None,
-        uri: Optional[str] = None,
+        conn_id: str | None = None,
+        conn_type: str | None = None,
+        description: str | None = None,
+        host: str | None = None,
+        login: str | None = None,
+        password: str | None = None,
+        schema: str | None = None,
+        port: int | None = None,
+        extra: str | dict | None = None,
+        uri: str | None = None,
     ):
         super().__init__()
         self.conn_id = conn_id
@@ -155,14 +154,14 @@ class Connection(Base, LoggingMixin):
                     "Encountered JSON value in `extra` which does not parse as a dictionary in "
                     f"connection {conn_id!r}. From Airflow 3.0, the `extra` field must contain a JSON "
                     "representation of a Python dict.",
-                    DeprecationWarning,
+                    RemovedInAirflow3Warning,
                     stacklevel=3,
                 )
         except json.JSONDecodeError:
             warnings.warn(
                 f"Encountered non-JSON in `extra` field for connection {conn_id!r}. Support for "
                 "non-JSON `extra` will be removed in Airflow 3.0",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         return None
@@ -175,20 +174,21 @@ class Connection(Base, LoggingMixin):
     def parse_from_uri(self, **uri):
         """This method is deprecated. Please use uri parameter in constructor."""
         warnings.warn(
-            "This method is deprecated. Please use uri parameter in constructor.", DeprecationWarning
+            "This method is deprecated. Please use uri parameter in constructor.",
+            RemovedInAirflow3Warning,
         )
         self._parse_from_uri(**uri)
 
     @staticmethod
     def _normalize_conn_type(conn_type):
-        if conn_type == 'postgresql':
-            conn_type = 'postgres'
-        elif '-' in conn_type:
-            conn_type = conn_type.replace('-', '_')
+        if conn_type == "postgresql":
+            conn_type = "postgres"
+        elif "-" in conn_type:
+            conn_type = conn_type.replace("-", "_")
         return conn_type
 
     def _parse_from_uri(self, uri: str):
-        uri_parts = urlparse(uri)
+        uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(conn_type)
         self.host = _parse_netloc_to_hostname(uri_parts)
@@ -206,7 +206,7 @@ class Connection(Base, LoggingMixin):
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
-        if '_' in self.conn_type:
+        if "_" in self.conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
                 self.conn_type,
@@ -214,27 +214,27 @@ class Connection(Base, LoggingMixin):
 
         uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
 
-        authority_block = ''
+        authority_block = ""
         if self.login is not None:
-            authority_block += quote(self.login, safe='')
+            authority_block += quote(self.login, safe="")
 
         if self.password is not None:
-            authority_block += ':' + quote(self.password, safe='')
+            authority_block += ":" + quote(self.password, safe="")
 
-        if authority_block > '':
-            authority_block += '@'
+        if authority_block > "":
+            authority_block += "@"
 
             uri += authority_block
 
-        host_block = ''
+        host_block = ""
         if self.host:
-            host_block += quote(self.host, safe='')
+            host_block += quote(self.host, safe="")
 
         if self.port:
-            if host_block == '' and authority_block == '':
-                host_block += f'@:{self.port}'
+            if host_block == "" and authority_block == "":
+                host_block += f"@:{self.port}"
             else:
-                host_block += f':{self.port}'
+                host_block += f":{self.port}"
 
         if self.schema:
             host_block += f"/{quote(self.schema, safe='')}"
@@ -243,17 +243,17 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                query: Optional[str] = urlencode(self.extra_dejson)
+                query: str | None = urlencode(self.extra_dejson)
             except TypeError:
                 query = None
             if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
-                uri += ('?' if self.schema else '/?') + query
+                uri += ("?" if self.schema else "/?") + query
             else:
-                uri += ('?' if self.schema else '/?') + urlencode({self.EXTRA_KEY: self.extra})
+                uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
 
         return uri
 
-    def get_password(self) -> Optional[str]:
+    def get_password(self) -> str | None:
         """Return encrypted password."""
         if self._password and self.is_encrypted:
             fernet = get_fernet()
@@ -262,23 +262,23 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt encrypted password for login={self.login}  "
                     f"FERNET_KEY configuration is missing"
                 )
-            return fernet.decrypt(bytes(self._password, 'utf-8')).decode()
+            return fernet.decrypt(bytes(self._password, "utf-8")).decode()
         else:
             return self._password
 
-    def set_password(self, value: Optional[str]):
+    def set_password(self, value: str | None):
         """Encrypt password and set in object attribute."""
         if value:
             fernet = get_fernet()
-            self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
     def password(cls):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym('_password', descriptor=property(cls.get_password, cls.set_password))
+        return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
 
-    def get_extra(self) -> Dict:
+    def get_extra(self) -> dict:
         """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
@@ -287,7 +287,7 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt `extra` params for login={self.login}, "
                     f"FERNET_KEY configuration is missing"
                 )
-            extra_val = fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
+            extra_val = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
         else:
             extra_val = self._extra
         if extra_val:
@@ -299,7 +299,7 @@ class Connection(Base, LoggingMixin):
         if value:
             self._validate_extra(value, self.conn_id)
             fernet = get_fernet()
-            self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self._extra = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_extra_encrypted = fernet.is_encrypted
         else:
             self._extra = value
@@ -308,18 +308,20 @@ class Connection(Base, LoggingMixin):
     @declared_attr
     def extra(cls):
         """Extra data. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym('_extra', descriptor=property(cls.get_extra, cls.set_extra))
+        return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`"""
         fernet = get_fernet()
         if self._password and self.is_encrypted:
-            self._password = fernet.rotate(self._password.encode('utf-8')).decode()
+            self._password = fernet.rotate(self._password.encode("utf-8")).decode()
         if self._extra and self.is_extra_encrypted:
-            self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
+            self._extra = fernet.rotate(self._extra.encode("utf-8")).decode()
 
     def get_hook(self, *, hook_params=None):
         """Return hook based on conn_type"""
+        from airflow.providers_manager import ProvidersManager
+
         hook = ProvidersManager().hooks.get(self.conn_type, None)
 
         if hook is None:
@@ -339,7 +341,7 @@ class Connection(Base, LoggingMixin):
         return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
     def __repr__(self):
-        return self.conn_id or ''
+        return self.conn_id or ""
 
     def log_info(self):
         """
@@ -349,7 +351,7 @@ class Connection(Base, LoggingMixin):
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
             "use the default representation (__repr__).",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return (
@@ -366,7 +368,7 @@ class Connection(Base, LoggingMixin):
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
             "use the default representation (__repr__).",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return (
@@ -377,10 +379,10 @@ class Connection(Base, LoggingMixin):
 
     def test_connection(self):
         """Calls out get_hook method and executes test_connection method on that."""
-        status, message = False, ''
+        status, message = False, ""
         try:
             hook = self.get_hook()
-            if getattr(hook, 'test_connection', False):
+            if getattr(hook, "test_connection", False):
                 status, message = hook.test_connection()
             else:
                 message = (
@@ -392,7 +394,7 @@ class Connection(Base, LoggingMixin):
         return status, message
 
     @property
-    def extra_dejson(self) -> Dict:
+    def extra_dejson(self) -> dict:
         """Returns the extra property by deserializing json."""
         obj = {}
         if self.extra:
@@ -408,7 +410,7 @@ class Connection(Base, LoggingMixin):
         return obj
 
     @classmethod
-    def get_connection_from_secrets(cls, conn_id: str) -> 'Connection':
+    def get_connection_from_secrets(cls, conn_id: str) -> Connection:
         """
         Get connection by conn_id.
 
@@ -422,26 +424,26 @@ class Connection(Base, LoggingMixin):
                     return conn
             except Exception:
                 log.exception(
-                    'Unable to retrieve connection from secrets backend (%s). '
-                    'Checking subsequent secrets backend.',
+                    "Unable to retrieve connection from secrets backend (%s). "
+                    "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
                 )
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
     @classmethod
-    def from_json(cls, value, conn_id=None) -> 'Connection':
+    def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
-        extra = kwargs.pop('extra', None)
+        extra = kwargs.pop("extra", None)
         if extra:
-            kwargs['extra'] = extra if isinstance(extra, str) else json.dumps(extra)
-        conn_type = kwargs.pop('conn_type', None)
+            kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
+        conn_type = kwargs.pop("conn_type", None)
         if conn_type:
-            kwargs['conn_type'] = cls._normalize_conn_type(conn_type)
-        port = kwargs.pop('port', None)
+            kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
+        port = kwargs.pop("port", None)
         if port:
             try:
-                kwargs['port'] = int(port)
+                kwargs["port"] = int(port)
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
         return Connection(conn_id=conn_id, **kwargs)

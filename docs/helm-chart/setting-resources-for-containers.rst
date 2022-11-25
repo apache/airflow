@@ -35,6 +35,7 @@ Possible Containers where resources can be configured include:
    * ``dags.gitSync.resources``
    * ``webserver.resources``
    * ``flower.resources``
+   * ``dagProcessor.resources``
    * ``triggerer.resources``
 
 * Containers used for Airflow k8s jobs or cron jobs. You can add the resources for these Containers through the following parameters:

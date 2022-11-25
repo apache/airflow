@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import sys
 
 source = sys.argv[1]
 destination = sys.argv[2]
 
-print('Running script')
+print("Running script")
 with open(source) as src, open(destination, "w+") as dest:
     lines = [line.upper() for line in src.readlines()]
     print(lines)

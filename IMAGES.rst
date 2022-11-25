@@ -85,13 +85,13 @@ You can build the CI image using current sources this command:
 
 .. code-block:: bash
 
-  breeze build-image
+  breeze ci-image build
 
 You can build the PROD image using current sources with this command:
 
 .. code-block:: bash
 
-  breeze build-prod-image
+  breeze prod-image build
 
 By adding ``--python <PYTHON_MAJOR_MINOR_VERSION>`` parameter you can build the
 image version for the chosen Python version.
@@ -104,13 +104,13 @@ For example if you want to build Python 3.7 version of production image with
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --extras "all"
+  breeze prod-image build --python 3.7 --extras "all"
 
 If you just want to add new extras you can add them like that:
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras "all"
+  breeze prod-image build --python 3.7 --additional-extras "all"
 
 The command that builds the CI image is optimized to minimize the time needed to rebuild the image when
 the source code of Airflow evolves. This means that if you already have the image locally downloaded and
@@ -128,7 +128,7 @@ parameter to Breeze:
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras=trino --install-airflow-version=2.0.0
+  breeze prod-image build --python 3.7 --additional-extras=trino --install-airflow-version=2.0.0
 
 This will build the image using command similar to:
 
@@ -165,8 +165,7 @@ You can also skip installing airflow and install it from locally provided files 
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras=trino \
-     --airflow-is-in-context-pypi --install-packages-from-context
+  breeze prod-image build --python 3.7 --additional-extras=trino --install-packages-from-context
 
 In this case you airflow and all packages (.whl files) should be placed in ``docker-context-files`` folder.
 
@@ -193,21 +192,21 @@ or ``disabled`` flags when you run Breeze commands. For example:
 
 .. code-block:: bash
 
-  breeze build-image --python 3.7 --docker-cache local
+  breeze ci-image build --python 3.7 --docker-cache local
 
 Will build the CI image using local build cache (note that it will take quite a long time the first
 time you run it).
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --docker-cache registry
+  breeze prod-image build --python 3.7 --docker-cache registry
 
 Will build the production image with cache used from registry.
 
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --docker-cache disabled
+  breeze prod-image build --python 3.7 --docker-cache disabled
 
 Will build the production image from the scratch.
 
@@ -317,10 +316,9 @@ you have ``buildx`` plugin installed.
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
-    --build-arg ADDITIONAL_PYTHON_DEPS="pandas"
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
     --tag my-image:0.0.1
 
 
@@ -328,8 +326,8 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras=jdbc --additional-python-deps="pandas" \
-      --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
+  breeze ci-image build --python 3.7 --additional-extras=jdbc --additional-python-deps="pandas" \
+      --additional-dev-apt-deps="gcc g++"
 
 You can customize more aspects of the image - such as additional commands executed before apt dependencies
 are installed, or adding extra sources to install your dependencies from. You can see all the arguments
@@ -354,10 +352,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
         typeform" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="msodbcsql17 unixodbc-dev g++" \
     --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
-    --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y" \
-    --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="msodbcsql17 unixodbc git procps vim" \
-    --build-arg ADDITIONAL_RUNTIME_ENV_VARS="ACCEPT_EULA=Y" \
+    --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y"
     --tag my-image:0.0.1
 
 CI image build arguments
@@ -376,13 +371,17 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``DEPENDENCIES_EPOCH_NUMBER``            | ``2``                                    | increasing this number will reinstall    |
 |                                          |                                          | all apt dependencies                     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the   |
+|                                          |                                          | installation commands (except when       |
+|                                          |                                          | reinstalling ``pip`` itself)             |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_NO_CACHE_DIR``                     | ``true``                                 | if true, then no pip cache will be       |
 |                                          |                                          | stored                                   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``HOME``                                 | ``/root``                                | Home directory of the root user (CI      |
 |                                          |                                          | image has root user as default)          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_HOME``                         | ``/root/airflow``                        | Airflow’s HOME (that’s where logs and    |
+| ``AIRFLOW_HOME``                         | ``/root/airflow``                        | Airflow's HOME (that's where logs and    |
 |                                          |                                          | sqlite databases are stored)             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_SOURCES``                      | ``/opt/airflow``                         | Mounted sources of Airflow               |
@@ -442,15 +441,15 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | additional Python dependencies to        |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_COMMAND``                      | (see Dockerfile)                         | Dev apt command executed before dev deps |
+| ``DEV_APT_COMMAND``                      |                                          | Dev apt command executed before dev deps |
 |                                          |                                          | are installed in the first part of image |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_COMMAND``           |                                          | Additional Dev apt command executed      |
 |                                          |                                          | before dev dep are installed             |
 |                                          |                                          | in the first part of the image           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_DEPS``                         | (see Dockerfile)                         | Dev APT dependencies installed           |
-|                                          |                                          | in the first part of the image           |
+| ``DEV_APT_DEPS``                         | Empty - install default dependencies     | Dev APT dependencies installed           |
+|                                          | (see ``install_os_dependencies.sh``)     | in the first part of the image           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_DEPS``              |                                          | Additional apt dev dependencies          |
 |                                          |                                          | installed in the first part of the image |
@@ -458,23 +457,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_DEV_APT_ENV``               |                                          | Additional env variables defined         |
 |                                          |                                          | when installing dev deps                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_COMMAND``                  | (see Dockerfile)                         | Runtime apt command executed before deps |
-|                                          |                                          | are installed in first part of the image |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_COMMAND``       |                                          | Additional Runtime apt command executed  |
-|                                          |                                          | before runtime dep are installed         |
-|                                          |                                          | in the second part of the image          |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_DEPS``                     | (see Dockerfile)                         | Runtime APT dependencies installed       |
-|                                          |                                          | in the second part of the image          |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_DEPS``          |                                          | Additional apt runtime dependencies      |
-|                                          |                                          | installed in second part of the image    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
-|                                          |                                          | when installing runtime deps             |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.1.2``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.3.1``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -534,7 +517,7 @@ This builds the CI image in version 3.7 with "jdbc" extra and "default-jre-headl
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
-    --build-arg AIRFLOW_EXTRAS=jdbc --build-arg ADDITIONAL_RUNTIME_DEPS="default-jre-headless" \
+    --build-arg AIRFLOW_EXTRAS=jdbc \
     --tag my-image:0.0.1
 
 Running the CI image

@@ -15,12 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains ODBC hook."""
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 from urllib.parse import quote_plus
 
 import pyodbc
 
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
 
@@ -31,21 +33,21 @@ class OdbcHook(DbApiHook):
     See :doc:`/connections/odbc` for full documentation.
     """
 
-    DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pyodbc'
-    conn_name_attr = 'odbc_conn_id'
-    default_conn_name = 'odbc_default'
-    conn_type = 'odbc'
-    hook_name = 'ODBC'
+    DEFAULT_SQLALCHEMY_SCHEME = "mssql+pyodbc"
+    conn_name_attr = "odbc_conn_id"
+    default_conn_name = "odbc_default"
+    conn_type = "odbc"
+    hook_name = "ODBC"
     supports_autocommit = True
 
     def __init__(
         self,
         *args,
-        database: Optional[str] = None,
-        driver: Optional[str] = None,
-        dsn: Optional[str] = None,
-        connect_kwargs: Optional[dict] = None,
-        sqlalchemy_scheme: Optional[str] = None,
+        database: str | None = None,
+        driver: str | None = None,
+        dsn: str | None = None,
+        connect_kwargs: dict | None = None,
+        sqlalchemy_scheme: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -75,16 +77,16 @@ class OdbcHook(DbApiHook):
         return self._connection
 
     @property
-    def database(self) -> Optional[str]:
+    def database(self) -> str | None:
         """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
         return self._database or self.connection.schema
 
     @property
-    def sqlalchemy_scheme(self) -> Optional[str]:
-        """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
+    def sqlalchemy_scheme(self) -> str:
+        """Sqlalchemy scheme either from constructor, connection extras or default."""
         return (
             self._sqlalchemy_scheme
-            or self.connection_extra_lower.get('sqlalchemy_scheme')
+            or self.connection_extra_lower.get("sqlalchemy_scheme")
             or self.DEFAULT_SQLALCHEMY_SCHEME
         )
 
@@ -98,19 +100,19 @@ class OdbcHook(DbApiHook):
         return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
-    def driver(self) -> Optional[str]:
+    def driver(self) -> str | None:
         """Driver from init param if given; else try to find one in connection extra."""
         if not self._driver:
-            driver = self.connection_extra_lower.get('driver')
+            driver = self.connection_extra_lower.get("driver")
             if driver:
                 self._driver = driver
-        return self._driver and self._driver.strip().lstrip('{').rstrip('}').strip()
+        return self._driver and self._driver.strip().lstrip("{").rstrip("}").strip()
 
     @property
-    def dsn(self) -> Optional[str]:
+    def dsn(self) -> str | None:
         """DSN from init param if given; else try to find one in connection extra."""
         if not self._dsn:
-            dsn = self.connection_extra_lower.get('dsn')
+            dsn = self.connection_extra_lower.get("dsn")
             if dsn:
                 self._dsn = dsn.strip()
         return self._dsn
@@ -124,7 +126,7 @@ class OdbcHook(DbApiHook):
         ``Connection.extra`` will be added to the connection string.
         """
         if not self._conn_str:
-            conn_str = ''
+            conn_str = ""
             if self.driver:
                 conn_str += f"DRIVER={{{self.driver}}};"
             if self.dsn:
@@ -141,7 +143,7 @@ class OdbcHook(DbApiHook):
             if self.connection.port:
                 conn_str += f"PORT={self.connection.port};"
 
-            extra_exclude = {'driver', 'dsn', 'connect_kwargs', 'sqlalchemy_scheme'}
+            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme"}
             extra_params = {
                 k: v for k, v in self.connection.extra_dejson.items() if not k.lower() in extra_exclude
             }
@@ -161,13 +163,13 @@ class OdbcHook(DbApiHook):
 
         If ``attrs_before`` provided, keys and values are converted to int, as required by pyodbc.
         """
-        conn_connect_kwargs = self.connection_extra_lower.get('connect_kwargs', {})
+        conn_connect_kwargs = self.connection_extra_lower.get("connect_kwargs", {})
         hook_connect_kwargs = self._connect_kwargs or {}
         merged_connect_kwargs = merge_dicts(conn_connect_kwargs, hook_connect_kwargs)
 
-        if 'attrs_before' in merged_connect_kwargs:
-            merged_connect_kwargs['attrs_before'] = {
-                int(k): int(v) for k, v in merged_connect_kwargs['attrs_before'].items()
+        if "attrs_before" in merged_connect_kwargs:
+            merged_connect_kwargs["attrs_before"] = {
+                int(k): int(v) for k, v in merged_connect_kwargs["attrs_before"].items()
             }
 
         return merged_connect_kwargs
@@ -178,13 +180,16 @@ class OdbcHook(DbApiHook):
         return conn
 
     def get_uri(self) -> str:
-        """URI invoked in :py:meth:`~airflow.hooks.dbapi.DbApiHook.get_sqlalchemy_engine` method"""
+        """
+        URI invoked in :py:meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`
+        method.
+        """
         quoted_conn_str = quote_plus(self.odbc_connection_string)
         uri = f"{self.sqlalchemy_scheme}:///?odbc_connect={quoted_conn_str}"
         return uri
 
     def get_sqlalchemy_connection(
-        self, connect_kwargs: Optional[dict] = None, engine_kwargs: Optional[dict] = None
+        self, connect_kwargs: dict | None = None, engine_kwargs: dict | None = None
     ) -> Any:
         """Sqlalchemy connection object"""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)

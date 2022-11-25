@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView, expose
@@ -96,9 +97,9 @@ appbuilder_mitem_toplevel = {
 bp = Blueprint(
     "test_plugin",
     __name__,
-    template_folder='templates',  # registers airflow/plugins/templates as a Jinja template folder
-    static_folder='static',
-    static_url_path='/static/test_plugin',
+    template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
+    static_folder="static",
+    static_url_path="/static/test_plugin",
 )
 
 
@@ -133,19 +134,19 @@ class AirflowTestPlugin(AirflowPlugin):
 
 
 class MockPluginA(AirflowPlugin):
-    name = 'plugin-a'
+    name = "plugin-a"
 
 
 class MockPluginB(AirflowPlugin):
-    name = 'plugin-b'
+    name = "plugin-b"
 
 
 class MockPluginC(AirflowPlugin):
-    name = 'plugin-c'
+    name = "plugin-c"
 
 
 class AirflowTestOnLoadPlugin(AirflowPlugin):
-    name = 'preload'
+    name = "preload"
 
     def on_load(self, *args, **kwargs):
-        self.name = 'postload'
+        self.name = "postload"

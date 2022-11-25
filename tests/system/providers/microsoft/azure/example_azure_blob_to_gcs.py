@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -25,6 +23,10 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor
 from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 
 BLOB_NAME = os.environ.get("AZURE_BLOB_NAME", "file.txt")
 AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
@@ -37,7 +39,7 @@ DAG_ID = "example_azure_blob_to_gcs"
 # [START how_to_azure_blob_to_gcs]
 with DAG(
     DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME},
 ) as dag:

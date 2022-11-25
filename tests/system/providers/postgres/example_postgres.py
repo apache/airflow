@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import os
 
@@ -32,7 +34,7 @@ DAG_ID = "postgres_operator_dag"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime.datetime(2020, 2, 2),
-    schedule_interval="@once",
+    schedule="@once",
     catchup=False,
 ) as dag:
     # [START postgres_operator_howto_guide_create_pet_table]
@@ -71,7 +73,7 @@ with DAG(
         task_id="get_birth_date",
         sql="SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC %(begin_date)s AND %(end_date)s",
         parameters={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
-        runtime_parameters={'statement_timeout': '3000ms'},
+        runtime_parameters={"statement_timeout": "3000ms"},
     )
     # [END postgres_operator_howto_guide_get_birth_date]
 

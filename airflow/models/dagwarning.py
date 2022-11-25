@@ -15,9 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from enum import Enum
 
 from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
+from sqlalchemy.orm import Session
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
@@ -42,28 +45,28 @@ class DagWarning(Base):
     __tablename__ = "dag_warning"
     __table_args__ = (
         ForeignKeyConstraint(
-            ('dag_id',),
-            ['dag.dag_id'],
-            name='dcw_dag_id_fkey',
-            ondelete='CASCADE',
+            ("dag_id",),
+            ["dag.dag_id"],
+            name="dcw_dag_id_fkey",
+            ondelete="CASCADE",
         ),
     )
 
-    def __init__(self, dag_id, error_type, message, **kwargs):
+    def __init__(self, dag_id: str, error_type: str, message: str, **kwargs):
         super().__init__(**kwargs)
         self.dag_id = dag_id
         self.warning_type = DagWarningType(error_type).value  # make sure valid type
         self.message = message
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self.dag_id == other.dag_id and self.warning_type == other.warning_type
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.dag_id, self.warning_type))
 
     @classmethod
     @provide_session
-    def purge_inactive_dag_warnings(cls, session=NEW_SESSION):
+    def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
         """
         Deactivate DagWarning records for inactive dags.
 
@@ -71,13 +74,12 @@ class DagWarning(Base):
         """
         from airflow.models.dag import DagModel
 
-        if session.get_bind().dialect.name == 'sqlite':
-            dag_ids = session.query(DagModel).filter(DagModel.is_active == false()).all()
-            session.query(cls).filter(cls.dag_id.in_(dag_ids)).delete(synchronize_session=False)
+        if session.get_bind().dialect.name == "sqlite":
+            dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_active == false())
+            query = session.query(cls).filter(cls.dag_id.in_(dag_ids))
         else:
-            session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false()).delete(
-                synchronize_session=False
-            )
+            query = session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
+        query.delete(synchronize_session=False)
         session.commit()
 
 
@@ -89,4 +91,4 @@ class DagWarningType(str, Enum):
     in the DagWarning model.
     """
 
-    NONEXISTENT_POOL = 'non-existent pool'
+    NONEXISTENT_POOL = "non-existent pool"

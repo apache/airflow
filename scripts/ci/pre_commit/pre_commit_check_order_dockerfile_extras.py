@@ -19,11 +19,12 @@
 """
 Test for an order of dependencies in setup.py
 """
+from __future__ import annotations
+
 import difflib
 import sys
 import textwrap
 from pathlib import Path
-from typing import List
 
 from rich import print
 
@@ -47,14 +48,14 @@ class ConsoleDiff(difflib.Differ):
         """Generate comparison results for a same-tagged range."""
         for i in range(lo, hi):
             if tag == "+":
-                yield f'[green]{tag} {x[i]}[/]'
+                yield f"[green]{tag} {x[i]}[/]"
             elif tag == "-":
-                yield f'[red]{tag} {x[i]}[/]'
+                yield f"[red]{tag} {x[i]}[/]"
             else:
-                yield f'{tag} {x[i]}'
+                yield f"{tag} {x[i]}"
 
 
-def _check_list_sorted(the_list: List[str], message: str) -> bool:
+def _check_list_sorted(the_list: list[str], message: str) -> bool:
     sorted_list = sorted(the_list)
     if the_list == sorted_list:
         print(f"{message} is [green]ok[/]")
@@ -69,14 +70,14 @@ def _check_list_sorted(the_list: List[str], message: str) -> bool:
 
 
 def get_replaced_content(
-    content: List[str],
-    extras_list: List[str],
+    content: list[str],
+    extras_list: list[str],
     start_line: str,
     end_line: str,
     prefix: str,
     suffix: str,
     add_empty_lines: bool,
-) -> List[str]:
+) -> list[str]:
     result = []
     is_copying = True
     for line in content:
@@ -86,7 +87,7 @@ def get_replaced_content(
                 result.append("\n")
             is_copying = False
             for extra in extras_list:
-                result.append(f'{prefix}{extra}{suffix}\n')
+                result.append(f"{prefix}{extra}{suffix}\n")
         elif line.startswith(end_line):
             if add_empty_lines:
                 result.append("\n")
@@ -102,7 +103,7 @@ def check_dockerfile():
     extras_list = None
     for line in lines:
         if line.startswith("ARG AIRFLOW_EXTRAS="):
-            extras_list = line.split("=")[1].replace('"', '').split(",")
+            extras_list = line.split("=")[1].replace('"', "").split(",")
             if _check_list_sorted(extras_list, "Dockerfile's AIRFLOW_EXTRAS"):
                 builds_args_content = BUILD_ARGS_REF_PATH.read_text().splitlines(keepends=True)
                 result = get_replaced_content(
@@ -131,7 +132,7 @@ def check_dockerfile():
         errors.append("Something is wrong. Dockerfile does not contain AIRFLOW_EXTRAS")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     check_dockerfile()
     print()
     print()

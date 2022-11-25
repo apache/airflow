@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -70,7 +71,7 @@ class SalesforceToS3Operator(BaseOperator):
         s3_key: str,
         salesforce_conn_id: str,
         export_format: str = "csv",
-        query_params: Optional[Dict] = None,
+        query_params: dict | None = None,
         include_deleted: bool = False,
         coerce_to_timestamp: bool = False,
         record_time_added: bool = False,
@@ -78,7 +79,7 @@ class SalesforceToS3Operator(BaseOperator):
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
-        acl_policy: Optional[str] = None,
+        acl_policy: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,7 +98,7 @@ class SalesforceToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         salesforce_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce_hook.make_query(
             query=self.salesforce_query,

@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
+from __future__ import annotations
+
 import os
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -83,30 +85,30 @@ class GCSToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'prefix',
-        'delimiter',
-        'dest_s3_key',
-        'google_impersonation_chain',
+        "bucket",
+        "prefix",
+        "delimiter",
+        "dest_s3_key",
+        "google_impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
         *,
         bucket: str,
-        prefix: Optional[str] = None,
-        delimiter: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        dest_aws_conn_id: str = 'aws_default',
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        google_cloud_storage_conn_id: str | None = None,
+        delegate_to: str | None = None,
+        dest_aws_conn_id: str = "aws_default",
         dest_s3_key: str,
-        dest_verify: Optional[Union[str, bool]] = None,
+        dest_verify: str | bool | None = None,
         replace: bool = False,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        dest_s3_extra_args: Optional[Dict] = None,
-        s3_acl_policy: Optional[str] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
+        dest_s3_extra_args: dict | None = None,
+        s3_acl_policy: str | None = None,
         keep_directory_structure: bool = True,
         **kwargs,
     ) -> None:
@@ -135,7 +137,7 @@ class GCSToS3Operator(BaseOperator):
         self.s3_acl_policy = s3_acl_policy
         self.keep_directory_structure = keep_directory_structure
 
-    def execute(self, context: 'Context') -> List[str]:
+    def execute(self, context: Context) -> list[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -144,7 +146,7 @@ class GCSToS3Operator(BaseOperator):
         )
 
         self.log.info(
-            'Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
+            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
             self.bucket,
             self.delimiter,
             self.prefix,
@@ -170,7 +172,7 @@ class GCSToS3Operator(BaseOperator):
             # in case that no files exists, return an empty array to avoid errors
             existing_files = existing_files if existing_files is not None else []
             # remove the prefix for the existing files to allow the match
-            existing_files = [file.replace(prefix, '', 1) for file in existing_files]
+            existing_files = [file.replace(prefix, "", 1) for file in existing_files]
             files = list(set(files) - set(existing_files))
 
         if files:

@@ -41,7 +41,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-    restart: always
+    restart: "on-failure"
     command: ['mysqld', '--character-set-server=utf8mb4',
               '--collation-server=utf8mb4_unicode_ci']
 volumes:

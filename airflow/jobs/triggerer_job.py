@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import asyncio
 import os
@@ -22,7 +23,7 @@ import sys
 import threading
 import time
 from collections import deque
-from typing import Deque, Dict, Set, Tuple, Type
+from typing import Deque
 
 from sqlalchemy import func
 
@@ -48,14 +49,14 @@ class TriggererJob(BaseJob):
      - A subthread runs all the async code
     """
 
-    __mapper_args__ = {'polymorphic_identity': 'TriggererJob'}
+    __mapper_args__ = {"polymorphic_identity": "TriggererJob"}
 
     def __init__(self, capacity=None, *args, **kwargs):
         # Call superclass
         super().__init__(*args, **kwargs)
 
         if capacity is None:
-            self.capacity = conf.getint('triggerer', 'default_capacity', fallback=1000)
+            self.capacity = conf.getint("triggerer", "default_capacity", fallback=1000)
         elif isinstance(capacity, int) and capacity > 0:
             self.capacity = capacity
         else:
@@ -158,7 +159,7 @@ class TriggererJob(BaseJob):
             # Tell the model to wake up its tasks
             Trigger.submit_event(trigger_id=trigger_id, event=event)
             # Emit stat event
-            Stats.incr('triggers.succeeded')
+            Stats.incr("triggers.succeeded")
 
     def handle_failed_triggers(self):
         """
@@ -170,10 +171,10 @@ class TriggererJob(BaseJob):
             trigger_id, saved_exc = self.runner.failed_triggers.popleft()
             Trigger.submit_failure(trigger_id=trigger_id, exc=saved_exc)
             # Emit stat event
-            Stats.incr('triggers.failed')
+            Stats.incr("triggers.failed")
 
     def emit_metrics(self):
-        Stats.gauge('triggers.running', len(self.runner.triggers))
+        Stats.gauge("triggers.running", len(self.runner.triggers))
 
 
 class TriggerDetails(TypedDict):
@@ -195,22 +196,22 @@ class TriggerRunner(threading.Thread, LoggingMixin):
     """
 
     # Maps trigger IDs to their running tasks and other info
-    triggers: Dict[int, TriggerDetails]
+    triggers: dict[int, TriggerDetails]
 
     # Cache for looking up triggers by classpath
-    trigger_cache: Dict[str, Type[BaseTrigger]]
+    trigger_cache: dict[str, type[BaseTrigger]]
 
     # Inbound queue of new triggers
-    to_create: Deque[Tuple[int, BaseTrigger]]
+    to_create: Deque[tuple[int, BaseTrigger]]
 
     # Inbound queue of deleted triggers
     to_cancel: Deque[int]
 
     # Outbound queue of events
-    events: Deque[Tuple[int, TriggerEvent]]
+    events: Deque[tuple[int, TriggerEvent]]
 
     # Outbound queue of failed triggers
-    failed_triggers: Deque[Tuple[int, BaseException]]
+    failed_triggers: Deque[tuple[int, BaseException]]
 
     # Should-we-stop flag
     stop: bool = False
@@ -346,7 +347,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     "to get more information on overrunning coroutines.",
                     time_elapsed,
                 )
-                Stats.incr('triggers.blocked_main_thread')
+                Stats.incr("triggers.blocked_main_thread")
 
     # Async trigger logic
 
@@ -355,10 +356,10 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         Wrapper which runs an actual trigger (they are async generators)
         and pushes their events into our outbound event deque.
         """
-        self.log.info("Trigger %s starting", self.triggers[trigger_id]['name'])
+        self.log.info("Trigger %s starting", self.triggers[trigger_id]["name"])
         try:
             async for event in trigger.run():
-                self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]['name'], event)
+                self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
         finally:
@@ -370,7 +371,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     # Main-thread sync API
 
-    def update_triggers(self, requested_trigger_ids: Set[int]):
+    def update_triggers(self, requested_trigger_ids: set[int]):
         """
         Called from the main thread to request that we update what
         triggers we're running.
@@ -413,7 +414,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         for old_id in cancel_trigger_ids:
             self.to_cancel.append(old_id)
 
-    def get_trigger_by_classpath(self, classpath: str) -> Type[BaseTrigger]:
+    def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """
         Gets a trigger class by its classpath ("path.to.module.classname")
 

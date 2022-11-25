@@ -24,6 +24,85 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+5.3.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``PostgresHook: Added ON CONFLICT DO NOTHING statement when all target fields are primary keys (#26661)``
+* ``Add SQLExecuteQueryOperator (#25717)``
+* ``Rename schema to database in PostgresHook (#26744)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
+5.2.2
+.....
+
+Misc
+~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Rename schema to database in 'PostgresHook' (#26436)``
+   * ``Revert "Rename schema to database in 'PostgresHook' (#26436)" (#26734)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+5.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump dep on common-sql to fix issue with SQLTableCheckOperator (#26143)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``postgres provider: use non-binary psycopg2 (#25710)``
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use only public AwsHook's methods during IAM authorization (#25424)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Move all SQL classes to common-sql provider (#24836)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 5.0.0
 .....
 

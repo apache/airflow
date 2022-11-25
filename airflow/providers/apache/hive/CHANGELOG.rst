@@ -24,6 +24,82 @@
 Changelog
 ---------
 
+4.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+4.1.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Filter out invalid schemas in Hive hook (#27647)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
+4.0.1
+.....
+
+Misc
+~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+4.0.0
+.....
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+* The ``hql`` parameter in ``get_records`` of ``HiveServer2Hook`` has been renamed to sql to match the
+  ``get_records`` DbApiHook signature. If you used it as a positional parameter, this is no change for you,
+  but if you used it as keyword one, you need to rename it.
+* ``hive_conf`` parameter has been renamed to ``parameters`` and it is now second parameter, to match ``get_records``
+  signature from the DbApiHook. You need to rename it if you used it.
+* ``schema`` parameter in ``get_records`` is an optional kwargs extra parameter that you can add, to match
+  the schema of ``get_records`` from DbApiHook.
+
+* ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+* ``Remove Smart Sensors (#25507)``
+
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Move all SQL classes to common-sql provider (#24836)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix connection extra parameter 'auth_mechanism' in 'HiveMetastoreHook' and 'HiveServer2Hook' (#24713)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 

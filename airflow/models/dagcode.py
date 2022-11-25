@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import os
 import struct
 from datetime import datetime
-from typing import Iterable, List, Optional
+from typing import Iterable
 
 from sqlalchemy import BigInteger, Column, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
@@ -42,15 +44,15 @@ class DagCode(Base):
     For details on dag serialization see SerializedDagModel
     """
 
-    __tablename__ = 'dag_code'
+    __tablename__ = "dag_code"
 
     fileloc_hash = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
-    source_code = Column(Text().with_variant(MEDIUMTEXT(), 'mysql'), nullable=False)
+    source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
 
-    def __init__(self, full_filepath: str, source_code: Optional[str] = None):
+    def __init__(self, full_filepath: str, source_code: str | None = None):
         self.fileloc = full_filepath
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
@@ -123,7 +125,7 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_code(cls, alive_dag_filelocs: List[str], session=None):
+    def remove_deleted_code(cls, alive_dag_filelocs: list[str], session=None):
         """Deletes code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
@@ -135,7 +137,7 @@ class DagCode(Base):
 
         session.query(cls).filter(
             cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs)
-        ).delete(synchronize_session='fetch')
+        ).delete(synchronize_session="fetch")
 
     @classmethod
     @provide_session
@@ -167,7 +169,7 @@ class DagCode(Base):
 
     @staticmethod
     def _get_code_from_file(fileloc):
-        with open_maybe_zipped(fileloc, 'r') as f:
+        with open_maybe_zipped(fileloc, "r") as f:
             code = f.read()
         return code
 
@@ -193,4 +195,4 @@ class DagCode(Base):
         import hashlib
 
         # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
-        return struct.unpack('>Q', hashlib.sha1(full_filepath.encode('utf-8')).digest()[-8:])[0] >> 8
+        return struct.unpack(">Q", hashlib.sha1(full_filepath.encode("utf-8")).digest()[-8:])[0] >> 8

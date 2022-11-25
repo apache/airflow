@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This is a basic example DAG for using `SalesforceToS3Operator` to retrieve Salesforce account
 data and upload it to an Amazon S3 bucket.
 """
+from __future__ import annotations
 
 from datetime import datetime
 from os import getenv
@@ -32,7 +32,6 @@ S3_KEY = getenv("S3_KEY", "s3_filename")
 
 with DAG(
     dag_id="example_salesforce_to_s3",
-    schedule_interval=None,
     start_date=datetime(2021, 7, 8),
     catchup=False,
     tags=["example"],

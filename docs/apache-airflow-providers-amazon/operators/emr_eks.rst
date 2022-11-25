@@ -31,7 +31,32 @@ Prerequisite Tasks
 Operators
 ---------
 
+
+.. _howto/operator:EmrEksCreateClusterOperator:
+
+
+Create an Amazon EMR EKS virtual cluster
+========================================
+
+
+The ``EmrEksCreateClusterOperator`` will create an Amazon EMR on EKS virtual cluster.
+The example DAG below shows how to create an EMR on EKS virtual cluster.
+
+To create an Amazon EMR cluster on Amazon EKS, you need to specify a virtual cluster name,
+the eks cluster that you would like to use , and an eks namespace.
+
+Refer to the `EMR on EKS Development guide <https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/virtual-cluster.html>`__
+for more details.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_eks.py
+    :language: python
+    :start-after: [START howto_operator_emr_eks_create_cluster]
+    :end-before: [END howto_operator_emr_eks_create_cluster]
+
+
+
 .. _howto/operator:EmrContainerOperator:
+
 
 Submit a job to an Amazon EMR virtual cluster
 =============================================
@@ -56,8 +81,9 @@ and ``monitoringConfiguration`` to send logs to the ``/aws/emr-eks-spark`` log g
 Refer to the `EMR on EKS guide <https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/emr-eks-jobs-CLI.html#emr-eks-jobs-parameters>`__
 for more details on job configuration.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_eks.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_eks.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_emr_eks_config]
     :end-before: [END howto_operator_emr_eks_config]
 
@@ -66,11 +92,12 @@ can store them in a connection or provide them in the DAG. Your AWS region shoul
 in the ``aws_default`` connection as ``{"region_name": "us-east-1"}`` or a custom connection name
 that gets passed to the operator with the ``aws_conn_id`` parameter. The operator returns the Job ID of the job run.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_eks.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_eks.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_emr_container]
     :end-before: [END howto_operator_emr_container]
+
 
 Sensors
 -------
@@ -83,7 +110,7 @@ Wait on an Amazon EMR virtual cluster job
 To wait on the status of an Amazon EMR virtual cluster job to reach a terminal state, you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_eks.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_eks.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_emr_container]

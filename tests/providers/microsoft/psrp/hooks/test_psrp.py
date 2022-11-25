@@ -15,13 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 from logging import DEBUG, ERROR, INFO, WARNING
-from unittest import TestCase
 from unittest.mock import MagicMock, Mock, call, patch
 
-from parameterized import parameterized
+import pytest
 from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
@@ -103,15 +102,15 @@ def mock_powershell_factory():
     f"{PsrpHook.__module__}.{PsrpHook.__name__}.get_connection",
     new=lambda _, conn_id: Connection(
         conn_id=conn_id,
-        login='username',
-        password='password',
-        host='remote_host',
+        login="username",
+        password="password",
+        host="remote_host",
     ),
 )
 @patch(f"{PsrpHook.__module__}.WSMan")
 @patch(f"{PsrpHook.__module__}.PowerShell", new_callable=mock_powershell_factory)
 @patch(f"{PsrpHook.__module__}.RunspacePool")
-class TestPsrpHook(TestCase):
+class TestPsrpHook:
     def test_get_conn(self, runspace_pool, powershell, ws_man):
         hook = PsrpHook(CONNECTION_ID)
         assert hook.get_conn() is runspace_pool.return_value
@@ -128,7 +127,9 @@ class TestPsrpHook(TestCase):
         with raises(AirflowException, match="Unexpected extra configuration keys: foo"):
             hook.get_conn()
 
-    @parameterized.expand([(None,), (ERROR,)])
+    @pytest.mark.parametrize(
+        "logging_level", [pytest.param(None, id="none"), pytest.param(ERROR, id="ERROR")]
+    )
     def test_invoke(self, runspace_pool, powershell, ws_man, logging_level):
         runspace_options = {"connection_name": "foo"}
         wsman_options = {"encryption": "auto"}
@@ -155,12 +156,12 @@ class TestPsrpHook(TestCase):
                     # details.
                     ps.had_errors = True
             except AirflowException as exc:
-                assert str(exc) == 'Process had one or more errors'
+                assert str(exc) == "Process had one or more errors"
             else:
                 self.fail("Expected an error")
             assert ps.state == PSInvocationState.COMPLETED
 
-        assert on_output_callback.mock_calls == [call('output')]
+        assert on_output_callback.mock_calls == [call("output")]
         assert runspace_pool.return_value.__exit__.mock_calls == [call(None, None, None)]
         assert ws_man().__exit__.mock_calls == [call(None, None, None)]
         assert ws_man.call_args_list[0][1]["encryption"] == "auto"
@@ -169,18 +170,18 @@ class TestPsrpHook(TestCase):
         def assert_log(level, *args):
             assert call.log(level, *args) in logger.method_calls
 
-        assert_log(DEBUG, '%s: %s', 'command', 'debug1')
-        assert_log(DEBUG, '%s', 'debug2')
-        assert_log(ERROR, '%s: %s', 'command', 'error')
-        assert_log(INFO, '%s: %s', 'command', 'verbose')
-        assert_log(WARNING, '%s: %s', 'command', 'warning')
-        assert_log(INFO, 'Progress: %s (%s)', 'activity', 'description')
-        assert_log(INFO, '%s (%s): %s', 'computer', 'user', 'information')
-        assert_log(INFO, '%s: %s', 'reason', ps.streams.error[0])
+        assert_log(DEBUG, "%s: %s", "command", "debug1")
+        assert_log(DEBUG, "%s", "debug2")
+        assert_log(ERROR, "%s: %s", "command", "error")
+        assert_log(INFO, "%s: %s", "command", "verbose")
+        assert_log(WARNING, "%s: %s", "command", "warning")
+        assert_log(INFO, "Progress: %s (%s)", "activity", "description")
+        assert_log(INFO, "%s (%s): %s", "computer", "user", "information")
+        assert_log(INFO, "%s: %s", "reason", ps.streams.error[0])
         assert_log(INFO, DUMMY_STACKTRACE[0])
         assert_log(INFO, DUMMY_STACKTRACE[1])
 
-        assert call('Invocation state: %s', 'Completed') in logger.info.mock_calls
+        assert call("Invocation state: %s", "Completed") in logger.info.mock_calls
         args, kwargs = runspace_pool.call_args
         assert args == (ws_man.return_value,)
         assert kwargs["connection_name"] == "foo"
@@ -188,16 +189,16 @@ class TestPsrpHook(TestCase):
 
     def test_invoke_cmdlet(self, *mocks):
         with PsrpHook(CONNECTION_ID) as hook:
-            ps = hook.invoke_cmdlet('foo', bar="1", baz="2")
-            assert [call('foo', use_local_scope=None)] == ps.add_cmdlet.mock_calls
-            assert [call({'bar': '1', 'baz': '2'})] == ps.add_parameters.mock_calls
+            ps = hook.invoke_cmdlet("foo", bar="1", baz="2")
+            assert [call("foo", use_local_scope=None)] == ps.add_cmdlet.mock_calls
+            assert [call({"bar": "1", "baz": "2"})] == ps.add_parameters.mock_calls
 
     def test_invoke_powershell(self, *mocks):
         with PsrpHook(CONNECTION_ID) as hook:
-            ps = hook.invoke_powershell('foo')
-            assert call('foo') in ps.add_script.mock_calls
+            ps = hook.invoke_powershell("foo")
+            assert call("foo") in ps.add_script.mock_calls
 
     def test_invoke_local_context(self, *mocks):
         hook = PsrpHook(CONNECTION_ID)
-        ps = hook.invoke_powershell('foo')
-        assert call('foo') in ps.add_script.mock_calls
+        ps = hook.invoke_powershell("foo")
+        assert call("foo") in ps.add_script.mock_calls

@@ -183,6 +183,6 @@ startairflow_if_requested
 
 if [[ -n ${DISABLED_INTEGRATIONS=} && (${VERBOSE=} == "true" || ${VERBOSE} == "True") ]]; then
     echo
-    echo "${COLOR_BLUE}Those integrations are disabled: ${DISABLED_INTEGRATIONS}"
+    echo "${COLOR_BLUE}Those integrations are disabled: ${DISABLED_INTEGRATIONS}${COLOR_RESET}"
     echo
 fi

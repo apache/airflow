@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.exceptions import AirflowException
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -37,7 +38,7 @@ class ValidStateDep(BaseTIDep):
         super().__init__()
 
         if not valid_states:
-            raise AirflowException('ValidStatesDep received an empty set of valid states.')
+            raise AirflowException("ValidStatesDep received an empty set of valid states.")
         self._valid_states = valid_states
 
     def __eq__(self, other):

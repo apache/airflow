@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from unittest import mock
@@ -48,14 +49,14 @@ def setup():
 
 def test_home(capture_templates, admin_client):
     with capture_templates() as templates:
-        resp = admin_client.get('home', follow_redirects=True)
-        check_content_in_response('DAGs', resp)
+        resp = admin_client.get("home", follow_redirects=True)
+        check_content_in_response("DAGs", resp)
         val_state_color_mapping = (
-            'const STATE_COLOR = {'
+            "const STATE_COLOR = {"
             '"deferred": "mediumpurple", "failed": "red", '
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
-            '"scheduled": "tan", "sensing": "mediumpurple", '
+            '"scheduled": "tan", '
             '"shutdown": "blue", "skipped": "hotpink", '
             '"success": "green", "up_for_reschedule": "turquoise", '
             '"up_for_retry": "gold", "upstream_failed": "orange"};'
@@ -63,34 +64,25 @@ def test_home(capture_templates, admin_client):
         check_content_in_response(val_state_color_mapping, resp)
 
     assert len(templates) == 1
-    assert templates[0].name == 'airflow/dags.html'
+    assert templates[0].name == "airflow/dags.html"
     state_color_mapping = State.state_color.copy()
     state_color_mapping["null"] = state_color_mapping.pop(None)
-    assert templates[0].local_context['state_color'] == state_color_mapping
-
-
-def test_home_filter_tags(admin_client):
-    with admin_client:
-        admin_client.get('home?tags=example&tags=data', follow_redirects=True)
-        assert 'example,data' == flask.session[FILTER_TAGS_COOKIE]
-
-        admin_client.get('home?reset_tags', follow_redirects=True)
-        assert flask.session[FILTER_TAGS_COOKIE] is None
+    assert templates[0].local_context["state_color"] == state_color_mapping
 
 
 def test_home_status_filter_cookie(admin_client):
     with admin_client:
-        admin_client.get('home', follow_redirects=True)
-        assert 'all' == flask.session[FILTER_STATUS_COOKIE]
+        admin_client.get("home", follow_redirects=True)
+        assert "all" == flask.session[FILTER_STATUS_COOKIE]
 
-        admin_client.get('home?status=active', follow_redirects=True)
-        assert 'active' == flask.session[FILTER_STATUS_COOKIE]
+        admin_client.get("home?status=active", follow_redirects=True)
+        assert "active" == flask.session[FILTER_STATUS_COOKIE]
 
-        admin_client.get('home?status=paused', follow_redirects=True)
-        assert 'paused' == flask.session[FILTER_STATUS_COOKIE]
+        admin_client.get("home?status=paused", follow_redirects=True)
+        assert "paused" == flask.session[FILTER_STATUS_COOKIE]
 
-        admin_client.get('home?status=all', follow_redirects=True)
-        assert 'all' == flask.session[FILTER_STATUS_COOKIE]
+        admin_client.get("home?status=all", follow_redirects=True)
+        assert "all" == flask.session[FILTER_STATUS_COOKIE]
 
 
 @pytest.fixture(scope="module")
@@ -117,23 +109,24 @@ def client_single_dag(app, user_single_dag):
     )
 
 
-TEST_FILTER_DAG_IDS = ['filter_test_1', 'filter_test_2', 'a_first_dag_id_asc']
+TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
+TEST_TAGS = ["example", "test", "team", "group"]
 
 
 def _process_file(file_path, session):
-    dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+    dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=mock.MagicMock())
     dag_file_processor.process_file(file_path, [], False, session)
 
 
 @pytest.fixture()
 def working_dags(tmpdir):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}')"
+    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
 
     with create_session() as session:
-        for dag_id in TEST_FILTER_DAG_IDS:
+        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
-                f.writelines(dag_contents_template.format(dag_id))
+                f.writelines(dag_contents_template.format(dag_id, tag))
             _process_file(filename, session)
 
 
@@ -143,19 +136,28 @@ def broken_dags(tmpdir, working_dags):
         for dag_id in TEST_FILTER_DAG_IDS:
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
-                f.writelines('airflow DAG')
+                f.writelines("airflow DAG")
             _process_file(filename, session)
+
+
+def test_home_filter_tags(working_dags, admin_client):
+    with admin_client:
+        admin_client.get("home?tags=example&tags=data", follow_redirects=True)
+        assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
+
+        admin_client.get("home?reset_tags", follow_redirects=True)
+        assert flask.session[FILTER_TAGS_COOKIE] is None
 
 
 def test_home_importerrors(broken_dags, user_client):
     # Users with "can read on DAGs" gets all DAG import errors
-    resp = user_client.get('home', follow_redirects=True)
+    resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("Import Errors", resp)
     for dag_id in TEST_FILTER_DAG_IDS:
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
-@pytest.mark.parametrize('page', ['home', 'home?status=active', 'home?status=paused', 'home?status=all'])
+@pytest.mark.parametrize("page", ["home", "home?status=active", "home?status=paused", "home?status=all"])
 def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_dag, page):
     # Users that can only see certain DAGs get a filtered list of import errors
     resp = client_single_dag.get(page, follow_redirects=True)
@@ -169,14 +171,14 @@ def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_da
 
 def test_home_dag_list(working_dags, user_client):
     # Users with "can read on DAGs" gets all DAGs
-    resp = user_client.get('home', follow_redirects=True)
+    resp = user_client.get("home", follow_redirects=True)
     for dag_id in TEST_FILTER_DAG_IDS:
         check_content_in_response(f"dag_id={dag_id}", resp)
 
 
 def test_home_dag_list_filtered_singledag_user(working_dags, client_single_dag):
     # Users that can only see certain DAGs get a filtered list
-    resp = client_single_dag.get('home', follow_redirects=True)
+    resp = client_single_dag.get("home", follow_redirects=True)
     # They can see the first DAG
     check_content_in_response(f"dag_id={TEST_FILTER_DAG_IDS[0]}", resp)
     # But not the rest
@@ -184,10 +186,18 @@ def test_home_dag_list_filtered_singledag_user(working_dags, client_single_dag):
         check_content_not_in_response(f"dag_id={dag_id}", resp)
 
 
+def test_home_dag_list_search(working_dags, user_client):
+    resp = user_client.get("home?search=filter_test", follow_redirects=True)
+    check_content_in_response("dag_id=filter_test_1", resp)
+    check_content_in_response("dag_id=filter_test_2", resp)
+    check_content_not_in_response("dag_id=filter.test", resp)
+    check_content_not_in_response("dag_id=a_first_dag_id_asc", resp)
+
+
 def test_home_robots_header_in_response(user_client):
     # Responses should include X-Robots-Tag header
-    resp = user_client.get('home', follow_redirects=True)
-    assert resp.headers['X-Robots-Tag'] == 'noindex, nofollow'
+    resp = user_client.get("home", follow_redirects=True)
+    assert resp.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 @pytest.mark.parametrize(
@@ -248,9 +258,8 @@ def test_dashboard_flash_messages_type(user_client):
 
 
 def test_audit_log_view(user_client, working_dags):
-    url = 'audit_log?dag_id=filter_test_1'
-    resp = user_client.get(url, follow_redirects=True)
-    check_content_in_response('Dag Audit Log', resp)
+    resp = user_client.get("/dags/filter_test_1/audit_log")
+    check_content_in_response("Dag Audit Log", resp)
 
 
 @pytest.mark.parametrize(
@@ -264,7 +273,7 @@ def test_audit_log_view(user_client, working_dags):
 )
 def test_sorting_home_view(url, lower_key, greater_key, user_client, working_dags):
     resp = user_client.get(url, follow_redirects=True)
-    resp_html = resp.data.decode('utf-8')
+    resp_html = resp.data.decode("utf-8")
     lower_index = resp_html.find(lower_key)
     greater_index = resp_html.find(greater_key)
     assert lower_index < greater_index

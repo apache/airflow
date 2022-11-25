@@ -26,9 +26,9 @@ If you want to check or mutate DAGs or Tasks on a cluster-wide level, then a Clu
 
 There are three types of cluster policy:
 
-* ``dag_policy``: Takes a :class:`~airflow.models.dag.DAG` parameter called ``dag``. Runs at load time.
-* ``task_policy``: Takes a :class:`~airflow.models.baseoperator.BaseOperator` parameter called ``task``. Runs at load time.
-* ``task_instance_mutation_hook``: Takes a :class:`~airflow.models.taskinstance.TaskInstance` parameter called ``task_instance``. Called right before task execution.
+* ``dag_policy``: Takes a :class:`~airflow.models.dag.DAG` parameter called ``dag``. Runs at load time of the DAG from DagBag :class:`~airflow.models.dagbag.DagBag`.
+* ``task_policy``: Takes a :class:`~airflow.models.baseoperator.BaseOperator` parameter called ``task``. The policy gets executed when the task is created during parsing of the task from DagBag at load time. This means that the whole task definition can be altered in the task policy. It does not relate to a specific task running in a DagRun. The ``task_policy`` defined is applied to all the task instances that will be executed in the future.
+* ``task_instance_mutation_hook``: Takes a :class:`~airflow.models.taskinstance.TaskInstance` parameter called ``task_instance``. The ``task_instance_mutation`` applies not to a task but to the instance of a task that relates to a particular DagRun. It is executed in a "worker", not in the dag file processor, just before the task instance is executed. The policy is only applied to the currently executed run (i.e. instance) of that task.
 
 The DAG and Task cluster policies can raise the  :class:`~airflow.exceptions.AirflowClusterPolicyViolation` exception to indicate that the dag/task they were passed is not compliant and should not be loaded.
 
@@ -54,8 +54,12 @@ This policy checks if each DAG has at least one tag defined:
 
     To avoid import cycles, if you use ``DAG`` in type annotations in your cluster policy, be sure to import from ``airflow.models`` and not from ``airflow``.
 
+.. note::
+
+    DAG policies are applied after the DAG has been completely loaded, so overriding the ``default_args`` parameter has no effect. If you want to override the default operator settings, use task policies instead.
+
 Task policies
--------------
+~~~~~~~~~~~~~
 
 Here's an example of enforcing a maximum timeout policy on every task:
 
@@ -82,7 +86,7 @@ For example, your ``airflow_local_settings.py`` might follow this pattern:
 
 
 Task instance mutation
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Here's an example of re-routing tasks that are on their second (or greater) retry to a different queue:
 
@@ -90,3 +94,5 @@ Here's an example of re-routing tasks that are on their second (or greater) retr
         :language: python
         :start-after: [START example_task_mutation_hook]
         :end-before: [END example_task_mutation_hook]
+
+Note that since priority weight is determined dynamically using weight rules, you cannot alter the ``priority_weight`` of a task instance within the mutation hook.

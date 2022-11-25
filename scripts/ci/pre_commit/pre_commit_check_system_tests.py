@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
 import sys
 from pathlib import Path
-from typing import List
 
 from rich.console import Console
 
@@ -31,7 +32,7 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 console = Console(color_system="standard", width=200)
 
-errors: List[str] = []
+errors: list[str] = []
 
 WATCHER_APPEND_INSTRUCTION = "list(dag.tasks) >> watcher()"
 
@@ -81,7 +82,7 @@ def _check_file(file: Path):
         file.write_text(content + "\n" + PYTEST_FUNCTION)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     for file in sys.argv[1:]:
         _check_file(Path(file))
     if errors:

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``is_encrypted`` column in ``connection`` table
 
 Revision ID: 1507a7289a2f
@@ -23,20 +22,21 @@ Revises: e3a246e0dc1
 Create Date: 2015-08-18 18:57:51.927315
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
-
-from airflow.compat.sqlalchemy import inspect
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
-revision = '1507a7289a2f'
-down_revision = 'e3a246e0dc1'
+revision = "1507a7289a2f"
+down_revision = "e3a246e0dc1"
 branch_labels = None
 depends_on = None
-airflow_version = '1.5.0'
+airflow_version = "1.5.0"
 
 connectionhelper = sa.Table(
-    'connection', sa.MetaData(), sa.Column('id', sa.Integer, primary_key=True), sa.Column('is_encrypted')
+    "connection", sa.MetaData(), sa.Column("id", sa.Integer, primary_key=True), sa.Column("is_encrypted")
 )
 
 
@@ -49,16 +49,16 @@ def upgrade():
 
     # this will only be true if 'connection' already exists in the db,
     # but not if alembic created it in a previous migration
-    if 'connection' in inspector.get_table_names():
-        col_names = [c['name'] for c in inspector.get_columns('connection')]
-        if 'is_encrypted' in col_names:
+    if "connection" in inspector.get_table_names():
+        col_names = [c["name"] for c in inspector.get_columns("connection")]
+        if "is_encrypted" in col_names:
             return
 
-    op.add_column('connection', sa.Column('is_encrypted', sa.Boolean, unique=False, default=False))
+    op.add_column("connection", sa.Column("is_encrypted", sa.Boolean, unique=False, default=False))
 
     conn = op.get_bind()
     conn.execute(connectionhelper.update().values(is_encrypted=False))
 
 
 def downgrade():
-    op.drop_column('connection', 'is_encrypted')
+    op.drop_column("connection", "is_encrypted")

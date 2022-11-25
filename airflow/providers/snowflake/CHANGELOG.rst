@@ -24,6 +24,96 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+4.0.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+In SnowflakeHook, if both ``extra__snowflake__foo`` and ``foo`` existed in connection extra
+dict, the prefixed version would be used; now, the non-prefixed version will be preferred.
+
+* ``Update snowflake hook to not use extra prefix (#26764)``
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add SQLExecuteQueryOperator (#25717)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Use unused SQLCheckOperator.parameters in SQLCheckOperator.execute. (#27599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add custom handler param in SnowflakeOperator (#25983)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix wrong deprecation warning for 'S3ToSnowflakeOperator' (#26047)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``copy into snowflake from external stage (#25541)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding generic 'SqlToSlackOperator' (#24663)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+* ``Pattern parameter in S3ToSnowflakeOperator (#24571)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``S3ToSnowflakeOperator: escape single quote in s3_keys (#24607)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 

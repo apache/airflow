@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pyspark
 
 sc = pyspark.SparkContext()
-rdd = sc.parallelize(['Hello,', 'world!'])
+rdd = sc.parallelize(["Hello,", "world!"])
 words = sorted(rdd.collect())
 print(words)

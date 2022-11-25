@@ -44,7 +44,12 @@ coverage:
           - v2-1-test
           - v2-2-stable
           - v2-2-test
+          - v2-3-stable
           - v2-3-test
+          - v2-4-stable
+          - v2-4-test
+          - v2-5-stable
+          - v2-5-test
         if_not_found: success
         if_ci_failed: error
         informational: true
@@ -64,7 +69,12 @@ coverage:
           - v2-1-test
           - v2-2-stable
           - v2-2-test
+          - v2-3-stable
           - v2-3-test
+          - v2-4-stable
+          - v2-4-test
+          - v2-5-stable
+          - v2-5-test
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error

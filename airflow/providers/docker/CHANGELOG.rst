@@ -24,6 +24,64 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add ipc_mode for DockerOperator (#27553)``
+* ``Add env-file parameter to Docker Operator (#26951)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add logging options to docker operator (#26653)``
+* ``Add pre-commit hook for custom_operator_name (#25786)``
+* ``Implement ExternalPythonOperator (#25780)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Force-remove container after DockerOperator execution (#23160)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'DockerOperator' fix cli.logs giving character array instead of string (#24726)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+   * ``Clean up task decorator type hints and docstrings (#24667)``
+
 3.0.0
 .....
 

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import textwrap
@@ -31,9 +32,9 @@ DAG_ID = "example_qubole_sensor"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=START_DATE,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     dag.doc_md = textwrap.dedent(
         """
@@ -50,7 +51,7 @@ with DAG(
 
     # [START howto_sensor_qubole_run_file_sensor]
     check_s3_file = QuboleFileSensor(
-        task_id='check_s3_file',
+        task_id="check_s3_file",
         poke_interval=60,
         timeout=600,
         data={
@@ -64,7 +65,7 @@ with DAG(
 
     # [START howto_sensor_qubole_run_partition_sensor]
     check_hive_partition = QubolePartitionSensor(
-        task_id='check_hive_partition',
+        task_id="check_hive_partition",
         poke_interval=10,
         timeout=60,
         data={

@@ -24,6 +24,71 @@
 Changelog
 ---------
 
+4.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+4.3.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
+4.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Improve ElasticsearchTaskHandler (#21942)``
+
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding ElasticserachPythonHook - ES Hook With The Python Client (#24895)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move fallible ti.task.dag assignment back inside try/except block (#24533) (#24592)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Only assert stuff for mypy when type checking (#24937)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 4.0.0
 .....
 

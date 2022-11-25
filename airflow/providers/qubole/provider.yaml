@@ -22,6 +22,11 @@ description: |
     `Qubole <https://www.qubole.com/>`__
 
 versions:
+  - 3.3.1
+  - 3.3.0
+  - 3.2.1
+  - 3.2.0
+  - 3.1.0
   - 3.0.0
   - 2.1.3
   - 2.1.2
@@ -33,8 +38,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.2.0
+dependencies:
+  - apache-airflow>=2.3.0
+  - apache-airflow-providers-common-sql>=1.3.1
+  - qds-sdk>=1.10.4
 
 integrations:
   - integration-name: Qubole

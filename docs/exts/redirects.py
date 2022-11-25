@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Based on: https://github.com/sphinx-contrib/redirects"""
+from __future__ import annotations
+
 import os
 
 from sphinx.builders import html as builders
@@ -51,7 +53,7 @@ def generate_redirects(app):
 
             log.debug("Redirecting '%s' to '%s'", from_path, to_path)
 
-            from_path = from_path.replace(in_suffix, '.html')
+            from_path = from_path.replace(in_suffix, ".html")
             to_path = to_path.replace(in_suffix, ".html")
 
             to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
