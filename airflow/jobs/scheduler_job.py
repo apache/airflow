@@ -30,7 +30,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Collection, DefaultDict, Iterator
 
-from sqlalchemy import func, not_, or_, text
+from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
@@ -46,7 +46,13 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -854,9 +860,14 @@ class SchedulerJob(BaseJob):
         )
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
 
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._orphan_unreferenced_datasets,
+        )
+
         if self._standalone_dag_processor:
             timers.call_regular_interval(
-                conf.getfloat("scheduler", "deactivate_stale_dags_interval", fallback=60.0),
+                conf.getfloat("scheduler", "parsing_cleanup_interval"),
                 self._cleanup_stale_dags,
             )
 
@@ -1574,3 +1585,33 @@ class SchedulerJob(BaseJob):
             dag.is_active = False
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
+
+    @provide_session
+    def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
+        """
+        Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
+        sets the dataset is_orphaned flag to True
+        """
+        orphaned_dataset_query = (
+            session.query(DatasetModel)
+            .join(
+                DagScheduleDatasetReference,
+                isouter=True,
+            )
+            .join(
+                TaskOutletDatasetReference,
+                isouter=True,
+            )
+            # MSSQL doesn't like it when we select a column that we haven't grouped by. All other DBs let us
+            # group by id and select all columns.
+            .group_by(DatasetModel if session.get_bind().dialect.name == "mssql" else DatasetModel.id)
+            .having(
+                and_(
+                    func.count(DagScheduleDatasetReference.dag_id) == 0,
+                    func.count(TaskOutletDatasetReference.dag_id) == 0,
+                )
+            )
+        )
+        for dataset in orphaned_dataset_query:
+            self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
+            dataset.is_orphaned = expression.true()
