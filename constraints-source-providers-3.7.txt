@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-24T18:14:55Z
+# This constraints file was automatically generated on 2022-11-25T18:20:15Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -243,7 +243,7 @@ gunicorn==20.1.0
 h11==0.14.0
 hdfs==2.7.0
 hmsclient==0.1.1
-httpcore==0.16.1
+httpcore==0.16.2
 httplib2==0.20.4
 httpx==0.23.1
 humanize==4.4.0
@@ -322,7 +322,7 @@ mysql-connector-python==8.0.31
 mysqlclient==2.1.1
 nbclient==0.7.0
 nbformat==5.7.0
-neo4j==5.2.1
+neo4j==5.3.0
 nest-asyncio==1.5.6
 networkx==2.6.3
 nodeenv==1.7.0
@@ -517,7 +517,7 @@ types-cryptography==3.3.23.2
 types-docutils==0.19.1.1
 types-freezegun==1.1.10
 types-paramiko==2.12.0.1
-types-protobuf==3.20.4.6
+types-protobuf==4.21.0.0
 types-python-dateutil==2.8.19.4
 types-python-slugify==7.0.0.1
 types-pytz==2022.6.0.1
