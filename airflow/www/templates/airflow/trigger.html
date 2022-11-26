@@ -29,7 +29,7 @@
 
 {% block content %}
   {{ super() }}
-  <h2>Trigger DAG: {{ dag_id }}</h2>
+  <h2 id="dag-id" data-dag-id="{{ dag_id }}">Trigger DAG: {{ dag_id }}</h2>
   {{ dag_docs(doc_md) }}
   <form id="dag-trigger" method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -57,7 +57,7 @@
     </div>
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
     <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
-    </div>
+
     <p>
       To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
       {% if is_dag_run_conf_overrides_params %}
