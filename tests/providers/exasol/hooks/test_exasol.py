@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -27,10 +26,8 @@ from airflow import models
 from airflow.providers.exasol.hooks.exasol import ExasolHook
 
 
-class TestExasolHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestExasolHookConn:
+    def setup_method(self):
         self.connection = models.Connection(
             login="login",
             password="password",
@@ -66,10 +63,8 @@ class TestExasolHookConn(unittest.TestCase):
         assert kwargs["encryption"] is True
 
 
-class TestExasolHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestExasolHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.execute.return_value = self.cur

@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.models.dag import DAG
@@ -30,8 +28,8 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 @pytest.mark.integration("redis")
-class TestRedisSensor(unittest.TestCase):
-    def setUp(self):
+class TestRedisSensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         self.dag = DAG("test_dag_id", default_args=args)

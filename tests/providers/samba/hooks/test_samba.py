@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from inspect import getfullargspec
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -38,7 +36,7 @@ CONNECTION = Connection(
 )
 
 
-class TestSambaHook(unittest.TestCase):
+class TestSambaHook:
     def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
         with pytest.raises(AirflowException):
             SambaHook("conn")
@@ -65,7 +63,8 @@ class TestSambaHook(unittest.TestCase):
         # Test that the connection was disconnected upon exit.
         assert len(mock_connection.disconnect.mock_calls) == 1
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "name",
         [
             "getxattr",
             "link",
@@ -94,7 +93,7 @@ class TestSambaHook(unittest.TestCase):
         ],
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
-    def test_method(self, name, get_conn_mock):
+    def test_method(self, get_conn_mock, name):
         get_conn_mock.return_value = CONNECTION
         hook = SambaHook("samba_default")
         connection_settings = {
@@ -132,14 +131,15 @@ class TestSambaHook(unittest.TestCase):
             # We expect keyword arguments to include the connection settings.
             assert dict(kwargs, **connection_settings) == p_kwargs
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "path, full_path",
         [
             ("/start/path/with/slash", "//ip/share/start/path/with/slash"),
             ("start/path/without/slash", "//ip/share/start/path/without/slash"),
         ],
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
-    def test__join_path(self, path, full_path, get_conn_mock):
+    def test__join_path(self, get_conn_mock, path, full_path):
         get_conn_mock.return_value = CONNECTION
         hook = SambaHook("samba_default")
         assert hook._join_path(path) == full_path

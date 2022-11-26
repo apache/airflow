@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 
 import pytest
 
@@ -28,7 +27,7 @@ from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.utils import db
 
 
-class TestDiscordWebhookHook(unittest.TestCase):
+class TestDiscordWebhookHook:
 
     _config = {
         "http_conn_id": "default-discord-webhook",
@@ -49,7 +48,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
 
     expected_payload = json.dumps(expected_payload_dict)
 
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="default-discord-webhook",
