@@ -33,6 +33,10 @@ Bug Fixes
 
 * ``Fix typing problem revealed after recent Neo4J release (#27759)``
 
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
 3.2.0
 .....
 
