@@ -31,17 +31,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.2.0
 .....
 
-Latest change: 2022-11-24
+Latest change: 2022-11-26
 
-=================================================================================================  ===========  ================================================================================================================
+=================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ================================================================================================================
+=================================================================================================  ===========  ===================================================================================================================
+`2ab5c1fdf0 <https://github.com/apache/airflow/commit/2ab5c1fdf045f928148931ffddff094374e57173>`_  2022-11-26   ``Add retry option in RedshiftDeleteClusterOperator to retry when an operation is running in the cluster (#27820)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
 `80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
 `336e065e6a <https://github.com/apache/airflow/commit/336e065e6ae497689ea8e198032257fcd7b44e4f>`_  2022-11-23   ``Correct job name matching in SagemakerProcessingOperator (#27634)``
 `239440df23 <https://github.com/apache/airflow/commit/239440df23210355dc02f71b6c5aea7734651055>`_  2022-11-17   ``System Test for EMR (AIP-47) (#27286)``
 `2bba98f109 <https://github.com/apache/airflow/commit/2bba98f109cc7737f4293a195e03a0cc21a624cb>`_  2022-11-17   ``Use Boto waiters instead of customer _await_status method for RDS Operators (#27410)``
 `2063e141e4 <https://github.com/apache/airflow/commit/2063e141e445d2567149154cdf90955a941e45b4>`_  2022-11-17   ``Handle transient state errors in 'RedshiftResumeClusterOperator' and 'RedshiftPauseClusterOperator' (#27276)``
-=================================================================================================  ===========  ================================================================================================================
+=================================================================================================  ===========  ===================================================================================================================
 
 6.1.0
 .....

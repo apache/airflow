@@ -55,6 +55,7 @@ Bug Fixes
    * ``Update old style typing (#26872)``
    * ``Enable string normalization in python formatting - providers (#27205)``
    * ``pRepare docs for November 2022 wave of Providers (#27613)``
+   * ``Prepare for follow-up release for November providers (#27774)``
 
 3.2.1
 .....

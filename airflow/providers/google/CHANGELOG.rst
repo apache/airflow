@@ -31,12 +31,17 @@ Features
 
 * ``Persist DataprocLink for workflow operators regardless of job status (#26986)``
 * ``Deferrable mode for BigQueryToGCSOperator (#27683)``
+* ``Add Export Format to Template Fields in BigQueryToGCSOperator (#27910)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix to read location parameter properly in BigQueryToBigQueryOperator (#27661)``
 * ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
 
 8.5.0
 .....
