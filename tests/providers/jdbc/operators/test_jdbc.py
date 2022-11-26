@@ -50,5 +50,7 @@ class TestJdbcOperator:
             sql=jdbc_operator.sql,
             autocommit=jdbc_operator.autocommit,
             parameters=jdbc_operator.parameters,
+            handler=None,
+            return_last=True,
             split_statements=False,
         )
