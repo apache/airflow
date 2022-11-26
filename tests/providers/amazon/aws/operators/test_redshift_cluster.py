@@ -22,6 +22,7 @@ import boto3
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftCreateClusterSnapshotOperator,
@@ -333,3 +334,42 @@ class TestDeleteClusterOperator:
         )
 
         mock_get_conn.return_value.cluster_status.assert_not_called()
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_delete_cluster_multiple_attempts(self, _, mock_conn, mock_delete_cluster):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_delete_cluster.side_effect = [exception, exception, True]
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+        )
+        redshift_operator.execute(None)
+
+        assert mock_delete_cluster.call_count == 3
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_delete_cluster_multiple_attempts_fail(self, _, mock_conn, mock_delete_cluster):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_delete_cluster.side_effect = exception
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+        )
+        with pytest.raises(returned_exception):
+            redshift_operator.execute(None)
+
+        assert mock_delete_cluster.call_count == 10
