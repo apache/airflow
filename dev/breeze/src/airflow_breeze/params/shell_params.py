@@ -266,7 +266,9 @@ class ShellParams:
     @property
     def mssql_data_volume(self) -> str:
         docker_filesystem = get_filesystem_type("/var/lib/docker")
-        volume_name = f"tmp-mssql-volume-{self.test_type}" if self.test_type else "tmp-mssql-volume"
+        # in case of Providers[....], only leave Providers
+        base_test_type = self.test_type.split("[")[0] if self.test_type else None
+        volume_name = f"tmp-mssql-volume-{base_test_type}" if base_test_type else "tmp-mssql-volume"
         if docker_filesystem == "tmpfs":
             return os.fspath(Path.home() / MSSQL_TMP_DIR_NAME / f"{volume_name}-{self.mssql_version}")
         else:
