@@ -741,10 +741,9 @@ class TaskInstance(Base, LoggingMixin):
 
         :param session: SQLAlchemy ORM Session
         """
-        query = session.query(TaskInstance.state)
-        for col in inspect(TaskInstance).primary_key:
-            query = query.filter(col == getattr(self, col.name))
-        return query.scalar()
+        filters = (col == getattr(self, col.name) for col in inspect(TaskInstance).primary_key)
+        return session.query(TaskInstance.state).filter(*filters).scalar()
+
 
     @provide_session
     def error(self, session: Session = NEW_SESSION) -> None:
