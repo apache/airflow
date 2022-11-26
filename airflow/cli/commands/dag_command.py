@@ -143,7 +143,11 @@ def dag_trigger(args):
     api_client = get_current_api_client()
     try:
         message = api_client.trigger_dag(
-            dag_id=args.dag_id, run_id=args.run_id, conf=args.conf, execution_date=args.exec_date
+            dag_id=args.dag_id,
+            run_id=args.run_id,
+            conf=args.conf,
+            execution_date=args.exec_date,
+            replace_microseconds=args.replace_microseconds,
         )
         print(message)
     except OSError as err:
