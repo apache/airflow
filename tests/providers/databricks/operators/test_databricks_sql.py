@@ -19,42 +19,118 @@ from __future__ import annotations
 
 import os
 import tempfile
-from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from databricks.sql.types import Row
 
-from airflow import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.operators.databricks_sql import (
-    DatabricksCopyIntoOperator,
-    DatabricksSqlOperator,
-)
+from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
-COPY_FILE_LOCATION = "s3://my-bucket/jsonData"
 
 
-class TestDatabricksSqlOperator:
-    @mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
-    def test_exec_success(self, db_mock_class):
-        """
-        Test the execute function in case where SQL query was successful.
-        """
-        sql = "select * from dummy"
-        op = DatabricksSqlOperator(task_id=TASK_ID, sql=sql, do_xcom_push=True)
+@pytest.mark.parametrize(
+    "sql, return_last, split_statement, hook_results, hook_descriptions, expected_results",
+    [
+        pytest.param(
+            "select * from dummy",
+            True,
+            True,
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            [[("id",), ("value",)]],
+            ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+            id="Scalar: Single SQL statement, return_last, split statement",
+        ),
+        pytest.param(
+            "select * from dummy;select * from dummy2",
+            True,
+            True,
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            [[("id",), ("value",)]],
+            ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+            id="Scalar: Multiple SQL statements, return_last, split statement",
+        ),
+        pytest.param(
+            "select * from dummy",
+            False,
+            False,
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            [[("id",), ("value",)]],
+            ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+            id="Scalar: Single SQL statements, no return_last (doesn't matter), no split statement",
+        ),
+        pytest.param(
+            "select * from dummy",
+            True,
+            False,
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            [[("id",), ("value",)]],
+            ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+            id="Scalar: Single SQL statements, return_last (doesn't matter), no split statement",
+        ),
+        pytest.param(
+            ["select * from dummy"],
+            False,
+            False,
+            [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            [[("id",), ("value",)]],
+            [([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")])],
+            id="Non-Scalar: Single SQL statements in list, no return_last, no split statement",
+        ),
+        pytest.param(
+            ["select * from dummy", "select * from dummy2"],
+            False,
+            False,
+            [
+                [Row(id=1, value="value1"), Row(id=2, value="value2")],
+                [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")],
+            ],
+            [[("id",), ("value",)], [("id2",), ("value2",)]],
+            [
+                ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+                ([("id2",), ("value2",)], [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")]),
+            ],
+            id="Non-Scalar: Multiple SQL statements in list, no return_last (no matter), no split statement",
+        ),
+        pytest.param(
+            ["select * from dummy", "select * from dummy2"],
+            True,
+            False,
+            [
+                [Row(id=1, value="value1"), Row(id=2, value="value2")],
+                [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")],
+            ],
+            [[("id",), ("value",)], [("id2",), ("value2",)]],
+            [
+                ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+                ([("id2",), ("value2",)], [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")]),
+            ],
+            id="Non-Scalar: Multiple SQL statements in list, return_last (no matter), no split statement",
+        ),
+    ],
+)
+def test_exec_success(sql, return_last, split_statement, hook_results, hook_descriptions, expected_results):
+    """
+    Test the execute function in case where SQL query was successful.
+    """
+    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql=sql,
+            do_xcom_push=True,
+            return_last=return_last,
+            split_statements=split_statement,
+        )
         db_mock = db_mock_class.return_value
-        mock_description = [("id",), ("value",)]
-        mock_results = [Row(id=1, value="value1")]
-        db_mock.run.return_value = mock_results
-        db_mock.last_description = mock_description
-        db_mock.scalar_return_last = False
+        db_mock.run.return_value = hook_results
+        db_mock.descriptions = hook_descriptions
 
         execute_results = op.execute(None)
 
-        assert execute_results == (mock_description, mock_results)
+        assert execute_results == expected_results
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             http_path=None,
@@ -70,32 +146,116 @@ class TestDatabricksSqlOperator:
             parameters=None,
             handler=fetch_all_handler,
             autocommit=False,
-            return_last=True,
-            split_statements=False,
+            return_last=return_last,
+            split_statements=split_statement,
         )
 
-    @mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
-    def test_exec_write_file(self, db_mock_class):
-        """
-        Test the execute function in case where SQL query was successful and data is written as CSV
-        """
-        sql = "select * from dummy"
+
+@pytest.mark.parametrize(
+    "return_last, split_statements, sql, descriptions, hook_results",
+    [
+        pytest.param(
+            True,
+            False,
+            "select * from dummy",
+            [[("id",), ("value",)]],
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            id="Scalar: return_last True and split_statement  False",
+        ),
+        pytest.param(
+            False,
+            True,
+            "select * from dummy",
+            [[("id",), ("value",)]],
+            [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            id="Non-Scalar: return_last False and split_statement True",
+        ),
+        pytest.param(
+            True,
+            True,
+            "select * from dummy",
+            [[("id",), ("value",)]],
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            id="Scalar: return_last True and no split_statement True",
+        ),
+        pytest.param(
+            False,
+            False,
+            "select * from dummy",
+            [[("id",), ("value",)]],
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            id="Scalar: return_last False and split_statement is False",
+        ),
+        pytest.param(
+            False,
+            True,
+            "select * from dummy2; select * from dummy",
+            [[("id2",), ("value2",)], [("id",), ("value",)]],
+            [
+                [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")],
+                [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            ],
+            id="Non-Scalar: return_last False and split_statement is True",
+        ),
+        pytest.param(
+            True,
+            True,
+            "select * from dummy2; select * from dummy",
+            [[("id2",), ("value2",)], [("id",), ("value",)]],
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            id="Scalar: return_last True and split_statement is True",
+        ),
+        pytest.param(
+            True,
+            True,
+            "select * from dummy2; select * from dummy",
+            [[("id2",), ("value2",)], [("id",), ("value",)]],
+            [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            id="Scalar: return_last True and split_statement is True",
+        ),
+        pytest.param(
+            True,
+            True,
+            ["select * from dummy2", "select * from dummy"],
+            [[("id2",), ("value2",)], [("id",), ("value",)]],
+            [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            id="Non-Scalar: sql is list and return_last is True",
+        ),
+        pytest.param(
+            False,
+            True,
+            ["select * from dummy2", "select * from dummy"],
+            [[("id2",), ("value2",)], [("id",), ("value",)]],
+            [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            id="Non-Scalar: sql is list and return_last is False",
+        ),
+    ],
+)
+def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_results):
+    """
+    Test the execute function in case where SQL query was successful and data is written as CSV
+    """
+    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
         tempfile_path = tempfile.mkstemp()[1]
-        op = DatabricksSqlOperator(task_id=TASK_ID, sql=sql, output_path=tempfile_path)
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql=sql,
+            output_path=tempfile_path,
+            return_last=return_last,
+            split_statements=split_statements,
+        )
         db_mock = db_mock_class.return_value
-        mock_description = [("id",), ("value",)]
-        mock_results = [Row(id=1, value="value1")]
+        mock_results = hook_results
         db_mock.run.return_value = mock_results
-        db_mock.last_description = mock_description
-        db_mock.scalar_return_last = False
+        db_mock.descriptions = descriptions
 
         try:
             op.execute(None)
             results = [line.strip() for line in open(tempfile_path)]
         finally:
             os.remove(tempfile_path)
-
-        assert results == ["id,value", "1,value1"]
+        # In all cases only result of last query i output as file
+        assert results == ["id,value", "1,value1", "2,value2"]
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             http_path=None,
@@ -111,198 +271,6 @@ class TestDatabricksSqlOperator:
             parameters=None,
             handler=fetch_all_handler,
             autocommit=False,
-            return_last=True,
-            split_statements=False,
+            return_last=return_last,
+            split_statements=split_statements,
         )
-
-
-class TestDatabricksSqlCopyIntoOperator:
-    def test_copy_with_files(self):
-        op = DatabricksCopyIntoOperator(
-            file_location=COPY_FILE_LOCATION,
-            file_format="JSON",
-            table_name="test",
-            files=["file1", "file2", "file3"],
-            format_options={"dateFormat": "yyyy-MM-dd"},
-            task_id=TASK_ID,
-        )
-        assert (
-            op._create_sql_query()
-            == f"""COPY INTO test
-FROM '{COPY_FILE_LOCATION}'
-FILEFORMAT = JSON
-FILES = ('file1','file2','file3')
-FORMAT_OPTIONS ('dateFormat' = 'yyyy-MM-dd')
-""".strip()
-        )
-
-    def test_copy_with_expression(self):
-        expression = "col1, col2"
-        op = DatabricksCopyIntoOperator(
-            file_location=COPY_FILE_LOCATION,
-            file_format="CSV",
-            table_name="test",
-            task_id=TASK_ID,
-            pattern="folder1/file_[a-g].csv",
-            expression_list=expression,
-            format_options={"header": "true"},
-            force_copy=True,
-        )
-        assert (
-            op._create_sql_query()
-            == f"""COPY INTO test
-FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}')
-FILEFORMAT = CSV
-PATTERN = 'folder1/file_[a-g].csv'
-FORMAT_OPTIONS ('header' = 'true')
-COPY_OPTIONS ('force' = 'true')
-""".strip()
-        )
-
-    def test_copy_with_credential(self):
-        expression = "col1, col2"
-        op = DatabricksCopyIntoOperator(
-            file_location=COPY_FILE_LOCATION,
-            file_format="CSV",
-            table_name="test",
-            task_id=TASK_ID,
-            expression_list=expression,
-            credential={"AZURE_SAS_TOKEN": "abc"},
-        )
-        assert (
-            op._create_sql_query()
-            == f"""COPY INTO test
-FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
-FILEFORMAT = CSV
-""".strip()
-        )
-
-    def test_copy_with_target_credential(self):
-        expression = "col1, col2"
-        op = DatabricksCopyIntoOperator(
-            file_location=COPY_FILE_LOCATION,
-            file_format="CSV",
-            table_name="test",
-            task_id=TASK_ID,
-            expression_list=expression,
-            storage_credential="abc",
-            credential={"AZURE_SAS_TOKEN": "abc"},
-        )
-        assert (
-            op._create_sql_query()
-            == f"""COPY INTO test WITH (CREDENTIAL abc)
-FROM (SELECT {expression} FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') ))
-FILEFORMAT = CSV
-""".strip()
-        )
-
-    def test_copy_with_encryption(self):
-        op = DatabricksCopyIntoOperator(
-            file_location=COPY_FILE_LOCATION,
-            file_format="CSV",
-            table_name="test",
-            task_id=TASK_ID,
-            encryption={"TYPE": "AWS_SSE_C", "MASTER_KEY": "abc"},
-        )
-        assert (
-            op._create_sql_query()
-            == f"""COPY INTO test
-FROM '{COPY_FILE_LOCATION}' WITH ( ENCRYPTION (TYPE = 'AWS_SSE_C', MASTER_KEY = 'abc'))
-FILEFORMAT = CSV
-""".strip()
-        )
-
-    def test_copy_with_encryption_and_credential(self):
-        op = DatabricksCopyIntoOperator(
-            file_location=COPY_FILE_LOCATION,
-            file_format="CSV",
-            table_name="test",
-            task_id=TASK_ID,
-            encryption={"TYPE": "AWS_SSE_C", "MASTER_KEY": "abc"},
-            credential={"AZURE_SAS_TOKEN": "abc"},
-        )
-        assert (
-            op._create_sql_query()
-            == f"""COPY INTO test
-FROM '{COPY_FILE_LOCATION}' WITH (CREDENTIAL (AZURE_SAS_TOKEN = 'abc') """
-            """ENCRYPTION (TYPE = 'AWS_SSE_C', MASTER_KEY = 'abc'))
-FILEFORMAT = CSV
-""".strip()
-        )
-
-    def test_copy_with_validate_all(self):
-        op = DatabricksCopyIntoOperator(
-            file_location=COPY_FILE_LOCATION,
-            file_format="JSON",
-            table_name="test",
-            task_id=TASK_ID,
-            validate=True,
-        )
-        assert (
-            op._create_sql_query()
-            == f"""COPY INTO test
-FROM '{COPY_FILE_LOCATION}'
-FILEFORMAT = JSON
-VALIDATE ALL
-""".strip()
-        )
-
-    def test_copy_with_validate_N_rows(self):
-        op = DatabricksCopyIntoOperator(
-            file_location=COPY_FILE_LOCATION,
-            file_format="JSON",
-            table_name="test",
-            task_id=TASK_ID,
-            validate=10,
-        )
-        assert (
-            op._create_sql_query()
-            == f"""COPY INTO test
-FROM '{COPY_FILE_LOCATION}'
-FILEFORMAT = JSON
-VALIDATE 10 ROWS
-""".strip()
-        )
-
-    def test_incorrect_params_files_patterns(self):
-        exception_message = "Only one of 'pattern' or 'files' should be specified"
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksCopyIntoOperator(
-                task_id=TASK_ID,
-                file_location=COPY_FILE_LOCATION,
-                file_format="JSON",
-                table_name="test",
-                files=["file1", "file2", "file3"],
-                pattern="abc",
-            )
-
-    def test_incorrect_params_emtpy_table(self):
-        exception_message = "table_name shouldn't be empty"
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksCopyIntoOperator(
-                task_id=TASK_ID,
-                file_location=COPY_FILE_LOCATION,
-                file_format="JSON",
-                table_name="",
-            )
-
-    def test_incorrect_params_emtpy_location(self):
-        exception_message = "file_location shouldn't be empty"
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksCopyIntoOperator(
-                task_id=TASK_ID,
-                file_location="",
-                file_format="JSON",
-                table_name="abc",
-            )
-
-    def test_incorrect_params_wrong_format(self):
-        file_format = "JSONL"
-        exception_message = f"file_format '{file_format}' isn't supported"
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksCopyIntoOperator(
-                task_id=TASK_ID,
-                file_location=COPY_FILE_LOCATION,
-                file_format=file_format,
-                table_name="abc",
-            )

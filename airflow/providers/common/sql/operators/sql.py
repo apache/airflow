@@ -19,14 +19,13 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
-from airflow.typing_compat import Literal
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -190,11 +189,17 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     Executes SQL code in a specific database
     :param sql: the SQL code or string pointing to a template file to be executed (templated).
     File must have a '.sql' extensions.
+
+    When implementing a specific Operator, you can also implement `_process_output` method in the
+    hook to perform additional processing of values returned by the DB Hook of yours. For example, you
+    can join description retrieved from the cursors of your statements with returned values, or save
+    the output of your operator to a file.
+
     :param autocommit: (optional) if True, each command is automatically committed (default: False).
     :param parameters: (optional) the parameters to render the SQL query with.
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
     :param split_statements: (optional) if split single SQL string into statements (default: False).
-    :param return_last: (optional) if return the result of only last statement (default: True).
+    :param return_last: (optional) return the result of only last statement (default: True).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -225,54 +230,42 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.split_statements = split_statements
         self.return_last = return_last
 
-    @overload
-    def _process_output(
-        self, results: Any, description: Sequence[Sequence] | None, scalar_results: Literal[True]
-    ) -> Any:
-        pass
-
-    @overload
-    def _process_output(
-        self, results: list[Any], description: Sequence[Sequence] | None, scalar_results: Literal[False]
-    ) -> Any:
-        pass
-
-    def _process_output(
-        self, results: Any | list[Any], description: Sequence[Sequence] | None, scalar_results: bool
-    ) -> Any:
+    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         """
-        Can be overridden by the subclass in case some extra processing is needed.
+        Processes output before it is returned by the operator.
+
+        It can be overridden by the subclass in case some extra processing is needed. Note that unlike
+        DBApiHook return values returned - the results passed and returned by ``_process_output`` should
+        always be lists of results - each element of the list is a result from a single SQL statement
+        (typically this will be list of Rows). You have to make sure that this is the same for returned
+        values = there should be one element in the list for each statement executed by the hook..
+
         The "process_output" method can override the returned output - augmenting or processing the
         output as needed - the output returned will be returned as execute return value and if
-        do_xcom_push is set to True, it will be set as XCom returned
+        do_xcom_push is set to True, it will be set as XCom returned.
 
         :param results: results in the form of list of rows.
-        :param description: as returned by ``cur.description`` in the Python DBAPI
-        :param scalar_results: True if result is single scalar value rather than list of rows
+        :param descriptions: list of descriptions returned by ``cur.description`` in the Python DBAPI
         """
         return results
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
-        if self.do_xcom_push:
-            output = hook.run(
-                sql=self.sql,
-                autocommit=self.autocommit,
-                parameters=self.parameters,
-                handler=self.handler,
-                split_statements=self.split_statements,
-                return_last=self.return_last,
-            )
-        else:
-            output = hook.run(
-                sql=self.sql,
-                autocommit=self.autocommit,
-                parameters=self.parameters,
-                split_statements=self.split_statements,
-            )
-
-        return self._process_output(output, hook.last_description, hook.scalar_return_last)
+        output = hook.run(
+            sql=self.sql,
+            autocommit=self.autocommit,
+            parameters=self.parameters,
+            handler=self.handler if self.do_xcom_push else None,
+            split_statements=self.split_statements,
+            return_last=self.return_last,
+        )
+        if return_single_query_results(self.sql, self.return_last, self.split_statements):
+            # For simplicity, we pass always list as input to _process_output, regardless if
+            # single query results are going to be returned, and we return the first element
+            # of the list in this case from the (always) list returned by _process_output
+            return self._process_output([output], hook.descriptions)[-1]
+        return self._process_output(output, hook.descriptions)
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
@@ -284,6 +277,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     """
     Performs one or more of the templated checks in the column_checks dictionary.
     Checks are performed on a per-column basis specified by the column_mapping.
+
     Each check can take one or more of the following options:
     - equal_to: an exact value to equal, cannot be used with other comparison options
     - greater_than: value that result should be strictly greater than

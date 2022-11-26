@@ -30,6 +30,33 @@ from airflow.hooks.base import BaseHook
 from airflow.version import version
 
 
+def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
+    """
+    Determines when results of single query only should be returned.
+
+    For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
+    In cases, when multiple queries are run, the return values will be an iterable (list) of results
+    - one for each query. However, in certain cases, when single query is run - the results will be just
+    the results of that single query without wrapping the results in a list.
+
+    The cases when single query results are returned without wrapping them in a list are when:
+
+    a) sql is string and last_statement is True (regardless what split_statement value is)
+    b) sql is string and split_statement is False
+
+    In all other cases, the results are wrapped in a list, even if there is only one statement to process:
+
+    a) always when sql is an iterable of string statements (regardless what last_statement value is)
+    b) when sql is string, split_statement is True and last_statement is False
+
+    :param sql: sql to run (either string or list of strings)
+    :param return_last: whether last statement output should only be returned
+    :param split_statements: whether to split string statements.
+    :return: True if the hook should return single query results
+    """
+    return isinstance(sql, str) and (return_last or not split_statements)
+
+
 def fetch_all_handler(cursor) -> list[tuple] | None:
     """Handler for DbApiHook.run() to return results"""
     if cursor.description is not None:
@@ -114,8 +141,7 @@ class DbApiHook(BaseForDbApiHook):
         # Hook deriving from the DBApiHook to still have access to the field in its constructor
         self.__schema = schema
         self.log_sql = log_sql
-        self.scalar_return_last = False
-        self.last_description: Sequence[Sequence] | None = None
+        self.descriptions: list[Sequence[Sequence] | None] = []
 
     def get_conn(self):
         """Returns a connection object"""
@@ -222,6 +248,12 @@ class DbApiHook(BaseForDbApiHook):
         statements: list[str] = list(filter(None, splits))
         return statements
 
+    @property
+    def last_description(self) -> Sequence[Sequence] | None:
+        if not self.descriptions:
+            return None
+        return self.descriptions[-1]
+
     def run(
         self,
         sql: str | Iterable[str],
@@ -234,7 +266,42 @@ class DbApiHook(BaseForDbApiHook):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
-        sequentially
+        sequentially.
+
+        The method will return either single query results (typically list of rows) or list of those results
+        where each element in the list are results of one of the queries (typically list of list of rows :D)
+
+        For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
+        In cases, when multiple queries are run, the return values will be an iterable (list) of results
+        - one for each query. However, in certain cases, when single query is run - the results will be just
+        the results of that query without wrapping the results in a list.
+
+        The cases when single query results are returned without wrapping them in a list are when:
+
+        a) sql is string and last_statement is True (regardless what split_statement value is)
+        b) sql is string and split_statement is False
+
+        In all other cases, the results are wrapped in a list, even if there is only one statement to process:
+
+        a) always when sql is an iterable of string statements (regardless what last_statement value is)
+        b) when sql is string, split_statement is True and last_statement is False
+
+
+        In any of those cases, however you can access the following properties of the Hook after running it:
+
+          * descriptions - has an array of cursor descriptions - each statement executed contain the list
+            of descriptions executed. If ``return_last`` is used, this is always a one-element array
+          * last_description - description of the last statement executed
+
+        Note that return value from the hook will ONLY be actually returned when handler is provided. Setting
+        the ``handler`` to None, results in this method returning None.
+
+        Handler is a way to process the rows from cursor (Iterator) into a value that is suitable to be
+        returned to XCom and generally fit in memory. As an optimization, handler is usually not executed
+        by the SQLExecuteQuery operator if `do_xcom_push` is not specified.
+
+        You can use pre-defined handles (`fetch_all_handler``, ''fetch_one_handler``) or implement your
+        own handler.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -246,31 +313,38 @@ class DbApiHook(BaseForDbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the ALL SQL expressions if handler was provided.
         """
-        self.scalar_return_last = isinstance(sql, str) and return_last
+        self.descriptions = []
+
         if isinstance(sql, str):
             if split_statements:
-                sql = self.split_sql_string(sql)
+                sql_list: Iterable[str] = self.split_sql_string(sql)
             else:
-                sql = [sql]
+                sql_list = [sql] if sql.strip() else []
+        else:
+            sql_list = sql
 
-        if sql:
-            self.log.debug("Executing following statements against DB: %s", list(sql))
+        if sql_list:
+            self.log.debug("Executing following statements against DB: %s", sql_list)
         else:
             raise ValueError("List of SQL statements is empty")
-
+        _last_result = None
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, autocommit)
 
             with closing(conn.cursor()) as cur:
                 results = []
-                for sql_statement in sql:
+                for sql_statement in sql_list:
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
                         result = handler(cur)
-                        results.append(result)
-                self.last_description = cur.description
+                        if return_single_query_results(sql, return_last, split_statements):
+                            _last_result = result
+                            _last_description = cur.description
+                        else:
+                            results.append(result)
+                            self.descriptions.append(cur.description)
 
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
@@ -278,8 +352,9 @@ class DbApiHook(BaseForDbApiHook):
 
         if handler is None:
             return None
-        elif self.scalar_return_last:
-            return results[-1]
+        if return_single_query_results(sql, return_last, split_statements):
+            self.descriptions = [_last_description]
+            return _last_result
         else:
             return results
 

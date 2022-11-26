@@ -32,7 +32,7 @@ from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.utils.strings import to_boolean
 
 
@@ -350,7 +350,6 @@ class SnowflakeHook(DbApiHook):
         """
         self.query_ids = []
 
-        self.scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 split_statements_tuple = util_text.split_statements(StringIO(sql))
@@ -387,7 +386,7 @@ class SnowflakeHook(DbApiHook):
 
         if handler is None:
             return None
-        elif self.scalar_return_last:
+        elif return_single_query_results(sql, return_last, split_statements):
             return results[-1]
         else:
             return results

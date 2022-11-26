@@ -24,7 +24,7 @@ import pandas as pd
 import pyexasol
 from pyexasol import ExaConnection
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 
 
 class ExasolHook(DbApiHook):
@@ -157,7 +157,6 @@ class ExasolHook(DbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the LAST SQL expression if handler was provided.
         """
-        self.scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 sql = self.split_sql_string(sql)
@@ -187,7 +186,7 @@ class ExasolHook(DbApiHook):
 
         if handler is None:
             return None
-        elif self.scalar_return_last:
+        elif return_single_query_results(sql, return_last, split_statements):
             return results[-1]
         else:
             return results

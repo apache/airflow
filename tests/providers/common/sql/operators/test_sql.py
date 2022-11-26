@@ -88,6 +88,8 @@ class TestSQLExecuteQueryOperator:
             autocommit=False,
             parameters=None,
             split_statements=False,
+            handler=None,
+            return_last=True,
         )
 
 
