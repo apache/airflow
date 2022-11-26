@@ -156,8 +156,8 @@ class StandaloneCommand:
         We override some settings as part of being standalone.
         """
         env = dict(os.environ)
-        # Make sure we're using a local executor flavour
 
+        # Make sure we're using a local executor flavour
         executor_class, _ = ExecutorLoader.import_executor_cls(
             conf.get("core", "executor"),
         )
