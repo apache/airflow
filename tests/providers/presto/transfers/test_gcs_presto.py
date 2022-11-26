@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.presto.transfers.gcs_to_presto import GCSToPrestoOperator
@@ -33,7 +32,7 @@ SCHEMA_FIELDS = ["colA", "colB", "colC"]
 SCHEMA_JSON = "path/to/file.json"
 
 
-class TestGCSToPrestoOperator(unittest.TestCase):
+class TestGCSToPrestoOperator:
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.PrestoHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.GCSHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.NamedTemporaryFile")

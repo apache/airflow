@@ -55,7 +55,12 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix templating fields and do_xcom_push in DatabricksSQLOperator (#27868)``
+* ``Fixing the behaviours of SQL Hooks and Operators finally (#27912)``
 
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
 
 3.4.0
 .....
