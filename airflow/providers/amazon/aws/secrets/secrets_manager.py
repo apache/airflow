@@ -235,10 +235,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             #
             # This means we need to deserialize then re-serialize the secret if it's a JSON, potentially
             # renaming some keys in the process.
-            import ast
 
-            # secret_dict = json.loads(secret)
-            secret_dict = ast.literal_eval(secret)
+            secret_dict = json.loads(secret)
             standardized_secret_dict = self._standardize_secret_keys(secret_dict)
             if self.are_secret_values_urlencoded:
                 standardized_secret_dict = self._remove_escaping_in_secret_dict(standardized_secret_dict)
