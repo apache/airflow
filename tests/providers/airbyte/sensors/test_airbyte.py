@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -25,7 +24,7 @@ from airflow import AirflowException
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
 
 
-class TestAirbyteJobSensor(unittest.TestCase):
+class TestAirbyteJobSensor:
 
     task_id = "task-id"
     airbyte_conn_id = "airbyte-conn-test"

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest import mock
 from unittest.mock import MagicMock
@@ -94,7 +93,7 @@ def make_run_with_state_mock(
     )
 
 
-class TestDatabricksSubmitRunOperator(unittest.TestCase):
+class TestDatabricksSubmitRunOperator:
     def test_init_with_notebook_task_named_parameters(self):
         """
         Test the initializer with the named parameters.
@@ -437,7 +436,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         db_mock.get_run.assert_not_called()
 
 
-class TestDatabricksSubmitRunDeferrableOperator(unittest.TestCase):
+class TestDatabricksSubmitRunDeferrableOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
         """
@@ -454,8 +453,8 @@ class TestDatabricksSubmitRunDeferrableOperator(unittest.TestCase):
 
         with pytest.raises(TaskDeferred) as exc:
             op.execute(None)
-        self.assertTrue(isinstance(exc.value.trigger, DatabricksExecutionTrigger))
-        self.assertEqual(exc.value.method_name, "execute_complete")
+        assert isinstance(exc.value.trigger, DatabricksExecutionTrigger)
+        assert exc.value.method_name == "execute_complete"
 
         expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
@@ -470,7 +469,7 @@ class TestDatabricksSubmitRunDeferrableOperator(unittest.TestCase):
 
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        self.assertEqual(RUN_ID, op.run_id)
+        assert op.run_id == RUN_ID
 
     def test_execute_complete_success(self):
         """
@@ -487,7 +486,7 @@ class TestDatabricksSubmitRunDeferrableOperator(unittest.TestCase):
         }
 
         op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
-        self.assertIsNone(op.execute_complete(context=None, event=event))
+        assert op.execute_complete(context=None, event=event) is None
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_complete_failure(self, db_mock_class):
@@ -523,7 +522,7 @@ class TestDatabricksSubmitRunDeferrableOperator(unittest.TestCase):
             op.execute_complete(context=None, event=event)
 
 
-class TestDatabricksRunNowOperator(unittest.TestCase):
+class TestDatabricksRunNowOperator:
     def test_init_with_named_parameters(self):
         """
         Test the initializer with the named parameters.
@@ -874,7 +873,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         db_mock.find_job_id_by_name.assert_called_once_with(JOB_NAME)
 
 
-class TestDatabricksRunNowDeferrableOperator(unittest.TestCase):
+class TestDatabricksRunNowDeferrableOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
         """
@@ -888,8 +887,8 @@ class TestDatabricksRunNowDeferrableOperator(unittest.TestCase):
 
         with pytest.raises(TaskDeferred) as exc:
             op.execute(None)
-        self.assertTrue(isinstance(exc.value.trigger, DatabricksExecutionTrigger))
-        self.assertEqual(exc.value.method_name, "execute_complete")
+        assert isinstance(exc.value.trigger, DatabricksExecutionTrigger)
+        assert exc.value.method_name == "execute_complete"
 
         expected = utils.normalise_json_content(
             {
@@ -910,7 +909,7 @@ class TestDatabricksRunNowDeferrableOperator(unittest.TestCase):
 
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        self.assertEqual(RUN_ID, op.run_id)
+        assert op.run_id == RUN_ID
 
     def test_execute_complete_success(self):
         """
@@ -924,7 +923,7 @@ class TestDatabricksRunNowDeferrableOperator(unittest.TestCase):
         }
 
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
-        self.assertIsNone(op.execute_complete(context=None, event=event))
+        assert op.execute_complete(context=None, event=event) is None
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_complete_failure(self, db_mock_class):

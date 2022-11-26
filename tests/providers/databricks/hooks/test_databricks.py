@@ -21,7 +21,6 @@ import itertools
 import json
 import sys
 import time
-import unittest
 
 import aiohttp
 import pytest
@@ -228,13 +227,13 @@ def setup_mock_requests(mock_requests, exception, status_code=500, error_count=N
         ]
 
 
-class TestDatabricksHook(unittest.TestCase):
+class TestDatabricksHook:
     """
     Tests for DatabricksHook.
     """
 
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
         conn.login = LOGIN
@@ -616,11 +615,11 @@ class TestDatabricksHook(unittest.TestCase):
 
     def test_is_aad_token_valid_returns_true(self):
         aad_token = {"token": "my_token", "expires_on": int(time.time()) + TOKEN_REFRESH_LEAD_TIME + 10}
-        self.assertTrue(self.hook._is_aad_token_valid(aad_token))
+        assert self.hook._is_aad_token_valid(aad_token)
 
     def test_is_aad_token_valid_returns_false(self):
         aad_token = {"token": "my_token", "expires_on": int(time.time())}
-        self.assertFalse(self.hook._is_aad_token_valid(aad_token))
+        assert not self.hook._is_aad_token_valid(aad_token)
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_list_jobs_success_single_page(self, mock_requests):
@@ -756,13 +755,13 @@ class TestDatabricksHook(unittest.TestCase):
         )
 
 
-class TestDatabricksHookToken(unittest.TestCase):
+class TestDatabricksHookToken:
     """
     Tests for DatabricksHook when auth is done with token.
     """
 
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.extra = json.dumps({"token": TOKEN, "host": HOST})
 
@@ -785,13 +784,13 @@ class TestDatabricksHookToken(unittest.TestCase):
         assert kwargs["auth"].token == TOKEN
 
 
-class TestDatabricksHookTokenInPassword(unittest.TestCase):
+class TestDatabricksHookTokenInPassword:
     """
     Tests for DatabricksHook.
     """
 
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
         conn.login = None
@@ -818,7 +817,7 @@ class TestDatabricksHookTokenInPassword(unittest.TestCase):
 
 class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.extra = json.dumps({"token": TOKEN})
 
@@ -827,7 +826,7 @@ class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken
         self.hook = DatabricksHook()
 
 
-class TestRunState(unittest.TestCase):
+class TestRunState:
     def test_is_terminal_true(self):
         terminal_states = ["TERMINATED", "SKIPPED", "INTERNAL_ERROR"]
         for state in terminal_states:
@@ -874,13 +873,13 @@ def create_aad_token_for_resource(resource: str) -> dict:
     }
 
 
-class TestDatabricksHookAadToken(unittest.TestCase):
+class TestDatabricksHookAadToken:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace.
     """
 
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.login = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
         conn.password = "secret"
@@ -911,14 +910,14 @@ class TestDatabricksHookAadToken(unittest.TestCase):
         assert kwargs["auth"].token == TOKEN
 
 
-class TestDatabricksHookAadTokenOtherClouds(unittest.TestCase):
+class TestDatabricksHookAadTokenOtherClouds:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace and
     using non-global Azure cloud (China, GovCloud, Germany)
     """
 
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         self.tenant_id = "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d"
         self.ad_endpoint = "https://login.microsoftonline.de"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
@@ -958,13 +957,13 @@ class TestDatabricksHookAadTokenOtherClouds(unittest.TestCase):
         assert kwargs["auth"].token == TOKEN
 
 
-class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
+class TestDatabricksHookAadTokenSpOutside:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP outside of workspace.
     """
 
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         self.tenant_id = "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
@@ -1011,13 +1010,13 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
         assert kwargs["headers"]["X-Databricks-Azure-SP-Management-Token"] == TOKEN
 
 
-class TestDatabricksHookAadTokenManagedIdentity(unittest.TestCase):
+class TestDatabricksHookAadTokenManagedIdentity:
     """
     Tests for DatabricksHook when auth is done with AAD leveraging Managed Identity authentication
     """
 
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
         conn.extra = json.dumps(

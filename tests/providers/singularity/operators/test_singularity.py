@@ -17,18 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 from spython.instance import Instance
 
 from airflow.exceptions import AirflowException
 from airflow.providers.singularity.operators.singularity import SingularityOperator
 
 
-class SingularityOperatorTestCase(unittest.TestCase):
+class TestSingularityOperator:
     @mock.patch("airflow.providers.singularity.operators.singularity.Client")
     def test_execute(self, client_mock):
         instance = mock.Mock(
@@ -55,12 +53,7 @@ class SingularityOperatorTestCase(unittest.TestCase):
         instance.start.assert_called_once_with()
         instance.stop.assert_called_once_with()
 
-    @parameterized.expand(
-        [
-            ("",),
-            (None,),
-        ]
-    )
+    @pytest.mark.parametrize("command", [pytest.param("", id="empty"), pytest.param(None, id="none")])
     def test_command_is_required(self, command):
         task = SingularityOperator(task_id="task-id", image="docker://busybox", command=command)
         with pytest.raises(AirflowException, match="You must define a command."):
@@ -95,7 +88,8 @@ class SingularityOperatorTestCase(unittest.TestCase):
         client_mock.pull.assert_called_once_with("docker://busybox", stream=True, pull_folder="/tmp")
         client_mock.execute.assert_called_once_with(mock.ANY, "echo hello", return_result=True)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "volumes, expected_options",
         [
             (
                 None,
@@ -117,10 +111,10 @@ class SingularityOperatorTestCase(unittest.TestCase):
                 ["AAA", "BBB", "CCC"],
                 ["--bind", "AAA", "--bind", "BBB", "--bind", "CCC"],
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.singularity.operators.singularity.Client")
-    def test_bind_options(self, volumes, expected_options, client_mock):
+    def test_bind_options(self, client_mock, volumes, expected_options):
         instance = mock.Mock(
             autospec=Instance,
             **{
@@ -145,7 +139,8 @@ class SingularityOperatorTestCase(unittest.TestCase):
             "docker://busybox", options=expected_options, args=None, start=False
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "working_dir, expected_working_dir",
         [
             (
                 None,
@@ -159,10 +154,10 @@ class SingularityOperatorTestCase(unittest.TestCase):
                 "/work-dir/",
                 ["--workdir", "/work-dir/"],
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.singularity.operators.singularity.Client")
-    def test_working_dir(self, working_dir, expected_working_dir, client_mock):
+    def test_working_dir(self, client_mock, working_dir, expected_working_dir):
         instance = mock.Mock(
             autospec=Instance,
             **{

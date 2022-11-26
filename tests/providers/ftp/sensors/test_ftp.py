@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from ftplib import error_perm
 from unittest import mock
 
@@ -27,7 +26,7 @@ from airflow.providers.ftp.hooks.ftp import FTPHook
 from airflow.providers.ftp.sensors.ftp import FTPSensor
 
 
-class TestFTPSensor(unittest.TestCase):
+class TestFTPSensor:
     @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
     def test_poke(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")

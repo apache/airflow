@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 
 import pytest
 
@@ -27,10 +26,10 @@ from airflow.providers.dingding.hooks.dingding import DingdingHook
 from airflow.utils import db
 
 
-class TestDingdingHook(unittest.TestCase):
+class TestDingdingHook:
     conn_id = "dingding_conn_id_test"
 
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id=self.conn_id,

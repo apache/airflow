@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest.mock import patch
+
+import pytest
 
 from airflow.models import Connection
 
@@ -64,14 +65,14 @@ SSH_PUBLIC_KEYS = [
 HAS_CREDENTIALS = OAUTH_TOKEN != "my_oauth_token"
 
 
-@unittest.skipIf(yandexcloud is None, "Skipping Yandex.Cloud hook test: no yandexcloud module")
-class TestYandexCloudDataprocHook(unittest.TestCase):
+@pytest.mark.skipif(yandexcloud is None, reason="Skipping Yandex.Cloud hook test: no yandexcloud module")
+class TestYandexCloudDataprocHook:
     def _init_hook(self):
         with patch("airflow.hooks.base.BaseHook.get_connection") as get_connection_mock:
             get_connection_mock.return_value = self.connection
             self.hook = DataprocHook()
 
-    def setUp(self):
+    def setup_method(self):
         self.connection = Connection(extra=json.dumps({"oauth": OAUTH_TOKEN}))
         self._init_hook()
 

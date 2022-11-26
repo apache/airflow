@@ -17,26 +17,23 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
-import requests_mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.operators.http import SimpleHttpOperator
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
-class TestSimpleHttpOp(unittest.TestCase):
-    @requests_mock.mock()
-    def test_response_in_logs(self, m):
+class TestSimpleHttpOp:
+    def test_response_in_logs(self, requests_mock):
         """
         Test that when using SimpleHttpOperator with 'GET',
         the log contains 'Example Domain' in it
         """
 
-        m.get("http://www.example.com", text="Example.com fake response")
+        requests_mock.get("http://www.example.com", text="Example.com fake response")
         operator = SimpleHttpOperator(
             task_id="test_HTTP_op",
             method="GET",
@@ -48,8 +45,7 @@ class TestSimpleHttpOp(unittest.TestCase):
         result = operator.execute("Example.com fake response")
         assert result == "Example.com fake response"
 
-    @requests_mock.mock()
-    def test_response_in_logs_after_failed_check(self, m):
+    def test_response_in_logs_after_failed_check(self, requests_mock):
         """
         Test that when using SimpleHttpOperator with log_response=True,
         the response is logged even if request_check fails
@@ -58,7 +54,7 @@ class TestSimpleHttpOp(unittest.TestCase):
         def response_check(response):
             return response.text != "invalid response"
 
-        m.get("http://www.example.com", text="invalid response")
+        requests_mock.get("http://www.example.com", text="invalid response")
         operator = SimpleHttpOperator(
             task_id="test_HTTP_op",
             method="GET",
@@ -74,9 +70,8 @@ class TestSimpleHttpOp(unittest.TestCase):
             calls = [mock.call("Calling HTTP method"), mock.call("invalid response")]
             mock_info.assert_has_calls(calls, any_order=True)
 
-    @requests_mock.mock()
-    def test_filters_response(self, m):
-        m.get("http://www.example.com", json={"value": 5})
+    def test_filters_response(self, requests_mock):
+        requests_mock.get("http://www.example.com", json={"value": 5})
         operator = SimpleHttpOperator(
             task_id="test_HTTP_op",
             method="GET",

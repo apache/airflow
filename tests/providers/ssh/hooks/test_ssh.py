@@ -21,13 +21,11 @@ import json
 import random
 import string
 import textwrap
-import unittest
 from io import StringIO
 from unittest import mock
 
 import paramiko
 import pytest
-from parameterized import parameterized
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -83,7 +81,7 @@ TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
 TEST_CIPHERS = ["aes128-ctr", "aes192-ctr", "aes256-ctr"]
 
 
-class TestSSHHook(unittest.TestCase):
+class TestSSHHook:
     CONN_SSH_WITH_NO_EXTRA = "ssh_with_no_extra"
     CONN_SSH_WITH_PRIVATE_KEY_EXTRA = "ssh_with_private_key_extra"
     CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA = "ssh_with_private_key_ecdsa_extra"
@@ -112,7 +110,7 @@ class TestSSHHook(unittest.TestCase):
     )
 
     @classmethod
-    def tearDownClass(cls) -> None:
+    def teardown_class(cls) -> None:
         with create_session() as session:
             conns_to_reset = [
                 cls.CONN_SSH_WITH_NO_EXTRA,
@@ -139,7 +137,7 @@ class TestSSHHook(unittest.TestCase):
             session.commit()
 
     @classmethod
-    def setUpClass(cls) -> None:
+    def setup_class(cls) -> None:
         db.merge_conn(
             Connection(
                 conn_id=cls.CONN_SSH_WITH_NO_EXTRA,
@@ -741,7 +739,8 @@ class TestSSHHook(unittest.TestCase):
                 look_for_keys=True,
             )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "timeout, conn_timeout, timeoutextra, conn_timeoutextra, expected_value",
         [
             (TEST_TIMEOUT, TEST_CONN_TIMEOUT, True, True, TEST_CONN_TIMEOUT),
             (TEST_TIMEOUT, TEST_CONN_TIMEOUT, True, False, TEST_CONN_TIMEOUT),
@@ -759,11 +758,11 @@ class TestSSHHook(unittest.TestCase):
             (None, None, True, False, TEST_TIMEOUT),
             (None, None, False, True, TEST_CONN_TIMEOUT),
             (None, None, False, False, 10),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_ssh_connection_with_all_timeout_param_and_extra_combinations(
-        self, timeout, conn_timeout, timeoutextra, conn_timeoutextra, expected_value, ssh_mock
+        self, ssh_mock, timeout, conn_timeout, timeoutextra, conn_timeoutextra, expected_value
     ):
 
         if timeoutextra and conn_timeoutextra:

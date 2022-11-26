@@ -17,17 +17,15 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.case import TestCase
 from unittest.mock import PropertyMock, mock_open, patch
 
 import pytest
 from hvac.exceptions import VaultError
-from parameterized import parameterized
 
 from airflow.providers.hashicorp.hooks.vault import VaultHook
 
 
-class TestVaultHook(TestCase):
+class TestVaultHook:
     @staticmethod
     def get_mock_connection(
         conn_type="vault", schema="secret", host="localhost", port=8180, user="user", password="pass"
@@ -58,15 +56,16 @@ class TestVaultHook(TestCase):
         with pytest.raises(VaultError, match="The version is not an int: text"):
             VaultHook(**kwargs)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "version, expected_version",
         [
             ("2", 2),
             (1, 1),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_version(self, version, expected_version, mock_hvac, mock_get_connection):
+    def test_version(self, mock_hvac, mock_get_connection, version, expected_version):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_connection = self.get_mock_connection()
@@ -156,16 +155,17 @@ class TestVaultHook(TestCase):
         test_hook = VaultHook(**kwargs)
         assert 1 == test_hook.vault_client.kv_engine_version
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "protocol, expected_url",
         [
             ("vaults", "https://localhost:8180"),
             ("http", "http://localhost:8180"),
             ("https", "https://localhost:8180"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_protocol(self, protocol, expected_url, mock_hvac, mock_get_connection):
+    def test_protocol(self, mock_hvac, mock_get_connection, protocol, expected_url):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_connection = self.get_mock_connection(conn_type=protocol)
@@ -1154,15 +1154,16 @@ class TestVaultHook(TestCase):
             mount_point="secret", secret_path="path", secret={"key": "value"}, cas=10
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "method, expected_method",
         [
             (None, None),
             ("post", "post"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_create_or_update_secret_v1(self, method, expected_method, mock_hvac, mock_get_connection):
+    def test_create_or_update_secret_v1(self, mock_hvac, mock_get_connection, method, expected_method):
         mock_connection = self.get_mock_connection()
         mock_get_connection.return_value = mock_connection
         mock_client = mock.MagicMock()

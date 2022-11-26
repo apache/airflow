@@ -16,11 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 import pytest
-from parameterized import parameterized
 
 from airflow.providers.tableau.sensors.tableau import (
     TableauJobFailedException,
@@ -29,12 +27,12 @@ from airflow.providers.tableau.sensors.tableau import (
 )
 
 
-class TestTableauJobStatusSensor(unittest.TestCase):
+class TestTableauJobStatusSensor:
     """
     Test Class for JobStatusSensor
     """
 
-    def setUp(self):
+    def setup_method(self):
         self.kwargs = {"job_id": "job_2", "site_id": "test_site", "task_id": "task", "dag": None}
 
     @patch("airflow.providers.tableau.sensors.tableau.TableauHook")
@@ -51,9 +49,15 @@ class TestTableauJobStatusSensor(unittest.TestCase):
         assert job_finished
         mock_tableau_hook.get_job_status.assert_called_once_with(job_id=sensor.job_id)
 
-    @parameterized.expand([(TableauJobFinishCode.ERROR,), (TableauJobFinishCode.CANCELED,)])
+    @pytest.mark.parametrize(
+        "finish_code",
+        [
+            pytest.param(TableauJobFinishCode.ERROR, id="ERROR"),
+            pytest.param(TableauJobFinishCode.CANCELED, id="CANCELED"),
+        ],
+    )
     @patch("airflow.providers.tableau.sensors.tableau.TableauHook")
-    def test_poke_failed(self, finish_code, mock_tableau_hook):
+    def test_poke_failed(self, mock_tableau_hook, finish_code):
         """
         Test poke failed
         """

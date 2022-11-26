@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.providers.salesforce.operators.salesforce_apex_rest import SalesforceApexRestOperator
 
 
-class TestSalesforceApexRestOperator(unittest.TestCase):
+class TestSalesforceApexRestOperator:
     """
     Test class for SalesforceApexRestOperator
     """

@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.arangodb.operators.arangodb import AQLOperator
 
 
-class TestAQLOperator(unittest.TestCase):
+class TestAQLOperator:
     @mock.patch("airflow.providers.arangodb.operators.arangodb.ArangoDBHook")
     def test_arangodb_operator_test(self, mock_hook):
 

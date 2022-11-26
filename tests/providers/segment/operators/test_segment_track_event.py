@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -30,9 +29,8 @@ TEST_CONN_ID = "test_segment"
 WRITE_KEY = "foo"
 
 
-class TestSegmentHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestSegmentHook:
+    def setup_method(self):
 
         self.conn = conn = mock.MagicMock()
         conn.write_key = WRITE_KEY
@@ -59,7 +57,7 @@ class TestSegmentHook(unittest.TestCase):
             self.test_hook.on_error("error", ["items"])
 
 
-class TestSegmentTrackEventOperator(unittest.TestCase):
+class TestSegmentTrackEventOperator:
     @mock.patch("airflow.providers.segment.operators.segment_track_event.SegmentHook")
     def test_execute(self, mock_hook):
         # Given

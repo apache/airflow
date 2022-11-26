@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import imaplib
 import json
-import unittest
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
@@ -61,8 +60,8 @@ def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name="test1.csv"
     return mock_conn
 
 
-class TestImapHook(unittest.TestCase):
-    def setUp(self):
+class TestImapHook:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="imap_default",

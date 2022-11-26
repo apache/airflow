@@ -16,15 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
+
+import pytest
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.oracle.operators.oracle import OracleOperator, OracleStoredProcedureOperator
 
 
-class TestOracleOperator(unittest.TestCase):
+class TestOracleOperator:
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_execute(self, mock_get_db_hook):
         sql = "SELECT * FROM test_table"
@@ -34,13 +35,14 @@ class TestOracleOperator(unittest.TestCase):
         context = "test_context"
         task_id = "test_task_id"
 
-        operator = OracleOperator(
-            sql=sql,
-            oracle_conn_id=oracle_conn_id,
-            parameters=parameters,
-            autocommit=autocommit,
-            task_id=task_id,
-        )
+        with pytest.warns(DeprecationWarning, match="This class is deprecated.*"):
+            operator = OracleOperator(
+                sql=sql,
+                oracle_conn_id=oracle_conn_id,
+                parameters=parameters,
+                autocommit=autocommit,
+                task_id=task_id,
+            )
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(
             sql=sql,
@@ -52,7 +54,7 @@ class TestOracleOperator(unittest.TestCase):
         )
 
 
-class TestOracleStoredProcedureOperator(unittest.TestCase):
+class TestOracleStoredProcedureOperator:
     @mock.patch.object(OracleHook, "run", autospec=OracleHook.run)
     def test_execute(self, mock_run):
         procedure = "test"

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-import unittest
 from unittest import mock
 
 import pytest
@@ -38,7 +37,7 @@ DEFAULT_CONN_ID = "databricks_default"
 COPY_FILE_LOCATION = "s3://my-bucket/jsonData"
 
 
-class TestDatabricksSqlOperator(unittest.TestCase):
+class TestDatabricksSqlOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
     def test_exec_success(self, db_mock_class):
         """
@@ -117,7 +116,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         )
 
 
-class TestDatabricksSqlCopyIntoOperator(unittest.TestCase):
+class TestDatabricksSqlCopyIntoOperator:
     def test_copy_with_files(self):
         op = DatabricksCopyIntoOperator(
             file_location=COPY_FILE_LOCATION,

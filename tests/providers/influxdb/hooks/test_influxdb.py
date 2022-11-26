@@ -16,16 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.models import Connection
 from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
 
 
-class TestInfluxDbHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestInfluxDbHook:
+    def setup_method(self):
         self.influxdb_hook = InfluxDBHook()
         extra = {}
         extra["token"] = "123456789"

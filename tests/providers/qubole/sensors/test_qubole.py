@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest.mock import patch
 
@@ -35,8 +34,8 @@ TEMPLATE_CONN = "my_conn_id"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
-class TestQuboleSensor(unittest.TestCase):
-    def setUp(self):
+class TestQuboleSensor:
+    def setup_method(self):
         db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type="HTTP"))
 
     @patch("airflow.providers.qubole.sensors.qubole.QuboleFileSensor.poke")

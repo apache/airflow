@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import datetime
-from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
 from airflow.models.dag import DAG
@@ -64,8 +63,8 @@ SSH_PUBLIC_KEYS = [
 LOG_GROUP_ID = "my_log_group_id"
 
 
-class DataprocClusterCreateOperatorTest(TestCase):
-    def setUp(self):
+class TestDataprocClusterCreateOperator:
+    def setup_method(self):
         dag_id = "test_dag"
         self.dag = DAG(
             dag_id,

@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from airflow.models.dag import DAG
 from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOperator
 from airflow.utils import timezone
@@ -26,7 +24,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2018, 1, 1)
 
 
-class TestDiscordWebhookOperator(unittest.TestCase):
+class TestDiscordWebhookOperator:
     _config = {
         "http_conn_id": "discord-webhook-default",
         "webhook_endpoint": "webhooks/11111/some-discord-token_111",
@@ -37,7 +35,7 @@ class TestDiscordWebhookOperator(unittest.TestCase):
         "proxy": "https://proxy.proxy.com:8888",
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 

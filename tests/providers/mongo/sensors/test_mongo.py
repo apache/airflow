@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.models import Connection
@@ -31,10 +29,10 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 @pytest.mark.integration("mongo")
-class TestMongoSensor(unittest.TestCase):
-    def setUp(self):
+class TestMongoSensor:
+    def setup_method(self):
         db.merge_conn(
-            Connection(conn_id="mongo_test", conn_type="mongo", host="mongo", port="27017", schema="test")
+            Connection(conn_id="mongo_test", conn_type="mongo", host="mongo", port=27017, schema="test")
         )
 
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}

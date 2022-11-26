@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
@@ -26,9 +25,8 @@ from airflow.utils import db
 arangodb_client_mock = Mock(name="arangodb_client_for_test")
 
 
-class TestArangoDBHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestArangoDBHook:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="arangodb_default",

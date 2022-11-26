@@ -18,7 +18,6 @@
 #
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -35,13 +34,13 @@ HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
 TOKEN = "token"
 
 
-class TestDatabricksSqlHookQueryByName(unittest.TestCase):
+class TestDatabricksSqlHookQueryByName:
     """
     Tests for DatabricksHook.
     """
 
     @provide_session
-    def setUp(self, session=None):
+    def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
         conn.login = None

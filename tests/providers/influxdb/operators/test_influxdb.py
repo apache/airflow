@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.influxdb.operators.influxdb import InfluxDBOperator
 
 
-class TestInfluxDBOperator(unittest.TestCase):
+class TestInfluxDBOperator:
     @mock.patch("airflow.providers.influxdb.operators.influxdb.InfluxDBHook")
     def test_influxdb_operator_test(self, mock_hook):
 

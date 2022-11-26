@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
@@ -31,8 +30,7 @@ from airflow.utils.types import NOTSET
 
 
 class TestPostgresHookConn:
-    @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.connection = Connection(login="login", password="password", host="host", schema="database")
 
         class UnitTestPostgresHook(PostgresHook):
@@ -258,14 +256,11 @@ class TestPostgresHookConn:
         assert hook.database == database
 
 
-class TestPostgresHook(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.table = "test_postgres_hook_table"
+@pytest.mark.backend("postgres")
+class TestPostgresHook:
+    table = "test_postgres_hook_table"
 
-    def setUp(self):
-        super().setUp()
-
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
@@ -278,14 +273,11 @@ class TestPostgresHook(unittest.TestCase):
 
         self.db_hook = UnitTestPostgresHook()
 
-    def tearDown(self):
-        super().tearDown()
-
+    def teardown_method(self):
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(f"DROP TABLE IF EXISTS {self.table}")
 
-    @pytest.mark.backend("postgres")
     def test_copy_expert(self):
         open_mock = mock.mock_open(read_data='{"some": "json"}')
         with mock.patch("airflow.providers.postgres.hooks.postgres.open", open_mock):
@@ -302,7 +294,6 @@ class TestPostgresHook(unittest.TestCase):
             self.cur.copy_expert.assert_called_once_with(statement, open_mock.return_value)
             assert open_mock.call_args[0] == (filename, "r+")
 
-    @pytest.mark.backend("postgres")
     def test_bulk_load(self):
         hook = PostgresHook()
         input_data = ["foo", "bar", "baz"]
@@ -322,7 +313,6 @@ class TestPostgresHook(unittest.TestCase):
 
         assert sorted(input_data) == sorted(results)
 
-    @pytest.mark.backend("postgres")
     def test_bulk_dump(self):
         hook = PostgresHook()
         input_data = ["foo", "bar", "baz"]
@@ -341,7 +331,6 @@ class TestPostgresHook(unittest.TestCase):
 
         assert sorted(input_data) == sorted(results)
 
-    @pytest.mark.backend("postgres")
     def test_insert_rows(self):
         table = "table"
         rows = [("hello",), ("world",)]
@@ -358,7 +347,6 @@ class TestPostgresHook(unittest.TestCase):
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
-    @pytest.mark.backend("postgres")
     def test_insert_rows_replace(self):
         table = "table"
         rows = [
@@ -388,7 +376,6 @@ class TestPostgresHook(unittest.TestCase):
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
-    @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_target_field_arg(self):
         table = "table"
         rows = [
@@ -407,7 +394,6 @@ class TestPostgresHook(unittest.TestCase):
 
         assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires column names"
 
-    @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_replace_index_arg(self):
         table = "table"
         rows = [
@@ -426,7 +412,6 @@ class TestPostgresHook(unittest.TestCase):
 
         assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
 
-    @pytest.mark.backend("postgres")
     def test_insert_rows_replace_all_index(self):
         table = "table"
         rows = [
@@ -456,7 +441,6 @@ class TestPostgresHook(unittest.TestCase):
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
-    @pytest.mark.backend("postgres")
     def test_rowcount(self):
         hook = PostgresHook()
         input_data = ["foo", "bar", "baz"]

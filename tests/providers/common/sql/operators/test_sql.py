@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -43,7 +42,6 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.providers.apache.hive import TestHiveEnvironment
 
 
 class MockHook:
@@ -55,7 +53,7 @@ def _get_mock_db_hook():
     return MockHook()
 
 
-class TestSQLExecuteQueryOperator(unittest.TestCase):
+class TestSQLExecuteQueryOperator:
     def _construct_operator(self, sql, **kwargs):
         dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
         return SQLExecuteQueryOperator(
@@ -481,8 +479,8 @@ class TestSQLCheckOperatorDbHook:
         assert self._operator._hook.location == "us-east1"
 
 
-class TestCheckOperator(unittest.TestCase):
-    def setUp(self):
+class TestCheckOperator:
+    def setup_method(self):
         self._operator = SQLCheckOperator(task_id="test_task", sql="sql", parameters="parameters")
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
@@ -505,8 +503,8 @@ class TestCheckOperator(unittest.TestCase):
         mock_get_db_hook.return_value.get_first.assert_called_once_with("sql", "parameters")
 
 
-class TestValueCheckOperator(unittest.TestCase):
-    def setUp(self):
+class TestValueCheckOperator:
+    def setup_method(self):
         self.task_id = "test_task"
         self.conn_id = "default_conn"
 
@@ -564,7 +562,7 @@ class TestValueCheckOperator(unittest.TestCase):
             operator.execute(context=MagicMock())
 
 
-class TestIntervalCheckOperator(unittest.TestCase):
+class TestIntervalCheckOperator:
     def _construct_operator(self, table, metric_thresholds, ratio_formula, ignore_zero):
         return SQLIntervalCheckOperator(
             task_id="test_task",
@@ -681,7 +679,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
             operator.execute(context=MagicMock())
 
 
-class TestThresholdCheckOperator(unittest.TestCase):
+class TestThresholdCheckOperator:
     def _construct_operator(self, sql, min_threshold, max_threshold):
         dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
 
@@ -757,22 +755,19 @@ class TestThresholdCheckOperator(unittest.TestCase):
             operator.execute(context=MagicMock())
 
 
-class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
+class TestSqlBranch:
     """
     Test for SQL Branch Operator
     """
 
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
+    def setup_class(cls):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
             session.query(XCom).delete()
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         self.dag = DAG(
             "sql_branch_operator_test",
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -782,9 +777,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
 
-    def tearDown(self):
-        super().tearDown()
-
+    def teardown_method(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()

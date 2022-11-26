@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest.mock import patch
 
@@ -28,7 +27,7 @@ from pendulum import datetime as pendulum_datetime, timezone
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
 
-class TestSFTPSensor(unittest.TestCase):
+class TestSFTPSensor:
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_present(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"

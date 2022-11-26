@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.grpc.operators.grpc import GrpcOperator
@@ -30,7 +29,7 @@ class StubClass:
         pass
 
 
-class TestGrpcOperator(unittest.TestCase):
+class TestGrpcOperator:
     def custom_conn_func(self, connection):
         pass
 

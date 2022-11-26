@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
@@ -25,10 +24,8 @@ from airflow.models import Connection
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 
-class TestVerticaHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestVerticaHookConn:
+    def setup_method(self):
         self.connection = Connection(
             login="login",
             password="password",
@@ -51,10 +48,8 @@ class TestVerticaHookConn(unittest.TestCase):
         )
 
 
-class TestVerticaHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestVerticaHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur

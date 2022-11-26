@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.models import Connection
 from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 
 
-class TestCloudantHook(unittest.TestCase):
-    def setUp(self):
+class TestCloudantHook:
+    def setup_method(self):
         self.cloudant_hook = CloudantHook()
 
     @patch(

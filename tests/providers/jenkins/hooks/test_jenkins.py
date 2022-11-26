@@ -17,15 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
 
-class TestJenkinsHook(unittest.TestCase):
+class TestJenkinsHook:
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_client_created_default_http(self, get_connection_mock):
         """tests `init` method to validate http client creation when all parameters are passed"""
@@ -69,12 +68,12 @@ class TestJenkinsHook(unittest.TestCase):
         assert hook.jenkins_server is not None
         assert hook.jenkins_server.server == complete_url
 
-    @parameterized.expand([(True,), (False,)])
+    @pytest.mark.parametrize("param_building", [True, False])
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("jenkins.Jenkins.get_job_info")
     @mock.patch("jenkins.Jenkins.get_build_info")
     def test_get_build_building_state(
-        self, param_building, mock_get_build_info, mock_get_job_info, get_connection_mock
+        self, mock_get_build_info, mock_get_job_info, get_connection_mock, param_building
     ):
         mock_get_build_info.return_value = {"building": param_building}
 

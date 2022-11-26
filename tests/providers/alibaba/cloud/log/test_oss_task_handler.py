@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -32,8 +31,8 @@ MOCK_CONTENT = "mock_content"
 MOCK_FILE_PATH = "mock_file_path"
 
 
-class TestOSSTaskHandler(unittest.TestCase):
-    def setUp(self):
+class TestOSSTaskHandler:
+    def setup_method(self):
         self.base_log_folder = "local/airflow/logs/1.log"
         self.oss_log_folder = f"oss://{MOCK_BUCKET_NAME}/airflow/logs"
         self.oss_task_handler = OSSTaskHandler(self.base_log_folder, self.oss_log_folder)

@@ -17,36 +17,25 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 import jenkins
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
+TEST_PARAMETERS = (
+    pytest.param({"a_param": "blip", "another_param": "42"}, id="dict params"),
+    pytest.param('{"second_param": "beep", "third_param": "153"}', id="string params"),
+    pytest.param(["final_one", "bop", "real_final", "eggs"], id="list params"),
+)
 
-class TestJenkinsOperator(unittest.TestCase):
-    @parameterized.expand(
-        [
-            (
-                "dict params",
-                {"a_param": "blip", "another_param": "42"},
-            ),
-            (
-                "string params",
-                '{"second_param": "beep", "third_param": "153"}',
-            ),
-            (
-                "list params",
-                ["final_one", "bop", "real_final", "eggs"],
-            ),
-        ]
-    )
-    def test_execute(self, _, parameters):
+
+class TestJenkinsOperator:
+    @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
+    def test_execute(self, parameters):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_build_info.return_value = {
             "result": "SUCCESS",
@@ -80,23 +69,8 @@ class TestJenkinsOperator(unittest.TestCase):
             assert jenkins_mock.get_build_info.call_count == 1
             jenkins_mock.get_build_info.assert_called_once_with(name="a_job_on_jenkins", number="1")
 
-    @parameterized.expand(
-        [
-            (
-                "dict params",
-                {"a_param": "blip", "another_param": "42"},
-            ),
-            (
-                "string params",
-                '{"second_param": "beep", "third_param": "153"}',
-            ),
-            (
-                "list params",
-                ["final_one", "bop", "real_final", "eggs"],
-            ),
-        ]
-    )
-    def test_execute_job_polling_loop(self, _, parameters):
+    @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
+    def test_execute_job_polling_loop(self, parameters):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.side_effect = [
@@ -129,23 +103,8 @@ class TestJenkinsOperator(unittest.TestCase):
             operator.execute(None)
             assert jenkins_mock.get_build_info.call_count == 2
 
-    @parameterized.expand(
-        [
-            (
-                "dict params",
-                {"a_param": "blip", "another_param": "42"},
-            ),
-            (
-                "string params",
-                '{"second_param": "beep", "third_param": "153"}',
-            ),
-            (
-                "list params",
-                ["final_one", "bop", "real_final", "eggs"],
-            ),
-        ]
-    )
-    def test_execute_job_failure(self, _, parameters):
+    @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
+    def test_execute_job_failure(self, parameters):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.return_value = {
@@ -178,7 +137,8 @@ class TestJenkinsOperator(unittest.TestCase):
             with pytest.raises(AirflowException):
                 operator.execute(None)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "state, allowed_jenkins_states",
         [
             (
                 "SUCCESS",
@@ -196,7 +156,7 @@ class TestJenkinsOperator(unittest.TestCase):
                 "SUCCESS",
                 None,
             ),
-        ]
+        ],
     )
     def test_allowed_jenkins_states(self, state, allowed_jenkins_states):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
@@ -233,7 +193,8 @@ class TestJenkinsOperator(unittest.TestCase):
             except AirflowException:
                 pytest.fail(f"Job failed with state={state} while allowed states={allowed_jenkins_states}")
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "state, allowed_jenkins_states",
         [
             (
                 "FAILURE",
@@ -255,7 +216,7 @@ class TestJenkinsOperator(unittest.TestCase):
                 "UNSTABLE",
                 None,
             ),
-        ]
+        ],
     )
     def test_allowed_jenkins_states_failure(self, state, allowed_jenkins_states):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")

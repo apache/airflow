@@ -17,11 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
-import requests_mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -29,7 +27,7 @@ from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.utils import db
 
 
-class TestAirbyteHook(unittest.TestCase):
+class TestAirbyteHook:
     """
     Test all functions from Airbyte Hook
     """
@@ -46,7 +44,7 @@ class TestAirbyteHook(unittest.TestCase):
     _mock_job_status_success_response_body = {"job": {"status": "succeeded"}}
     _mock_job_cancel_status = "cancelled"
 
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="airbyte_conn_id_test", conn_type="airbyte", host="http://test-airbyte", port=8001
@@ -59,25 +57,26 @@ class TestAirbyteHook(unittest.TestCase):
         response.json.return_value = {"job": {"status": status}}
         return response
 
-    @requests_mock.mock()
-    def test_submit_sync_connection(self, m):
-        m.post(
+    def test_submit_sync_connection(self, requests_mock):
+        requests_mock.post(
             self.sync_connection_endpoint, status_code=200, json=self._mock_sync_conn_success_response_body
         )
         resp = self.hook.submit_sync_connection(connection_id=self.connection_id)
         assert resp.status_code == 200
         assert resp.json() == self._mock_sync_conn_success_response_body
 
-    @requests_mock.mock()
-    def test_get_job_status(self, m):
-        m.post(self.get_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body)
+    def test_get_job_status(self, requests_mock):
+        requests_mock.post(
+            self.get_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body
+        )
         resp = self.hook.get_job(job_id=self.job_id)
         assert resp.status_code == 200
         assert resp.json() == self._mock_job_status_success_response_body
 
-    @requests_mock.mock()
-    def test_cancel_job(self, m):
-        m.post(self.cancel_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body)
+    def test_cancel_job(self, requests_mock):
+        requests_mock.post(
+            self.cancel_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body
+        )
         resp = self.hook.cancel_job(job_id=self.job_id)
         assert resp.status_code == 200
 
@@ -147,9 +146,8 @@ class TestAirbyteHook(unittest.TestCase):
         calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]
         mock_get_job.assert_has_calls(calls)
 
-    @requests_mock.mock()
-    def test_connection_success(self, m):
-        m.get(
+    def test_connection_success(self, requests_mock):
+        requests_mock.get(
             self.health_endpoint,
             status_code=200,
         )
@@ -158,9 +156,8 @@ class TestAirbyteHook(unittest.TestCase):
         assert status is True
         assert msg == "Connection successfully tested"
 
-    @requests_mock.mock()
-    def test_connection_failure(self, m):
-        m.get(self.health_endpoint, status_code=500, json={"message": "internal server error"})
+    def test_connection_failure(self, requests_mock):
+        requests_mock.get(self.health_endpoint, status_code=500, json={"message": "internal server error"})
 
         status, msg = self.hook.test_connection()
         assert status is False

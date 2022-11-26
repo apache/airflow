@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.models.dag import DAG
@@ -32,13 +30,13 @@ TEST_DAG_ID = "unit_test_dag"
 
 
 @pytest.mark.backend("sqlite")
-class TestSqliteOperator(unittest.TestCase):
-    def setUp(self):
+class TestSqliteOperator:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    def tearDown(self):
+    def teardown_method(self):
         tables_to_drop = ["test_airflow", "test_airflow2"]
         from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 

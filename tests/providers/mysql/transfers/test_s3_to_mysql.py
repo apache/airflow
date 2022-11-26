@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 import pytest
@@ -28,8 +27,8 @@ from airflow.utils import db
 from airflow.utils.session import create_session
 
 
-class TestS3ToMySqlTransfer(unittest.TestCase):
-    def setUp(self):
+class TestS3ToMySqlTransfer:
+    def setup_method(self):
         configuration.conf.load_test_config()
 
         db.merge_conn(
@@ -99,7 +98,7 @@ class TestS3ToMySqlTransfer(unittest.TestCase):
         )
         mock_remove.assert_called_once_with(mock_download_file.return_value)
 
-    def tearDown(self):
+    def teardown_method(self):
         with create_session() as session:
             (
                 session.query(models.Connection)

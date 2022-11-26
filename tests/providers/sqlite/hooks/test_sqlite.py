@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
@@ -27,8 +26,8 @@ from airflow.models import Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
 
-class TestSqliteHookConn(unittest.TestCase):
-    def setUp(self):
+class TestSqliteHookConn:
+    def setup_method(self):
 
         self.connection = Connection(host="host")
 
@@ -52,8 +51,8 @@ class TestSqliteHookConn(unittest.TestCase):
         self.db_hook.get_connection.assert_called_once_with("non_default")
 
 
-class TestSqliteHook(unittest.TestCase):
-    def setUp(self):
+class TestSqliteHook:
+    def setup_method(self):
 
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()

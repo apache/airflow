@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 from airflow.providers.celery.sensors.celery_queue import CeleryQueueSensor
 
 
-class TestCeleryQueueSensor(unittest.TestCase):
-    def setUp(self):
+class TestCeleryQueueSensor:
+    def setup_method(self):
         class TestCeleryqueueSensor(CeleryQueueSensor):
             def _check_task_id(self, context):
                 return True

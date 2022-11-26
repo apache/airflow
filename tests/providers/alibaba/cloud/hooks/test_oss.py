@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
@@ -32,8 +31,8 @@ MOCK_CONTENT = "mock_content"
 MOCK_FILE_PATH = "mock_file_path"
 
 
-class TestOSSHook(unittest.TestCase):
-    def setUp(self):
+class TestOSSHook:
+    def setup_method(self):
         with mock.patch(
             OSS_STRING.format("OSSHook.__init__"),
             new=mock_oss_hook_default_project_id,

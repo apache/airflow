@@ -18,21 +18,26 @@
 from __future__ import annotations
 
 import os
-import unittest
+from datetime import datetime
 from unittest.mock import patch
 
+import pytest
+
+from airflow.models.dag import DAG
 from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOperator
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+
+DEFAULT_DATE = datetime(2022, 1, 1)
 
 
-class TestPrestoToMySqlTransfer(TestHiveEnvironment):
-    def setUp(self):
+class TestPrestoToMySqlTransfer:
+    def setup_method(self):
         self.kwargs = dict(
             sql="sql",
             mysql_table="mysql_table",
             task_id="test_presto_to_mysql_transfer",
         )
-        super().setUp()
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_presto_to_mysql_transfer", default_args=args)
 
     @patch("airflow.providers.mysql.transfers.presto_to_mysql.MySqlHook")
     @patch("airflow.providers.mysql.transfers.presto_to_mysql.PrestoHook")
@@ -57,8 +62,8 @@ class TestPrestoToMySqlTransfer(TestHiveEnvironment):
             table=self.kwargs["mysql_table"], rows=mock_presto_hook.return_value.get_records.return_value
         )
 
-    @unittest.skipIf(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    @pytest.mark.skipif(
+        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
     )
     def test_presto_to_mysql(self):
         op = PrestoToMySqlOperator(

@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from airflow.providers.qubole.hooks.qubole_check import parse_first_row
 
 
-class TestQuboleCheckHook(unittest.TestCase):
+class TestQuboleCheckHook:
     def test_single_row_bool(self):
         query_result = ["true\ttrue"]
         record_list = parse_first_row(query_result)

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.models.dag import DAG
@@ -27,7 +26,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestDingdingOperator(unittest.TestCase):
+class TestDingdingOperator:
     _config = {
         "dingding_conn_id": "dingding_default",
         "message_type": "text",
@@ -36,7 +35,7 @@ class TestDingdingOperator(unittest.TestCase):
         "at_all": False,
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 
