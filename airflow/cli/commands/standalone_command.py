@@ -29,6 +29,7 @@ from termcolor import colored
 
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.executors import executor_constants
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import db
@@ -156,10 +157,11 @@ class StandaloneCommand:
         """
         env = dict(os.environ)
         # Make sure we're using a local executor flavour
-        if conf.get("core", "executor") not in [
-            executor_constants.LOCAL_EXECUTOR,
-            executor_constants.SEQUENTIAL_EXECUTOR,
-        ]:
+
+        executor_class, _ = ExecutorLoader.import_executor_cls(
+            conf.get("core", "executor"),
+        )
+        if executor_class.is_local:
             if "sqlite" in conf.get("database", "sql_alchemy_conn"):
                 self.print_output("standalone", "Forcing executor to SequentialExecutor")
                 env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.SEQUENTIAL_EXECUTOR

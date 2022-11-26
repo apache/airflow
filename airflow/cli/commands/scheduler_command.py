@@ -26,6 +26,7 @@ from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
@@ -80,7 +81,10 @@ def _serve_logs(skip_serve_logs: bool = False):
     from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
-    if conf.get("core", "executor") in ["LocalExecutor", "SequentialExecutor"]:
+    executor_class, _ = ExecutorLoader.import_executor_cls(
+        conf.get("core", "executor"),
+    )
+    if executor_class.is_local:
         if skip_serve_logs is False:
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
