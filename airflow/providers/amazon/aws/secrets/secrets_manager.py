@@ -225,7 +225,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         secret = self._get_secret(self.connections_prefix, conn_id)
 
-        if secret is not None and secret.startswith("{"):
+        if secret is not None and secret.strip().startswith("{"):
             # Before Airflow 2.3, the AWS SecretsManagerBackend added support for JSON secrets.
             #
             # The way this was implemented differs a little from how Airflow's core API handle JSON secrets.
