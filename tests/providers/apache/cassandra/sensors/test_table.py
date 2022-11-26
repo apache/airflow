@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor
@@ -27,7 +26,7 @@ TEST_CASSANDRA_TABLE = "t"
 TEST_CASSANDRA_TABLE_WITH_KEYSPACE = "keyspacename.tablename"
 
 
-class TestCassandraTableSensor(unittest.TestCase):
+class TestCassandraTableSensor:
     @patch("airflow.providers.apache.cassandra.sensors.table.CassandraHook")
     def test_poke(self, mock_hook):
         sensor = CassandraTableSensor(

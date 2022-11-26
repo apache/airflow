@@ -17,20 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-import requests_mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook
 
 
-class TestDruidHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestDruidHook:
+    def setup_method(self):
+        import requests_mock
+
         session = requests.Session()
         adapter = requests_mock.Adapter()
         session.mount("mock", adapter)
@@ -41,13 +40,12 @@ class TestDruidHook(unittest.TestCase):
 
         self.db_hook = TestDRuidhook()
 
-    @requests_mock.mock()
-    def test_submit_gone_wrong(self, m):
-        task_post = m.post(
+    def test_submit_gone_wrong(self, requests_mock):
+        task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
-        status_check = m.get(
+        status_check = requests_mock.get(
             "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
             text='{"status":{"status": "FAILED"}}',
         )
@@ -59,13 +57,12 @@ class TestDruidHook(unittest.TestCase):
         assert task_post.called_once
         assert status_check.called_once
 
-    @requests_mock.mock()
-    def test_submit_ok(self, m):
-        task_post = m.post(
+    def test_submit_ok(self, requests_mock):
+        task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
-        status_check = m.get(
+        status_check = requests_mock.get(
             "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
             text='{"status":{"status": "SUCCESS"}}',
         )
@@ -76,13 +73,12 @@ class TestDruidHook(unittest.TestCase):
         assert task_post.called_once
         assert status_check.called_once
 
-    @requests_mock.mock()
-    def test_submit_correct_json_body(self, m):
-        task_post = m.post(
+    def test_submit_correct_json_body(self, requests_mock):
+        task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
-        status_check = m.get(
+        status_check = requests_mock.get(
             "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
             text='{"status":{"status": "SUCCESS"}}',
         )
@@ -100,13 +96,12 @@ class TestDruidHook(unittest.TestCase):
             req_body = task_post.request_history[0].json()
             assert req_body["task"] == "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"
 
-    @requests_mock.mock()
-    def test_submit_unknown_response(self, m):
-        task_post = m.post(
+    def test_submit_unknown_response(self, requests_mock):
+        task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
-        status_check = m.get(
+        status_check = requests_mock.get(
             "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
             text='{"status":{"status": "UNKNOWN"}}',
         )
@@ -118,19 +113,18 @@ class TestDruidHook(unittest.TestCase):
         assert task_post.called_once
         assert status_check.called_once
 
-    @requests_mock.mock()
-    def test_submit_timeout(self, m):
+    def test_submit_timeout(self, requests_mock):
         self.db_hook.timeout = 1
         self.db_hook.max_ingestion_time = 5
-        task_post = m.post(
+        task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
-        status_check = m.get(
+        status_check = requests_mock.get(
             "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
             text='{"status":{"status": "RUNNING"}}',
         )
-        shutdown_post = m.post(
+        shutdown_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task/"
             "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
@@ -189,9 +183,8 @@ class TestDruidHook(unittest.TestCase):
         assert self.db_hook.get_auth() is None
 
 
-class TestDruidDbApiHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestDruidDbApiHook:
+    def setup_method(self):
         self.cur = MagicMock(rowcount=0)
         self.conn = conn = MagicMock()
         self.conn.host = "host"
