@@ -357,6 +357,20 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
+      - id: update-common-sql-api
+        name: Check and update common.sql API
+        entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api.py
+        language: python
+        language_version: "3.7"
+        files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py$
+        pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4', 'astor']
+      - id: check-common-sql-api-usage
+        name: Check usages of the common.sql API in other providers
+        entry: ./scripts/ci/pre_commit/pre_commit_check_common_sql_api_usage.py
+        language: python
+        files: ^airflow/providers/.*\.py$
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py

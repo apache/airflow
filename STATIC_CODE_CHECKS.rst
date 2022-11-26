@@ -155,6 +155,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                      | Check changelogs for duplicate entries                           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-common-sql-api-usage                             | Check usages of the common.sql API in other providers            |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-core-deprecation-classes                         | Verify using of dedicated Airflow deprecation classes in core    |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
@@ -304,6 +306,8 @@ require Breeze Docker image to be build locally.
 | update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-common-sql-api                                  | Check and update common.sql API                                  |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-er-diagram                                      | Update ER diagram                                                | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

@@ -1,0 +1,69 @@
+# This is a common.sql provider API dump
+#
+# This file is generated automatically by the update-common-sql-api pre-commit
+# and it shows the current API of the common.sql provider
+#
+# Any, potentially breaking change in the API will require deliberate manual action from the contributor
+# making a change to the common.sql provider. This file is also used in checking if only public API of
+# the common.sql provider is used by all the other providers.
+#
+# You can read more in the README_API.md file
+#
+airflow.providers.common.sql.hooks.sql.ConnectorProtocol
+airflow.providers.common.sql.hooks.sql.ConnectorProtocol.connect() -> Any
+airflow.providers.common.sql.hooks.sql.DbApiHook
+airflow.providers.common.sql.hooks.sql.DbApiHook.__init__(schema<KW-ONLY>: str | None = None, log_sql<KW-ONLY>: bool = True, *args, **kwargs)
+airflow.providers.common.sql.hooks.sql.DbApiHook.bulk_dump()
+airflow.providers.common.sql.hooks.sql.DbApiHook.bulk_load()
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_autocommit() -> bool
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_conn()
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_cursor()
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_first(self = None) -> Any
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_pandas_df(self = None, **kwargs)
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_pandas_df_by_chunks(self = None, chunksize<KW-ONLY>, **kwargs)
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_records(self = None) -> Any
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine(self = None)
+airflow.providers.common.sql.hooks.sql.DbApiHook.get_uri() -> str
+airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows(self = None, table = 1000, rows = False, **kwargs)
+airflow.providers.common.sql.hooks.sql.DbApiHook.last_description() -> Sequence | None
+airflow.providers.common.sql.hooks.sql.DbApiHook.run(self = False, sql: str | Iterable = None, autocommit: bool = None, parameters: Iterable | Mapping | None = False, handler: Callable | None = True) -> Any | list | None
+airflow.providers.common.sql.hooks.sql.DbApiHook.set_autocommit()
+airflow.providers.common.sql.hooks.sql.DbApiHook.split_sql_string() -> list
+airflow.providers.common.sql.hooks.sql.DbApiHook.strip_sql_string() -> str
+airflow.providers.common.sql.hooks.sql.DbApiHook.test_connection()
+airflow.providers.common.sql.hooks.sql.fetch_all_handler() -> list | None
+airflow.providers.common.sql.hooks.sql.fetch_one_handler() -> list | None
+airflow.providers.common.sql.hooks.sql.return_single_query_results()
+airflow.providers.common.sql.operators.sql.BaseSQLOperator
+airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__(conn_id<KW-ONLY>: str | None = None, database<KW-ONLY>: str | None = None, hook_params<KW-ONLY>: dict | None = None, retry_on_failure<KW-ONLY>: bool = True, **kwargs)
+airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook() -> DbApiHook
+airflow.providers.common.sql.operators.sql.BranchSQLOperator
+airflow.providers.common.sql.operators.sql.BranchSQLOperator.__init__(sql<KW-ONLY>: str, follow_task_ids_if_true<KW-ONLY>: list, follow_task_ids_if_false<KW-ONLY>: list, conn_id<KW-ONLY>: str = default_conn_id, database<KW-ONLY>: str | None = None, parameters<KW-ONLY>: Iterable | Mapping | None = None, **kwargs) -> None
+airflow.providers.common.sql.operators.sql.BranchSQLOperator.execute()
+airflow.providers.common.sql.operators.sql.SQLCheckOperator
+airflow.providers.common.sql.operators.sql.SQLCheckOperator.__init__(sql<KW-ONLY>: str, conn_id<KW-ONLY>: str | None = None, database<KW-ONLY>: str | None = None, parameters<KW-ONLY>: Iterable | Mapping | None = None, **kwargs) -> None
+airflow.providers.common.sql.operators.sql.SQLCheckOperator.execute()
+airflow.providers.common.sql.operators.sql.SQLColumnCheckOperator
+airflow.providers.common.sql.operators.sql.SQLColumnCheckOperator.__init__(table<KW-ONLY>: str, column_mapping<KW-ONLY>: dict, partition_clause<KW-ONLY>: str | None = None, conn_id<KW-ONLY>: str | None = None, database<KW-ONLY>: str | None = None, accept_none<KW-ONLY>: bool = True, **kwargs)
+airflow.providers.common.sql.operators.sql.SQLColumnCheckOperator.execute()
+airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator
+airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.__init__(sql<KW-ONLY>: str | list, autocommit<KW-ONLY>: bool = False, parameters<KW-ONLY>: Mapping | Iterable | None = None, handler<KW-ONLY>: Callable = fetch_all_handler, split_statements<KW-ONLY>: bool = False, return_last<KW-ONLY>: bool = True, **kwargs) -> None
+airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.execute()
+airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.prepare_template() -> None
+airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator
+airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator.__init__(table<KW-ONLY>: str, metrics_thresholds<KW-ONLY>: dict, date_filter_column<KW-ONLY>: str | None = ds, days_back<KW-ONLY>: SupportsAbs = -7, ratio_formula<KW-ONLY>: str | None = max_over_min, ignore_zero<KW-ONLY>: bool = True, conn_id<KW-ONLY>: str | None = None, database<KW-ONLY>: str | None = None, **kwargs)
+airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator.execute()
+airflow.providers.common.sql.operators.sql.SQLTableCheckOperator
+airflow.providers.common.sql.operators.sql.SQLTableCheckOperator.__init__(table<KW-ONLY>: str, checks<KW-ONLY>: dict, partition_clause<KW-ONLY>: str | None = None, conn_id<KW-ONLY>: str | None = None, database<KW-ONLY>: str | None = None, **kwargs)
+airflow.providers.common.sql.operators.sql.SQLTableCheckOperator.execute()
+airflow.providers.common.sql.operators.sql.SQLThresholdCheckOperator
+airflow.providers.common.sql.operators.sql.SQLThresholdCheckOperator.__init__(sql<KW-ONLY>: str, min_threshold<KW-ONLY>: Any, max_threshold<KW-ONLY>: Any, conn_id<KW-ONLY>: str | None = None, database<KW-ONLY>: str | None = None, **kwargs)
+airflow.providers.common.sql.operators.sql.SQLThresholdCheckOperator.execute()
+airflow.providers.common.sql.operators.sql.SQLThresholdCheckOperator.push()
+airflow.providers.common.sql.operators.sql.SQLValueCheckOperator
+airflow.providers.common.sql.operators.sql.SQLValueCheckOperator.__init__(sql<KW-ONLY>: str, pass_value<KW-ONLY>: Any, tolerance<KW-ONLY>: Any = None, conn_id<KW-ONLY>: str | None = None, database<KW-ONLY>: str | None = None, **kwargs)
+airflow.providers.common.sql.operators.sql.SQLValueCheckOperator.execute()
+airflow.providers.common.sql.operators.sql._parse_boolean() -> str | bool
+airflow.providers.common.sql.sensors.sql.SqlSensor
+airflow.providers.common.sql.sensors.sql.SqlSensor.__init__(conn_id<KW-ONLY>, sql<KW-ONLY>, parameters<KW-ONLY> = None, success<KW-ONLY> = None, failure<KW-ONLY> = None, fail_on_empty<KW-ONLY> = False, hook_params<KW-ONLY> = None, **kwargs)
+airflow.providers.common.sql.sensors.sql.SqlSensor.poke()
