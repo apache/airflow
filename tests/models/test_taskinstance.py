@@ -1862,15 +1862,17 @@ class TestTaskInstance:
 
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
-    
+
     def test_mapped_current_state(self, dag_maker):
-        with dag_maker(dag_id="test_mapped_current_state") as dag:
+        with dag_maker(dag_id="test_mapped_current_state") as _:
             from airflow.decorators import task
+
             @task()
             def divide_by(divisor):
                 return 1 / divisor
-            results = divide_by.expand(divisor=[0,1])
-        
+
+            _ = divide_by.expand(divisor=[0, 1])
+
         tis = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
         with pytest.raises(ZeroDivisionError):
             tis[0].run()
