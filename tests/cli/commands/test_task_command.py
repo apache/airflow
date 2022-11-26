@@ -420,22 +420,6 @@ class TestCliTasks:
             )
         )
 
-    def test_task_states_current_state(self):
-
-        dag2 = DagBag().dags["example_python_operator"]
-        task2 = dag2.get_task(task_id="print_the_context")
-        default_date2 = timezone.datetime(2016, 1, 9)
-        dag2.clear()
-        dagrun = dag2.create_dagrun(
-            state=State.RUNNING,
-            execution_date=default_date2,
-            run_type=DagRunType.MANUAL,
-            external_trigger=True,
-        )
-        ti2 = TaskInstance(task2, dagrun.execution_date)
-        ti2.set_state(State.SUCCESS)
-        assert ti2.current_state() == "success"
-
 
     def test_task_states_for_dag_run(self):
 

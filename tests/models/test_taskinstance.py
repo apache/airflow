@@ -1862,6 +1862,22 @@ class TestTaskInstance:
 
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
+    
+    def test_mapped_current_state(self, dag_maker):
+        with dag_maker(dag_id="test_mapped_current_state") as dag:
+            from airflow.decorators import task
+            @task()
+            def divide_by(divisor):
+                return 1 / divisor
+            results = divide_by.expand(divisor=[0,1])
+        
+        tis = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
+        with pytest.raises(ZeroDivisionError):
+            tis[0].run()
+        tis[1].run()
+
+        assert tis[0].current_state() == TaskInstanceState.FAILED
+        assert tis[1].current_state() == TaskInstanceState.SUCCESS
 
     def test_outlet_datasets_skipped(self, create_task_instance):
         """
