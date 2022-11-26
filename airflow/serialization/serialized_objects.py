@@ -564,9 +564,7 @@ class BaseSerialization:
             if attr not in param_dict:
                 continue
             val = param_dict[attr]
-            is_serialized = (isinstance(val, dict) and Encoding.TYPE in val) or (
-                isinstance(val, list) and all(Encoding.TYPE in param for param in val)
-            )
+            is_serialized = isinstance(val, dict) and '__type' in val
             if is_serialized:
                 deserialized_val = cls.deserialize(param_dict[attr])
                 kwargs[attr] = deserialized_val
