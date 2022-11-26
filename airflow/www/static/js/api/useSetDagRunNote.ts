@@ -27,26 +27,26 @@ import useErrorToast from 'src/utils/useErrorToast';
 import { emptyGridData } from './useGridData';
 import type { GridData } from './useGridData';
 
-const setDagRunNotesURI = getMetaValue('set_dag_run_notes');
+const setDagRunNoteURI = getMetaValue('set_dag_run_note');
 
 interface Props {
   dagId: string;
   runId: string;
 }
 
-export default function useSetDagRunNotes({
+export default function useSetDagRunNote({
   dagId, runId,
 }: Props) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
-  const setDagRunNotes = setDagRunNotesURI.replace('_DAG_RUN_ID_', runId);
+  const setDagRunNote = setDagRunNoteURI.replace('_DAG_RUN_ID_', runId);
 
   return useMutation(
-    ['setDagRunNotes', dagId, runId],
-    (notes: string | null) => axios.patch<AxiosResponse, API.DAGRun>(setDagRunNotes, { notes }),
+    ['setDagRunNote', dagId, runId],
+    (note: string | null) => axios.patch<AxiosResponse, API.DAGRun>(setDagRunNote, { note }),
     {
       onSuccess: async (data) => {
-        const notes = data.notes ?? null;
+        const note = data.note ?? null;
 
         const updateGridData = (oldGridData: GridData | undefined) => (
           !oldGridData
@@ -54,7 +54,7 @@ export default function useSetDagRunNotes({
             : {
               ...oldGridData,
               dagRuns: oldGridData.dagRuns.map((dr) => (
-                dr.runId === runId ? { ...dr, notes } : dr)),
+                dr.runId === runId ? { ...dr, note } : dr)),
             }
         );
 

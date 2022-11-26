@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from airflow.exceptions import XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
@@ -301,7 +302,7 @@ class PlainXComArg(XComArg):
         from airflow.models.xcom import XCom
 
         task = self.operator
-        if task.is_mapped:
+        if isinstance(task, MappedOperator):
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,
@@ -320,13 +321,25 @@ class PlainXComArg(XComArg):
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+        ti = context["ti"]
         task_id = self.operator.task_id
-        result = context["ti"].xcom_pull(task_ids=task_id, key=str(self.key), default=NOTSET, session=session)
+        map_indexes = ti.get_relevant_upstream_map_indexes(
+            self.operator,
+            context["expanded_ti_count"],
+            session=session,
+        )
+        result = ti.xcom_pull(
+            task_ids=task_id,
+            map_indexes=map_indexes,
+            key=self.key,
+            default=NOTSET,
+            session=session,
+        )
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
-        raise XComNotFound(context["ti"].dag_id, task_id, self.key)
+        raise XComNotFound(ti.dag_id, task_id, self.key)
 
 
 def _get_callable_name(f: Callable | str) -> str:

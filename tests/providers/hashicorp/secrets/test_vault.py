@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
@@ -24,7 +24,7 @@ from hvac.exceptions import InvalidPath, VaultError
 from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 
-class TestVaultSecrets(TestCase):
+class TestVaultSecrets:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri(self, mock_hvac):
         mock_client = mock.MagicMock()

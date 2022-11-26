@@ -74,8 +74,7 @@ class TestSlackAPIOperator:
 
 
 class TestSlackAPIPostOperator:
-    @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.test_username = "test_username"
         self.test_channel = "#test_slack_channel"
         self.test_text = "test_text"
@@ -184,8 +183,7 @@ class TestSlackAPIPostOperator:
 
 
 class TestSlackAPIFileOperator:
-    @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.test_username = "test_username"
         self.test_channel = "#test_slack_channel"
         self.test_initial_comment = "test text file test_filename.txt"

@@ -665,6 +665,8 @@ hoc
 homebrew
 honoured
 hookable
+hookimpl
+hookspec
 HostAliases
 Hostname
 hostname
@@ -1056,6 +1058,7 @@ pkill
 plaintext
 platformVersion
 pluggable
+pluggy
 plyvel
 png
 podName

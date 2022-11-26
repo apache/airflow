@@ -598,7 +598,7 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: set_task_instance_notes
+      operationId: set_task_instance_note
       tags: [DAG]
       requestBody:
         description: Parameters of set Task Instance note.
@@ -638,7 +638,7 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: set_mapped_task_instance_notes
+      operationId: set_mapped_task_instance_note
       tags: [DAG]
       requestBody:
         description: Parameters of set Task Instance note.
@@ -935,7 +935,7 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: set_dag_run_notes
+      operationId: set_dag_run_note
       tags: [DAGRun]
       requestBody:
         description: Parameters of set DagRun note.
@@ -2808,7 +2808,7 @@ components:
 
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
-        notes:
+        note:
           type: string
           description: |
             Contains manually entered notes by the user about the DagRun.
@@ -2884,7 +2884,7 @@ components:
     SetDagRunNote:
       type: object
       properties:
-        notes:
+        note:
           description: Custom notes left by users for this Dag Run.
           type: string
 
@@ -3249,7 +3249,7 @@ components:
         triggerer_job:
           $ref: '#/components/schemas/Job'
           nullable: true
-        notes:
+        note:
           type: string
           description: |
             Contains manually entered notes by the user about the TaskInstance.
@@ -4174,9 +4174,9 @@ components:
     SetTaskInstanceNote:
       type: object
       required:
-        - notes
+        - note
       properties:
-        notes:
+        note:
           description: The custom note to set for this Task Instance.
           type: string
 
