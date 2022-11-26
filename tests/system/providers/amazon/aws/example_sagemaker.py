@@ -170,7 +170,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         docker_build_and_push_commands = f"""
             cp /root/.aws/credentials /tmp/credentials &&
-            docker build -f {dockerfile.name} -t {repository_uri} /tmp &&
+            docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
             rm /tmp/credentials &&
             aws ecr get-login-password --region {ecr_region} |
             docker login --username {username} --password {password} {repository_uri} &&
