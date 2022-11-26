@@ -104,7 +104,7 @@ Colima
 ------
 If you use Colima as your container runtimes engine, please follow the next steps:
 
-1. `Install buildx manually <https://https://github.com/docker/buildx#manual-download>`_ and follow it's instructions
+1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow it's instructions
 
 2. Link the Colima socket to the default socket path. Note that this may break other Docker servers.
 
