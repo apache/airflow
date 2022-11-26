@@ -560,14 +560,19 @@ class BaseSerialization:
         class_: type[Param] = import_string(class_name)
         attrs = ("default", "description", "schema")
         kwargs = {}
+
+        def is_serialized(val):
+            if isinstance(val, dict):
+                return Encoding.TYPE in val
+            if isinstance(val, list):
+                return all(isinstance(item, dict) and Encoding.TYPE in item for item in val)
+            return False
+
         for attr in attrs:
             if attr not in param_dict:
                 continue
             val = param_dict[attr]
-            is_serialized = (isinstance(val, dict) and Encoding.TYPE in val) or (
-                isinstance(val, list) and all(Encoding.TYPE in param for param in val)
-            )
-            if is_serialized:
+            if is_serialized(val):
                 deserialized_val = cls.deserialize(param_dict[attr])
                 kwargs[attr] = deserialized_val
             else:

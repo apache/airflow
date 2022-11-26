@@ -836,6 +836,7 @@ class TestStringifiedDAGs:
             Param("my value", description="hello", schema={"type": "string"}),
             Param("my value", description="hello"),
             Param(None, description=None),
+            Param([True], type="array", items={"type": "boolean"}),
         ],
     )
     def test_full_param_roundtrip(self, param):
