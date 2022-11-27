@@ -1315,7 +1315,9 @@ class SchedulerJob(BaseJob):
             self.log.error("Execution date is in future: %s", dag_run.execution_date)
             return callback
 
-        self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
+        if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
+            self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
+            return callback
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
         if dag_run.state in State.finished:
@@ -1331,20 +1333,27 @@ class SchedulerJob(BaseJob):
 
         return callback_to_run
 
-    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> None:
-        """Only run DagRun.verify integrity if Serialized DAG has changed since it is slow"""
+    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
+        """
+        Only run DagRun.verify integrity if Serialized DAG has changed since it is slow.
+
+        Return True if we determine that DAG still exists.
+        """
         latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
         if dag_run.dag_hash == latest_version:
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
-            return
+            return True
 
         dag_run.dag_hash = latest_version
 
         # Refresh the DAG
         dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id, session=session)
+        if not dag_run.dag:
+            return False
 
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
+        return True
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:
         self._send_sla_callbacks_to_processor(dag)
