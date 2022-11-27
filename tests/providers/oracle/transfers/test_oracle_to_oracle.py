@@ -17,16 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
 from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOperator
 
 
-class TestOracleToOracleTransfer(unittest.TestCase):
-    @staticmethod
-    def test_execute():
+class TestOracleToOracleTransfer:
+    def test_execute(self):
         oracle_destination_conn_id = "oracle_destination_conn_id"
         destination_table = "destination_table"
         oracle_source_conn_id = "oracle_source_conn_id"

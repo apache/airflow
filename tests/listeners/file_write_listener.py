@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,3 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import logging
+
+from airflow.cli.commands.task_command import TaskCommandMarker
+from airflow.listeners import hookimpl
+
+log = logging.getLogger(__name__)
+
+
+class FileWriteListener:
+    def __init__(self, path):
+        self.path = path
+
+    def write(self, line: str):
+        with open(self.path, "a") as f:
+            f.write(line + "\n")
+
+    @hookimpl
+    def on_starting(self, component):
+        if isinstance(component, TaskCommandMarker):
+            self.write("on_starting")
+
+    @hookimpl
+    def before_stopping(self, component):
+        if isinstance(component, TaskCommandMarker):
+            self.write("before_stopping")

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -46,20 +45,20 @@ RELATED_EVENT_ID = 7
 DEVICE_NAME = "device-name"
 
 
-class TestDatadogHook(unittest.TestCase):
-    @mock.patch("airflow.providers.datadog.hooks.datadog.initialize")
-    @mock.patch("airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection")
-    def setUp(self, mock_get_connection, mock_initialize):
-        mock_get_connection.return_value = Connection(
-            extra=json.dumps(
-                {
-                    "app_key": APP_KEY,
-                    "api_key": API_KEY,
-                    "api_host": API_HOST,
-                }
-            )
-        )
-        self.hook = DatadogHook()
+class TestDatadogHook:
+    def setup_method(self):
+        with mock.patch("airflow.providers.datadog.hooks.datadog.initialize"):
+            with mock.patch("airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection") as m:
+                m.return_value = Connection(
+                    extra=json.dumps(
+                        {
+                            "app_key": APP_KEY,
+                            "api_key": API_KEY,
+                            "api_host": API_HOST,
+                        }
+                    )
+                )
+                self.hook = DatadogHook()
 
     @mock.patch("airflow.providers.datadog.hooks.datadog.initialize")
     @mock.patch("airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection")

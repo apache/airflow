@@ -35,14 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.6.0
+.....
+
+Latest change: 2022-11-25
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`f0820e8d9e <https://github.com/apache/airflow/commit/f0820e8d9e8a36325987278bcda2bd69bd53f3a5>`_  2022-11-25   ``Add Export Format to Template Fields in BigQueryToGCSOperator (#27910)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`bc0063af99 <https://github.com/apache/airflow/commit/bc0063af99629e6b3eb5c76c88ac5bfaf92afaaf>`_  2022-11-16   ``Fix to read location parameter properly in BigQueryToBigQueryOperator (#27661)``
+`0cb6450d6d <https://github.com/apache/airflow/commit/0cb6450d6df853e1061dbcafbc437c07a8e0e555>`_  2022-11-16   ``Persist DataprocLink for workflow operators regardless of job status (#26986)``
+`ddbc758540 <https://github.com/apache/airflow/commit/ddbc75854019cf6b1e6e5e866eff2796c4f36eff>`_  2022-11-16   ``Deferrable mode for BigQueryToGCSOperator (#27683)``
+=================================================================================================  ===========  ==================================================================================
+
 8.5.0
 .....
 
-Latest change: 2022-11-14
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `00af5c007e <https://github.com/apache/airflow/commit/00af5c007ef2200401b53c40236e664758e47f27>`_  2022-11-14   ``Replace urlparse with urlsplit (#27389)``
 `1059de6294 <https://github.com/apache/airflow/commit/1059de6294cf89a085c02036d117000bd98435dc>`_  2022-11-11   ``Dataform operators, links, update system tests and docs (#27144)``
 `3aed495f50 <https://github.com/apache/airflow/commit/3aed495f50e8bc0e22ff90efee7671a73168b19e>`_  2022-11-11   ``Rename  hook bigquery function '_bq_cast' to 'bq_cast' (#27543)``

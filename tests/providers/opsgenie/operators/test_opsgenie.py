@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.models.dag import DAG
@@ -31,7 +30,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestOpsgenieCreateAlertOperator(unittest.TestCase):
+class TestOpsgenieCreateAlertOperator:
     _config = {
         "message": "An example alert message",
         "alias": "Life is too short for no alias",
@@ -78,7 +77,7 @@ class TestOpsgenieCreateAlertOperator(unittest.TestCase):
         "note": _config["note"],
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 
@@ -111,7 +110,7 @@ class TestOpsgenieCreateAlertOperator(unittest.TestCase):
         assert self._config["note"] == operator.note
 
 
-class TestOpsgenieCloseAlertOperator(unittest.TestCase):
+class TestOpsgenieCloseAlertOperator:
     _config = {"user": "example_user", "note": "my_closing_note", "source": "some_source"}
     expected_payload_dict = {
         "user": _config["user"],
@@ -119,7 +118,7 @@ class TestOpsgenieCloseAlertOperator(unittest.TestCase):
         "source": _config["source"],
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 
@@ -145,8 +144,8 @@ class TestOpsgenieCloseAlertOperator(unittest.TestCase):
         assert self._config["source"] == operator.source
 
 
-class TestOpsgenieDeleteAlertOperator(unittest.TestCase):
-    def setUp(self):
+class TestOpsgenieDeleteAlertOperator:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 

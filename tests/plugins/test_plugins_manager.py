@@ -65,6 +65,7 @@ class AirflowTestOnLoadExceptionPlugin(AirflowPlugin):
 
 @pytest.fixture(autouse=True, scope="module")
 def clean_plugins():
+    get_listener_manager().clear()
     yield
     get_listener_manager().clear()
 

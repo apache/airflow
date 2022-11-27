@@ -99,7 +99,7 @@ def target_times_as_dates(
     lower: datetime.datetime | datetime.time | None,
     upper: datetime.datetime | datetime.time | None,
 ):
-    """Ensures upper and lower time targets are datetimes by combining them with base_date"""
+    """Ensures upper and lower time targets are datetimes by combining them with base_date."""
     if isinstance(lower, datetime.datetime) and isinstance(upper, datetime.datetime):
         return lower, upper
 

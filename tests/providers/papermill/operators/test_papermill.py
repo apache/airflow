@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 from airflow.models import DAG, DagRun, TaskInstance
@@ -27,7 +26,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
-class TestPapermillOperator(unittest.TestCase):
+class TestPapermillOperator:
     @patch("airflow.providers.papermill.operators.papermill.pm")
     def test_execute(self, mock_papermill):
         in_nb = "/tmp/does_not_exist"

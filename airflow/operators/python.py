@@ -46,7 +46,8 @@ from airflow.version import version as airflow_version
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
     """
-    Deprecated function that calls @task.python and allows users to turn a python function into
+    Deprecated function.
+    Calls @task.python and allows users to turn a python function into
     an Airflow task. Please use the following instead:
 
     from airflow.decorators import task
@@ -82,7 +83,7 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
 
 class PythonOperator(BaseOperator):
     """
-    Executes a Python callable
+    Executes a Python callable.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -194,8 +195,7 @@ class PythonOperator(BaseOperator):
 
 class BranchPythonOperator(PythonOperator, SkipMixin):
     """
-    Allows a workflow to "branch" or follow a path following the execution
-    of this task.
+    A workflow can "branch" or follow a path after the execution of this task.
 
     It derives the PythonOperator and expects a Python function that returns
     a single task_id or list of task_ids to follow. The task_id(s) returned
@@ -356,10 +356,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         return super().execute(context=serializable_context)
 
     def get_python_source(self):
-        """
-        Returns the source of self.python_callable
-        @return:
-        """
+        """Return the source of self.python_callable."""
         return dedent(inspect.getsource(self.python_callable))
 
     def _write_args(self, file: Path):
@@ -426,12 +423,11 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
 class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     """
-    Allows one to run a function in a virtualenv that is created and destroyed
-    automatically (with certain caveats).
+    Run a function in a virtualenv that is created and destroyed automatically.
 
-    The function must be defined using def, and not be
+    The function (has certain caveats) must be defined using def, and not be
     part of a class. All imports must happen inside the function
-    and no variables outside of the scope may be referenced. A global scope
+    and no variables outside the scope may be referenced. A global scope
     variable named virtualenv_string_args will be available (populated by
     string_args). In addition, one can pass stuff through op_args and op_kwargs, and one
     can use a return value.
@@ -563,8 +559,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
 class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     """
-    Allows one to run a function in a virtualenv that is not re-created but used as is
-    without the overhead of creating the virtualenv (with certain caveats).
+    Run a function in a virtualenv that is not re-created.
+
+    Reused as is without the overhead of creating the virtualenv (with certain caveats).
 
     The function must be defined using def, and not be
     part of a class. All imports must happen inside the function
@@ -719,8 +716,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 
 def get_current_context() -> Context:
     """
-    Obtain the execution context for the currently executing operator without
-    altering user method's signature.
+    Retrieve the execution context dictionary without altering user method's signature.
     This is the simplest method of retrieving the execution context dictionary.
 
     **Old style:**
