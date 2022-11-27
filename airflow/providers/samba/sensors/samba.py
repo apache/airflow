@@ -29,6 +29,8 @@ class SambaFileSensor(BaseSensorOperator):
     :param share: The name of the file share.
     """
 
+    default_conn_name = "samba_default"
+
     def __init__(
         self, file_name: str, samba_conn_id: str = default_conn_name, share: str | None = None, **kwargs
     ) -> None:
