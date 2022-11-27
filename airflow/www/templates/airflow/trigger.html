@@ -29,9 +29,9 @@
 
 {% block content %}
   {{ super() }}
-  <h2 id="dag-id" data-dag-id="{{ dag_id }}">Trigger DAG: {{ dag_id }}</h2>
+  <h2>Trigger DAG: {{ dag_id }}</h2>
   {{ dag_docs(doc_md) }}
-  <form id="dag-trigger" method="POST">
+  <form method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="dag_id" value="{{ dag_id }}">
     <input type="hidden" name="origin" value="{{ origin }}">
@@ -52,6 +52,9 @@
         <label for="recent_configs">Recent Configurations</label>
         <select class="form-control" name="recent_configs" id="recent_configs">
           <option value="">None</option>
+          {% for conf in recent_confs %}
+          <option value="{{conf}}">{{ conf }}</option>
+          {% endfor %}
         </select>
       </div>
     </div>
