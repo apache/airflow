@@ -752,7 +752,7 @@ class ProvidersManager(LoggingMixin):
         package_name: str | None = None,
     ) -> HookInfo | None:
         """
-        Imports hook and retrieves hook information.
+        Import hook and retrieve hook information.
 
         Either connection_type (for lazy loading) or hook_class_name must be set - but not both).
         Only needs package_name if hook_class_name is passed (for lazy loading, package_name
