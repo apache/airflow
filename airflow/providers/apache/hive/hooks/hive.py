@@ -204,8 +204,12 @@ class HiveCliHook(BaseHook):
         """
         conn = self.conn
         schema = schema or conn.schema
-        if "!" in schema or ";" in schema:
-            raise RuntimeError(f"The schema `{schema}` contains invalid characters (!;)")
+
+        invalid_chars_list = re.findall(r"[^a-z0-9_]", schema)
+        if invalid_chars_list:
+            invalid_chars = "".join(char for char in invalid_chars_list)
+            raise RuntimeError(f"The schema `{schema}` contains invalid characters: {invalid_chars}")
+
         if schema:
             hql = f"USE {schema};\n{hql}"
 
