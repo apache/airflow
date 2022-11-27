@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -36,8 +35,8 @@ QUEUE_NAME = "test-queue"
 QUEUE_URL = f"https://{QUEUE_NAME}"
 
 
-class TestSqsSensor(unittest.TestCase):
-    def setUp(self):
+class TestSqsSensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         self.dag = DAG("test_dag_id", default_args=args)
@@ -161,11 +160,11 @@ class TestSqsSensor(unittest.TestCase):
         self.sqs_hook.create_queue(QUEUE_NAME)
         matching = [{"id": 11, "body": "a matching message"}]
         non_matching = [{"id": 12, "body": "a non-matching message"}]
-        all = matching + non_matching
+        all_options = matching + non_matching
 
         def mock_receive_message(**kwargs):
             messages = []
-            for message in all:
+            for message in all_options:
                 messages.append(
                     {
                         "MessageId": message["id"],
@@ -207,11 +206,11 @@ class TestSqsSensor(unittest.TestCase):
             {"id": 14, "key": {"nope": [5, 6]}},
             {"id": 15, "key": {"nope": [7, 8]}},
         ]
-        all = matching + non_matching
+        all_options = matching + non_matching
 
         def mock_receive_message(**kwargs):
             messages = []
-            for message in all:
+            for message in all_options:
                 messages.append(
                     {
                         "MessageId": message["id"],
@@ -254,11 +253,11 @@ class TestSqsSensor(unittest.TestCase):
             {"id": 22, "key": {"nope": [5, 6]}},
             {"id": 23, "key": {"nope": [7, 8]}},
         ]
-        all = matching + non_matching
+        all_options = matching + non_matching
 
         def mock_receive_message(**kwargs):
             messages = []
-            for message in all:
+            for message in all_options:
                 messages.append(
                     {
                         "MessageId": message["id"],

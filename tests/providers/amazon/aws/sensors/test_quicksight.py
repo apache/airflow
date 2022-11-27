@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
@@ -30,8 +31,8 @@ DATA_SET_ID = "DemoDataSet"
 INGESTION_ID = "DemoDataSet_Ingestion"
 
 
-class TestQuickSightSensor(unittest.TestCase):
-    def setUp(self):
+class TestQuickSightSensor:
+    def setup_method(self):
         self.sensor = QuickSightSensor(
             task_id="test_quicksight_sensor",
             aws_conn_id="aws_default",
@@ -45,7 +46,7 @@ class TestQuickSightSensor(unittest.TestCase):
     def test_poke_success(self, mock_get_account_number, sts_conn, mock_get_status):
         mock_get_account_number.return_value = AWS_ACCOUNT_ID
         mock_get_status.return_value = "COMPLETED"
-        self.assertTrue(self.sensor.poke({}))
+        assert self.sensor.poke({})
         mock_get_status.assert_called_once_with(AWS_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)
 
     @mock.patch.object(QuickSightHook, "get_status")
@@ -54,7 +55,7 @@ class TestQuickSightSensor(unittest.TestCase):
     def test_poke_cancelled(self, mock_get_account_number, sts_conn, mock_get_status):
         mock_get_account_number.return_value = AWS_ACCOUNT_ID
         mock_get_status.return_value = "CANCELLED"
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException, match=r"The QuickSight Ingestion failed!"):
             self.sensor.poke({})
         mock_get_status.assert_called_once_with(AWS_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)
 
@@ -64,7 +65,7 @@ class TestQuickSightSensor(unittest.TestCase):
     def test_poke_failed(self, mock_get_account_number, sts_conn, mock_get_status):
         mock_get_account_number.return_value = AWS_ACCOUNT_ID
         mock_get_status.return_value = "FAILED"
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException, match=r"The QuickSight Ingestion failed!"):
             self.sensor.poke({})
         mock_get_status.assert_called_once_with(AWS_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)
 
@@ -74,5 +75,5 @@ class TestQuickSightSensor(unittest.TestCase):
     def test_poke_initialized(self, mock_get_account_number, sts_conn, mock_get_status):
         mock_get_account_number.return_value = AWS_ACCOUNT_ID
         mock_get_status.return_value = "INITIALIZED"
-        self.assertFalse(self.sensor.poke({}))
+        assert not self.sensor.poke({})
         mock_get_status.assert_called_once_with(AWS_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)

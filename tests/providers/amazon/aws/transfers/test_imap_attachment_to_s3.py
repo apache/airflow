@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAttachmentToS3Operator
 
 
-class TestImapAttachmentToS3Operator(unittest.TestCase):
-    def setUp(self):
+class TestImapAttachmentToS3Operator:
+    def setup_method(self):
         self.kwargs = dict(
             imap_attachment_name="test_file",
             s3_bucket="test_bucket",

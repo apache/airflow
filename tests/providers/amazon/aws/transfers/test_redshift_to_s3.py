@@ -17,37 +17,36 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
+import pytest
 from boto3.session import Session
-from parameterized import parameterized
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
+TABLE_AS_FILE_NAME_TEST_CASES = [
+    pytest.param(True, "key/table_", id="table as filename True"),
+    pytest.param(False, "key", id="table as filename False"),
+]
 
-class TestRedshiftToS3Transfer(unittest.TestCase):
-    @parameterized.expand(
-        [
-            [True, "key/table_"],
-            [False, "key"],
-        ]
-    )
+
+class TestRedshiftToS3Transfer:
+    @pytest.mark.parametrize("table_as_file_name, expected_s3_key", TABLE_AS_FILE_NAME_TEST_CASES)
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_table_unloading(
         self,
-        table_as_file_name,
-        expected_s3_key,
         mock_run,
         mock_session,
         mock_connection,
         mock_hook,
+        table_as_file_name,
+        expected_s3_key,
     ):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -92,26 +91,21 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         assert mock_run.call_count == 1
         assert access_key in unload_query
         assert secret_key in unload_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(None, mock_run.call_args[0][0], unload_query)
 
-    @parameterized.expand(
-        [
-            [True, "key/table_"],
-            [False, "key"],
-        ]
-    )
+    @pytest.mark.parametrize("table_as_file_name, expected_s3_key", TABLE_AS_FILE_NAME_TEST_CASES)
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_execute_sts_token(
         self,
-        table_as_file_name,
-        expected_s3_key,
         mock_run,
         mock_session,
         mock_connection,
         mock_hook,
+        table_as_file_name,
+        expected_s3_key,
     ):
         access_key = "ASIA_aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -158,15 +152,16 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         assert access_key in unload_query
         assert secret_key in unload_query
         assert token in unload_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(None, mock_run.call_args[0][0], unload_query)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "table, table_as_file_name, expected_s3_key",
         [
-            ["table", True, "key/table_"],
-            ["table", False, "key"],
-            [None, False, "key"],
-            [None, True, "key"],
-        ]
+            ("table", True, "key/table_"),
+            ("table", False, "key"),
+            (None, False, "key"),
+            (None, True, "key"),
+        ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -174,13 +169,13 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_custom_select_query_unloading(
         self,
-        table,
-        table_as_file_name,
-        expected_s3_key,
         mock_run,
         mock_session,
         mock_connection,
         mock_hook,
+        table,
+        table_as_file_name,
+        expected_s3_key,
     ):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -223,26 +218,21 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         assert mock_run.call_count == 1
         assert access_key in unload_query
         assert secret_key in unload_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(None, mock_run.call_args[0][0], unload_query)
 
-    @parameterized.expand(
-        [
-            [True, "key/table_"],
-            [False, "key"],
-        ]
-    )
+    @pytest.mark.parametrize("table_as_file_name, expected_s3_key", TABLE_AS_FILE_NAME_TEST_CASES)
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_table_unloading_role_arn(
         self,
-        table_as_file_name,
-        expected_s3_key,
         mock_run,
         mock_session,
         mock_connection,
         mock_hook,
+        table_as_file_name,
+        expected_s3_key,
     ):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -287,7 +277,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         assert mock_run.call_count == 1
         assert extra["role_arn"] in unload_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(None, mock_run.call_args[0][0], unload_query)
 
     def test_template_fields_overrides(self):
         assert RedshiftToS3Operator.template_fields == (

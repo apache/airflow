@@ -18,8 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import unittest
-from unittest.mock import MagicMock, patch
+from unittest import mock
 
 import pytest
 from dateutil.tz import tzlocal
@@ -188,16 +187,16 @@ DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN = {
 }
 
 
-class TestEmrJobFlowSensor(unittest.TestCase):
-    def setUp(self):
+class TestEmrJobFlowSensor:
+    def setup_method(self):
         # Mock out the emr_client (moto has incorrect response)
-        self.mock_emr_client = MagicMock()
+        self.mock_emr_client = mock.MagicMock()
 
-        mock_emr_session = MagicMock()
+        mock_emr_session = mock.MagicMock()
         mock_emr_session.client.return_value = self.mock_emr_client
 
         # Mock out the emr_client creator
-        self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
+        self.boto3_session_mock = mock.MagicMock(return_value=mock_emr_session)
 
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_a_target_state(self):
         self.mock_emr_client.describe_cluster.side_effect = [
@@ -205,7 +204,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             DESCRIBE_CLUSTER_RUNNING_RETURN,
             DESCRIBE_CLUSTER_TERMINATED_RETURN,
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
             )
@@ -216,7 +215,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             assert self.mock_emr_client.describe_cluster.call_count == 3
 
             # make sure it was called with the job_flow_id
-            calls = [unittest.mock.call(ClusterId="j-8989898989")]
+            calls = [mock.call(ClusterId="j-8989898989")]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)
 
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_failed_state_with_exception(self):
@@ -224,7 +223,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             DESCRIBE_CLUSTER_RUNNING_RETURN,
             DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN,
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
             )
@@ -247,7 +246,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             DESCRIBE_CLUSTER_TERMINATED_RETURN,  # will not be used
             DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN,  # will not be used
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id="test_task",
                 poke_interval=0,
@@ -262,5 +261,5 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             assert self.mock_emr_client.describe_cluster.call_count == 3
 
             # make sure it was called with the job_flow_id
-            calls = [unittest.mock.call(ClusterId="j-8989898989")]
+            calls = [mock.call(ClusterId="j-8989898989")]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+import copy
 from unittest import mock
 
 import pytest
@@ -57,11 +57,12 @@ CREATE_TRAINING_PARAMS = {
 }
 
 
-class TestSageMakerTrainingOperator(unittest.TestCase):
-    def setUp(self):
+class TestSageMakerTrainingOperator:
+    def setup_method(self):
+        self.create_training_params = copy.deepcopy(CREATE_TRAINING_PARAMS)
         self.sagemaker = SageMakerTrainingOperator(
             task_id="test_sagemaker_operator",
-            config=CREATE_TRAINING_PARAMS,
+            config=self.create_training_params,
             wait_for_completion=False,
             check_interval=5,
         )
@@ -92,7 +93,7 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         self.sagemaker.execute(None)
         self.sagemaker._check_if_job_exists.assert_called_once()
         mock_training.assert_called_once_with(
-            CREATE_TRAINING_PARAMS,
+            self.create_training_params,
             wait_for_completion=False,
             print_log=True,
             check_interval=5,
@@ -112,7 +113,7 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         self.sagemaker.execute(None)
         self.sagemaker._check_if_job_exists.assert_not_called()
         mock_training.assert_called_once_with(
-            CREATE_TRAINING_PARAMS,
+            self.create_training_params,
             wait_for_completion=False,
             print_log=True,
             check_interval=5,
@@ -137,7 +138,7 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         mock_list_training_jobs.return_value = [{"TrainingJobName": "job_name"}]
         self.sagemaker._check_if_job_exists()
 
-        expected_config = CREATE_TRAINING_PARAMS.copy()
+        expected_config = self.create_training_params
         # Expect to see TrainingJobName suffixed with "-2" because we return one existing job
         expected_config["TrainingJobName"] = "job_name-2"
         assert self.sagemaker.config == expected_config

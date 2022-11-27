@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import boto3
 from moto import mock_s3
 
@@ -42,9 +40,9 @@ TEST_DAG_ID = "unit_tests_s3_to_sftp"
 DEFAULT_DATE = datetime(2018, 1, 1)
 
 
-class TestS3ToSFTPOperator(unittest.TestCase):
-    @mock_s3
-    def setUp(self):
+@mock_s3
+class TestS3ToSFTPOperator:
+    def setup_method(self, method):
         from airflow.providers.amazon.aws.hooks.s3 import S3Hook
         from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -68,7 +66,6 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         self.sftp_path = SFTP_PATH
         self.s3_key = S3_KEY
 
-    @mock_s3
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_s3_to_sftp_operation(self):
         # Setting
@@ -124,7 +121,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         conn.delete_bucket(Bucket=self.s3_bucket)
         assert not self.s3_hook.check_for_bucket(self.s3_bucket)
 
-    def delete_remote_resource(self):
+    def teardown_method(self, method):
         # check the remote file content
         remove_file_task = SSHOperator(
             task_id="test_rm_file",
@@ -135,6 +132,3 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         )
         assert remove_file_task is not None
         remove_file_task.execute(None)
-
-    def tearDown(self):
-        self.delete_remote_resource()

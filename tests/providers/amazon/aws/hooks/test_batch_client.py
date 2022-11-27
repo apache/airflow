@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+import logging
 from unittest import mock
 
 import botocore.exceptions
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -36,7 +35,7 @@ JOB_ID = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
 LOG_STREAM_NAME = "test/stream/d56a66bb98a14c4593defa1548686edf"
 
 
-class TestBatchClient(unittest.TestCase):
+class TestBatchClient:
 
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
@@ -45,7 +44,7 @@ class TestBatchClient(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def setUp(self, get_client_type_mock):
+    def setup_method(self, method, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch_client = BatchClientHook(
             max_retries=self.MAX_RETRIES,
@@ -272,7 +271,7 @@ class TestBatchClient(unittest.TestCase):
         assert awslogs["awslogs_group"] == "/test/batch/job"
         assert awslogs["awslogs_region"] == "ap-southeast-2"
 
-    def test_job_no_awslogs_stream(self):
+    def test_job_no_awslogs_stream(self, caplog):
         self.client_mock.describe_jobs.return_value = {
             "jobs": [
                 {
@@ -281,11 +280,12 @@ class TestBatchClient(unittest.TestCase):
                 }
             ]
         }
-        with self.assertLogs(level="WARNING") as capture_logs:
+        caplog.clear()
+        with caplog.at_level(level=logging.WARNING):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
-            assert len(capture_logs.records) == 1
+            assert len(caplog.messages) == 1
 
-    def test_job_splunk_logs(self):
+    def test_job_splunk_logs(self, caplog):
         self.client_mock.describe_jobs.return_value = {
             "jobs": [
                 {
@@ -299,16 +299,17 @@ class TestBatchClient(unittest.TestCase):
                 }
             ]
         }
-        with self.assertLogs(level="WARNING") as capture_logs:
+        caplog.clear()
+        with caplog.at_level(level=logging.WARNING):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
-            assert len(capture_logs.records) == 1
+            assert len(caplog.messages) == 1
 
 
-class TestBatchClientDelays(unittest.TestCase):
+class TestBatchClientDelays:
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    def setUp(self):
+    def setup_method(self, method):
         self.batch_client = BatchClientHook(aws_conn_id="airflow_test", region_name=AWS_REGION)
         # We're mocking all actual AWS calls and don't need a connection. This
         # avoids an Airflow warning about connection cannot be found.
@@ -360,7 +361,8 @@ class TestBatchClientDelays(unittest.TestCase):
         mock_uniform.assert_called_once_with(4.0, 6.0)  # in add_jitter
         mock_sleep.assert_called_once_with(mock_uniform.return_value)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "tries, lower, upper",
         [
             (0, 0, 1),
             (1, 0, 2),
@@ -373,7 +375,7 @@ class TestBatchClientDelays(unittest.TestCase):
             (8, 8, 25),
             (9, 10, 31),
             (45, 200, 600),  # > 40 tries invokes maximum delay allowed
-        ]
+        ],
     )
     def test_exponential_delay(self, tries, lower, upper):
         result = self.batch_client.exponential_delay(tries)

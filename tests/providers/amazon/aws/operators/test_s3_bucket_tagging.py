@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 from moto import mock_s3
@@ -35,14 +34,14 @@ TAG_SET = [{"Key": "Color", "Value": "Green"}]
 TASK_ID = os.environ.get("TASK_ID", "test-s3-operator")
 
 
-class TestS3GetBucketTaggingOperator(unittest.TestCase):
-    def setUp(self):
+@mock_s3
+class TestS3GetBucketTaggingOperator:
+    def setup_method(self, method):
         self.get_bucket_tagging_operator = S3GetBucketTaggingOperator(
             task_id=TASK_ID,
             bucket_name=BUCKET_NAME,
         )
 
-    @mock_s3
     @mock.patch.object(S3Hook, "get_bucket_tagging")
     @mock.patch.object(S3Hook, "check_for_bucket")
     def test_execute_if_bucket_exist(self, mock_check_for_bucket, get_bucket_tagging):
@@ -52,7 +51,6 @@ class TestS3GetBucketTaggingOperator(unittest.TestCase):
         mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
         get_bucket_tagging.assert_called_once_with(BUCKET_NAME)
 
-    @mock_s3
     @mock.patch.object(S3Hook, "get_bucket_tagging")
     @mock.patch.object(S3Hook, "check_for_bucket")
     def test_execute_if_not_bucket_exist(self, mock_check_for_bucket, get_bucket_tagging):
@@ -63,15 +61,15 @@ class TestS3GetBucketTaggingOperator(unittest.TestCase):
         get_bucket_tagging.assert_not_called()
 
 
-class TestS3PutBucketTaggingOperator(unittest.TestCase):
-    def setUp(self):
+@mock_s3
+class TestS3PutBucketTaggingOperator:
+    def setup_method(self, method):
         self.put_bucket_tagging_operator = S3PutBucketTaggingOperator(
             task_id=TASK_ID,
             tag_set=TAG_SET,
             bucket_name=BUCKET_NAME,
         )
 
-    @mock_s3
     @mock.patch.object(S3Hook, "put_bucket_tagging")
     @mock.patch.object(S3Hook, "check_for_bucket")
     def test_execute_if_bucket_exist(self, mock_check_for_bucket, put_bucket_tagging):
@@ -94,14 +92,14 @@ class TestS3PutBucketTaggingOperator(unittest.TestCase):
         put_bucket_tagging.assert_not_called()
 
 
-class TestS3DeleteBucketTaggingOperator(unittest.TestCase):
-    def setUp(self):
+@mock_s3
+class TestS3DeleteBucketTaggingOperator:
+    def setup_method(self, method):
         self.delete_bucket_tagging_operator = S3DeleteBucketTaggingOperator(
             task_id=TASK_ID,
             bucket_name=BUCKET_NAME,
         )
 
-    @mock_s3
     @mock.patch.object(S3Hook, "delete_bucket_tagging")
     @mock.patch.object(S3Hook, "check_for_bucket")
     def test_execute_if_bucket_exist(self, mock_check_for_bucket, delete_bucket_tagging):
@@ -111,7 +109,6 @@ class TestS3DeleteBucketTaggingOperator(unittest.TestCase):
         mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
         delete_bucket_tagging.assert_called_once_with(BUCKET_NAME)
 
-    @mock_s3
     @mock.patch.object(S3Hook, "delete_bucket_tagging")
     @mock.patch.object(S3Hook, "check_for_bucket")
     def test_execute_if_not_bucket_exist(self, mock_check_for_bucket, delete_bucket_tagging):

@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
@@ -36,8 +34,8 @@ AWS_CONN_ID = "aws_non_default"
 REGION_NAME = "us-west-2"
 
 
-class TestStepFunctionExecutionSensor(unittest.TestCase):
-    def setUp(self):
+class TestStepFunctionExecutionSensor:
+    def setup_method(self):
         self.mock_context = MagicMock()
 
     def test_init(self):
@@ -50,10 +48,10 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
         assert AWS_CONN_ID == sensor.aws_conn_id
         assert REGION_NAME == sensor.region_name
 
-    @parameterized.expand([("FAILED",), ("TIMED_OUT",), ("ABORTED",)])
+    @pytest.mark.parametrize("status", ["FAILED", "TIMED_OUT", "ABORTED"])
     @mock.patch("airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook")
-    def test_exceptions(self, mock_status, mock_hook):
-        hook_response = {"status": mock_status}
+    def test_poke_raise_on_status(self, mock_hook, status):
+        hook_response = {"status": status}
 
         hook_instance = mock_hook.return_value
         hook_instance.describe_execution.return_value = hook_response
@@ -62,12 +60,13 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
             task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException, match=r"Step Function sensor failed\. State Machine Output"):
             sensor.poke(self.mock_context)
 
+    @pytest.mark.parametrize("status", ["RUNNING"])
     @mock.patch("airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook")
-    def test_running(self, mock_hook):
-        hook_response = {"status": "RUNNING"}
+    def test_poke_false_on_status(self, mock_hook, status):
+        hook_response = {"status": status}
 
         hook_instance = mock_hook.return_value
         hook_instance.describe_execution.return_value = hook_response
@@ -78,9 +77,10 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
 
         assert not sensor.poke(self.mock_context)
 
+    @pytest.mark.parametrize("status", ["SUCCEEDED"])
     @mock.patch("airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook")
-    def test_succeeded(self, mock_hook):
-        hook_response = {"status": "SUCCEEDED"}
+    def test_poke_true_on_status(self, mock_hook, status):
+        hook_response = {"status": status}
 
         hook_instance = mock_hook.return_value
         hook_instance.describe_execution.return_value = hook_response

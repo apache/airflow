@@ -16,11 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -34,8 +32,8 @@ TASK_ID = "batch_job_sensor"
 JOB_ID = "8222a1c2-b246-4e19-b1b8-0039bb4407c0"
 
 
-class TestBatchSensor(unittest.TestCase):
-    def setUp(self):
+class TestBatchSensor:
+    def setup_method(self):
         self.batch_sensor = BatchSensor(
             task_id="batch_job_sensor",
             job_id=JOB_ID,
@@ -44,45 +42,36 @@ class TestBatchSensor(unittest.TestCase):
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_success_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {"status": "SUCCEEDED"}
-        self.assertTrue(self.batch_sensor.poke({}))
+        assert self.batch_sensor.poke({})
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_failure_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {"status": "FAILED"}
-        with self.assertRaises(AirflowException) as e:
+        error_message = r"Batch sensor failed\. AWS Batch job status: FAILED"
+        with pytest.raises(AirflowException, match=error_message):
             self.batch_sensor.poke({})
-
-        self.assertEqual("Batch sensor failed. AWS Batch job status: FAILED", str(e.exception))
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_invalid_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {"status": "INVALID"}
-        with self.assertRaises(AirflowException) as e:
+        error_message = r"Batch sensor failed\. Unknown AWS Batch job status: INVALID"
+        with pytest.raises(AirflowException, match=error_message):
             self.batch_sensor.poke({})
-
-        self.assertEqual("Batch sensor failed. Unknown AWS Batch job status: INVALID", str(e.exception))
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
-    @parameterized.expand(
-        [
-            ("SUBMITTED",),
-            ("PENDING",),
-            ("RUNNABLE",),
-            ("STARTING",),
-            ("RUNNING",),
-        ]
-    )
-    @mock.patch.object(BatchClientHook, "get_job_description")
-    def test_poke_on_intermediate_state(self, job_status, mock_get_job_description):
-        mock_get_job_description.return_value = {"status": job_status}
-        self.assertFalse(self.batch_sensor.poke({}))
-        mock_get_job_description.assert_called_once_with(JOB_ID)
+    @pytest.mark.parametrize("job_status", ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"])
+    def test_poke_on_intermediate_state(self, job_status):
+        with mock.patch.object(
+            BatchClientHook, "get_job_description", return_value={"status": job_status}
+        ) as mock_get_job_description:
+            assert not self.batch_sensor.poke({})
+            mock_get_job_description.assert_called_once_with(JOB_ID)
 
 
-class TestBatchComputeEnvironmentSensor(unittest.TestCase):
-    def setUp(self):
+class TestBatchComputeEnvironmentSensor:
+    def setup_method(self):
         self.environment_name = "environment_name"
         self.sensor = BatchComputeEnvironmentSensor(
             task_id="test_batch_compute_environment_sensor",
@@ -140,8 +129,8 @@ class TestBatchComputeEnvironmentSensor(unittest.TestCase):
         assert "AWS Batch compute environment failed" in str(ctx.value)
 
 
-class TestBatchJobQueueSensor(unittest.TestCase):
-    def setUp(self):
+class TestBatchJobQueueSensor:
+    def setup_method(self):
         self.job_queue = "job_queue"
         self.sensor = BatchJobQueueSensor(
             task_id="test_batch_job_queue_sensor",
@@ -198,9 +187,8 @@ class TestBatchJobQueueSensor(unittest.TestCase):
                 }
             ]
         }
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match="AWS Batch job queue failed"):
             self.sensor.poke({})
         mock_batch_client.describe_job_queues.assert_called_once_with(
             jobQueues=[self.job_queue],
         )
-        assert "AWS Batch job queue failed" in str(ctx.value)

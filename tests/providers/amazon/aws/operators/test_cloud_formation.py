@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
 from airflow.models.dag import DAG
@@ -30,8 +29,8 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
 
-class TestCloudFormationCreateStackOperator(unittest.TestCase):
-    def setUp(self):
+class TestCloudFormationCreateStackOperator:
+    def setup_method(self):
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         # Mock out the cloudformation_client (moto fails with an exception).
@@ -64,8 +63,8 @@ class TestCloudFormationCreateStackOperator(unittest.TestCase):
         )
 
 
-class TestCloudFormationDeleteStackOperator(unittest.TestCase):
-    def setUp(self):
+class TestCloudFormationDeleteStackOperator:
+    def setup_method(self):
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         # Mock out the cloudformation_client (moto fails with an exception).

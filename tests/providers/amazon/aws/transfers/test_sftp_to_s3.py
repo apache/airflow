@@ -17,11 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import boto3
+import pytest
 from moto import mock_s3
-from parameterized import parameterized
 
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -44,9 +42,9 @@ TEST_DAG_ID = "unit_tests_sftp_tos3_op"
 DEFAULT_DATE = datetime(2018, 1, 1)
 
 
-class TestSFTPToS3Operator(unittest.TestCase):
-    @mock_s3
-    def setUp(self):
+@mock_s3
+class TestSFTPToS3Operator:
+    def setup_method(self, method):
         hook = SSHHook(ssh_conn_id="ssh_default")
 
         s3_hook = S3Hook("aws_default")
@@ -68,15 +66,9 @@ class TestSFTPToS3Operator(unittest.TestCase):
         self.sftp_path = SFTP_PATH
         self.s3_key = S3_KEY
 
-    @parameterized.expand(
-        [
-            (True,),
-            (False,),
-        ]
-    )
-    @mock_s3
+    @pytest.mark.parametrize("use_temp_file", [True, False])
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_sftp_to_s3_operation(self, use_temp_file=True):
+    def test_sftp_to_s3_operation(self, use_temp_file):
         # Setting
         test_remote_file_content = (
             "This is remote file content \n which is also multiline "

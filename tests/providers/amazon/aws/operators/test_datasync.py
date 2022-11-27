@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import boto3
@@ -69,26 +68,21 @@ MOCK_DATA = {
 
 @mock_datasync
 @mock.patch.object(DataSyncHook, "get_conn")
-class DataSyncTestCaseBase(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.datasync = None
+class DataSyncTestCaseBase:
+    datasync = None
 
     # Runs once for each test
-    def setUp(self):
+    def setup_method(self, method):
         args = {
             "owner": "airflow",
             "start_date": DEFAULT_DATE,
         }
-
         self.dag = DAG(
             TEST_DAG_ID + "test_schedule_dag_once",
             default_args=args,
             schedule="@once",
         )
-
         self.client = boto3.client("datasync", region_name="us-east-1")
-
         self.source_location_arn = self.client.create_location_smb(
             **MOCK_DATA["create_source_location_kwargs"]
         )["LocationArn"]
@@ -100,7 +94,7 @@ class DataSyncTestCaseBase(unittest.TestCase):
             DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
-    def tearDown(self):
+    def teardown_method(self, method):
         # Delete all tasks:
         tasks = self.client.list_tasks()
         for task in tasks["Tasks"]:
@@ -519,10 +513,6 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
 @mock_datasync
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.datasync = None
-
     def set_up_operator(
         self, task_id="test_datasync_update_task_operator", task_arn="self", update_task_kwargs="default"
     ):

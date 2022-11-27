@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.transfers.ftp_to_s3 import FTPToS3Operator
@@ -32,9 +31,10 @@ S3_KEY_MULTIPLE = "test/"
 FTP_PATH_MULTIPLE = "/tmp/"
 
 
-class TestFTPToS3Operator(unittest.TestCase):
+class TestFTPToS3Operator:
+    @staticmethod
     def assert_execute(
-        self, mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file, ftp_file, s3_file
+        mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file, ftp_file, s3_file
     ):
 
         mock_local_tmp_file_value = mock_local_tmp_file.return_value.__enter__.return_value

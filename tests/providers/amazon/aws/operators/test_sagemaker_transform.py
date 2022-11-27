@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+import copy
 from unittest import mock
 
 import pytest
@@ -50,15 +50,16 @@ CREATE_MODEL_PARAMS: dict = {
     "ExecutionRoleArn": "arn:aws:iam:role/test-role",
 }
 
-CONFIG: dict = {"Model": CREATE_MODEL_PARAMS, "Transform": CREATE_TRANSFORM_PARAMS}
 
-
-class TestSageMakerTransformOperator(unittest.TestCase):
-    def setUp(self):
+class TestSageMakerTransformOperator:
+    def setup_method(self):
+        self.create_transform_params = copy.deepcopy(CREATE_TRANSFORM_PARAMS)
+        self.create_model_params = copy.deepcopy(CREATE_MODEL_PARAMS)
+        self.config = {"Model": self.create_model_params, "Transform": self.create_transform_params}
         self.sagemaker = SageMakerTransformOperator(
             task_id="test_sagemaker_operator",
             aws_conn_id="sagemaker_test_id",
-            config=CONFIG,
+            config=self.config,
             wait_for_completion=False,
             check_interval=5,
         )
@@ -91,9 +92,9 @@ class TestSageMakerTransformOperator(unittest.TestCase):
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
         self.sagemaker.execute(None)
-        mock_model.assert_called_once_with(CREATE_MODEL_PARAMS)
+        mock_model.assert_called_once_with(self.create_model_params)
         mock_transform.assert_called_once_with(
-            CREATE_TRANSFORM_PARAMS, wait_for_completion=False, check_interval=5, max_ingestion_time=None
+            self.create_transform_params, wait_for_completion=False, check_interval=5, max_ingestion_time=None
         )
 
     @mock.patch.object(SageMakerHook, "get_conn")
@@ -119,7 +120,7 @@ class TestSageMakerTransformOperator(unittest.TestCase):
         self.sagemaker.execute(None)
         self.sagemaker._check_if_transform_job_exists.assert_called_once()
         mock_transform.assert_called_once_with(
-            CREATE_TRANSFORM_PARAMS,
+            self.create_transform_params,
             wait_for_completion=False,
             check_interval=5,
             max_ingestion_time=None,
@@ -138,7 +139,7 @@ class TestSageMakerTransformOperator(unittest.TestCase):
         self.sagemaker.execute(None)
         self.sagemaker._check_if_transform_job_exists.assert_not_called()
         mock_transform.assert_called_once_with(
-            CREATE_TRANSFORM_PARAMS,
+            self.create_transform_params,
             wait_for_completion=False,
             check_interval=5,
             max_ingestion_time=None,
@@ -152,7 +153,7 @@ class TestSageMakerTransformOperator(unittest.TestCase):
         mock_list_transform_jobs.return_value = [{"TransformJobName": "job_name"}]
         self.sagemaker._check_if_transform_job_exists()
 
-        expected_config = CONFIG.copy()
+        expected_config = self.config
         # Expect to see TransformJobName suffixed with "-2" because we return one existing job
         expected_config["Transform"]["TransformJobName"] = "job_name-2"
         assert self.sagemaker.config == expected_config

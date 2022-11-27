@@ -17,13 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import errno
 import io
-import os
-import shutil
 import sys
-import unittest
-from tempfile import mkdtemp
 from unittest import mock
 
 import boto3
@@ -34,29 +29,25 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.s3 import S3FileTransformOperator
 
 
-class TestS3FileTransformOperator(unittest.TestCase):
-    def setUp(self):
+@pytest.fixture
+def transform_script_loc(request, tmp_path_factory):
+    transform_script = tmp_path_factory.mktemp(request.node.name) / "transform.py"
+    transform_script.touch()
+    yield str(transform_script)
+
+
+class TestS3FileTransformOperator:
+    def setup(self):
         self.content = b"input"
         self.bucket = "bucket"
         self.input_key = "foo"
         self.output_key = "bar"
         self.bio = io.BytesIO(self.content)
-        self.tmp_dir = mkdtemp(prefix="test_tmpS3FileTransform_")
-        self.transform_script = os.path.join(self.tmp_dir, "transform.py")
-        os.mknod(self.transform_script)
-
-    def tearDown(self):
-        try:
-            shutil.rmtree(self.tmp_dir)
-        except OSError as e:
-            # ENOENT - no such file or directory
-            if e.errno != errno.ENOENT:
-                raise e
 
     @mock.patch("subprocess.Popen")
     @mock.patch.object(S3FileTransformOperator, "log")
     @mock_s3
-    def test_execute_with_transform_script(self, mock_log, mock_popen):
+    def test_execute_with_transform_script(self, mock_log, mock_popen, transform_script_loc):
         process_output = [b"Foo", b"Bar", b"Baz"]
         self.mock_process(mock_popen, process_output=process_output)
         input_path, output_path = self.s3_paths()
@@ -64,7 +55,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
         op = S3FileTransformOperator(
             source_s3_key=input_path,
             dest_s3_key=output_path,
-            transform_script=self.transform_script,
+            transform_script=transform_script_loc,
             replace=True,
             task_id="task_id",
         )
@@ -76,14 +67,14 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
     @mock.patch("subprocess.Popen")
     @mock_s3
-    def test_execute_with_failing_transform_script(self, mock_popen):
+    def test_execute_with_failing_transform_script(self, mock_popen, transform_script_loc):
         self.mock_process(mock_popen, return_code=42)
         input_path, output_path = self.s3_paths()
 
         op = S3FileTransformOperator(
             source_s3_key=input_path,
             dest_s3_key=output_path,
-            transform_script=self.transform_script,
+            transform_script=transform_script_loc,
             replace=True,
             task_id="task_id",
         )
@@ -95,7 +86,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
     @mock.patch("subprocess.Popen")
     @mock_s3
-    def test_execute_with_transform_script_args(self, mock_popen):
+    def test_execute_with_transform_script_args(self, mock_popen, transform_script_loc):
         self.mock_process(mock_popen, process_output=[b"Foo", b"Bar", b"Baz"])
         input_path, output_path = self.s3_paths()
         script_args = ["arg1", "arg2"]
@@ -103,7 +94,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
         op = S3FileTransformOperator(
             source_s3_key=input_path,
             dest_s3_key=output_path,
-            transform_script=self.transform_script,
+            transform_script=transform_script_loc,
             script_args=script_args,
             replace=True,
             task_id="task_id",
@@ -143,7 +134,12 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
     def s3_paths(self):
         conn = boto3.client("s3")
-        conn.create_bucket(Bucket=self.bucket)
+        if conn.meta.region_name == "us-east-1":
+            conn.create_bucket(Bucket="bucket")
+        else:
+            conn.create_bucket(
+                Bucket="bucket", CreateBucketConfiguration={"LocationConstraint": conn.meta.region_name}
+            )
         conn.upload_fileobj(Bucket=self.bucket, Key=self.input_key, Fileobj=self.bio)
 
         s3_url = "s3://{0}/{1}"

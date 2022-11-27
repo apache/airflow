@@ -18,14 +18,13 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
 
 
-class DynamodbToS3Test(unittest.TestCase):
-    def setUp(self):
+class TestDynamodbToS3:
+    def setup_method(self):
         self.output_queue = []
 
     def mock_upload_file(self, Filename, Bucket, Key):

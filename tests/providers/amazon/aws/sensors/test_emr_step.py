@@ -17,9 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest import mock
 
 import pytest
 from dateutil.tz import tzlocal
@@ -142,9 +141,9 @@ DESCRIBE_JOB_STEP_COMPLETED_RETURN = {
 }
 
 
-class TestEmrStepSensor(unittest.TestCase):
-    def setUp(self):
-        self.emr_client_mock = MagicMock()
+class TestEmrStepSensor:
+    def setup_method(self):
+        self.emr_client_mock = mock.MagicMock()
         self.sensor = EmrStepSensor(
             task_id="test_task",
             poke_interval=0,
@@ -153,11 +152,11 @@ class TestEmrStepSensor(unittest.TestCase):
             aws_conn_id="aws_default",
         )
 
-        mock_emr_session = MagicMock()
+        mock_emr_session = mock.MagicMock()
         mock_emr_session.client.return_value = self.emr_client_mock
 
         # Mock out the emr_client creator
-        self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
+        self.boto3_session_mock = mock.MagicMock(return_value=mock_emr_session)
 
     def test_step_completed(self):
         self.emr_client_mock.describe_step.side_effect = [
@@ -165,13 +164,13 @@ class TestEmrStepSensor(unittest.TestCase):
             DESCRIBE_JOB_STEP_COMPLETED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             self.sensor.execute(None)
 
             assert self.emr_client_mock.describe_step.call_count == 2
             calls = [
-                unittest.mock.call(ClusterId="j-8989898989", StepId="s-VK57YR1Z9Z5N"),
-                unittest.mock.call(ClusterId="j-8989898989", StepId="s-VK57YR1Z9Z5N"),
+                mock.call(ClusterId="j-8989898989", StepId="s-VK57YR1Z9Z5N"),
+                mock.call(ClusterId="j-8989898989", StepId="s-VK57YR1Z9Z5N"),
             ]
             self.emr_client_mock.describe_step.assert_has_calls(calls)
 
@@ -181,7 +180,7 @@ class TestEmrStepSensor(unittest.TestCase):
             DESCRIBE_JOB_STEP_CANCELLED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)
 
@@ -191,7 +190,7 @@ class TestEmrStepSensor(unittest.TestCase):
             DESCRIBE_JOB_STEP_FAILED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)
 
@@ -201,6 +200,6 @@ class TestEmrStepSensor(unittest.TestCase):
             DESCRIBE_JOB_STEP_INTERRUPTED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)

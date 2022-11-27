@@ -19,20 +19,20 @@ from __future__ import annotations
 
 import datetime
 import os
-import unittest
 
 import boto3
+import pytest
 from moto import mock_s3
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemToS3Operator
 
 
-class TestFileToS3Operator(unittest.TestCase):
+class TestFileToS3Operator:
 
     _config = {"verify": False, "replace": False, "encrypt": False, "gzip": False}
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
         self.dest_key = "test/test1.csv"
@@ -41,7 +41,7 @@ class TestFileToS3Operator(unittest.TestCase):
         with open(self.testfile1, "wb") as f:
             f.write(b"x" * 393216)
 
-    def tearDown(self):
+    def teardown_method(self):
         os.remove(self.testfile1)
 
     def test_init(self):
@@ -70,7 +70,7 @@ class TestFileToS3Operator(unittest.TestCase):
             dest_bucket=self.dest_bucket,
             **self._config,
         )
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError, match=r"dest_key should be a relative path from root level"):
             operator.execute(None)
 
     @mock_s3
