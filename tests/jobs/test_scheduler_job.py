@@ -2699,6 +2699,50 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_verify_integrity_if_dag_disappeared(self, dag_maker, caplog):
+        # CleanUp
+        with create_session() as session:
+            session.query(SerializedDagModel).filter(
+                SerializedDagModel.dag_id == "test_verify_integrity_if_dag_disappeared"
+            ).delete(synchronize_session=False)
+
+        with dag_maker(dag_id="test_verify_integrity_if_dag_disappeared") as dag:
+            BashOperator(task_id="dummy", bash_command="echo hi")
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+
+        session = settings.Session()
+        orm_dag = dag_maker.dag_model
+        assert orm_dag is not None
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.MagicMock()
+        dag = self.scheduler_job.dagbag.get_dag("test_verify_integrity_if_dag_disappeared", session=session)
+        self.scheduler_job._create_dag_runs([orm_dag], session)
+        dag_id = dag.dag_id
+        drs = DagRun.find(dag_id=dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        dag_version_1 = SerializedDagModel.get_latest_version_hash(dag_id, session=session)
+        assert dr.dag_hash == dag_version_1
+        assert self.scheduler_job.dagbag.dags == {"test_verify_integrity_if_dag_disappeared": dag}
+        assert len(self.scheduler_job.dagbag.dags.get("test_verify_integrity_if_dag_disappeared").tasks) == 1
+
+        SerializedDagModel.remove_dag(dag_id=dag_id)
+        dag = self.scheduler_job.dagbag.dags[dag_id]
+        self.scheduler_job.dagbag.dags = MagicMock()
+        self.scheduler_job.dagbag.dags.get.side_effect = [dag, None]
+        session.flush()
+        with caplog.at_level(logging.WARNING):
+            callback = self.scheduler_job._schedule_dag_run(dr, session)
+            assert "The DAG disappeared before verifying integrity" in caplog.text
+
+        assert callback is None
+
+        session.rollback()
+        session.close()
+
     @pytest.mark.need_serialized_dag
     def test_retry_still_in_executor(self, dag_maker):
         """
