@@ -1868,18 +1868,23 @@ class TestTaskInstance:
             from airflow.decorators import task
 
             @task()
-            def divide_by(divisor):
-                return 1 / divisor
+            def raise_an_exception(placeholder: int):
+                if placeholder == 0:
+                    raise AirflowFailException("failing task")
+                else:
+                    pass
 
-            _ = divide_by.expand(divisor=[0, 1])
+            _ = raise_an_exception.expand(placeholder=[0, 1])
 
         tis = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
-        with pytest.raises(ZeroDivisionError):
-            tis[0].run()
-        tis[1].run()
-
-        assert tis[0].current_state() == TaskInstanceState.FAILED
-        assert tis[1].current_state() == TaskInstanceState.SUCCESS
+        for task_instance in tis:
+            if task_instance.map_index == 0:
+                with pytest.raises(AirflowFailException):
+                    task_instance.run()
+                assert task_instance.current_state() == TaskInstanceState.FAILED
+            else:
+                task_instance.run()
+                assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
     def test_outlet_datasets_skipped(self, create_task_instance):
         """

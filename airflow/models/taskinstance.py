@@ -737,13 +737,12 @@ class TaskInstance(Base, LoggingMixin):
         a new session is used.
 
         sqlalchemy.inspect is used here to get the primary keys ensuring that if they change
-        it will not regress 
+        it will not regress
 
         :param session: SQLAlchemy ORM Session
         """
         filters = (col == getattr(self, col.name) for col in inspect(TaskInstance).primary_key)
         return session.query(TaskInstance.state).filter(*filters).scalar()
-
 
     @provide_session
     def error(self, session: Session = NEW_SESSION) -> None:
