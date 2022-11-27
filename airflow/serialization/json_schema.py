@@ -31,26 +31,28 @@ if TYPE_CHECKING:
 
 class Validator(Protocol):
     """
-    This class is only used for TypeChecking (for IDEs, mypy, etc)
-    due to the way ``Draft7Validator`` is created. They are created or do not inherit
-    from proper classes. Hence you can not have ``type: Draft7Validator``.
+    This class is only used for type checking.
+
+    A workaround for IDEs, mypy, etc. due to the way ``Draft7Validator`` is created.
+    They are created or do not inherit from proper classes.
+    Hence, you can not have ``type: Draft7Validator``.
     """
 
     def is_valid(self, instance) -> bool:
-        """Check if the instance is valid under the current schema"""
+        """Check if the instance is valid under the current schema."""
         ...
 
     def validate(self, instance) -> None:
-        """Check if the instance is valid under the current schema, raising validation error if not"""
+        """Check if the instance is valid under the current schema, raising validation error if not."""
         ...
 
     def iter_errors(self, instance) -> Iterable[jsonschema.exceptions.ValidationError]:
-        """Lazily yield each of the validation errors in the given instance"""
+        """Lazily yield each of the validation errors in the given instance."""
         ...
 
 
 def load_dag_schema_dict() -> dict:
-    """Load & return Json Schema for DAG as Python dict"""
+    """Load & return Json Schema for DAG as Python dict."""
     schema_file_name = "schema.json"
     schema_file = pkgutil.get_data(__name__, schema_file_name)
 
@@ -62,7 +64,7 @@ def load_dag_schema_dict() -> dict:
 
 
 def load_dag_schema() -> Validator:
-    """Load & Validate Json Schema for DAG"""
+    """Load & Validate Json Schema for DAG."""
     import jsonschema
 
     schema = load_dag_schema_dict()

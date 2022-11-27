@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing connections from metastore database"""
+"""Objects relating to sourcing connections from metastore database."""
 from __future__ import annotations
 
 import warnings
@@ -56,7 +56,7 @@ class MetastoreBackend(BaseSecretsBackend):
     @provide_session
     def get_variable(self, key: str, session=None):
         """
-        Get Airflow Variable from Metadata DB
+        Get Airflow Variable from Metadata DB.
 
         :param key: Variable Key
         :return: Variable Value

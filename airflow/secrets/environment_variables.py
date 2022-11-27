@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing connections from environment variables"""
+"""Objects relating to sourcing connections from environment variables."""
 from __future__ import annotations
 
 import os
@@ -33,7 +33,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
 
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
-        Return URI representation of Connection conn_id
+        Return URI representation of Connection conn_id.
         :param conn_id: the connection id
         :return: deserialized Connection
         """
@@ -50,7 +50,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
 
     def get_variable(self, key: str) -> str | None:
         """
-        Get Airflow Variable from Environment Variable
+        Get Airflow Variable from Environment Variable.
 
         :param key: Variable Key
         :return: Variable Value

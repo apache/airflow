@@ -26,9 +26,10 @@ from airflow.utils.context import Context
 
 class GenericTransfer(BaseOperator):
     """
-    Moves data from a connection to another, assuming that they both
-    provide the required methods in their respective hooks. The source hook
-    needs to expose a `get_records` method, and the destination a
+    Moves data from a connection to another.
+
+    Assuming that they both provide the required methods in their respective hooks.
+    The source hook needs to expose a `get_records` method, and the destination a
     `insert_rows` method.
 
     This is meant to be used on small-ish datasets that fit in memory.

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Serialized DAG and BaseOperator"""
+"""Serialized DAG and BaseOperator."""
 from __future__ import annotations
 
 import collections.abc
@@ -107,6 +107,7 @@ def _get_default_mapped_partial() -> dict[str, Any]:
 
 
 def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
+    """Encode a relativedelta object."""
     encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
     if var.weekday and var.weekday.n:
         # Every n'th Friday for example
@@ -117,6 +118,7 @@ def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
 
 
 def decode_relativedelta(var: dict[str, Any]) -> relativedelta.relativedelta:
+    """Dencode a relativedelta object."""
     if "weekday" in var:
         var["weekday"] = relativedelta.weekday(*var["weekday"])  # type: ignore
     return relativedelta.relativedelta(**var)
@@ -310,9 +312,7 @@ class BaseSerialization:
 
     @classmethod
     def from_dict(cls, serialized_obj: dict[Encoding, Any]) -> BaseSerialization | dict | list | set | tuple:
-        """Deserializes a python dict stored with type decorators and
-        reconstructs all DAGs and operators it contains.
-        """
+        """Deserialize a dict of type decorators and reconstructs all DAGs and operators it contains."""
         return cls.deserialize(serialized_obj)
 
     @classmethod
@@ -355,7 +355,7 @@ class BaseSerialization:
     def serialize_to_json(
         cls, object_to_serialize: BaseOperator | MappedOperator | DAG, decorated_fields: set
     ) -> dict[str, Any]:
-        """Serializes an object to json"""
+        """Serializes an object to JSON."""
         serialized_object: dict[str, Any] = {}
         keys_to_serialize = object_to_serialize.get_serialized_fields()
         for key in keys_to_serialize:
@@ -552,6 +552,8 @@ class BaseSerialization:
     @classmethod
     def _deserialize_param(cls, param_dict: dict):
         """
+        Workaround to serialize Param on older versions.
+
         In 2.2.0, Param attrs were assumed to be json-serializable and were not run through
         this class's ``serialize`` method.  So before running through ``deserialize``,
         we first verify that it's necessary to do.
@@ -581,7 +583,7 @@ class BaseSerialization:
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict | dict):
-        """Serialize Params dict for a DAG/Task"""
+        """Serialize Params dict for a DAG or task."""
         serialized_params = {}
         for k, v in params.items():
             # TODO: As of now, we would allow serialization of params which are of type Param only.
@@ -600,7 +602,7 @@ class BaseSerialization:
 
     @classmethod
     def _deserialize_params_dict(cls, encoded_params: dict) -> ParamsDict:
-        """Deserialize a DAG's Params dict"""
+        """Deserialize a DAG's Params dict."""
         op_params = {}
         for k, v in encoded_params.items():
             if isinstance(v, dict) and "__class" in v:
@@ -621,10 +623,10 @@ class DependencyDetector:
 
     @staticmethod
     def detect_task_dependencies(task: Operator) -> list[DagDependency]:
+        """Detects dependencies caused by tasks."""
         from airflow.operators.trigger_dagrun import TriggerDagRunOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
-        """Detects dependencies caused by tasks"""
         deps = []
         if isinstance(task, TriggerDagRunOperator):
             deps.append(
@@ -1084,8 +1086,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def _serialize_operator_extra_links(cls, operator_extra_links: Iterable[BaseOperatorLink]):
         """
-        Serialize Operator Links. Store the import path of the OperatorLink and the arguments
-        passed to it. Example
+        Serialize Operator Links.
+
+        Store the import path of the OperatorLink and the arguments passed to it.
+        For example:
         ``[{'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink': {}}]``
 
         :param operator_extra_links: Operator Link
@@ -1381,7 +1385,7 @@ class DagDependency:
 
     @property
     def node_id(self):
-        """Node ID for graph rendering"""
+        """Node ID for graph rendering."""
         val = f"{self.dependency_type}"
         if not self.dependency_type == "dataset":
             val += f":{self.source}:{self.target}"

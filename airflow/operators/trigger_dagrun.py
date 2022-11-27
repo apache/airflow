@@ -45,8 +45,8 @@ if TYPE_CHECKING:
 
 class TriggerDagRunLink(BaseOperatorLink):
     """
-    Operator link for TriggerDagRunOperator. It allows users to access
-    DAG triggered by task using TriggerDagRunOperator.
+    Operator link for TriggerDagRunOperator.
+    It allows users to access DAG triggered by task using TriggerDagRunOperator.
     """
 
     name = "Triggered DAG"
@@ -61,14 +61,14 @@ class TriggerDagRunLink(BaseOperatorLink):
 
 class TriggerDagRunOperator(BaseOperator):
     """
-    Triggers a DAG run for a specified ``dag_id``
+    Triggers a DAG run for a specified ``dag_id``.
 
     :param trigger_dag_id: The dag_id to trigger (templated).
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
     :param conf: Configuration for the DAG run (templated).
     :param execution_date: Execution date for the dag (templated).
-    :param reset_dag_run: Whether or not clear existing dag run if already exists.
+    :param reset_dag_run: Whether clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
         This only resets (not recreates) the dag run.
         Dag run conf is immutable and will not be reset on rerun of an existing dag run.

@@ -154,11 +154,11 @@ class BashOperator(BaseOperator):
 
     @cached_property
     def subprocess_hook(self):
-        """Returns hook for running the bash command"""
+        """Returns hook for running the bash command."""
         return SubprocessHook()
 
     def get_env(self, context):
-        """Builds the set of environment variables to be exposed for the bash command"""
+        """Builds the set of environment variables to be exposed for the bash command."""
         system_env = os.environ.copy()
         env = self.env
         if env is None:
