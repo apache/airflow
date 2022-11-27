@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 
 def configure_logging():
-    """Configure & Validate Airflow Logging"""
+    """Configure & Validate Airflow Logging."""
     logging_class_path = ""
     try:
         logging_class_path = conf.get("logging", "logging_config_class")
@@ -79,7 +79,7 @@ def configure_logging():
 
 
 def validate_logging_config(logging_config):
-    """Validate the provided Logging Config"""
+    """Validate the provided Logging Config."""
     # Now lets validate the other logging-related settings
     task_log_reader = conf.get("logging", "task_log_reader")
 

@@ -66,14 +66,14 @@ from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_lock
 
 
 class DagParsingStat(NamedTuple):
-    """Information on processing progress"""
+    """Information on processing progress."""
 
     done: bool
     all_files_processed: bool
 
 
 class DagFileStat(NamedTuple):
-    """Information about single processing of one file"""
+    """Information about single processing of one file."""
 
     num_dags: int
     import_errors: int
@@ -92,10 +92,11 @@ class DagParsingSignal(enum.Enum):
 
 class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     """
-    Agent for DAG file processing. It is responsible for all DAG parsing
-    related jobs in scheduler process. Mainly it can spin up DagFileProcessorManager
-    in a subprocess, collect DAG parsing results from it and communicate
-    signal/DAG parsing stat with it.
+    Agent for DAG file processing.
+
+    It is responsible for all DAG parsing related jobs in scheduler process.
+    Mainly it can spin up DagFileProcessorManager in a subprocess,
+    collect DAG parsing results from it and communicate signal/DAG parsing stat with it.
 
     This class runs in the main `airflow scheduler` process.
 
@@ -257,7 +258,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         processor_manager.start()
 
     def heartbeat(self) -> None:
-        """Check if the DagFileProcessorManager process is alive, and process any pending messages"""
+        """Check if the DagFileProcessorManager process is alive, and process any pending messages."""
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
         # Receive any pending messages before checking if the process has exited.
@@ -314,19 +315,16 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
     @property
     def done(self) -> bool:
-        """Has DagFileProcessorManager ended?"""
+        """Whether the DagFileProcessorManager finished."""
         return self._done
 
     @property
     def all_files_processed(self):
-        """Have all files been processed at least once?"""
+        """Whether all files been processed at least once."""
         return self._all_files_processed
 
     def terminate(self):
-        """
-        Send termination signal to DAG parsing processor manager
-        and expect it to terminate all DAG file processors.
-        """
+        """Send termination signal to DAG parsing processor manager to terminate all DAG file processors."""
         if self._process and self._process.is_alive():
             self.log.info("Sending termination message to manager.")
             try:
@@ -335,10 +333,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 pass
 
     def end(self):
-        """
-        Terminate (and then kill) the manager process launched.
-        :return:
-        """
+        """Terminate (and then kill) the manager process launched."""
         if not self._process:
             self.log.warning("Ending without manager process.")
             return
@@ -352,6 +347,8 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
 class DagFileProcessorManager(LoggingMixin):
     """
+    Manage processes responsible for parsing DAGs.
+
     Given a list of DAG definition files, this kicks off several processors
     in parallel to process them and put the results to a multiprocessing.Queue
     for DagFileProcessorAgent to harvest. The parallelism is limited and as the
@@ -454,7 +451,7 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
     def register_exit_signals(self):
-        """Register signals that stop child processes"""
+        """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         # So that we ignore the debug dump signal, making it easier to send
@@ -471,10 +468,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def start(self):
         """
-        Use multiple processes to parse and generate tasks for the
-        DAGs in parallel. By processing them in separate processes,
-        we can get parallelism and isolation from potentially harmful
-        user code.
+        Use multiple processes to parse and generate tasks for the DAGs in parallel.
+        By processing them in separate processes, we can get parallelism and isolation
+        from potentially harmful user code.
         """
         self.register_exit_signals()
 
@@ -491,7 +487,7 @@ class DagFileProcessorManager(LoggingMixin):
     @provide_session
     def _deactivate_stale_dags(self, session=None):
         """
-        Detects DAGs which are no longer present in files
+        Detects DAGs which are no longer present in files.
 
         Deactivate them and remove them in the serialized_dag table
         """
@@ -536,7 +532,6 @@ class DagFileProcessorManager(LoggingMixin):
             self.last_deactivate_stale_dags_time = timezone.utcnow()
 
     def _run_parsing_loop(self):
-
         # In sync mode we want timeout=None -- wait forever until a message is received
         if self._async_mode:
             poll_time = 0.0
@@ -687,7 +682,6 @@ class DagFileProcessorManager(LoggingMixin):
             guard.commit()
 
     def _add_callback_to_queue(self, request: CallbackRequest):
-
         # requests are sent by dag processors. SLAs exist per-dag, but can be generated once per SLA-enabled
         # task in the dag. If treated like other callbacks, SLAs can cause feedback where a SLA arrives,
         # goes to the front of the queue, gets processed, triggers more SLAs from the same DAG, which go to
@@ -766,7 +760,7 @@ class DagFileProcessorManager(LoggingMixin):
         return False
 
     def _print_stat(self):
-        """Occasionally print out stats about how fast the files are getting processed"""
+        """Occasionally print out stats about how fast the files are getting processed."""
         if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
@@ -852,9 +846,8 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_pid(self, file_path) -> int | None:
         """
+        Retrieve the PID of the process processing the given file or None if the file is not being processed.
         :param file_path: the path to the file that's being processed
-        :return: the PID of the process processing the given file or None if
-            the specified file is not being processed
         """
         if file_path in self._processors:
             return self._processors[file_path].pid
@@ -870,6 +863,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_last_runtime(self, file_path) -> float | None:
         """
+        Retrieve the last processing time of a specific path.
         :param file_path: the path to the file that was processed
         :return: the runtime (in seconds) of the process of the last run, or
             None if the file was never processed.
@@ -879,6 +873,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_last_dag_count(self, file_path) -> int | None:
         """
+        Retrieve the total DAG count at a specific path.
         :param file_path: the path to the file that was processed
         :return: the number of dags loaded from that file, or None if the file
             was never processed.
@@ -888,6 +883,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_last_error_count(self, file_path) -> int | None:
         """
+        Retrieve the total number of errors from processing a specific path.
         :param file_path: the path to the file that was processed
         :return: the number of import errors from processing, or None if the file
             was never processed.
@@ -897,6 +893,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_last_finish_time(self, file_path) -> datetime | None:
         """
+        Retrieve the last completion time for processing a specific path.
         :param file_path: the path to the file that was processed
         :return: the finish time of the process of the last run, or None if the
             file was never processed.
@@ -906,6 +903,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_start_time(self, file_path) -> datetime | None:
         """
+        Retrieve the last start time for processing a specific path.
         :param file_path: the path to the file that's being processed
         :return: the start time of the process that's processing the
             specified file or None if the file is not currently being processed
@@ -916,8 +914,8 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_run_count(self, file_path) -> int:
         """
+        The number of times the given file has been parsed.
         :param file_path: the path to the file that's being processed
-        :return: the number of times the given file has been parsed
         """
         stat = self._file_stats.get(file_path)
         return stat.run_count if stat else 0
@@ -984,7 +982,7 @@ class DagFileProcessorManager(LoggingMixin):
         Stats.timing(f"dag_processing.last_duration.{file_name}", last_duration)
 
     def collect_results(self) -> None:
-        """Collect the result from any finished DAG processors"""
+        """Collect the result from any finished DAG processors."""
         ready = multiprocessing.connection.wait(
             self.waitables.keys() - [self._direct_scheduler_conn], timeout=0
         )
@@ -1013,7 +1011,7 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
     def start_new_processes(self):
-        """Start more processors if we have enough slots and files to process"""
+        """Start more processors if we have enough slots and files to process."""
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath
@@ -1157,7 +1155,7 @@ class DagFileProcessorManager(LoggingMixin):
             self._processors.pop(proc)
 
     def max_runs_reached(self):
-        """:return: whether all file paths have been processed max_runs times"""
+        """:return: whether all file paths have been processed max_runs times."""
         if self._max_runs == -1:  # Unlimited runs.
             return False
         for stat in self._file_stats.values():
@@ -1168,26 +1166,20 @@ class DagFileProcessorManager(LoggingMixin):
         return True
 
     def terminate(self):
-        """
-        Stops all running processors
-        :return: None
-        """
+        """Stops all running processors."""
         for processor in self._processors.values():
             Stats.decr("dag_processing.processes")
             processor.terminate()
 
     def end(self):
-        """
-        Kill all child processes on exit since we don't want to leave
-        them as orphaned.
-        """
+        """Kill all child processes on exit since we don't want to leave them as orphaned."""
         pids_to_kill = self.get_all_pids()
         if pids_to_kill:
             kill_child_processes_by_pids(pids_to_kill)
 
     def emit_metrics(self):
         """
-        Emit metrics about dag parsing summary
+        Emit metrics about dag parsing summary.
 
         This is called once every time around the parsing "loop" - i.e. after
         all files have been parsed.

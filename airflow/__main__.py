@@ -17,7 +17,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Main executable module"""
+"""Main executable module."""
 from __future__ import annotations
 
 import os
@@ -29,7 +29,7 @@ from airflow.configuration import conf
 
 
 def main():
-    """Main executable function"""
+    """Main executable function."""
     if conf.get("core", "security") == "kerberos":
         os.environ["KRB5CCNAME"] = conf.get("kerberos", "ccache")
         os.environ["KRB5_KTNAME"] = conf.get("kerberos", "keytab")

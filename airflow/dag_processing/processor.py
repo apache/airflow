@@ -60,7 +60,8 @@ if TYPE_CHECKING:
 
 
 class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
-    """Runs DAG processing in a separate process using DagFileProcessor
+    """
+    Runs DAG processing in a separate process using DagFileProcessor.
 
     :param file_path: a Python file containing Airflow DAG definitions
     :param pickle_dags: whether to serialize the DAG objects to the DB
@@ -266,7 +267,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     @property
     def exit_code(self) -> int | None:
         """
-        After the process is finished, this can be called to get the return code
+        After the process is finished, this can be called to get the return code.
 
         :return: the exit code of the process
         """
@@ -367,8 +368,9 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def manage_slas(self, dag: DAG, session: Session = None) -> None:
         """
-        Finding all tasks that have SLAs defined, and sending alert emails
-        where needed. New SLA misses are also recorded in the database.
+        Finding all tasks that have SLAs defined, and sending alert emails when needed.
+
+        New SLA misses are also recorded in the database.
 
         We are assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
@@ -524,6 +526,7 @@ class DagFileProcessor(LoggingMixin):
     @staticmethod
     def update_import_errors(session: Session, dagbag: DagBag) -> None:
         """
+        Update any import errors to be displayed in the UI.
         For the DAGs in the given DagBag, record any associated import errors and clears
         errors for files that no longer have them. These are usually displayed through the
         Airflow UI so that users know that there are issues parsing DAGs.
@@ -564,10 +567,7 @@ class DagFileProcessor(LoggingMixin):
 
     @provide_session
     def _validate_task_pools(self, *, dagbag: DagBag, session: Session = NEW_SESSION):
-        """
-        Validates and raise exception if any task in a dag is using a non-existent pool
-        :meta private:
-        """
+        """Validates and raise exception if any task in a dag is using a non-existent pool."""
         from airflow.models.pool import Pool
 
         def check_pools(dag):
@@ -590,6 +590,7 @@ class DagFileProcessor(LoggingMixin):
 
     def update_dag_warnings(self, *, session: Session, dagbag: DagBag) -> None:
         """
+        Update any import warnings to be displayed in the UI.
         For the DAGs in the given DagBag, record any associated configuration warnings and clear
         warnings for files that no longer have them. These are usually displayed through the
         Airflow UI so that users know that there are issues parsing DAGs.
@@ -616,8 +617,8 @@ class DagFileProcessor(LoggingMixin):
         self, dagbag: DagBag, callback_requests: list[CallbackRequest], session: Session = NEW_SESSION
     ) -> None:
         """
-        Execute on failure callbacks. These objects can come from SchedulerJob or from
-        DagFileProcessorManager.
+        Execute on failure callbacks.
+        These objects can come from SchedulerJob or from DagFileProcessorManager.
 
         :param dagbag: Dag Bag of dags
         :param callback_requests: failure callbacks to execute

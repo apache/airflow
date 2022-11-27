@@ -67,7 +67,8 @@ operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
 registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
-"""Mapping of class names to class of OperatorLinks registered by plugins.
+"""
+Mapping of class names to class of OperatorLinks registered by plugins.
 
 Used by the DAG serialization code to only allow specific classes to be created
 during deserialization
@@ -184,8 +185,7 @@ class AirflowPlugin:
 
 def is_valid_plugin(plugin_obj):
     """
-    Check whether a potential object is a subclass of
-    the AirflowPlugin class.
+    Check whether a potential object is a subclass of the AirflowPlugin class.
 
     :param plugin_obj: potential subclass of AirflowPlugin
     :return: Whether or not the obj is a valid subclass of
@@ -205,7 +205,7 @@ def is_valid_plugin(plugin_obj):
 
 def register_plugin(plugin_instance):
     """
-    Start plugin load and register it after success initialization
+    Start plugin load and register it after success initialization.
 
     :param plugin_instance: subclass of AirflowPlugin
     """
@@ -239,7 +239,7 @@ def load_entrypoint_plugins():
 
 
 def load_plugins_from_plugin_directory():
-    """Load and register Airflow Plugins from plugins directory"""
+    """Load and register Airflow Plugins from plugins directory."""
     global import_errors
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
@@ -317,7 +317,7 @@ def ensure_plugins_loaded():
 
 
 def initialize_web_ui_plugins():
-    """Collect extension points for WEB UI"""
+    """Collect extension points for WEB UI."""
     global plugins
     global flask_blueprints
     global flask_appbuilder_views
@@ -357,7 +357,7 @@ def initialize_web_ui_plugins():
 
 
 def initialize_ti_deps_plugins():
-    """Creates modules for loaded extension from custom task instance dependency rule plugins"""
+    """Create modules for loaded extension from custom task instance dependency rule plugins."""
     global registered_ti_dep_classes
     if registered_ti_dep_classes is not None:
         return
@@ -378,7 +378,7 @@ def initialize_ti_deps_plugins():
 
 
 def initialize_extra_operators_links_plugins():
-    """Creates modules for loaded extension from extra operators links plugins"""
+    """Create modules for loaded extension from extra operators links plugins."""
     global global_operator_extra_links
     global operator_extra_links
     global registered_operator_link_classes
@@ -492,6 +492,7 @@ def integrate_macros_plugins() -> None:
 
 
 def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
+    """Add listeners from plugins."""
     global plugins
 
     ensure_plugins_loaded()
@@ -507,7 +508,7 @@ def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
 
 def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str, Any]]:
     """
-    Dump plugins attributes
+    Dump plugins attributes.
 
     :param attrs_to_dump: A list of plugin attributes to dump
     """
