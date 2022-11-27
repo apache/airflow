@@ -27,8 +27,10 @@ from airflow.utils.state import State
 
 class PrevDagrunDep(BaseTIDep):
     """
-    Is the past dagrun in a state that allows this task instance to run, e.g. did this
-    task instance's task in the previous dagrun complete if we are depending on past.
+    Is the past dagrun in a state that allows this task instance to run.
+
+    For example, did this task instance's task in the previous dagrun complete
+    if we are depending on past?
     """
 
     NAME = "Previous Dagrun State"

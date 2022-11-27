@@ -287,7 +287,6 @@ class MappedOperator(AbstractOperator):
     This should be a name to call ``getattr()`` on.
     """
 
-    is_mapped: ClassVar[bool] = True
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
@@ -330,7 +329,6 @@ class MappedOperator(AbstractOperator):
         return frozenset(attr.fields_dict(MappedOperator)) - {
             "dag",
             "deps",
-            "is_mapped",
             "expand_input",  # This is needed to be able to accept XComArg.
             "subdag",
             "task_group",

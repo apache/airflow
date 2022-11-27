@@ -19,9 +19,30 @@ from __future__ import annotations
 
 from typing import Union
 
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
+from airflow.typing_compat import TypeGuard
 
 Operator = Union[BaseOperator, MappedOperator]
 
-__all__ = ["Operator"]
+
+def needs_expansion(task: AbstractOperator) -> TypeGuard[Operator]:
+    """Whether a task needs expansion at runtime.
+
+    A task needs expansion if it either
+
+    * Is a mapped operator, or
+    * Is in a mapped task group.
+
+    This is implemented as a free function (instead of a property) so we can
+    make it a type guard.
+    """
+    if isinstance(task, MappedOperator):
+        return True
+    if task.get_closest_mapped_task_group() is not None:
+        return True
+    return False
+
+
+__all__ = ["Operator", "needs_expansion"]

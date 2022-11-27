@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import DictOfListsExpandInput
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
@@ -716,7 +717,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task1", "task1"]
     for ti in dec.schedulable_tis:
         ti.run(session=session)
-        assert not ti.task.is_mapped
+        assert not isinstance(ti.task, MappedOperator)
         assert ti.task.retry_delay == timedelta(seconds=300)  # Operator default.
 
     # Expand task2.
@@ -756,9 +757,9 @@ def test_mapped_render_template_fields(dag_maker, session):
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
     mapped_ti.map_index = 0
 
-    assert mapped_ti.task.is_mapped
+    assert isinstance(mapped_ti.task, MappedOperator)
     mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert not mapped_ti.task.is_mapped
+    assert isinstance(mapped_ti.task, BaseOperator)
 
     assert mapped_ti.task.op_kwargs["arg1"] == "{{ ds }}"
     assert mapped_ti.task.op_kwargs["arg2"] == "fn"

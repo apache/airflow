@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
@@ -46,8 +45,8 @@ minimal_test_ticket = _MockJiraTicket(
 )
 
 
-class TestJiraSensor(unittest.TestCase):
-    def setUp(self):
+class TestJiraSensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG("test_dag_id", default_args=args)
         self.dag = dag
