@@ -19,9 +19,7 @@
 
 /* global document, CodeMirror, window */
 
-const GRID_DATA_URL = '/object/grid_data';
 const textArea = document.getElementById('json');
-const dagId = document.getElementById('dag-id').getAttribute('data-dag-id');
 const recentConfigList = document.getElementById('recent_configs');
 const minHeight = 300;
 const maxHeight = window.innerHeight - 450;
@@ -38,32 +36,8 @@ CodeMirror.fromTextArea(textArea, {
 })
   .setSize(null, height);
 
-async function loadRecentConfigs() {
-  try {
-    const response = await fetch(`${GRID_DATA_URL}?dag_id=${dagId}&num_runs=10`);
-    const resJson = await response.json();
-
-    const seenConfigs = new Set();
-    const configsToLoad = resJson.dag_runs.map((run) => (run.conf)).filter((conf) => {
-      if (!conf || seenConfigs.has(conf)) return false;
-      seenConfigs.add(conf);
-      return true;
-    });
-
-    configsToLoad.forEach((config) => {
-      const opt = document.createElement('option');
-      opt.value = config;
-      opt.innerHTML = config.replaceAll('"', '&quot;');
-      recentConfigList.appendChild(opt);
-    });
-  } catch (e) {
-    // Continue loading the page without recent configs
-  }
-}
-
 function setRecentConfig(e) {
-  document.querySelector('.CodeMirror').CodeMirror.setValue(e.target.value);
+  document.querySelector('.CodeMirror').CodeMirror.setValue(e.target.value.replaceAll("'", '"'));
 }
 
 recentConfigList.addEventListener('change', setRecentConfig);
-loadRecentConfigs();
