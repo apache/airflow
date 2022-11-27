@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import unittest
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -36,8 +35,8 @@ GET_BATCH = {"appId": APP_ID}
 LOG_RESPONSE = {"total": 3, "log": ["first_line", "second_line", "third_line"]}
 
 
-class TestLivyOperator(unittest.TestCase):
-    def setUp(self):
+class TestLivyOperator:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
         db.merge_conn(
@@ -163,7 +162,7 @@ class TestLivyOperator(unittest.TestCase):
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_logs", return_value=LOG_RESPONSE)
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value=GET_BATCH)
-    def test_log_dump(self, mock_get_batch, mock_post, mock_get_logs, mock_get):
+    def test_log_dump(self, mock_get_batch, mock_post, mock_get_logs, mock_get, caplog):
         task = LivyOperator(
             livy_conn_id="livyunittest",
             file="sparkapp",
@@ -171,10 +170,13 @@ class TestLivyOperator(unittest.TestCase):
             task_id="livy_example",
             polling_interval=1,
         )
-        with self.assertLogs(task.get_hook().log, level=logging.INFO) as cm:
+        caplog.clear()
+        with caplog.at_level(level=logging.INFO, logger=task.get_hook().log.name):
             task.execute(context=self.mock_context)
-            assert "INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:first_line" in cm.output
-            assert "INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:second_line" in cm.output
-            assert "INFO:airflow.providers.apache.livy.hooks.livy.LivyHook:third_line" in cm.output
+
+        assert "first_line" in caplog.messages
+        assert "second_line" in caplog.messages
+        assert "third_line" in caplog.messages
+
         mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
         mock_get_logs.assert_called_once_with(BATCH_ID, 0, 100)

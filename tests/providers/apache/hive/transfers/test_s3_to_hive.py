@@ -33,11 +33,8 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator
 
-try:
-    import boto3
-    from moto import mock_s3
-except ImportError:
-    mock_s3 = None
+boto3 = pytest.importorskip("boto3")
+moto = pytest.importorskip("moto")
 
 
 class TestS3ToHiveTransfer:
@@ -196,13 +193,16 @@ class TestS3ToHiveTransfer:
         fn_bz2 = self._get_fn(".bz2", False)
         assert self._check_file_equality(bz2_txt_nh, fn_bz2, ".bz2"), "bz2 Compressed file not as expected"
 
-    @pytest.mark.skipif(mock is None, reason="mock package not present")
-    @pytest.mark.skipif(mock_s3 is None, reason="moto package not present")
     @mock.patch("airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook")
-    @mock_s3
+    @moto.mock_s3
     def test_execute(self, mock_hiveclihook):
         conn = boto3.client("s3")
-        conn.create_bucket(Bucket="bucket")
+        if conn.meta.region_name == "us-east-1":
+            conn.create_bucket(Bucket="bucket")
+        else:
+            conn.create_bucket(
+                Bucket="bucket", CreateBucketConfiguration={"LocationConstraint": conn.meta.region_name}
+            )
 
         # Testing txt, zip, bz2 files with and without header row
         for (ext, has_header) in product([".txt", ".gz", ".bz2", ".GZ"], [True, False]):
@@ -226,13 +226,16 @@ class TestS3ToHiveTransfer:
             s32hive = S3ToHiveOperator(**self.kwargs)
             s32hive.execute(None)
 
-    @pytest.mark.skipif(mock is None, reason="mock package not present")
-    @pytest.mark.skipif(mock_s3 is None, reason="moto package not present")
     @mock.patch("airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook")
-    @mock_s3
+    @moto.mock_s3
     def test_execute_with_select_expression(self, mock_hiveclihook):
         conn = boto3.client("s3")
-        conn.create_bucket(Bucket="bucket")
+        if conn.meta.region_name == "us-east-1":
+            conn.create_bucket(Bucket="bucket")
+        else:
+            conn.create_bucket(
+                Bucket="bucket", CreateBucketConfiguration={"LocationConstraint": conn.meta.region_name}
+            )
 
         select_expression = "SELECT * FROM S3Object s"
         bucket = "bucket"

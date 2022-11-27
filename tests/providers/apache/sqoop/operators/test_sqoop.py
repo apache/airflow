@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 
 import pytest
 
@@ -27,7 +26,7 @@ from airflow.models.dag import DAG
 from airflow.providers.apache.sqoop.operators.sqoop import SqoopOperator
 
 
-class TestSqoopOperator(unittest.TestCase):
+class TestSqoopOperator:
     _config = {
         "conn_id": "sqoop_default",
         "cmd_type": "export",
@@ -62,7 +61,7 @@ class TestSqoopOperator(unittest.TestCase):
         "schema": "myschema",
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
 

@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 import os
-import unittest
+
+import pytest
 
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
 
 
-@unittest.skipIf("AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+@pytest.mark.skipif(
+    "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+)
 class TestHdfsSensor(TestHiveEnvironment):
     def test_hdfs_sensor(self):
         op = HdfsSensor(

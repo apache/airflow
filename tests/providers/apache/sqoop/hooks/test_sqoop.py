@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import collections
 import json
-import unittest
 from io import StringIO
 from unittest import mock
 from unittest.mock import call, patch
@@ -32,7 +31,7 @@ from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 from airflow.utils import db
 
 
-class TestSqoopHook(unittest.TestCase):
+class TestSqoopHook:
     _config = {
         "conn_id": "sqoop_test",
         "num_mappers": 22,
@@ -82,7 +81,7 @@ class TestSqoopHook(unittest.TestCase):
         "archives": "/path/to/archives",
     }
 
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="sqoop_test",

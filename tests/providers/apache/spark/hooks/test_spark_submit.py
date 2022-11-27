@@ -19,11 +19,9 @@ from __future__ import annotations
 
 import io
 import os
-import unittest
 from unittest.mock import call, patch
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -31,7 +29,7 @@ from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.utils import db
 
 
-class TestSparkSubmitHook(unittest.TestCase):
+class TestSparkSubmitHook:
 
     _spark_job_file = "test_application.py"
     _config = {
@@ -75,7 +73,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                 return_dict[arg] = list_cmd[pos + 1]
         return return_dict
 
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="spark_yarn_cluster",
@@ -795,8 +793,9 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark-pi-edf2ace37be7353a958b38733a12f8e6-driver", "mynamespace", **kwargs
         )
 
-    @parameterized.expand(
-        (
+    @pytest.mark.parametrize(
+        "command, expected",
+        [
             (
                 ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),
                 "spark-submit foo --bar baz --password='******' --foo bar",
@@ -829,7 +828,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                 ("spark-submit",),
                 "spark-submit",
             ),
-        )
+        ],
     )
     def test_masks_passwords(self, command: str, expected: str) -> None:
         # Given

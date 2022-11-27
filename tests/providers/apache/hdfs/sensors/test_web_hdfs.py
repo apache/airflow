@@ -20,13 +20,12 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
-from tests.providers.apache.hive import TestHiveEnvironment
 
 TEST_HDFS_CONN = "webhdfs_default"
 TEST_HDFS_PATH = "hdfs://user/hive/warehouse/airflow.db/static_babynames"
 
 
-class TestWebHdfsSensor(TestHiveEnvironment):
+class TestWebHdfsSensor:
     @mock.patch("airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook")
     def test_poke(self, mock_hook):
         sensor = WebHdfsSensor(

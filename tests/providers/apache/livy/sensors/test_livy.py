@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
+
+import pytest
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
@@ -28,19 +29,29 @@ from airflow.utils import db, timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestLivySensor(unittest.TestCase):
-    def setUp(self):
+class TestLivySensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
         db.merge_conn(Connection(conn_id="livyunittest", conn_type="livy", host="http://localhost:8998"))
 
-    @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.get_batch_state")
-    def test_poke(self, mock_state):
+    @pytest.mark.parametrize(
+        "batch_state", [pytest.param(bs, id=bs.name) for bs in BatchState if bs in LivyHook.TERMINAL_STATES]
+    )
+    def test_poke_on_terminal_state(self, batch_state):
         sensor = LivySensor(
             livy_conn_id="livyunittest", task_id="livy_sensor_test", dag=self.dag, batch_id=100
         )
+        with patch.object(LivyHook, "get_batch_state", return_value=batch_state):
+            assert sensor.poke({})
 
-        for state in BatchState:
-            with self.subTest(state.value):
-                mock_state.return_value = state
-                assert sensor.poke({}) == (state in LivyHook.TERMINAL_STATES)
+    @pytest.mark.parametrize(
+        "batch_state",
+        [pytest.param(bs, id=bs.name) for bs in BatchState if bs not in LivyHook.TERMINAL_STATES],
+    )
+    def test_poke_on_non_terminal_state(self, batch_state):
+        sensor = LivySensor(
+            livy_conn_id="livyunittest", task_id="livy_sensor_test", dag=self.dag, batch_id=100
+        )
+        with patch.object(LivyHook, "get_batch_state", return_value=batch_state):
+            assert not sensor.poke({})

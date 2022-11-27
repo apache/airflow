@@ -19,8 +19,6 @@ from __future__ import annotations
 
 import datetime
 import itertools
-import os
-import unittest
 from collections import OrderedDict, namedtuple
 from unittest import mock
 
@@ -55,23 +53,7 @@ class EmptyMockConnectionCursor(BaseMockConnectionCursor):
         self.iterable = []
 
 
-class TestHiveEnvironment(unittest.TestCase):
-    def setUp(self):
-        self.next_day = (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()[:10]
-        self.database = "airflow"
-        self.partition_by = "ds"
-        self.table = "static_babynames_partitioned"
-        with mock.patch(
-            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client"
-        ) as get_metastore_mock, mock.patch(
-            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection"
-        ):
-            get_metastore_mock.return_value = mock.MagicMock()
-
-            self.hook = HiveMetastoreHook()
-
-
-class TestHiveCliHook(unittest.TestCase):
+class TestHiveCliHook:
     @mock.patch("tempfile.tempdir", "/tmp/")
     @mock.patch("tempfile._RandomNameSequence.__next__")
     @mock.patch("subprocess.Popen")
@@ -342,10 +324,24 @@ class TestHiveCliHook(unittest.TestCase):
             STORED AS textfile
             ;
         """
-        assert_equal_ignore_multiple_spaces(self, mock_run_cli.call_args_list[0][0][0], query)
+        assert_equal_ignore_multiple_spaces(None, mock_run_cli.call_args_list[0][0][0], query)
 
 
-class TestHiveMetastoreHook(TestHiveEnvironment):
+class TestHiveMetastoreHook:
+    def setup_method(self):
+        self.next_day = (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()[:10]
+        self.database = "airflow"
+        self.partition_by = "ds"
+        self.table = "static_babynames_partitioned"
+        with mock.patch(
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client"
+        ) as get_metastore_mock, mock.patch(
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection"
+        ):
+            get_metastore_mock.return_value = mock.MagicMock()
+
+            self.hook = HiveMetastoreHook()
+
     VALID_FILTER_MAP = {"key2": "value2"}
 
     def test_get_max_partition_from_empty_part_specs(self):
@@ -354,7 +350,6 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         )
         assert max_partition is None
 
-    # @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook', 'get_metastore_client')
     def test_get_max_partition_from_valid_part_specs_and_invalid_filter_map(self):
         with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
@@ -588,13 +583,13 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         assert metastore_mock.drop_partition(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
 
 
-class TestHiveServer2Hook(unittest.TestCase):
+class TestHiveServer2Hook:
     def _upload_dataframe(self):
         df = pd.DataFrame({"a": [1, 2], "b": [1, 2]})
         self.local_path = "/tmp/TestHiveServer2Hook.csv"
         df.to_csv(self.local_path, header=False, index=False)
 
-    def setUp(self):
+    def setup_method(self):
         self._upload_dataframe()
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
@@ -774,12 +769,8 @@ class TestHiveServer2Hook(unittest.TestCase):
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
-            # df = hook.get_pandas_df(query, schema=self.database)
             results = hook.get_records(sqls, schema=self.database)
         assert results == [(1, 1), (2, 2)]
-
-        # self.assertEqual(len(df), 2)
-        # self.assertListEqual(df["hive_server_hook.a"].values.tolist(), [1, 2])
 
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call("CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)")
@@ -843,13 +834,10 @@ class TestHiveServer2Hook(unittest.TestCase):
         assert "test_dag_run_id" in output
 
 
-class TestHiveCli(unittest.TestCase):
-    def setUp(self):
+@mock.patch.dict("os.environ", AIRFLOW__CORE__SECURITY="kerberos")
+class TestHiveCli:
+    def setup_method(self):
         self.nondefault_schema = "nondefault"
-        os.environ["AIRFLOW__CORE__SECURITY"] = "kerberos"
-
-    def tearDown(self):
-        del os.environ["AIRFLOW__CORE__SECURITY"]
 
     def test_get_proxy_user_value(self):
         hook = MockHiveCliHook()

@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import os
 import re
-import unittest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from airflow.providers.apache.hive.transfers.hive_to_mysql import HiveToMySqlOperator
 from airflow.utils import timezone
@@ -31,7 +32,7 @@ DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
 
 class TestHiveToMySqlTransfer(TestHiveEnvironment):
-    def setUp(self):
+    def setup_method(self, method):
         self.kwargs = dict(
             sql="sql",
             mysql_table="table",
@@ -39,7 +40,7 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
             mysql_conn_id="mysql_default",
             task_id="test_hive_to_mysql",
         )
-        super().setUp()
+        super().setup_method(method)
 
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook")
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.HiveServer2Hook")
@@ -116,8 +117,8 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
 
         mock_hive_hook.get_records.assert_called_once_with(self.kwargs["sql"], parameters=hive_conf)
 
-    @unittest.skipIf(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    @pytest.mark.skipif(
+        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
     )
     def test_hive_to_mysql(self):
         test_hive_results = "test_hive_results"

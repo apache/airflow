@@ -20,12 +20,10 @@ import copy
 import os
 import re
 import subprocess
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import BeamCommandRunner, BeamHook, beam_options_to_args
@@ -58,7 +56,7 @@ INFO: To cancel the job using the 'gcloud' tool, run:
 """
 
 
-class TestBeamHook(unittest.TestCase):
+class TestBeamHook:
     @mock.patch(BEAM_STRING.format("BeamCommandRunner"))
     @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
     def test_start_python_pipeline(self, mock_check_output, mock_runner):
@@ -106,18 +104,19 @@ class TestBeamHook(unittest.TestCase):
                 process_line_callback=MagicMock(),
             )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "py_interpreter",
         [
-            ("default_to_python3", "python3"),
-            ("major_version_2", "python2"),
-            ("major_version_3", "python3"),
-            ("minor_version", "python3.6"),
-        ]
+            pytest.param("python", id="default python"),
+            pytest.param("python2", id="major python version 2.x"),
+            pytest.param("python3", id="major python version 3.x"),
+            pytest.param("python3.6", id="major.minor python version"),
+        ],
     )
     @mock.patch(BEAM_STRING.format("BeamCommandRunner"))
     @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
     def test_start_python_pipeline_with_custom_interpreter(
-        self, _, py_interpreter, mock_check_output, mock_runner
+        self, mock_check_output, mock_runner, py_interpreter
     ):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         wait_for_done = mock_runner.return_value.wait_for_done
@@ -144,23 +143,24 @@ class TestBeamHook(unittest.TestCase):
         )
         wait_for_done.assert_called_once_with()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "current_py_requirements, current_py_system_site_packages",
         [
-            (["foo-bar"], False),
-            (["foo-bar"], True),
-            ([], True),
-        ]
+            pytest.param("foo-bar", False, id="requirements without system site-packages"),
+            pytest.param("foo-bar", True, id="requirements with system site-packages"),
+            pytest.param([], True, id="only system site-packages"),
+        ],
     )
     @mock.patch(BEAM_STRING.format("prepare_virtualenv"))
     @mock.patch(BEAM_STRING.format("BeamCommandRunner"))
     @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
     def test_start_python_pipeline_with_non_empty_py_requirements_and_without_system_packages(
         self,
-        current_py_requirements,
-        current_py_system_site_packages,
         mock_check_output,
         mock_runner,
         mock_virtualenv,
+        current_py_requirements,
+        current_py_system_site_packages,
     ):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         wait_for_done = mock_runner.return_value.wait_for_done
@@ -204,7 +204,7 @@ class TestBeamHook(unittest.TestCase):
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
 
-        with self.assertRaisesRegex(AirflowException, "Invalid method invocation."):
+        with pytest.raises(AirflowException, match=r"Invalid method invocation\."):
             hook.start_python_pipeline(
                 variables=copy.deepcopy(BEAM_VARIABLES_PY),
                 py_file=PY_FILE,
@@ -302,20 +302,18 @@ class TestBeamHook(unittest.TestCase):
         mock_which.return_value = None
         hook = BeamHook(runner=DEFAULT_RUNNER)
 
-        with self.assertRaises(AirflowException) as ex_ctx:
+        error_message = (
+            r"You need to have Go installed to run beam go pipeline\. See .* "
+            "installation guide. If you are running airflow in Docker see more info at '.*'"
+        )
+        with pytest.raises(AirflowException, match=error_message):
             hook.start_go_pipeline(
                 go_file=GO_FILE,
                 variables=copy.deepcopy(BEAM_VARIABLES_GO),
             )
 
-        assert (
-            "You need to have Go installed to run beam go pipeline. See https://go.dev/doc/install "
-            "installation guide. If you are running airflow in Docker see more info at "
-            "'https://airflow.apache.org/docs/docker-stack/recipes.html'." == str(ex_ctx.exception)
-        )
 
-
-class TestBeamRunner(unittest.TestCase):
+class TestBeamRunner:
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamCommandRunner.log")
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
@@ -343,18 +341,20 @@ class TestBeamRunner(unittest.TestCase):
         mock_popen.assert_called_once_with(
             cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
         )
-        self.assertRaises(Exception, beam.wait_for_done)
+        with pytest.raises(Exception):
+            beam.wait_for_done()
 
 
-class TestBeamOptionsToArgs(unittest.TestCase):
-    @parameterized.expand(
+class TestBeamOptionsToArgs:
+    @pytest.mark.parametrize(
+        "options, expected_args",
         [
             ({"key": "val"}, ["--key=val"]),
             ({"key": None}, ["--key"]),
             ({"key": True}, ["--key"]),
             ({"key": False}, ["--key=False"]),
             ({"key": ["a", "b", "c"]}, ["--key=a", "--key=b", "--key=c"]),
-        ]
+        ],
     )
     def test_beam_options_to_args(self, options, expected_args):
         args = beam_options_to_args(options)

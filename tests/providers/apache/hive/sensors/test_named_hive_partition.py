@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from datetime import timedelta
 from unittest import mock
 
@@ -35,8 +34,8 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class TestNamedHivePartitionSensor(unittest.TestCase):
-    def setUp(self):
+class TestNamedHivePartitionSensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
         self.next_day = (DEFAULT_DATE + timedelta(days=1)).isoformat()[:10]
@@ -114,7 +113,9 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
         )
 
 
-@unittest.skipIf("AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+@pytest.mark.skipif(
+    "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+)
 class TestPartitions(TestHiveEnvironment):
     def test_succeeds_on_one_partition(self):
         mock_hive_metastore_hook = MockHiveMetastoreHook()

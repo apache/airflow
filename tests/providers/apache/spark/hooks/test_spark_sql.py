@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import io
-import unittest
 from itertools import dropwhile
 from unittest.mock import call, patch
 
@@ -38,7 +37,7 @@ def get_after(sentinel, iterable):
     return next(truncated)
 
 
-class TestSparkSqlHook(unittest.TestCase):
+class TestSparkSqlHook:
     _config = {
         "conn_id": "spark_default",
         "executor_cores": 4,
@@ -52,12 +51,12 @@ class TestSparkSqlHook(unittest.TestCase):
     }
 
     @classmethod
-    def setUpClass(cls) -> None:
+    def setup_class(cls) -> None:
         clear_db_connections(add_default_connections_back=False)
         db.merge_conn(Connection(conn_id="spark_default", conn_type="spark", host="yarn://yarn-master"))
 
     @classmethod
-    def tearDownClass(cls) -> None:
+    def teardown_class(cls) -> None:
         clear_db_connections(add_default_connections_back=True)
 
     def test_build_command(self):

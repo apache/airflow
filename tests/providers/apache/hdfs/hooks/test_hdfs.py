@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -26,13 +25,10 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 
-try:
-    import snakebite
-except ImportError:
-    pytestmark = pytest.mark.skip("Skipping test because HDFSHook is not installed")
+snakebite = pytest.importorskip("snakebite")
 
 
-class TestHDFSHook(unittest.TestCase):
+class TestHDFSHook:
     @mock.patch.dict(
         "os.environ",
         {

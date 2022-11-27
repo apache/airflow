@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest import TestCase
 from unittest.mock import MagicMock
 
 from airflow.models.dag import DAG
@@ -30,8 +29,8 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class TestHiveEnvironment(TestCase):
-    def setUp(self):
+class TestHiveEnvironment:
+    def setup_method(self, method):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG("test_dag_id", default_args=args)
         self.dag = dag

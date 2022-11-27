@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
 
 
-class TestKylinHook(unittest.TestCase):
-    def setUp(self) -> None:
+class TestKylinHook:
+    def setup_method(self) -> None:
         self.hook = KylinHook(kylin_conn_id="kylin_default", project="learn_kylin")
 
     @patch("kylinpy.Kylin.get_job")

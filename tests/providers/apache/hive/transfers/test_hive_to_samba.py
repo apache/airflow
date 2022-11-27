@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
+
+import pytest
 
 from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator
 from airflow.providers.samba.hooks.samba import SambaHook
@@ -44,7 +45,7 @@ class MockSambaHook(SambaHook):
 
 
 class TestHive2SambaOperator(TestHiveEnvironment):
-    def setUp(self):
+    def setup_method(self, method):
         self.kwargs = dict(
             hql="hql",
             destination_filepath="destination_filepath",
@@ -52,7 +53,7 @@ class TestHive2SambaOperator(TestHiveEnvironment):
             hiveserver2_conn_id="hiveserver2_default",
             task_id="test_hive_to_samba_operator",
         )
-        super().setUp()
+        super().setup_method(method)
 
     @patch("airflow.providers.apache.hive.transfers.hive_to_samba.SambaHook")
     @patch("airflow.providers.apache.hive.transfers.hive_to_samba.HiveServer2Hook")
@@ -75,8 +76,8 @@ class TestHive2SambaOperator(TestHiveEnvironment):
             self.kwargs["destination_filepath"], mock_tmp_file.name
         )
 
-    @unittest.skipIf(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    @pytest.mark.skipif(
+        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
     )
     @patch("tempfile.tempdir", "/tmp/")
     @patch("tempfile._RandomNameSequence.__next__")
