@@ -166,6 +166,7 @@ class TestDagRunEndpoint:
 
 class TestDeleteDagRun(TestDagRunEndpoint):
     def test_should_respond_204(self, session):
+        assert False
         session.add_all(self._create_test_dag_run())
         session.commit()
         response = self.client.delete(
