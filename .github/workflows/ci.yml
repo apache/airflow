@@ -780,8 +780,8 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
-        python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
-        postgres-version: "${{fromJson(needs.build-info.outputs.postgres-versions)}}"
+        python-version: "3.7"
+        postgres-version: "11"
         exclude: "${{fromJson(needs.build-info.outputs.postgres-exclude)}}"
       fail-fast: false
     env:
