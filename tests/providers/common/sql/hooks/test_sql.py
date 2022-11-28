@@ -18,21 +18,23 @@
 #
 from __future__ import annotations
 
-from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.utils.session import provide_session
 
-TASK_ID = "databricks-sql-operator"
-DEFAULT_CONN_ID = "databricks_default"
-HOST = "xx.cloud.databricks.com"
-HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
-TOKEN = "token"
+TASK_ID = "sql-operator"
+HOST = "host"
+DEFAULT_CONN_ID = "sqlite_default"
+PASSWORD = "password"
+
+
+class DBApiHookForTests(DbApiHook):
+    conn_name_attr = "conn_id"
+    get_conn = MagicMock(name="conn")
 
 
 @provide_session
@@ -41,18 +43,16 @@ def create_connection(session):
     conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
     conn.host = HOST
     conn.login = None
-    conn.password = TOKEN
+    conn.password = PASSWORD
     conn.extra = None
     session.commit()
 
 
-@pytest.fixture
-def databricks_hook():
-    return DatabricksSqlHook(sql_endpoint_name="Test")
-
-
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     return [(field,) for field in fields]
+
+
+index = 0
 
 
 @pytest.mark.parametrize(
@@ -74,7 +74,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             False,
             False,
             "select * from test.test;",
-            ["select * from test.test"],
+            ["select * from test.test;"],
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
@@ -85,7 +85,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             True,
             True,
             "select * from test.test;",
-            ["select * from test.test"],
+            ["select * from test.test;"],
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
@@ -96,7 +96,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             False,
             True,
             "select * from test.test;",
-            ["select * from test.test"],
+            ["select * from test.test;"],
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
@@ -107,18 +107,18 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             True,
             True,
             "select * from test.test;select * from test.test2;",
-            ["select * from test.test", "select * from test.test2"],
+            ["select * from test.test;", "select * from test.test2;"],
             [["id", "value"], ["id2", "value2"]],
             ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
             [[("id2",), ("value2",)]],
             [[3, 4], [13, 14]],
             id="The return_last set and split statements set on multiple queries in string",
-        ),
+        ),  # Failing
         pytest.param(
             False,
             True,
             "select * from test.test;select * from test.test2;",
-            ["select * from test.test", "select * from test.test2"],
+            ["select * from test.test;", "select * from test.test2;"],
             [["id", "value"], ["id2", "value2"]],
             ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
@@ -172,7 +172,6 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     ],
 )
 def test_query(
-    databricks_hook,
     return_last,
     split_statements,
     sql,
@@ -182,48 +181,33 @@ def test_query(
     hook_descriptions,
     hook_results,
 ):
-    with patch(
-        "airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook.get_conn"
-    ) as mock_conn, patch("airflow.providers.databricks.hooks.databricks_base.requests") as mock_requests:
-        mock_requests.codes.ok = 200
-        mock_requests.get.return_value.json.return_value = {
-            "endpoints": [
-                {
-                    "id": "1264e5078741679a",
-                    "name": "Test",
-                    "odbc_params": {
-                        "hostname": "xx.cloud.databricks.com",
-                        "path": "/sql/1.0/endpoints/1264e5078741679a",
-                    },
-                }
-            ]
-        }
-        status_code_mock = mock.PropertyMock(return_value=200)
-        type(mock_requests.get.return_value).status_code = status_code_mock
-        connections = []
-        cursors = []
-        for index in range(len(cursor_descriptions)):
-            conn = mock.MagicMock()
-            cur = mock.MagicMock(
-                rowcount=len(cursor_results[index]),
-                description=get_cursor_descriptions(cursor_descriptions[index]),
-            )
-            cur.fetchall.return_value = cursor_results[index]
-            conn.cursor.return_value = cur
-            cursors.append(cur)
-            connections.append(conn)
-        mock_conn.side_effect = connections
-        results = databricks_hook.run(
-            sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
-        )
+    modified_descriptions = [
+        get_cursor_descriptions(cursor_description) for cursor_description in cursor_descriptions
+    ]
+    dbapi_hook = DBApiHookForTests()
+    dbapi_hook.get_conn.return_value.cursor.return_value.rowcount = 2
+    dbapi_hook.get_conn.return_value.cursor.return_value._description_index = 0
 
-        assert databricks_hook.descriptions == hook_descriptions
-        assert databricks_hook.last_description == hook_descriptions[-1]
-        assert results == hook_results
+    def mock_execute(*args, **kwargs):
+        # the run method accesses description property directly, and we need to modify it after
+        # every execute, to make sure that different descriptions are returned. I could not find easier
+        # method with mocking
+        dbapi_hook.get_conn.return_value.cursor.return_value.description = modified_descriptions[
+            dbapi_hook.get_conn.return_value.cursor.return_value._description_index
+        ]
+        dbapi_hook.get_conn.return_value.cursor.return_value._description_index += 1
 
-        for index, cur in enumerate(cursors):
-            cur.execute.assert_has_calls([mock.call(cursor_calls[index])])
-        cur.close.assert_called()
+    dbapi_hook.get_conn.return_value.cursor.return_value.execute = mock_execute
+    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = cursor_results
+    results = dbapi_hook.run(
+        sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
+    )
+
+    assert dbapi_hook.descriptions == hook_descriptions
+    assert dbapi_hook.last_description == hook_descriptions[-1]
+    assert results == hook_results
+
+    dbapi_hook.get_conn.return_value.cursor.return_value.close.assert_called()
 
 
 @pytest.mark.parametrize(
@@ -234,7 +218,9 @@ def test_query(
         pytest.param("\n", id="Only EOL"),
     ],
 )
-def test_no_query(databricks_hook, empty_statement):
+def test_no_query(empty_statement):
+    dbapi_hook = DBApiHookForTests()
+    dbapi_hook.get_conn.return_value.cursor.rowcount = 0
     with pytest.raises(ValueError) as err:
-        databricks_hook.run(sql=empty_statement)
+        dbapi_hook.run(sql=empty_statement)
     assert err.value.args[0] == "List of SQL statements is empty"

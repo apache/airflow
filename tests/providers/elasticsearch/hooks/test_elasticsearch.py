@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
+import pytest
 from elasticsearch import Elasticsearch
 
 from airflow.models import Connection
@@ -30,7 +30,7 @@ from airflow.providers.elasticsearch.hooks.elasticsearch import (
 )
 
 
-class TestElasticsearchHook(unittest.TestCase):
+class TestElasticsearchHook:
     def test_throws_warning(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
@@ -38,7 +38,7 @@ class TestElasticsearchHook(unittest.TestCase):
         conn = self.conn
         self.connection = Connection(host="localhost", port=9200, schema="http")
 
-        with self.assertWarns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning):
 
             class UnitTestElasticsearchHook(ElasticsearchHook):
                 conn_name_attr = "test_conn_id"
@@ -49,10 +49,8 @@ class TestElasticsearchHook(unittest.TestCase):
             self.db_hook = UnitTestElasticsearchHook()
 
 
-class TestElasticsearchSQLHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestElasticsearchSQLHookConn:
+    def setup_method(self):
         self.connection = Connection(host="localhost", port=9200, schema="http")
 
         class UnitTestElasticsearchHook(ElasticsearchSQLHook):
@@ -69,10 +67,8 @@ class TestElasticsearchSQLHookConn(unittest.TestCase):
         mock_connect.assert_called_with(host="localhost", port=9200, scheme="http", user=None, password=None)
 
 
-class TestElasticsearcSQLhHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestElasticsearchSQLHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
@@ -131,7 +127,7 @@ class MockElasticsearch:
 
 
 class TestElasticsearchPythonHook:
-    def setup(self):
+    def setup_method(self):
         self.elasticsearch_hook = ElasticsearchPythonHook(hosts=["http://localhost:9200"])
 
     def test_client(self):

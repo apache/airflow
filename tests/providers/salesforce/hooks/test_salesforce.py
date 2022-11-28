@@ -33,9 +33,10 @@ from airflow.utils.session import create_session
 
 
 class TestSalesforceHook:
-    def setup(self):
+    def setup_method(self):
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="conn_id")
 
+    @staticmethod
     def _insert_conn_db_entry(conn_id, conn_object):
         with create_session() as session:
             session.query(Connection).filter(Connection.conn_id == conn_id).delete()

@@ -24,7 +24,7 @@ from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
@@ -151,49 +151,57 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
-        sequentially
+        sequentially.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
         :param autocommit: What to set the connection's autocommit setting to
-            before executing the query.
+            before executing the query. Note that currently there is no commit functionality
+            in Databricks SQL so this flag has no effect.
+
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
         :param return_last: Whether to return result for only last statement or for all after split
-        :return: return only result of the LAST SQL expression if handler was provided.
+        :return: return only result of the LAST SQL expression if handler was provided unless return_last
+            is set to False.
         """
-        self.scalar_return_last = isinstance(sql, str) and return_last
+        self.descriptions = []
         if isinstance(sql, str):
             if split_statements:
-                sql = self.split_sql_string(sql)
+                sql_list = [self.strip_sql_string(s) for s in self.split_sql_string(sql)]
             else:
-                sql = [self.strip_sql_string(sql)]
+                sql_list = [self.strip_sql_string(sql)]
+        else:
+            sql_list = [self.strip_sql_string(s) for s in sql]
 
-        if sql:
-            self.log.debug("Executing following statements against Databricks DB: %s", list(sql))
+        if sql_list:
+            self.log.debug("Executing following statements against Databricks DB: %s", sql_list)
         else:
             raise ValueError("List of SQL statements is empty")
 
         results = []
-        for sql_statement in sql:
+        for sql_statement in sql_list:
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             with closing(self.get_conn()) as conn:
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
                     self._run_command(cur, sql_statement, parameters)
-
                     if handler is not None:
                         result = handler(cur)
-                        results.append(result)
-                    self.last_description = cur.description
+                        if return_single_query_results(sql, return_last, split_statements):
+                            results = [result]
+                            self.descriptions = [cur.description]
+                        else:
+                            results.append(result)
+                            self.descriptions.append(cur.description)
 
             self._sql_conn = None
 
         if handler is None:
             return None
-        elif self.scalar_return_last:
+        if return_single_query_results(sql, return_last, split_statements):
             return results[-1]
         else:
             return results

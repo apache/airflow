@@ -433,6 +433,13 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
 ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
+ARG_REPLACE_MICRO = Arg(
+    ("--no-replace-microseconds",),
+    help="whether microseconds should be zeroed",
+    dest="replace_microseconds",
+    action="store_false",
+    default=True,
+)
 
 # db
 ARG_DB_TABLES = Arg(
@@ -1082,7 +1089,7 @@ DAGS_COMMANDS = (
         name="trigger",
         help="Trigger a DAG run",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE, ARG_VERBOSE, ARG_REPLACE_MICRO),
     ),
     ActionCommand(
         name="delete",
