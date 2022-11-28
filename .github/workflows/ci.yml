@@ -242,6 +242,7 @@ jobs:
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs:
       - build-info
+      - tests-postgres
     strategy:
       fail-fast: false
       matrix:
@@ -304,6 +305,7 @@ jobs:
     needs:
       - build-info
       - push-early-buildx-cache-to-github-registry
+      - tests-postgres
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       UPGRADE_TO_NEWER_DEPENDENCIES: false
@@ -402,7 +404,7 @@ jobs:
     timeout-minutes: 10
     name: Breeze unit tests
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info]
+    needs: [build-info, tests-postgres]
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -422,7 +424,7 @@ jobs:
     timeout-minutes: 10
     name: React WWW tests
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info]
+    needs: [build-info, tests-postgres]
     if: needs.build-info.outputs.run-www-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -450,7 +452,7 @@ jobs:
     timeout-minutes: 10
     name: "Test OpenAPI client generation"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info]
+    needs: [build-info, tests-postgres]
     if: needs.build-info.outputs.needs-api-codegen == 'true'
     steps:
       - name: Cleanup repo
@@ -467,7 +469,7 @@ jobs:
     timeout-minutes: 60
     name: "Test examples of production image building"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info]
+    needs: [build-info, tests-postgres]
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: Cleanup repo
@@ -492,7 +494,7 @@ jobs:
     timeout-minutes: 5
     name: "Test git clone on Windows"
     runs-on: windows-latest
-    needs: [build-info]
+    needs: [build-info, tests-postgres]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
@@ -627,7 +629,7 @@ jobs:
     timeout-minutes: 45
     name: "Build docs"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, wait-for-ci-images, tests-postgres]
     if: needs.build-info.outputs.docs-build == 'true'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -675,7 +677,7 @@ jobs:
     timeout-minutes: 80
     name: "Provider packages ${{matrix.package-format}}"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, wait-for-ci-images, tests-postgres]
     strategy:
       matrix:
         package-format: ["sdist", "wheel"]
@@ -741,7 +743,7 @@ jobs:
     timeout-minutes: 80
     name: "Python unit tests for Helm chart"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, wait-for-ci-images, tests-postgres]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       TEST_TYPES: "Helm"
@@ -817,7 +819,7 @@ jobs:
     name: >
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, wait-for-ci-images, tests-postgres]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -858,7 +860,7 @@ jobs:
     name: >
       MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, wait-for-ci-images, tests-postgres]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -900,7 +902,7 @@ jobs:
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, wait-for-ci-images, tests-postgres]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.python-versions) }}
@@ -940,7 +942,7 @@ jobs:
     name: "Quarantined tests"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     continue-on-error: true
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, wait-for-ci-images, tests-postgres]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       TEST_TYPES: "Quarantined"
@@ -1041,7 +1043,7 @@ jobs:
     timeout-minutes: 60
     name: "Test docker-compose quick start"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-prod-images]
+    needs: [build-info, wait-for-prod-images, tests-postgres]
     if: needs.build-info.outputs.image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
@@ -1068,7 +1070,7 @@ jobs:
     timeout-minutes: 240
     name: "Helm: ${{matrix.executor}} - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-prod-images]
+    needs: [build-info, wait-for-prod-images, tests-postgres]
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
@@ -1210,6 +1212,7 @@ jobs:
       - build-info
       - constraints
       - docs
+      - tests-postgres
     if: needs.build-info.outputs.canary-run == 'true'
     strategy:
       fail-fast: false
