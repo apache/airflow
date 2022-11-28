@@ -99,28 +99,28 @@ const findDownstreamGraph = (
   graphs.forEach((g, i) => {
     // find downstream edges
     const downstreamEdges = edges.filter((e) => g.edges.some((ge) => ge.target === e.source));
-    const downstreamNodes: DepNode[] = [];
 
     downstreamEdges.forEach((e) => {
-      const newNode = nodes.find((n) => n.id === e.target);
-      if (newNode) {
-        downstreamNodes.push(newNode);
-
+      const targetNode = nodes.find((n) => n.id === e.target);
+      if (targetNode) {
         // check if the node already exists in a different graph
         const existingGraphIndex = newGraphs
-          .findIndex(((ng) => ng.nodes.some((n) => n.id === newNode.id)));
+          .findIndex(((ng) => ng.nodes.some((n) => n.id === targetNode.id)));
+        const nodeAlreadyInGraph = i === existingGraphIndex;
 
         // mark if the graph needs to merge with another
-        if (existingGraphIndex > -1) {
-          indicesToRemove.push(existingGraphIndex);
-          graphIndicesToMerge[i] = [...(graphIndicesToMerge[i] || []), existingGraphIndex];
+        if (existingGraphIndex > -1 && !nodeAlreadyInGraph) {
+          if (!indicesToRemove.includes(existingGraphIndex)) {
+            indicesToRemove.push(existingGraphIndex);
+            graphIndicesToMerge[i] = [...(graphIndicesToMerge[i] || []), existingGraphIndex];
+          }
         }
 
         // add node and edge to the graph
-        newGraphs[i] = {
-          nodes: [...newGraphs[i].nodes, newNode],
-          edges: [...newGraphs[i].edges, e],
-        };
+        if (!nodeAlreadyInGraph) {
+          newGraphs[i].nodes = [...newGraphs[i].nodes, targetNode];
+        }
+        newGraphs[i].edges = [...newGraphs[i].edges, e];
 
         // remove edge from edge list
         filteredEdges = filteredEdges
@@ -155,7 +155,6 @@ const findDownstreamGraph = (
 const separateGraphs = ({ edges, nodes }: DatasetDependencies): DatasetDependencies[] => {
   const separatedGraphs: DatasetDependencies[] = [];
   let remainingEdges = [...edges];
-  let remainingNodes = [...nodes];
 
   edges.forEach((edge) => {
     const isDownstream = edges.some((e) => e.target === edge.source);
@@ -177,9 +176,8 @@ const separateGraphs = ({ edges, nodes }: DatasetDependencies): DatasetDependenc
         separatedGraphs.push({ nodes: connectedNodes, edges: [edge] });
       }
 
-      // filter out used nodes and edges
+      // filter out used edges
       remainingEdges = remainingEdges.filter((e) => e.source !== edge.source);
-      remainingNodes = remainingNodes.filter((n) => !connectedNodes.some((nn) => nn.id === n.id));
     }
   });
 
