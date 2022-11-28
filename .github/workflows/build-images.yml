@@ -221,7 +221,7 @@ jobs:
       Build PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{ needs.build-info.outputs.runs-on }}
-    needs: [build-info, build-ci-images]
+    needs: [build-info, build-ci-images, tests-postgres]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
