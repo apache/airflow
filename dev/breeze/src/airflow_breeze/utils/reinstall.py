@@ -37,7 +37,10 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     get_console().print(f"\n[info]Reinstalling Breeze from {breeze_sources}\n")
     subprocess.check_call(["pipx", "install", "-e", str(breeze_sources), "--force"])
     if re_run:
-        os.execl(sys.executable, "breeze", *sys.argv)
+        # Make sure we don't loop forever if the metadata hash hasn't been updated yet (else it is tricky to
+        # run pre-commit checks via breeze!)
+        os.environ["SKIP_UPGRADE_CHECK"] = "1"
+        os.execl(sys.executable, sys.executable, *sys.argv)
     get_console().print(f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n")
     sys.exit(0)
 

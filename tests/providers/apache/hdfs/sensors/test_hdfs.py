@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 import re
-import unittest
 from datetime import timedelta
 
 import pytest
@@ -33,8 +32,8 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
 
 
-class TestHdfsSensor(unittest.TestCase):
-    def setUp(self):
+class TestHdfsSensor:
+    def setup_method(self):
         self.hook = FakeHDFSHook
 
     def test_legacy_file_exist(self):
@@ -97,11 +96,15 @@ class TestHdfsSensor(unittest.TestCase):
             task.execute(None)
 
 
-class TestHdfsSensorFolder(unittest.TestCase):
-    def setUp(self):
+class TestHdfsSensorFolder:
+    def setup_method(self, method):
         self.hook = FakeHDFSHook
-        self.log = logging.getLogger()
-        self.log.setLevel(logging.DEBUG)
+
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        logger.debug("#" * 10)
+        logger.debug("Running test case: %s.%s", self.__class__.__name__, method.__name__)
+        logger.debug("#" * 10)
 
     def test_should_be_empty_directory(self):
         """
@@ -109,9 +112,6 @@ class TestHdfsSensorFolder(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         task = HdfsFolderSensor(
             task_id="Should_be_empty_directory",
             filepath="/datadirectory/empty_directory",
@@ -134,9 +134,6 @@ class TestHdfsSensorFolder(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         task = HdfsFolderSensor(
             task_id="Should_be_empty_directory_fail",
             filepath="/datadirectory/not_empty_directory",
@@ -158,9 +155,6 @@ class TestHdfsSensorFolder(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         task = HdfsFolderSensor(
             task_id="Should_be_non_empty_directory",
             filepath="/datadirectory/not_empty_directory",
@@ -182,9 +176,6 @@ class TestHdfsSensorFolder(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         task = HdfsFolderSensor(
             task_id="Should_be_empty_directory_fail",
             filepath="/datadirectory/empty_directory",
@@ -200,11 +191,15 @@ class TestHdfsSensorFolder(unittest.TestCase):
             task.execute(None)
 
 
-class TestHdfsSensorRegex(unittest.TestCase):
-    def setUp(self):
+class TestHdfsSensorRegex:
+    def setup_method(self, method):
         self.hook = FakeHDFSHook
-        self.log = logging.getLogger()
-        self.log.setLevel(logging.DEBUG)
+
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        logger.debug("#" * 10)
+        logger.debug("Running test case: %s.%s", self.__class__.__name__, method.__name__)
+        logger.debug("#" * 10)
 
     def test_should_match_regex(self):
         """
@@ -212,9 +207,6 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsRegexSensor(
             task_id="Should_match_the_regex",
@@ -238,9 +230,6 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         compiled_regex = re.compile("^IDoNotExist")
         task = HdfsRegexSensor(
             task_id="Should_not_match_the_regex",
@@ -263,9 +252,6 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsRegexSensor(
             task_id="Should_match_the_regex_and_filesize",
@@ -292,9 +278,6 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsRegexSensor(
             task_id="Should_match_the_regex_but_filesize",
@@ -318,9 +301,6 @@ class TestHdfsSensorRegex(unittest.TestCase):
         :return:
         """
         # Given
-        self.log.debug("#" * 10)
-        self.log.debug("Running %s", self._testMethodName)
-        self.log.debug("#" * 10)
         compiled_regex = re.compile(r"copying_file_\d+.txt")
         task = HdfsRegexSensor(
             task_id="Should_match_the_regex_but_filesize",

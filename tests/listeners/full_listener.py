@@ -20,7 +20,21 @@ from __future__ import annotations
 from airflow.listeners import hookimpl
 from airflow.utils.state import State
 
+started_component = None
+stopped_component = None
 state = []
+
+
+@hookimpl
+def on_starting(component):
+    global started_component
+    started_component = component
+
+
+@hookimpl
+def before_stopping(component):
+    global stopped_component
+    stopped_component = component
 
 
 @hookimpl
@@ -36,3 +50,10 @@ def on_task_instance_success(previous_state, task_instance, session):
 @hookimpl
 def on_task_instance_failed(previous_state, task_instance, session):
     state.append(State.FAILED)
+
+
+def clear():
+    global started_component, stopped_component, state
+    started_component = None
+    stopped_component = None
+    state = []

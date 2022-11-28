@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.neo4j.operators.neo4j import Neo4jOperator
@@ -28,7 +27,7 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = "unit_test_dag"
 
 
-class TestNeo4jOperator(unittest.TestCase):
+class TestNeo4jOperator:
     @mock.patch("airflow.providers.neo4j.operators.neo4j.Neo4jHook")
     def test_neo4j_operator_test(self, mock_hook):
 

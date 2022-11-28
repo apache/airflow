@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -268,9 +267,7 @@ class TestPytestSnowflakeHook:
     def test_hook_should_support_prepare_basic_conn_params_and_uri(
         self, connection_kwargs, expected_uri, expected_conn_params
     ):
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             assert SnowflakeHook(snowflake_conn_id="test_conn").get_uri() == expected_uri
             assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params() == expected_conn_params
 
@@ -289,9 +286,7 @@ class TestPytestSnowflakeHook:
                 "private_key_content": str(encrypted_temporary_private_key.read_text()),
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
     @pytest.mark.parametrize("include_params", [True, False])
@@ -308,7 +303,7 @@ class TestPytestSnowflakeHook:
             session_parameters="session_parameters",
         )
         extras = {k: f"{v}_extra" for k, v in hook_params.items()}
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ",
             AIRFLOW_CONN_TEST_CONN=Connection(conn_type="any", extra=json.dumps(extras)).get_uri(),
         ):
@@ -336,7 +331,7 @@ class TestPytestSnowflakeHook:
             role="role",
         )
         extras_prefixed = {f"extra__snowflake__{k}": f"{v}_prefixed" for k, v in extras.items()}
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ",
             AIRFLOW_CONN_TEST_CONN=Connection(
                 conn_type="any",
@@ -369,9 +364,7 @@ class TestPytestSnowflakeHook:
                 "private_key_file": str(encrypted_temporary_private_key),
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
     def test_get_conn_params_should_support_private_auth_with_unencrypted_key(
@@ -389,23 +382,19 @@ class TestPytestSnowflakeHook:
                 "private_key_file": str(non_encrypted_temporary_private_key),
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
         connection_kwargs["password"] = ""
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
         connection_kwargs["password"] = _PASSWORD
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
         ), pytest.raises(TypeError, match="Password was given but private key is not encrypted."):
             SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
     def test_should_add_partner_info(self):
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ",
             AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri(),
             AIRFLOW_SNOWFLAKE_PARTNER="PARTNER_NAME",
@@ -416,20 +405,18 @@ class TestPytestSnowflakeHook:
             )
 
     def test_get_conn_should_call_connect(self):
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
-        ), unittest.mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector:
+        ), mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_conn()
             mock_connector.connect.assert_called_once_with(**hook._get_conn_params())
             assert mock_connector.connect.return_value == conn
 
     def test_get_sqlalchemy_engine_should_support_pass_auth(self):
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
-        ), unittest.mock.patch(
-            "airflow.providers.snowflake.hooks.snowflake.create_engine"
-        ) as mock_create_engine:
+        ), mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_sqlalchemy_engine()
             mock_create_engine.assert_called_once_with(
@@ -442,11 +429,9 @@ class TestPytestSnowflakeHook:
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"]["extra__snowflake__insecure_mode"] = "True"
 
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ), unittest.mock.patch(
-            "airflow.providers.snowflake.hooks.snowflake.create_engine"
-        ) as mock_create_engine:
+        ), mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_sqlalchemy_engine()
             mock_create_engine.assert_called_once_with(
@@ -460,11 +445,9 @@ class TestPytestSnowflakeHook:
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"]["session_parameters"] = {"TEST_PARAM": "AA", "TEST_PARAM_B": 123}
 
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ), unittest.mock.patch(
-            "airflow.providers.snowflake.hooks.snowflake.create_engine"
-        ) as mock_create_engine:
+        ), mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_sqlalchemy_engine()
             mock_create_engine.assert_called_once_with(
@@ -479,18 +462,16 @@ class TestPytestSnowflakeHook:
         connection_kwargs["password"] = ""
         connection_kwargs["extra"]["private_key_file"] = str(non_encrypted_temporary_private_key)
 
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ), unittest.mock.patch(
-            "airflow.providers.snowflake.hooks.snowflake.create_engine"
-        ) as mock_create_engine:
+        ), mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_sqlalchemy_engine()
             assert "private_key" in mock_create_engine.call_args[1]["connect_args"]
             assert mock_create_engine.return_value == conn
 
     def test_hook_parameters_should_take_precedence(self):
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
         ):
             hook = SnowflakeHook(
@@ -555,7 +536,7 @@ class TestPytestSnowflakeHook:
 
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
     def test_connection_success(self, mock_get_first):
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**BASE_CONNECTION_KWARGS).get_uri()
         ):
             hook = SnowflakeHook()
@@ -570,7 +551,7 @@ class TestPytestSnowflakeHook:
         side_effect=Exception("Connection Errors"),
     )
     def test_connection_failure(self, mock_get_first):
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**BASE_CONNECTION_KWARGS).get_uri()
         ):
             hook = SnowflakeHook()

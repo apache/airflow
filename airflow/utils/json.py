@@ -20,6 +20,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -27,6 +28,7 @@ from typing import Any
 import attr
 from flask.json.provider import JSONProvider
 
+from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import convert_to_utc, is_naive
@@ -181,20 +183,36 @@ class XComDecoder(json.JSONDecoder):
     as is.
     """
 
+    _pattern: list[re.Pattern] = []
+
     def __init__(self, *args, **kwargs) -> None:
         if not kwargs.get("object_hook"):
             kwargs["object_hook"] = self.object_hook
 
+        patterns = conf.get("core", "allowed_deserialization_classes").split()
+
+        self._pattern.clear()  # ensure to reinit
+        for p in patterns:
+            self._pattern.append(re.compile(p))
+
         super().__init__(*args, **kwargs)
 
-    @staticmethod
-    def object_hook(dct: dict) -> object:
+    def object_hook(self, dct: dict) -> object:
         dct = XComDecoder._convert(dct)
 
         if CLASSNAME in dct and VERSION in dct:
             from airflow.serialization.serialized_objects import BaseSerialization
 
-            cls = import_string(dct[CLASSNAME])
+            classname = dct[CLASSNAME]
+            cls = None
+
+            for p in self._pattern:
+                if p.match(classname):
+                    cls = import_string(classname)
+                    break
+
+            if not cls:
+                raise ImportError(f"{classname} was not found in allow list for import")
 
             if hasattr(cls, "deserialize"):
                 return getattr(cls, "deserialize")(dct[DATA], dct[VERSION])

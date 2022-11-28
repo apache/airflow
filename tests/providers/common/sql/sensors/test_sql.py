@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 import pytest
@@ -28,15 +27,13 @@ from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.sensors.sql import SqlSensor
 from airflow.utils.timezone import datetime
-from tests.providers.apache.hive import TestHiveEnvironment
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_sql_dag"
 
 
-class TestSqlSensor(TestHiveEnvironment):
-    def setUp(self):
-        super().setUp()
+class TestSqlSensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
@@ -245,8 +242,8 @@ class TestSqlSensor(TestHiveEnvironment):
             op.poke(None)
         assert "self.success is present, but not callable -> [1]" == str(ctx.value)
 
-    @unittest.skipIf(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    @pytest.mark.skipif(
+        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
     )
     def test_sql_sensor_presto(self):
         op = SqlSensor(

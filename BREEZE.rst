@@ -67,18 +67,10 @@ Here is an example configuration with more than 200GB disk space for Docker:
     </div>
 
 
-- **Docker is not running** - even if it is running with Docker Desktop. The version of
-  Docker Desktop released late October 2022 (4.13.0) has ``/var/run/docker.sock`` removed.
-  If you install 4.13.0 for the first time you will miss ``/var/run/docker.sock`` and you will get
-  "docker is not running" error. This was done too hastily and they are likely to
-  `add it back <https://github.com/docker/for-mac/issues/6529#issuecomment-1292135881i>`_ in the
-  next patchlevel, if you happen to see "docker is not running" when it is, you should not have
-  ``/var/run/docker.sock`` created. In order to fix it, check that you have
-  ``${HOME}/.docker/run/docker.sock`` and run the following command to fix it:
-
-.. code-block:: bash
-
-     sudo ln -sf "${HOME}/.docker/run/docker.sock" /var/run/docker.sock
+- **Docker is not running** - even if it is running with Docker Desktop. This is an issue
+  specific to Docker Desktop 4.13.0 (released in late October 2022). Please upgrade Docker
+  Desktop to 4.13.1 or later to resolve the issue. For technical details, see also
+  `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
 
 Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
 /CONTRIBUTORS_QUICK_START.rst>`__

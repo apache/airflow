@@ -52,7 +52,9 @@ MIN_PROVIDER_VERSIONS = {
 
 def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: str):
     """
-    If the given field_behaviors dict contains a placeholders node, and there
+    Verify the correct placeholder prefix.
+
+    If the given field_behaviors dict contains a placeholder's node, and there
     are placeholders for extra fields (i.e. anything other than the built-in conn
     attrs), and if those extra fields are unprefixed, then add the prefix.
 
@@ -83,6 +85,8 @@ if TYPE_CHECKING:
 
 class LazyDictWithCache(MutableMapping):
     """
+    Lazy-loaded cached dictionary.
+
     Dictionary, which in case you set callable, executes the passed callable with `key` attribute
     at first use - and returns and caches the result.
     """
@@ -125,7 +129,7 @@ class LazyDictWithCache(MutableMapping):
 
 
 def _create_provider_info_schema_validator():
-    """Creates JSON schema validator from the provider_info.schema.json"""
+    """Creates JSON schema validator from the provider_info.schema.json."""
     import jsonschema
 
     with resource_files("airflow").joinpath("provider_info.schema.json").open("rb") as f:
@@ -136,7 +140,7 @@ def _create_provider_info_schema_validator():
 
 
 def _create_customized_form_field_behaviours_schema_validator():
-    """Creates JSON schema validator from the customized_form_field_behaviours.schema.json"""
+    """Creates JSON schema validator from the customized_form_field_behaviours.schema.json."""
     import jsonschema
 
     with resource_files("airflow").joinpath("customized_form_field_behaviours.schema.json").open("rb") as f:
@@ -163,7 +167,7 @@ def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bo
 @dataclass
 class ProviderInfo:
     """
-    Provider information
+    Provider information.
 
     :param version: version string
     :param data: dictionary with information about the provider
@@ -185,14 +189,14 @@ class ProviderInfo:
 
 
 class HookClassProvider(NamedTuple):
-    """Hook class and Provider it comes from"""
+    """Hook class and Provider it comes from."""
 
     hook_class_name: str
     package_name: str
 
 
 class HookInfo(NamedTuple):
-    """Hook information"""
+    """Hook information."""
 
     hook_class_name: str
     connection_id_attribute_name: str
@@ -203,7 +207,7 @@ class HookInfo(NamedTuple):
 
 
 class ConnectionFormWidgetInfo(NamedTuple):
-    """Connection Form Widget information"""
+    """Connection Form Widget information."""
 
     hook_class_name: str
     package_name: str
@@ -217,6 +221,7 @@ logger = logging.getLogger(__name__)
 
 
 def log_debug_import_from_sources(class_name, e, provider_package):
+    """Log debug imports from sources."""
     log.debug(
         "Optional feature disabled on exception when importing '%s' from '%s' package",
         class_name,
@@ -226,6 +231,7 @@ def log_debug_import_from_sources(class_name, e, provider_package):
 
 
 def log_optional_feature_disabled(class_name, e, provider_package):
+    """Log optional feature disabled."""
     log.debug(
         "Optional feature disabled on exception when importing '%s' from '%s' package",
         class_name,
@@ -240,6 +246,7 @@ def log_optional_feature_disabled(class_name, e, provider_package):
 
 
 def log_import_warning(class_name, e, provider_package):
+    """Log import warning."""
     log.warning(
         "Exception when importing '%s' from '%s' package",
         class_name,
@@ -312,6 +319,8 @@ def _sanity_check(
 # So we add our own decorator
 def provider_info_cache(cache_name: str) -> Callable[[T], T]:
     """
+    Decorate and cache provider info.
+
     Decorator factory that create decorator that caches initialization of provider's parameters
     :param cache_name: Name of the cache
     """
@@ -339,7 +348,9 @@ def provider_info_cache(cache_name: str) -> Callable[[T], T]:
 
 class ProvidersManager(LoggingMixin):
     """
-    Manages all provider packages. This is a Singleton class. The first time it is
+    Manages all provider packages.
+
+    This is a Singleton class. The first time it is
     instantiated, it discovers all available providers in installed packages and
     local source folders (if airflow is run from sources).
     """
@@ -446,11 +457,13 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_all_providers_from_packages(self) -> None:
         """
-        Discovers all providers by scanning packages installed. The list of providers should be returned
-        via the 'apache_airflow_provider' entrypoint as a dictionary conforming to the
-        'airflow/provider_info.schema.json' schema. Note that the schema is different at runtime
-        than provider.yaml.schema.json. The development version of provider schema is more strict and changes
-        together with the code. The runtime version is more relaxed (allows for additional properties)
+        Discover all providers by scanning packages installed.
+
+        The list of providers should be returned via the 'apache_airflow_provider'
+        entrypoint as a dictionary conforming to the 'airflow/provider_info.schema.json'
+        schema. Note that the schema is different at runtime than provider.yaml.schema.json.
+        The development version of provider schema is more strict and changes together with
+        the code. The runtime version is more relaxed (allows for additional properties)
         and verifies only the subset of fields that are needed at runtime.
         """
         for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
@@ -542,9 +555,11 @@ class ProvidersManager(LoggingMixin):
         provider: ProviderInfo,
     ):
         """
-        Discover  hooks from the "connection-types" property. This is new, better method that replaces
-        discovery from hook-class-names as it allows to lazy import individual Hook classes when they
-        are accessed. The "connection-types" keeps information about both - connection type and class
+        Discover hooks from the "connection-types" property.
+
+        This is new, better method that replaces discovery from hook-class-names as it
+        allows to lazy import individual Hook classes when they are accessed.
+        The "connection-types" keeps information about both - connection type and class
         name so we can discover all connection-types without importing the classes.
         :param hook_class_names_registered: set of registered hook class names for this provider
         :param already_registered_warning_connection_types: set of connections for which warning should be
@@ -595,9 +610,11 @@ class ProvidersManager(LoggingMixin):
         provider_uses_connection_types: bool,
     ):
         """
-        Discovers hooks from "hook-class-names' property. This property is deprecated but we should
-        support it in Airflow 2. The hook-class-names array contained just Hook names without connection
-        type, therefore we need to import all those classes immediately to know which connection types
+        Discover hooks from "hook-class-names' property.
+
+        This property is deprecated but we should support it in Airflow 2.
+        The hook-class-names array contained just Hook names without connection type,
+        therefore we need to import all those classes immediately to know which connection types
         are supported. This makes it impossible to selectively only import those hooks that are used.
         :param already_registered_warning_connection_types: list of connection hooks that we should warn
             about when finished discovery
@@ -661,7 +678,7 @@ class ProvidersManager(LoggingMixin):
             )
 
     def _discover_hooks(self) -> None:
-        """Retrieves all connections defined in the providers via Hooks"""
+        """Retrieve all connections defined in the providers via Hooks."""
         for package_name, provider in self._provider_dict.items():
             duplicated_connection_types: set[str] = set()
             hook_class_names_registered: set[str] = set()
@@ -679,7 +696,7 @@ class ProvidersManager(LoggingMixin):
 
     @provider_info_cache("import_all_hooks")
     def _import_info_from_all_hooks(self):
-        """Force-import all hooks and initialize the connections/fields"""
+        """Force-import all hooks and initialize the connections/fields."""
         # Retrieve all hooks to make sure that all of them are imported
         _ = list(self._hooks_lazy_dict.values())
         self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
@@ -721,7 +738,7 @@ class ProvidersManager(LoggingMixin):
 
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
-        """Retrieves attributes of an object, or warns if not found"""
+        """Retrieve attributes of an object, or warn if not found."""
         if not hasattr(obj, attr_name):
             log.warning("The object '%s' is missing %s attribute and cannot be registered", obj, attr_name)
             return None
@@ -735,10 +752,11 @@ class ProvidersManager(LoggingMixin):
         package_name: str | None = None,
     ) -> HookInfo | None:
         """
-        Imports hook and retrieves hook information. Either connection_type (for lazy loading)
-        or hook_class_name must be set - but not both). Only needs package_name if hook_class_name is
-        passed (for lazy loading, package_name is retrieved from _connection_type_class_provider_dict
-        together with hook_class_name).
+        Import hook and retrieve hook information.
+
+        Either connection_type (for lazy loading) or hook_class_name must be set - but not both).
+        Only needs package_name if hook_class_name is passed (for lazy loading, package_name
+        is retrieved from _connection_type_class_provider_dict together with hook_class_name).
 
         :param connection_type: type of the connection
         :param hook_class_name: name of the hook class
@@ -883,7 +901,7 @@ class ProvidersManager(LoggingMixin):
             )
 
     def _discover_extra_links(self) -> None:
-        """Retrieves all extra links defined in the providers"""
+        """Retrieves all extra links defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("extra-links"):
                 for extra_link_class_name in provider.data["extra-links"]:
@@ -891,7 +909,7 @@ class ProvidersManager(LoggingMixin):
                         self._extra_link_class_name_set.add(extra_link_class_name)
 
     def _discover_logging(self) -> None:
-        """Retrieves all logging defined in the providers"""
+        """Retrieve all logging defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("logging"):
                 for logging_class_name in provider.data["logging"]:
@@ -899,7 +917,7 @@ class ProvidersManager(LoggingMixin):
                         self._logging_class_name_set.add(logging_class_name)
 
     def _discover_secrets_backends(self) -> None:
-        """Retrieves all secrets backends defined in the providers"""
+        """Retrieve all secrets backends defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("secrets-backends"):
                 for secrets_backends_class_name in provider.data["secrets-backends"]:
@@ -907,7 +925,7 @@ class ProvidersManager(LoggingMixin):
                         self._secrets_backend_class_name_set.add(secrets_backends_class_name)
 
     def _discover_auth_backends(self) -> None:
-        """Retrieves all API auth backends defined in the providers"""
+        """Retrieve all API auth backends defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("auth-backends"):
                 for auth_backend_module_name in provider.data["auth-backends"]:
@@ -923,8 +941,9 @@ class ProvidersManager(LoggingMixin):
     @property
     def hooks(self) -> MutableMapping[str, HookInfo | None]:
         """
-        Returns dictionary of connection_type-to-hook mapping. Note that the dict can contain
-        None values if a hook discovered cannot be imported!
+        Return dictionary of connection_type-to-hook mapping.
+
+        Note that the dict can contain None values if a hook discovered cannot be imported!
         """
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information

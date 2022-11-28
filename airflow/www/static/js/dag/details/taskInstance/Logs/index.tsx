@@ -110,8 +110,6 @@ const Logs = ({
   const { timezone } = useTimezone();
   const logBoxRef = useRef<HTMLPreElement>(null);
 
-  const offsetHeight = useOffsetHeight(logBoxRef);
-
   const taskTryNumber = selectedTryNumber || tryNumber || 1;
   const { data, isSuccess } = useTaskLog({
     dagId,
@@ -122,6 +120,8 @@ const Logs = ({
     fullContent: shouldRequestFullContent,
     state,
   });
+
+  const offsetHeight = useOffsetHeight(logBoxRef, data);
 
   const params = new URLSearchParamsWrapper({
     task_id: taskId,
