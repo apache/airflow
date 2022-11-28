@@ -116,7 +116,7 @@ def _get_rich_console(file):
 
 
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
-    """Custom function to print rich and visible warnings"""
+    """Custom function to print rich and visible warnings."""
     # Delay imports until we need it
     from rich.markup import escape
 
@@ -144,8 +144,9 @@ atexit.register(functools.partial(replace_showwarning, original_show_warning))
 
 def task_policy(task) -> None:
     """
-    This policy setting allows altering tasks after they are loaded in
-    the DagBag. It allows administrator to rewire some task's parameters.
+    This policy setting allows altering tasks after they are loaded in the DagBag.
+
+    It allows administrator to rewire some task's parameters.
     Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
     to stop DAG from being executed.
 
@@ -166,8 +167,9 @@ def task_policy(task) -> None:
 
 def dag_policy(dag) -> None:
     """
-    This policy setting allows altering DAGs after they are loaded in
-    the DagBag. It allows administrator to rewire some DAG's parameters.
+    This policy setting allows altering DAGs after they are loaded in the DagBag.
+
+    It allows administrator to rewire some DAG's parameters.
     Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
     to stop DAG from being executed.
 
@@ -185,8 +187,7 @@ def dag_policy(dag) -> None:
 
 def task_instance_mutation_hook(task_instance):
     """
-    This setting allows altering task instances before they are queued by
-    the Airflow scheduler.
+    This setting allows altering task instances before being queued by the Airflow scheduler.
 
     To define task_instance_mutation_hook, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``task_instance_mutation_hook`` function.
@@ -202,6 +203,8 @@ task_instance_mutation_hook.is_noop = True  # type: ignore
 
 def pod_mutation_hook(pod):
     """
+    Mutate pod before scheduling.
+
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
     before they are passed to the Kubernetes client for scheduling.
 
@@ -241,7 +244,7 @@ def get_dagbag_import_timeout(dag_file_path: str) -> int | float:
 
 
 def configure_vars():
-    """Configure Global Variables from airflow.cfg"""
+    """Configure Global Variables from airflow.cfg."""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
@@ -260,7 +263,7 @@ def configure_vars():
 
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
-    """Configure ORM using SQLAlchemy"""
+    """Configure ORM using SQLAlchemy."""
     from airflow.utils.log.secrets_masker import mask_secret
 
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
@@ -320,7 +323,7 @@ DEFAULT_ENGINE_ARGS = {
 
 
 def prepare_engine_args(disable_connection_pool=False, pool_class=None):
-    """Prepare SQLAlchemy engine args"""
+    """Prepare SQLAlchemy engine args."""
     default_args = {}
     for dialect, default in DEFAULT_ENGINE_ARGS.items():
         if SQL_ALCHEMY_CONN.startswith(dialect):
@@ -403,7 +406,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
 
 
 def dispose_orm():
-    """Properly close pooled database connections"""
+    """Properly close pooled database connections."""
     log.debug("Disposing DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
@@ -417,13 +420,13 @@ def dispose_orm():
 
 
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):
-    """Properly close database connections and re-configure ORM"""
+    """Properly close database connections and re-configure ORM."""
     dispose_orm()
     configure_orm(disable_connection_pool=disable_connection_pool, pool_class=pool_class)
 
 
 def configure_adapters():
-    """Register Adapters and DB Converters"""
+    """Register Adapters and DB Converters."""
     from pendulum import DateTime as Pendulum
 
     if SQL_ALCHEMY_CONN.startswith("sqlite"):
@@ -447,7 +450,7 @@ def configure_adapters():
 
 
 def validate_session():
-    """Validate ORM Session"""
+    """Validate ORM Session."""
     global engine
 
     worker_precheck = conf.getboolean("celery", "worker_precheck", fallback=False)
@@ -467,14 +470,11 @@ def validate_session():
 
 
 def configure_action_logging() -> None:
-    """
-    Any additional configuration (register callback) for airflow.utils.action_loggers
-    module
-    """
+    """Any additional configuration (register callback) for airflow.utils.action_loggers module."""
 
 
 def prepare_syspath():
-    """Ensures that certain subfolders of AIRFLOW_HOME are on the classpath"""
+    """Ensure certain subfolders of AIRFLOW_HOME are on the classpath."""
     if DAGS_FOLDER not in sys.path:
         sys.path.append(DAGS_FOLDER)
 
@@ -519,7 +519,7 @@ def get_session_lifetime_config():
 
 
 def import_local_settings():
-    """Import airflow_local_settings.py files to allow overriding any configs in settings.py file"""
+    """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
         import airflow_local_settings
 
@@ -561,7 +561,7 @@ def import_local_settings():
 
 
 def initialize():
-    """Initialize Airflow with all the settings from this file"""
+    """Initialize Airflow with all the settings from this file."""
     configure_vars()
     prepare_syspath()
     import_local_settings()
