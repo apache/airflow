@@ -17,19 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
 from docker import APIClient, types
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 
-class TestDockerSwarmOperator(unittest.TestCase):
+class TestDockerSwarmOperator:
     @mock.patch("airflow.providers.docker.operators.docker.APIClient")
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     def test_execute(self, types_mock, client_class_mock):
@@ -162,10 +160,10 @@ class TestDockerSwarmOperator(unittest.TestCase):
             client_mock.remove_service.call_count == 0
         ), "Docker service being removed even when `auto_remove` set to `False`"
 
-    @parameterized.expand([("failed",), ("shutdown",), ("rejected",), ("orphaned",), ("remove",)])
+    @pytest.mark.parametrize("status", ["failed", "shutdown", "rejected", "orphaned", "remove"])
     @mock.patch("airflow.providers.docker.operators.docker.APIClient")
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
-    def test_non_complete_service_raises_error(self, status, types_mock, client_class_mock):
+    def test_non_complete_service_raises_error(self, types_mock, client_class_mock, status):
 
         mock_obj = mock.Mock()
 

@@ -30,9 +30,11 @@ if TYPE_CHECKING:
 
 class BaseTIDep:
     """
-    Abstract base class for dependencies that must be satisfied in order for task
-    instances to run. For example, a task that can only run if a certain number of its
-    upstream tasks succeed. This is an abstract class and must be subclassed to be used.
+    Abstract base class for task instances dependencies.
+
+    All dependencies must be satisfied in order for task instances to run.
+    For example, a task that can only run if a certain number of its upstream tasks succeed.
+    This is an abstract class and must be subclassed to be used.
     """
 
     # If this dependency can be ignored by a context in which it is added to. Needed
@@ -67,8 +69,9 @@ class BaseTIDep:
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
         """
-        Abstract method that returns an iterable of TIDepStatus objects that describe
-        whether the given task instance has this dependency met.
+        Abstract method that returns an iterable of TIDepStatus objects.
+
+        Each object describes whether the given task instance has this dependency met.
 
         For example a subclass could return an iterable of TIDepStatus objects, each one
         representing if each of the passed in task's upstream tasks succeeded or not.
@@ -87,8 +90,9 @@ class BaseTIDep:
         dep_context: DepContext | None = None,
     ) -> Iterator[TIDepStatus]:
         """
-        Wrapper around the private _get_dep_statuses method that contains some global
-        checks for all dependencies.
+        Wrapper around the private _get_dep_statuses method.
+
+        Contains some global checks for all dependencies.
 
         :param ti: the task instance to get the dependency status for
         :param session: database session
@@ -109,9 +113,9 @@ class BaseTIDep:
     @provide_session
     def is_met(self, ti: TaskInstance, session: Session, dep_context: DepContext | None = None) -> bool:
         """
-        Returns whether or not this dependency is met for a given task instance. A
-        dependency is considered met if all of the dependency statuses it reports are
-        passing.
+        Returns whether a dependency is met for a given task instance.
+
+        A dependency is considered met if all the dependency statuses it reports are passing.
 
         :param ti: the task instance to see if this dependency is met for
         :param session: database session
@@ -147,10 +151,7 @@ class BaseTIDep:
 
 
 class TIDepStatus(NamedTuple):
-    """
-    Dependency status for a specific task instance indicating whether or not the task
-    instance passed the dependency.
-    """
+    """Dependency status for a task instance indicating whether the task instance passed the dependency."""
 
     dep_name: str
     passed: bool

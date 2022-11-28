@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -29,7 +27,7 @@ RUN_ID = 1
 RUN_PAGE_URL = "run-page-url"
 
 
-class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
+class TestDatabricksOperatorSharedFunctions:
     def test_normalise_json_content(self):
         test_json = {
             "test_bool": True,
@@ -56,7 +54,7 @@ class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
             "run_page_url": RUN_PAGE_URL,
             "run_state": RunState("TERMINATED", "SUCCESS", "").to_json(),
         }
-        self.assertIsNone(validate_trigger_event(event))
+        assert validate_trigger_event(event) is None
 
     def test_validate_trigger_event_failure(self):
         event = {}

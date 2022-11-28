@@ -17,24 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.docker.hooks.docker import DockerHook
 from airflow.utils import db
-
-try:
-    from airflow.providers.docker.hooks.docker import DockerHook
-except ImportError:
-    pass
 
 
 @mock.patch("airflow.providers.docker.hooks.docker.APIClient", autospec=True)
-class TestDockerHook(unittest.TestCase):
-    def setUp(self):
+class TestDockerHook:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="docker_default",

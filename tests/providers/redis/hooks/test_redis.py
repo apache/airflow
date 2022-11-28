@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -26,7 +25,7 @@ from airflow.models import Connection
 from airflow.providers.redis.hooks.redis import RedisHook
 
 
-class TestRedisHook(unittest.TestCase):
+class TestRedisHook:
     def test_get_conn(self):
         hook = RedisHook(redis_conn_id="redis_default")
         assert hook.redis is None

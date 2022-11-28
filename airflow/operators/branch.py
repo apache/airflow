@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Branching operators"""
+"""Branching operators."""
 from __future__ import annotations
 
 from typing import Iterable
@@ -27,10 +27,9 @@ from airflow.utils.context import Context
 
 class BaseBranchOperator(BaseOperator, SkipMixin):
     """
-    This is a base class for creating operators with branching functionality,
-    similarly to BranchPythonOperator.
+    A base class for creating operators with branching functionality, like to BranchPythonOperator.
 
-    Users should subclass this operator and implement the function
+    Users should create a subclass from this operator and implement the function
     `choose_branch(self, context)`. This should run whatever business logic
     is needed to determine the branch, and return either the task_id for
     a single task (as a str) or a list of task_ids.
@@ -41,6 +40,8 @@ class BaseBranchOperator(BaseOperator, SkipMixin):
 
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         """
+        Abstract method to choose which branch to run.
+
         Subclasses should implement this, running whatever logic is
         necessary to choose a branch and returning a task_id or list of
         task_ids.

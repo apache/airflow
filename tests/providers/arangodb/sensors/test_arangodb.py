@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
@@ -29,8 +28,8 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 arangodb_hook_mock = Mock(name="arangodb_hook_for_test", **{"query.return_value.count.return_value": 1})
 
 
-class TestAQLSensor(unittest.TestCase):
-    def setUp(self):
+class TestAQLSensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG("test_dag_id", default_args=args)
         self.dag = dag
