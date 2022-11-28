@@ -21,8 +21,6 @@ import datetime
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from sqlalchemy.sql import exists
-
 from airflow.compat.functools import cache, cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -496,14 +494,17 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
-                zero_index_ti_exists = session.query(
-                    exists().where(
+                zero_index_ti_exists = (
+                    session.query(TaskInstance)
+                    .filter(
                         TaskInstance.dag_id == self.dag_id,
                         TaskInstance.task_id == self.task_id,
                         TaskInstance.run_id == run_id,
                         TaskInstance.map_index == 0,
                     )
-                ).scalar()
+                    .count()
+                    > 0
+                )
                 if not zero_index_ti_exists:
                     # Otherwise convert this into the first mapped index, and create
                     # TaskInstance for other indexes.
