@@ -649,7 +649,7 @@ class SageMakerHook(AwsBaseHook):
 
     def check_status(
         self,
-        resource_name: str,
+        job_name: str,
         key: str,
         describe_function: Callable,
         check_interval: int,
@@ -659,9 +659,8 @@ class SageMakerHook(AwsBaseHook):
         """
         Check status of a SageMaker resource
 
-        :param resource_name: name of the resource to check status
-        :param key: the key of the response dict
-            that points to the state
+        :param job_name: name of the resource to check status, can be a job but also pipeline for instance.
+        :param key: the key of the response dict that points to the state
         :param describe_function: the function used to retrieve the status
         :param args: the arguments for the function
         :param check_interval: the time interval in seconds which the operator
@@ -682,7 +681,7 @@ class SageMakerHook(AwsBaseHook):
             sec += check_interval
 
             try:
-                response = describe_function(resource_name)
+                response = describe_function(job_name)
                 status = response[key]
                 self.log.info("Resource still running for %s seconds... current status is %s", sec, status)
             except KeyError:
