@@ -37,10 +37,12 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.operator import needs_expansion
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
@@ -149,7 +151,7 @@ def _get_ti(
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    if task.is_mapped:
+    if needs_expansion(task):
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
     elif map_index >= 0:
@@ -313,6 +315,10 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
             root_logger.handlers[:] = orig_handlers
 
 
+class TaskCommandMarker:
+    """Marker for listener hooks, to properly detect from which component they are called."""
+
+
 @cli_utils.action_cli(check_db=False)
 def task_run(args, dag=None):
     """
@@ -364,6 +370,8 @@ def task_run(args, dag=None):
     # processing hundreds of simultaneous tasks.
     settings.reconfigure_orm(disable_connection_pool=True)
 
+    get_listener_manager().hook.on_starting(component=TaskCommandMarker())
+
     if args.pickle:
         print(f"Loading pickle id: {args.pickle}")
         dag = get_dag_by_pickle(args.pickle)
@@ -380,11 +388,17 @@ def task_run(args, dag=None):
 
     log.info("Running %s on host %s", ti, hostname)
 
-    if args.interactive:
-        _run_task_by_selected_method(args, dag, ti)
-    else:
-        with _capture_task_logs(ti):
+    try:
+        if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
+        else:
+            with _capture_task_logs(ti):
+                _run_task_by_selected_method(args, dag, ti)
+    finally:
+        try:
+            get_listener_manager().hook.before_stopping(component=TaskCommandMarker())
+        except Exception:
+            pass
 
 
 @cli_utils.action_cli(check_db=False)

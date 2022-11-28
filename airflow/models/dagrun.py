@@ -28,9 +28,11 @@ from sqlalchemy import (
     Boolean,
     Column,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     PickleType,
+    PrimaryKeyConstraint,
     String,
     Text,
     UniqueConstraint,
@@ -40,6 +42,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
@@ -49,6 +52,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
@@ -84,6 +88,16 @@ class TISchedulingDecision(NamedTuple):
     finished_tis: list[TI]
 
 
+def _creator_note(val):
+    """Custom creator for the ``note`` association proxy."""
+    if isinstance(val, str):
+        return DagRunNote(content=val)
+    elif isinstance(val, dict):
+        return DagRunNote(**val)
+    else:
+        return DagRunNote(*val)
+
+
 class DagRun(Base, LoggingMixin):
     """
     DagRun describes an instance of a Dag. It can be created
@@ -110,7 +124,6 @@ class DagRun(Base, LoggingMixin):
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
-    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -162,6 +175,8 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         viewonly=True,
     )
+    dag_run_note = relationship("DagRunNote", back_populates="dag_run", uselist=False)
+    note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",
@@ -183,7 +198,6 @@ class DagRun(Base, LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
-        notes: str | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -206,7 +220,6 @@ class DagRun(Base, LoggingMixin):
         self.run_type = run_type
         self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
-        self.notes = notes
         super().__init__()
 
     def __repr__(self):
@@ -292,6 +305,7 @@ class DagRun(Base, LoggingMixin):
         # TODO: Bake this query, it is run _A lot_
         query = (
             session.query(cls)
+            .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
             .filter(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .filter(DagModel.is_paused == false(), DagModel.is_active == true())
@@ -516,8 +530,8 @@ class DagRun(Base, LoggingMixin):
 
         :param session: Sqlalchemy ORM Session
         :param execute_callbacks: Should dag callbacks (success/failure, SLA etc) be invoked
-            directly (default: true) or recorded as a pending request in the ``callback`` property
-        :return: Tuple containing tis that can be scheduled in the current loop & `callback` that
+            directly (default: true) or recorded as a pending request in the ``returned_callback`` property
+        :return: Tuple containing tis that can be scheduled in the current loop & `returned_callback` that
             needs to be executed
         """
         # Callback to execute in case of Task Failures
@@ -571,6 +585,8 @@ class DagRun(Base, LoggingMixin):
         if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
             self.log.error("Marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
+            self.notify_dagrun_state_changed(msg="task_failure")
+
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="task_failure", session=session)
             elif dag.has_on_failure_callback:
@@ -590,6 +606,8 @@ class DagRun(Base, LoggingMixin):
         elif not unfinished.tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info("Marking run %s successful", self)
             self.set_state(DagRunState.SUCCESS)
+            self.notify_dagrun_state_changed(msg="success")
+
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason="success", session=session)
             elif dag.has_on_success_callback:
@@ -609,6 +627,8 @@ class DagRun(Base, LoggingMixin):
         elif unfinished.should_schedule and not are_runnable_tasks:
             self.log.error("Task deadlock (no runnable tasks); marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
+            self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
+
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
             elif dag.has_on_failure_callback:
@@ -710,6 +730,17 @@ class DagRun(Base, LoggingMixin):
             unfinished_tis=unfinished_tis,
             finished_tis=finished_tis,
         )
+
+    def notify_dagrun_state_changed(self, msg: str = ""):
+        if self.state == DagRunState.RUNNING:
+            get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
+        elif self.state == DagRunState.SUCCESS:
+            get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg)
+        elif self.state == DagRunState.FAILED:
+            get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
+        # deliberately not notifying on QUEUED
+        # we can't get all the state changes on SchedulerJob, BackfillJob
+        # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     def _get_ready_tis(
         self,
@@ -1277,3 +1308,42 @@ class DagRun(Base, LoggingMixin):
             stacklevel=2,
         )
         return self.get_log_template(session=session).filename
+
+
+class DagRunNote(Base):
+    """For storage of arbitrary notes concerning the dagrun instance."""
+
+    __tablename__ = "dag_run_note"
+
+    user_id = Column(Integer, nullable=True)
+    dag_run_id = Column(Integer, primary_key=True, nullable=False)
+    content = Column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dag_run = relationship("DagRun", back_populates="dag_run_note")
+
+    __table_args__ = (
+        PrimaryKeyConstraint("dag_run_id", name="dag_run_note_pkey"),
+        ForeignKeyConstraint(
+            (dag_run_id,),
+            ["dag_run.id"],
+            name="dag_run_note_dr_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            (user_id,),
+            ["ab_user.id"],
+            name="dag_run_note_user_fkey",
+        ),
+    )
+
+    def __init__(self, content, user_id=None):
+        self.content = content
+        self.user_id = user_id
+
+    def __repr__(self):
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.dagrun_id} {self.run_id}"
+        if self.map_index != -1:
+            prefix += f" map_index={self.map_index}"
+        return prefix + ">"

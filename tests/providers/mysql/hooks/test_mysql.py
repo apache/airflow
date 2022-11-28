@@ -19,27 +19,24 @@ from __future__ import annotations
 
 import json
 import os
-import unittest
 import uuid
 from contextlib import closing
 from unittest import mock
 
 import MySQLdb.cursors
 import pytest
-from parameterized import parameterized
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
+from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
 
 
-class TestMySqlHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestMySqlHookConn:
+    def setup_method(self):
         self.connection = Connection(
             conn_type="mysql",
             login="login",
@@ -178,10 +175,8 @@ class TestMySqlHookConn(unittest.TestCase):
         )
 
 
-class TestMySqlHookConnMySqlConnectorPython(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestMySqlHookConnMySqlConnectorPython:
+    def setup_method(self):
         self.connection = Connection(
             login="login",
             password="password",
@@ -252,10 +247,8 @@ class MockMySQLConnectorConnection:
         self._autocommit = autocommit
 
 
-class TestMySqlHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestMySqlHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
@@ -269,7 +262,7 @@ class TestMySqlHook(unittest.TestCase):
 
         self.db_hook = SubMySqlHook()
 
-    @parameterized.expand([(True,), (False,)])
+    @pytest.mark.parametrize("autocommit", [True, False])
     def test_set_autocommit_mysql_connector(self, autocommit):
         conn = MockMySQLConnectorConnection()
         self.db_hook.set_autocommit(conn, autocommit)
@@ -389,25 +382,20 @@ class MySqlContext:
 
 
 @pytest.mark.backend("mysql")
-class TestMySql(unittest.TestCase):
-    def setUp(self):
+class TestMySql:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    def tearDown(self):
+    def teardown_method(self):
         drop_tables = {"test_mysql_to_mysql", "test_airflow"}
         with closing(MySqlHook().get_conn()) as conn:
             with closing(conn.cursor()) as cursor:
                 for table in drop_tables:
                     cursor.execute(f"DROP TABLE IF EXISTS {table}")
 
-    @parameterized.expand(
-        [
-            ("mysqlclient",),
-            ("mysql-connector-python",),
-        ]
-    )
+    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     @mock.patch.dict(
         "os.environ",
         {
@@ -440,12 +428,7 @@ class TestMySql(unittest.TestCase):
                         results = tuple(result[0] for result in cursor.fetchall())
                         assert sorted(results) == sorted(records)
 
-    @parameterized.expand(
-        [
-            ("mysqlclient",),
-            ("mysql-connector-python",),
-        ]
-    )
+    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     def test_mysql_hook_test_bulk_dump(self, client):
         with MySqlContext(client):
             hook = MySqlHook("airflow_db")
@@ -462,14 +445,9 @@ class TestMySql(unittest.TestCase):
             else:
                 raise pytest.skip("Skip test_mysql_hook_test_bulk_load since file output is not permitted")
 
-    @parameterized.expand(
-        [
-            ("mysqlclient",),
-            ("mysql-connector-python",),
-        ]
-    )
+    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     @mock.patch("airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn")
-    def test_mysql_hook_test_bulk_dump_mock(self, client, mock_get_conn):
+    def test_mysql_hook_test_bulk_dump_mock(self, mock_get_conn, client):
         with MySqlContext(client):
             mock_execute = mock.MagicMock()
             mock_get_conn.return_value.cursor.return_value.execute = mock_execute
@@ -479,11 +457,9 @@ class TestMySql(unittest.TestCase):
             tmp_file = "/path/to/output/file"
             hook.bulk_dump(table, tmp_file)
 
-            from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
-
             assert mock_execute.call_count == 1
             query = f"""
                 SELECT * INTO OUTFILE '{tmp_file}'
                 FROM {table}
             """
-            assert_equal_ignore_multiple_spaces(self, mock_execute.call_args[0][0], query)
+            assert_equal_ignore_multiple_spaces(None, mock_execute.call_args[0][0], query)

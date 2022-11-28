@@ -19,117 +19,117 @@
         font-weight: 700;
     }
 
-    .terminal-3305639447-matrix {
+    .breeze-k8s-status-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-3305639447-title {
+    .breeze-k8s-status-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-3305639447-r1 { fill: #c5c8c6;font-weight: bold }
-.terminal-3305639447-r2 { fill: #c5c8c6 }
-.terminal-3305639447-r3 { fill: #d0b344;font-weight: bold }
-.terminal-3305639447-r4 { fill: #68a0b3;font-weight: bold }
-.terminal-3305639447-r5 { fill: #868887 }
-.terminal-3305639447-r6 { fill: #98a84b;font-weight: bold }
-.terminal-3305639447-r7 { fill: #8d7b39 }
+    .breeze-k8s-status-r1 { fill: #c5c8c6;font-weight: bold }
+.breeze-k8s-status-r2 { fill: #c5c8c6 }
+.breeze-k8s-status-r3 { fill: #d0b344;font-weight: bold }
+.breeze-k8s-status-r4 { fill: #68a0b3;font-weight: bold }
+.breeze-k8s-status-r5 { fill: #868887 }
+.breeze-k8s-status-r6 { fill: #98a84b;font-weight: bold }
+.breeze-k8s-status-r7 { fill: #8d7b39 }
     </style>
 
     <defs>
-    <clipPath id="terminal-3305639447-clip-terminal">
+    <clipPath id="breeze-k8s-status-clip-terminal">
       <rect x="0" y="0" width="1463.0" height="462.59999999999997" />
     </clipPath>
-    <clipPath id="terminal-3305639447-line-0">
+    <clipPath id="breeze-k8s-status-line-0">
     <rect x="0" y="1.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-1">
+<clipPath id="breeze-k8s-status-line-1">
     <rect x="0" y="25.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-2">
+<clipPath id="breeze-k8s-status-line-2">
     <rect x="0" y="50.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-3">
+<clipPath id="breeze-k8s-status-line-3">
     <rect x="0" y="74.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-4">
+<clipPath id="breeze-k8s-status-line-4">
     <rect x="0" y="99.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-5">
+<clipPath id="breeze-k8s-status-line-5">
     <rect x="0" y="123.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-6">
+<clipPath id="breeze-k8s-status-line-6">
     <rect x="0" y="147.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-7">
+<clipPath id="breeze-k8s-status-line-7">
     <rect x="0" y="172.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-8">
+<clipPath id="breeze-k8s-status-line-8">
     <rect x="0" y="196.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-9">
+<clipPath id="breeze-k8s-status-line-9">
     <rect x="0" y="221.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-10">
+<clipPath id="breeze-k8s-status-line-10">
     <rect x="0" y="245.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-11">
+<clipPath id="breeze-k8s-status-line-11">
     <rect x="0" y="269.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-12">
+<clipPath id="breeze-k8s-status-line-12">
     <rect x="0" y="294.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-13">
+<clipPath id="breeze-k8s-status-line-13">
     <rect x="0" y="318.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-14">
+<clipPath id="breeze-k8s-status-line-14">
     <rect x="0" y="343.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-15">
+<clipPath id="breeze-k8s-status-line-15">
     <rect x="0" y="367.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-16">
+<clipPath id="breeze-k8s-status-line-16">
     <rect x="0" y="391.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3305639447-line-17">
+<clipPath id="breeze-k8s-status-line-17">
     <rect x="0" y="416.3" width="1464" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="511.6" rx="8"/><text class="terminal-3305639447-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;k8s&#160;status</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="511.6" rx="8"/><text class="breeze-k8s-status-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;k8s&#160;status</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-3305639447-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#breeze-k8s-status-clip-terminal)">
     
-    <g class="terminal-3305639447-matrix">
-    <text class="terminal-3305639447-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-3305639447-line-0)">
-</text><text class="terminal-3305639447-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#terminal-3305639447-line-1)">Usage:&#160;</text><text class="terminal-3305639447-r1" x="97.6" y="44.4" textLength="231.8" clip-path="url(#terminal-3305639447-line-1)">breeze&#160;k8s&#160;status&#160;[</text><text class="terminal-3305639447-r4" x="329.4" y="44.4" textLength="85.4" clip-path="url(#terminal-3305639447-line-1)">OPTIONS</text><text class="terminal-3305639447-r1" x="414.8" y="44.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-1)">]</text><text class="terminal-3305639447-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-1)">
-</text><text class="terminal-3305639447-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-2)">
-</text><text class="terminal-3305639447-r2" x="12.2" y="93.2" textLength="1085.8" clip-path="url(#terminal-3305639447-line-3)">Check&#160;status&#160;of&#160;the&#160;current&#160;cluster&#160;and&#160;airflow&#160;deployed&#160;to&#160;it&#160;(optionally&#160;all&#160;clusters).</text><text class="terminal-3305639447-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-3305639447-line-3)">
-</text><text class="terminal-3305639447-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-3305639447-line-4)">
-</text><text class="terminal-3305639447-r5" x="0" y="142" textLength="24.4" clip-path="url(#terminal-3305639447-line-5)">╭─</text><text class="terminal-3305639447-r5" x="24.4" y="142" textLength="1415.2" clip-path="url(#terminal-3305639447-line-5)">&#160;K8S&#160;cluster&#160;status&#160;flags&#160;──────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-3305639447-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#terminal-3305639447-line-5)">─╮</text><text class="terminal-3305639447-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-3305639447-line-5)">
-</text><text class="terminal-3305639447-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-6)">│</text><text class="terminal-3305639447-r4" x="24.4" y="166.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-6)">-</text><text class="terminal-3305639447-r4" x="36.6" y="166.4" textLength="85.4" clip-path="url(#terminal-3305639447-line-6)">-python</text><text class="terminal-3305639447-r6" x="317.2" y="166.4" textLength="24.4" clip-path="url(#terminal-3305639447-line-6)">-p</text><text class="terminal-3305639447-r2" x="366" y="166.4" textLength="732" clip-path="url(#terminal-3305639447-line-6)">Python&#160;major/minor&#160;version&#160;used&#160;in&#160;Airflow&#160;image&#160;for&#160;images.</text><text class="terminal-3305639447-r7" x="1110.2" y="166.4" textLength="317.2" clip-path="url(#terminal-3305639447-line-6)">(&gt;3.7&lt;&#160;|&#160;3.8&#160;|&#160;3.9&#160;|&#160;3.10)</text><text class="terminal-3305639447-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-6)">│</text><text class="terminal-3305639447-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-6)">
-</text><text class="terminal-3305639447-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-7)">│</text><text class="terminal-3305639447-r5" x="366" y="190.8" textLength="732" clip-path="url(#terminal-3305639447-line-7)">[default:&#160;3.7]&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3305639447-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-7)">│</text><text class="terminal-3305639447-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-7)">
-</text><text class="terminal-3305639447-r5" x="0" y="215.2" textLength="12.2" clip-path="url(#terminal-3305639447-line-8)">│</text><text class="terminal-3305639447-r4" x="24.4" y="215.2" textLength="12.2" clip-path="url(#terminal-3305639447-line-8)">-</text><text class="terminal-3305639447-r4" x="36.6" y="215.2" textLength="134.2" clip-path="url(#terminal-3305639447-line-8)">-kubernetes</text><text class="terminal-3305639447-r4" x="170.8" y="215.2" textLength="97.6" clip-path="url(#terminal-3305639447-line-8)">-version</text><text class="terminal-3305639447-r2" x="366" y="215.2" textLength="658.8" clip-path="url(#terminal-3305639447-line-8)">Kubernetes&#160;version&#160;used&#160;to&#160;create&#160;the&#160;KinD&#160;cluster&#160;of.</text><text class="terminal-3305639447-r5" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#terminal-3305639447-line-8)">│</text><text class="terminal-3305639447-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-3305639447-line-8)">
-</text><text class="terminal-3305639447-r5" x="0" y="239.6" textLength="12.2" clip-path="url(#terminal-3305639447-line-9)">│</text><text class="terminal-3305639447-r7" x="366" y="239.6" textLength="658.8" clip-path="url(#terminal-3305639447-line-9)">(&gt;v1.25.3&lt;&#160;|&#160;v1.24.7&#160;|&#160;v1.23.13&#160;|&#160;v1.22.15&#160;|&#160;v1.21.14)</text><text class="terminal-3305639447-r5" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#terminal-3305639447-line-9)">│</text><text class="terminal-3305639447-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#terminal-3305639447-line-9)">
-</text><text class="terminal-3305639447-r5" x="0" y="264" textLength="12.2" clip-path="url(#terminal-3305639447-line-10)">│</text><text class="terminal-3305639447-r5" x="366" y="264" textLength="658.8" clip-path="url(#terminal-3305639447-line-10)">[default:&#160;v1.25.3]&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3305639447-r5" x="1451.8" y="264" textLength="12.2" clip-path="url(#terminal-3305639447-line-10)">│</text><text class="terminal-3305639447-r2" x="1464" y="264" textLength="12.2" clip-path="url(#terminal-3305639447-line-10)">
-</text><text class="terminal-3305639447-r5" x="0" y="288.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-11)">│</text><text class="terminal-3305639447-r4" x="24.4" y="288.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-11)">-</text><text class="terminal-3305639447-r4" x="36.6" y="288.4" textLength="61" clip-path="url(#terminal-3305639447-line-11)">-wait</text><text class="terminal-3305639447-r4" x="97.6" y="288.4" textLength="195.2" clip-path="url(#terminal-3305639447-line-11)">-time-in-seconds</text><text class="terminal-3305639447-r2" x="366" y="288.4" textLength="719.8" clip-path="url(#terminal-3305639447-line-11)">Wait&#160;for&#160;Airflow&#160;webserver&#160;for&#160;specified&#160;number&#160;of&#160;seconds.</text><text class="terminal-3305639447-r7" x="1098" y="288.4" textLength="183" clip-path="url(#terminal-3305639447-line-11)">(INTEGER&#160;RANGE)</text><text class="terminal-3305639447-r5" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-11)">│</text><text class="terminal-3305639447-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-11)">
-</text><text class="terminal-3305639447-r5" x="0" y="312.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-12)">│</text><text class="terminal-3305639447-r4" x="24.4" y="312.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-12)">-</text><text class="terminal-3305639447-r4" x="36.6" y="312.8" textLength="48.8" clip-path="url(#terminal-3305639447-line-12)">-all</text><text class="terminal-3305639447-r2" x="366" y="312.8" textLength="390.4" clip-path="url(#terminal-3305639447-line-12)">Apply&#160;it&#160;to&#160;all&#160;created&#160;clusters</text><text class="terminal-3305639447-r5" x="1451.8" y="312.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-12)">│</text><text class="terminal-3305639447-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-12)">
-</text><text class="terminal-3305639447-r5" x="0" y="337.2" textLength="1464" clip-path="url(#terminal-3305639447-line-13)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-3305639447-r2" x="1464" y="337.2" textLength="12.2" clip-path="url(#terminal-3305639447-line-13)">
-</text><text class="terminal-3305639447-r5" x="0" y="361.6" textLength="24.4" clip-path="url(#terminal-3305639447-line-14)">╭─</text><text class="terminal-3305639447-r5" x="24.4" y="361.6" textLength="1415.2" clip-path="url(#terminal-3305639447-line-14)">&#160;Common&#160;options&#160;────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-3305639447-r5" x="1439.6" y="361.6" textLength="24.4" clip-path="url(#terminal-3305639447-line-14)">─╮</text><text class="terminal-3305639447-r2" x="1464" y="361.6" textLength="12.2" clip-path="url(#terminal-3305639447-line-14)">
-</text><text class="terminal-3305639447-r5" x="0" y="386" textLength="12.2" clip-path="url(#terminal-3305639447-line-15)">│</text><text class="terminal-3305639447-r4" x="24.4" y="386" textLength="12.2" clip-path="url(#terminal-3305639447-line-15)">-</text><text class="terminal-3305639447-r4" x="36.6" y="386" textLength="97.6" clip-path="url(#terminal-3305639447-line-15)">-verbose</text><text class="terminal-3305639447-r6" x="158.6" y="386" textLength="24.4" clip-path="url(#terminal-3305639447-line-15)">-v</text><text class="terminal-3305639447-r2" x="207.4" y="386" textLength="585.6" clip-path="url(#terminal-3305639447-line-15)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="terminal-3305639447-r5" x="1451.8" y="386" textLength="12.2" clip-path="url(#terminal-3305639447-line-15)">│</text><text class="terminal-3305639447-r2" x="1464" y="386" textLength="12.2" clip-path="url(#terminal-3305639447-line-15)">
-</text><text class="terminal-3305639447-r5" x="0" y="410.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-16)">│</text><text class="terminal-3305639447-r4" x="24.4" y="410.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-16)">-</text><text class="terminal-3305639447-r4" x="36.6" y="410.4" textLength="48.8" clip-path="url(#terminal-3305639447-line-16)">-dry</text><text class="terminal-3305639447-r4" x="85.4" y="410.4" textLength="48.8" clip-path="url(#terminal-3305639447-line-16)">-run</text><text class="terminal-3305639447-r6" x="158.6" y="410.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-16)">-</text><text class="terminal-3305639447-r4" x="170.8" y="410.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-16)">D</text><text class="terminal-3305639447-r2" x="207.4" y="410.4" textLength="719.8" clip-path="url(#terminal-3305639447-line-16)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="terminal-3305639447-r5" x="1451.8" y="410.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-16)">│</text><text class="terminal-3305639447-r2" x="1464" y="410.4" textLength="12.2" clip-path="url(#terminal-3305639447-line-16)">
-</text><text class="terminal-3305639447-r5" x="0" y="434.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-17)">│</text><text class="terminal-3305639447-r4" x="24.4" y="434.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-17)">-</text><text class="terminal-3305639447-r4" x="36.6" y="434.8" textLength="61" clip-path="url(#terminal-3305639447-line-17)">-help</text><text class="terminal-3305639447-r6" x="158.6" y="434.8" textLength="24.4" clip-path="url(#terminal-3305639447-line-17)">-h</text><text class="terminal-3305639447-r2" x="207.4" y="434.8" textLength="329.4" clip-path="url(#terminal-3305639447-line-17)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="terminal-3305639447-r5" x="1451.8" y="434.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-17)">│</text><text class="terminal-3305639447-r2" x="1464" y="434.8" textLength="12.2" clip-path="url(#terminal-3305639447-line-17)">
-</text><text class="terminal-3305639447-r5" x="0" y="459.2" textLength="1464" clip-path="url(#terminal-3305639447-line-18)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-3305639447-r2" x="1464" y="459.2" textLength="12.2" clip-path="url(#terminal-3305639447-line-18)">
+    <g class="breeze-k8s-status-matrix">
+    <text class="breeze-k8s-status-r2" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-k8s-status-line-0)">
+</text><text class="breeze-k8s-status-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#breeze-k8s-status-line-1)">Usage:&#160;</text><text class="breeze-k8s-status-r1" x="97.6" y="44.4" textLength="231.8" clip-path="url(#breeze-k8s-status-line-1)">breeze&#160;k8s&#160;status&#160;[</text><text class="breeze-k8s-status-r4" x="329.4" y="44.4" textLength="85.4" clip-path="url(#breeze-k8s-status-line-1)">OPTIONS</text><text class="breeze-k8s-status-r1" x="414.8" y="44.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-1)">]</text><text class="breeze-k8s-status-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-1)">
+</text><text class="breeze-k8s-status-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-2)">
+</text><text class="breeze-k8s-status-r2" x="12.2" y="93.2" textLength="1085.8" clip-path="url(#breeze-k8s-status-line-3)">Check&#160;status&#160;of&#160;the&#160;current&#160;cluster&#160;and&#160;airflow&#160;deployed&#160;to&#160;it&#160;(optionally&#160;all&#160;clusters).</text><text class="breeze-k8s-status-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-k8s-status-line-3)">
+</text><text class="breeze-k8s-status-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-k8s-status-line-4)">
+</text><text class="breeze-k8s-status-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-k8s-status-line-5)">╭─</text><text class="breeze-k8s-status-r5" x="24.4" y="142" textLength="317.2" clip-path="url(#breeze-k8s-status-line-5)">&#160;K8S&#160;cluster&#160;status&#160;flags&#160;</text><text class="breeze-k8s-status-r5" x="341.6" y="142" textLength="1098" clip-path="url(#breeze-k8s-status-line-5)">──────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-k8s-status-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-k8s-status-line-5)">─╮</text><text class="breeze-k8s-status-r2" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-k8s-status-line-5)">
+</text><text class="breeze-k8s-status-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-6)">│</text><text class="breeze-k8s-status-r4" x="24.4" y="166.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-6)">-</text><text class="breeze-k8s-status-r4" x="36.6" y="166.4" textLength="85.4" clip-path="url(#breeze-k8s-status-line-6)">-python</text><text class="breeze-k8s-status-r6" x="317.2" y="166.4" textLength="24.4" clip-path="url(#breeze-k8s-status-line-6)">-p</text><text class="breeze-k8s-status-r2" x="366" y="166.4" textLength="732" clip-path="url(#breeze-k8s-status-line-6)">Python&#160;major/minor&#160;version&#160;used&#160;in&#160;Airflow&#160;image&#160;for&#160;images.</text><text class="breeze-k8s-status-r7" x="1110.2" y="166.4" textLength="317.2" clip-path="url(#breeze-k8s-status-line-6)">(&gt;3.7&lt;&#160;|&#160;3.8&#160;|&#160;3.9&#160;|&#160;3.10)</text><text class="breeze-k8s-status-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-6)">│</text><text class="breeze-k8s-status-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-6)">
+</text><text class="breeze-k8s-status-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-7)">│</text><text class="breeze-k8s-status-r5" x="366" y="190.8" textLength="732" clip-path="url(#breeze-k8s-status-line-7)">[default:&#160;3.7]&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-status-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-7)">│</text><text class="breeze-k8s-status-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-7)">
+</text><text class="breeze-k8s-status-r5" x="0" y="215.2" textLength="12.2" clip-path="url(#breeze-k8s-status-line-8)">│</text><text class="breeze-k8s-status-r4" x="24.4" y="215.2" textLength="12.2" clip-path="url(#breeze-k8s-status-line-8)">-</text><text class="breeze-k8s-status-r4" x="36.6" y="215.2" textLength="134.2" clip-path="url(#breeze-k8s-status-line-8)">-kubernetes</text><text class="breeze-k8s-status-r4" x="170.8" y="215.2" textLength="97.6" clip-path="url(#breeze-k8s-status-line-8)">-version</text><text class="breeze-k8s-status-r2" x="366" y="215.2" textLength="658.8" clip-path="url(#breeze-k8s-status-line-8)">Kubernetes&#160;version&#160;used&#160;to&#160;create&#160;the&#160;KinD&#160;cluster&#160;of.</text><text class="breeze-k8s-status-r5" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#breeze-k8s-status-line-8)">│</text><text class="breeze-k8s-status-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-k8s-status-line-8)">
+</text><text class="breeze-k8s-status-r5" x="0" y="239.6" textLength="12.2" clip-path="url(#breeze-k8s-status-line-9)">│</text><text class="breeze-k8s-status-r7" x="366" y="239.6" textLength="658.8" clip-path="url(#breeze-k8s-status-line-9)">(&gt;v1.25.3&lt;&#160;|&#160;v1.24.7&#160;|&#160;v1.23.13&#160;|&#160;v1.22.15&#160;|&#160;v1.21.14)</text><text class="breeze-k8s-status-r5" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#breeze-k8s-status-line-9)">│</text><text class="breeze-k8s-status-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-k8s-status-line-9)">
+</text><text class="breeze-k8s-status-r5" x="0" y="264" textLength="12.2" clip-path="url(#breeze-k8s-status-line-10)">│</text><text class="breeze-k8s-status-r5" x="366" y="264" textLength="658.8" clip-path="url(#breeze-k8s-status-line-10)">[default:&#160;v1.25.3]&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-status-r5" x="1451.8" y="264" textLength="12.2" clip-path="url(#breeze-k8s-status-line-10)">│</text><text class="breeze-k8s-status-r2" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-k8s-status-line-10)">
+</text><text class="breeze-k8s-status-r5" x="0" y="288.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-11)">│</text><text class="breeze-k8s-status-r4" x="24.4" y="288.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-11)">-</text><text class="breeze-k8s-status-r4" x="36.6" y="288.4" textLength="61" clip-path="url(#breeze-k8s-status-line-11)">-wait</text><text class="breeze-k8s-status-r4" x="97.6" y="288.4" textLength="195.2" clip-path="url(#breeze-k8s-status-line-11)">-time-in-seconds</text><text class="breeze-k8s-status-r2" x="366" y="288.4" textLength="719.8" clip-path="url(#breeze-k8s-status-line-11)">Wait&#160;for&#160;Airflow&#160;webserver&#160;for&#160;specified&#160;number&#160;of&#160;seconds.</text><text class="breeze-k8s-status-r7" x="1098" y="288.4" textLength="183" clip-path="url(#breeze-k8s-status-line-11)">(INTEGER&#160;RANGE)</text><text class="breeze-k8s-status-r5" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-11)">│</text><text class="breeze-k8s-status-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-11)">
+</text><text class="breeze-k8s-status-r5" x="0" y="312.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-12)">│</text><text class="breeze-k8s-status-r4" x="24.4" y="312.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-12)">-</text><text class="breeze-k8s-status-r4" x="36.6" y="312.8" textLength="48.8" clip-path="url(#breeze-k8s-status-line-12)">-all</text><text class="breeze-k8s-status-r2" x="366" y="312.8" textLength="390.4" clip-path="url(#breeze-k8s-status-line-12)">Apply&#160;it&#160;to&#160;all&#160;created&#160;clusters</text><text class="breeze-k8s-status-r5" x="1451.8" y="312.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-12)">│</text><text class="breeze-k8s-status-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-12)">
+</text><text class="breeze-k8s-status-r5" x="0" y="337.2" textLength="1464" clip-path="url(#breeze-k8s-status-line-13)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-k8s-status-r2" x="1464" y="337.2" textLength="12.2" clip-path="url(#breeze-k8s-status-line-13)">
+</text><text class="breeze-k8s-status-r5" x="0" y="361.6" textLength="24.4" clip-path="url(#breeze-k8s-status-line-14)">╭─</text><text class="breeze-k8s-status-r5" x="24.4" y="361.6" textLength="195.2" clip-path="url(#breeze-k8s-status-line-14)">&#160;Common&#160;options&#160;</text><text class="breeze-k8s-status-r5" x="219.6" y="361.6" textLength="1220" clip-path="url(#breeze-k8s-status-line-14)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-k8s-status-r5" x="1439.6" y="361.6" textLength="24.4" clip-path="url(#breeze-k8s-status-line-14)">─╮</text><text class="breeze-k8s-status-r2" x="1464" y="361.6" textLength="12.2" clip-path="url(#breeze-k8s-status-line-14)">
+</text><text class="breeze-k8s-status-r5" x="0" y="386" textLength="12.2" clip-path="url(#breeze-k8s-status-line-15)">│</text><text class="breeze-k8s-status-r4" x="24.4" y="386" textLength="12.2" clip-path="url(#breeze-k8s-status-line-15)">-</text><text class="breeze-k8s-status-r4" x="36.6" y="386" textLength="97.6" clip-path="url(#breeze-k8s-status-line-15)">-verbose</text><text class="breeze-k8s-status-r6" x="158.6" y="386" textLength="24.4" clip-path="url(#breeze-k8s-status-line-15)">-v</text><text class="breeze-k8s-status-r2" x="207.4" y="386" textLength="585.6" clip-path="url(#breeze-k8s-status-line-15)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="breeze-k8s-status-r5" x="1451.8" y="386" textLength="12.2" clip-path="url(#breeze-k8s-status-line-15)">│</text><text class="breeze-k8s-status-r2" x="1464" y="386" textLength="12.2" clip-path="url(#breeze-k8s-status-line-15)">
+</text><text class="breeze-k8s-status-r5" x="0" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-16)">│</text><text class="breeze-k8s-status-r4" x="24.4" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-16)">-</text><text class="breeze-k8s-status-r4" x="36.6" y="410.4" textLength="48.8" clip-path="url(#breeze-k8s-status-line-16)">-dry</text><text class="breeze-k8s-status-r4" x="85.4" y="410.4" textLength="48.8" clip-path="url(#breeze-k8s-status-line-16)">-run</text><text class="breeze-k8s-status-r6" x="158.6" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-16)">-</text><text class="breeze-k8s-status-r4" x="170.8" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-16)">D</text><text class="breeze-k8s-status-r2" x="207.4" y="410.4" textLength="719.8" clip-path="url(#breeze-k8s-status-line-16)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="breeze-k8s-status-r5" x="1451.8" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-16)">│</text><text class="breeze-k8s-status-r2" x="1464" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-status-line-16)">
+</text><text class="breeze-k8s-status-r5" x="0" y="434.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-17)">│</text><text class="breeze-k8s-status-r4" x="24.4" y="434.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-17)">-</text><text class="breeze-k8s-status-r4" x="36.6" y="434.8" textLength="61" clip-path="url(#breeze-k8s-status-line-17)">-help</text><text class="breeze-k8s-status-r6" x="158.6" y="434.8" textLength="24.4" clip-path="url(#breeze-k8s-status-line-17)">-h</text><text class="breeze-k8s-status-r2" x="207.4" y="434.8" textLength="329.4" clip-path="url(#breeze-k8s-status-line-17)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-k8s-status-r5" x="1451.8" y="434.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-17)">│</text><text class="breeze-k8s-status-r2" x="1464" y="434.8" textLength="12.2" clip-path="url(#breeze-k8s-status-line-17)">
+</text><text class="breeze-k8s-status-r5" x="0" y="459.2" textLength="1464" clip-path="url(#breeze-k8s-status-line-18)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-k8s-status-r2" x="1464" y="459.2" textLength="12.2" clip-path="url(#breeze-k8s-status-line-18)">
 </text>
     </g>
     </g>

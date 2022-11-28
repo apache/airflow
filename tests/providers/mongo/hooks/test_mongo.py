@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import importlib
-import unittest
 from types import ModuleType
 
 import pymongo
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
@@ -48,8 +48,9 @@ class MongoHookTest(MongoHook):
         return mock_collection
 
 
-class TestMongoHook(unittest.TestCase):
-    def setUp(self):
+@pytest.mark.skipif(mongomock is None, reason="mongomock package not present")
+class TestMongoHook:
+    def setup_method(self):
         self.hook = MongoHookTest(conn_id="mongo_default", mongo_db="default")
         self.conn = self.hook.get_conn()
         db.merge_conn(
@@ -57,22 +58,19 @@ class TestMongoHook(unittest.TestCase):
                 conn_id="mongo_default_with_srv",
                 conn_type="mongo",
                 host="mongo",
-                port="27017",
+                port=27017,
                 extra='{"srv": true}',
             )
         )
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_get_conn(self):
         assert self.hook.connection.port == 27017
         assert isinstance(self.conn, pymongo.MongoClient)
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_srv(self):
         hook = MongoHook(conn_id="mongo_default_with_srv")
         assert hook.uri.startswith("mongodb+srv://")
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_insert_one(self):
         collection = mongomock.MongoClient().db.collection
         obj = {"test_insert_one": "test_value"}
@@ -82,7 +80,6 @@ class TestMongoHook(unittest.TestCase):
 
         assert obj == result_obj
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_insert_many(self):
         collection = mongomock.MongoClient().db.collection
         objs = [{"test_insert_many_1": "test_value"}, {"test_insert_many_2": "test_value"}]
@@ -92,7 +89,6 @@ class TestMongoHook(unittest.TestCase):
         result_objs = list(collection.find())
         assert len(result_objs) == 2
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_update_one(self):
         collection = mongomock.MongoClient().db.collection
         obj = {"_id": "1", "field": 0}
@@ -106,7 +102,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="1")
         assert 123 == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_update_one_with_upsert(self):
         collection = mongomock.MongoClient().db.collection
 
@@ -118,7 +113,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="1")
         assert 123 == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_update_many(self):
         collection = mongomock.MongoClient().db.collection
         obj1 = {"_id": "1", "field": 0}
@@ -136,7 +130,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="2")
         assert 123 == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_update_many_with_upsert(self):
         collection = mongomock.MongoClient().db.collection
 
@@ -148,7 +141,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="1")
         assert 123 == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_replace_one(self):
         collection = mongomock.MongoClient().db.collection
         obj1 = {"_id": "1", "field": "test_value_1"}
@@ -165,7 +157,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="2")
         assert "test_value_2" == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_replace_one_with_filter(self):
         collection = mongomock.MongoClient().db.collection
         obj1 = {"_id": "1", "field": "test_value_1"}
@@ -182,7 +173,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="2")
         assert "test_value_2" == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_replace_one_with_upsert(self):
         collection = mongomock.MongoClient().db.collection
 
@@ -192,7 +182,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="1")
         assert "test_value_1" == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_replace_many(self):
         collection = mongomock.MongoClient().db.collection
         obj1 = {"_id": "1", "field": "test_value_1"}
@@ -209,7 +198,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="2")
         assert "test_value_2_updated" == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_replace_many_with_upsert(self):
         collection = mongomock.MongoClient().db.collection
         obj1 = {"_id": "1", "field": "test_value_1"}
@@ -223,7 +211,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = collection.find_one(filter="2")
         assert "test_value_2" == result_obj["field"]
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_delete_one(self):
         collection = mongomock.MongoClient().db.collection
         obj = {"_id": "1"}
@@ -233,7 +220,6 @@ class TestMongoHook(unittest.TestCase):
 
         assert 0 == collection.count()
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_delete_many(self):
         collection = mongomock.MongoClient().db.collection
         obj1 = {"_id": "1", "field": "value"}
@@ -244,7 +230,6 @@ class TestMongoHook(unittest.TestCase):
 
         assert 0 == collection.count()
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_find_one(self):
         collection = mongomock.MongoClient().db.collection
         obj = {"test_find_one": "test_value"}
@@ -254,7 +239,6 @@ class TestMongoHook(unittest.TestCase):
         result_obj = {result: result_obj[result] for result in result_obj}
         assert obj == result_obj
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_find_many(self):
         collection = mongomock.MongoClient().db.collection
         objs = [{"_id": 1, "test_find_many_1": "test_value"}, {"_id": 2, "test_find_many_2": "test_value"}]
@@ -264,7 +248,6 @@ class TestMongoHook(unittest.TestCase):
 
         assert len(list(result_objs)) > 1
 
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_find_many_with_projection(self):
         collection = mongomock.MongoClient().db.collection
         objs = [
@@ -277,10 +260,8 @@ class TestMongoHook(unittest.TestCase):
         result_objs = self.hook.find(
             mongo_collection=collection, query={}, projection=projection, find_one=False
         )
+        assert "_id" not in result_objs[0]
 
-        self.assertRaises(KeyError, lambda x: x[0]["_id"], result_objs)
-
-    @unittest.skipIf(mongomock is None, "mongomock package not present")
     def test_aggregate(self):
         collection = mongomock.MongoClient().db.collection
         objs = [
@@ -296,11 +277,12 @@ class TestMongoHook(unittest.TestCase):
         results = self.hook.aggregate(collection, aggregate_query)
         assert len(list(results)) == 2
 
-    def test_context_manager(self):
-        with MongoHook(conn_id="mongo_default", mongo_db="default") as ctx_hook:
-            ctx_hook.get_conn()
 
-            assert isinstance(ctx_hook, MongoHook)
-            assert ctx_hook.client is not None
+def test_context_manager():
+    with MongoHook(conn_id="mongo_default", mongo_db="default") as ctx_hook:
+        ctx_hook.get_conn()
 
-        assert ctx_hook.client is None
+        assert isinstance(ctx_hook, MongoHook)
+        assert ctx_hook.client is not None
+
+    assert ctx_hook.client is None

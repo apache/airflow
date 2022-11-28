@@ -19,12 +19,10 @@ from __future__ import annotations
 
 import json
 import re
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from parameterized import parameterized
 from trino.transaction import IsolationLevel
 
 from airflow import AirflowException
@@ -179,18 +177,19 @@ class TestTrinoHookConn:
 
         self.assert_connection_called_with(mock_connect, client_tags=extras["client_tags"])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "current_verify, expected_verify",
         [
             ("False", False),
             ("false", False),
             ("true", True),
             ("true", True),
             ("/tmp/cert.crt", "/tmp/cert.crt"),
-        ]
+        ],
     )
     @patch(HOOK_GET_CONNECTION)
     @patch(TRINO_DBAPI_CONNECT)
-    def test_get_conn_verify(self, current_verify, expected_verify, mock_connect, mock_get_connection):
+    def test_get_conn_verify(self, mock_connect, mock_get_connection, current_verify, expected_verify):
         extras = {"verify": current_verify}
         self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
         TrinoHook().get_conn()
@@ -224,10 +223,8 @@ class TestTrinoHookConn:
         )
 
 
-class TestTrinoHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestTrinoHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
@@ -316,8 +313,8 @@ class TestTrinoHook(unittest.TestCase):
         assert 1 == self.db_hook._serialize_cell(1, None)
 
 
-class TestTrinoHookIntegration(unittest.TestCase):
-    @pytest.mark.integration("trino")
+@pytest.mark.integration("trino")
+class TestTrinoHookIntegration:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TRINO_DEFAULT="trino://airflow@trino:8080/")
     def test_should_record_records(self):
         hook = TrinoHook()
@@ -325,7 +322,6 @@ class TestTrinoHookIntegration(unittest.TestCase):
         records = hook.get_records(sql)
         assert [["Customer#000000001"], ["Customer#000000002"], ["Customer#000000003"]] == records
 
-    @pytest.mark.integration("trino")
     @pytest.mark.integration("kerberos")
     def test_should_record_records_with_kerberos_auth(self):
         conn_url = (

@@ -85,6 +85,7 @@ from airflow.exceptions import (
 )
 from airflow.models.base import Base, StringID
 from airflow.models.log import Log
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
@@ -97,7 +98,7 @@ from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
-from airflow.typing_compat import Literal
+from airflow.typing_compat import Literal, TypeGuard
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
 from airflow.utils.email import send_email
@@ -131,6 +132,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 
 @contextlib.contextmanager
@@ -279,6 +281,19 @@ def clear_task_instances(
     session.flush()
 
 
+def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
+    """Whether a value can be used for task mapping.
+
+    We only allow collections with guaranteed ordering, but exclude character
+    sequences since that's usually not what users would expect to be mappable.
+    """
+    if not isinstance(value, (collections.abc.Sequence, dict)):
+        return False
+    if isinstance(value, (bytearray, bytes, str)):
+        return False
+    return True
+
+
 class TaskInstanceKey(NamedTuple):
     """Key used to identify task instance."""
 
@@ -311,6 +326,16 @@ class TaskInstanceKey(NamedTuple):
         Returns self
         """
         return self
+
+
+def _creator_note(val):
+    """Custom creator for the ``note`` association proxy."""
+    if isinstance(val, str):
+        return TaskInstanceNote(content=val)
+    elif isinstance(val, dict):
+        return TaskInstanceNote(**val)
+    else:
+        return TaskInstanceNote(*val)
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -355,7 +380,6 @@ class TaskInstance(Base, LoggingMixin):
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
-    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
 
     external_executor_id = Column(StringID())
@@ -415,9 +439,9 @@ class TaskInstance(Base, LoggingMixin):
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
-
     execution_date = association_proxy("dag_run", "execution_date")
-
+    task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
+    note = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
 
     def __init__(
@@ -794,7 +818,6 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
-            self.notes = ti.notes
         else:
             self.state = None
 
@@ -2226,18 +2249,14 @@ class TaskInstance(Base, LoggingMixin):
             return
         # TODO: We don't push TaskMap for mapped task instances because it's not
         # currently possible for a downstream to depend on one individual mapped
-        # task instance. This will change when we implement task group mapping,
-        # and we'll need to further analyze the mapped task case.
-        if task.is_mapped:
+        # task instance. This will change when we implement task mapping inside
+        # a mapped task group, and we'll need to further analyze the case.
+        if isinstance(task, MappedOperator):
             return
         if value is None:
             raise XComForMappingNotPushed()
-        if not isinstance(value, (collections.abc.Sequence, dict)):
+        if not _is_mappable_value(value):
             raise UnmappableXComTypePushed(value)
-        if isinstance(value, (bytes, str)):
-            raise UnmappableXComTypePushed(value)
-        if TYPE_CHECKING:  # The isinstance() checks above guard this.
-            assert isinstance(value, collections.abc.Collection)
         task_map = TaskMap.from_task_instance_xcom(self, value)
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
         if task_map.length > max_map_length:
@@ -2573,6 +2592,103 @@ class TaskInstance(Base, LoggingMixin):
             )
             session.rollback()
 
+    def get_relevant_upstream_map_indexes(
+        self,
+        upstream: Operator,
+        ti_count: int | None,
+        *,
+        session: Session,
+    ) -> int | range | None:
+        """Infer the map indexes of an upstream "relevant" to this ti.
+
+        The bulk of the logic mainly exists to solve the problem described by
+        the following example, where 'val' must resolve to different values,
+        depending on where the reference is being used::
+
+            @task
+            def this_task(v):  # This is self.task.
+                return v * 2
+
+            @task_group
+            def tg1(inp):
+                val = upstream(inp)  # This is the upstream task.
+                this_task(val)  # When inp is 1, val here should resolve to 2.
+                return val
+
+            # This val is the same object returned by tg1.
+            val = tg1.expand(inp=[1, 2, 3])
+
+            @task_group
+            def tg2(inp):
+                another_task(inp, val)  # val here should resolve to [2, 4, 6].
+
+            tg2.expand(inp=["a", "b"])
+
+        The surrounding mapped task groups of ``upstream`` and ``self.task`` are
+        inspected to find a common "ancestor". If such an ancestor is found,
+        we need to return specific map indexes to pull a partial value from
+        upstream XCom.
+
+        :param upstream: The referenced upstream task.
+        :param ti_count: The total count of task instance this task was expanded
+            by the scheduler, i.e. ``expanded_ti_count`` in the template context.
+        :return: Specific map index or map indexes to pull, or ``None`` if we
+            want to "whole" return value (i.e. no mapped task groups involved).
+        """
+        # Find the innermost common mapped task group between the current task
+        # If the current task and the referenced task does not have a common
+        # mapped task group, the two are in different task mapping contexts
+        # (like another_task above), and we should use the "whole" value.
+        common_ancestor = _find_common_ancestor_mapped_group(self.task, upstream)
+        if common_ancestor is None:
+            return None
+
+        # This value should never be None since we already know the current task
+        # is in a mapped task group, and should have been expanded. The check
+        # exists mainly to satisfy Mypy.
+        if ti_count is None:
+            return None
+
+        # At this point we know the two tasks share a mapped task group, and we
+        # should use a "partial" value. Let's break down the mapped ti count
+        # between the ancestor and further expansion happened inside it.
+        ancestor_ti_count = common_ancestor.get_mapped_ti_count(self.run_id, session=session)
+        ancestor_map_index = self.map_index * ancestor_ti_count // ti_count
+
+        # If the task is NOT further expanded inside the common ancestor, we
+        # only want to reference one single ti. We must walk the actual DAG,
+        # and "ti_count == ancestor_ti_count" does not work, since the further
+        # expansion may be of length 1.
+        if not _is_further_mapped_inside(upstream, common_ancestor):
+            return ancestor_map_index
+
+        # Otherwise we need a partial aggregation for values from selected task
+        # instances in the ancestor's expansion context.
+        further_count = ti_count // ancestor_ti_count
+        map_index_start = ancestor_map_index * further_count
+        return range(map_index_start, map_index_start + further_count)
+
+
+def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
+    """Given two operators, find their innermost common mapped task group."""
+    if node1.dag is None or node2.dag is None or node1.dag_id != node2.dag_id:
+        return None
+    parent_group_ids = {g.group_id for g in node1.iter_mapped_task_groups()}
+    common_groups = (g for g in node2.iter_mapped_task_groups() if g.group_id in parent_group_ids)
+    return next(common_groups, None)
+
+
+def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
+    """Whether given operator is *further* mapped inside a task group."""
+    if isinstance(operator, MappedOperator):
+        return True
+    task_group = operator.task_group
+    while task_group is not None and task_group.group_id != container.group_id:
+        if isinstance(task_group, MappedTaskGroup):
+            return True
+        task_group = task_group.parent_group
+    return False
+
 
 # State of the task instance.
 # Stores string version of the task state.
@@ -2674,6 +2790,55 @@ class SimpleTaskInstance:
         if end_date_str:
             end_date = timezone.parse(end_date_str)
         return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
+
+
+class TaskInstanceNote(Base):
+    """For storage of arbitrary notes concerning the task instance."""
+
+    __tablename__ = "task_instance_note"
+
+    user_id = Column(Integer, nullable=True)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    run_id = Column(StringID(), primary_key=True, nullable=False)
+    map_index = Column(Integer, primary_key=True, nullable=False)
+    content = Column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    task_instance = relationship("TaskInstance", back_populates="task_instance_note")
+
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey", mssql_clustered=True
+        ),
+        ForeignKeyConstraint(
+            (dag_id, task_id, run_id, map_index),
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="task_instance_note_ti_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            (user_id,),
+            ["ab_user.id"],
+            name="task_instance_note_user_fkey",
+        ),
+    )
+
+    def __init__(self, content, user_id=None):
+        self.content = content
+        self.user_id = user_id
+
+    def __repr__(self):
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
+        if self.map_index != -1:
+            prefix += f" map_index={self.map_index}"
+        return prefix + ">"
 
 
 STATICA_HACK = True
