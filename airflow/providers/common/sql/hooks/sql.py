@@ -274,8 +274,8 @@ class DbApiHook(BaseForDbApiHook):
 
         For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
         In some cases, when multiple queries are run, the return value will be an iterable (list) of results
-        -- one for each query. However, in other cases, when single query is run, the return value will be just
-        the result of that single query without wrapping the results in a list.
+        -- one for each query. However, in other cases, when single query is run, the return value will
+        be the result of that single query without wrapping the results in a list.
 
         The cases when single query results are returned without wrapping them in a list are as follows:
 
