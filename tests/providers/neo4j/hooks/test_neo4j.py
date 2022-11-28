@@ -16,23 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
 
-class TestNeo4jHookConn(unittest.TestCase):
-    @parameterized.expand(
+class TestNeo4jHookConn:
+    @pytest.mark.parametrize(
+        "conn_extra, expected_uri",
         [
-            [{}, "bolt://host:7687"],
-            [{"bolt_scheme": True}, "bolt://host:7687"],
-            [{"certs_self_signed": True, "bolt_scheme": True}, "bolt+ssc://host:7687"],
-            [{"certs_trusted_ca": True, "bolt_scheme": True}, "bolt+s://host:7687"],
-        ]
+            ({}, "bolt://host:7687"),
+            ({"bolt_scheme": True}, "bolt://host:7687"),
+            ({"certs_self_signed": True, "bolt_scheme": True}, "bolt+ssc://host:7687"),
+            ({"certs_trusted_ca": True, "bolt_scheme": True}, "bolt+s://host:7687"),
+        ],
     )
     def test_get_uri_neo4j_scheme(self, conn_extra, expected_uri):
         connection = Connection(
@@ -75,10 +75,7 @@ class TestNeo4jHookConn(unittest.TestCase):
                 ]
             )
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
-            self.assertEqual(
-                session.run.return_value.data.return_value,
-                op_result,
-            )
+            assert op_result == session.run.return_value.data.return_value
 
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
     def test_run_without_schema(self, mock_graph_database):
@@ -103,7 +100,4 @@ class TestNeo4jHookConn(unittest.TestCase):
                 ]
             )
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
-            self.assertEqual(
-                session.run.return_value.data.return_value,
-                op_result,
-            )
+            assert op_result == session.run.return_value.data.return_value

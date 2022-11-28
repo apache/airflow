@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -31,8 +30,8 @@ from airflow.utils import db
 TELEGRAM_TOKEN = "xxx:xxx"
 
 
-class TestTelegramOperator(unittest.TestCase):
-    def setUp(self):
+class TestTelegramOperator:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="telegram_default",

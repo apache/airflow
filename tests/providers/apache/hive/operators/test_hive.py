@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
+
+import pytest
 
 from airflow.configuration import conf
 from airflow.models import DagRun, TaskInstance
@@ -95,7 +96,9 @@ class HiveOperatorTest(TestHiveEnvironment):
         )
 
 
-@unittest.skipIf("AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+@pytest.mark.skipif(
+    "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+)
 class TestHivePresto(TestHiveEnvironment):
     @mock.patch("tempfile.tempdir", "/tmp/")
     @mock.patch("tempfile._RandomNameSequence.__next__")

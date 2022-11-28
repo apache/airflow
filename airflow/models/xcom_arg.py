@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from airflow.exceptions import XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
@@ -301,7 +302,7 @@ class PlainXComArg(XComArg):
         from airflow.models.xcom import XCom
 
         task = self.operator
-        if task.is_mapped:
+        if isinstance(task, MappedOperator):
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,

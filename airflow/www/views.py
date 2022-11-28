@@ -99,6 +99,7 @@ from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -340,7 +341,7 @@ def dag_to_grid(dag, dag_runs, session):
                     set_overall_state(record)
                     yield record
 
-            if item.is_mapped:
+            if isinstance(item, MappedOperator):
                 instances = list(_mapped_summary(grouped_tis.get(item.task_id, [])))
             else:
                 instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
@@ -350,7 +351,7 @@ def dag_to_grid(dag, dag_runs, session):
                 "instances": instances,
                 "label": item.label,
                 "extra_links": item.extra_links,
-                "is_mapped": item.is_mapped,
+                "is_mapped": isinstance(item, MappedOperator),
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
             }
@@ -2848,7 +2849,7 @@ class Airflow(AirflowBaseView):
                 "dag_id": t.dag_id,
                 "task_type": t.task_type,
                 "extra_links": t.extra_links,
-                "is_mapped": t.is_mapped,
+                "is_mapped": isinstance(t, MappedOperator),
                 "trigger_rule": t.trigger_rule,
             }
             for t in dag.tasks
@@ -3564,7 +3565,7 @@ class Airflow(AirflowBaseView):
                     ),
                     isouter=True,
                 )
-                .filter(DagScheduleDatasetReference.dag_id == dag_id)
+                .filter(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
                 .group_by(DatasetModel.id, DatasetModel.uri)
                 .order_by(DatasetModel.uri)
                 .all()
@@ -3687,7 +3688,7 @@ class Airflow(AirflowBaseView):
             if has_event_filters:
                 count_query = count_query.join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
 
-            filters = []
+            filters = [~DatasetModel.is_orphaned]
             if uri_pattern:
                 filters.append(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
             if updated_after:
