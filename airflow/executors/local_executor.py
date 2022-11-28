@@ -162,8 +162,8 @@ class LocalWorker(LocalWorkerBase):
 
 class QueuedLocalWorker(LocalWorkerBase):
     """
-    LocalWorker implementation that is waiting for tasks from a queue and will
-    continue executing commands as they become available in the queue.
+    LocalWorker implementation that is waiting for tasks from a queue.
+    Will continue executing commands as they become available in the queue.
     It will terminate execution once the poison token is found.
 
     :param task_queue: queue from which worker reads tasks
@@ -261,18 +261,14 @@ class LocalExecutor(BaseExecutor):
                 self.executor.workers_active -= 1
 
         def end(self) -> None:
-            """
-            This method is called when the caller is done submitting job and
-            wants to wait synchronously for the job submitted previously to be
-            all done.
-            """
+            """Wait synchronously for the previously submitted job to complete."""
             while self.executor.workers_active > 0:
                 self.executor.sync()
 
     class LimitedParallelism:
         """
-        Implements LocalExecutor with limited parallelism using a task queue to
-        coordinate work distribution.
+        Implements LocalExecutor with limited parallelism.
+        Uses a task queue to coordinate work distribution.
 
         :param executor: the executor instance to implement.
         """

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-KubernetesExecutor
+KubernetesExecutor.
 
 .. seealso::
     For more information on how the KubernetesExecutor works, take a look at the guide:
@@ -75,7 +75,7 @@ class ResourceVersion:
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
-    """Watches for Kubernetes jobs"""
+    """Watches for Kubernetes jobs."""
 
     def __init__(
         self,
@@ -454,6 +454,7 @@ class KubernetesExecutor(BaseExecutor):
     @provide_session
     def clear_not_launched_queued_tasks(self, session=None) -> None:
         """
+        Clear unlaunched tasks that were previously queued.
         Tasks can end up in a "Queued" state through either the executor being
         abruptly shut down (leaving a non-empty task_queue on this executor)
         or when a rescheduled/deferred operator comes back up for execution

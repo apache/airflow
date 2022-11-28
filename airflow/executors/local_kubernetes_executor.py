@@ -66,8 +66,9 @@ class LocalKubernetesExecutor(LoggingMixin):
     @property
     def job_id(self) -> str | None:
         """
-        This is a class attribute in BaseExecutor but since this is not really an executor, but a wrapper
-        of executors we implement as property so we can have custom setter.
+        Inherited attribute from BaseExecutor.
+        Since this is not really an executor, but a wrapper of executors
+        we implemented it as property, so we can have custom setter.
         """
         return self._job_id
 

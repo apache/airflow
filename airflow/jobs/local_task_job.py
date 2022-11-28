@@ -78,7 +78,7 @@ class LocalTaskJob(BaseJob):
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
-            """Setting kill signal handler"""
+            """Setting kill signal handler."""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)

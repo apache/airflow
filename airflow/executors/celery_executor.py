@@ -218,8 +218,8 @@ class _CeleryPendingTaskTimeoutType(Enum):
 
 class CeleryExecutor(BaseExecutor):
     """
-    CeleryExecutor is recommended for production use of Airflow. 
-    
+    CeleryExecutor is recommended for production use of Airflow.
+
     It allows distributing the execution of task instances to multiple worker nodes.
 
     Celery is a simple, flexible and reliable distributed system to process

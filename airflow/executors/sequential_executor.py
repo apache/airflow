@@ -34,9 +34,10 @@ from airflow.utils.state import State
 
 class SequentialExecutor(BaseExecutor):
     """
-    This executor will only run one task instance at a time, can be used
-    for debugging. It is also the only executor that can be used with sqlite
-    since sqlite doesn't support multiple connections.
+    This executor will only run one task instance at a time.
+    It can be used for debugging. It is also the only executor
+    that can be used with sqlite since sqlite doesn't support
+    multiple connections.
 
     Since we want airflow to work out of the box, it defaults to this
     SequentialExecutor alongside sqlite as you first install it.
