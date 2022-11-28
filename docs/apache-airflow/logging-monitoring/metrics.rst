@@ -77,49 +77,51 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 Counters
 --------
 
-=========================================== ================================================================
-Name                                        Description
-=========================================== ================================================================
-``<job_name>_start``                        Number of started ``<job_name>`` job, ex. ``SchedulerJob``, ``LocalTaskJob``
-``<job_name>_end``                          Number of ended ``<job_name>`` job, ex. ``SchedulerJob``, ``LocalTaskJob``
-``<job_name>_heartbeat_failure``            Number of failed Heartbeats for a ``<job_name>`` job, ex. ``SchedulerJob``,
-                                            ``LocalTaskJob``
-``operator_failures_<operator_name>``       Operator ``<operator_name>`` failures
-``operator_successes_<operator_name>``      Operator ``<operator_name>`` successes
-``ti_failures``                             Overall task instances failures
-``ti_successes``                            Overall task instances successes
-``previously_succeeded``                    Number of previously succeeded task instances
-``zombies_killed``                          Zombie tasks killed
-``scheduler_heartbeat``                     Scheduler heartbeats
-``dag_processing.processes``                Number of currently running DAG parsing processes
-``dag_processing.processor_timeouts``       Number of file processors that have been killed due to taking too long
-``dag_file_processor_timeouts``             (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
-``dag_processing.manager_stalls``           Number of stalled ``DagFileProcessorManager``
-``dag_file_refresh_error``                  Number of failures loading any DAG files
-``scheduler.tasks.killed_externally``       Number of tasks killed externally
-``scheduler.orphaned_tasks.cleared``        Number of Orphaned tasks cleared by the Scheduler
-``scheduler.orphaned_tasks.adopted``        Number of Orphaned tasks adopted by the Scheduler
-``scheduler.critical_section_busy``         Count of times a scheduler process tried to get a lock on the critical
-                                            section (needed to send tasks to the executor) and found it locked by
-                                            another process.
-``sla_missed``                              Number of SLA misses
-``sla_callback_notification_failure``       Number of failed SLA miss callback notification attempts
-``sla_email_notification_failure``          Number of failed SLA miss email notification attempts
-``ti.start.<dag_id>.<task_id>``             Number of started task in a given dag. Similar to <job_name>_start but for task
-``ti.finish.<dag_id>.<task_id>.<state>``    Number of completed task in a given dag. Similar to <job_name>_end but for task
-``dag.callback_exceptions``                 Number of exceptions raised from DAG callbacks. When this happens, it
-                                            means DAG callback is not working.
-``celery.task_timeout_error``               Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
-``celery.execute_command.failure``          Number of non-zero exit code from Celery task.
-``task_removed_from_dag.<dag_id>``          Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
-``task_restored_to_dag.<dag_id>``           Number of tasks restored for a given dag (i.e. task instance which was
-                                            previously in REMOVED state in the DB is added to DAG file)
-``task_instance_created-<operator_name>``   Number of tasks instances created for a given Operator
-``triggers.blocked_main_thread``            Number of triggers that blocked the main thread (likely due to not being
-                                            fully asynchronous)
-``triggers.failed``                         Number of triggers that errored before they could fire an event
-``triggers.succeeded``                      Number of triggers that have fired at least one event
-=========================================== ================================================================
+====================================================================== ================================================================
+Name                                                                   Description
+====================================================================== ================================================================
+``<job_name>_start``                                                   Number of started ``<job_name>`` job, ex. ``SchedulerJob``, ``LocalTaskJob``
+``<job_name>_end``                                                     Number of ended ``<job_name>`` job, ex. ``SchedulerJob``, ``LocalTaskJob``
+``<job_name>_heartbeat_failure``                                       Number of failed Heartbeats for a ``<job_name>`` job, ex. ``SchedulerJob``,
+                                                                       ``LocalTaskJob``
+``local_task_job.task_exit.<job_id>.<dag_id>.<task_id>.<return_code>`` Number of ``LocalTaskJob`` terminations with a ``<return_code>``
+                                                                       while running a task ``<task_id>`` of a DAG  ``<dag_id>``.
+``operator_failures_<operator_name>``                                  Operator ``<operator_name>`` failures
+``operator_successes_<operator_name>``                                 Operator ``<operator_name>`` successes
+``ti_failures``                                                        Overall task instances failures
+``ti_successes``                                                       Overall task instances successes
+``previously_succeeded``                                               Number of previously succeeded task instances
+``zombies_killed``                                                     Zombie tasks killed
+``scheduler_heartbeat``                                                Scheduler heartbeats
+``dag_processing.processes``                                           Number of currently running DAG parsing processes
+``dag_processing.processor_timeouts``                                  Number of file processors that have been killed due to taking too long
+``dag_file_processor_timeouts``                                        (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
+``dag_processing.manager_stalls``                                      Number of stalled ``DagFileProcessorManager``
+``dag_file_refresh_error``                                             Number of failures loading any DAG files
+``scheduler.tasks.killed_externally``                                  Number of tasks killed externally
+``scheduler.orphaned_tasks.cleared``                                   Number of Orphaned tasks cleared by the Scheduler
+``scheduler.orphaned_tasks.adopted``                                   Number of Orphaned tasks adopted by the Scheduler
+``scheduler.critical_section_busy``                                    Count of times a scheduler process tried to get a lock on the critical
+                                                                       section (needed to send tasks to the executor) and found it locked by
+                                                                       another process.
+``sla_missed``                                                         Number of SLA misses
+``sla_callback_notification_failure``                                  Number of failed SLA miss callback notification attempts
+``sla_email_notification_failure``                                     Number of failed SLA miss email notification attempts
+``ti.start.<dag_id>.<task_id>``                                        Number of started task in a given dag. Similar to <job_name>_start but for task
+``ti.finish.<dag_id>.<task_id>.<state>``                               Number of completed task in a given dag. Similar to <job_name>_end but for task
+``dag.callback_exceptions``                                            Number of exceptions raised from DAG callbacks. When this happens, it
+                                                                       means DAG callback is not working.
+``celery.task_timeout_error``                                          Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
+``celery.execute_command.failure``                                     Number of non-zero exit code from Celery task.
+``task_removed_from_dag.<dag_id>``                                     Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
+``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
+                                                                       previously in REMOVED state in the DB is added to DAG file)
+``task_instance_created-<operator_name>``                              Number of tasks instances created for a given Operator
+``triggers.blocked_main_thread``                                       Number of triggers that blocked the main thread (likely due to not being
+                                                                       fully asynchronous)
+``triggers.failed``                                                    Number of triggers that errored before they could fire an event
+``triggers.succeeded``                                                 Number of triggers that have fired at least one event
+====================================================================== ================================================================
 
 Gauges
 ------
