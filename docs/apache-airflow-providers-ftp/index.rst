@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/ftp/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/ftp/example_ftp.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ftp/>
     Installing from sources <installing-providers-from-sources>
 
@@ -52,6 +52,11 @@ Content
 
     Detailed list of commits <commits>
 
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/ftp/index>
 
 Package apache-airflow-providers-ftp
 ------------------------------------------------------

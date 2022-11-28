@@ -33,16 +33,16 @@ For parameter definition take a look at :class:`~airflow.providers.ftp.operators
 
 The below example shows how to use the FTPFileTransmitOperator to transfer a locally stored file to a remote FTP Server:
 
-.. exampleinclude:: /../../airflow/providers/ftp/example_dags/example_ftp.py
+.. exampleinclude:: /../../../tests/system/providers/ftp/example_ftp.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_ftp_put]
-    :end-before: [END howto_ftp_put]
+    :start-after: [START howto_operator_ftp_put]
+    :end-before: [END howto_operator_ftp_put]
 
 The below example shows how to use the FTPFileTransmitOperator to pull a file from a remote FTP Server.
 
-.. exampleinclude:: /../../airflow/providers/ftp/example_dags/example_ftp.py
+.. exampleinclude:: /../../../tests/system/providers/ftp/example_ftp.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_ftp_get]
-    :end-before: [END howto_ftp_get]
+    :start-after: [START howto_operator_ftp_get]
+    :end-before: [END howto_operator_ftp_get]
