@@ -85,7 +85,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``<>2.0.0,<>2.0.1``
+``apache-airflow``  ``>=2.3.0``
 ``cloudera-cde-sdk````>=1.0.1,<2.0.0``
 ``cryptography``    ``>=3.3.2``
 ``pathlib2``
