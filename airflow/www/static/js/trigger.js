@@ -37,7 +37,7 @@ CodeMirror.fromTextArea(textArea, {
   .setSize(null, height);
 
 function setRecentConfig(e) {
-  document.querySelector('.CodeMirror').CodeMirror.setValue(e.target.value.replaceAll("'", '"'));
+  document.querySelector('.CodeMirror').CodeMirror.setValue(e.target.value);
 }
 
 recentConfigList.addEventListener('change', setRecentConfig);
