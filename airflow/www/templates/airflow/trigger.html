@@ -51,15 +51,17 @@
       <div class="col-md-2">
         <label for="recent_configs">Recent Configurations</label>
         <select class="form-control" name="recent_configs" id="recent_configs">
-          <option value="">None</option>
+          <option value="">empty config</option>
           {% for conf in recent_confs %}
-          <option value="{{conf}}">{{ conf }}</option>
+          <option value="{{ conf }}">{{ conf }}</option>
           {% endfor %}
         </select>
       </div>
     </div>
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
     <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
+
+    <br />
 
     <p>
       To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
