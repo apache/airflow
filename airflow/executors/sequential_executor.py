@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-SequentialExecutor
+SequentialExecutor.
 
 .. seealso::
     For more information on how the SequentialExecutor works, take a look at the guide:

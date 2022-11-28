@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DaskExecutor
+DaskExecutor.
 
 .. seealso::
     For more information on how the DaskExecutor works, take a look at the guide:
@@ -78,7 +78,6 @@ class DaskExecutor(BaseExecutor):
         queue: str | None = None,
         executor_config: Any | None = None,
     ) -> None:
-
         self.validate_airflow_tasks_run_command(command)
 
         def airflow_run():
