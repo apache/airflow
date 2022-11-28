@@ -39,7 +39,7 @@ GENERATED_UUID = "800647a9-adda-4237-94e6-f542c85fa55b"
 
 class TestEmrContainerOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook")
-    def setup_method(self, emr_hook_mock):
+    def setup_method(self, method, emr_hook_mock):
         conf.load_test_config()
 
         self.emr_hook_mock = emr_hook_mock
@@ -143,7 +143,7 @@ class TestEmrContainerOperator:
 
 class TestEmrEksCreateClusterOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook")
-    def setup_method(self, emr_hook_mock):
+    def setup_method(self, method, emr_hook_mock):
         conf.load_test_config()
 
         self.emr_hook_mock = emr_hook_mock
