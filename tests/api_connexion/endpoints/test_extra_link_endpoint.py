@@ -29,6 +29,7 @@ from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
 from airflow.security import permissions
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -81,6 +82,7 @@ class TestGetExtraLinks:
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             session=session,
+            data_interval=DataInterval(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
         )
         session.flush()
 
@@ -142,9 +144,9 @@ class TestGetExtraLinks:
         XCom.set(
             key="job_id",
             value="TEST_JOB_ID",
-            execution_date=self.default_time,
             task_id="TEST_SINGLE_QUERY",
             dag_id=self.dag.dag_id,
+            run_id="TEST_DAG_RUN_ID",
         )
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
@@ -171,9 +173,9 @@ class TestGetExtraLinks:
         XCom.set(
             key="job_id",
             value=["TEST_JOB_ID_1", "TEST_JOB_ID_2"],
-            execution_date=self.default_time,
             task_id="TEST_MULTIPLE_QUERY",
             dag_id=self.dag.dag_id,
+            run_id="TEST_DAG_RUN_ID",
         )
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
