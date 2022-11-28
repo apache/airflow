@@ -19,92 +19,92 @@
         font-weight: 700;
     }
 
-    .terminal-530343897-matrix {
+    .breeze-ci-fix-ownership-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-530343897-title {
+    .breeze-ci-fix-ownership-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-530343897-r1 { fill: #c5c8c6;font-weight: bold }
-.terminal-530343897-r2 { fill: #c5c8c6 }
-.terminal-530343897-r3 { fill: #d0b344;font-weight: bold }
-.terminal-530343897-r4 { fill: #868887 }
-.terminal-530343897-r5 { fill: #68a0b3;font-weight: bold }
-.terminal-530343897-r6 { fill: #98a84b;font-weight: bold }
+    .breeze-ci-fix-ownership-r1 { fill: #c5c8c6;font-weight: bold }
+.breeze-ci-fix-ownership-r2 { fill: #c5c8c6 }
+.breeze-ci-fix-ownership-r3 { fill: #d0b344;font-weight: bold }
+.breeze-ci-fix-ownership-r4 { fill: #68a0b3;font-weight: bold }
+.breeze-ci-fix-ownership-r5 { fill: #868887 }
+.breeze-ci-fix-ownership-r6 { fill: #98a84b;font-weight: bold }
     </style>
 
     <defs>
-    <clipPath id="terminal-530343897-clip-terminal">
+    <clipPath id="breeze-ci-fix-ownership-clip-terminal">
       <rect x="0" y="0" width="1463.0" height="316.2" />
     </clipPath>
-    <clipPath id="terminal-530343897-line-0">
+    <clipPath id="breeze-ci-fix-ownership-line-0">
     <rect x="0" y="1.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-1">
+<clipPath id="breeze-ci-fix-ownership-line-1">
     <rect x="0" y="25.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-2">
+<clipPath id="breeze-ci-fix-ownership-line-2">
     <rect x="0" y="50.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-3">
+<clipPath id="breeze-ci-fix-ownership-line-3">
     <rect x="0" y="74.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-4">
+<clipPath id="breeze-ci-fix-ownership-line-4">
     <rect x="0" y="99.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-5">
+<clipPath id="breeze-ci-fix-ownership-line-5">
     <rect x="0" y="123.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-6">
+<clipPath id="breeze-ci-fix-ownership-line-6">
     <rect x="0" y="147.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-7">
+<clipPath id="breeze-ci-fix-ownership-line-7">
     <rect x="0" y="172.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-8">
+<clipPath id="breeze-ci-fix-ownership-line-8">
     <rect x="0" y="196.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-9">
+<clipPath id="breeze-ci-fix-ownership-line-9">
     <rect x="0" y="221.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-10">
+<clipPath id="breeze-ci-fix-ownership-line-10">
     <rect x="0" y="245.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-530343897-line-11">
+<clipPath id="breeze-ci-fix-ownership-line-11">
     <rect x="0" y="269.9" width="1464" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="365.2" rx="8"/><text class="terminal-530343897-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;ci&#160;fix-ownership</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="365.2" rx="8"/><text class="breeze-ci-fix-ownership-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;ci&#160;fix-ownership</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-530343897-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#breeze-ci-fix-ownership-clip-terminal)">
     
-    <g class="terminal-530343897-matrix">
-    <text class="terminal-530343897-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-530343897-line-0)">
-</text><text class="terminal-530343897-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#terminal-530343897-line-1)">Usage:&#160;</text><text class="terminal-530343897-r1" x="97.6" y="44.4" textLength="402.6" clip-path="url(#terminal-530343897-line-1)">breeze&#160;ci&#160;fix-ownership&#160;[OPTIONS]</text><text class="terminal-530343897-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-530343897-line-1)">
-</text><text class="terminal-530343897-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-530343897-line-2)">
-</text><text class="terminal-530343897-r2" x="12.2" y="93.2" textLength="658.8" clip-path="url(#terminal-530343897-line-3)">Fix&#160;ownership&#160;of&#160;source&#160;files&#160;to&#160;be&#160;same&#160;as&#160;host&#160;user.</text><text class="terminal-530343897-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-530343897-line-3)">
-</text><text class="terminal-530343897-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-530343897-line-4)">
-</text><text class="terminal-530343897-r4" x="0" y="142" textLength="24.4" clip-path="url(#terminal-530343897-line-5)">╭─</text><text class="terminal-530343897-r4" x="24.4" y="142" textLength="1415.2" clip-path="url(#terminal-530343897-line-5)">&#160;Fix&#160;ownership&#160;flags&#160;───────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-530343897-r4" x="1439.6" y="142" textLength="24.4" clip-path="url(#terminal-530343897-line-5)">─╮</text><text class="terminal-530343897-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-530343897-line-5)">
-</text><text class="terminal-530343897-r4" x="0" y="166.4" textLength="12.2" clip-path="url(#terminal-530343897-line-6)">│</text><text class="terminal-530343897-r5" x="24.4" y="166.4" textLength="12.2" clip-path="url(#terminal-530343897-line-6)">-</text><text class="terminal-530343897-r5" x="36.6" y="166.4" textLength="48.8" clip-path="url(#terminal-530343897-line-6)">-use</text><text class="terminal-530343897-r5" x="85.4" y="166.4" textLength="61" clip-path="url(#terminal-530343897-line-6)">-sudo</text><text class="terminal-530343897-r2" x="195.2" y="166.4" textLength="1098" clip-path="url(#terminal-530343897-line-6)">Use&#160;sudo&#160;instead&#160;of&#160;docker&#160;image&#160;to&#160;fix&#160;the&#160;ownership.&#160;You&#160;need&#160;to&#160;be&#160;a&#160;`sudoer`&#160;to&#160;run&#160;it</text><text class="terminal-530343897-r4" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#terminal-530343897-line-6)">│</text><text class="terminal-530343897-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-530343897-line-6)">
-</text><text class="terminal-530343897-r4" x="0" y="190.8" textLength="1464" clip-path="url(#terminal-530343897-line-7)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-530343897-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-530343897-line-7)">
-</text><text class="terminal-530343897-r4" x="0" y="215.2" textLength="24.4" clip-path="url(#terminal-530343897-line-8)">╭─</text><text class="terminal-530343897-r4" x="24.4" y="215.2" textLength="1415.2" clip-path="url(#terminal-530343897-line-8)">&#160;Common&#160;options&#160;────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-530343897-r4" x="1439.6" y="215.2" textLength="24.4" clip-path="url(#terminal-530343897-line-8)">─╮</text><text class="terminal-530343897-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-530343897-line-8)">
-</text><text class="terminal-530343897-r4" x="0" y="239.6" textLength="12.2" clip-path="url(#terminal-530343897-line-9)">│</text><text class="terminal-530343897-r5" x="24.4" y="239.6" textLength="12.2" clip-path="url(#terminal-530343897-line-9)">-</text><text class="terminal-530343897-r5" x="36.6" y="239.6" textLength="97.6" clip-path="url(#terminal-530343897-line-9)">-verbose</text><text class="terminal-530343897-r6" x="158.6" y="239.6" textLength="24.4" clip-path="url(#terminal-530343897-line-9)">-v</text><text class="terminal-530343897-r2" x="207.4" y="239.6" textLength="585.6" clip-path="url(#terminal-530343897-line-9)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="terminal-530343897-r4" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#terminal-530343897-line-9)">│</text><text class="terminal-530343897-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#terminal-530343897-line-9)">
-</text><text class="terminal-530343897-r4" x="0" y="264" textLength="12.2" clip-path="url(#terminal-530343897-line-10)">│</text><text class="terminal-530343897-r5" x="24.4" y="264" textLength="12.2" clip-path="url(#terminal-530343897-line-10)">-</text><text class="terminal-530343897-r5" x="36.6" y="264" textLength="48.8" clip-path="url(#terminal-530343897-line-10)">-dry</text><text class="terminal-530343897-r5" x="85.4" y="264" textLength="48.8" clip-path="url(#terminal-530343897-line-10)">-run</text><text class="terminal-530343897-r6" x="158.6" y="264" textLength="24.4" clip-path="url(#terminal-530343897-line-10)">-D</text><text class="terminal-530343897-r2" x="207.4" y="264" textLength="719.8" clip-path="url(#terminal-530343897-line-10)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="terminal-530343897-r4" x="1451.8" y="264" textLength="12.2" clip-path="url(#terminal-530343897-line-10)">│</text><text class="terminal-530343897-r2" x="1464" y="264" textLength="12.2" clip-path="url(#terminal-530343897-line-10)">
-</text><text class="terminal-530343897-r4" x="0" y="288.4" textLength="12.2" clip-path="url(#terminal-530343897-line-11)">│</text><text class="terminal-530343897-r5" x="24.4" y="288.4" textLength="12.2" clip-path="url(#terminal-530343897-line-11)">-</text><text class="terminal-530343897-r5" x="36.6" y="288.4" textLength="61" clip-path="url(#terminal-530343897-line-11)">-help</text><text class="terminal-530343897-r6" x="158.6" y="288.4" textLength="24.4" clip-path="url(#terminal-530343897-line-11)">-h</text><text class="terminal-530343897-r2" x="207.4" y="288.4" textLength="329.4" clip-path="url(#terminal-530343897-line-11)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="terminal-530343897-r4" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#terminal-530343897-line-11)">│</text><text class="terminal-530343897-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#terminal-530343897-line-11)">
-</text><text class="terminal-530343897-r4" x="0" y="312.8" textLength="1464" clip-path="url(#terminal-530343897-line-12)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-530343897-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#terminal-530343897-line-12)">
+    <g class="breeze-ci-fix-ownership-matrix">
+    <text class="breeze-ci-fix-ownership-r2" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-0)">
+</text><text class="breeze-ci-fix-ownership-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#breeze-ci-fix-ownership-line-1)">Usage:&#160;</text><text class="breeze-ci-fix-ownership-r1" x="97.6" y="44.4" textLength="305" clip-path="url(#breeze-ci-fix-ownership-line-1)">breeze&#160;ci&#160;fix-ownership&#160;[</text><text class="breeze-ci-fix-ownership-r4" x="402.6" y="44.4" textLength="85.4" clip-path="url(#breeze-ci-fix-ownership-line-1)">OPTIONS</text><text class="breeze-ci-fix-ownership-r1" x="488" y="44.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-1)">]</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-1)">
+</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-2)">
+</text><text class="breeze-ci-fix-ownership-r2" x="12.2" y="93.2" textLength="658.8" clip-path="url(#breeze-ci-fix-ownership-line-3)">Fix&#160;ownership&#160;of&#160;source&#160;files&#160;to&#160;be&#160;same&#160;as&#160;host&#160;user.</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-3)">
+</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-4)">
+</text><text class="breeze-ci-fix-ownership-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-ci-fix-ownership-line-5)">╭─</text><text class="breeze-ci-fix-ownership-r5" x="24.4" y="142" textLength="256.2" clip-path="url(#breeze-ci-fix-ownership-line-5)">&#160;Fix&#160;ownership&#160;flags&#160;</text><text class="breeze-ci-fix-ownership-r5" x="280.6" y="142" textLength="1159" clip-path="url(#breeze-ci-fix-ownership-line-5)">───────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-ci-fix-ownership-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-ci-fix-ownership-line-5)">─╮</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-5)">
+</text><text class="breeze-ci-fix-ownership-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-6)">│</text><text class="breeze-ci-fix-ownership-r4" x="24.4" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-6)">-</text><text class="breeze-ci-fix-ownership-r4" x="36.6" y="166.4" textLength="48.8" clip-path="url(#breeze-ci-fix-ownership-line-6)">-use</text><text class="breeze-ci-fix-ownership-r4" x="85.4" y="166.4" textLength="61" clip-path="url(#breeze-ci-fix-ownership-line-6)">-sudo</text><text class="breeze-ci-fix-ownership-r2" x="195.2" y="166.4" textLength="1098" clip-path="url(#breeze-ci-fix-ownership-line-6)">Use&#160;sudo&#160;instead&#160;of&#160;docker&#160;image&#160;to&#160;fix&#160;the&#160;ownership.&#160;You&#160;need&#160;to&#160;be&#160;a&#160;`sudoer`&#160;to&#160;run&#160;it</text><text class="breeze-ci-fix-ownership-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-6)">│</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-6)">
+</text><text class="breeze-ci-fix-ownership-r5" x="0" y="190.8" textLength="1464" clip-path="url(#breeze-ci-fix-ownership-line-7)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-7)">
+</text><text class="breeze-ci-fix-ownership-r5" x="0" y="215.2" textLength="24.4" clip-path="url(#breeze-ci-fix-ownership-line-8)">╭─</text><text class="breeze-ci-fix-ownership-r5" x="24.4" y="215.2" textLength="195.2" clip-path="url(#breeze-ci-fix-ownership-line-8)">&#160;Common&#160;options&#160;</text><text class="breeze-ci-fix-ownership-r5" x="219.6" y="215.2" textLength="1220" clip-path="url(#breeze-ci-fix-ownership-line-8)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-ci-fix-ownership-r5" x="1439.6" y="215.2" textLength="24.4" clip-path="url(#breeze-ci-fix-ownership-line-8)">─╮</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-8)">
+</text><text class="breeze-ci-fix-ownership-r5" x="0" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-9)">│</text><text class="breeze-ci-fix-ownership-r4" x="24.4" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-9)">-</text><text class="breeze-ci-fix-ownership-r4" x="36.6" y="239.6" textLength="97.6" clip-path="url(#breeze-ci-fix-ownership-line-9)">-verbose</text><text class="breeze-ci-fix-ownership-r6" x="158.6" y="239.6" textLength="24.4" clip-path="url(#breeze-ci-fix-ownership-line-9)">-v</text><text class="breeze-ci-fix-ownership-r2" x="207.4" y="239.6" textLength="585.6" clip-path="url(#breeze-ci-fix-ownership-line-9)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="breeze-ci-fix-ownership-r5" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-9)">│</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-9)">
+</text><text class="breeze-ci-fix-ownership-r5" x="0" y="264" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-10)">│</text><text class="breeze-ci-fix-ownership-r4" x="24.4" y="264" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-10)">-</text><text class="breeze-ci-fix-ownership-r4" x="36.6" y="264" textLength="48.8" clip-path="url(#breeze-ci-fix-ownership-line-10)">-dry</text><text class="breeze-ci-fix-ownership-r4" x="85.4" y="264" textLength="48.8" clip-path="url(#breeze-ci-fix-ownership-line-10)">-run</text><text class="breeze-ci-fix-ownership-r6" x="158.6" y="264" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-10)">-</text><text class="breeze-ci-fix-ownership-r4" x="170.8" y="264" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-10)">D</text><text class="breeze-ci-fix-ownership-r2" x="207.4" y="264" textLength="719.8" clip-path="url(#breeze-ci-fix-ownership-line-10)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="breeze-ci-fix-ownership-r5" x="1451.8" y="264" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-10)">│</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-10)">
+</text><text class="breeze-ci-fix-ownership-r5" x="0" y="288.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-11)">│</text><text class="breeze-ci-fix-ownership-r4" x="24.4" y="288.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-11)">-</text><text class="breeze-ci-fix-ownership-r4" x="36.6" y="288.4" textLength="61" clip-path="url(#breeze-ci-fix-ownership-line-11)">-help</text><text class="breeze-ci-fix-ownership-r6" x="158.6" y="288.4" textLength="24.4" clip-path="url(#breeze-ci-fix-ownership-line-11)">-h</text><text class="breeze-ci-fix-ownership-r2" x="207.4" y="288.4" textLength="329.4" clip-path="url(#breeze-ci-fix-ownership-line-11)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-ci-fix-ownership-r5" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-11)">│</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-11)">
+</text><text class="breeze-ci-fix-ownership-r5" x="0" y="312.8" textLength="1464" clip-path="url(#breeze-ci-fix-ownership-line-12)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-ci-fix-ownership-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#breeze-ci-fix-ownership-line-12)">
 </text>
     </g>
     </g>

@@ -406,8 +406,6 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
     env = os.environ.copy()
     env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
     env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
-    env["RECORD_BREEZE_TITLE"] = "Breeze commands"
-    env["RECORD_BREEZE_OUTPUT_FILE"] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
     env["TERM"] = "xterm-256color"
     env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
     new_hash_text_dump = PREAMBLE + get_command_hash_export()
@@ -450,12 +448,9 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
                 console.print(f"[bright_blue]Unchanged command: {hash_command}")
         regenerate_all_commands = True
     if regenerate_all_commands:
-        env = os.environ.copy()
-        env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
-        env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
         env["RECORD_BREEZE_TITLE"] = "Breeze commands"
         env["RECORD_BREEZE_OUTPUT_FILE"] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
-        env["TERM"] = "xterm-256color"
+        env["RECORD_BREEZE_UNIQUE_ID"] = "breeze-help"
         run_command(
             ["breeze", "--help"],
             env=env,
@@ -463,36 +458,15 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
     for command in commands_list:
         if command == "main":
             continue
-        if ":" not in command:
-            env = os.environ.copy()
-            env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
-            env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
-            env["RECORD_BREEZE_TITLE"] = f"Command: {command}"
-            env["RECORD_BREEZE_OUTPUT_FILE"] = str(BREEZE_IMAGES_DIR / f"output_{command}.svg")
-            env["TERM"] = "xterm-256color"
-            run_command(
-                ["breeze", command, "--help"],
-                env=env,
-            )
-        else:
-            split_command = command.split(":")
-            env = os.environ.copy()
-            env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
-            env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
-            env["RECORD_BREEZE_TITLE"] = f"Command: {split_command[0]} {split_command[1]}"
-            env["RECORD_BREEZE_OUTPUT_FILE"] = str(
-                BREEZE_IMAGES_DIR / f"output_{split_command[0]}_{split_command[1]}.svg"
-            )
-            env["TERM"] = "xterm-256color"
-            run_command(
-                [
-                    "breeze",
-                    split_command[0],
-                    split_command[1],
-                    "--help",
-                ],
-                env=env,
-            )
+
+        subcommands = command.split(":")
+        env["RECORD_BREEZE_TITLE"] = f"Command: {' '.join(subcommands)}"
+        env["RECORD_BREEZE_OUTPUT_FILE"] = str(BREEZE_IMAGES_DIR / f"output_{'_'.join(subcommands)}.svg")
+        env["RECORD_BREEZE_UNIQUE_ID"] = f"breeze-{'-'.join(subcommands)}"
+        run_command(
+            ["breeze", *subcommands, "--help"],
+            env=env,
+        )
     if regenerate_all_commands:
         COMMAND_HASH_FILE_PATH.write_text(new_hash_text_dump)
         get_console().print(f"\n[info]New hash of breeze commands written in {COMMAND_HASH_FILE_PATH}\n")
