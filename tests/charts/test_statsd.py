@@ -222,4 +222,4 @@ class TestStatsd:
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert needle in jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == args
