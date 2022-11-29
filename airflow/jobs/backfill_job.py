@@ -68,10 +68,10 @@ class BackfillJob(BaseJob):
     class _DagRunTaskStatus:
         """
         Internal status of the backfill job.
-        This class is intended to be instantiated only within a BackfillJob 
+        This class is intended to be instantiated only within a BackfillJob
         instance and will track the execution of tasks, e.g. running, skipped,
         succeeded, failed, etc. Information about the dag runs related to the
-        backfill job are also being tracked in this structure, e.g. finished runs, etc. 
+        backfill job are also being tracked in this structure, e.g. finished runs, etc.
         Any other status related information related to the execution of dag runs / tasks
         can be included in this structure since it makes it easier to pass it around.
 

@@ -454,7 +454,7 @@ class KubernetesExecutor(BaseExecutor):
     @provide_session
     def clear_not_launched_queued_tasks(self, session=None) -> None:
         """
-        Clear unlaunched tasks that were previously queued.
+        Clear launched tasks that were not yet launched, but previously queued.
         Tasks can end up in a "Queued" state through either the executor being
         abruptly shut down (leaving a non-empty task_queue on this executor)
         or when a rescheduled/deferred operator comes back up for execution
