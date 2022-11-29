@@ -585,17 +585,15 @@ class KubernetesExecutor(BaseExecutor):
             self.log.debug("self.running: %s", self.running)
         if self.queued_tasks:
             self.log.debug("self.queued: %s", self.queued_tasks)
-        if not self.scheduler_job_id:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if not self.kube_scheduler:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if not self.kube_config:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if not self.result_queue:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if not self.task_queue:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if not self.event_scheduler:
+        required_attrs = (
+            "scheduler_job_id",
+            "kube_scheduler",
+            "kube_config",
+            "result_queue",
+            "task_queue",
+            "event_scheduler",
+        )
+        if not all(getattr(self, x) for x in required_attrs):
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.kube_scheduler.sync()
 
