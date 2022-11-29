@@ -21,11 +21,11 @@ Example Airflow DAG for CDE run job operator.
 The target of this example DAG is to run the CdeRunJobOperator integration test.
 It shows basic usage and configuration of this operator.
 In the test environment, this DAG is expected to be processed by a local Airflow instance.
-
 Please note that it is expected to have:
 * CDE CLI binary available on the environment (for the jobs creation steps as part of this example,
- not the operator itself). It can be fetched from the CDE virtual cluster.
+not the operator itself). It can be fetched from the CDE virtual cluster.
 * CDE Airflow connection already set up. A dummy example connection can be found in airflow/utils/db.py.
+
 Please refer to the CDE documentation for more information:
 https://docs.cloudera.com/data-engineering/cloud/orchestrate-workflows/topics/cde-airflow-dag-pipeline.html
 

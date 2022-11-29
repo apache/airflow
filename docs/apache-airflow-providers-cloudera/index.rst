@@ -82,17 +82,17 @@ You can install this package on top of an existing Airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.3.0``
-``cloudera-cde-sdk````>=1.0.1,<2.0.0``
-``cryptography``    ``>=3.3.2``
+====================  ==================
+PIP package           Version required
+====================  ==================
+``apache-airflow``    ``>=2.3.0``
+``cloudera-cde-sdk``  ``>=1.0.1,<2.0.0``
+``cryptography``      ``>=3.3.2``
 ``pathlib2``
 ``pure25519``
 ``retrying``
 ``requests``
 ``tenacity``
-==================  ==================
+====================  ==================
 
 .. include:: ../../airflow/providers/cloudera/CHANGELOG.rst
