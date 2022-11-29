@@ -187,7 +187,7 @@ def send_task_to_executor(
 @celery_import_modules.connect
 def on_celery_import_modules(*args, **kwargs):
     """
-    Preload some "expensive" airflow modules once, so other task processes wont have to import it again.
+    Preload some "expensive" airflow modules once, so other task processes won't have to import it again.
 
     Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
     doesn't matter, but for short tasks this starts to be a noticeable impact.
