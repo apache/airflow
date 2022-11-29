@@ -210,6 +210,15 @@
       example: ~
       default: "False"
       see_also: "https://docs.python.org/3/library/pickle.html#comparison-with-json"
+    - name: allowed_deserialization_classes
+      description: |
+        What classes can be imported during deserialization. This is a multi line value.
+        The individual items will be parsed as regexp. Python built-in classes (like dict)
+        are always allowed
+      version_added: 2.5.0
+      type: string
+      default: 'airflow\..*'
+      example: ~
     - name: killed_task_cleanup_time
       description: |
         When a task is killed forcefully, this is the amount of time in seconds that

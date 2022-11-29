@@ -75,7 +75,7 @@ class TestElasticsearchTaskHandler:
         clear_db_dags()
 
     @elasticmock
-    def setup(self):
+    def setup_method(self, method):
         self.local_log_location = "local/log/location"
         self.end_of_log_mark = "end_of_log\n"
         self.write_stdout = False
@@ -100,7 +100,7 @@ class TestElasticsearchTaskHandler:
         self.body = {"message": self.test_message, "log_id": self.LOG_ID, "offset": 1}
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=1)
 
-    def teardown(self):
+    def teardown_method(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
 
     def test_client(self):

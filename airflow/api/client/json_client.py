@@ -43,7 +43,7 @@ class Client(api_client.Client):
 
         return resp.json()
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
+    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
         endpoint = f"/api/experimental/dags/{dag_id}/dag_runs"
         url = urljoin(self._api_base_url, endpoint)
         data = self._request(
@@ -53,6 +53,7 @@ class Client(api_client.Client):
                 "run_id": run_id,
                 "conf": conf,
                 "execution_date": execution_date,
+                "replace_microseconds": replace_microseconds,
             },
         )
         return data["message"]

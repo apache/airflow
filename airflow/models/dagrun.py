@@ -305,6 +305,7 @@ class DagRun(Base, LoggingMixin):
         # TODO: Bake this query, it is run _A lot_
         query = (
             session.query(cls)
+            .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
             .filter(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .filter(DagModel.is_paused == false(), DagModel.is_active == true())

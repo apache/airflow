@@ -19,12 +19,10 @@ from __future__ import annotations
 
 import json
 import re
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from parameterized import parameterized
 from prestodb.transaction import IsolationLevel
 
 from airflow import AirflowException
@@ -56,7 +54,7 @@ def test_generate_airflow_presto_client_info_header():
         assert generate_presto_client_info() == expected
 
 
-class TestPrestoHookConn(unittest.TestCase):
+class TestPrestoHookConn:
     @patch("airflow.providers.presto.hooks.presto.prestodb.auth.BasicAuthentication")
     @patch("airflow.providers.presto.hooks.presto.prestodb.dbapi.connect")
     @patch("airflow.providers.presto.hooks.presto.PrestoHook.get_connection")
@@ -190,14 +188,15 @@ class TestPrestoHookConn(unittest.TestCase):
         mock_basic_auth.assert_called_once_with("login", "password")
         assert mock_connect.return_value == conn
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "current_verify, expected_verify",
         [
             ("False", False),
             ("false", False),
             ("true", True),
             ("true", True),
             ("/tmp/cert.crt", "/tmp/cert.crt"),
-        ]
+        ],
     )
     def test_get_conn_verify(self, current_verify, expected_verify):
         patcher_connect = patch("airflow.providers.presto.hooks.presto.prestodb.dbapi.connect")
@@ -215,10 +214,8 @@ class TestPrestoHookConn(unittest.TestCase):
             assert mock_connect.return_value == conn
 
 
-class TestPrestoHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestPrestoHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur

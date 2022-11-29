@@ -32,6 +32,11 @@ Bug Fixes
 
 * ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
 * ``Bump common.sql provider to 1.3.1 (#27888)``
+* ``Fixing the behaviours of SQL Hooks and Operators finally (#27912)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
 
 4.0.0
 .....

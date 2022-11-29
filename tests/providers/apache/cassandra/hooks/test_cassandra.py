@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -35,14 +34,14 @@ from airflow.utils import db
 
 
 @pytest.mark.integration("cassandra")
-class TestCassandraHook(unittest.TestCase):
-    def setUp(self):
+class TestCassandraHook:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="cassandra_test",
                 conn_type="cassandra",
                 host="host-1,host-2",
-                port="9042",
+                port=9042,
                 schema="test_keyspace",
                 extra='{"load_balancing_policy":"TokenAwarePolicy","protocol_version":4}',
             )
@@ -52,7 +51,7 @@ class TestCassandraHook(unittest.TestCase):
                 conn_id="cassandra_default_with_schema",
                 conn_type="cassandra",
                 host="cassandra",
-                port="9042",
+                port=9042,
                 schema="s",
             )
         )
