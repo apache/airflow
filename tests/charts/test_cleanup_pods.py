@@ -239,6 +239,34 @@ class TestCleanupPods:
         assert 2 == jmespath.search("spec.failedJobsHistoryLimit", docs[0])
         assert 4 == jmespath.search("spec.successfulJobsHistoryLimit", docs[0])
 
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "airflowLocalSettings": None,
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+        volume_mounts = jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "airflowLocalSettings": "# Well hello!",
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
+
 
 class TestCleanupServiceAccount:
     def test_should_add_component_specific_labels(self):

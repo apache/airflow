@@ -319,6 +319,25 @@ class TestCreateUserJob:
             "whereisjane?",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": None}, show_only=["templates/jobs/create-user-job.yaml"]
+        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
 
 class TestCreateUserJobServiceAccount:
     def test_should_add_component_specific_labels(self):

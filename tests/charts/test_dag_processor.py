@@ -497,3 +497,27 @@ class TestDagProcessor:
         assert "git-sync-init" not in [
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
+
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"dagProcessor": {"enabled": True}, "airflowLocalSettings": None},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts_init)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"dagProcessor": {"enabled": True}, "airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        volume_mount = {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
