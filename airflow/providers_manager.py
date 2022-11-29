@@ -504,7 +504,14 @@ class ProvidersManager(LoggingMixin):
             log.info("You have no providers installed.")
             return
         try:
+            seen = set()
             for path in airflow.providers.__path__:  # type: ignore[attr-defined]
+                # The same path can appear in the __path__ twice, under non-normalized paths (ie.
+                # /path/to/repo/airflow/providers and /path/to/repo/./airflow/providers)
+                path = os.path.realpath(path)
+                if path in seen:
+                    continue
+                seen.add(path)
                 self._add_provider_info_from_local_source_files_on_path(path)
         except Exception as e:
             log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
