@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-28T23:57:33Z
+# This constraints file was automatically generated on 2022-11-29T09:58:32Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -71,7 +71,7 @@ async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
 attrs==22.1.0
-aws-sam-translator==1.54.0
+aws-sam-translator==1.55.0
 aws-xray-sdk==2.11.0
 azure-batch==13.0.0
 azure-common==1.1.28
@@ -102,9 +102,9 @@ billiard==3.6.4.0
 black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.17
+boto3==1.26.18
 boto==2.49.0
-botocore==1.29.17
+botocore==1.29.18
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -458,7 +458,7 @@ smbprotocol==1.10.1
 smmap==5.0.0
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==2.8.2
+snowflake-connector-python==2.8.3
 snowflake-sqlalchemy==1.4.4
 sortedcontainers==2.4.0
 soupsieve==2.3.2.post1
