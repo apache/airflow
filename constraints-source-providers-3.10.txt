@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-29T09:58:33Z
+# This constraints file was automatically generated on 2022-11-29T16:10:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -66,7 +66,7 @@ asana==2.0.0
 asgiref==3.5.2
 asn1crypto==1.5.1
 astroid==2.11.7
-asttokens==2.1.0
+asttokens==2.2.0
 async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
@@ -319,7 +319,7 @@ mypy-extensions==0.4.3
 mypy==0.971
 mysql-connector-python==8.0.31
 mysqlclient==2.1.1
-nbclient==0.7.0
+nbclient==0.7.1
 nbformat==5.7.0
 neo4j==5.3.0
 nest-asyncio==1.5.6
@@ -503,7 +503,7 @@ toolz==0.12.0
 tornado==6.1
 towncrier==22.8.0
 tqdm==4.64.1
-traitlets==5.5.0
+traitlets==5.6.0
 trino==0.319.0
 twine==4.0.1
 types-Deprecated==1.2.9
