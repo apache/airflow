@@ -360,7 +360,8 @@ class CeleryExecutor(BaseExecutor):
         """
         Evaluate whether other tasks have stalled during the expected time.
 
-        This can happen for few different reasons, usually related to race conditions while shutting down schedulers and celery workers.
+        This can happen for few different reasons,
+        usually related to race conditions while shutting down schedulers and celery workers.
 
         It is, of course, always possible that these tasks are not actually
         stalled - they could just be waiting in a long celery queue.
