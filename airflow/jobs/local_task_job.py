@@ -233,8 +233,6 @@ class LocalTaskJob(BaseJob):
 
     @staticmethod
     def _enable_task_listeners():
-        """
-        Check for registered listeners, then register sqlalchemy hooks for TI state change if we do.
-        """
+        """Check for registered listeners, then register sqlalchemy hooks for TI state changes."""
         if get_listener_manager().has_listeners:
             register_task_instance_state_events()
