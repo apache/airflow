@@ -242,11 +242,7 @@ class TestCleanupPods:
     def test_no_airflow_local_settings(self):
         docs = render_chart(
             values={
-                "cleanup": {
-                    "enabled": True,
-                    "failedJobsHistoryLimit": 2,
-                    "successfulJobsHistoryLimit": 4,
-                },
+                "cleanup": {"enabled": True},
                 "airflowLocalSettings": None,
             },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
@@ -259,11 +255,7 @@ class TestCleanupPods:
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={
-                "cleanup": {
-                    "enabled": True,
-                    "failedJobsHistoryLimit": 2,
-                    "successfulJobsHistoryLimit": 4,
-                },
+                "cleanup": {"enabled": True},
                 "airflowLocalSettings": "# Well hello!",
             },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
