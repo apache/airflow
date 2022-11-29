@@ -413,7 +413,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "quote": self.quote_character,
                 "destinationEncryptionConfiguration": self.encryption_configuration,
             }
-            for k, v in set_if_def:
+            for k, v in set_if_def.items():
                 if v:
                     self.configuration["load"][k] = v
             self.configuration = self._check_schema_fields(self.configuration)
