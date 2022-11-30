@@ -54,7 +54,7 @@ from tests.utils.test_config import (
 HOME_DIR = os.path.expanduser("~")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", autouse=True)
 def restore_env():
     with mock.patch.dict("os.environ"):
         yield
@@ -69,7 +69,6 @@ def restore_env():
         "AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD": 'echo -n "NOT OK"',
     },
 )
-@pytest.mark.usefixtures("restore_env")
 class TestConf:
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict("os.environ"):
@@ -835,7 +834,6 @@ key7 =
         assert test_conf.gettimedelta("default", "key7") is None
 
 
-@pytest.mark.usefixtures("restore_env")
 class TestDeprecatedConf:
     @conf_vars(
         {
