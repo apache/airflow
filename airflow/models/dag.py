@@ -1950,7 +1950,7 @@ class DAG(LoggingMixin):
     @provide_session
     def clear(
         self,
-        task_ids: Collection[str] | Collection[tuple[str, int]] | None = None,
+        task_ids: Collection[str | tuple[str, int]] | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         only_failed: bool = False,
