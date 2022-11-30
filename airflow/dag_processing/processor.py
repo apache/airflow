@@ -758,7 +758,11 @@ class DagFileProcessor(LoggingMixin):
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
-            DagFileProcessor.update_import_errors(dagbag.file_last_changed, dagbag.import_errors, session)
+            DagFileProcessor.update_import_errors(
+                file_last_changed=dagbag.file_last_changed,
+                import_errors=dagbag.import_errors,
+                session=session,
+            )
             if callback_requests:
                 # If there were callback requests for this file but there was a
                 # parse error we still need to progress the state of TIs,
@@ -785,7 +789,11 @@ class DagFileProcessor(LoggingMixin):
 
         # Record import errors into the ORM
         try:
-            DagFileProcessor.update_import_errors(dagbag.file_last_changed, dagbag.import_errors, session)
+            DagFileProcessor.update_import_errors(
+                file_last_changed=dagbag.file_last_changed,
+                import_errors=dagbag.import_errors,
+                session=session,
+            )
         except Exception:
             self.log.exception("Error logging import errors!")
 

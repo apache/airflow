@@ -89,12 +89,4 @@ components:
           description: JSON-RPC Version (2.0)
       discriminator:
         propertyName: method_name
-    examplePost:
-      allOf:
-      - "$ref": "#/components/schemas/JsonRpcRequired"
-      - type: object
-        properties:
-          params:
-            title: Method arguments
-            type: string
 tags: []
