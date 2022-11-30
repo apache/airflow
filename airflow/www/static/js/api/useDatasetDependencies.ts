@@ -94,49 +94,52 @@ interface SeparateGraphsProps {
 const findDownstreamGraph = (
   { edges, graphs = [] }: SeparateGraphsProps,
 ): EdgeGroup[] => {
-  let filteredEdges = [...edges];
+  let unassignedEdges = [...edges];
 
-  // merge graphs that share edges
-  const mergedGraphs = graphs.reduce(
-    (newGraphs, g, i) => {
-      const otherGroupIndex = newGraphs.findIndex(
-        (og) => og.edges.some(
-          (oge) => g.edges.some(
-            (e) => e.target === oge.target,
+  const mergedGraphs = graphs
+    .reduce(
+      (newGraphs, graph) => {
+        const otherGroupIndex = newGraphs.findIndex(
+          (otherGroup) => otherGroup.edges.some(
+            (otherEdge) => graph.edges.some(
+              (edge) => edge.target === otherEdge.target,
+            ),
           ),
-        ),
-      );
-      if (otherGroupIndex === -1) {
-        return [...newGraphs, g];
-      }
-      const mergedEdges = [...newGraphs[otherGroupIndex].edges, ...g.edges]
-        .filter((e, j, totalEdges) => (
-          j === totalEdges.findIndex((t) => t.source === e.source && t.target === e.target)
-        ));
-      return [
-        ...newGraphs.filter((_, k) => k !== i && k !== otherGroupIndex),
-        { edges: mergedEdges },
-      ];
-    },
-    [] as EdgeGroup[],
-  ).map((g) => {
-    // after graphs are merged, find the next layer of downstream edges
-    const downstreamEdges = edges.filter((e) => g.edges.some((ge) => ge.target === e.source));
-    filteredEdges = filteredEdges.filter(
-      (e) => !downstreamEdges.some(
-        (de) => de.source === e.source && de.target === e.target,
-      ),
-    );
-    return ({
-      edges: [...g.edges, ...downstreamEdges].filter((e, i, totalEdges) => (
-        i === totalEdges.findIndex((t) => t.source === e.source && t.target === e.target)
-      )),
+        );
+        if (otherGroupIndex === -1) {
+          return [...newGraphs, graph];
+        }
+
+        const mergedEdges = [...newGraphs[otherGroupIndex].edges, ...graph.edges]
+          .filter((edge, edgeIndex, otherEdges) => (
+            edgeIndex === otherEdges.findIndex(
+              (otherEdge) => otherEdge.source === edge.source && otherEdge.target === edge.target,
+            )
+          ));
+        return [
+          ...newGraphs.filter((_, newGraphIndex) => newGraphIndex !== otherGroupIndex),
+          { edges: mergedEdges },
+        ];
+      },
+      [] as EdgeGroup[],
+    )
+    .map((graph) => {
+      // find the next set of downstream edges and filter them out of the unassigned edges list
+      const downstreamEdges: DepEdge[] = [];
+      unassignedEdges = unassignedEdges.filter((edge) => {
+        const isDownstream = graph.edges.some((graphEdge) => graphEdge.target === edge.source);
+        if (isDownstream) downstreamEdges.push(edge);
+        return !isDownstream;
+      });
+
+      return {
+        edges: [...graph.edges, ...downstreamEdges],
+      };
     });
-  });
 
   // recursively find downstream edges until there are no unassigned edges
-  return filteredEdges.length
-    ? findDownstreamGraph({ edges: filteredEdges, graphs: mergedGraphs })
+  return unassignedEdges.length
+    ? findDownstreamGraph({ edges: unassignedEdges, graphs: mergedGraphs })
     : mergedGraphs;
 };
 
