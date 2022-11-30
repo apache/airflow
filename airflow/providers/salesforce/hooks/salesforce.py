@@ -391,3 +391,15 @@ class SalesforceHook(BaseHook):
             df["time_fetched_from_salesforce"] = fetched_time
 
         return df
+
+    def test_connection(self):
+        """Test the Salesforce connectivity"""
+        try:
+            self.describe_object("Account")
+            status = True
+            message = "Connection successfully tested"
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message
