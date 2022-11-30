@@ -135,14 +135,17 @@ def check_for_python_emulation():
                 "[warning]You likely installed your Python wrongly and you should "
                 "remove it and reinstall from scratch[/]\n"
             )
-            from inputimeout import inputimeout
+            from inputimeout import TimeoutOccurred, inputimeout
 
             user_status = inputimeout(
-                prompt="Are you REALLY sure you want to continue? (press y otherwise we exit in 20s) ",
+                prompt="Are you REALLY sure you want to continue? (answer with y otherwise we exit in 20s)\n",
                 timeout=20,
             )
             if not user_status.upper() in ["Y", "YES"]:
                 sys.exit(1)
+    except TimeoutOccurred:
+        get_console().print("\nNo answer, exiting...")
+        sys.exit(1)
     except subprocess.CalledProcessError:
         pass
     except PermissionError:
@@ -178,14 +181,17 @@ def check_for_rosetta_environment():
                 "If you have mixed Intel/ARM binaries installed you should likely nuke and "
                 "reinstall your development environment (including brew and Python) from scratch!\n\n"
             )
-            from inputimeout import inputimeout
+            from inputimeout import TimeoutOccurred, inputimeout
 
             user_status = inputimeout(
-                prompt="Are you REALLY sure you want to continue? (press y otherwise we exit in 20s) ",
+                prompt="Are you REALLY sure you want to continue? (answer with y otherwise we exit in 20s)\n",
                 timeout=20,
             )
             if not user_status.upper() in ["Y", "YES"]:
                 sys.exit(1)
+    except TimeoutOccurred:
+        get_console().print("\nNo answer, exiting...")
+        sys.exit(1)
     except subprocess.CalledProcessError:
         pass
     except PermissionError:
