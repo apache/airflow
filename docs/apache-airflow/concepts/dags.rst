@@ -59,7 +59,7 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
 
     dag = generate_dag()
 
-DAGs are nothing without :doc:`tasks` to run, and those will usually either come in the form of either :doc:`operators`, :doc:`sensors` or :doc:`taskflow`.
+DAGs are nothing without :doc:`tasks` to run, and those will usually come in the form of either :doc:`operators`, :doc:`sensors` or :doc:`taskflow`.
 
 
 Task Dependencies
@@ -96,7 +96,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     # You can also do it dynamically
     chain(*[EmptyOperator(task_id='op' + i) for i in range(1, 6)])
 
-Chain can also do *pairwise* dependencies for lists the same size (this is different to the *cross dependencies* done by ``cross_downstream``!)::
+Chain can also do *pairwise* dependencies for lists the same size (this is different from the *cross dependencies* created by ``cross_downstream``!)::
 
     from airflow.models.baseoperator import chain
 
