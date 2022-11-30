@@ -229,33 +229,6 @@ class AirflowConfigParser(ConfigParser):
         ("database", "sql_alchemy_connect_args"): ("core", "sql_alchemy_connect_args", "2.3.0"),
         ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
         ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
-        **{
-            ("kubernetes_executor", x): ("kubernetes", x, "2.4.2")
-            for x in (
-                "pod_template_file",
-                "worker_container_repository",
-                "worker_container_tag",
-                "namespace",
-                "delete_worker_pods",
-                "delete_worker_pods_on_failure",
-                "worker_pods_creation_batch_size",
-                "multi_namespace_mode",
-                "in_cluster",
-                "cluster_context",
-                "config_file",
-                "kube_client_request_args",
-                "delete_option_kwargs",
-                "enable_tcp_keepalive",
-                "tcp_keep_idle",
-                "tcp_keep_intvl",
-                "tcp_keep_cnt",
-                "verify_ssl",
-                "worker_pods_pending_timeout",
-                "worker_pods_pending_timeout_check_interval",
-                "worker_pods_queued_check_interval",
-                "worker_pods_pending_timeout_batch_size",
-            )
-        },
         ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
     }
 
@@ -593,28 +566,35 @@ class AirflowConfigParser(ConfigParser):
         deprecated_key: str | None
 
         # For when we rename whole sections
-        if section in self.deprecated_sections:
+        if section in self.inversed_deprecated_sections:
+            deprecated_section, deprecated_key = (section, key)
+            section = self.inversed_deprecated_sections[section]
             warnings.warn(
-                f"The config section [{section}] has been renamed to "
-                f"[{self.deprecated_sections[section][0]}]. Please update your config.",
+                f"The config section [{deprecated_section}] has been renamed to "
+                f"[{section}]. Please update your `conf.get*` call to use the new name",
                 FutureWarning,
                 stacklevel=2,
             )
             # Don't warn about individual rename if the whole section is renamed
             issue_warning = False
-            deprecated_section, deprecated_key = (section, key)
-            section = self.deprecated_sections[section][0]
         elif (section, key) in self.inversed_deprecated_options:
             # Handle using deprecated section/key instead of the new section/key
-            deprecated_section, deprecated_key = self.inversed_deprecated_options[(section, key)]
+            new_section, new_key = self.inversed_deprecated_options[(section, key)]
             if issue_warning:
                 warnings.warn(
-                    f"section/key [{deprecated_section}/{deprecated_key}] has been deprecated, "
-                    f"you should use [{section}/{key}] instead.",
-                    DeprecationWarning,
+                    f"section/key [{section}/{key}] has been deprecated, you should use"
+                    f"[{new_section}/{new_key}] instead. Please update your `conf.get*` call to use the "
+                    "new name",
+                    FutureWarning,
                     stacklevel=2,
                 )
                 issue_warning = False
+            deprecated_section, deprecated_key = section, key
+            section, key = (new_section, new_key)
+        elif section in self.deprecated_sections:
+            # When accessing the new section name, make sure we check under the old config name
+            deprecated_key = key
+            deprecated_section = self.deprecated_sections[section][0]
         else:
             deprecated_section, deprecated_key, _ = self.deprecated_options.get(
                 (section, key), (None, None, None)
@@ -652,14 +632,9 @@ class AirflowConfigParser(ConfigParser):
         if self.airflow_defaults.has_option(section, key) or "fallback" in kwargs:
             return expand_env_var(self.airflow_defaults.get(section, key, **kwargs))
 
-        # Finally attempt: look for the old section name we have renamed en-mass
-        elif section in self.inversed_deprecated_sections:
-            old_section = self.inversed_deprecated_sections[section]
-            return self.get(old_section, key, **kwargs)
-        else:
-            log.warning("section/key [%s/%s] not found in config", section, key)
+        log.warning("section/key [%s/%s] not found in config", section, key)
 
-            raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
+        raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
 
     def _get_option_from_secrets(
         self,

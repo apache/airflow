@@ -871,6 +871,10 @@ class TestDeprecatedConf:
                 with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
                     assert conf.get("logging", "logging_level") == "VALUE"
 
+            with pytest.warns(FutureWarning, match="Please update your `conf.get"):
+                with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
+                    assert conf.get("core", "logging_level") == "VALUE"
+
             with pytest.warns(DeprecationWarning), conf_vars({("core", "logging_level"): "VALUE"}):
                 assert conf.get("logging", "logging_level") == "VALUE"
 
@@ -1046,10 +1050,7 @@ sql_alchemy_conn=sqlite://test
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
             test_conf.deprecated_sections = {
-                "old_section": ("new_section", "2.1"),
-            }
-            test_conf.deprecated_options = {
-                ("old_section", "val"): ("new_section", "val", "2.1"),
+                "new_section": ("old_section", "2.1"),
             }
             test_conf.read_dict(conf_dict)
             test_conf.validate()
@@ -1061,14 +1062,15 @@ sql_alchemy_conn=sqlite://test
         test_conf = make_config()
         with pytest.warns(
             DeprecationWarning,
-            match=r"section/key \[old_section/val\] has been deprecated, you should use "
-            r"\[new_section/val\] instead",
+            match=r"\[old_section\] has been moved to the val option in \[new_section\].*update your config",
         ):
+            # Test when you've _set_ the old value that we warn you need to update your config
             assert test_conf.get("new_section", "val") == expected
         with pytest.warns(
             FutureWarning,
-            match=r"The config section \[old_section\] has been renamed to \[new_section\]",
+            match=r"\[old_section\] has been renamed to \[new_section\].*update your `conf.get",
         ):
+            # Test when you read using the old section you get told to change your `conf.get` call
             assert test_conf.get("old_section", "val") == expected
 
     def test_deprecated_funcs(self):
