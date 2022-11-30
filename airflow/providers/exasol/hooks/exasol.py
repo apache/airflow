@@ -157,11 +157,13 @@ class ExasolHook(DbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the LAST SQL expression if handler was provided.
         """
+        self.descriptions = []
         if isinstance(sql, str):
             if split_statements:
                 sql_list: Iterable[str] = self.split_sql_string(sql)
             else:
-                sql_list = [self.strip_sql_string(sql)]
+                statement = self.strip_sql_string(sql)
+                sql_list = [statement] if statement.strip() else []
         else:
             sql_list = sql
 
@@ -169,7 +171,7 @@ class ExasolHook(DbApiHook):
             self.log.debug("Executing following statements against Exasol DB: %s", list(sql_list))
         else:
             raise ValueError("List of SQL statements is empty")
-
+        _last_result = None
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
             results = []
@@ -178,7 +180,12 @@ class ExasolHook(DbApiHook):
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     if handler is not None:
                         result = handler(cur)
-                        results.append(result)
+                        if return_single_query_results(sql, return_last, split_statements):
+                            _last_result = result
+                            _last_description = cur.description
+                        else:
+                            results.append(result)
+                            self.descriptions.append(cur.description)
 
                     self.log.info("Rows affected: %s", cur.rowcount)
 
@@ -188,8 +195,9 @@ class ExasolHook(DbApiHook):
 
         if handler is None:
             return None
-        elif return_single_query_results(sql, return_last, split_statements):
-            return results[-1]
+        if return_single_query_results(sql, return_last, split_statements):
+            self.descriptions = [_last_description]
+            return _last_result
         else:
             return results
 
