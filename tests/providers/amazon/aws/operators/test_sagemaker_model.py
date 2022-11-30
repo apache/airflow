@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
@@ -45,27 +44,29 @@ CREATE_MODEL_PARAMS: dict = {
 EXPECTED_INTEGER_FIELDS: list[list[str]] = []
 
 
-class TestSageMakerModelOperator(unittest.TestCase):
-    def setUp(self):
-        self.sagemaker = SageMakerModelOperator(task_id="test_sagemaker_operator", config=CREATE_MODEL_PARAMS)
-
-    @mock.patch.object(SageMakerHook, "describe_model", return_value="")
-    @mock.patch.object(SageMakerHook, "create_model")
+class TestSageMakerModelOperator:
+    @patch.object(SageMakerHook, "describe_model", return_value="")
+    @patch.object(SageMakerHook, "create_model")
     def test_execute(self, mock_create_model, _):
+        sagemaker = SageMakerModelOperator(task_id="test_sagemaker_operator", config=CREATE_MODEL_PARAMS)
         mock_create_model.return_value = {"ModelArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}}
-        self.sagemaker.execute(None)
+
+        sagemaker.execute(None)
+
         mock_create_model.assert_called_once_with(CREATE_MODEL_PARAMS)
-        assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
+        assert sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
 
-    @mock.patch.object(SageMakerHook, "create_model")
+    @patch.object(SageMakerHook, "create_model")
     def test_execute_with_failure(self, mock_create_model):
+        sagemaker = SageMakerModelOperator(task_id="test_sagemaker_operator", config=CREATE_MODEL_PARAMS)
         mock_create_model.return_value = {"ModelArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 404}}
+
         with pytest.raises(AirflowException):
-            self.sagemaker.execute(None)
+            sagemaker.execute(None)
 
 
-class TestSageMakerDeleteModelOperator(unittest.TestCase):
-    @mock.patch.object(SageMakerHook, "delete_model")
+class TestSageMakerDeleteModelOperator:
+    @patch.object(SageMakerHook, "delete_model")
     def test_execute(self, delete_model):
         op = SageMakerDeleteModelOperator(
             task_id="test_sagemaker_operator", config={"ModelName": "model_name"}
@@ -75,7 +76,7 @@ class TestSageMakerDeleteModelOperator(unittest.TestCase):
 
 
 class TestSageMakerRegisterModelVersionOperator:
-    @mock.patch.object(SageMakerHook, "create_model_package_group")
+    @patch.object(SageMakerHook, "create_model_package_group")
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_execute(self, conn_mock, create_group_mock):
         image = "257758044811.dkr.ecr.us-east-2.amazonaws.com/sagemaker-xgboost:1.2-1"
@@ -100,7 +101,7 @@ class TestSageMakerRegisterModelVersionOperator:
         assert args_dict["ModelApprovalStatus"] == "Approved"
 
     @pytest.mark.parametrize("group_created", [True, False])
-    @mock.patch.object(SageMakerHook, "create_model_package_group")
+    @patch.object(SageMakerHook, "create_model_package_group")
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_group_deleted_if_error_when_adding_model(self, conn_mock, create_group_mock, group_created):
         group = "group-name"
@@ -126,7 +127,7 @@ class TestSageMakerRegisterModelVersionOperator:
             # if the group already existed, we don't want to delete it in case of error on second step
             conn_mock().delete_model_package_group.assert_not_called()
 
-    @mock.patch.object(SageMakerHook, "create_model_package_group")
+    @patch.object(SageMakerHook, "create_model_package_group")
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_can_override_parameters_using_config(self, conn_mock, _):
         response_type = ["test/test"]
