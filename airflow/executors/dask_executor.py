@@ -115,22 +115,19 @@ class DaskExecutor(BaseExecutor):
             self.futures.pop(future)
 
     def sync(self) -> None:
-        if self.futures is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        assert self.futures, NOT_STARTED_MESSAGE
         # make a copy so futures can be popped during iteration
         for future in self.futures.copy():
             self._process_future(future)
 
     def end(self) -> None:
         assert self.client, NOT_STARTED_MESSAGE
-        if self.futures is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        assert self.futures, NOT_STARTED_MESSAGE
         self.client.cancel(list(self.futures.keys()))
         for future in as_completed(self.futures.copy()):
             self._process_future(future)
 
     def terminate(self):
-        if self.futures is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        assert self.futures, NOT_STARTED_MESSAGE
         self.client.cancel(self.futures.keys())
         self.end()
