@@ -84,8 +84,7 @@ class DaskExecutor(BaseExecutor):
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
 
-        if not self.client:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        assert self.client, NOT_STARTED_MESSAGE
 
         resources = None
         if queue not in _UNDEFINED_QUEUES:
@@ -102,8 +101,7 @@ class DaskExecutor(BaseExecutor):
         self.futures[future] = key  # type: ignore
 
     def _process_future(self, future: Future) -> None:
-        if not self.futures:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        assert self.futures, NOT_STARTED_MESSAGE
         if future.done():
             key = self.futures[future]
             if future.exception():
@@ -124,8 +122,7 @@ class DaskExecutor(BaseExecutor):
             self._process_future(future)
 
     def end(self) -> None:
-        if not self.client:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        assert self.client, NOT_STARTED_MESSAGE
         if self.futures is None:
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.client.cancel(list(self.futures.keys()))
