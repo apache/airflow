@@ -54,6 +54,15 @@ from tests.utils.test_config import (
 HOME_DIR = os.path.expanduser("~")
 
 
+@pytest.fixture(scope="module")
+def restore_env():
+    current = os.environ.copy()
+
+    yield
+
+    os.environ = current
+
+
 @unittest.mock.patch.dict(
     "os.environ",
     {
@@ -63,6 +72,7 @@ HOME_DIR = os.path.expanduser("~")
         "AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD": 'echo -n "NOT OK"',
     },
 )
+@pytest.mark.usefixtures("restore_env")
 class TestConf:
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict("os.environ"):
