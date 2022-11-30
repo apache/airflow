@@ -1496,7 +1496,7 @@
       default: ~
     - name: run_internal_api
       description: |
-        Boolean for for running Internal API in the webserver.
+        Boolean for running Internal API in the webserver.
       version_added: 2.6.0
       type: boolean
       example: ~

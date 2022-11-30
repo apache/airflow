@@ -149,9 +149,9 @@ def create_app(config=None, testing=False):
         init_plugins(flask_app)
         init_connection_form()
         init_error_handlers(flask_app)
+        init_api_connexion(flask_app)
         if conf.get("webserver", "run_internal_api"):
-            init_api_connexion(flask_app)
-        init_api_internal(flask_app)
+            init_api_internal(flask_app)
         init_api_experimental(flask_app)
 
         sync_appbuilder_roles(flask_app)

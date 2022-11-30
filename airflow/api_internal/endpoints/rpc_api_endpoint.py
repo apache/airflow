@@ -40,12 +40,12 @@ def json_rpc(
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
-        log.warning("Not jsonrpc-2.0 request")
+        log.error("Not jsonrpc-2.0 request")
         return Response(response="Expected jsonrpc 2.0 request.", status=400)
 
     method_name = str(body.get("method"))
     if method_name not in METHODS:
-        log.warning("Unrecognized method: %", method_name)
+        log.error("Unrecognized method: %", method_name)
         return Response(response=f"Unrecognized method: {method_name}", status=400)
 
     params_json = body.get("params")
@@ -55,16 +55,13 @@ def json_rpc(
     try:
         params = BaseSerialization.deserialize(json.loads(params_json))
     except Exception as err:
-        log.warning("Error deserializing parameters.")
-        log.warning(err)
+        log.error("Error deserializing parameters.")
+        log.error(err)
         return Response(response="Error deserializing parameters.", status=400)
 
     log.debug("Calling method %.", {method_name})
     handler = METHODS[method_name]
     output = handler(**params)
-    if output:
-        output_json = BaseSerialization.serialize(json.dumps(output))
-    else:
-        output_json = ""
+    output_json = BaseSerialization.serialize(json.dumps(output))
     log.debug("Returning response")
-    return Response(response=str(output_json), headers={"Content-Type": "application/json"})
+    return Response(response=str(output_json or ""), headers={"Content-Type": "application/json"})
