@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable
+from typing import Any, Callable, Collection
 from urllib.parse import unquote, urljoin, urlsplit
 
 import configupdater
@@ -2013,11 +2013,12 @@ class Airflow(AirflowBaseView):
         dag: DAG,
         start_date: datetime | None,
         end_date: datetime | None,
-        origin: str,
-        task_ids=None,
-        recursive=False,
-        confirmed=False,
-        only_failed=False,
+        *,
+        origin: str | None,
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        recursive: bool = False,
+        confirmed: bool = False,
+        only_failed: bool = False,
         session: Session = NEW_SESSION,
     ):
         if confirmed:
@@ -2144,7 +2145,7 @@ class Airflow(AirflowBaseView):
             dag,
             start_date,
             end_date,
-            origin,
+            origin=origin,
             task_ids=task_ids,
             recursive=recursive,
             confirmed=confirmed,
@@ -2164,7 +2165,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def dagrun_clear(self):
+    @provide_session
+    def dagrun_clear(self, *, session: Session = NEW_SESSION):
         """Clears the DagRun"""
         dag_id = request.form.get("dag_id")
         dag_run_id = request.form.get("dag_run_id")
@@ -2182,6 +2184,7 @@ class Airflow(AirflowBaseView):
             origin=None,
             recursive=True,
             confirmed=confirmed,
+            session=session,
         )
 
     @expose("/blocked", methods=["POST"])
