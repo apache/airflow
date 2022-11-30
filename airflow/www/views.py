@@ -2019,7 +2019,7 @@ class Airflow(AirflowBaseView):
         recursive: bool = False,
         confirmed: bool = False,
         only_failed: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session,
     ):
         if confirmed:
             count = dag.clear(

@@ -160,7 +160,7 @@ class BackfillJob(BaseJob):
         self.disable_retry = disable_retry
         super().__init__(*args, **kwargs)
 
-    def _update_counters(self, ti_status, session=None):
+    def _update_counters(self, ti_status, session):
         """
         Updates the counters per state of the tasks that were running. Can re-add
         to tasks to run in case required.
@@ -403,14 +403,14 @@ class BackfillJob(BaseJob):
 
         self.log.debug("Finished dag run loop iteration. Remaining tasks %s", ti_status.to_run.values())
 
-    @provide_session
     def _process_backfill_task_instances(
         self,
         ti_status,
         executor,
         pickle_id,
         start_date=None,
-        session=None,
+        *,
+        session: Session,
     ) -> list:
         """
         Process a set of task instances from a set of dag runs. Special handling is done
@@ -436,7 +436,7 @@ class BackfillJob(BaseJob):
             # or leaf to root, as otherwise tasks might be
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
-            def _per_task_process(key, ti: TaskInstance, session=None):
+            def _per_task_process(key, ti: TaskInstance, session):
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
