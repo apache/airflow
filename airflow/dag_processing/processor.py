@@ -524,7 +524,7 @@ class DagFileProcessor(LoggingMixin):
             session.commit()
 
     @staticmethod
-    @internal_api_call("dag_processing.processor.update_import_errors")
+    @internal_api_call
     @provide_session
     def update_import_errors(
         file_last_changed: dict[str, datetime], import_errors: dict[str, str], session: Session = NEW_SESSION

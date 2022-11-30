@@ -28,9 +28,16 @@ from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
 
-METHODS = {
-    "dag_processing.processor.update_import_errors": DagFileProcessor.update_import_errors,
-}
+
+def _build_methods_map(list) -> dict:
+    return {f"{func.__module__}.{func.__name__}": func for func in list}
+
+
+METHODS_MAP = _build_methods_map(
+    [
+        DagFileProcessor.update_import_errors,
+    ]
+)
 
 
 def json_rpc(
@@ -40,28 +47,35 @@ def json_rpc(
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
-        log.error("Not jsonrpc-2.0 request")
+        log.error("Not jsonrpc-2.0 request.")
         return Response(response="Expected jsonrpc 2.0 request.", status=400)
 
     method_name = str(body.get("method"))
-    if method_name not in METHODS:
-        log.error("Unrecognized method: %", method_name)
-        return Response(response=f"Unrecognized method: {method_name}", status=400)
+    if method_name not in METHODS_MAP:
+        log.error("Unrecognized method: %s.", method_name)
+        return Response(response=f"Unrecognized method: {method_name}.", status=400)
 
-    params_json = body.get("params")
-    if not params_json:
-        params_json = "{}"
-    handler = METHODS[method_name]
+    handler = METHODS_MAP[method_name]
     try:
-        params = BaseSerialization.deserialize(json.loads(params_json))
+        params = {}
+        if body.get("params"):
+            params_json = json.loads(str(body.get("params")))
+            params = BaseSerialization.deserialize(params_json)
     except Exception as err:
         log.error("Error deserializing parameters.")
         log.error(err)
         return Response(response="Error deserializing parameters.", status=400)
 
     log.debug("Calling method %.", {method_name})
-    handler = METHODS[method_name]
-    output = handler(**params)
-    output_json = BaseSerialization.serialize(json.dumps(output))
-    log.debug("Returning response")
-    return Response(response=str(output_json or ""), headers={"Content-Type": "application/json"})
+    try:
+        handler = METHODS_MAP[method_name]
+        output = handler(**params)
+        output_json = BaseSerialization.serialize(output)
+        log.debug("Returning response")
+        return Response(
+            response=json.dumps(output_json or "{}"), headers={"Content-Type": "application/json"}
+        )
+    except Exception as e:
+        log.error("Error when calling method %s.", method_name)
+        log.error(e)
+        return Response(response=f"Error executing method: {method_name}.", status=500)

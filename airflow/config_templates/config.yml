@@ -429,7 +429,7 @@
       version_added: 2.6.0
       type: string
       default: ~
-      example: 'localhost:8080'
+      example: 'http://localhost:8080'
 
 - name: database
   description: ~

@@ -19,27 +19,55 @@ from __future__ import annotations
 
 import inspect
 import json
+from functools import wraps
 from typing import Callable, TypeVar
 
 import requests
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.typing_compat import ParamSpec
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
-_use_internal_api = conf.get("core", "database_access_isolation")
-_internal_api_url = conf.get("core", "database_api_url")
 
-_internal_api_endpoint = _internal_api_url + "/internal/v1/rpcapi"
-if not _internal_api_endpoint.startswith("http://"):
-    _internal_api_endpoint = "http://" + _internal_api_endpoint
+class InternalApiConfig:
+    """Stores and caches configuration for Internal API."""
+
+    _initialized = False
+    _use_internal_api = False
+    _internal_api_endpoint = ""
+
+    @staticmethod
+    def get_use_internal_api():
+        if not InternalApiConfig._initialized:
+            InternalApiConfig._init_values()
+        return InternalApiConfig._use_internal_api
+
+    @staticmethod
+    def get_internal_api_endpoint():
+        if not InternalApiConfig._initialized:
+            InternalApiConfig._init_values()
+        return InternalApiConfig._internal_api_endpoint
+
+    @staticmethod
+    def _init_values():
+        use_internal_api = conf.getboolean("core", "database_access_isolation")
+        internal_api_url = conf.get("core", "database_api_url")
+
+        internal_api_endpoint = internal_api_url + "/internal/v1/rpcapi"
+
+        if use_internal_api and not internal_api_endpoint.startswith("http://"):
+            raise AirflowConfigException("[core]database_api_url must start with http://")
+
+        InternalApiConfig._initialized = True
+        InternalApiConfig._use_internal_api = use_internal_api
+        InternalApiConfig._internal_api_endpoint = internal_api_endpoint
 
 
-def internal_api_call(method_name: str):
+def internal_api_call(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
     """Decorator for methods which may be executed in database isolation mode.
 
     If [core]database_access_isolation is true then such method are not executed locally,
@@ -54,31 +82,32 @@ def internal_api_call(method_name: str):
         "Content-Type": "application/json",
     }
 
-    def make_jsonrpc_request(params_json: str) -> bytes:
+    def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
         data = {"jsonrpc": "2.0", "method": method_name, "params": params_json}
-        response = requests.post(_internal_api_endpoint, data=json.dumps(data), headers=headers)
+        internal_api_endpoint = InternalApiConfig.get_internal_api_endpoint()
+        response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers)
         if response.status_code != 200:
             raise AirflowException(
                 f"Got {response.status_code}:{response.reason} when sending the internal api request."
             )
         return response.content
 
-    def inner(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
-        def make_call(*args, **kwargs) -> RT | None:
-            if not _use_internal_api:
-                return func(*args, **kwargs)
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> RT | None:
+        use_internal_api = InternalApiConfig.get_use_internal_api()
+        if not use_internal_api:
+            return func(*args, **kwargs)
 
-            bound = inspect.signature(func).bind(*args, **kwargs)
-            arguments_dict = dict(bound.arguments)
-            if "session" in arguments_dict:
-                del arguments_dict["session"]
-            args_json = json.dumps(BaseSerialization.serialize(arguments_dict))
-            result = make_jsonrpc_request(args_json)
-            if result:
-                return BaseSerialization.deserialize(json.loads(result))
-            else:
-                return None
+        bound = inspect.signature(func).bind(*args, **kwargs)
+        arguments_dict = dict(bound.arguments)
+        if "session" in arguments_dict:
+            del arguments_dict["session"]
+        args_json = json.dumps(BaseSerialization.serialize(arguments_dict))
+        method_name = f"{func.__module__}.{func.__name__}"
+        result = make_jsonrpc_request(method_name, args_json)
+        if result:
+            return BaseSerialization.deserialize(json.loads(result))
+        else:
+            return None
 
-        return make_call
-
-    return inner
+    return wrapper
