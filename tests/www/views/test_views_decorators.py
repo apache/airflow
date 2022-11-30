@@ -28,8 +28,8 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www import app
 from airflow.www.views import action_has_dag_edit_access
-from tests.test_utils.db import clear_db_runs
-from tests.test_utils.www import _check_last_log, check_content_in_response
+from tests.test_utils.db import clear_db_runs, clear_db_variables
+from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
 
 EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -84,6 +84,13 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     yield bash_dagrun, sub_dagrun, xcom_dagrun
 
     clear_db_runs()
+
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    clear_db_variables()
+    yield
+    clear_db_variables()
 
 
 @action_has_dag_edit_access
@@ -156,11 +163,17 @@ def delete_variable(session, key):
 
 
 def test_action_logging_variables_post(session, admin_client):
-    form = dict(key="random", value="random")
+    form = dict(key="random", val="random")
     admin_client.post("/variable/add", data=form)
     session.commit()
     _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
-    delete_variable(session, key="random")
+
+
+def test_action_logging_variables_masked_secrets(session, admin_client):
+    form = dict(key="x_secret", val="randomval")
+    admin_client.post("/variable/add", data=form)
+    session.commit()
+    _check_last_log_masked_variable(session, dag_id=None, event="variable.create", execution_date=None)
 
 
 def test_calendar(admin_client, dagruns):
