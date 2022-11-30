@@ -95,9 +95,9 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                     for k, v in chain(request.values.items(multi=True), request.view_args.items())
                     if k not in fields_skip_logging
                 ]
-                if event and "variable." in event:
+                if event and event.startswith("variable."):
                     extra_fields = _mask_variable_fields(extra_fields)
-                if event and "connection." in event:
+                if event and event.startswith("connection."):
                     extra_fields = _mask_connection_fields(extra_fields)
 
                 params = {k: v for k, v in chain(request.values.items(), request.view_args.items())}
