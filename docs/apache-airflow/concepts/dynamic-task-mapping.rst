@@ -296,8 +296,89 @@ Similar to ``expand``, you can also map against a XCom that returns a list of di
         task_id="copy_files", source_bucket_name=list_filenames.bucket
     ).expand_kwargs(copy_kwargs)
 
-Filtering items from an expanded task
-=====================================
+Mapping over a task group
+=========================
+
+Similar to a TaskFlow task, you can also call either ``expand`` or ``expand_kwargs`` on a ``@task_group``-decorated function to create a mapped task group:
+
+.. note:: Implementations of individual tasks in this section are omitted for brevity.
+
+.. code-block:: python
+
+    @task_group
+    def file_transforms(filename):
+        return convert_to_yaml(filename)
+
+
+    file_transforms.expand(filename=["data1.json", "data2.json"])
+
+In the above example, task ``convert_to_yaml`` is expanded into two task instances at runtime. The first expanded would receive ``"data1.json"`` as input, and the second ``"data2.json"``.
+
+.. note:: Arguments passed to a mapped task group is a proxy, not real values
+
+    Different from task functions (``@task``), a task group function is evaluated eagerly, and only once when the DAG is parsed. This means that parameters passed into the function is only a placeholder, and not a real value. For example, this will *not* work:
+
+    .. code-block:: python
+
+        @task_group
+        def my_group(value):
+            if not value:
+                task_a = EmptyOperator(...)
+            else:
+                task_a = PythonOperator(...)
+            task_a << PythonOperator(...)
+
+
+        my_group.expand(value=[0, 1, 2])
+
+    Use Airflow's DAG-building constructs, such as ``@task.branch``, to achieve the intended effect instead.
+
+Depth-first execution
+---------------------
+
+If a mapped task group contains multiple tasks, all tasks in the group are expanded "together" against the same inputs. For example:
+
+.. code-block:: python
+
+    @task_group
+    def file_transforms(filename):
+        converted = convert_to_yaml(filename)
+        return replace_defaults(converted)
+
+
+    file_transforms.expand(filename=["data1.json", "data2.json"])
+
+Since the group ``file_transforms`` is expanded into two, tasks ``convert_to_yaml`` and ``replace_defaults`` will each become two instances at runtime.
+
+A similar effect can be achieved by expanding the two tasks separately like so:
+
+.. code-block:: python
+
+    converted = convert_to_yaml.expand(filename=["data1.json", "data2.json"])
+    replace_defaults.expand(filename=converted)
+
+The difference, however, is that a task group allows each task inside to only depend on its "relevant inputs". For the above example, the ``replace_defaults`` would only depend on ``convert_to_yaml`` of the same expanded group, not instances of the same task, but in a different group. This strategy, called *depth-first execution* (in contrast to the simple group-less *breath-first execution*), allows for more logical task separation, fine-grained dependency rules, and accurate resource allocation---using the above example, the first ``replace_defaults`` would be able to run before ``convert_to_yaml("data2.json")`` is done, and does not need to care about whether it succeeds or not.
+
+Depending on a mapped task group's output
+-----------------------------------------
+
+Similar to a mapped task group, depending on a mapped task group's output would also automatically aggregate the group's results:
+
+.. code-block:: python
+
+    @task_group
+    def add_to(value):
+        value = add_one(value)
+        return double(value)
+
+
+    results = add_to.expand(value=[1, 2, 3])
+    consumer(results)  # Will receive [4, 6, 8].
+
+It is also possible to perform any operations as results from a normal mapped task.
+
+Filtering items from a mapped task
+==================================
 
 A mapped task can remove any elements from being passed on to its downstream tasks by returning ``None``. For example, if we want to *only* copy files from an S3 bucket to another with certain extensions, we could implement ``create_copy_kwargs`` like this instead:
 
@@ -319,8 +400,8 @@ A mapped task can remove any elements from being passed on to its downstream tas
 
 This makes ``copy_files`` only expand against ``.json`` and ``.yml`` files, while ignoring the rest.
 
-Transforming mapped data
-========================
+Transforming expanding data
+===========================
 
 Since it is common to want to transform the output data format for task mapping, especially from a non-TaskFlow operator, where the output format is pre-determined and cannot be easily converted (such as ``create_copy_kwargs`` in the above example), a special ``map()`` function can be used to easily perform this kind of transformation. The above example can therefore be modified like this:
 
