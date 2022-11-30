@@ -99,8 +99,32 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     Although we show a "reduce" task here (``sum_it``) you don't have to have one, the mapped tasks will still be executed even if they have no downstream tasks.
 
-Repeated Mapping
-================
+Task-generated Mapping
+----------------------
+
+The above examples we've shown could all be achieved with a ``for`` loop in the DAG file, but the real power of dynamic task mapping comes from being able to have a task generate the list to iterate over.
+
+.. code-block:: python
+
+    @task
+    def make_list():
+        # This can also be from an API call, checking a database, -- almost anything you like, as long as the
+        # resulting list/dictionary can be stored in the current XCom backend.
+        return [1, 2, {"a": "b"}, "str"]
+
+
+    @task
+    def consumer(arg):
+        print(arg)
+
+
+    with DAG(dag_id="dynamic-map", start_date=datetime(2022, 4, 2)) as dag:
+        consumer.expand(arg=make_list())
+
+The ``make_list`` task runs as a normal task and must return a list or dict (see `What data types can be expanded?`_), and then the ``consumer`` task will be called four times, once with each value in the return of ``make_list``.
+
+Repeated mapping
+----------------
 
 The result of one mapped task can also be used as input to the next mapped task.
 
@@ -117,10 +141,10 @@ The result of one mapped task can also be used as input to the next mapped task.
 
 This would have a result of ``[3, 4, 5]``.
 
-Constant parameters
-===================
+Adding parameters that do not expand
+------------------------------------
 
-As well as passing arguments that get expanded at run-time, it is possible to pass arguments that don't change – in order to clearly differentiate between the two kinds we use different functions, ``expand()`` for mapped arguments, and ``partial()`` for unmapped ones.
+As well as passing arguments that get expanded at run-time, it is possible to pass arguments that don't change---in order to clearly differentiate between the two kinds we use different functions, ``expand()`` for mapped arguments, and ``partial()`` for unmapped ones.
 
 .. code-block:: python
 
@@ -140,7 +164,7 @@ This would result in values of 11, 12, and 13.
 This is also useful for passing things such as connection IDs, database table names, or bucket names to tasks.
 
 Mapping over multiple parameters
-================================
+--------------------------------
 
 As well as a single parameter it is possible to pass multiple parameters to expand. This will have the effect of creating a "cross product", calling the mapped task with each combination of parameters.
 
@@ -161,30 +185,6 @@ As well as a single parameter it is possible to pass multiple parameters to expa
     # add(x=8, y=10)
 
 This would result in the add task being called 6 times. Please note however that the order of expansion is not guaranteed.
-
-Task-generated Mapping
-======================
-
-Up until now the examples we've shown could all be achieved with a ``for`` loop in the DAG file, but the real power of dynamic task mapping comes from being able to have a task generate the list to iterate over.
-
-.. code-block:: python
-
-    @task
-    def make_list():
-        # This can also be from an API call, checking a database, -- almost anything you like, as long as the
-        # resulting list/dictionary can be stored in the current XCom backend.
-        return [1, 2, {"a": "b"}, "str"]
-
-
-    @task
-    def consumer(arg):
-        print(arg)
-
-
-    with DAG(dag_id="dynamic-map", start_date=datetime(2022, 4, 2)) as dag:
-        consumer.expand(arg=make_list())
-
-The ``make_list`` task runs as a normal task and must return a list or dict (see `What data types can be expanded?`_), and then the ``consumer`` task will be called four times, once with each value in the return of ``make_list``.
 
 Mapping with non-TaskFlow operators
 ===================================
@@ -216,9 +216,9 @@ If you want to map over the result of a classic operator, you should explicitly 
 
 
 Mixing TaskFlow and classic operators
-=====================================
+-------------------------------------
 
-In this example you have a regular data delivery to an S3 bucket and want to apply the same processing to every file that arrives, no matter how many arrive each time.
+In this example, you have a regular data delivery to an S3 bucket and want to apply the same processing to every file that arrives, no matter how many arrive each time.
 
 .. code-block:: python
 
