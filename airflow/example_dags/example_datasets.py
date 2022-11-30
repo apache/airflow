@@ -119,7 +119,6 @@ with DAG(
     schedule=[
         Dataset("s3://unrelated/dataset3.txt"),
         Dataset("s3://unrelated/dataset_other_unknown.txt"),
-        Dataset("s3://unrelated/dataset4.txt"),
     ],
     tags=["dataset-scheduled"],
 ) as dag6:
