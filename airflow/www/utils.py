@@ -133,10 +133,14 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def get_dag_run_conf(conf: Any) -> tuple[str, bool]:
+def get_dag_run_conf(dag_run_conf: Any) -> tuple[str | None, bool]:
+    conf: str | None = None
+
     conf_is_json: bool = False
-    if isinstance(conf, (dict, list)) and any(conf):
-        conf = json.dumps(conf, sort_keys=True)
+    if isinstance(dag_run_conf, str):
+        conf = dag_run_conf
+    elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
+        conf = json.dumps(dag_run_conf, sort_keys=True)
         conf_is_json = True
 
     return conf, conf_is_json

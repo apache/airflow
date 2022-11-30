@@ -37,7 +37,15 @@ CodeMirror.fromTextArea(textArea, {
   .setSize(null, height);
 
 function setRecentConfig(e) {
-  document.querySelector('.CodeMirror').CodeMirror.setValue(e.target.value);
+  let { value } = e.target;
+  try {
+    const json = JSON.parse(value);
+    value = JSON.stringify(json, null, 2);
+  } catch (err) {
+    // any error is non-json parseable
+    value = 'Error: config could not be parsed';
+  }
+  document.querySelector('.CodeMirror').CodeMirror.setValue(value);
 }
 
 recentConfigList.addEventListener('change', setRecentConfig);
