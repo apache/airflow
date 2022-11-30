@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock
 
 from airflow.providers.apache.drill.hooks.drill import DrillHook
 
 
-class TestDrillHook(unittest.TestCase):
-    def setUp(self):
+class TestDrillHook:
+    def setup_method(self):
         self.cur = MagicMock(rowcount=0)
         self.conn = conn = MagicMock()
         self.conn.login = "drill_user"

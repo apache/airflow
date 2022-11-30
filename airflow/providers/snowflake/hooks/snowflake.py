@@ -32,7 +32,7 @@ from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.utils.strings import to_boolean
 
 
@@ -350,16 +350,19 @@ class SnowflakeHook(DbApiHook):
         """
         self.query_ids = []
 
-        self.scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 split_statements_tuple = util_text.split_statements(StringIO(sql))
-                sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+                sql_list: Iterable[str] = [
+                    sql_string for sql_string, _ in split_statements_tuple if sql_string
+                ]
             else:
-                sql = [self.strip_sql_string(sql)]
+                sql_list = [self.strip_sql_string(sql)]
+        else:
+            sql_list = sql
 
-        if sql:
-            self.log.debug("Executing following statements against Snowflake DB: %s", list(sql))
+        if sql_list:
+            self.log.debug("Executing following statements against Snowflake DB: %s", sql_list)
         else:
             raise ValueError("List of SQL statements is empty")
 
@@ -369,7 +372,7 @@ class SnowflakeHook(DbApiHook):
             # SnowflakeCursor does not extend ContextManager, so we have to ignore mypy error here
             with closing(conn.cursor(DictCursor)) as cur:  # type: ignore[type-var]
                 results = []
-                for sql_statement in sql:
+                for sql_statement in sql_list:
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
@@ -387,7 +390,7 @@ class SnowflakeHook(DbApiHook):
 
         if handler is None:
             return None
-        elif self.scalar_return_last:
+        elif return_single_query_results(sql, return_last, split_statements):
             return results[-1]
         else:
             return results

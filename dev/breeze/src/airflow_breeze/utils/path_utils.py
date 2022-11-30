@@ -57,11 +57,17 @@ def in_self_upgrade() -> bool:
 
 
 def in_help() -> bool:
-    return "--help" in sys.argv
+    return "--help" in sys.argv or "-h" in sys.argv
 
 
 def skip_upgrade_check():
-    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, "_called_from_test")
+    return (
+        in_self_upgrade()
+        or in_autocomplete()
+        or in_help()
+        or hasattr(sys, "_called_from_test")
+        or os.environ.get("SKIP_UPGRADE_CHECK")
+    )
 
 
 def skip_group_output():

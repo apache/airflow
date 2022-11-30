@@ -61,19 +61,54 @@ Running Unit Tests from PyCharm IDE
 To run unit tests from the PyCharm IDE, create the `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
 select it as the default project's environment, then configure your test runner:
 
-.. image:: images/configure_test_runner.png
+.. image:: images/pycharm/configure_test_runner.png
     :align: center
     :alt: Configuring test runner
 
 and run unit tests as follows:
 
-.. image:: images/running_unittests.png
+.. image:: images/pycharm/running_unittests.png
     :align: center
     :alt: Running unit tests
 
 **NOTE:** You can run the unit tests in the standalone local virtualenv
 (with no Breeze installed) if they do not have dependencies such as
 Postgres/MySQL/Hadoop/etc.
+
+Running Unit Tests from PyCharm IDE using Breeze
+------------------------------------------------
+
+Ideally, all unit tests should be run using the standardized Breeze environment.  While not
+as convenient as the one-click "play button" in PyCharm, the IDE can be configured to do
+this in two clicks.
+
+1. Add Breeze as an "External Tool":
+
+   a. From the settings menu, navigate to Tools > External Tools
+   b. Click the little plus symbol to open the "Create Tool" popup and fill it out:
+
+.. image:: images/pycharm/pycharm_create_tool.png
+    :align: center
+    :alt: Installing Python extension
+
+
+2. Add the tool to the context menu:
+
+   a. From the settings menu, navigate to Appearance & Behavior > Menus & Toolbars > Project View Popup Menu
+   b. Click on the list of entries where you would like it to be added.  Right above or below "Project View Popup Menu Run Group" may be a good choice, you can drag and drop this list to rearrange the placement later as desired.
+   c. Click the little plus at the top of the popup window
+   d. Find your "External Tool" in the new "Choose Actions to Add" popup and click OK.  If you followed the image above, it will be at External Tools > External Tools > Breeze
+
+**Note:** That only adds the option to that one menu.  If you would like to add it to the context menu
+when right-clicking on a tab at the top of the editor, for example, follow the steps above again
+and place it in the "Editor Tab Popup Menu"
+
+.. image:: images/pycharm/pycharm_add_to_context.png
+    :align: center
+    :alt: Installing Python extension
+
+3. To run tests in Breeze, right click on the file or directory in the Project View and click Breeze.
+
 
 Running Unit Tests from Visual Studio Code
 ------------------------------------------

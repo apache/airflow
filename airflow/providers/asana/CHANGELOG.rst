@@ -49,6 +49,7 @@ connection to replace ``extra__asana__workspace`` with ``workspace`` etc.
    * ``Update docs for September Provider's release (#26731)``
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
    * ``pRepare docs for November 2022 wave of Providers (#27613)``
+   * ``Prepare for follow-up release for November providers (#27774)``
 
 2.0.1
 .....
