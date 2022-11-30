@@ -735,14 +735,17 @@ class DagFileProcessorManager(LoggingMixin):
             dag_filelocs = []
             for fileloc in self._file_paths:
                 if not fileloc.endswith(".py") and zipfile.is_zipfile(fileloc):
-                    with zipfile.ZipFile(fileloc) as z:
-                        dag_filelocs.extend(
-                            [
-                                os.path.join(fileloc, info.filename)
-                                for info in z.infolist()
-                                if might_contain_dag(info.filename, True, z)
-                            ]
-                        )
+                    try:
+                        with zipfile.ZipFile(fileloc) as z:
+                            dag_filelocs.extend(
+                                [
+                                    os.path.join(fileloc, info.filename)
+                                    for info in z.infolist()
+                                    if might_contain_dag(info.filename, True, z)
+                                ]
+                            )
+                    except zipfile.BadZipFile as err:
+                        self.log.error("There was an err accessing %s, %s", fileloc, err)
                 else:
                     dag_filelocs.append(fileloc)
 
