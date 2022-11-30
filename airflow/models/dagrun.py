@@ -769,7 +769,8 @@ class DagRun(Base, LoggingMixin):
             """Try to expand the ti, if needed.
 
             If the ti needs expansion, newly created task instances are
-            returned. The original ti is modified in-place and assigned the
+            returned as well as the original ti.
+            The original ti is also modified in-place and assigned the
             ``map_index`` of 0.
 
             If the ti does not need expansion, either because the task is not
