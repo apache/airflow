@@ -615,8 +615,6 @@ class AirflowConfigParser(ConfigParser):
                     stacklevel=2,
                 )
                 issue_warning = False
-            # deprecated_section, deprecated_key = section, key
-            # section, key = (new_section, new_key)
         else:
             deprecated_section, deprecated_key, _ = self.deprecated_options.get(
                 (section, key), (None, None, None)
