@@ -333,6 +333,10 @@ In the above example, task ``convert_to_yaml`` is expanded into two task instanc
 
     Use Airflow's DAG-building constructs, such as ``@task.branch``, to achieve the intended effect instead.
 
+.. note:: Task-mapping in a mapped task group is not permitted
+
+    It is not currently permitted to do task mapping nested inside a mapped task group. While the technical aspect of this feature is not particularly difficult, we have decided to intentionally omit this feature since it adds considerable UI complexities, and may not be necessary for general use cases. This restriction may be revisited in the future depending on user feedback.
+
 Depth-first execution
 ---------------------
 
