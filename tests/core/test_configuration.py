@@ -56,11 +56,8 @@ HOME_DIR = os.path.expanduser("~")
 
 @pytest.fixture(scope="module")
 def restore_env():
-    current = os.environ.copy()
-
-    yield
-
-    os.environ = current
+    with mock.patch.dict("os.environ"):
+        yield
 
 
 @unittest.mock.patch.dict(
@@ -838,6 +835,7 @@ key7 =
         assert test_conf.gettimedelta("default", "key7") is None
 
 
+@pytest.mark.usefixtures("restore_env")
 class TestDeprecatedConf:
     @conf_vars(
         {
@@ -1048,10 +1046,6 @@ sql_alchemy_conn=sqlite://test
             test_conf = AirflowConfigParser(
                 default_config=textwrap.dedent(
                     """
-                    [core]
-                    executor=SequentialExecutor
-                    [api]
-                    auth_backends=foo
                     [new_section]
                     val=new
                     """
