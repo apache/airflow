@@ -18,7 +18,6 @@
 """Hook for JIRA"""
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 from atlassian import Jira
@@ -64,30 +63,12 @@ class JiraHook(BaseHook):
                 if "verify" in extra_options and extra_options["verify"].lower() == "false":
                     verify = False
 
-                # validate
-                if "validate" in extra_options:
-                    warnings.warn(
-                        "Passing 'validate' in the connection is no longer supported.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-
-                if "get_server_info" in extra_options:
-                    warnings.warn(
-                        "Passing 'get_server_info' in the connection is no longer supported.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-
-            try:
-                self.client = Jira(
-                    url=conn.host,
-                    username=conn.login,
-                    password=conn.password,
-                    verify_ssl=verify,
-                    proxies=self.proxies,
-                )
-            except Exception as jira_error:
-                raise AirflowException(f"Failed to create jira client, jira error: {str(jira_error)}")
+            self.client = Jira(
+                url=conn.host,
+                username=conn.login,
+                password=conn.password,
+                verify_ssl=verify,
+                proxies=self.proxies,
+            )
 
         return self.client

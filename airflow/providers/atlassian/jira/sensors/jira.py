@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from requests import HTTPError
+
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -125,8 +127,8 @@ class JiraTicketSensor(JiraSensor):
                             self.field,
                         )
 
-        except Exception:
-            self.log.exception("Error while checking with expected value %s:", self.expected_value)
+        except HTTPError as e:
+            self.log.error("Jira error while checking with expected value, error: %s", e.response)
         if result is True:
             self.log.info(
                 "Issue field %s has expected value %s, returning success", self.field, self.expected_value

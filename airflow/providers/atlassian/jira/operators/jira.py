@@ -17,7 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any, Callable, Sequence
+
+from requests import HTTPError
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -77,10 +80,13 @@ class JiraOperator(BaseOperator):
                 resource = hook.client
 
             jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
+
+            output = json.loads(jira_result["id"]) if "id" in jira_result else None
+            self.xcom_push(context, key="id", value=output)
+
             if self.result_processor:
                 return self.result_processor(context, jira_result)
 
             return jira_result
-
-        except Exception as e:
-            raise AirflowException(f"Jira operator error: {str(e)}")
+        except HTTPError as e:
+            raise AirflowException(f"Failed to execute jiraOperator, error: {str(e.response)}")
