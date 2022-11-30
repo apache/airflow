@@ -595,8 +595,8 @@ class AirflowConfigParser(ConfigParser):
         # For when we rename whole sections
         if section in self.deprecated_sections:
             warnings.warn(
-                f"The config section [{section}] has been renamed to {self.deprecated_sections[section][0]}."
-                " Please update your config.",
+                f"The config section [{section}] has been renamed to "
+                f"[{self.deprecated_sections[section][0]}]. Please update your config.",
                 FutureWarning,
                 stacklevel=2,
             )

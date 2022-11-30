@@ -1036,6 +1036,8 @@ sql_alchemy_conn=sqlite://test
                     """
                     [core]
                     executor=SequentialExecutor
+                    [api]
+                    auth_backends=foo
                     [new_section]
                     val=new
                     """
@@ -1057,9 +1059,16 @@ sql_alchemy_conn=sqlite://test
             monkeypatch.setenv(*environ)
 
         test_conf = make_config()
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(
+            DeprecationWarning,
+            match=r"section/key \[old_section/val\] has been deprecated, you should use "
+            r"\[new_section/val\] instead",
+        ):
             assert test_conf.get("new_section", "val") == expected
-        with pytest.warns(FutureWarning):
+        with pytest.warns(
+            FutureWarning,
+            match=r"The config section \[old_section\] has been renamed to \[new_section\]",
+        ):
             assert test_conf.get("old_section", "val") == expected
 
     def test_deprecated_funcs(self):
