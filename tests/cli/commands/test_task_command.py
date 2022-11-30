@@ -420,7 +420,6 @@ class TestCliTasks:
             )
         )
 
-
     def test_task_states_for_dag_run(self):
 
         dag2 = DagBag().dags["example_python_operator"]
