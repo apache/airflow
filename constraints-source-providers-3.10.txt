@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-26T23:51:00Z
+# This constraints file was automatically generated on 2022-11-30T11:36:22Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-5-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -39,7 +39,7 @@ PyYAML==6.0
 Pygments==2.13.0
 SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.38.3
-SQLAlchemy==1.4.27
+SQLAlchemy==1.4.44
 SecretStorage==3.3.3
 Sphinx==5.3.0
 Unidecode==1.3.6
@@ -66,12 +66,12 @@ asana==2.0.0
 asgiref==3.5.2
 asn1crypto==1.5.1
 astroid==2.11.7
-asttokens==2.1.0
+asttokens==2.2.0
 async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
 attrs==22.1.0
-aws-sam-translator==1.54.0
+aws-sam-translator==1.55.0
 aws-xray-sdk==2.11.0
 azure-batch==13.0.0
 azure-common==1.1.28
@@ -102,9 +102,9 @@ billiard==3.6.4.0
 black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.16
+boto3==1.26.19
 boto==2.49.0
-botocore==1.29.16
+botocore==1.29.19
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -114,7 +114,7 @@ celery==5.2.7
 certifi==2022.9.24
 cffi==1.15.1
 cfgv==3.3.1
-cfn-lint==0.72.0
+cfn-lint==0.72.1
 cgroupspy==0.2.2
 chardet==4.0.0
 charset-normalizer==2.1.1
@@ -237,7 +237,7 @@ greenlet==2.0.1
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
 grpcio-status==1.48.2
-grpcio==1.50.0
+grpcio==1.51.1
 gssapi==1.8.2
 gunicorn==20.1.0
 h11==0.14.0
@@ -258,7 +258,7 @@ inflection==0.5.1
 influxdb-client==1.34.0
 iniconfig==1.1.1
 ipdb==0.13.9
-ipython==8.6.0
+ipython==8.7.0
 isodate==0.6.1
 isort==5.10.1
 itsdangerous==2.1.2
@@ -277,7 +277,7 @@ jsonpointer==2.3
 jsonschema==3.2.0
 junit-xml==1.9
 jupyter-client==7.3.4
-jupyter_core==5.0.0
+jupyter_core==5.1.0
 keyring==23.11.0
 kombu==5.2.4
 krb5==0.4.1
@@ -313,13 +313,13 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
 mypy-boto3-appflow==1.26.15
-mypy-boto3-rds==1.26.11.post1
+mypy-boto3-rds==1.26.17
 mypy-boto3-redshift-data==1.26.0.post1
 mypy-extensions==0.4.3
 mypy==0.971
 mysql-connector-python==8.0.31
 mysqlclient==2.1.1
-nbclient==0.7.0
+nbclient==0.7.2
 nbformat==5.7.0
 neo4j==5.3.0
 nest-asyncio==1.5.6
@@ -353,7 +353,7 @@ pickleshare==0.7.5
 pinotdb==0.4.8
 pipdeptree==2.3.3
 pipx==1.1.0
-pkginfo==1.8.3
+pkginfo==1.9.2
 platformdirs==2.5.4
 pluggy==1.0.0
 ply==3.11
@@ -407,7 +407,7 @@ pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
 pytest-xdist==3.0.2
 pytest==6.2.5
-python-arango==7.5.2
+python-arango==7.5.3
 python-daemon==2.3.2
 python-dateutil==2.8.2
 python-dotenv==0.21.0
@@ -458,7 +458,7 @@ smbprotocol==1.10.1
 smmap==5.0.0
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==2.8.2
+snowflake-connector-python==2.8.3
 snowflake-sqlalchemy==1.4.4
 sortedcontainers==2.4.0
 soupsieve==2.3.2.post1
@@ -478,13 +478,13 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.7.0
 spython==0.2.14
-sqlalchemy-bigquery==1.4.1
+sqlalchemy-bigquery==1.5.0
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.11
 sqlparse==0.4.3
 sshpubkeys==3.3.1
 sshtunnel==0.4.0
-stack-data==0.6.1
+stack-data==0.6.2
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
 swagger-ui-bundle==0.0.9
@@ -503,7 +503,7 @@ toolz==0.12.0
 tornado==6.1
 towncrier==22.8.0
 tqdm==4.64.1
-traitlets==5.5.0
+traitlets==5.6.0
 trino==0.319.0
 twine==4.0.1
 types-Deprecated==1.2.9
@@ -517,11 +517,11 @@ types-cryptography==3.3.23.2
 types-docutils==0.19.1.1
 types-freezegun==1.1.10
 types-paramiko==2.12.0.1
-types-protobuf==4.21.0.0
+types-protobuf==4.21.0.1
 types-python-dateutil==2.8.19.4
 types-python-slugify==7.0.0.1
 types-pytz==2022.6.0.1
-types-redis==4.3.21.5
+types-redis==4.3.21.6
 types-requests==2.28.11.5
 types-setuptools==65.6.0.1
 types-tabulate==0.9.0.0
@@ -539,7 +539,7 @@ urllib3==1.26.13
 userpath==1.8.0
 vertica-python==1.1.1
 vine==5.0.0
-virtualenv==20.16.7
+virtualenv==20.17.0
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.5
