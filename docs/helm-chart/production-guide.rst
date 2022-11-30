@@ -205,8 +205,9 @@ You can change the Service type for the webserver to be ``LoadBalancer``, and se
 .. code-block:: yaml
 
   webserver:
-    service: LoadBalancer
-    annotations: {}
+    service: 
+      type: LoadBalancer
+      annotations: {}
 
 For more information on ``LoadBalancer`` Services, see the `Kubernetes LoadBalancer Service Documentation
 <https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer>`_.
