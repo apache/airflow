@@ -258,6 +258,10 @@ class AirflowConfigParser(ConfigParser):
         ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
     }
 
+    # Now build the inverse so we can go from old_section/old_key to new_section/new_key
+    # if someone tries to retrieve it based on old_section/old_key
+    inversed_deprecated_options = {value[:2]: key for key, value in deprecated_options.items()}
+
     # A mapping of old default values that we want to change and warn the user
     # about. Mapping of section -> setting -> { old, replace, by_version }
     deprecated_values: dict[str, dict[str, tuple[Pattern, str, str]]] = {
@@ -575,6 +579,17 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section, deprecated_key, _ = self.deprecated_options.get(
             (section, key), (None, None, None)
         )
+
+        # Handle using deprecated section/key instead of the new section/key
+        if (section, key) in self.inversed_deprecated_options:
+            new_section, new_key = self.inversed_deprecated_options[(section, key)]
+            warnings.warn(
+                f"section/key [{section}/{key}] has been deprecated, "
+                f"you should use [{new_section}/{new_key}] instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.get(new_section, new_key, **kwargs)
 
         option = self._get_environment_variables(deprecated_key, deprecated_section, key, section)
         if option is not None:
