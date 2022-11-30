@@ -99,6 +99,17 @@
       type: string
       example: ~
       default: "16"
+    - name: mp_start_method
+      description: |
+        The name of the method used in order to start Python processes via the multiprocessing module.
+        This corresponds directly with the options available in the Python docs:
+        https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_start_method.
+        Must be one of the values returned by:
+        https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods.
+      version_added: "2.0.0"
+      type: string
+      default: ~
+      example: "fork"
     - name: load_examples
       description: |
         Whether to load the DAG examples that ship with Airflow. It's good to
