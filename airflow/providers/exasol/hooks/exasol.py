@@ -159,19 +159,21 @@ class ExasolHook(DbApiHook):
         """
         if isinstance(sql, str):
             if split_statements:
-                sql = self.split_sql_string(sql)
+                sql_list: Iterable[str] = self.split_sql_string(sql)
             else:
-                sql = [self.strip_sql_string(sql)]
+                sql_list = [self.strip_sql_string(sql)]
+        else:
+            sql_list = sql
 
-        if sql:
-            self.log.debug("Executing following statements against Exasol DB: %s", list(sql))
+        if sql_list:
+            self.log.debug("Executing following statements against Exasol DB: %s", list(sql_list))
         else:
             raise ValueError("List of SQL statements is empty")
 
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
             results = []
-            for sql_statement in sql:
+            for sql_statement in sql_list:
                 with closing(conn.execute(sql_statement, parameters)) as cur:
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     if handler is not None:
