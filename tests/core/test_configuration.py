@@ -1005,6 +1005,63 @@ sql_alchemy_conn=sqlite://test
                     assert test_conf.get("core", "hostname_callable") == "CarrierPigeon"
                     assert [] == warning
 
+    @pytest.mark.parametrize(
+        ("conf_dict", "environ", "expected"),
+        [
+            pytest.param({"old_section": {"val": "old_val"}}, None, "old_val", id="old_config"),
+            pytest.param(
+                {"old_section": {"val": "old_val"}},
+                ("AIRFLOW__OLD_SECTION__VAL", "old_env"),
+                "old_env",
+                id="old_config_old_env",
+            ),
+            pytest.param(
+                {},
+                ("AIRFLOW__OLD_SECTION__VAL", "old_env"),
+                "old_env",
+                id="old_env",
+            ),
+            pytest.param(
+                {"new_section": {"val": "val2"}},
+                ("AIRFLOW__OLD_SECTION__VAL", "old_env"),
+                "old_env",
+                id="new_config_old_env",
+            ),
+        ],
+    )
+    def test_deprecated_sections(self, conf_dict, environ, expected, monkeypatch):
+        def make_config():
+            test_conf = AirflowConfigParser(
+                default_config=textwrap.dedent(
+                    """
+                    [core]
+                    executor=SequentialExecutor
+                    [new_section]
+                    val=new
+                    """
+                )
+            )
+            # Guarantee we have a deprecated setting, so we test the deprecation
+            # lookup even if we remove this explicit fallback
+            test_conf.deprecated_sections = {
+                "old_section": ("new_section", "2.1"),
+            }
+            test_conf.deprecated_options = {
+                ("old_section", "val"): ("new_section", "val", "2.1"),
+            }
+            test_conf.read_dict(conf_dict)
+            test_conf.validate()
+            return test_conf
+
+        if environ:
+            monkeypatch.setenv(*environ)
+
+        test_conf = make_config()
+        with pytest.warns(DeprecationWarning):
+            assert test_conf.get("new_section", "val") == expected
+        with pytest.warns(FutureWarning):
+            assert test_conf.get("old_section", "val") == expected
+
     def test_deprecated_funcs(self):
         for func in [
             "load_test_config",
