@@ -233,7 +233,7 @@ class AirflowConfigParser(ConfigParser):
     }
 
     # A mapping of new section -> (old section, since_version).
-    deprecated_sections: dict[str, tuple[str, str]] = {"kubernetes_executor": ("kubernetes", "2.4.2")}
+    deprecated_sections: dict[str, tuple[str, str]] = {"kubernetes_executor": ("kubernetes", "2.5.0")}
 
     # Now build the inverse so we can go from old_section/old_key to new_section/new_key
     # if someone tries to retrieve it based on old_section/old_key
