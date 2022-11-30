@@ -716,6 +716,7 @@ class DagRun(Base, LoggingMixin):
             # During expansion we may change some tis into non-schedulable
             # states, so we need to re-compute.
             if expansion_happened:
+                changed_tis = True
                 new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
                 finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
                 unfinished_tis = new_unfinished_tis
