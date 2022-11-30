@@ -28,7 +28,7 @@ from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.extensions import init_views
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
-from tests.test_utils.www import _check_last_log, check_content_in_response
+from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
 
 CONNECTION = {
     "conn_id": "test_conn",
@@ -39,6 +39,12 @@ CONNECTION = {
     "username": "root",
     "password": "admin",
 }
+
+CONNECTION_WITH_EXTRA = CONNECTION.update(
+    {
+        "extra": '{"x_secret": "testsecret","y_secret": "test"}',
+    }
+)
 
 
 @pytest.fixture(autouse=True)
@@ -52,6 +58,12 @@ def test_create_connection(admin_client, session):
     resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
     check_content_in_response("Added Row", resp)
     _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+
+
+def test_action_logging_connection_masked_secrets(session, admin_client):
+    init_views.init_connection_form()
+    admin_client.post("/connection/add", data=CONNECTION_WITH_EXTRA, follow_redirects=True)
+    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
 
 
 def test_prefill_form_null_extra():

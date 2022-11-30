@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
@@ -27,7 +26,7 @@ TEST_CONTEXT_ID = "test_context_id"
 PIG = "ls /;"
 
 
-class TestPigOperator(unittest.TestCase):
+class TestPigOperator:
     def test_prepare_template(self):
         pig = "sh echo $DATE;"
         task_id = TEST_TASK_ID

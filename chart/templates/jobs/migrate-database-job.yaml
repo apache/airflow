@@ -106,10 +106,7 @@ spec:
           resources:
 {{ toYaml .Values.migrateDatabaseJob.resources | indent 12 }}
           volumeMounts:
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
 {{- if .Values.migrateDatabaseJob.extraVolumeMounts }}
 {{ toYaml .Values.migrateDatabaseJob.extraVolumeMounts | nindent 12 }}
 {{- end }}

@@ -20,7 +20,6 @@ from __future__ import annotations
 import io
 import os
 import subprocess
-import unittest
 from unittest import mock
 
 import pytest
@@ -29,9 +28,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbApiHook
 
 
-class TestPinotAdminHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestPinotAdminHook:
+    def setup_method(self):
         self.conn = conn = mock.MagicMock()
         self.conn.host = "host"
         self.conn.port = "1000"
@@ -213,9 +211,8 @@ class TestPinotAdminHookCreation:
         PinotAdminHook(cmd_path="pinot-admin.sh")
 
 
-class TestPinotDbApiHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestPinotDbApiHook:
+    def setup_method(self):
         self.conn = conn = mock.MagicMock()
         self.conn.host = "host"
         self.conn.port = "1000"
@@ -276,8 +273,8 @@ class TestPinotDbApiHook(unittest.TestCase):
             assert item[0] == df.values.tolist()[i][0]
 
 
-class TestPinotDbApiHookIntegration(unittest.TestCase):
-    @pytest.mark.integration("pinot")
+@pytest.mark.integration("pinot")
+class TestPinotDbApiHookIntegration:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_PINOT_BROKER_DEFAULT="pinot://pinot:8000/")
     def test_should_return_records(self):
         hook = PinotDbApiHook()

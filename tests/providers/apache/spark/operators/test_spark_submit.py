@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import timedelta
 
 from airflow.models import DagRun, TaskInstance
@@ -28,7 +27,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestSparkSubmitOperator(unittest.TestCase):
+class TestSparkSubmitOperator:
 
     _config = {
         "conf": {"parquet.compression": "SNAPPY"},
@@ -67,7 +66,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         ],
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 

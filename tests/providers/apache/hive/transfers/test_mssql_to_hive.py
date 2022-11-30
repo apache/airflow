@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from collections import OrderedDict
 from unittest.mock import Mock, PropertyMock, patch
 
@@ -26,8 +25,8 @@ import pymssql
 from airflow.providers.apache.hive.transfers.mssql_to_hive import MsSqlToHiveOperator
 
 
-class TestMsSqlToHiveTransfer(unittest.TestCase):
-    def setUp(self):
+class TestMsSqlToHiveTransfer:
+    def setup_method(self):
         self.kwargs = dict(sql="sql", hive_table="table", task_id="test_mssql_to_hive", dag=None)
 
     def test_type_map_binary(self):

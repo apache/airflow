@@ -105,10 +105,7 @@ spec:
           resources:
 {{ toYaml .Values.createUserJob.resources | indent 12 }}
           volumeMounts:
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
 {{- if .Values.createUserJob.extraVolumeMounts }}
 {{ toYaml .Values.createUserJob.extraVolumeMounts | nindent 12 }}
 {{- end }}

@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module provides helper code to make type annotation within Airflow
-codebase easier.
-"""
+"""This module provides helper code to make type annotation within Airflow codebase easier."""
 from __future__ import annotations
 
 __all__ = [

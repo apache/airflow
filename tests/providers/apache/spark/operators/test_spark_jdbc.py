@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperator
 from airflow.utils import timezone
@@ -26,7 +24,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestSparkJDBCOperator(unittest.TestCase):
+class TestSparkJDBCOperator:
     _config = {
         "spark_app_name": "{{ task_instance.task_id }}",
         "spark_conf": {"parquet.compression": "SNAPPY"},
@@ -57,7 +55,7 @@ class TestSparkJDBCOperator(unittest.TestCase):
         "comments VARCHAR(1024)",
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 
