@@ -107,7 +107,6 @@ if TYPE_CHECKING:
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
-
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
@@ -125,7 +124,6 @@ ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
 ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
-
 
 # Backward compatibility: If neither schedule_interval nor timetable is
 # *provided by the user*, default to a one-day interval.
@@ -412,36 +410,43 @@ class DAG(LoggingMixin):
         auto_register: bool = True,
     ):
         from airflow.utils.task_group import TaskGroup
+        import inspect
 
-        if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
-            raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
-
-        self.owner_links = owner_links if owner_links else {}
-        self.user_defined_macros = user_defined_macros
-        self.user_defined_filters = user_defined_filters
         if default_args and not isinstance(default_args, dict):
             raise TypeError("default_args must be a dict")
         self.default_args = copy.deepcopy(default_args or {})
-        params = params or {}
 
-        # merging potentially conflicting default_args['params'] into params
-        if "params" in self.default_args:
-            params.update(self.default_args["params"])
-            del self.default_args["params"]
+        _args = {}
+        arg_keys = inspect.getfullargspec(self.__init__)[0]
+        for key in arg_keys:
+            if key == "default_args":
+                continue
+
+            _args[key] = self.default(key, locals()[key])
+
+        if _args["tags"] and any(len(tag) > TAG_MAX_LEN for tag in _args["tags"]):
+            raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
+
+        self.owner_links = _args["owner_links"] if _args["owner_links"] else {}
+        self.user_defined_macros = _args["user_defined_macros"]
+        self.user_defined_filters = _args["user_defined_filters"]
 
         # check self.params and convert them into ParamsDict
-        self.params = ParamsDict(params)
+        self.params = ParamsDict(_args["params"] or {})
 
-        if full_filepath:
+        if _args["full_filepath"]:
             warnings.warn(
                 "Passing full_filepath to DAG() is deprecated and has no effect",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
+        dag_id = _args["dag_id"]
         validate_key(dag_id)
 
         self._dag_id = dag_id
+
+        concurrency = _args["concurrency"]
         if concurrency:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
@@ -453,7 +458,7 @@ class DAG(LoggingMixin):
         self._max_active_tasks = max_active_tasks
         self._pickle_id: int | None = None
 
-        self._description = description
+        self._description = _args["description"]
         # set file location to caller source path
         back = sys._getframe().f_back
         self.fileloc = back.f_code.co_filename if back else ""
@@ -461,6 +466,7 @@ class DAG(LoggingMixin):
 
         # set timezone from start_date
         tz = None
+        start_date = _args["start_date"]
         if start_date and start_date.tzinfo:
             tzinfo = None if start_date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
@@ -492,6 +498,9 @@ class DAG(LoggingMixin):
             self.default_args["end_date"] = timezone.convert_to_utc(self.default_args["end_date"])
 
         # sort out DAG's scheduling behavior
+        schedule_interval = _args["schedule_interval"]
+        timetable = _args["timetable"]
+        schedule = _args["schedule"]
         scheduling_args = [schedule_interval, timetable, schedule]
         if not at_most_one(*scheduling_args):
             raise ValueError("At most one allowed for args 'schedule_interval', 'timetable', and 'schedule'.")
@@ -537,15 +546,19 @@ class DAG(LoggingMixin):
             self.schedule_interval = schedule_interval
             self.timetable = create_timetable(schedule_interval, self.timezone)
 
+        template_searchpath = _args["template_searchpath"]
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
+
+        template_undefined = _args["template_undefined"]
         self.template_undefined = template_undefined
         self.last_loaded = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
+
         self.max_active_runs = max_active_runs
-        self.dagrun_timeout = dagrun_timeout
-        self.sla_miss_callback = sla_miss_callback
+        self.dagrun_timeout = _args["dagrun_timeout"]
+        self.sla_miss_callback = _args["sla_miss_callback"]
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
         elif default_view == "tree":
@@ -567,11 +580,11 @@ class DAG(LoggingMixin):
                 f"Invalid values of dag.orientation: only support "
                 f"{ORIENTATION_PRESETS}, but get {orientation}"
             )
-        self.catchup = catchup
+        self.catchup = _args["catchup"]
 
         self.partial = False
-        self.on_success_callback = on_success_callback
-        self.on_failure_callback = on_failure_callback
+        self.on_success_callback = _args["on_success_callback"]
+        self.on_failure_callback = _args["on_failure_callback"]
 
         # Keeps track of any extra edge metadata (sparse; will not contain all
         # edges, so do not iterate over it for that). Outer key is upstream
@@ -584,11 +597,11 @@ class DAG(LoggingMixin):
         self.has_on_failure_callback = self.on_failure_callback is not None
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
-        self.is_paused_upon_creation = is_paused_upon_creation
-        self.auto_register = auto_register
+        self.is_paused_upon_creation = _args["is_paused_upon_creation"]
+        self.auto_register = _args["auto_register"]
 
-        self.jinja_environment_kwargs = jinja_environment_kwargs
-        self.render_template_as_native_obj = render_template_as_native_obj
+        self.jinja_environment_kwargs = _args["jinja_environment_kwargs"]
+        self.render_template_as_native_obj = _args["render_template_as_native_obj"]
 
         self.doc_md = self.get_doc_md(doc_md)
 
@@ -707,6 +720,11 @@ class DAG(LoggingMixin):
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
+    def default(self, key, value):
+        if value is not None:
+            return value
+
+        return self.default_args.get(key, None)
 
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):
@@ -1783,7 +1801,7 @@ class DAG(LoggingMixin):
                     task
                     for task in result
                     if task.task_id not in exclude_task_ids
-                    and (task.task_id, task.map_index) not in exclude_task_ids
+                       and (task.task_id, task.map_index) not in exclude_task_ids
                 }
 
         if as_pk_tuple:
@@ -2926,8 +2944,8 @@ class DAG(LoggingMixin):
         """
         for dag in (
             session.query(DagModel)
-            .filter(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
-            .all()
+                .filter(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
+                .all()
         ):
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
