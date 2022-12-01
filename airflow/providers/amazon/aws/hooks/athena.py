@@ -44,6 +44,8 @@ class AthenaHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
+    :param log_query: Whether to log athena query and other execution params when it's executed.
+        Defaults to *True*.
     """
 
     INTERMEDIATE_STATES = (
@@ -61,10 +63,10 @@ class AthenaHook(AwsBaseHook):
         "CANCELLED",
     )
 
-    def __init__(self, *args: Any, sleep_time: int = 30, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, sleep_time: int = 30, log_query: bool = True, **kwargs: Any) -> None:
         super().__init__(client_type="athena", *args, **kwargs)  # type: ignore
         self.sleep_time = sleep_time
-
+        self.log_query = log_query
 
     def run_query(
         self,
@@ -92,7 +94,8 @@ class AthenaHook(AwsBaseHook):
         }
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
-        self.log.info("Running query_context:%s, query:\n%s", query_context, query)
+        if self.log_query:
+            self.log.info("Running Query with params: %s", params)
         response = self.get_conn().start_query_execution(**params)
         query_execution_id = response["QueryExecutionId"]
         self.log.info("Query execution id: %s", query_execution_id)

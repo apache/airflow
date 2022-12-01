@@ -92,6 +92,27 @@ class TestAthenaHook(unittest.TestCase):
         mock_conn.return_value.start_query_execution.assert_called_with(**expected_call_params)
         assert result == MOCK_DATA["query_execution_id"]
 
+    @mock.patch.object(AthenaHook, "log")
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_run_query_log_query(self, mock_conn, log):
+        self.athena.run_query(
+            query=MOCK_DATA["query"],
+            query_context=mock_query_context,
+            result_configuration=mock_result_configuration,
+        )
+        assert self.athena.log.info.call_count == 2
+
+    @mock.patch.object(AthenaHook, "log")
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_run_query_no_log_query(self, mock_conn, log):
+        athena_hook_no_log_query = AthenaHook(sleep_time=0, log_query=False)
+        athena_hook_no_log_query.run_query(
+            query=MOCK_DATA["query"],
+            query_context=mock_query_context,
+            result_configuration=mock_result_configuration,
+        )
+        assert athena_hook_no_log_query.log.info.call_count == 1
+
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_get_query_results_with_non_succeeded_query(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_RUNNING_QUERY_EXECUTION
