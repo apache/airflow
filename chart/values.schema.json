@@ -4177,7 +4177,9 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [ "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml" ]
+                    "default": [
+                        "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+                    ]
                 }
             }
         },

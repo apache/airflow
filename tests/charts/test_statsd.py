@@ -216,9 +216,9 @@ class TestStatsd:
 
     def test_statsd_args_can_be_overridden(self):
         needle = "--some-arg=foo"
-        args = [ needle ]
+        args = [needle]
         docs = render_chart(
-            values={"statsd": {"enabled": True, "args": args }},
+            values={"statsd": {"enabled": True, "args": args}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
