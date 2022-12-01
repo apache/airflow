@@ -22,6 +22,10 @@ from copy import deepcopy
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
+
+AWS_ACCOUNT_ID = "123456789012"
+AWS_REGION = "us-west-2"
 
 mock_crawler_name = "test-crawler"
 mock_role_name = "test-role"
@@ -79,14 +83,14 @@ mock_config = {
     }
     """,
     "SecurityConfiguration": "test",
-    "Tags": {"test": "foo"},
+    "Tags": {"test": "foo", "bar": "test"},
 }
 
 
 class TestGlueCrawlerHook(unittest.TestCase):
     @classmethod
     def setUp(cls):
-        cls.hook = GlueCrawlerHook(aws_conn_id="aws_default")
+        cls.hook = GlueCrawlerHook(aws_conn_id="aws_default", region_name=AWS_REGION)
 
     def test_init(self):
         self.assertEqual(self.hook.aws_conn_id, "aws_default")
@@ -109,15 +113,86 @@ class TestGlueCrawlerHook(unittest.TestCase):
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
-    def test_update_crawler_needed(self, mock_get_conn):
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_update_crawler_needed(self, mock_get_account_number, mock_sts_conn, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
 
         mock_config_two = deepcopy(mock_config)
         mock_config_two["Role"] = "test-2-role"
+        mock_config_two.pop("Tags")
         response = self.hook.update_crawler(**mock_config_two)
         self.assertEqual(response, True)
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
         mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
+
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_update_crawler_missing_keys(self, mock_get_account_number, mock_sts_conn, mock_get_conn):
+        mock_config_missing_configuration = deepcopy(mock_config)
+        mock_config_missing_configuration.pop("Configuration")
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config_missing_configuration}
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
+
+        mock_config_two = deepcopy(mock_config)
+        mock_config_two.pop("Tags")
+        response = self.hook.update_crawler(**mock_config_two)
+        self.assertEqual(response, True)
+        mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
+        mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
+
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_update_tags_not_needed(self, mock_get_account_number, mock_sts_conn, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
+        mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
+        crawler_arn = f"arn:aws:glue:{AWS_REGION}:{AWS_ACCOUNT_ID}:crawler/{mock_crawler_name}"
+
+        response = self.hook.update_tags(mock_crawler_name, mock_config["Tags"])
+        self.assertEqual(response, False)
+        mock_get_conn.return_value.get_tags.assert_called_once_with(ResourceArn=crawler_arn)
+        mock_get_conn.return_value.tag_resource.assert_not_called()
+        mock_get_conn.return_value.untag_resource.assert_not_called()
+
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_remove_all_tags(self, mock_get_account_number, mock_sts_conn, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
+        mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
+        crawler_arn = f"arn:aws:glue:{AWS_REGION}:{AWS_ACCOUNT_ID}:crawler/{mock_crawler_name}"
+
+        response = self.hook.update_tags(mock_crawler_name, {})
+        self.assertEqual(response, True)
+        mock_get_conn.return_value.get_tags.assert_called_once_with(ResourceArn=crawler_arn)
+        mock_get_conn.return_value.tag_resource.assert_not_called()
+        mock_get_conn.return_value.untag_resource.assert_called_once_with(
+            ResourceArn=crawler_arn, TagsToRemove=["test", "bar"]
+        )
+
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    @mock.patch.object(StsHook, "get_conn")
+    @mock.patch.object(StsHook, "get_account_number")
+    def test_replace_tag(self, mock_get_account_number, mock_sts_conn, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
+        mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
+        mock_get_account_number.return_value = AWS_ACCOUNT_ID
+        crawler_arn = f"arn:aws:glue:{AWS_REGION}:{AWS_ACCOUNT_ID}:crawler/{mock_crawler_name}"
+
+        mock_config_two = deepcopy(mock_config)
+        mock_config_two.pop("Tags")
+        response = self.hook.update_tags(mock_crawler_name, {"test": "bla", "bar": "test"})
+        self.assertEqual(response, True)
+        mock_get_conn.return_value.get_tags.assert_called_once_with(ResourceArn=crawler_arn)
+        mock_get_conn.return_value.untag_resource.assert_not_called()
+        mock_get_conn.return_value.tag_resource.assert_called_once_with(
+            ResourceArn=crawler_arn, TagsToAdd={"test": "bla"}
+        )
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_not_needed(self, mock_get_conn):
