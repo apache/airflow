@@ -115,6 +115,10 @@ spec:
             - name: config
               mountPath: /etc/statsd-exporter/mappings.yml
               subPath: mappings.yml
+{{- if .Values.statsd.env}}
+          env:
+          {{- include "container_extra_envs" (list . .Values.statsd.env) | indent 10 }}
+{{- end }}
       volumes:
         - name: config
           configMap:

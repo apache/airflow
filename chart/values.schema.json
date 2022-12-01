@@ -4023,6 +4023,27 @@
                     "default": null,
                     "x-docsSection": null
                 },
+                "env": {
+                    "description": "Add additional env vars to stats.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
                     "type": "array",

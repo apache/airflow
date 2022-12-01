@@ -1341,6 +1341,9 @@ statsd:
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
+  
+  # Custom environment variables 
+  env: []
 
   uid: 65534
   # When not set, `statsd.uid` will be used
