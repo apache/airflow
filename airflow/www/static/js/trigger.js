@@ -42,8 +42,8 @@ function setRecentConfig(e) {
     const json = JSON.parse(value);
     value = JSON.stringify(json, null, 2);
   } catch (err) {
-    // any error is non-json parseable
-    value = 'Error: config could not be parsed';
+    // eslint-disable-next-line no-console
+    console.error('config is not valid JSON format');
   }
   document.querySelector('.CodeMirror').CodeMirror.setValue(value);
 }
