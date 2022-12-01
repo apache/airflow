@@ -48,8 +48,8 @@ Bug Fixes
 
 .. warning::
 
-    This version is yanked, as it contained problems when interacting with common.sql provider. Pleas install
-    the versions that were released after.
+    This version is yanked, as it contained problems when interacting with common.sql provider. Please install
+    a version released afterwards.
 
 This release of provider is only available for Airflow 2.3+ as explained in the
 `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
