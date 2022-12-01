@@ -29,8 +29,8 @@ Changelog
 
 .. warning::
 
-    This version is yanked, as it contained problems when interacting with common.sql provider. Pleas install
-    the versions that were released after.
+    This version is yanked, as it contained problems when interacting with common.sql provider. Please install
+    a version released afterwards.
 
 Bug Fixes
 ~~~~~~~~~
