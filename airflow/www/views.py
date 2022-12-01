@@ -1895,20 +1895,20 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
             return redirect(origin)
 
-        recent_confs = (
-            session.query(DagRun.conf)
+        recent_runs = (
+            session.query(DagRun.conf, func.max(DagRun.execution_date))
             .filter(
                 DagRun.dag_id == dag_id,
                 DagRun.run_type == DagRunType.MANUAL,
                 DagRun.conf.isnot(None),
             )
-            .distinct(DagRun.conf)
-            .order_by(DagRun.conf, DagRun.execution_date.desc())
+            .group_by(DagRun.conf)
+            .order_by(func.max(DagRun.execution_date).desc())
             .limit(5)
             .all()
         )
 
-        recent_confs = [getattr(conf, "conf") for conf in recent_confs]
+        recent_confs = [getattr(run, "conf") for run in recent_runs]
         recent_confs = [conf[0] for conf in map(wwwutils.get_dag_run_conf, recent_confs) if conf[1]]
 
         if request.method == "GET":
