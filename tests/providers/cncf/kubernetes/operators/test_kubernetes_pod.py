@@ -32,7 +32,7 @@ from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
     KubernetesPodOperator,
-    _suppress,
+    _optionally_suppress,
     _task_id_to_pod_name,
 )
 from airflow.utils import timezone
@@ -1023,10 +1023,35 @@ class TestKubernetesPodOperator:
 
 
 def test__suppress(caplog):
-    with _suppress(ValueError):
+    with _optionally_suppress(ValueError):
         raise ValueError("failure")
-
     assert "ValueError: failure" in caplog.text
+
+
+def test__suppress_no_args(caplog):
+    with _optionally_suppress():
+        raise RuntimeError("failure")
+    assert "RuntimeError: failure" in caplog.text
+
+
+def test__suppress_no_args_reraise(caplog):
+    with pytest.raises(RuntimeError):
+        with _optionally_suppress(reraise=True):
+            raise RuntimeError("failure")
+        assert caplog.text == ""
+
+
+def test__suppress_wrong_error(caplog):
+    with pytest.raises(RuntimeError):
+        with _optionally_suppress(ValueError):
+            raise RuntimeError("failure")
+    assert caplog.text == ""
+
+
+def test__suppress_no_error(caplog):
+    with _optionally_suppress():
+        print("hi")
+    assert caplog.text == ""
 
 
 @pytest.mark.parametrize(

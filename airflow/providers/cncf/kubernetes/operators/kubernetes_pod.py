@@ -21,7 +21,7 @@ import json
 import logging
 import re
 import warnings
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
@@ -645,37 +645,35 @@ class KubernetesPodOperator(BaseOperator):
         print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
 
 
-class _suppress(AbstractContextManager):
+class _optionally_suppress(AbstractContextManager):
     """
-    This behaves the same as ``contextlib.suppress`` but logs the suppressed
-    exceptions as errors with traceback.
+    Returns context manager that will swallow and log exceptions.
 
-    The caught exception is also stored on the context manager instance under
-    attribute ``exception``.
+    By default swallows descendents of Exception, but you can provide other classes through ``*args``.
+
+    Suppression behavior can be disabled with reraise=True.
 
     :meta private:
     """
 
-    def __init__(self, *exceptions):
-        self._exceptions = exceptions
-        self.exception = None
+    def __init__(self, *args, reraise=False):
+        self.reraise = reraise
+        self._exception = args or (Exception,)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exctype, excinst, exctb):
-        caught_error = exctype is not None and issubclass(exctype, self._exceptions)
-        if caught_error:
+        error = exctype is not None
+        matching_error = error and issubclass(exctype, self._exception)
+        if error and not matching_error:
+            return False
+        elif matching_error and self.reraise:
+            return False
+        elif matching_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
             logger.exception(excinst)
-        return caught_error
-
-
-def _optionally_suppress(*, reraise=False):
-    """
-    Returns context manager that will swallow and log all exceptions.
-
-    We can disable suppression behavior by supplying reraise=True.
-    """
-    return _suppress(Exception) if reraise is False else nullcontext()
+            return True
+        else:
+            return True
