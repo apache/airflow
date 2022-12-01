@@ -44,12 +44,25 @@
     <div class="form-group row">
       <div class="col-md-2">
         <label for="run_id">Run id (Optional)</label>
-        <input type="text" class="form-control" placeholder="Run ID" name="run_id" >
+        <input type="text" class="form-control" placeholder="Run ID" name="run_id">
+      </div>
+    </div>
+    <div class="form-group row">
+      <div class="col-md-2">
+        <label for="recent_configs">Recent Configurations</label>
+        <select class="form-control" name="recent_configs" id="recent_configs">
+          <option value="">empty config</option>
+          {% for conf in recent_confs %}
+          <option value="{{ conf }}">{{ conf }}</option>
+          {% endfor %}
+        </select>
       </div>
     </div>
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
     <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
-    </div>
+
+    <br />
+
     <p>
       To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
       {% if is_dag_run_conf_overrides_params %}
