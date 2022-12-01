@@ -54,6 +54,12 @@ from tests.utils.test_config import (
 HOME_DIR = os.path.expanduser("~")
 
 
+@pytest.fixture(scope="module", autouse=True)
+def restore_env():
+    with mock.patch.dict("os.environ"):
+        yield
+
+
 @unittest.mock.patch.dict(
     "os.environ",
     {
@@ -871,6 +877,10 @@ class TestDeprecatedConf:
                 with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
                     assert conf.get("logging", "logging_level") == "VALUE"
 
+            with pytest.warns(FutureWarning, match="Please update your `conf.get"):
+                with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
+                    assert conf.get("core", "logging_level") == "VALUE"
+
             with pytest.warns(DeprecationWarning), conf_vars({("core", "logging_level"): "VALUE"}):
                 assert conf.get("logging", "logging_level") == "VALUE"
 
@@ -1004,6 +1014,66 @@ sql_alchemy_conn=sqlite://test
                     test_conf = make_config()
                     assert test_conf.get("core", "hostname_callable") == "CarrierPigeon"
                     assert [] == warning
+
+    @pytest.mark.parametrize(
+        ("conf_dict", "environ", "expected"),
+        [
+            pytest.param({"old_section": {"val": "old_val"}}, None, "old_val", id="old_config"),
+            pytest.param(
+                {"old_section": {"val": "old_val"}},
+                ("AIRFLOW__OLD_SECTION__VAL", "old_env"),
+                "old_env",
+                id="old_config_old_env",
+            ),
+            pytest.param(
+                {},
+                ("AIRFLOW__OLD_SECTION__VAL", "old_env"),
+                "old_env",
+                id="old_env",
+            ),
+            pytest.param(
+                {"new_section": {"val": "val2"}},
+                ("AIRFLOW__OLD_SECTION__VAL", "old_env"),
+                "old_env",
+                id="new_config_old_env",
+            ),
+        ],
+    )
+    def test_deprecated_sections(self, conf_dict, environ, expected, monkeypatch):
+        def make_config():
+            test_conf = AirflowConfigParser(
+                default_config=textwrap.dedent(
+                    """
+                    [new_section]
+                    val=new
+                    """
+                )
+            )
+            # Guarantee we have a deprecated setting, so we test the deprecation
+            # lookup even if we remove this explicit fallback
+            test_conf.deprecated_sections = {
+                "new_section": ("old_section", "2.1"),
+            }
+            test_conf.read_dict(conf_dict)
+            test_conf.validate()
+            return test_conf
+
+        if environ:
+            monkeypatch.setenv(*environ)
+
+        test_conf = make_config()
+        with pytest.warns(
+            DeprecationWarning,
+            match=r"\[old_section\] has been moved to the val option in \[new_section\].*update your config",
+        ):
+            # Test when you've _set_ the old value that we warn you need to update your config
+            assert test_conf.get("new_section", "val") == expected
+        with pytest.warns(
+            FutureWarning,
+            match=r"\[old_section\] has been renamed to \[new_section\].*update your `conf.get",
+        ):
+            # Test when you read using the old section you get told to change your `conf.get` call
+            assert test_conf.get("old_section", "val") == expected
 
     def test_deprecated_funcs(self):
         for func in [
