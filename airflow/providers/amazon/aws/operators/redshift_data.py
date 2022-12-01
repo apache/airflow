@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 from airflow.compat.functools import cached_property
@@ -103,6 +104,57 @@ class RedshiftDataOperator(BaseOperator):
     def hook(self) -> RedshiftDataHook:
         """Create and return an RedshiftDataHook."""
         return RedshiftDataHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+
+    def execute_query(self) -> str:
+        warnings.warn(
+            "This method is deprecated and has been moved to the hook "
+            "`airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.statement_id = self.hook.execute_query(
+            database=self.database,
+            sql=self.sql,
+            cluster_identifier=self.cluster_identifier,
+            db_user=self.db_user,
+            parameters=self.parameters,
+            secret_arn=self.secret_arn,
+            statement_name=self.statement_name,
+            with_event=self.with_event,
+            await_result=self.await_result,
+            poll_interval=self.poll_interval,
+        )
+        return self.statement_id
+
+    def execute_batch_query(self) -> str:
+        warnings.warn(
+            "This method is deprecated and has been moved to the hook "
+            "`airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.statement_id = self.hook.execute_query(
+            database=self.database,
+            sql=self.sql,
+            cluster_identifier=self.cluster_identifier,
+            db_user=self.db_user,
+            parameters=self.parameters,
+            secret_arn=self.secret_arn,
+            statement_name=self.statement_name,
+            with_event=self.with_event,
+            await_result=self.await_result,
+            poll_interval=self.poll_interval,
+        )
+        return self.statement_id
+
+    def wait_for_results(self, statement_id: str):
+        warnings.warn(
+            "This method is deprecated and has been moved to the hook "
+            "`airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.hook.wait_for_results(statement_id=statement_id, poll_interval=self.poll_interval)
 
     def execute(self, context: Context) -> str:
         """Execute a statement against Amazon Redshift"""
