@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import json
 from tempfile import NamedTemporaryFile
-from unittest import TestCase, mock
+from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models import DAG, TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.search_ads import (
@@ -42,7 +42,7 @@ REPORT_NAME = "test_report.csv"
 FILE_NAME = "test"
 
 
-class TestGoogleSearchAdsInsertReportOperator(TestCase):
+class TestGoogleSearchAdsInsertReportOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
     @mock.patch(
@@ -77,12 +77,12 @@ class TestGoogleSearchAdsInsertReportOperator(TestCase):
         assert op.report == report
 
 
-class TestGoogleSearchAdsDownloadReportOperator(TestCase):
-    def setUp(self):
+class TestGoogleSearchAdsDownloadReportOperator:
+    def setup_method(self):
         with create_session() as session:
             session.query(TI).delete()
 
-    def tearDown(self):
+    def teardown_method(self):
         with create_session() as session:
             session.query(TI).delete()
 
@@ -125,11 +125,14 @@ class TestGoogleSearchAdsDownloadReportOperator(TestCase):
         )
         xcom_mock.assert_called_once_with(None, key="file_name", value=FILE_NAME + ".csv.gz")
 
-    @parameterized.expand([BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"])
+    @pytest.mark.parametrize(
+        "test_bucket_name",
+        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"],
+    )
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GCSHook")
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
-    def test_set_bucket_name(self, test_bucket_name, hook_mock, gcs_hook_mock, tempfile_mock):
+    def test_set_bucket_name(self, hook_mock, gcs_hook_mock, tempfile_mock, test_bucket_name):
         temp_file_name = "TEMP"
         data = b"data"
 

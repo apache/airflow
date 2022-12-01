@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import json
 from tempfile import NamedTemporaryFile
-from unittest import TestCase, mock
+from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models import DAG, TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
@@ -62,7 +62,7 @@ REPORT_NAME = "test_report.csv"
 TEMP_FILE_NAME = "test"
 
 
-class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
+class TestGoogleCampaignManagerDeleteReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
@@ -86,12 +86,12 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
         )
 
 
-class TestGoogleCampaignManagerDownloadReportOperator(TestCase):
-    def setUp(self):
+class TestGoogleCampaignManagerDownloadReportOperator:
+    def setup_method(self):
         with create_session() as session:
             session.query(TI).delete()
 
-    def tearDown(self):
+    def teardown_method(self):
         with create_session() as session:
             session.query(TI).delete()
 
@@ -153,7 +153,10 @@ class TestGoogleCampaignManagerDownloadReportOperator(TestCase):
         )
         xcom_mock.assert_called_once_with(None, key="report_name", value=REPORT_NAME + ".gz")
 
-    @parameterized.expand([BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"])
+    @pytest.mark.parametrize(
+        "test_bucket_name",
+        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"],
+    )
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.http")
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.tempfile")
     @mock.patch(
@@ -162,11 +165,11 @@ class TestGoogleCampaignManagerDownloadReportOperator(TestCase):
     @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.GCSHook")
     def test_set_bucket_name(
         self,
-        test_bucket_name,
         gcs_hook_mock,
         hook_mock,
         tempfile_mock,
         http_mock,
+        test_bucket_name,
     ):
         http_mock.MediaIoBaseDownload.return_value.next_chunk.return_value = (
             None,
@@ -211,7 +214,7 @@ class TestGoogleCampaignManagerDownloadReportOperator(TestCase):
         )
 
 
-class TestGoogleCampaignManagerInsertReportOperator(TestCase):
+class TestGoogleCampaignManagerInsertReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
@@ -258,7 +261,7 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
         assert op.report == report
 
 
-class TestGoogleCampaignManagerRunReportOperator(TestCase):
+class TestGoogleCampaignManagerRunReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
@@ -292,7 +295,7 @@ class TestGoogleCampaignManagerRunReportOperator(TestCase):
         xcom_mock.assert_called_once_with(None, key="file_id", value=FILE_ID)
 
 
-class TestGoogleCampaignManagerBatchInsertConversionsOperator(TestCase):
+class TestGoogleCampaignManagerBatchInsertConversionsOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )
@@ -317,7 +320,7 @@ class TestGoogleCampaignManagerBatchInsertConversionsOperator(TestCase):
         )
 
 
-class TestGoogleCampaignManagerBatchUpdateConversionOperator(TestCase):
+class TestGoogleCampaignManagerBatchUpdateConversionOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
     )

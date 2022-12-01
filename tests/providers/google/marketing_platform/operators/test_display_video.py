@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import json
 from tempfile import NamedTemporaryFile
-from unittest import TestCase, mock
+from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models import DAG, TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.display_video import (
@@ -50,7 +50,7 @@ QUERY_ID = FILENAME = "test"
 OBJECT_NAME = "object_name"
 
 
-class TestGoogleDisplayVideo360CreateReportOperator(TestCase):
+class TestGoogleDisplayVideo360CreateReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
         "display_video.GoogleDisplayVideo360CreateReportOperator.xcom_push"
@@ -88,7 +88,7 @@ class TestGoogleDisplayVideo360CreateReportOperator(TestCase):
         assert op.body == body
 
 
-class TestGoogleDisplayVideo360DeleteReportOperator(TestCase):
+class TestGoogleDisplayVideo360DeleteReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
     )
@@ -106,12 +106,12 @@ class TestGoogleDisplayVideo360DeleteReportOperator(TestCase):
         hook_mock.return_value.delete_query.assert_called_once_with(query_id=QUERY_ID)
 
 
-class TestGoogleDisplayVideo360DownloadReportOperator(TestCase):
-    def setUp(self):
+class TestGoogleDisplayVideo360DownloadReportOperator:
+    def setup_method(self):
         with create_session() as session:
             session.query(TI).delete()
 
-    def tearDown(self):
+    def teardown_method(self):
         with create_session() as session:
             session.query(TI).delete()
 
@@ -172,7 +172,10 @@ class TestGoogleDisplayVideo360DownloadReportOperator(TestCase):
         )
         mock_xcom.assert_called_once_with(None, key="report_name", value=REPORT_NAME + ".gz")
 
-    @parameterized.expand([BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"])
+    @pytest.mark.parametrize(
+        "test_bucket_name",
+        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"],
+    )
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.shutil")
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.urllib.request")
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.tempfile")
@@ -182,12 +185,12 @@ class TestGoogleDisplayVideo360DownloadReportOperator(TestCase):
     )
     def test_set_bucket_name(
         self,
-        test_bucket_name,
         mock_hook,
         mock_gcs_hook,
         mock_temp,
         mock_request,
         mock_shutil,
+        test_bucket_name,
     ):
         mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
         mock_hook.return_value.get_query.return_value = {
@@ -232,7 +235,7 @@ class TestGoogleDisplayVideo360DownloadReportOperator(TestCase):
         )
 
 
-class TestGoogleDisplayVideo360RunReportOperator(TestCase):
+class TestGoogleDisplayVideo360RunReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
     )
@@ -254,7 +257,7 @@ class TestGoogleDisplayVideo360RunReportOperator(TestCase):
         hook_mock.return_value.run_query.assert_called_once_with(query_id=REPORT_ID, params=parameters)
 
 
-class TestGoogleDisplayVideo360DownloadLineItemsOperator(TestCase):
+class TestGoogleDisplayVideo360DownloadLineItemsOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
     )
@@ -306,7 +309,7 @@ class TestGoogleDisplayVideo360DownloadLineItemsOperator(TestCase):
         hook_mock.return_value.download_line_items.assert_called_once_with(request_body=request_body)
 
 
-class TestGoogleDisplayVideo360UploadLineItemsOperator(TestCase):
+class TestGoogleDisplayVideo360UploadLineItemsOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.tempfile")
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
@@ -347,7 +350,7 @@ class TestGoogleDisplayVideo360UploadLineItemsOperator(TestCase):
         hook_mock.return_value.upload_line_items.assert_called_once_with(line_items=line_items)
 
 
-class TestGoogleDisplayVideo360SDFtoGCSOperator(TestCase):
+class TestGoogleDisplayVideo360SDFtoGCSOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
     )
@@ -416,7 +419,7 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator(TestCase):
         )
 
 
-class TestGoogleDisplayVideo360CreateSDFDownloadTaskOperator(TestCase):
+class TestGoogleDisplayVideo360CreateSDFDownloadTaskOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
         "display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator.xcom_push"

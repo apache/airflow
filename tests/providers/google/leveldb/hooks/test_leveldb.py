@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -25,7 +24,7 @@ import pytest
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBHookException
 
 
-class TestLevelDBHook(unittest.TestCase):
+class TestLevelDBHook:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_get_conn_db_is_not_none(self):
         """Test get_conn method of hook"""

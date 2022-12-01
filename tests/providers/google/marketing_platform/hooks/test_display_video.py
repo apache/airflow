@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -26,8 +26,8 @@ API_VERSION = "v1"
 GCP_CONN_ID = "google_cloud_default"
 
 
-class TestGoogleDisplayVideo360Hook(TestCase):
-    def setUp(self):
+class TestGoogleDisplayVideo360Hook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,

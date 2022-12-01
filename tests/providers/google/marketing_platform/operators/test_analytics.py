@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
@@ -40,7 +39,7 @@ BUCKET = "gs://bucket"
 BUCKET_OBJECT_NAME = "file.csv"
 
 
-class TestGoogleAnalyticsListAccountsOperator(unittest.TestCase):
+class TestGoogleAnalyticsListAccountsOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsListAccountsOperator(
@@ -54,7 +53,7 @@ class TestGoogleAnalyticsListAccountsOperator(unittest.TestCase):
         hook_mock.return_value.list_accounts.assert_called_once()
 
 
-class TestGoogleAnalyticsRetrieveAdsLinksListOperator(unittest.TestCase):
+class TestGoogleAnalyticsRetrieveAdsLinksListOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsRetrieveAdsLinksListOperator(
@@ -78,7 +77,7 @@ class TestGoogleAnalyticsRetrieveAdsLinksListOperator(unittest.TestCase):
         )
 
 
-class TestGoogleAnalyticsGetAdsLinkOperator(unittest.TestCase):
+class TestGoogleAnalyticsGetAdsLinkOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
         op = GoogleAnalyticsGetAdsLinkOperator(
@@ -105,7 +104,7 @@ class TestGoogleAnalyticsGetAdsLinkOperator(unittest.TestCase):
         )
 
 
-class TestGoogleAnalyticsDataImportUploadOperator(unittest.TestCase):
+class TestGoogleAnalyticsDataImportUploadOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GCSHook")
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile")

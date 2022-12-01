@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -32,8 +32,8 @@ ENCRYPTION_ENTITY_TYPE = "encryption_entity_type"
 ENCRYPTION_ENTITY_ID = 1234567
 
 
-class TestGoogleCampaignManagerHook(TestCase):
-    def setUp(self):
+class TestGoogleCampaignManagerHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,

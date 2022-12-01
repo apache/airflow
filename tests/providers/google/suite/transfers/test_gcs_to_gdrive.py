@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -29,7 +28,7 @@ MODULE = "airflow.providers.google.suite.transfers.gcs_to_gdrive"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestGcsToGDriveOperator(unittest.TestCase):
+class TestGcsToGDriveOperator:
     @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")
     @mock.patch(MODULE + ".tempfile.NamedTemporaryFile")

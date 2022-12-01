@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import unittest
 from unittest import mock
 
 import pytest
@@ -32,7 +31,7 @@ from airflow.providers.google.common.utils.id_token_credentials import (
 )
 
 
-class TestIDTokenCredentialsAdapter(unittest.TestCase):
+class TestIDTokenCredentialsAdapter:
     def test_should_use_id_token_from_parent_credentials(self):
         parent_credentials = mock.MagicMock()
         type(parent_credentials).id_token = mock.PropertyMock(side_effect=["ID_TOKEN1", "ID_TOKEN2"])
@@ -46,7 +45,7 @@ class TestIDTokenCredentialsAdapter(unittest.TestCase):
         assert creds.token == "ID_TOKEN2"
 
 
-class TestGetDefaultIdTokenCredentials(unittest.TestCase):
+class TestGetDefaultIdTokenCredentials:
     @mock.patch.dict("os.environ")
     @mock.patch(
         "google.auth._cloud_sdk.get_application_default_credentials_path",
