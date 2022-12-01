@@ -215,8 +215,7 @@ class TestStatsd:
         assert "airflow_pool_queued_slots" == mappings_yml_obj["mappings"][0]["name"]
 
     def test_statsd_args_can_be_overridden(self):
-        needle = "--some-arg=foo"
-        args = [needle]
+        args = ["--some-arg=foo"]
         docs = render_chart(
             values={"statsd": {"enabled": True, "args": args}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
