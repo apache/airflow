@@ -649,23 +649,24 @@ class _optionally_suppress(AbstractContextManager):
     """
     Returns context manager that will swallow and log exceptions.
 
-    By default swallows descendents of Exception, but you can provide other classes through ``*args``.
+    By default swallows descendents of Exception, but you can provide other classes through
+    the vararg ``exceptions``.
 
     Suppression behavior can be disabled with reraise=True.
 
     :meta private:
     """
 
-    def __init__(self, *args, reraise=False):
+    def __init__(self, *exceptions, reraise=False):
         self.reraise = reraise
-        self._exception = args or (Exception,)
+        self._exceptions = exceptions or (Exception,)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exctype, excinst, exctb):
         error = exctype is not None
-        matching_error = error and issubclass(exctype, self._exception)
+        matching_error = error and issubclass(exctype, self._exceptions)
         if error and not matching_error:
             return False
         elif matching_error and self.reraise:
