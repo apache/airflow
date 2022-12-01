@@ -90,11 +90,11 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         if isinstance(sql, list):
             kwargs["Sqls"] = sql
             resp = self.conn.batch_execute_statement(**trim_none_values(kwargs))
-            statement_id = resp["Id"]
         else:
             kwargs["Sql"] = sql
             resp = self.conn.execute_statement(**trim_none_values(kwargs))
-            statement_id = resp["Id"]
+
+        statement_id = resp["Id"]
 
         if await_result:
             self.wait_for_results(statement_id, poll_interval=poll_interval)
