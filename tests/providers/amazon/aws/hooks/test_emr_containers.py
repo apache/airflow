@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
@@ -47,8 +46,8 @@ JOB2_RUN_DESCRIPTION = {
 }
 
 
-class TestEmrContainerHook(unittest.TestCase):
-    def setUp(self):
+class TestEmrContainerHook:
+    def setup_method(self):
         self.emr_containers = EmrContainerHook(virtual_cluster_id="vc1234")
 
     def test_init(self):
@@ -110,7 +109,9 @@ class TestEmrContainerHook(unittest.TestCase):
         mock_session.return_value = emr_session_mock
         emr_client_mock.describe_job_run.return_value = JOB2_RUN_DESCRIPTION
 
-        query_status = self.emr_containers.poll_query_status(job_id="job123456", max_polling_attempts=2)
+        query_status = self.emr_containers.poll_query_status(
+            job_id="job123456", max_polling_attempts=2, poll_interval=0
+        )
         # should poll until max_tries is reached since query is in non-terminal state
         assert emr_client_mock.describe_job_run.call_count == 2
         assert query_status == "RUNNING"
