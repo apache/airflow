@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-11-30T11:36:22Z
+# This constraints file was automatically generated on 2022-12-01T08:39:20Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-5-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -102,9 +102,9 @@ billiard==3.6.4.0
 black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.19
+boto3==1.26.20
 boto==2.49.0
-botocore==1.29.19
+botocore==1.29.20
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -304,7 +304,7 @@ mongomock==4.1.2
 monotonic==1.6
 more-itertools==8.14.0
 moreorless==0.4.0
-moto==4.0.10
+moto==4.0.11
 msal-extensions==1.0.0
 msal==1.20.0
 msgpack==1.0.4
@@ -505,7 +505,7 @@ towncrier==22.8.0
 tqdm==4.64.1
 traitlets==5.6.0
 trino==0.319.0
-twine==4.0.1
+twine==4.0.2
 types-Deprecated==1.2.9
 types-Markdown==3.4.2.1
 types-PyMySQL==1.0.19.1
@@ -529,7 +529,7 @@ types-termcolor==1.1.6
 types-toml==0.10.8.1
 types-urllib3==1.26.25.4
 typing_extensions==4.4.0
-tzdata==2022.6
+tzdata==2022.7
 tzlocal==4.2
 uamqp==1.6.3
 uc-micro-py==1.0.1
