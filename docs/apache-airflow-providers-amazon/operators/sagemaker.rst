@@ -146,6 +146,8 @@ To create an Amazon Sagemaker endpoint you can use
     :start-after: [START howto_operator_sagemaker_endpoint]
     :end-before: [END howto_operator_sagemaker_endpoint]
 
+.. _howto/operator:SageMakerRegisterModelVersionOperator:
+
 Register a Sagemaker Model Version
 ==================================
 

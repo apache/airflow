@@ -744,7 +744,7 @@ class TestSageMakerHook:
             error_response={
                 "Error": {
                     "Code": "ValidationException",
-                    "Message": "Model Package Group already exists: arn:aws:sagemaker:us-west-2:123456:model-package-group/test-package-group",
+                    "Message": "Model Package Group already exists: arn:aws:sagemaker:foo:bar",
                 }
             },
             operation_name="empty",
@@ -753,4 +753,4 @@ class TestSageMakerHook:
 
         created = hook.create_model_package_group("group-name")
 
-        assert created == False
+        assert created is False

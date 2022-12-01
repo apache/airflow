@@ -809,7 +809,7 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
         config: dict | None = None,
         **kwargs,
     ):
-        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
+        super().__init__(config=config or {}, aws_conn_id=aws_conn_id, **kwargs)
         self.image_uri = image_uri
         self.model_url = model_url
         self.package_group_name = package_group_name
