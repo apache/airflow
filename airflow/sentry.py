@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sentry Integration"""
+"""Sentry Integration."""
 from __future__ import annotations
 
 import logging
@@ -150,8 +150,9 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
 
         def enrich_errors(self, func):
             """
+            Decorate errors.
             Wrap TaskInstance._run_raw_task and LocalTaskJob._run_mini_scheduler_on_child_tasks
-             to support task specific tags and breadcrumbs.
+            to support task specific tags and breadcrumbs.
             """
             session_args_idx = find_session_idx(func)
 

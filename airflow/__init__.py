@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
+Init setup.
+
 Authentication is implemented using flask_login and different environments can
 implement their own login mechanisms by providing an `airflow_login` module
-in their PYTHONPATH. airflow_login should be based off the
-`airflow.www.login`
+in their PYTHONPATH. airflow_login should be based off the `airflow.www.login`
 
 isort:skip_file
 """

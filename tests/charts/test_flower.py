@@ -297,6 +297,27 @@ class TestFlowerDeployment:
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"flower": {"enabled": True}, "airflowLocalSettings": None},
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"flower": {"enabled": True}, "airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        volume_mount = {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
 
 class TestFlowerService:
     @pytest.mark.parametrize(

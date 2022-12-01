@@ -110,7 +110,14 @@ export const TriggeredRuns = ({ cell: { value, row } }: CellProps) => {
   return (
     <Box>
       <Text color="blue.600" cursor="pointer" onClick={onToggle}>{value.length}</Text>
-      <Modal size="3xl" isOpen={isOpen} onClose={onClose} portalProps={{ containerRef }}>
+      <Modal
+        size="3xl"
+        isOpen={isOpen}
+        onClose={onClose}
+        scrollBehavior="inside"
+        blockScrollOnMount={false}
+        portalProps={{ containerRef }}
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
@@ -127,6 +134,7 @@ export const TriggeredRuns = ({ cell: { value, row } }: CellProps) => {
             <Table
               data={data}
               columns={columns}
+              pageSize={data.length}
             />
           </ModalBody>
         </ModalContent>
