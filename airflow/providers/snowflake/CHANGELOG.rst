@@ -27,6 +27,11 @@ Changelog
 4.0.1
 .....
 
+.. warning::
+
+    This version is yanked, as it contained problems when interacting with common.sql provider. Please install
+    a version released afterwards.
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -41,16 +46,44 @@ Bug Fixes
 4.0.0
 .....
 
+.. warning::
+
+    This version is yanked, as it contained problems when interacting with common.sql provider. Please install
+    a version released afterwards.
+
 This release of provider is only available for Airflow 2.3+ as explained in the
 `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
+The ``SnowflakeHook`` is now conforming to the same semantics as all the other ``DBApiHook``
+implementations and returns the same kind of response in its ``run`` method. Previously (pre 4.* versions
+of the provider, the Hook returned Dictionary of ``{ "column": "value" ... }`` which was not compatible
+with other DBApiHooks that return just sequence of sequences. After this change (and dependency
+on common.sql >= 1.3.1),the ``SnowflakeHook`` returns now python DbApi-compatible "results" by default.
+
+The ``description`` (i.e. among others names and types of columns returned) can be retrieved
+via ``descriptions`` and ``last_description`` fields of the hook after ``run`` method completes.
+
+That makes the ``DatabricksSqlHook`` suitable for generic SQL operator and detailed lineage analysis.
+
+If you had custom hooks or used the Hook in your TaskFlow code or custom operators that relied on this
+behaviour, you need to adapt your DAGs or you can switch back the ``SnowflakeHook`` to return dictionaries
+by passing ``return_dictionaries=True`` to the run method of the hook.
+
+The ``SnowflakeOperator`` is also more standard and derives from common
+``SQLExecuteQueryOperator`` and uses more consistent approach to process output when SQL queries are run.
+However in this case the result returned by ``execute`` method is unchanged (it still returns Dictionaries
+rather than sequences and those dictionaries are pushed to XCom, so your DAGs relying on this behaviour
+should continue working without any change.
+
 In SnowflakeHook, if both ``extra__snowflake__foo`` and ``foo`` existed in connection extra
 dict, the prefixed version would be used; now, the non-prefixed version will be preferred.
 
+
 * ``Update snowflake hook to not use extra prefix (#26764)``
+
 
 Misc
 ~~~~
