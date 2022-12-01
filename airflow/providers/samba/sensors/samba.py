@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.sensors.base import BaseSensorOperator
+from __future__ import annotations
+
 from airflow.providers.samba.hooks.samba import SambaHook
+from airflow.sensors.base import BaseSensorOperator
 
 
 class SambaFileSensor(BaseSensorOperator):
@@ -25,15 +27,13 @@ class SambaFileSensor(BaseSensorOperator):
     Waits for file in samba share
 
     :param file_name: The full name of the file, including extension.
-    :param samba_conn_id: The connection id reference.
     :param share: The name of the file share.
+    :param samba_conn_id: The connection id reference.
     """
 
     default_conn_name = "samba_default"
 
-    def __init__(
-        self, file_name: str, samba_conn_id: str = default_conn_name, share: str | None = None, **kwargs
-    ) -> None:
+    def __init__(self, file_name: str, share: str, samba_conn_id: str = default_conn_name, **kwargs) -> None:
         super().__init__(**kwargs)
         self.samba_conn_id = samba_conn_id
         self.share = share
