@@ -1037,7 +1037,8 @@ class SageMakerHook(AwsBaseHook):
             if e.response["Error"]["Code"] == "ValidationException" and e.response["Error"][
                 "Message"
             ].startswith("Model Package Group already exists"):
-                self.log.info("%s", e.response["Error"]["Message"])  # log msg only so it doesn't look like an error
+                # log msg only so it doesn't look like an error
+                self.log.info("%s", e.response["Error"]["Message"])
                 return False
             else:
                 self.log.error("Error when trying to create Model Package Group: %s", e)
