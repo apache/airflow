@@ -56,8 +56,8 @@ def json_rpc(
         return Response(response=f"Unrecognized method: {method_name}.", status=400)
 
     handler = METHODS_MAP[method_name]
+    params = {}
     try:
-        params = {}
         if body.get("params"):
             params_json = json.loads(str(body.get("params")))
             params = BaseSerialization.deserialize(params_json)
@@ -68,7 +68,6 @@ def json_rpc(
 
     log.debug("Calling method %.", {method_name})
     try:
-        handler = METHODS_MAP[method_name]
         output = handler(**params)
         output_json = BaseSerialization.serialize(output)
         log.debug("Returning response")

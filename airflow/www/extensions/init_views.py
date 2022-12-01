@@ -222,6 +222,8 @@ def init_api_connexion(app: Flask) -> None:
 
 def init_api_internal(app: Flask) -> None:
     """Initialize Internal API"""
+    if not conf.getboolean("webserver", "run_internal_api", fallback=False):
+        return
     base_path = "/internal/v1"
 
     spec_dir = path.join(ROOT_APP_DIR, "api_internal", "openapi")

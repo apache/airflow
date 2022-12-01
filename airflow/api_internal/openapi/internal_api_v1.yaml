@@ -71,7 +71,6 @@ paths:
 x-headers: []
 x-explorer-enabled: true
 x-proxy-enabled: true
-x-samples-enabled: true
 components:
   schemas:
     JsonRpcRequired:

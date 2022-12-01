@@ -150,7 +150,7 @@ def create_app(config=None, testing=False):
         init_connection_form()
         init_error_handlers(flask_app)
         init_api_connexion(flask_app)
-        if conf.get("webserver", "run_internal_api"):
+        if conf.getboolean("webserver", "run_internal_api", fallback=False):
             init_api_internal(flask_app)
         init_api_experimental(flask_app)
 
