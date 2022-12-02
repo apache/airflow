@@ -1369,3 +1369,13 @@ sql_alchemy_conn=sqlite://test
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
                 assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+
+    def test_should_not_falsely_emit_future_warning(self):
+        from airflow.configuration import AirflowConfigParser
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
+
+        with warnings.catch_warnings(record=True) as captured:
+            test_conf.as_dict()
+        assert captured == []
