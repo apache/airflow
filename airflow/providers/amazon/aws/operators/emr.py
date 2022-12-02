@@ -109,10 +109,11 @@ class EmrAddStepsOperator(BaseOperator):
         # steps may arrive as a string representing a list
         # e.g. if we used XCom or a file then: steps="[{ step1 }, { step2 }]"
         steps = self.steps
+        wait_for_completion = self.wait_for_completion
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
 
-        return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=self.wait_for_completion)
+        return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=wait_for_completion)
 
 
 class EmrEksCreateClusterOperator(BaseOperator):
