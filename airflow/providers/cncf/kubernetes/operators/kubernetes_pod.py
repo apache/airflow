@@ -491,7 +491,7 @@ class KubernetesPodOperator(BaseOperator):
                 f"remote_pod: {remote_pod}"
             )
         else:
-            self.process_pod_deletion(remote_pod)
+            self.process_pod_deletion(remote_pod, reraise=False)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
