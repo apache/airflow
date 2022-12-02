@@ -529,9 +529,7 @@ class TestKubernetesExecutor:
         ],
     )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    def test_watchers_under_multi_namespace_mode(
-        self, mock_get_kube_client, namespace_list, watchers_keys
-    ):
+    def test_watchers_under_multi_namespace_mode(self, mock_get_kube_client, namespace_list, watchers_keys):
         executor = self.kubernetes_executor
         executor.kube_config.multi_namespace_mode = True
         executor.kube_config.namespace_list = namespace_list
@@ -849,6 +847,7 @@ class TestKubernetesExecutor:
                 return k8s.V1PodList(items=pending_pods)
             else:
                 return k8s.V1PodList(items=[])
+
         mock_kube_client.list_namespaced_pod.side_effect = list_namespaced_pod
 
         config = {

@@ -67,7 +67,7 @@ class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
     _instance = None
-    resource_version = {}
+    resource_version: dict[str | None, str] = {}
 
     def __new__(cls):
         if cls._instance is None:
@@ -293,7 +293,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         watcher.start()
         return watcher
 
-    def _make_kube_watchers(self) -> Dict[str | None, KubernetesJobWatcher]:
+    def _make_kube_watchers(self) -> dict[str | None, KubernetesJobWatcher]:
         watchers = {}
         if self.kube_config.multi_namespace_mode:
             namespaces_to_watch = (
@@ -423,10 +423,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def terminate(self) -> None:
         """Terminates the watcher."""
-        self.log.debug("Terminating kube_watcher...")
-        self.kube_watcher.terminate()
-        self.kube_watcher.join()
-        self.log.debug("kube_watcher=%s", self.kube_watcher)
+        self.log.debug("Terminating kube_watchers...")
+        for namespace, kube_watcher in self.kube_watchers.items():
+            kube_watcher.terminate()
+            kube_watcher.join()
+            self.log.debug("kube_watcher=%s", kube_watcher)
         self.log.debug("Flushing watcher_queue...")
         self._flush_watcher_queue()
         # Queue should be empty...
@@ -664,7 +665,7 @@ class KubernetesExecutor(BaseExecutor):
         resource_instance = ResourceVersion()
         for namespace in resource_instance.resource_version.keys():
             resource_instance.resource_version[namespace] = (
-                last_resource_version[namespace] or resource_instance[namespace].resource_version
+                last_resource_version[namespace] or resource_instance.resource_version[namespace]
             )
 
         for _ in range(self.kube_config.worker_pods_creation_batch_size):
