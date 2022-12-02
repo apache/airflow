@@ -31,7 +31,7 @@ from unittest import mock
 import pytest
 from slugify import slugify
 
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, DeserializingResultError
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
@@ -951,10 +951,9 @@ class TestPythonVirtualenvOperator(BasePythonTest):
             dag=self.dag,
         )
 
-        task.log.error = unittest.mock.Mock()
-        task.pickling_library.loads = unittest.mock.Mock(side_effect=ValueError)
-        with pytest.raises(ValueError):
-            task._read_result(path=unittest.mock.Mock())
+        task.pickling_library.loads = mock.Mock(side_effect=ValueError)
+        with pytest.raises(DeserializingResultError):
+            task._read_result(path=mock.Mock())
 
 DEFAULT_ARGS = {
     "owner": "test",

@@ -368,3 +368,11 @@ class AirflowProviderDeprecationWarning(DeprecationWarning):
 
     deprecated_provider_since: str | None = None
     "Indicates the provider version that started raising this deprecation warning"
+
+
+class DeserializingResultError(AirflowException):
+    """ Raised when an error is encountered while a pickling library deserializes a pickle file"""
+
+    def __str__(self):
+        return "Error deserializing result. Note that result deserialization \n" \
+               "is not supported across major Python versions."
