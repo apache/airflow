@@ -87,7 +87,7 @@ class TestSecret:
             "kind": "Pod",
             "metadata": {
                 "labels": {"app": "myapp"},
-                "name": f"myapp-pod-{rand_str}",
+                "name": "myapp-pod",
                 "namespace": "default",
             },
             "spec": {
