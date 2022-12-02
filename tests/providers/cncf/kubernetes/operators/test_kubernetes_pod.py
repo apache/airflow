@@ -32,7 +32,7 @@ from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
     KubernetesPodOperator,
-    _suppress,
+    _optionally_suppress,
     _task_id_to_pod_name,
 )
 from airflow.utils import timezone
@@ -938,7 +938,6 @@ class TestKubernetesPodOperator:
         """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=False,
         )
         self.await_pod_mock.side_effect = AirflowException("oops")
         context = create_context(k)
@@ -1023,11 +1022,62 @@ class TestKubernetesPodOperator:
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
 
 
-def test__suppress(caplog):
-    with _suppress(ValueError):
-        raise ValueError("failure")
+class TestSuppress:
+    def test__suppress(self, caplog):
+        with _optionally_suppress(ValueError):
+            raise ValueError("failure")
+        assert "ValueError: failure" in caplog.text
 
-    assert "ValueError: failure" in caplog.text
+    def test__suppress_no_args(self, caplog):
+        """By default, suppresses Exception, so should suppress and log RuntimeError"""
+        with _optionally_suppress():
+            raise RuntimeError("failure")
+        assert "RuntimeError: failure" in caplog.text
+
+    def test__suppress_no_args_reraise(self, caplog):
+        """
+        By default, suppresses Exception, but with reraise=True,
+        should raise RuntimeError and not log.
+        """
+        with pytest.raises(RuntimeError):
+            with _optionally_suppress(reraise=True):
+                raise RuntimeError("failure")
+            assert caplog.text == ""
+
+    def test__suppress_wrong_error(self, caplog):
+        """
+        Here, we specify only catch ValueError. But we raise RuntimeError.
+        So it should raise and not log.
+        """
+        with pytest.raises(RuntimeError):
+            with _optionally_suppress(ValueError):
+                raise RuntimeError("failure")
+        assert caplog.text == ""
+
+    def test__suppress_wrong_error_multiple(self, caplog):
+        """
+        Here, we specify only catch RuntimeError/IndexError.
+        But we raise RuntimeError. So it should raise and not log.
+        """
+        with pytest.raises(RuntimeError):
+            with _optionally_suppress(ValueError, IndexError):
+                raise RuntimeError("failure")
+        assert caplog.text == ""
+
+    def test__suppress_right_error_multiple(self, caplog):
+        """
+        Here, we specify catch RuntimeError/IndexError.
+        And we raise RuntimeError. So it should suppress and log.
+        """
+        with _optionally_suppress(ValueError, IndexError):
+            raise IndexError("failure")
+        assert "IndexError: failure" in caplog.text
+
+    def test__suppress_no_error(self, caplog):
+        """When no error in context, should do nothing."""
+        with _optionally_suppress():
+            print("hi")
+        assert caplog.text == ""
 
 
 @pytest.mark.parametrize(

@@ -420,8 +420,7 @@ class KubernetesPodOperator(BaseOperator):
             self.pod_manager.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
         except PodLaunchFailedException:
             if self.log_events_on_failure:
-                for event in self.pod_manager.read_pod_events(pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
+                self._read_pod_log_events(pod, reraise=True)
             raise
 
     def extract_xcom(self, pod: k8s.V1Pod):
@@ -472,34 +471,36 @@ class KubernetesPodOperator(BaseOperator):
         if self.do_xcom_push:
             return result
 
+    def _read_pod_log_events(self, pod, *, reraise=True):
+        """Will fetch and emit events from pod"""
+        with _optionally_suppress(reraise=reraise):
+            for event in self.pod_manager.read_pod_events(pod).items:
+                self.log.error("Pod Event: %s - %s", event.reason, event.message)
+
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
-        if not self.is_delete_operator_pod:
-            with _suppress(Exception):
-                self.patch_already_checked(remote_pod)
+        if pod_phase != PodPhase.SUCCEEDED or not self.is_delete_operator_pod:
+            self.patch_already_checked(remote_pod, reraise=False)
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
-                with _suppress(Exception):
-                    for event in self.pod_manager.read_pod_events(pod).items:
-                        self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            with _suppress(Exception):
-                self.process_pod_deletion(remote_pod)
+                self._read_pod_log_events(pod, reraise=False)
+            self.process_pod_deletion(remote_pod, reraise=False)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
-            error_message = "\n" + error_message if error_message else ""
             raise AirflowException(
-                f"Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}"
+                f"Pod {pod and pod.metadata.name} returned a failure:\n{error_message}\n"
+                f"remote_pod: {remote_pod}"
             )
         else:
-            with _suppress(Exception):
-                self.process_pod_deletion(remote_pod)
+            self.process_pod_deletion(remote_pod, reraise=False)
 
-    def process_pod_deletion(self, pod: k8s.V1Pod):
-        if pod is not None:
-            if self.is_delete_operator_pod:
-                self.log.info("Deleting pod: %s", pod.metadata.name)
-                self.pod_manager.delete_pod(pod)
-            else:
-                self.log.info("skipping deleting pod: %s", pod.metadata.name)
+    def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
+        with _optionally_suppress(reraise=reraise):
+            if pod is not None:
+                if self.is_delete_operator_pod:
+                    self.log.info("Deleting pod: %s", pod.metadata.name)
+                    self.pod_manager.delete_pod(pod)
+                else:
+                    self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
     def _build_find_pod_label_selector(self, context: Context | None = None, *, exclude_checked=True) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
@@ -517,11 +518,12 @@ class KubernetesPodOperator(BaseOperator):
             return re.sub(r"[^a-z0-9-]+", "-", name.lower())
         return None
 
-    def patch_already_checked(self, pod: k8s.V1Pod):
+    def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""
-        pod.metadata.labels[self.POD_CHECKED_KEY] = "True"
-        body = PodGenerator.serialize_pod(pod)
-        self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
+        with _optionally_suppress(reraise=reraise):
+            pod.metadata.labels[self.POD_CHECKED_KEY] = "True"
+            body = PodGenerator.serialize_pod(pod)
+            self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 
     def on_kill(self) -> None:
         if self.pod:
@@ -643,26 +645,37 @@ class KubernetesPodOperator(BaseOperator):
         print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
 
 
-class _suppress(AbstractContextManager):
+class _optionally_suppress(AbstractContextManager):
     """
-    This behaves the same as ``contextlib.suppress`` but logs the suppressed
-    exceptions as errors with traceback.
+    Returns context manager that will swallow and log exceptions.
 
-    The caught exception is also stored on the context manager instance under
-    attribute ``exception``.
+    By default swallows descendents of Exception, but you can provide other classes through
+    the vararg ``exceptions``.
+
+    Suppression behavior can be disabled with reraise=True.
+
+    :meta private:
     """
 
-    def __init__(self, *exceptions):
-        self._exceptions = exceptions
+    def __init__(self, *exceptions, reraise=False):
+        self._exceptions = exceptions or (Exception,)
+        self.reraise = reraise
         self.exception = None
 
     def __enter__(self):
         return self
 
     def __exit__(self, exctype, excinst, exctb):
-        caught_error = exctype is not None and issubclass(exctype, self._exceptions)
-        if caught_error:
+        error = exctype is not None
+        matching_error = error and issubclass(exctype, self._exceptions)
+        if error and not matching_error:
+            return False
+        elif matching_error and self.reraise:
+            return False
+        elif matching_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
             logger.exception(excinst)
-        return caught_error
+            return True
+        else:
+            return True
