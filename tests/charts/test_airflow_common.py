@@ -93,14 +93,11 @@ class TestAirflowCommon:
         configmap_name = "my-configmap"
         docs = render_chart(
             values={
-                "scheduler": {"logGroomerSidecar": {"enabled": True}, "waitForMigrations": {"enabled": True}},
-                "triggerer": {"waitForMigrations": {"enabled": True}},
                 "webserver": {
-                    "waitForMigrations": {"enabled": True},
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigmapName": configmap_name,
                 },
-                "workers": {"kerberosSidecar": {"enabled": True}, "persistence": {"enabled": True}},
+                "workers": {"kerberosSidecar": {"enabled": True}},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
