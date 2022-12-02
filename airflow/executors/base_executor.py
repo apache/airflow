@@ -33,8 +33,6 @@ from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
-NOT_STARTED_MESSAGE = "The executor should be started first!"
-
 QUEUEING_ATTEMPTS = 5
 
 # Command to execute - list of strings
