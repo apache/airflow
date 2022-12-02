@@ -20,13 +20,32 @@
 /* global document, CodeMirror, window */
 
 const textArea = document.getElementById('json');
+const recentConfigList = document.getElementById('recent_configs');
 const minHeight = 300;
 const maxHeight = window.innerHeight - 450;
 const height = maxHeight > minHeight ? maxHeight : minHeight;
 
 CodeMirror.fromTextArea(textArea, {
   lineNumbers: true,
-  mode: { name: 'javascript', json: true },
+  mode: {
+    name: 'javascript',
+    json: true,
+  },
   gutters: ['CodeMirror-lint-markers'],
   lint: true,
-}).setSize(null, height);
+})
+  .setSize(null, height);
+
+function setRecentConfig(e) {
+  let { value } = e.target;
+  try {
+    const json = JSON.parse(value);
+    value = JSON.stringify(json, null, 2);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('config is not valid JSON format');
+  }
+  document.querySelector('.CodeMirror').CodeMirror.setValue(value);
+}
+
+recentConfigList.addEventListener('change', setRecentConfig);
