@@ -1267,7 +1267,14 @@ class AirflowConfigParser(ConfigParser):
         include_secret: bool,
     ):
         sect = config_sources.setdefault(section, OrderedDict())
-        for (k, val) in config.items(section=section, raw=raw):
+        with warnings.catch_warnings():
+            # calling `items` on config has the effect of calling `get` on each item
+            # if we call `get` on a moved item, we will falsely get a warning
+            # letting us know to update our code
+            # so we suppress such warnings here
+            warnings.simplefilter("ignore", category=FutureWarning)
+            items = config.items(section=section, raw=raw)
+        for (k, val) in items:
             deprecated_section, deprecated_key, _ = deprecated_options.get((section, k), (None, None, None))
             if deprecated_section and deprecated_key:
                 if source_name == "default":
