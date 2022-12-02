@@ -518,7 +518,7 @@ class KubernetesPodOperator(BaseOperator):
             return re.sub(r"[^a-z0-9-]+", "-", name.lower())
         return None
 
-    def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=False):
+    def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""
         with _optionally_suppress(reraise=reraise):
             pod.metadata.labels[self.POD_CHECKED_KEY] = "True"
