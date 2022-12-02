@@ -28,7 +28,7 @@ import {
 import { useContainerRef } from 'src/context/containerRef';
 import type { Task, TaskInstance, TaskState } from 'src/types';
 import type { SelectionProps } from 'src/dag/useSelection';
-import { hoverDelay } from 'src/utils';
+import { getStatusBackgroundColor, hoverDelay } from 'src/utils';
 import Tooltip from 'src/components/Tooltip';
 
 import InstanceTooltip from './InstanceTooltip';
@@ -36,15 +36,33 @@ import InstanceTooltip from './InstanceTooltip';
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
 
+interface StatusWithNotesProps extends BoxProps {
+  state: TaskState;
+  containsNotes?: boolean;
+}
+
+export const StatusWithNotes = ({ state, containsNotes, ...rest }: StatusWithNotesProps) => {
+  const color = state && stateColors[state] ? stateColors[state] : 'white';
+  return (
+    <Box
+      width={boxSizePx}
+      height={boxSizePx}
+      background={getStatusBackgroundColor(color, !!containsNotes)}
+      borderRadius="2px"
+      borderWidth={state ? 0 : 1}
+      {...rest}
+    />
+  );
+};
+
 interface SimpleStatusProps extends BoxProps {
   state: TaskState;
 }
-
 export const SimpleStatus = ({ state, ...rest }: SimpleStatusProps) => (
   <Box
     width={boxSizePx}
     height={boxSizePx}
-    backgroundColor={state && stateColors[state] ? stateColors[state] : 'white'}
+    background={state && stateColors[state] ? stateColors[state] : 'white'}
     borderRadius="2px"
     borderWidth={state ? 0 : 1}
     {...rest}
@@ -56,10 +74,11 @@ interface Props {
   instance: TaskInstance;
   onSelect: (selection: SelectionProps) => void;
   isActive: boolean;
+  containsNotes?: boolean;
 }
 
 const StatusBox = ({
-  group, instance, onSelect, isActive,
+  group, instance, onSelect, isActive, containsNotes = false,
 }: Props) => {
   const containerRef = useContainerRef();
   const { runId, taskId } = instance;
@@ -97,8 +116,9 @@ const StatusBox = ({
       openDelay={hoverDelay}
     >
       <Box>
-        <SimpleStatus
+        <StatusWithNotes
           state={instance.state}
+          containsNotes={containsNotes}
           onClick={onClick}
           cursor="pointer"
           data-testid="task-instance"

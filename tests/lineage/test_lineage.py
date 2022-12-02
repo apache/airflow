@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import attr
+
 from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.entities import File
@@ -30,6 +32,12 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+
+# helper
+@attr.define
+class A:
+    pass
 
 
 class CustomLineageBackend(LineageBackend):
@@ -122,10 +130,7 @@ class TestLineage:
         assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
         assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)
 
-    def test_non_attr_outlet(self, dag_maker):
-        class A:
-            pass
-
+    def test_attr_outlet(self, dag_maker):
         a = A()
 
         f3s = "/tmp/does_not_exist_3"
@@ -150,7 +155,7 @@ class TestLineage:
         op1.post_execute(ctx1)
 
         op2.pre_execute(ctx2)
-        assert op2.inlets == [file3]
+        assert op2.inlets == [a, file3]
         op2.post_execute(ctx2)
 
     @mock.patch("airflow.lineage.get_backend")

@@ -33,9 +33,10 @@ from airflow.utils.session import create_session
 
 
 class TestSalesforceHook:
-    def setup(self):
+    def setup_method(self):
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="conn_id")
 
+    @staticmethod
     def _insert_conn_db_entry(conn_id, conn_object):
         with create_session() as session:
             session.query(Connection).filter(Connection.conn_id == conn_id).delete()
@@ -514,3 +515,23 @@ class TestSalesforceHook:
                 username=None,
                 version="52.0",
             )
+
+    @patch(
+        "airflow.providers.salesforce.hooks.salesforce.SalesforceHook.describe_object",
+        return_value={"fields": [{"name": "field_1"}, {"name": "field_2"}]},
+    )
+    def test_connection_success(self, mock_describe_object):
+        hook = SalesforceHook("my_conn")
+        status, msg = hook.test_connection()
+        assert status is True
+        assert msg == "Connection successfully tested"
+
+    @patch(
+        "airflow.providers.salesforce.hooks.salesforce.SalesforceHook.describe_object",
+        side_effect=Exception("Test"),
+    )
+    def test_connection_failure(self, mock_describe_object):
+        hook = SalesforceHook("my_conn")
+        status, msg = hook.test_connection()
+        assert status is False
+        assert msg == "Test"

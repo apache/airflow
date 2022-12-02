@@ -17,22 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID
 
 
-class TestGoogleDriveHook(unittest.TestCase):
-    def setUp(self):
+class TestGoogleDriveHook:
+    def setup_method(self):
         self.patcher_get_connection = mock.patch(
             "airflow.hooks.base.BaseHook.get_connection", return_value=GCP_CONNECTION_WITH_PROJECT_ID
         )
         self.patcher_get_connection.start()
         self.gdrive_hook = GoogleDriveHook(gcp_conn_id="test")
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         self.patcher_get_connection.stop()
 
     @mock.patch(
@@ -171,7 +170,7 @@ class TestGoogleDriveHook(unittest.TestCase):
         mock_method.assert_called_once_with(
             folder_id=folder_id, file_name=file_name, drive_id=drive_id, include_trashed=True
         )
-        self.assertEqual(True, result_value)
+        assert result_value
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_file_id")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
@@ -218,7 +217,7 @@ class TestGoogleDriveHook(unittest.TestCase):
         ]
 
         result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
-        self.assertEqual({"id": "ID_1", "mime_type": "text/plain"}, result_value)
+        assert result_value == {"id": "ID_1", "mime_type": "text/plain"}
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_id_when_multiple_files_exists(self, mock_get_conn):
@@ -231,7 +230,7 @@ class TestGoogleDriveHook(unittest.TestCase):
         ]
 
         result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
-        self.assertEqual({"id": "ID_1", "mime_type": "text/plain"}, result_value)
+        assert result_value == {"id": "ID_1", "mime_type": "text/plain"}
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_id_when_no_file_exists(self, mock_get_conn):
@@ -242,7 +241,7 @@ class TestGoogleDriveHook(unittest.TestCase):
         mock_get_conn.return_value.files.return_value.list.return_value.execute.side_effect = [{"files": []}]
 
         result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
-        self.assertEqual({}, result_value)
+        assert result_value == {}
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")

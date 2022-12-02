@@ -308,24 +308,21 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       UPGRADE_TO_NEWER_DEPENDENCIES: false
       PLATFORM: "linux/amd64"
+    if: needs.build-info.outputs.canary-run == 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 120
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
-        if: always() && needs.build-info.outputs.canary-run == 'true'
+        if: always()
 
   build-ci-images:
     permissions:
@@ -567,6 +564,7 @@ jobs:
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
           SKIP_GROUP_OUTPUT: "true"
+          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -701,6 +699,9 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
+      - name: "Prepare provider documentation"
+        run: breeze release-management prepare-provider-documentation
+        if: matrix.package-format == 'wheel'
       - name: "Prepare provider packages: ${{matrix.package-format}}"
         run: breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
       - name: "Prepare airflow package: ${{matrix.package-format}}"
@@ -1128,7 +1129,7 @@ jobs:
   constraints:
     permissions:
       contents: write
-    timeout-minutes: 40
+    timeout-minutes: 80
     name: "Constraints"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs:

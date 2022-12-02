@@ -50,6 +50,7 @@ class EmrAddStepsOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
+    :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     """
 
@@ -67,6 +68,7 @@ class EmrAddStepsOperator(BaseOperator):
         cluster_states: list[str] | None = None,
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
+        wait_for_completion: bool = False,
         **kwargs,
     ):
         if not (job_flow_id is None) ^ (job_flow_name is None):
@@ -79,11 +81,10 @@ class EmrAddStepsOperator(BaseOperator):
         self.job_flow_name = job_flow_name
         self.cluster_states = cluster_states
         self.steps = steps
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-
-        emr = emr_hook.get_conn()
 
         job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
             str(self.job_flow_name), self.cluster_states
@@ -111,13 +112,7 @@ class EmrAddStepsOperator(BaseOperator):
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
 
-        response = emr.add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
-
-        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-            raise AirflowException(f"Adding steps failed: {response}")
-        else:
-            self.log.info("Steps %s added to JobFlow", response["StepIds"])
-            return response["StepIds"]
+        return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=True)
 
 
 class EmrEksCreateClusterOperator(BaseOperator):
@@ -593,7 +588,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: AWS connection to use.
+    :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
     """
 
     template_fields: Sequence[str] = (
@@ -613,6 +609,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         config: dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
+        name: str | None = None,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
@@ -622,6 +619,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
+        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -654,6 +652,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             executionRoleArn=self.execution_role_arn,
             jobDriver=self.job_driver,
             configurationOverrides=self.configuration_overrides,
+            name=self.name,
             **self.config,
         )
 

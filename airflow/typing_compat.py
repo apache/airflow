@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module provides helper code to make type annotation within Airflow
-codebase easier.
-"""
+"""This module provides helper code to make type annotation within Airflow codebase easier."""
 from __future__ import annotations
 
 __all__ = [
@@ -26,6 +23,7 @@ __all__ = [
     "ParamSpec",
     "Protocol",
     "TypedDict",
+    "TypeGuard",
     "runtime_checkable",
 ]
 
@@ -43,6 +41,6 @@ else:
     from typing_extensions import Literal
 
 if sys.version_info >= (3, 10):
-    from typing import ParamSpec
+    from typing import ParamSpec, TypeGuard
 else:
-    from typing_extensions import ParamSpec
+    from typing_extensions import ParamSpec, TypeGuard

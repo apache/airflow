@@ -1,6 +1,6 @@
 click>=8.0
 cached_property;python_version<"3.8"
-jinja2>=2.10
+jinja2>=2.11.3
 keyring==10.1
 PyGithub
 jsonpath_ng

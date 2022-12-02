@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Dag sub-commands"""
+"""Dag sub-commands."""
 from __future__ import annotations
 
 import ast
@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 
 @cli_utils.action_cli
 def dag_backfill(args, dag=None):
-    """Creates backfill job or dry run for a DAG or list of DAGs using regex"""
+    """Creates backfill job or dry run for a DAG or list of DAGs using regex."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     signal.signal(signal.SIGTERM, sigint_handler)
@@ -57,7 +57,7 @@ def dag_backfill(args, dag=None):
     import warnings
 
     warnings.warn(
-        '--ignore-first-depends-on-past is deprecated as the value is always set to True',
+        "--ignore-first-depends-on-past is deprecated as the value is always set to True",
         category=RemovedInAirflow3Warning,
     )
 
@@ -117,7 +117,7 @@ def dag_backfill(args, dag=None):
                     end_date=args.end_date,
                     mark_success=args.mark_success,
                     local=args.local,
-                    donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
+                    donot_pickle=(args.donot_pickle or conf.getboolean("core", "donot_pickle")),
                     ignore_first_depends_on_past=args.ignore_first_depends_on_past,
                     ignore_task_deps=args.ignore_dependencies,
                     pool=args.pool,
@@ -127,6 +127,7 @@ def dag_backfill(args, dag=None):
                     rerun_failed_tasks=args.rerun_failed_tasks,
                     run_backwards=args.run_backwards,
                     continue_on_failures=args.continue_on_failures,
+                    disable_retry=args.disable_retry,
                 )
             except ValueError as vr:
                 print(str(vr))
@@ -138,11 +139,15 @@ def dag_backfill(args, dag=None):
 
 @cli_utils.action_cli
 def dag_trigger(args):
-    """Creates a dag run for the specified dag"""
+    """Creates a dag run for the specified dag."""
     api_client = get_current_api_client()
     try:
         message = api_client.trigger_dag(
-            dag_id=args.dag_id, run_id=args.run_id, conf=args.conf, execution_date=args.exec_date
+            dag_id=args.dag_id,
+            run_id=args.run_id,
+            conf=args.conf,
+            execution_date=args.exec_date,
+            replace_microseconds=args.replace_microseconds,
         )
         print(message)
     except OSError as err:
@@ -151,7 +156,7 @@ def dag_trigger(args):
 
 @cli_utils.action_cli
 def dag_delete(args):
-    """Deletes all DB records related to the specified dag"""
+    """Deletes all DB records related to the specified dag."""
     api_client = get_current_api_client()
     if (
         args.yes
@@ -169,18 +174,18 @@ def dag_delete(args):
 
 @cli_utils.action_cli
 def dag_pause(args):
-    """Pauses a DAG"""
+    """Pauses a DAG."""
     set_is_paused(True, args)
 
 
 @cli_utils.action_cli
 def dag_unpause(args):
-    """Unpauses a DAG"""
+    """Unpauses a DAG."""
     set_is_paused(False, args)
 
 
 def set_is_paused(is_paused, args):
-    """Sets is_paused for DAG by a given dag_id"""
+    """Sets is_paused for DAG by a given dag_id."""
     dag = DagModel.get_dagmodel(args.dag_id)
 
     if not dag:
@@ -192,7 +197,7 @@ def set_is_paused(is_paused, args):
 
 
 def dag_dependencies_show(args):
-    """Displays DAG dependencies, save to file or show as imgcat image"""
+    """Displays DAG dependencies, save to file or show as imgcat image."""
     dot = render_dag_dependencies(SerializedDagModel.get_dag_dependencies())
     filename = args.save
     imgcat = args.imgcat
@@ -211,7 +216,7 @@ def dag_dependencies_show(args):
 
 
 def dag_show(args):
-    """Displays DAG or saves it's graphic representation to the file"""
+    """Displays DAG or saves it's graphic representation to the file."""
     dag = get_dag(args.subdir, args.dag_id)
     dot = render_dag(dag)
     filename = args.save
@@ -231,25 +236,23 @@ def dag_show(args):
 
 
 def _display_dot_via_imgcat(dot: Dot):
-    data = dot.pipe(format='png')
+    data = dot.pipe(format="png")
     try:
         with subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
             out, err = proc.communicate(data)
             if out:
-                print(out.decode('utf-8'))
+                print(out.decode("utf-8"))
             if err:
-                print(err.decode('utf-8'))
+                print(err.decode("utf-8"))
     except OSError as e:
         if e.errno == errno.ENOENT:
-            raise SystemExit(
-                "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
-            )
+            raise SystemExit("Failed to execute. Make sure the imgcat executables are on your systems 'PATH'")
         else:
             raise
 
 
 def _save_dot_to_file(dot: Dot, filename: str):
-    filename_without_ext, _, ext = filename.rpartition('.')
+    filename_without_ext, _, ext = filename.rpartition(".")
     dot.render(filename=filename_without_ext, format=ext, cleanup=True)
     print(f"File {filename} saved")
 
@@ -270,9 +273,9 @@ def dag_state(args, session=NEW_SESSION):
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
     dr = session.query(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date).one_or_none()
     out = dr.state if dr else None
-    conf_out = ''
+    conf_out = ""
     if out and dr.conf:
-        conf_out = ', ' + json.dumps(dr.conf)
+        conf_out = ", " + json.dumps(dr.conf)
     print(str(out) + conf_out)
 
 
@@ -324,7 +327,7 @@ def dag_next_execution(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_list_dags(args):
-    """Displays dags with or without stats at the command line"""
+    """Displays dags with or without stats at the command line."""
     dagbag = DagBag(process_subdir(args.subdir))
     if dagbag.import_errors:
         from rich import print as rich_print
@@ -349,7 +352,7 @@ def dag_list_dags(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_list_import_errors(args):
-    """Displays dags with import errors on the command line"""
+    """Displays dags with import errors on the command line."""
     dagbag = DagBag(process_subdir(args.subdir))
     data = []
     for filename, errors in dagbag.import_errors.items():
@@ -363,7 +366,7 @@ def dag_list_import_errors(args):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_report(args):
-    """Displays dagbag stats at the command line"""
+    """Displays dagbag stats at the command line."""
     dagbag = DagBag(process_subdir(args.subdir))
     AirflowConsole().print_as(
         data=dagbag.dagbag_stats,
@@ -382,7 +385,7 @@ def dag_report(args):
 @suppress_logs_and_warning
 @provide_session
 def dag_list_jobs(args, dag=None, session=NEW_SESSION):
-    """Lists latest n jobs"""
+    """Lists latest n jobs."""
     queries = []
     if dag:
         args.dag_id = dag.dag_id
@@ -396,7 +399,7 @@ def dag_list_jobs(args, dag=None, session=NEW_SESSION):
     if args.state:
         queries.append(BaseJob.state == args.state)
 
-    fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
+    fields = ["dag_id", "state", "job_type", "start_date", "end_date"]
     all_jobs = (
         session.query(BaseJob).filter(*queries).order_by(BaseJob.start_date.desc()).limit(args.limit).all()
     )
@@ -412,7 +415,7 @@ def dag_list_jobs(args, dag=None, session=NEW_SESSION):
 @suppress_logs_and_warning
 @provide_session
 def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
-    """Lists dag runs for a given DAG"""
+    """Lists dag runs for a given DAG."""
     if dag:
         args.dag_id = dag.dag_id
     else:
@@ -440,8 +443,8 @@ def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
             "run_id": dr.run_id,
             "state": dr.state,
             "execution_date": dr.execution_date.isoformat(),
-            "start_date": dr.start_date.isoformat() if dr.start_date else '',
-            "end_date": dr.end_date.isoformat() if dr.end_date else '',
+            "start_date": dr.start_date.isoformat() if dr.start_date else "",
+            "end_date": dr.end_date.isoformat() if dr.end_date else "",
         },
     )
 
@@ -485,6 +488,7 @@ def dag_test(args, dag=None, session=None):
 @provide_session
 @cli_utils.action_cli
 def dag_reserialize(args, session: Session = NEW_SESSION):
+    """Serialize a DAG instance."""
     session.query(SerializedDagModel).delete(synchronize_session=False)
 
     if not args.clear_only:

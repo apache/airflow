@@ -128,10 +128,10 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
+{{- if .Values.webserver.extraVolumeMounts }}
+{{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
+{{- end }}
 {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
 {{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
@@ -171,18 +171,9 @@ spec:
               subPath: pod_template_file.yaml
               readOnly: true
 {{- end }}
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
 {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
 {{ include "airflow_webserver_config_mount" . | indent 12 }}
-{{- end }}
-{{- if .Values.airflowLocalSettings }}
-            - name: config
-              mountPath: {{ template "airflow_local_setting_path" . }}
-              subPath: airflow_local_settings.py
-              readOnly: true
 {{- end }}
 {{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
             {{- include "airflow_dags_mount" . | nindent 12 }}

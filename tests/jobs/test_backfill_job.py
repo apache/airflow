@@ -21,6 +21,7 @@ import datetime
 import json
 import logging
 import threading
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -36,6 +37,7 @@ from airflow.exceptions import (
     TaskConcurrencyLimitReached,
 )
 from airflow.jobs.backfill_job import BackfillJob
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
@@ -48,6 +50,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
+from tests.listeners import dag_listener
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.db import (
     clear_db_dags,
@@ -974,6 +977,32 @@ class TestBackfillJob:
         assert 2 == len(dagruns)
         assert all(run.state == State.SUCCESS for run in dagruns)
 
+    def test_backfill_notifies_dagrun_listener(self, dag_maker):
+        dag = self._get_dummy_dag(dag_maker)
+        dag_run = dag_maker.create_dagrun(state=None)
+        dag_listener.clear()
+        get_listener_manager().add_listener(dag_listener)
+
+        start_date = DEFAULT_DATE - datetime.timedelta(hours=1)
+        end_date = DEFAULT_DATE
+
+        executor = MockExecutor()
+        job = BackfillJob(
+            dag=dag, start_date=start_date, end_date=end_date, executor=executor, donot_pickle=True
+        )
+        job.notification_threadpool = mock.MagicMock()
+        job.run()
+
+        assert len(dag_listener.running) == 1
+        assert len(dag_listener.success) == 1
+        assert dag_listener.running[0].dag.dag_id == dag_run.dag.dag_id
+        assert dag_listener.running[0].run_id == dag_run.run_id
+        assert dag_listener.running[0].state == DagRunState.RUNNING
+
+        assert dag_listener.success[0].dag.dag_id == dag_run.dag.dag_id
+        assert dag_listener.success[0].run_id == dag_run.run_id
+        assert dag_listener.success[0].state == DagRunState.SUCCESS
+
     def test_backfill_max_limit_check(self, dag_maker):
         dag_id = "test_backfill_max_limit_check"
         run_id = "test_dag_run"
@@ -1836,3 +1865,49 @@ class TestBackfillJob:
             states = [ti.state for _, ti in tasks_to_run.items()]
             assert TaskInstanceState.SCHEDULED in states
             assert State.NONE in states
+
+    @pytest.mark.parametrize(
+        ["disable_retry", "try_number", "exception"],
+        (
+            (True, 1, BackfillUnfinished),
+            (False, 2, AirflowException),
+        ),
+    )
+    def test_backfill_disable_retry(self, dag_maker, disable_retry, try_number, exception):
+        with dag_maker(
+            dag_id="test_disable_retry",
+            schedule_interval="@daily",
+            default_args={
+                "retries": 2,
+                "retry_delay": datetime.timedelta(seconds=3),
+            },
+        ) as dag:
+            task1 = EmptyOperator(task_id="task1")
+        dag_run = dag_maker.create_dagrun(state=None)
+
+        executor = MockExecutor(parallelism=16)
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, dag_run.run_id, try_number=1)
+        ] = TaskInstanceState.UP_FOR_RETRY
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, dag_run.run_id, try_number=2)
+        ] = TaskInstanceState.FAILED
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            disable_retry=disable_retry,
+        )
+        with pytest.raises(exception):
+            job.run()
+        ti = dag_run.get_task_instance(task_id=task1.task_id)
+
+        assert ti._try_number == try_number
+
+        dag_run.refresh_from_db()
+
+        assert dag_run.state == DagRunState.FAILED
+
+        dag.clear()

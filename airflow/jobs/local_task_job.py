@@ -18,32 +18,27 @@
 from __future__ import annotations
 
 import signal
-from typing import TYPE_CHECKING
 
 import psutil
-from sqlalchemy.exc import OperationalError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
 from airflow.listeners.events import register_task_instance_state_events
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import State
 
 
 class LocalTaskJob(BaseJob):
     """LocalTaskJob runs a single task instance."""
 
-    __mapper_args__ = {'polymorphic_identity': 'LocalTaskJob'}
+    __mapper_args__ = {"polymorphic_identity": "LocalTaskJob"}
 
     def __init__(
         self,
@@ -106,7 +101,7 @@ class LocalTaskJob(BaseJob):
         try:
             self.task_runner.start()
 
-            heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
+            heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
 
             # LocalTaskJob should not run callbacks, which are handled by TaskInstance._run_raw_task
             # 1, LocalTaskJob does not parse DAG, thus cannot run callbacks
@@ -144,7 +139,7 @@ class LocalTaskJob(BaseJob):
                 # This can only really happen if the worker can't read the DB for a long time
                 time_since_last_heartbeat = (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 if time_since_last_heartbeat > heartbeat_time_limit:
-                    Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
+                    Stats.incr("local_task_job_prolonged_heartbeat_failure", 1, 1)
                     self.log.error("Heartbeat time limit exceeded!")
                     raise AirflowException(
                         f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
@@ -162,10 +157,11 @@ class LocalTaskJob(BaseJob):
         # Without setting this, heartbeat may get us
         self.terminating = True
         self.log.info("Task exited with return code %s", return_code)
+        self._log_return_code_metric(return_code)
 
         if not self.task_instance.test_mode:
-            if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
-                self._run_mini_scheduler_on_child_tasks()
+            if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
+                self.task_instance.schedule_downstream_tasks()
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -211,7 +207,7 @@ class LocalTaskJob(BaseJob):
                     "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
                 )
                 raise AirflowException("PID of job runner does not match")
-        elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
+        elif self.task_runner.return_code() is None and hasattr(self.task_runner, "process"):
             if ti.state == State.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
@@ -230,57 +226,10 @@ class LocalTaskJob(BaseJob):
                 self.terminating = True
             self._state_change_checks += 1
 
-    @provide_session
-    @Sentry.enrich_errors
-    def _run_mini_scheduler_on_child_tasks(self, session=None) -> None:
-        try:
-            # Re-select the row with a lock
-            dag_run = with_row_locks(
-                session.query(DagRun).filter_by(
-                    dag_id=self.dag_id,
-                    run_id=self.task_instance.run_id,
-                ),
-                session=session,
-            ).one()
-
-            task = self.task_instance.task
-            if TYPE_CHECKING:
-                assert task.dag
-
-            # Get a partial DAG with just the specific tasks we want to examine.
-            # In order for dep checks to work correctly, we include ourself (so
-            # TriggerRuleDep can check the state of the task we just executed).
-            partial_dag = task.dag.partial_subset(
-                task.downstream_task_ids,
-                include_downstream=True,
-                include_upstream=False,
-                include_direct_upstream=True,
-            )
-
-            dag_run.dag = partial_dag
-            info = dag_run.task_instance_scheduling_decisions(session)
-
-            skippable_task_ids = {
-                task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
-            }
-
-            schedulable_tis = [ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids]
-            for schedulable_ti in schedulable_tis:
-                if not hasattr(schedulable_ti, "task"):
-                    schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
-
-            num = dag_run.schedule_tis(schedulable_tis)
-            self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
-
-            session.commit()
-        except OperationalError as e:
-            # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            self.log.info(
-                "Skipping mini scheduling run due to exception: %s",
-                e.statement,
-                exc_info=True,
-            )
-            session.rollback()
+    def _log_return_code_metric(self, return_code: int):
+        Stats.incr(
+            f"local_task_job.task_exit.{self.id}.{self.dag_id}.{self.task_instance.task_id}.{return_code}"
+        )
 
     @staticmethod
     def _enable_task_listeners():

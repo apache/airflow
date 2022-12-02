@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import DictOfListsExpandInput
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
@@ -716,7 +717,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task1", "task1"]
     for ti in dec.schedulable_tis:
         ti.run(session=session)
-        assert not ti.task.is_mapped
+        assert not isinstance(ti.task, MappedOperator)
         assert ti.task.retry_delay == timedelta(seconds=300)  # Operator default.
 
     # Expand task2.
@@ -756,9 +757,9 @@ def test_mapped_render_template_fields(dag_maker, session):
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
     mapped_ti.map_index = 0
 
-    assert mapped_ti.task.is_mapped
+    assert isinstance(mapped_ti.task, MappedOperator)
     mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert not mapped_ti.task.is_mapped
+    assert isinstance(mapped_ti.task, BaseOperator)
 
     assert mapped_ti.task.op_kwargs["arg1"] == "{{ ds }}"
     assert mapped_ti.task.op_kwargs["arg2"] == "fn"
@@ -831,3 +832,44 @@ def test_no_warnings(reset_logging_config, caplog):
     with DAG(dag_id="test", start_date=DEFAULT_DATE, schedule=None):
         other(some_task())
     assert caplog.messages == []
+
+
+def test_task_decorator_dataset(dag_maker, session):
+    from airflow import Dataset
+    from airflow.models.dagrun import DagRun
+
+    result = None
+    uri = "s3://test"
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> Dataset:
+            return Dataset(uri)
+
+        @dag.task()
+        def up2(src: Dataset) -> str:
+            return src.uri
+
+        @dag.task()
+        def down(a: str):
+            nonlocal result
+            result = a
+
+        src = up1()
+        s = up2(src)
+        down(s)
+
+    dr: DagRun = dag_maker.create_dagrun()
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "up1"
+    decision.schedulable_tis[0].run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "up2"
+    decision.schedulable_tis[0].run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    decision.schedulable_tis[0].run(session=session)
+    assert result == uri

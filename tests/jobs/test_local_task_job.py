@@ -374,6 +374,28 @@ class TestLocalTaskJob:
 
         session.close()
 
+    @patch.object(StandardTaskRunner, "return_code")
+    @mock.patch("airflow.jobs.scheduler_job.Stats.incr", autospec=True)
+    def test_local_task_return_code_metric(self, mock_stats_incr, mock_return_code, create_dummy_dag):
+
+        _, task = create_dummy_dag("test_localtaskjob_code")
+
+        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti_run.refresh_from_db()
+        job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
+        job1.id = 95
+
+        mock_return_code.side_effect = [None, -9, None]
+
+        with timeout(10):
+            job1.run()
+
+        mock_stats_incr.assert_has_calls(
+            [
+                mock.call("local_task_job.task_exit.95.test_localtaskjob_code.op1.-9"),
+            ]
+        )
+
     @pytest.mark.quarantined
     @patch.object(StandardTaskRunner, "return_code")
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
@@ -739,7 +761,6 @@ class TestLocalTaskJob:
         ti2_l.refresh_from_db()
         assert ti2_k.state == State.SUCCESS
         assert ti2_l.state == State.NONE
-        assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
 
         failed_deps = list(ti2_l.get_failed_dep_statuses())
         assert len(failed_deps) == 1

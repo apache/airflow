@@ -519,18 +519,22 @@ class TestWebserverDeployment:
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
+        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={"airflowLocalSettings": "# Well hello!"},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert {
+        volume_mount = {
             "name": "config",
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     def test_default_command_and_args(self):
         docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
@@ -718,6 +722,35 @@ class TestWebserverService:
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    @pytest.mark.parametrize(
+        "ports, expected_ports",
+        [
+            (
+                [{"nodePort": "31000", "port": "8080"}],
+                [{"nodePort": 31000, "port": 8080}],
+            ),
+            (
+                [{"port": "8080"}],
+                [{"port": 8080}],
+            ),
+        ],
+    )
+    def test_nodeport_service(self, ports, expected_ports):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "service": {
+                        "type": "NodePort",
+                        "ports": ports,
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert "NodePort" == jmespath.search("spec.type", docs[0])
+        assert expected_ports == jmespath.search("spec.ports", docs[0])
 
 
 class TestWebserverConfigmap:

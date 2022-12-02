@@ -136,6 +136,7 @@ class DockerOperator(BaseOperator):
         greater than 0. If omitted uses system default.
     :param tty: Allocate pseudo-TTY to the container
         This needs to be set see logs of the Docker container.
+    :param hostname: Optional hostname for the container.
     :param privileged: Give extended privileges to this container.
     :param cap_add: Include container capabilities
     :param retrieve_output: Should this docker image consistently attempt to pull from and output
@@ -149,6 +150,7 @@ class DockerOperator(BaseOperator):
     :param log_opts_max_file: The maximum number of log files that can be present.
         If rolling the logs creates excess files, the oldest file is removed.
         Only effective when max-size is also set. A positive integer. Defaults to 1.
+    :param ipc_mode: Set the IPC mode for the container.
     """
 
     template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
@@ -193,6 +195,7 @@ class DockerOperator(BaseOperator):
         auto_remove: str = "never",
         shm_size: int | None = None,
         tty: bool = False,
+        hostname: str | None = None,
         privileged: bool = False,
         cap_add: Iterable[str] | None = None,
         extra_hosts: dict[str, str] | None = None,
@@ -202,6 +205,7 @@ class DockerOperator(BaseOperator):
         device_requests: list[DeviceRequest] | None = None,
         log_opts_max_size: str | None = None,
         log_opts_max_file: str | None = None,
+        ipc_mode: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -249,6 +253,7 @@ class DockerOperator(BaseOperator):
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
         self.tty = tty
+        self.hostname = hostname
         self.privileged = privileged
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
@@ -261,6 +266,7 @@ class DockerOperator(BaseOperator):
         self.device_requests = device_requests
         self.log_opts_max_size = log_opts_max_size
         self.log_opts_max_file = log_opts_max_file
+        self.ipc_mode = ipc_mode
 
     def get_hook(self) -> DockerHook:
         """
@@ -332,12 +338,14 @@ class DockerOperator(BaseOperator):
                 privileged=self.privileged,
                 device_requests=self.device_requests,
                 log_config=LogConfig(config=docker_log_config),
+                ipc_mode=self.ipc_mode,
             ),
             image=self.image,
             user=self.user,
             entrypoint=self.format_command(self.entrypoint),
             working_dir=self.working_dir,
             tty=self.tty,
+            hostname=self.hostname,
         )
         logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:

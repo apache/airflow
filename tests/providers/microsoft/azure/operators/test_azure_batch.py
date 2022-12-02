@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -41,11 +40,11 @@ FORMULA = """$curTime = time();
              $TargetDedicated = $isWorkingWeekdayHour ? 20:10;"""
 
 
-class TestAzureBatchOperator(unittest.TestCase):
+class TestAzureBatchOperator:
     # set up the test environment
     @mock.patch("airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook")
     @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
-    def setUp(self, mock_batch, mock_hook):
+    def setup_method(self, method, mock_batch, mock_hook):
         # set up the test variable
         self.test_vm_conn_id = "test_azure_batch_vm2"
         self.test_cloud_conn_id = "test_azure_batch_cloud2"
@@ -98,6 +97,7 @@ class TestAzureBatchOperator(unittest.TestCase):
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
             os_family="4",
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
@@ -111,6 +111,7 @@ class TestAzureBatchOperator(unittest.TestCase):
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
             os_family="4",
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
@@ -123,6 +124,7 @@ class TestAzureBatchOperator(unittest.TestCase):
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
             os_family="4",
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
@@ -151,6 +153,7 @@ class TestAzureBatchOperator(unittest.TestCase):
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             target_dedicated_nodes=1,

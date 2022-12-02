@@ -33,7 +33,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow import settings
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -108,10 +107,10 @@ def action_cli(func=None, check_db=True):
                     synchronize_log_template()
                 return f(*args, **kwargs)
             except Exception as e:
-                metrics['error'] = e
+                metrics["error"] = e
                 raise
             finally:
-                metrics['end_datetime'] = datetime.utcnow()
+                metrics["end_datetime"] = datetime.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
 
         return cast(T, wrapper)
@@ -132,8 +131,8 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-    sub_commands_to_check = {'users', 'connections'}
-    sensitive_fields = {'-p', '--password', '--conn-password'}
+    sub_commands_to_check = {"users", "connections"}
+    sensitive_fields = {"-p", "--password", "--conn-password"}
     full_command = list(sys.argv)
     sub_command = full_command[1] if len(full_command) > 1 else None
     if sub_command in sub_commands_to_check:
@@ -144,14 +143,14 @@ def _build_metrics(func_name, namespace):
             else:
                 # For cases when password is passed as "--password=xyz" (with '=' between key and value)
                 for sensitive_field in sensitive_fields:
-                    if command.startswith(f'{sensitive_field}='):
+                    if command.startswith(f"{sensitive_field}="):
                         full_command[idx] = f'{sensitive_field}={"*" * 8}'
 
     metrics = {
-        'sub_command': func_name,
-        'start_datetime': datetime.utcnow(),
-        'full_command': f'{full_command}',
-        'user': getuser(),
+        "sub_command": func_name,
+        "start_datetime": datetime.utcnow(),
+        "full_command": f"{full_command}",
+        "user": getuser(),
     }
 
     if not isinstance(namespace, Namespace):
@@ -159,10 +158,10 @@ def _build_metrics(func_name, namespace):
             f"namespace argument should be argparse.Namespace instance, but is {type(namespace)}"
         )
     tmp_dic = vars(namespace)
-    metrics['dag_id'] = tmp_dic.get('dag_id')
-    metrics['task_id'] = tmp_dic.get('task_id')
-    metrics['execution_date'] = tmp_dic.get('execution_date')
-    metrics['host_name'] = socket.gethostname()
+    metrics["dag_id"] = tmp_dic.get("dag_id")
+    metrics["task_id"] = tmp_dic.get("task_id")
+    metrics["execution_date"] = tmp_dic.get("execution_date")
+    metrics["host_name"] = socket.gethostname()
 
     return metrics
 
@@ -172,7 +171,7 @@ def process_subdir(subdir: str | None):
     if subdir:
         if not settings.DAGS_FOLDER:
             raise ValueError("DAGS_FOLDER variable in settings should be filled.")
-        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
+        subdir = subdir.replace("DAGS_FOLDER", settings.DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
     return subdir
 
@@ -205,16 +204,14 @@ def _search_for_dag_file(val: str | None) -> str | None:
     And if the paths are different between worker and dag processor / scheduler, then we won't find
     the dag at the given location.
     """
-    if val and Path(val).suffix in ('.zip', '.py'):
+    if val and Path(val).suffix in (".zip", ".py"):
         matches = list(Path(settings.DAGS_FOLDER).rglob(Path(val).name))
         if len(matches) == 1:
             return matches[0].as_posix()
     return None
 
 
-def get_dag(
-    subdir: str | None, dag_id: str, include_examples=conf.getboolean('core', 'LOAD_EXAMPLES')
-) -> DAG:
+def get_dag(subdir: str | None, dag_id: str) -> DAG:
     """
     Returns DAG of a given dag_id
 
@@ -225,11 +222,11 @@ def get_dag(
     from airflow.models import DagBag
 
     first_path = process_subdir(subdir)
-    dagbag = DagBag(first_path, include_examples=include_examples)
+    dagbag = DagBag(first_path)
     if dag_id not in dagbag.dags:
         fallback_path = _search_for_dag_file(subdir) or settings.DAGS_FOLDER
         logger.warning("Dag %r not found in path %s; trying path %s", dag_id, first_path, fallback_path)
-        dagbag = DagBag(dag_folder=fallback_path, include_examples=include_examples)
+        dagbag = DagBag(dag_folder=fallback_path)
         if dag_id not in dagbag.dags:
             raise AirflowException(
                 f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
@@ -247,8 +244,8 @@ def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
-            f'dag_id could not be found with regex: {dag_id}. Either the dag did not exist or '
-            f'it failed to parse.'
+            f"dag_id could not be found with regex: {dag_id}. Either the dag did not exist or "
+            f"it failed to parse."
         )
     return matched_dags
 
@@ -268,14 +265,14 @@ def get_dag_by_pickle(pickle_id, session=None):
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     """Creates logging paths"""
     if not stderr:
-        stderr = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.err')
+        stderr = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.err")
     if not stdout:
-        stdout = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.out')
+        stdout = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.out")
     if not log:
-        log = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.log')
+        log = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.log")
 
     if not pid:
-        pid = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.pid')
+        pid = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.pid")
     else:
         pid = os.path.abspath(pid)
 

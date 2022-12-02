@@ -36,6 +36,8 @@ log = logging.getLogger(__name__)
 @provide_session
 def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> int:
     """
+    Delete a DAG by a dag_id.
+
     :param dag_id: the dag_id of the DAG to delete
     :param keep_records_in_log: whether keep records of the given dag_id
         in the Log table in the backend database (for reasons like auditing).
@@ -74,12 +76,12 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
 
     for model in get_sqla_model_classes():
         if hasattr(model, "dag_id"):
-            if keep_records_in_log and model.__name__ == 'Log':
+            if keep_records_in_log and model.__name__ == "Log":
                 continue
             count += (
                 session.query(model)
                 .filter(model.dag_id.in_(dags_to_delete))
-                .delete(synchronize_session='fetch')
+                .delete(synchronize_session="fetch")
             )
     if dag.is_subdag:
         parent_dag_id, task_id = dag_id.rsplit(".", 1)
@@ -91,7 +93,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     # Delete entries in Import Errors table for a deleted DAG
     # This handles the case when the dag_id is changed in the file
     session.query(models.ImportError).filter(models.ImportError.filename == dag.fileloc).delete(
-        synchronize_session='fetch'
+        synchronize_session="fetch"
     )
 
     return count

@@ -57,6 +57,8 @@ def _is_metadatabase_mysql() -> bool:
 
 class PokeReturnValue:
     """
+    Optional return value for poke methods.
+
     Sensors can optionally return an instance of the PokeReturnValue class in the poke method.
     If an XCom value is supplied when the sensor is done, then the XCom value will be
     pushed through the operator return value.
@@ -97,10 +99,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         prevent too much load on the scheduler.
     :param exponential_backoff: allow progressive longer waits between
         pokes by using exponential backoff algorithm
+    :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
     """
 
-    ui_color: str = '#e6f1f2'
-    valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
+    ui_color: str = "#e6f1f2"
+    valid_modes: Iterable[str] = ["poke", "reschedule"]
 
     # Adds one additional dependency for all sensor operators that checks if a
     # sensor task instance can be rescheduled.
@@ -110,10 +113,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self,
         *,
         poke_interval: float = 60,
-        timeout: float = conf.getfloat('sensors', 'default_timeout'),
+        timeout: float = conf.getfloat("sensors", "default_timeout"),
         soft_fail: bool = False,
-        mode: str = 'poke',
+        mode: str = "poke",
         exponential_backoff: bool = False,
+        max_wait: timedelta | float | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -122,7 +126,16 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.timeout = timeout
         self.mode = mode
         self.exponential_backoff = exponential_backoff
+        self.max_wait = self._coerce_max_wait(max_wait)
         self._validate_input_values()
+
+    @staticmethod
+    def _coerce_max_wait(max_wait: float | timedelta | None) -> timedelta | None:
+        if max_wait is None or isinstance(max_wait, timedelta):
+            return max_wait
+        if isinstance(max_wait, (int, float)) and max_wait >= 0:
+            return timedelta(seconds=max_wait)
+        raise AirflowException("Operator arg `max_wait` must be timedelta object or a non-negative number")
 
     def _validate_input_values(self) -> None:
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
@@ -147,11 +160,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        """
-        Function that the sensors defined while deriving this class should
-        override.
-        """
-        raise AirflowException('Override me.')
+        """Function defined by the sensors while deriving this class should override."""
+        raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
         started_at: datetime.datetime | float
@@ -160,9 +170,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
-            first_try_number = context['ti'].max_tries - self.retries + 1
+            first_try_number = context["ti"].max_tries - self.retries + 1
             task_reschedules = TaskReschedule.find_for_task_instance(
-                context['ti'], try_number=first_try_number
+                context["ti"], try_number=first_try_number
             )
             if not task_reschedules:
                 start_date = timezone.utcnow()
@@ -194,10 +204,15 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
             if run_duration() > self.timeout:
                 # If sensor is in soft fail mode but times out raise AirflowSkipException.
+                message = (
+                    f"Sensor has timed out; run duration of {run_duration()} seconds exceeds "
+                    f"the specified timeout of {self.timeout}."
+                )
+
                 if self.soft_fail:
-                    raise AirflowSkipException(f"Snap. Time is OUT. DAG id: {log_dag_id}")
+                    raise AirflowSkipException(message)
                 else:
-                    raise AirflowSensorTimeout(f"Snap. Time is OUT. DAG id: {log_dag_id}")
+                    raise AirflowSensorTimeout(message)
             if self.reschedule:
                 next_poke_interval = self._get_next_poke_interval(started_at, run_duration, try_number)
                 reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
@@ -233,6 +248,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         delay_backoff_in_seconds = min(modded_hash, timedelta.max.total_seconds() - 1)
         new_interval = min(self.timeout - int(run_duration()), delay_backoff_in_seconds)
+
+        if self.max_wait:
+            new_interval = min(self.max_wait.total_seconds(), new_interval)
+
         self.log.info("new %s interval is %s", self.mode, new_interval)
         return new_interval
 
@@ -241,15 +260,15 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         # Sensors in `poke` mode can block execution of DAGs when running
         # with single process executor, thus we change the mode to`reschedule`
         # to allow parallel task being scheduled and executed
-        if conf.get('core', 'executor') == "DebugExecutor":
+        if conf.get("core", "executor") == "DebugExecutor":
             self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
-            task.mode = 'reschedule'
+            task.mode = "reschedule"
         return task
 
     @property
     def reschedule(self):
         """Define mode rescheduled sensors."""
-        return self.mode == 'reschedule'
+        return self.mode == "reschedule"
 
     @classmethod
     def get_serialized_fields(cls):
@@ -258,8 +277,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
 def poke_mode_only(cls):
     """
-    Class Decorator for child classes of BaseSensorOperator to indicate
-    that instances of this class are only safe to use poke mode.
+    Decorate a subclass of BaseSensorOperator with poke.
+
+    Indicate that instances of this class are only safe to use poke mode.
 
     Will decorate all methods in the class to assert they did not change
     the mode from 'poke'.
@@ -269,10 +289,10 @@ def poke_mode_only(cls):
 
     def decorate(cls_type):
         def mode_getter(_):
-            return 'poke'
+            return "poke"
 
         def mode_setter(_, value):
-            if value != 'poke':
+            if value != "poke":
                 raise ValueError("cannot set mode to 'poke'.")
 
         if not issubclass(cls_type, BaseSensorOperator):

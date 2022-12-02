@@ -146,10 +146,10 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
+{{- if .Values.workers.extraVolumeMounts }}
+{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
+{{- end }}
 {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
 {{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
@@ -206,10 +206,7 @@ spec:
 {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.workers.kerberosSidecar.enabled }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -217,12 +214,6 @@ spec:
               readOnly: true
             - name: kerberos-ccache
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
-              readOnly: true
-            {{- end }}
-            {{- if .Values.airflowLocalSettings }}
-            - name: config
-              mountPath: {{ template "airflow_local_setting_path" . }}
-              subPath: airflow_local_settings.py
               readOnly: true
             {{- end }}
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
@@ -249,7 +240,7 @@ spec:
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
-{{- if $persistence }}
+{{- if and $persistence .Values.workers.logGroomerSidecar.enabled }}
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -269,6 +260,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+{{- if .Values.workers.extraVolumeMounts }}
+{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
+{{- end }}
 {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
 {{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
@@ -283,20 +277,11 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
+{{- include "airflow_config_mount" . | nindent 12 }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
               subPath: krb5.conf
               readOnly: true
-            {{- if .Values.airflowLocalSettings }}
-            - name: config
-              mountPath: {{ template "airflow_local_setting_path" . }}
-              subPath: airflow_local_settings.py
-              readOnly: true
-            {{- end }}
             - name: kerberos-keytab
               subPath: "kerberos.keytab"
               mountPath: {{ .Values.kerberos.keytabPath | quote }}
@@ -304,6 +289,9 @@ spec:
             - name: kerberos-ccache
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: false
+{{- if .Values.workers.extraVolumeMounts }}
+{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
+{{- end }}
 {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
 {{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}

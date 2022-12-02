@@ -146,29 +146,14 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  # Keep version of black in sync wit blackend-docs and pre-commit-hook-names
+  # Keep version of black in sync wit blacken-docs and pre-commit-hook-names
   - repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
       - id: black
-        name: Run black (python formatter) on core
-        args: [--config=./pyproject.toml, --skip-string-normalization]
-        exclude: ^airflow/_vendor/|^airflow/contrib/|^airflow/providers/
-        files: ^airflow/
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
-    hooks:
-      - id: black
-        name: Run black (python formatter) on providers
+        name: Run black (python formatter)
         args: [--config=./pyproject.toml]
-        files: ^airflow/providers/
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
-    hooks:
-      - id: black
-        name: Run black (python formatter) on other
-        args: [--config=./pyproject.toml]
-        exclude: ^airflow/
+        exclude: ^airflow/_vendor/|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:

@@ -29,6 +29,8 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.6.0
+  - 8.5.0
   - 8.4.0
   - 8.3.0
   - 8.2.0
@@ -55,7 +57,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
-  - apache-airflow-providers-common-sql>=1.2.0
+  - apache-airflow-providers-common-sql>=1.3.1
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
   # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
@@ -66,6 +68,7 @@ dependencies:
   # TODO: Upgrade all Google libraries that are limited to <2.0.0
   - PyOpenSSL
   - asgiref>=3.5.2
+  - gcloud_aio_auth>=4.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
   - google-ads>=15.1.1
@@ -78,6 +81,7 @@ dependencies:
   - google-cloud-bigquery-datatransfer>=3.0.0
   - google-cloud-bigtable>=1.0.0,<2.0.0
   - google-cloud-build>=3.0.0
+  - google-cloud-compute>=0.1.0,<2.0.0
   - google-cloud-container>=2.2.0,<3.0.0
   - google-cloud-dataform>=0.2.0
   - google-cloud-datacatalog>=3.0.0
@@ -607,6 +611,9 @@ sensors:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.sensors.datafusion
+  - integration-name: Google Dataprep
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataprep
   - integration-name: Google Dataplex
     python-modules:
       - airflow.providers.google.cloud.sensors.dataplex
@@ -959,6 +966,8 @@ extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
   - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
+  - airflow.providers.google.cloud.links.dataform.DataformRepositoryLink
+  - airflow.providers.google.cloud.links.dataform.DataformWorkspaceLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
@@ -971,6 +980,9 @@ extra-links:
   - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
   - airflow.providers.google.cloud.links.bigquery_dts.BigQueryDataTransferConfigLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceDetailsLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
   - airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink
@@ -980,6 +992,8 @@ extra-links:
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
+  - airflow.providers.google.cloud.links.dataprep.DataprepFlowLink
+  - airflow.providers.google.cloud.links.dataprep.DataprepJobGroupLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIModelExportLink

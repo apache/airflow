@@ -367,7 +367,6 @@ class RedshiftDeleteClusterSnapshotOperator(BaseOperator):
     def get_status(self) -> str:
         return self.redshift_hook.get_cluster_snapshot_status(
             snapshot_identifier=self.snapshot_identifier,
-            cluster_identifier=self.cluster_identifier,
         )
 
 
@@ -397,15 +396,27 @@ class RedshiftResumeClusterOperator(BaseOperator):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
+        # These parameters are added to address an issue with the boto3 API where the API
+        # prematurely reports the cluster as available to receive requests. This causes the cluster
+        # to reject initial attempts to resume the cluster despite reporting the correct state.
+        self._attempts = 10
+        self._attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
-        if cluster_state == "paused":
-            self.log.info("Starting Redshift cluster %s", self.cluster_identifier)
-            redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
-        else:
-            raise Exception(f"Unable to resume cluster - cluster state is {cluster_state}")
+
+        while self._attempts >= 1:
+            try:
+                redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
+                return
+            except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
+                self._attempts = self._attempts - 1
+
+                if self._attempts > 0:
+                    self.log.error("Unable to resume cluster. %d attempts remaining.", self._attempts)
+                    time.sleep(self._attempt_interval)
+                else:
+                    raise error
 
 
 class RedshiftPauseClusterOperator(BaseOperator):
@@ -434,15 +445,27 @@ class RedshiftPauseClusterOperator(BaseOperator):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
+        # These parameters are added to address an issue with the boto3 API where the API
+        # prematurely reports the cluster as available to receive requests. This causes the cluster
+        # to reject initial attempts to pause the cluster despite reporting the correct state.
+        self._attempts = 10
+        self._attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
-        if cluster_state == "available":
-            self.log.info("Pausing Redshift cluster %s", self.cluster_identifier)
-            redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
-        else:
-            raise Exception(f"Unable to pause cluster - cluster state is {cluster_state}")
+
+        while self._attempts >= 1:
+            try:
+                redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
+                return
+            except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
+                self._attempts = self._attempts - 1
+
+                if self._attempts > 0:
+                    self.log.error("Unable to pause cluster. %d attempts remaining.", self._attempts)
+                    time.sleep(self._attempt_interval)
+                else:
+                    raise error
 
 
 class RedshiftDeleteClusterOperator(BaseOperator):
@@ -482,15 +505,31 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.skip_final_cluster_snapshot = skip_final_cluster_snapshot
         self.final_cluster_snapshot_identifier = final_cluster_snapshot_identifier
         self.wait_for_completion = wait_for_completion
-        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
         self.poll_interval = poll_interval
+        # These parameters are added to keep trying if there is a running operation in the cluster
+        # If there is a running operation in the cluster while trying to delete it, a InvalidClusterStateFault
+        # is thrown. In such case, retrying
+        self._attempts = 10
+        self._attempt_interval = 15
+        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
 
     def execute(self, context: Context):
-        self.redshift_hook.delete_cluster(
-            cluster_identifier=self.cluster_identifier,
-            skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
-            final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
-        )
+        while self._attempts >= 1:
+            try:
+                self.redshift_hook.delete_cluster(
+                    cluster_identifier=self.cluster_identifier,
+                    skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
+                    final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
+                )
+                break
+            except self.redshift_hook.get_conn().exceptions.InvalidClusterStateFault:
+                self._attempts = self._attempts - 1
+
+                if self._attempts > 0:
+                    self.log.error("Unable to delete cluster. %d attempts remaining.", self._attempts)
+                    time.sleep(self._attempt_interval)
+                else:
+                    raise
 
         if self.wait_for_completion:
             waiter = self.redshift_hook.get_conn().get_waiter("cluster_deleted")

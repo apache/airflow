@@ -451,18 +451,22 @@ class TestWorker:
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
+        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={"airflowLocalSettings": "# Well hello!"},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert {
+        volume_mount = {
             "name": "config",
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     def test_airflow_local_settings_kerberos_sidecar(self):
         docs = render_chart(
@@ -522,6 +526,23 @@ class TestWorker:
 
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_log_groomer_collector_default_enabled(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert "worker-log-groomer" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
+
+    def test_log_groomer_collector_can_be_disabled(self):
+        docs = render_chart(
+            values={"workers": {"logGroomerSidecar": {"enabled": False}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert "worker-log-groomer" not in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
 
     def test_log_groomer_default_command_and_args(self):
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])

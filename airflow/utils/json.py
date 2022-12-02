@@ -17,13 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
+import re
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
+import attr
 from flask.json.provider import JSONProvider
 
+from airflow.configuration import conf
+from airflow.serialization.enums import Encoding
+from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import convert_to_utc, is_naive
 
 try:
@@ -39,6 +46,16 @@ except ImportError:
 # Dates and JSON encoding/decoding
 
 log = logging.getLogger(__name__)
+
+CLASSNAME = "__classname__"
+VERSION = "__version__"
+DATA = "__data__"
+
+OLD_TYPE = "__type"
+OLD_SOURCE = "__source"
+OLD_DATA = "__var"
+
+DEFAULT_VERSION = 0
 
 
 class AirflowJsonEncoder(json.JSONEncoder):
@@ -56,7 +73,7 @@ class AirflowJsonEncoder(json.JSONEncoder):
                 obj = convert_to_utc(obj)
             return obj.isoformat()
         elif isinstance(obj, date):
-            return obj.strftime('%Y-%m-%d')
+            return obj.strftime("%Y-%m-%d")
         elif isinstance(obj, Decimal):
             _, _, exponent = obj.as_tuple()
             if exponent >= 0:  # No digits after the decimal point.
@@ -107,7 +124,7 @@ class AirflowJsonEncoder(json.JSONEncoder):
                 log.debug("traceback for pod JSON encode error", exc_info=True)
                 return {}
 
-        raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")
+        raise TypeError(f"Object of type '{obj.__class__.__qualname__}' is not JSON serializable")
 
 
 class AirflowJsonProvider(JSONProvider):
@@ -117,9 +134,135 @@ class AirflowJsonProvider(JSONProvider):
     sort_keys: bool = True
 
     def dumps(self, obj, **kwargs):
-        kwargs.setdefault('ensure_ascii', self.ensure_ascii)
-        kwargs.setdefault('sort_keys', self.sort_keys)
+        kwargs.setdefault("ensure_ascii", self.ensure_ascii)
+        kwargs.setdefault("sort_keys", self.sort_keys)
         return json.dumps(obj, **kwargs, cls=AirflowJsonEncoder)
 
     def loads(self, s: str | bytes, **kwargs):
         return json.loads(s, **kwargs)
+
+
+# for now separate as AirflowJsonEncoder is non-standard
+class XComEncoder(json.JSONEncoder):
+    """This encoder serializes any object that has attr, dataclass or a custom serializer."""
+
+    def default(self, o: object) -> dict:
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        dct = {
+            CLASSNAME: o.__module__ + "." + o.__class__.__qualname__,
+            VERSION: getattr(o.__class__, "version", DEFAULT_VERSION),
+        }
+
+        if hasattr(o, "serialize"):
+            dct[DATA] = getattr(o, "serialize")()
+            return dct
+        elif dataclasses.is_dataclass(o.__class__):
+            data = dataclasses.asdict(o)
+            dct[DATA] = BaseSerialization.serialize(data)
+            return dct
+        elif attr.has(o.__class__):
+            # Only include attributes which we can pass back to the classes constructor
+            data = attr.asdict(o, recurse=True, filter=lambda a, v: a.init)  # type: ignore[arg-type]
+            dct[DATA] = BaseSerialization.serialize(data)
+            return dct
+        else:
+            return super().default(o)
+
+    def encode(self, o: Any) -> str:
+        if isinstance(o, dict) and CLASSNAME in o:
+            raise AttributeError(f"reserved key {CLASSNAME} found in dict to serialize")
+
+        return super().encode(o)
+
+
+class XComDecoder(json.JSONDecoder):
+    """
+    This decoder deserializes dicts to objects if they contain
+    the `__classname__` key otherwise it will return the dict
+    as is.
+    """
+
+    _pattern: list[re.Pattern] = []
+
+    def __init__(self, *args, **kwargs) -> None:
+        if not kwargs.get("object_hook"):
+            kwargs["object_hook"] = self.object_hook
+
+        patterns = conf.get("core", "allowed_deserialization_classes").split()
+
+        self._pattern.clear()  # ensure to reinit
+        for p in patterns:
+            self._pattern.append(re.compile(p))
+
+        super().__init__(*args, **kwargs)
+
+    def object_hook(self, dct: dict) -> object:
+        dct = XComDecoder._convert(dct)
+
+        if CLASSNAME in dct and VERSION in dct:
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            classname = dct[CLASSNAME]
+            cls = None
+
+            for p in self._pattern:
+                if p.match(classname):
+                    cls = import_string(classname)
+                    break
+
+            if not cls:
+                raise ImportError(f"{classname} was not found in allow list for import")
+
+            if hasattr(cls, "deserialize"):
+                return getattr(cls, "deserialize")(dct[DATA], dct[VERSION])
+
+            version = getattr(cls, "version", 0)
+            if int(dct[VERSION]) > version:
+                raise TypeError(
+                    "serialized version of %s is newer than module version (%s > %s)",
+                    dct[CLASSNAME],
+                    dct[VERSION],
+                    version,
+                )
+
+            if not attr.has(cls) and not dataclasses.is_dataclass(cls):
+                raise TypeError(
+                    f"cannot deserialize: no deserialization method "
+                    f"for {dct[CLASSNAME]} and not attr/dataclass decorated"
+                )
+
+            return cls(**BaseSerialization.deserialize(dct[DATA]))
+
+        return dct
+
+    @staticmethod
+    def orm_object_hook(dct: dict) -> object:
+        """Creates a readable representation of a serialized object"""
+        dct = XComDecoder._convert(dct)
+        if CLASSNAME in dct and VERSION in dct:
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            if Encoding.VAR in dct[DATA] and Encoding.TYPE in dct[DATA]:
+                data = BaseSerialization.deserialize(dct[DATA])
+                if not isinstance(data, dict):
+                    raise TypeError(f"deserialized value should be a dict, but is {type(data)}")
+            else:
+                # custom serializer
+                data = dct[DATA]
+
+            s = f"{dct[CLASSNAME]}@version={dct[VERSION]}("
+            for k, v in data.items():
+                s += f"{k}={v},"
+            s = s[:-1] + ")"
+            return s
+
+        return dct
+
+    @staticmethod
+    def _convert(old: dict) -> dict:
+        """Converts an old style serialization to new style"""
+        if OLD_TYPE in old and OLD_SOURCE in old:
+            return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
+
+        return old

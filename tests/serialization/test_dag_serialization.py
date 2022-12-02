@@ -836,6 +836,7 @@ class TestStringifiedDAGs:
             Param("my value", description="hello", schema={"type": "string"}),
             Param("my value", description="hello"),
             Param(None, description=None),
+            Param([True], type="array", items={"type": "boolean"}),
         ],
     )
     def test_full_param_roundtrip(self, param):
@@ -2296,7 +2297,9 @@ def test_mapped_task_group_serde():
         @task_group
         def tg(a: str) -> None:
             BaseOperator(task_id="op1")
-            BashOperator.partial(task_id="op2").expand(bash_command=["ls", a])
+            with pytest.raises(NotImplementedError) as ctx:
+                BashOperator.partial(task_id="op2").expand(bash_command=["ls", a])
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
 
         tg.expand(a=[".", ".."])
 
@@ -2307,7 +2310,7 @@ def test_mapped_task_group_serde():
             "_group_id": "tg",
             "children": {
                 "tg.op1": ("operator", "tg.op1"),
-                "tg.op2": ("operator", "tg.op2"),
+                # "tg.op2": ("operator", "tg.op2"),
             },
             "downstream_group_ids": [],
             "downstream_task_ids": [],

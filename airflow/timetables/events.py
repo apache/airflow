@@ -27,8 +27,9 @@ from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, T
 
 class EventsTimetable(Timetable):
     """
-    Timetable that schedules DAG runs at specific listed datetimes. Suitable for
-    predictable but truly irregular scheduling such as sporting events.
+    Timetable that schedules DAG runs at specific listed datetimes.
+
+    Suitable for predictable but truly irregular scheduling such as sporting events.
 
     :param event_dates: List of datetimes for the DAG to run at. Duplicates will be ignored. Must be finite
                         and of reasonable size as it will be loaded in its entirety.
