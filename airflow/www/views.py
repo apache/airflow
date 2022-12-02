@@ -291,7 +291,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     "state": task_instance.state,
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
-                    "try_number": task_instance._try_number or 1,
+                    "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
                     "note": task_instance.note,
                 }
 
@@ -1590,7 +1590,7 @@ class Airflow(AirflowBaseView):
 
         num_logs = 0
         if ti is not None:
-            num_logs = ti._try_number or 1
+            num_logs = wwwutils.get_try_count(ti.next_try_number - 1, ti.state)
         logs = [""] * num_logs
         root = request.args.get("root", "")
         return self.render_template(

@@ -137,7 +137,9 @@ class State:
             return "white"
         return "black"
 
-    running: frozenset[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
+    running: frozenset[TaskInstanceState] = frozenset(
+        [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE]
+    )
     """
     A list of states indicating that a task is being executed.
     """
