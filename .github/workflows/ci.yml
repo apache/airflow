@@ -809,6 +809,8 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
+        env:
+          PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -850,6 +852,8 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
+        env:
+          PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -892,6 +896,8 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
+        env:
+          PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -932,6 +938,8 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
+        env:
+          PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -966,6 +974,8 @@ jobs:
       - name: >
           Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests --run-in-parallel || true
+        env:
+          PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
       - name: >
           Post Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined"
         uses: ./.github/actions/post_tests

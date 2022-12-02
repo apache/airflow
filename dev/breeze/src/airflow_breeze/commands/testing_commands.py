@@ -72,6 +72,8 @@ from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
+DISABLE_WARNINGS_LABEL = "disable warnings"
+
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
 def testing():
@@ -371,6 +373,12 @@ def run_tests_in_parallel(
     is_flag=True,
     envvar="FULL_TESTS_NEEDED",
 )
+@click.option(
+    "--pr-labels",
+    help="Python array formatted PR labels assigned to the PR",
+    default="",
+    envvar="PR_LABELS",
+)
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -394,7 +402,11 @@ def tests(
     full_tests_needed: bool,
     mount_sources: str,
     extra_pytest_args: tuple,
+    pr_labels: tuple,
 ):
+    if DISABLE_WARNINGS_LABEL in pr_labels:
+        if "--disable-warnings" not in extra_pytest_args:
+            extra_pytest_args = (*extra_pytest_args, "--disable-warnings")
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
     exec_shell_params = ShellParams(
