@@ -297,12 +297,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.kube_watcher = self._make_kube_watcher()
 
     def run_next(self, next_job: KubernetesJobType) -> None:
-        """
-        The run_next command will check the task_queue for any un-run jobs.
-        It will then create a unique job-id, launch that job in the cluster,
-        and store relevant info in the current_jobs map so we can track the job's
-        status
-        """
+        """Receives the next job to run, builds the pod, and creates it."""
         key, command, kube_executor_config, pod_template_file = next_job
 
         dag_id, task_id, run_id, try_number, map_index = key
