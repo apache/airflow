@@ -4167,6 +4167,19 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "args": {
+                    "description": "Args to use when running statsd-exporter (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+                    ]
                 }
             }
         },

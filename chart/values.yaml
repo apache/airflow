@@ -1331,6 +1331,9 @@ statsd:
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
 
+  # Arguments for StatsD exporter command.
+  args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
