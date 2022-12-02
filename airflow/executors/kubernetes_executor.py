@@ -236,7 +236,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def __init__(
         self,
         kube_config: Any,
-        task_queue: Queue[KubernetesJobType],
         result_queue: Queue[KubernetesResultsType],
         kube_client: client.CoreV1Api,
         scheduler_job_id: str,
@@ -244,7 +243,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
         super().__init__()
         self.log.debug("Creating Kubernetes executor")
         self.kube_config = kube_config
-        self.task_queue = task_queue
         self.result_queue = result_queue
         self.namespace = self.kube_config.kube_namespace
         self.log.debug("Kubernetes using namespace %s", self.namespace)
@@ -531,7 +529,10 @@ class KubernetesExecutor(BaseExecutor):
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
-            self.kube_config, self.task_queue, self.result_queue, self.kube_client, self.scheduler_job_id
+            kube_config=self.kube_config,
+            result_queue=self.result_queue,
+            kube_client=self.kube_client,
+            scheduler_job_id=self.scheduler_job_id,
         )
         self.event_scheduler = EventScheduler()
         self.event_scheduler.call_regular_interval(
