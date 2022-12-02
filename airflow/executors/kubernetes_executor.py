@@ -67,7 +67,7 @@ class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
     _instance = None
-    resource_version: dict[str | None, str] = {}
+    resource_version: dict[str | None, str | None] = {}
 
     def __new__(cls):
         if cls._instance is None:
