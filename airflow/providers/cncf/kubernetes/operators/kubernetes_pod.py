@@ -487,7 +487,7 @@ class KubernetesPodOperator(BaseOperator):
             self.process_pod_deletion(remote_pod, reraise=False)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             raise AirflowException(
-                f"Pod {pod and pod.metadata.name} returned a failure:{error_message}\n"
+                f"Pod {pod and pod.metadata.name} returned a failure:\n{error_message}\n"
                 f"remote_pod: {remote_pod}"
             )
         else:
