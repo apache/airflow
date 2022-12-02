@@ -750,45 +750,6 @@ class TestWebserverConfigmap:
             == jmespath.search('data."webserver_config.py"', docs[0]).strip()
         )
 
-    def test_webserver_config_configmap_name_volume_mounts(self):
-        configmap_name = "my-configmap"
-        docs = render_chart(
-            values={
-                "scheduler": {"logGroomerSidecar": {"enabled": True}, "waitForMigrations": {"enabled": True}},
-                "triggerer": {"waitForMigrations": {"enabled": True}},
-                "webserver": {
-                    "waitForMigrations": {"enabled": True},
-                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
-                    "webserverConfigConfigmapName": configmap_name,
-                },
-                "workers": {"kerberosSidecar": {"enabled": True}, "persistence": {"enabled": True}},
-            },
-            show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-            ],
-        )
-        for index in range(len(docs)):
-            print(docs[index])
-            assert "webserver-config" in [
-                c["name"]
-                for r in jmespath.search(
-                    "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].volumeMounts",
-                    docs[index],
-                )
-                for c in r
-            ]
-            for container in jmespath.search("spec.template.spec.containers", docs[index]):
-                assert "webserver-config" in [c["name"] for c in jmespath.search("volumeMounts", container)]
-            assert "webserver-config" in [
-                c["name"] for c in jmespath.search("spec.template.spec.volumes", docs[index])
-            ]
-            assert configmap_name == jmespath.search(
-                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", docs[index]
-            )
-
 
 class TestWebserverNetworkPolicy:
     def test_off_by_default(self):
