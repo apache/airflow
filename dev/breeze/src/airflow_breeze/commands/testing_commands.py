@@ -72,7 +72,7 @@ from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
-DISABLE_WARNINGS_LABEL = "disable warnings"
+ENABLE_WARNINGS_LABEL = "enable warnings"
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
@@ -404,9 +404,8 @@ def tests(
     extra_pytest_args: tuple,
     pr_labels: tuple,
 ):
-    if DISABLE_WARNINGS_LABEL in pr_labels:
-        if "--disable-warnings" not in extra_pytest_args:
-            extra_pytest_args = (*extra_pytest_args, "--disable-warnings")
+    if ENABLE_WARNINGS_LABEL not in pr_labels and "--disable-warnings" not in extra_pytest_args:
+        extra_pytest_args = (*extra_pytest_args, "--disable-warnings")
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
     exec_shell_params = ShellParams(
