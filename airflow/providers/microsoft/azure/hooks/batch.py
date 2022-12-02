@@ -393,7 +393,7 @@ class AzureBatchHook(BaseHook):
         :param job_id: A string that identifies the job
         :param task_id: A string that identifies the task
         :param timeout: The amount of time to wait before timing out in minutes
-        :return: A bool that represents whether or not the task failed (false) or succeeded (true)
+        :return: A bool that represents whether the task failed (false) or succeeded (true)
         """
         timeout_time = timezone.utcnow() + timedelta(minutes=timeout)
         while timezone.utcnow() < timeout_time:
@@ -406,8 +406,8 @@ class AzureBatchHook(BaseHook):
                               str(task.execution_info.exit_code))
                 if (task.execution_info.result == batch_models.TaskExecutionResult.failure) or (
                     task.execution_info.exit_code != 0):
-                    return task
-                return None
+                    return False
+                return True
             self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
             time.sleep(15)
         raise TimeoutError(f"Timed out waiting for task {task_id} to complete")
