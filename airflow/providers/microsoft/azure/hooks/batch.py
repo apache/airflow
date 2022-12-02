@@ -388,7 +388,8 @@ class AzureBatchHook(BaseHook):
     def wait_for_single_job_task_to_complete(self, job_id: str, task_id: str,
                                              timeout: int) -> bool:
         """
-        Wait for a single task in a particular job to complete, return False if it ultimately fails or True if it succeeds.
+        Wait for a single task in a particular job to complete, return False if it ultimately fails or True
+        if it succeeds.
 
         :param job_id: A string that identifies the job
         :param task_id: A string that identifies the task
