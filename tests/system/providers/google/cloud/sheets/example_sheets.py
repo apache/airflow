@@ -31,7 +31,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-DAG_ID = "example_sheets_gcs"
+DAG_ID = "example_sheets"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1234567890qwerty")
