@@ -412,8 +412,24 @@ class BatchClientHook(AwsBaseHook):
 
         :param job_id: AWS Batch Job ID
         """
-        job_container_desc = self.get_job_description(job_id=job_id).get("container", {})
-        log_configuration = job_container_desc.get("logConfiguration", {})
+        job_desc = self.get_job_description(job_id=job_id)
+
+        job_node_properties = job_desc.get("nodeProperties", {})
+        job_container_desc = job_desc.get("container", {})
+
+        if job_node_properties:
+            job_node_range_properties = job_node_properties.get("nodeRangeProperties", {})
+            if len(job_node_range_properties) > 1:
+                self.log.warning(
+                    "AWS Batch job (%s) has more than one node group. Only returning logs from first group.",
+                    job_id,
+                )
+                log_configuration = job_node_range_properties[0].get("container", {}).get("logConfiguration", {})
+        elif job_container_desc:
+            log_configuration = job_container_desc.get("logConfiguration", {})
+        else:
+            self.log.warning("AWS Batch job (%s) is neither a container nor multinode job. Log info not found.")
+            return None
 
         # In case if user select other "logDriver" rather than "awslogs"
         # than CloudWatch logging should be disabled.

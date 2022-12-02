@@ -65,6 +65,8 @@ class BatchOperator(BaseOperator):
 
     :param overrides: the `containerOverrides` parameter for boto3 (templated)
 
+    :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
+
     :param array_properties: the `arrayProperties` parameter for boto3
 
     :param parameters: the `parameters` for boto3 (templated)
@@ -108,12 +110,13 @@ class BatchOperator(BaseOperator):
         "job_queue",
         "overrides",
         "array_properties",
+        "node_overrides",
         "parameters",
         "waiters",
         "tags",
         "wait_for_completion",
     )
-    template_fields_renderers = {"overrides": "json", "parameters": "json"}
+    template_fields_renderers = {"overrides": "json", "parameters": "json", "node_overrides": "json"}
 
     @property
     def operator_extra_links(self):
@@ -132,8 +135,9 @@ class BatchOperator(BaseOperator):
         job_name: str,
         job_definition: str,
         job_queue: str,
-        overrides: dict,
+        overrides: dict | None = None,
         array_properties: dict | None = None,
+        node_overrides: dict | None = None,
         parameters: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
@@ -151,8 +155,9 @@ class BatchOperator(BaseOperator):
         self.job_name = job_name
         self.job_definition = job_definition
         self.job_queue = job_queue
-        self.overrides = overrides or {}
-        self.array_properties = array_properties or {}
+        self.container_overrides = overrides or None
+        self.array_properties = array_properties or None
+        self.node_overrides = node_overrides or None
         self.parameters = parameters or {}
         self.waiters = waiters
         self.tags = tags or {}
@@ -192,7 +197,13 @@ class BatchOperator(BaseOperator):
             self.job_definition,
             self.job_queue,
         )
-        self.log.info("AWS Batch job - container overrides: %s", self.overrides)
+
+        if (self.container_overrides):
+            self.log.info("AWS Batch job - container overrides: %s", self.container_overrides)
+        if (self.array_properties):
+            self.log.info("AWS Batch job - array properties: %s", self.array_properties)
+        if (self.node_overrides):
+            self.log.info("AWS Batch job - node properties: %s", self.node_overrides)
 
         try:
             response = self.hook.client.submit_job(
@@ -201,7 +212,8 @@ class BatchOperator(BaseOperator):
                 jobDefinition=self.job_definition,
                 arrayProperties=self.array_properties,
                 parameters=self.parameters,
-                containerOverrides=self.overrides,
+                containerOverrides=self.container_overrides,
+                nodeOverrides=self.node_overrides,
                 tags=self.tags,
             )
         except Exception as e:
