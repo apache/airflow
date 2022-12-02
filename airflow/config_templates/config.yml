@@ -2338,7 +2338,7 @@
     - name: pod_template_file
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.
-      version_added: 1.10.11
+      version_added: 2.5.0
       type: string
       example: ~
       default: ""
@@ -2346,28 +2346,28 @@
     - name: worker_container_repository
       description: |
         The repository of the Kubernetes Image for the Worker to Run
-      version_added: ~
+      version_added: 2.5.0
       type: string
       example: ~
       default: ""
     - name: worker_container_tag
       description: |
         The tag of the Kubernetes Image for the Worker to Run
-      version_added: ~
+      version_added: 2.5.0
       type: string
       example: ~
       default: ""
     - name: namespace
       description: |
         The Kubernetes namespace where airflow workers should be created. Defaults to ``default``
-      version_added: ~
+      version_added: 2.5.0
       type: string
       example: ~
       default: "default"
     - name: delete_worker_pods
       description: |
         If True, all worker pods will be deleted upon termination
-      version_added: ~
+      version_added: 2.5.0
       type: string
       example: ~
       default: "True"
@@ -2377,7 +2377,7 @@
         failed worker pods will not be deleted so users can investigate them.
         This only prevents removal of worker pods where the worker itself failed,
         not when the task it ran failed.
-      version_added: 1.10.11
+      version_added: 2.5.0
       type: string
       example: ~
       default: "False"
@@ -2388,7 +2388,7 @@
         per-heartbeat. It is HIGHLY recommended that users increase this
         number to match the tolerance of their kubernetes cluster for
         better performance.
-      version_added: 1.10.3
+      version_added: 2.5.0
       type: string
       example: ~
       default: "1"
@@ -2396,7 +2396,7 @@
       description: |
         Allows users to launch pods in multiple namespaces.
         Will require creating a cluster-role for the scheduler
-      version_added: 1.10.12
+      version_added: 2.5.0
       type: boolean
       example: ~
       default: "False"
@@ -2405,7 +2405,7 @@
         Use the service account kubernetes gives to pods to connect to kubernetes cluster.
         It's intended for clients that expect to be running inside a pod running on kubernetes.
         It will raise an exception if called from a process not running in a kubernetes environment.
-      version_added: ~
+      version_added: 2.5.0
       type: string
       example: ~
       default: "True"
@@ -2413,14 +2413,14 @@
       description: |
         When running with in_cluster=False change the default cluster_context or config_file
         options to Kubernetes client. Leave blank these to use default behaviour like ``kubectl`` has.
-      version_added: 1.10.3
+      version_added: 2.5.0
       type: string
       example: ~
       default: ~
     - name: config_file
       description: |
         Path to the kubernetes configfile to be used when ``in_cluster`` is set to False
-      version_added: 1.10.3
+      version_added: 2.5.0
       type: string
       example: ~
       default: ~
@@ -2431,7 +2431,7 @@
         List of supported params are similar for all core_v1_apis, hence a single config
         variable for all apis. See:
         https://raw.githubusercontent.com/kubernetes-client/python/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/api/core_v1_api.py
-      version_added: 1.10.4
+      version_added: 2.5.0
       type: string
       example: ~
       default: ""
@@ -2442,7 +2442,7 @@
         This should be an object and can contain any of the options listed in the ``v1DeleteOptions``
         class defined here:
         https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
-      version_added: 1.10.12
+      version_added: 2.5.0
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""
@@ -2450,7 +2450,7 @@
       description: |
         Enables TCP keepalive mechanism. This prevents Kubernetes API requests to hang indefinitely
         when idle connection is time-outed on services like cloud load balancers or firewalls.
-      version_added: 2.0.0
+      version_added: 2.5.0
       type: boolean
       example: ~
       default: "True"
@@ -2458,7 +2458,7 @@
       description: |
         When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
         been idle for `tcp_keep_idle` seconds.
-      version_added: 2.0.0
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "120"
@@ -2466,7 +2466,7 @@
       description: |
         When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
         to a keepalive probe, TCP retransmits the probe after `tcp_keep_intvl` seconds.
-      version_added: 2.0.0
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "30"
@@ -2475,35 +2475,35 @@
         When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
         to a keepalive probe, TCP retransmits the probe `tcp_keep_cnt number` of times before
         a connection is considered to be broken.
-      version_added: 2.0.0
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "6"
     - name: verify_ssl
       description: |
         Set this to false to skip verifying SSL certificate of Kubernetes python client.
-      version_added: 2.1.0
+      version_added: 2.5.0
       type: boolean
       example: ~
       default: "True"
     - name: worker_pods_pending_timeout
       description: |
         How long in seconds a worker can be in Pending before it is considered a failure
-      version_added: 2.1.0
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "300"
     - name: worker_pods_pending_timeout_check_interval
       description: |
         How often in seconds to check if Pending workers have exceeded their timeouts
-      version_added: 2.1.0
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "120"
     - name: worker_pods_queued_check_interval
       description: |
         How often in seconds to check for task instances stuck in "queued" status without a pod
-      version_added: 2.2.0
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "60"
@@ -2511,7 +2511,7 @@
       description: |
         How many pending pods to check for timeout violations in each check interval.
         You may want this higher if you have a very large cluster and/or use ``multi_namespace_mode``.
-      version_added: 2.1.0
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "100"
