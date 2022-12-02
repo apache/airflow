@@ -45,10 +45,6 @@ class GlueCrawlerHook(AwsBaseHook):
         """:return: AWS Glue client"""
         return self.get_conn()
 
-    @cached_property
-    def sts_hook(self):
-        return StsHook(aws_conn_id=self.aws_conn_id)
-
     def has_crawler(self, crawler_name) -> bool:
         """
         Checks if the crawler already exists
@@ -83,19 +79,19 @@ class GlueCrawlerHook(AwsBaseHook):
         crawler_name = crawler_kwargs["Name"]
         current_crawler = self.get_crawler(crawler_name)
 
-        self.update_tags(crawler_name, crawler_kwargs.pop("Tags", {}))
+        tags_updated = self.update_tags(crawler_name, crawler_kwargs.pop("Tags", {}))
 
         update_config = {
             key: value
             for key, value in crawler_kwargs.items()
             if current_crawler.get(key, None) != crawler_kwargs.get(key)
         }
-        if len(update_config) > 0:
+        if update_config:
             self.log.info("Updating crawler: %s", crawler_name)
             self.glue_client.update_crawler(**crawler_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
-        return False
+        return tags_updated
 
     def update_tags(self, crawler_name: str, crawler_tags: dict) -> bool:
         """
@@ -105,9 +101,10 @@ class GlueCrawlerHook(AwsBaseHook):
         :param crawler_tags: Dictionary of new tags. If empty, all tags will be deleted
         :return True if tags were updated and false otherwise
         """
-        account_number = self.sts_hook.get_account_number()
-        crawler_arn = f"arn:aws:glue:{self.region_name}:{account_number}:crawler/{crawler_name}"
-        self.log.info("Crawler arn: %s", crawler_arn)
+        account_number = StsHook(aws_conn_id=self.aws_conn_id).get_account_number()
+        crawler_arn = (
+            f"arn:{self.conn_partition}:glue:{self.conn_region_name}:{account_number}:crawler/{crawler_name}"
+        )
         current_crawler_tags: dict = self.glue_client.get_tags(ResourceArn=crawler_arn)["Tags"]
 
         update_tags = {}
@@ -126,12 +123,12 @@ class GlueCrawlerHook(AwsBaseHook):
             if current_crawler_tags.get(key, None) != crawler_tags.get(key)
         }
         updated_tags = False
-        if len(update_tags) > 0:
+        if update_tags:
             self.log.info("Updating crawler tags: %s", crawler_name)
             self.glue_client.tag_resource(ResourceArn=crawler_arn, TagsToAdd=update_tags)
             self.log.info("Updated crawler tags: %s", crawler_name)
             updated_tags = True
-        if len(delete_tags) > 0:
+        if delete_tags:
             self.log.info("Deleting crawler tags: %s", crawler_name)
             self.glue_client.untag_resource(ResourceArn=crawler_arn, TagsToRemove=delete_tags)
             self.log.info("Deleted crawler tags: %s", crawler_name)
