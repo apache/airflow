@@ -658,8 +658,9 @@ class _optionally_suppress(AbstractContextManager):
     """
 
     def __init__(self, *exceptions, reraise=False):
-        self.reraise = reraise
         self._exceptions = exceptions or (Exception,)
+        self.reraise = reraise
+        self.exception = None
 
     def __enter__(self):
         return self
