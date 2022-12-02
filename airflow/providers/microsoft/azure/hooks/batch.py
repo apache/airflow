@@ -386,13 +386,14 @@ class AzureBatchHook(BaseHook):
         raise TimeoutError("Timed out waiting for tasks to complete")
 
     def wait_for_single_job_task_to_complete(self, job_id: str, task_id: str,
-                                             timeout: int) -> batch_models.CloudTask | None:
+                                             timeout: int) -> bool:
         """
-        Wait for a single task in a particular job to complete
+        Wait for a single task in a particular job to complete, return False if it ultimately fails or True if it succeeds.
 
         :param job_id: A string that identifies the job
         :param task_id: A string that identifies the task
         :param timeout: The amount of time to wait before timing out in minutes
+        :return: A bool that represents whether or not the task failed (false) or succeeded (true)
         """
         timeout_time = timezone.utcnow() + timedelta(minutes=timeout)
         while timezone.utcnow() < timeout_time:
