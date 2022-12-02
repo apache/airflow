@@ -112,11 +112,9 @@ class AthenaHook(AwsBaseHook):
         state = None
         try:
             state = response["QueryExecution"]["Status"]["State"]
-        except Exception as ex:
-            self.log.error(
-                "Exception while getting query state %s. Query execution id: %s",
-                ex,
-                query_execution_id,
+        except Exception:
+            self.log.exception(
+                "Exception while getting query state. Query execution id: %s", query_execution_id
             )
         finally:
             # The error is being absorbed here and is being handled by the caller.
@@ -134,10 +132,9 @@ class AthenaHook(AwsBaseHook):
         reason = None
         try:
             reason = response["QueryExecution"]["Status"]["StateChangeReason"]
-        except Exception as ex:
-            self.log.error(
-                "Exception while getting query state change reason: %s. Query execution id: %s",
-                ex,
+        except Exception:
+            self.log.exception(
+                "Exception while getting query state change reason. Query execution id: %s",
                 query_execution_id,
             )
         finally:
