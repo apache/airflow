@@ -141,7 +141,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
         last_resource_version: str | None = None
         if self.multi_namespace_mode:
-            if self.kube_config.namespace_list:
+            if self.kube_config.multi_namespace_mode_namespace_list:
                 list_worker_pods = functools.partial(
                     watcher.stream, kube_client.list_namespaced_pod, self.namespace, **kwargs
                 )
@@ -297,7 +297,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
         watchers = {}
         if self.kube_config.multi_namespace_mode:
             namespaces_to_watch = (
-                self.kube_config.namespace_list if self.kube_config.namespace_list else [None]
+                self.kube_config.multi_namespace_mode_namespace_list
+                if self.kube_config.multi_namespace_mode_namespace_list
+                else [None]
             )
         else:
             namespaces_to_watch = [self.kube_config.kube_namespace]
@@ -473,9 +475,9 @@ class KubernetesExecutor(BaseExecutor):
 
     def _list_pods(self, query_kwargs):
         if self.kube_config.multi_namespace_mode:
-            if self.kube_config.namespace_list:
+            if self.kube_config.multi_namespace_mode_namespace_list:
                 pods = []
-                for namespace in self.kube_config.namespace_list:
+                for namespace in self.kube_config.multi_namespace_mode_namespace_list:
                     pods.extend(
                         self.kube_client.list_namespaced_pod(namespace=namespace, **query_kwargs).items
                     )

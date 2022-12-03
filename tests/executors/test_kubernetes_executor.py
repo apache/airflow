@@ -522,17 +522,19 @@ class TestKubernetesExecutor:
         mock_delete_pod.assert_not_called()
 
     @pytest.mark.parametrize(
-        "namespace_list, watchers_keys",
+        "multi_namespace_mode_namespace_list, watchers_keys",
         [
             pytest.param(["A", "B", "C"], ["A", "B", "C"]),
             pytest.param(None, [None]),
         ],
     )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    def test_watchers_under_multi_namespace_mode(self, mock_get_kube_client, namespace_list, watchers_keys):
+    def test_watchers_under_multi_namespace_mode(
+        self, mock_get_kube_client, multi_namespace_mode_namespace_list, watchers_keys
+    ):
         executor = self.kubernetes_executor
         executor.kube_config.multi_namespace_mode = True
-        executor.kube_config.namespace_list = namespace_list
+        executor.kube_config.multi_namespace_mode_namespace_list = multi_namespace_mode_namespace_list
         executor.start()
         assert list(executor.kube_scheduler.kube_watchers.keys()) == watchers_keys
         assert all(
@@ -726,12 +728,12 @@ class TestKubernetesExecutor:
     ):
         config = {
             ("kubernetes", "multi_namespace_mode"): raw_multi_namespace_mode,
-            ("kubernetes", "namespace_list"): raw_value_namespace_list,
+            ("kubernetes", "multi_namespace_mode_namespace_list"): raw_value_namespace_list,
         }
         with conf_vars(config):
             executor = KubernetesExecutor()
 
-        assert executor.kube_config.namespace_list == expected_value_in_kube_config
+        assert executor.kube_config.multi_namespace_mode_namespace_list == expected_value_in_kube_config
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
@@ -853,7 +855,7 @@ class TestKubernetesExecutor:
         config = {
             ("kubernetes", "namespace"): "mynamespace",
             ("kubernetes", "multi_namespace_mode"): "true",
-            ("kubernetes", "namespace_list"): "namespace-1,namespace-2,namespace-3",
+            ("kubernetes", "multi_namespace_mode_namespace_list"): "namespace-1,namespace-2,namespace-3",
             ("kubernetes", "kube_client_request_args"): '{"sentinel": "foo"}',
         }
         with conf_vars(config):
