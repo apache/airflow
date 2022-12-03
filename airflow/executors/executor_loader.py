@@ -66,17 +66,22 @@ class ExecutorLoader:
     }
 
     @classmethod
+    def get_default_executor_name(cls) -> str:
+        """Returns the default executor name from Airflow configuration.
+
+        :return: executor name from Airflow configuration
+        """
+        from airflow.configuration import conf
+
+        return conf.get_mandatory_value("core", "EXECUTOR")
+
+    @classmethod
     def get_default_executor(cls) -> BaseExecutor:
         """Creates a new instance of the configured executor if none exists and returns it."""
         if cls._default_executor is not None:
             return cls._default_executor
 
-        from airflow.configuration import conf
-
-        executor_name = conf.get_mandatory_value("core", "EXECUTOR")
-        cls._default_executor = cls.load_executor(executor_name)
-
-        return cls._default_executor
+        return cls.load_executor(cls.get_default_executor_name())
 
     @classmethod
     def load_executor(cls, executor_name: str) -> BaseExecutor:
@@ -133,6 +138,17 @@ class ExecutorLoader:
                 plugins_manager.integrate_executor_plugins()
                 return import_string(f"airflow.executors.{executor_name}"), ConnectorSource.PLUGIN
         return import_string(executor_name), ConnectorSource.CUSTOM_PATH
+
+    @classmethod
+    def import_default_executor_cls(cls) -> tuple[type[BaseExecutor], ConnectorSource]:
+        """
+        Imports the default executor class.
+
+        :return: executor class and executor import source
+        """
+        executor_name = cls.get_default_executor_name()
+
+        return cls.import_executor_cls(executor_name)
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
