@@ -304,8 +304,12 @@ class TestCloudBuildOperator(TestCase):
 
 class TestBuildProcessor(TestCase):
     def test_verify_source(self):
-        with pytest.raises(AirflowException, match="The source could not be determined."):
+        error_message = r"The source could not be determined."
+        with pytest.raises(AirflowException, match=error_message):
             BuildProcessor(build={"source": {"storage_source": {}, "repo_source": {}}}).process_body()
+
+        with pytest.raises(AirflowException, match=error_message):
+            BuildProcessor(build={"source": {}}).process_body()
 
     @parameterized.expand(
         [

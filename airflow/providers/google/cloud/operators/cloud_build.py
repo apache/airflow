@@ -40,6 +40,7 @@ from airflow.providers.google.cloud.links.cloud_build import (
 from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.utils import yaml
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -971,7 +972,7 @@ class BuildProcessor:
         self.build = deepcopy(build)
 
     def _verify_source(self) -> None:
-        if not (("storage_source" in self.build["source"]) ^ ("repo_source" in self.build["source"])):
+        if not exactly_one("storage_source" in self.build["source"], "repo_source" in self.build["source"]):
             raise AirflowException(
                 "The source could not be determined. Please choose one data source from: "
                 "storage_source and repo_source."
