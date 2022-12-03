@@ -61,22 +61,23 @@ def mock_init(
     pass
 
 
+def _generate_messages(count) -> list[ReceivedMessage]:
+    return [
+        ReceivedMessage(
+            ack_id=str(i),
+            message={
+                "data": f"Message {i}".encode(),
+                "attributes": {"type": "generated message"},
+            },
+        )
+        for i in range(1, count + 1)
+    ]
+
+
 class TestPubSubHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id="test")
-
-    def _generate_messages(self, count) -> list[ReceivedMessage]:
-        return [
-            ReceivedMessage(
-                ack_id=str(i),
-                message={
-                    "data": f"Message {i}".encode(),
-                    "attributes": {"type": "generated message"},
-                },
-            )
-            for i in range(1, count + 1)
-        ]
 
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
@@ -478,7 +479,7 @@ class TestPubSubHook(unittest.TestCase):
         self.pubsub_hook.acknowledge(
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
-            messages=self._generate_messages(3),
+            messages=_generate_messages(3),
         )
         ack_method.assert_called_once_with(
             request=dict(
@@ -489,6 +490,21 @@ class TestPubSubHook(unittest.TestCase):
             timeout=None,
             metadata=(),
         )
+
+    @parameterized.expand([(None, None), ([1, 2, 3], _generate_messages(3))])
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
+    def test_acknowledge_fails_on_method_args_validation(self, ack_ids, messages, mock_service):
+        ack_method = mock_service.acknowledge
+
+        error_message = r"One and only one of 'ack_ids' and 'messages' arguments have to be provided"
+        with pytest.raises(ValueError, match=error_message):
+            self.pubsub_hook.acknowledge(
+                project_id=TEST_PROJECT,
+                subscription=TEST_SUBSCRIPTION,
+                ack_ids=ack_ids,
+                messages=messages,
+            )
+        ack_method.assert_not_called()
 
     @parameterized.expand(
         [

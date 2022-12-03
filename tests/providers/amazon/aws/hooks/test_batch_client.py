@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+import logging
 from unittest import mock
 
 import botocore.exceptions
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -36,7 +35,7 @@ JOB_ID = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
 LOG_STREAM_NAME = "test/stream/d56a66bb98a14c4593defa1548686edf"
 
 
-class TestBatchClient(unittest.TestCase):
+class TestBatchClient:
 
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
@@ -45,7 +44,7 @@ class TestBatchClient(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def setUp(self, get_client_type_mock):
+    def setup_method(self, method, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch_client = BatchClientHook(
             max_retries=self.MAX_RETRIES,
@@ -135,13 +134,17 @@ class TestBatchClient(unittest.TestCase):
         self.client_mock.describe_jobs.assert_called_with(jobs=[JOB_ID])
         assert self.client_mock.describe_jobs.call_count == self.MAX_RETRIES + 1
 
-    def test_poll_job_status_hit_api_throttle(self):
+    def test_poll_job_status_hit_api_throttle(self, caplog):
         self.client_mock.describe_jobs.side_effect = botocore.exceptions.ClientError(
             error_response={"Error": {"Code": "TooManyRequestsException"}},
             operation_name="get job description",
         )
         with pytest.raises(AirflowException) as ctx:
-            self.batch_client.poll_for_job_complete(JOB_ID)
+            with caplog.at_level(level=logging.getLevelName("WARNING")):
+                self.batch_client.poll_for_job_complete(JOB_ID)
+        log_record = caplog.records[0]
+        assert "Ignored TooManyRequestsException error" in log_record.message
+
         msg = f"AWS Batch job ({JOB_ID}) description error"
         assert msg in str(ctx.value)
         # It should retry when this client error occurs
@@ -153,10 +156,10 @@ class TestBatchClient(unittest.TestCase):
             error_response={"Error": {"Code": "InvalidClientTokenId"}},
             operation_name="get job description",
         )
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(botocore.exceptions.ClientError) as ctx:
             self.batch_client.poll_for_job_complete(JOB_ID)
-        msg = f"AWS Batch job ({JOB_ID}) description error"
-        assert msg in str(ctx.value)
+
+        assert ctx.value.response["Error"]["Code"] == "InvalidClientTokenId"
         # It will not retry when this client error occurs
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
 
@@ -272,7 +275,7 @@ class TestBatchClient(unittest.TestCase):
         assert awslogs["awslogs_group"] == "/test/batch/job"
         assert awslogs["awslogs_region"] == "ap-southeast-2"
 
-    def test_job_no_awslogs_stream(self):
+    def test_job_no_awslogs_stream(self, caplog):
         self.client_mock.describe_jobs.return_value = {
             "jobs": [
                 {
@@ -281,11 +284,13 @@ class TestBatchClient(unittest.TestCase):
                 }
             ]
         }
-        with self.assertLogs(level="WARNING") as capture_logs:
+        with caplog.at_level(level=logging.getLevelName("WARNING")):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
-            assert len(capture_logs.records) == 1
+            assert len(caplog.records) == 1
+            log_record = caplog.records[0]
+            assert "doesn't create AWS CloudWatch Stream" in log_record.message
 
-    def test_job_splunk_logs(self):
+    def test_job_splunk_logs(self, caplog):
         self.client_mock.describe_jobs.return_value = {
             "jobs": [
                 {
@@ -299,16 +304,18 @@ class TestBatchClient(unittest.TestCase):
                 }
             ]
         }
-        with self.assertLogs(level="WARNING") as capture_logs:
+        with caplog.at_level(level=logging.getLevelName("WARNING")):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
-            assert len(capture_logs.records) == 1
+            assert len(caplog.records) == 1
+            log_record = caplog.records[0]
+            assert "uses logDriver (splunk). AWS CloudWatch logging disabled." in log_record.message
 
 
-class TestBatchClientDelays(unittest.TestCase):
+class TestBatchClientDelays:
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    def setUp(self):
+    def setup_method(self, method):
         self.batch_client = BatchClientHook(aws_conn_id="airflow_test", region_name=AWS_REGION)
         # We're mocking all actual AWS calls and don't need a connection. This
         # avoids an Airflow warning about connection cannot be found.
@@ -360,7 +367,8 @@ class TestBatchClientDelays(unittest.TestCase):
         mock_uniform.assert_called_once_with(4.0, 6.0)  # in add_jitter
         mock_sleep.assert_called_once_with(mock_uniform.return_value)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "tries, lower, upper",
         [
             (0, 0, 1),
             (1, 0, 2),
@@ -373,7 +381,7 @@ class TestBatchClientDelays(unittest.TestCase):
             (8, 8, 25),
             (9, 10, 31),
             (45, 200, 600),  # > 40 tries invokes maximum delay allowed
-        ]
+        ],
     )
     def test_exponential_delay(self, tries, lower, upper):
         result = self.batch_client.exponential_delay(tries)
