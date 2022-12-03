@@ -77,13 +77,10 @@ def scheduler(args):
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
     """Starts serve_logs sub-process."""
-    from airflow.configuration import conf
     from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
-    executor_class, _ = ExecutorLoader.import_executor_cls(
-        conf.get("core", "executor"),
-    )
+    executor_class, _ = ExecutorLoader.import_default_executor_cls()
     if executor_class.is_local:
         if skip_serve_logs is False:
             sub_proc = Process(target=serve_logs)

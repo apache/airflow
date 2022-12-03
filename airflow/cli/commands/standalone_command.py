@@ -158,9 +158,7 @@ class StandaloneCommand:
         env = dict(os.environ)
 
         # Make sure we're using a local executor flavour
-        executor_class, _ = ExecutorLoader.import_executor_cls(
-            conf.get("core", "executor"),
-        )
+        executor_class, _ = ExecutorLoader.import_default_executor_cls()
         if executor_class.is_local:
             if "sqlite" in conf.get("database", "sql_alchemy_conn"):
                 self.print_output("standalone", "Forcing executor to SequentialExecutor")
