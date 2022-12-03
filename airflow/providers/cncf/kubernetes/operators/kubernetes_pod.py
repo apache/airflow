@@ -231,7 +231,7 @@ class KubernetesPodOperator(BaseOperator):
         namespace: str | None = None,
         image: str | None = None,
         name: str | None = None,
-        random_name_suffix: bool | None = True,
+        random_name_suffix: bool = True,
         cmds: list[str] | None = None,
         arguments: list[str] | None = None,
         ports: list[k8s.V1ContainerPort] | None = None,
