@@ -35,7 +35,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_google_ads"
 
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+BUCKET_NAME = f"bucket_ads_{ENV_ID}"
 CLIENT_IDS = ["1111111111", "2222222222"]
 GCS_OBJ_PATH = "folder_name/google-ads-api-results.csv"
 GCS_ACCOUNTS_CSV = "folder_name/accounts.csv"
