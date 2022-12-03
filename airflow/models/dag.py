@@ -32,7 +32,7 @@ import warnings
 import weakref
 from collections import deque
 from datetime import datetime, timedelta
-from inspect import signature
+from inspect import signature, getfullargspec
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -410,19 +410,19 @@ class DAG(LoggingMixin):
         auto_register: bool = True,
     ):
         from airflow.utils.task_group import TaskGroup
-        import inspect
 
         if default_args and not isinstance(default_args, dict):
             raise TypeError("default_args must be a dict")
         self.default_args = copy.deepcopy(default_args or {})
 
         _args = {}
-        arg_keys = inspect.getfullargspec(self.__init__)[0]
-        for key in arg_keys:
-            if key == "default_args":
+        _arg_keys = getfullargspec(self.__init__)[0]
+        _signature = signature(self.__init__)
+        for key in _arg_keys:
+            if key in ["self", "default_args"]:
                 continue
 
-            _args[key] = self.default(key, locals()[key])
+            _args[key] = self._default(_signature, key, locals()[key])
 
         if _args["tags"] and any(len(tag) > TAG_MAX_LEN for tag in _args["tags"]):
             raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
@@ -720,11 +720,13 @@ class DAG(LoggingMixin):
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
-    def default(self, key, value):
-        if value is not None:
-            return value
+    def _default(self, _signature, key, value):
+        default = _signature.parameters[key].default
 
-        return self.default_args.get(key, None)
+        if value is None and default:
+            return self.default_args.get(key, default)
+
+        return self.default_args.get(key, value)
 
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):

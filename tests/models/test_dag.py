@@ -153,6 +153,36 @@ class TestDag:
         assert params1["parameter1"] == dag.params["parameter1"]
         assert params2["parameter2"] == dag.params["parameter2"]
 
+    def test_catchup(self):
+        """
+        Test that when 'params' exists as a key passed to the default_args dict
+        in addition to params being passed explicitly as an argument to the
+        dag, that the 'params' key of the default_args dict is merged with the
+        dict of the params argument.
+        """
+        key = "catchup"
+
+        default_args = {
+            f"{key}": False
+        }
+        dag = models.DAG(f"{key}-dag", default_args=default_args)
+        assert dag.catchup == default_args[key]
+
+        default_args = {
+            f"{key}": True
+        }
+        dag = models.DAG(f"{key}-dag", default_args=default_args)
+        assert dag.catchup == default_args[key]
+
+        catchup = False
+        dag = models.DAG(f"{key}-dag", catchup=catchup)
+        assert dag.catchup == catchup
+
+        catchup = True
+        dag = models.DAG(f"{key}-dag", catchup=catchup)
+        assert dag.catchup == catchup
+
+
     def test_not_none_schedule_with_non_default_params(self):
         """
         Test if there is a DAG with not None schedule_interval and have some params that
@@ -742,11 +772,11 @@ class TestDag:
                 row[0] for row in session.query(DagModel.dag_id).all()
             }
             assert {
-                ("dag-bulk-sync-0", "test-dag"),
-                ("dag-bulk-sync-1", "test-dag"),
-                ("dag-bulk-sync-2", "test-dag"),
-                ("dag-bulk-sync-3", "test-dag"),
-            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+                       ("dag-bulk-sync-0", "test-dag"),
+                       ("dag-bulk-sync-1", "test-dag"),
+                       ("dag-bulk-sync-2", "test-dag"),
+                       ("dag-bulk-sync-3", "test-dag"),
+                   } == set(session.query(DagTag.dag_id, DagTag.name).all())
 
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
@@ -766,15 +796,15 @@ class TestDag:
                 row[0] for row in session.query(DagModel.dag_id).all()
             }
             assert {
-                ("dag-bulk-sync-0", "test-dag"),
-                ("dag-bulk-sync-0", "test-dag2"),
-                ("dag-bulk-sync-1", "test-dag"),
-                ("dag-bulk-sync-1", "test-dag2"),
-                ("dag-bulk-sync-2", "test-dag"),
-                ("dag-bulk-sync-2", "test-dag2"),
-                ("dag-bulk-sync-3", "test-dag"),
-                ("dag-bulk-sync-3", "test-dag2"),
-            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+                       ("dag-bulk-sync-0", "test-dag"),
+                       ("dag-bulk-sync-0", "test-dag2"),
+                       ("dag-bulk-sync-1", "test-dag"),
+                       ("dag-bulk-sync-1", "test-dag2"),
+                       ("dag-bulk-sync-2", "test-dag"),
+                       ("dag-bulk-sync-2", "test-dag2"),
+                       ("dag-bulk-sync-3", "test-dag"),
+                       ("dag-bulk-sync-3", "test-dag2"),
+                   } == set(session.query(DagTag.dag_id, DagTag.name).all())
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
@@ -785,11 +815,11 @@ class TestDag:
                 row[0] for row in session.query(DagModel.dag_id).all()
             }
             assert {
-                ("dag-bulk-sync-0", "test-dag2"),
-                ("dag-bulk-sync-1", "test-dag2"),
-                ("dag-bulk-sync-2", "test-dag2"),
-                ("dag-bulk-sync-3", "test-dag2"),
-            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+                       ("dag-bulk-sync-0", "test-dag2"),
+                       ("dag-bulk-sync-1", "test-dag2"),
+                       ("dag-bulk-sync-2", "test-dag2"),
+                       ("dag-bulk-sync-3", "test-dag2"),
+                   } == set(session.query(DagTag.dag_id, DagTag.name).all())
 
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
@@ -911,10 +941,10 @@ class TestDag:
             .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
-            (task_id, dag_id1, d2_orm.id),
-            (task_id, dag_id1, d3_orm.id),
-            (task_id, dag_id2, d1_orm.id),
-        }
+                   (task_id, dag_id1, d2_orm.id),
+                   (task_id, dag_id1, d3_orm.id),
+                   (task_id, dag_id2, d1_orm.id),
+               }
 
         # now that we have verified that a new dag has its dataset references recorded properly,
         # we need to verify that *changes* are recorded properly.
@@ -1084,9 +1114,9 @@ class TestDag:
         )
 
         assert {
-            (dag_id, False),
-            (subdag_id, False),
-        } == set(unpaused_dags)
+                   (dag_id, False),
+                   (subdag_id, False),
+               } == set(unpaused_dags)
 
         DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True, including_subdags=False)
 
@@ -1099,9 +1129,9 @@ class TestDag:
         )
 
         assert {
-            (dag_id, True),
-            (subdag_id, False),
-        } == set(paused_dags)
+                   (dag_id, True),
+                   (subdag_id, False),
+               } == set(paused_dags)
 
         DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
 
@@ -1114,9 +1144,9 @@ class TestDag:
         )
 
         assert {
-            (dag_id, True),
-            (subdag_id, True),
-        } == set(paused_dags)
+                   (dag_id, True),
+                   (subdag_id, True),
+               } == set(paused_dags)
 
     def test_existing_dag_is_paused_upon_creation(self):
         dag = DAG("dag_paused")
@@ -2839,7 +2869,6 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     task_id = "t1"
 
     with dag_maker(session=session) as dag:
-
         @dag.task
         def make_arg_lists():
             return [[1], [2], [{"a": "b"}]]
