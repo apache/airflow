@@ -77,13 +77,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.4.3",
+            "default": "2.5.0",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.4.3",
+            "default": "2.5.0",
             "x-docsSection": "Common"
         },
         "securityContext": {

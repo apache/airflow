@@ -1486,6 +1486,8 @@ tooltips
 traceback
 tracebacks
 travis
+triage
+triaging
 triggerer
 triggerers
 trino

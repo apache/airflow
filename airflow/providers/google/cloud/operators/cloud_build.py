@@ -37,6 +37,8 @@ from airflow.providers.google.cloud.links.cloud_build import (
     CloudBuildTriggerDetailsLink,
     CloudBuildTriggersListLink,
 )
+from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
+from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -147,7 +149,13 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain")
@@ -164,9 +172,15 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
+        poll_interval: float = 4.0,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.build = build
+        # Not template fields to keep original value
+        self.build_raw = build
         self.project_id = project_id
         self.wait = wait
         self.retry = retry
@@ -174,9 +188,9 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.build = build
-        # Not template fields to keep original value
-        self.build_raw = build
+        self.delegate_to = delegate_to
+        self.poll_interval = poll_interval
+        self.deferrable = deferrable
 
     def prepare_template(self) -> None:
         # if no file is specified, skip
@@ -189,29 +203,69 @@ class CloudBuildCreateBuildOperator(BaseOperator):
                 self.build = json.loads(file.read())
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            delegate_to=self.delegate_to,
+        )
         build = BuildProcessor(build=self.build).process_body()
 
-        result = hook.create_build(
+        self.cloud_build_operation, self.id_ = hook.create_build_without_waiting_for_result(
             build=build,
             project_id=self.project_id,
-            wait=self.wait,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        self.xcom_push(context, key="id", value=self.id_)
+        if not self.wait:
+            return Build.to_dict(hook.get_build(id_=self.id_, project_id=self.project_id))
 
-        self.xcom_push(context, key="id", value=result.id)
-        project_id = self.project_id or hook.project_id
-        if project_id:
-            CloudBuildLink.persist(
-                context=context,
-                task_instance=self,
-                project_id=project_id,
-                build_id=result.id,
+        if self.deferrable:
+            self.defer(
+                trigger=CloudBuildCreateBuildTrigger(
+                    id_=self.id_,
+                    project_id=self.project_id,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    delegate_to=self.delegate_to,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )
-        return Build.to_dict(result)
+        else:
+            cloud_build_instance_result = hook.wait_for_operation(
+                timeout=self.timeout, operation=self.cloud_build_operation
+            )
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudBuildLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                    build_id=cloud_build_instance_result.id,
+                )
+            return Build.to_dict(cloud_build_instance_result)
+
+    def execute_complete(self, context: Context, event: dict):
+        if event["status"] == "success":
+            hook = CloudBuildHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                delegate_to=self.delegate_to,
+            )
+            self.log.info("Cloud Build completed with response %s ", event["message"])
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudBuildLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                    build_id=event["id_"],
+                )
+            return event["instance"]
+        else:
+            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
 
 class CloudBuildCreateBuildTriggerOperator(BaseOperator):
