@@ -161,6 +161,10 @@ class TestPodGenerator:
 
     @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
     def test_gen_pod_extract_xcom(self, mock_rand_str):
+        """
+        Method gen_pod is used nowhere in codebase and is deprecated.
+        This test is only retained for backcompat.
+        """
         mock_rand_str.return_value = self.rand_str
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
 

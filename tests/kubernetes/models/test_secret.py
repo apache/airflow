@@ -111,7 +111,6 @@ class TestSecret:
                         "ports": [{"containerPort": 1234, "name": "foo"}],
                         "resources": {"limits": {"memory": "200Mi"}, "requests": {"memory": "100Mi"}},
                         "volumeMounts": [
-                            {"mountPath": "/airflow/xcom", "name": "xcom"},
                             {
                                 "mountPath": "/etc/foo",
                                 "name": "secretvol" + str(static_uuid),
@@ -119,19 +118,11 @@ class TestSecret:
                             },
                         ],
                     },
-                    {
-                        "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 30; done;'],
-                        "image": "alpine",
-                        "name": "airflow-xcom-sidecar",
-                        "resources": {"requests": {"cpu": "1m"}},
-                        "volumeMounts": [{"mountPath": "/airflow/xcom", "name": "xcom"}],
-                    },
                 ],
                 "hostNetwork": True,
                 "imagePullSecrets": [{"name": "pull_secret_a"}, {"name": "pull_secret_b"}],
                 "securityContext": {"fsGroup": 2000, "runAsUser": 1000},
                 "volumes": [
-                    {"emptyDir": {}, "name": "xcom"},
                     {"name": "secretvol" + str(static_uuid), "secret": {"secretName": "secret_b"}},
                 ],
             },
