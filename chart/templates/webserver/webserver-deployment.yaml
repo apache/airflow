@@ -132,7 +132,7 @@ spec:
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
 {{- end }}
-{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
 {{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
           args:
@@ -172,7 +172,7 @@ spec:
               readOnly: true
 {{- end }}
 {{- include "airflow_config_mount" . | nindent 12 }}
-{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
 {{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
 {{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
@@ -232,7 +232,7 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigmapName }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
         - name: webserver-config
           configMap:
             name: {{ template "airflow_webserver_config_configmap_name" . }}

@@ -18,7 +18,7 @@
 ################################
 ## Airflow ConfigMap
 #################################
-{{- if and .Values.webserver.webserverConfig (not .Values.webserver.webserverConfigConfigmapName) }}
+{{- if and .Values.webserver.webserverConfig (not .Values.webserver.webserverConfigConfigMapName) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
