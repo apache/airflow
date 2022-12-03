@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow import plugins_manager
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader
 from tests.test_utils.config import conf_vars
 
 # Plugin Manager creates new modules, which is difficult to mock, so we use test isolation by a unique name.
@@ -73,3 +73,33 @@ class TestExecutorLoader:
             executor = ExecutorLoader.get_default_executor()
             assert executor is not None
             assert "FakeExecutor" == executor.__class__.__name__
+
+    @pytest.mark.parametrize(
+        "executor_name",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "DebugExecutor",
+            "KubernetesExecutor",
+            "LocalExecutor",
+        ],
+    )
+    def test_should_support_import_executor_from_core(self, executor_name):
+        with conf_vars({("core", "executor"): executor_name}):
+            executor, import_source = ExecutorLoader.import_default_executor_cls()
+            assert executor_name == executor.__name__
+            assert import_source == ConnectorSource.CORE
+
+    @mock.patch("airflow.plugins_manager.plugins", [FakePlugin()])
+    @mock.patch("airflow.plugins_manager.executors_modules", None)
+    def test_should_support_import_plugins(self):
+        with conf_vars({("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"}):
+            executor, import_source = ExecutorLoader.import_default_executor_cls()
+            assert "FakeExecutor" == executor.__name__
+            assert import_source == ConnectorSource.PLUGIN
+
+    def test_should_support_import_custom_path(self):
+        with conf_vars({("core", "executor"): "tests.executors.test_executor_loader.FakeExecutor"}):
+            executor, import_source = ExecutorLoader.import_default_executor_cls()
+            assert "FakeExecutor" == executor.__name__
+            assert import_source == ConnectorSource.CUSTOM_PATH
