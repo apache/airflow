@@ -427,7 +427,7 @@ class DAG(LoggingMixin):
         if _args["tags"] and any(len(tag) > TAG_MAX_LEN for tag in _args["tags"]):
             raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
-        self.owner_links = _args["owner_links"] if _args["owner_links"] else {}
+        self.owner_links = _args["owner_links"] or {}
         self.user_defined_macros = _args["user_defined_macros"]
         self.user_defined_filters = _args["user_defined_filters"]
 
