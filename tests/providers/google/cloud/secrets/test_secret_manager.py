@@ -127,7 +127,7 @@ class TestCloudSecretManagerBackend(TestCase):
 
         secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=CONNECTIONS_PREFIX)
         secret_id = secrets_manager_backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)
-        with self.assertLogs(secrets_manager_backend.client.log, level="ERROR") as log_output:
+        with self.assertLogs(secrets_manager_backend.client.log, level="DEBUG") as log_output:
             assert secrets_manager_backend.get_conn_uri(conn_id=CONN_ID) is None
             assert secrets_manager_backend.get_connection(conn_id=CONN_ID) is None
             assert re.search(
@@ -202,7 +202,7 @@ class TestCloudSecretManagerBackend(TestCase):
 
         secrets_manager_backend = CloudSecretManagerBackend(variables_prefix=VARIABLES_PREFIX)
         secret_id = secrets_manager_backend.build_path(VARIABLES_PREFIX, VAR_KEY, SEP)
-        with self.assertLogs(secrets_manager_backend.client.log, level="ERROR") as log_output:
+        with self.assertLogs(secrets_manager_backend.client.log, level="DEBUG") as log_output:
             assert secrets_manager_backend.get_variable(VAR_KEY) is None
             assert re.search(
                 f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
