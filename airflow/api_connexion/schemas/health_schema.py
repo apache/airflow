@@ -30,9 +30,15 @@ class MetaDatabaseInfoSchema(BaseInfoSchema):
 
 
 class SchedulerInfoSchema(BaseInfoSchema):
-    """Schema for Metadatabase info."""
+    """Schema for Scheduler info."""
 
     latest_scheduler_heartbeat = fields.String(dump_only=True)
+
+
+class TriggererInfoSchema(BaseInfoSchema):
+    """Schema for Triggerer info."""
+
+    latest_triggerer_heartbeat = fields.String(dump_only=True)
 
 
 class HealthInfoSchema(Schema):
@@ -40,6 +46,7 @@ class HealthInfoSchema(Schema):
 
     metadatabase = fields.Nested(MetaDatabaseInfoSchema)
     scheduler = fields.Nested(SchedulerInfoSchema)
+    triggerer = fields.Nested(TriggererInfoSchema)
 
 
 health_schema = HealthInfoSchema()
