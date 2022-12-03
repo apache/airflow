@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Zendesk connection type (#27984)``
+
 4.1.0
 .....
 
