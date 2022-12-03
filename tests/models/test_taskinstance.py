@@ -1863,6 +1863,29 @@ class TestTaskInstance:
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
 
+    def test_mapped_current_state(self, dag_maker):
+        with dag_maker(dag_id="test_mapped_current_state") as _:
+            from airflow.decorators import task
+
+            @task()
+            def raise_an_exception(placeholder: int):
+                if placeholder == 0:
+                    raise AirflowFailException("failing task")
+                else:
+                    pass
+
+            _ = raise_an_exception.expand(placeholder=[0, 1])
+
+        tis = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
+        for task_instance in tis:
+            if task_instance.map_index == 0:
+                with pytest.raises(AirflowFailException):
+                    task_instance.run()
+                assert task_instance.current_state() == TaskInstanceState.FAILED
+            else:
+                task_instance.run()
+                assert task_instance.current_state() == TaskInstanceState.SUCCESS
+
     def test_outlet_datasets_skipped(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
