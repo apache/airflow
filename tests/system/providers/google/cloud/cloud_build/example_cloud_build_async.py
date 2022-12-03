@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
-from future.backports.urllib.parse import urlsplit
+from future.backports.urllib.parse import urlparse
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -53,14 +53,14 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-DAG_ID = "example_gcp_cloud_build"
+DAG_ID = "example_gcp_cloud_build_async"
 
 BUCKET_NAME_SRC = f"bucket-src-{DAG_ID}-{ENV_ID}"
 
 GCP_SOURCE_ARCHIVE_URL = f"gs://{BUCKET_NAME_SRC}/file.tar.gz"
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
-GCP_SOURCE_ARCHIVE_URL_PARTS = urlsplit(GCP_SOURCE_ARCHIVE_URL)
+GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
 GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc
 
 CURRENT_FOLDER = Path(__file__).parent
@@ -98,13 +98,14 @@ with models.DAG(
         bucket=BUCKET_NAME_SRC,
     )
 
-    # [START howto_operator_create_build_from_storage]
+    # [START howto_operator_create_build_from_storage_async]
     create_build_from_storage = CloudBuildCreateBuildOperator(
         task_id="create_build_from_storage",
         project_id=PROJECT_ID,
         build=create_build_from_storage_body,
+        deferrable=True,
     )
-    # [END howto_operator_create_build_from_storage]
+    # [END howto_operator_create_build_from_storage_async]
 
     # [START howto_operator_create_build_from_storage_result]
     create_build_from_storage_result = BashOperator(
@@ -113,13 +114,14 @@ with models.DAG(
     )
     # [END howto_operator_create_build_from_storage_result]
 
-    # [START howto_operator_create_build_from_repo]
+    # [START howto_operator_create_build_from_repo_async]
     create_build_from_repo = CloudBuildCreateBuildOperator(
         task_id="create_build_from_repo",
         project_id=PROJECT_ID,
         build=create_build_from_repo_body,
+        deferrable=True,
     )
-    # [END howto_operator_create_build_from_repo]
+    # [END howto_operator_create_build_from_repo_async]
 
     # [START howto_operator_create_build_from_repo_result]
     create_build_from_repo_result = BashOperator(
@@ -136,14 +138,15 @@ with models.DAG(
     )
     # [END howto_operator_list_builds]
 
-    # [START howto_operator_create_build_without_wait]
+    # [START howto_operator_create_build_without_wait_async]
     create_build_without_wait = CloudBuildCreateBuildOperator(
         task_id="create_build_without_wait",
         project_id=PROJECT_ID,
         build=create_build_from_repo_body,
         wait=False,
+        deferrable=True,
     )
-    # [END howto_operator_create_build_without_wait]
+    # [END howto_operator_create_build_without_wait_async]
 
     # [START howto_operator_cancel_build]
     cancel_build = CloudBuildCancelBuildOperator(
@@ -169,14 +172,15 @@ with models.DAG(
     )
     # [END howto_operator_get_build]
 
-    # [START howto_operator_gcp_create_build_from_yaml_body]
+    # [START howto_operator_gcp_create_build_from_yaml_body_async]
     create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file",
         project_id=PROJECT_ID,
         build=yaml.safe_load((Path(CURRENT_FOLDER) / "resources" / "example_cloud_build.yaml").read_text()),
         params={"name": "Airflow"},
+        deferrable=True,
     )
-    # [END howto_operator_gcp_create_build_from_yaml_body]
+    # [END howto_operator_gcp_create_build_from_yaml_body_async]
 
     delete_bucket_src = GCSDeleteBucketOperator(
         task_id="delete_bucket_src",

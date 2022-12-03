@@ -37,9 +37,11 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildRunBuildTriggerOperator,
     CloudBuildUpdateBuildTriggerOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+TRIGGER_NAME = f"cloud-build-trigger-{ENV_ID}"
 
 DAG_ID = "example_gcp_cloud_build_trigger"
 
@@ -47,7 +49,7 @@ GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
 # [START howto_operator_gcp_create_build_trigger_body]
 create_build_trigger_body = {
-    "name": f"test-cloud-build-trigger-{ENV_ID}",
+    "name": TRIGGER_NAME,
     "trigger_template": {
         "project_id": PROJECT_ID,
         "repo_name": GCP_SOURCE_REPOSITORY_NAME,
@@ -59,7 +61,7 @@ create_build_trigger_body = {
 
 # [START howto_operator_gcp_update_build_trigger_body]
 update_build_trigger_body = {
-    "name": f"test-cloud-build-trigger-{ENV_ID}",
+    "name": TRIGGER_NAME,
     "trigger_template": {
         "project_id": PROJECT_ID,
         "repo_name": GCP_SOURCE_REPOSITORY_NAME,
@@ -126,10 +128,14 @@ with models.DAG(
         trigger_id=build_trigger_id,
     )
     # [END howto_operator_delete_build_trigger]
+    delete_build_trigger.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_list_build_triggers]
     list_build_triggers = CloudBuildListBuildTriggersOperator(
-        task_id="list_build_triggers", project_id=PROJECT_ID, location="global", page_size=5
+        task_id="list_build_triggers",
+        project_id=PROJECT_ID,
+        location="global",
+        page_size=5,
     )
     # [END howto_operator_list_build_triggers]
 
