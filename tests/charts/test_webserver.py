@@ -763,7 +763,7 @@ class TestWebserverConfigmap:
             values={
                 "webserver": {
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
-                    "webserverConfigConfigmapName": "my-configmap",
+                    "webserverConfigConfigMapName": "my-configmap",
                 }
             },
             show_only=["templates/configmaps/webserver-configmap.yaml"],

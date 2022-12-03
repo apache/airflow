@@ -95,7 +95,7 @@ class TestAirflowCommon:
             values={
                 "webserver": {
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
-                    "webserverConfigConfigmapName": configmap_name,
+                    "webserverConfigConfigMapName": configmap_name,
                 },
                 "workers": {"kerberosSidecar": {"enabled": True}},
             },
