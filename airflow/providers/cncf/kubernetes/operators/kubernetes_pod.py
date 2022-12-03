@@ -186,6 +186,8 @@ class KubernetesPodOperator(BaseOperator):
         "pod_template_file",
         "namespace",
         "container_resources",
+        "volumes",
+        "volume_mounts",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -316,15 +318,28 @@ class KubernetesPodOperator(BaseOperator):
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:
-        if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
-            seen_oids.add(id(content))
-            self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
-            return
+        if id(content) not in seen_oids:
+            template_fields: tuple | None = None
 
-        if id(content) not in seen_oids and isinstance(content, k8s.V1ResourceRequirements):
-            seen_oids.add(id(content))
-            self._do_render_template_fields(content, ("limits", "requests"), context, jinja_env, seen_oids)
-            return
+            if isinstance(content, k8s.V1EnvVar):
+                template_fields = ("value", "name")
+
+            if isinstance(content, k8s.V1ResourceRequirements):
+                template_fields = ("limits", "requests")
+
+            if isinstance(content, k8s.V1Volume):
+                template_fields = ("name", "persistent_volume_claim")
+
+            if isinstance(content, k8s.V1VolumeMount):
+                template_fields = ("name",)
+
+            if isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
+                template_fields = ("claim_name",)
+
+            if template_fields:
+                seen_oids.add(id(content))
+                self._do_render_template_fields(content, template_fields, context, jinja_env, seen_oids)
+                return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
