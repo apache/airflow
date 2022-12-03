@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-02T16:28:10Z
+# This constraints file was automatically generated on 2022-12-03T14:19:27Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-5-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -103,9 +103,9 @@ billiard==3.6.4.0
 black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.21
+boto3==1.26.22
 boto==2.49.0
-botocore==1.29.21
+botocore==1.29.22
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -139,7 +139,7 @@ cron-descriptor==1.2.32
 croniter==1.3.8
 cryptography==36.0.2
 curlify==2.2.1
-dask==2022.11.1
+dask==2022.12.0
 databricks-sql-connector==2.2.0
 datadog==0.44.0
 db-dtypes==1.0.4
@@ -147,7 +147,7 @@ decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
 distlib==0.3.6
-distributed==2022.11.1
+distributed==2022.12.0
 dnspython==2.2.1
 docker==6.0.1
 docopt==0.6.2
@@ -313,7 +313,7 @@ msgpack==1.0.4
 msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
-multidict==6.0.2
+multidict==6.0.3
 mypy-boto3-appflow==1.26.15
 mypy-boto3-rds==1.26.17
 mypy-boto3-redshift-data==1.26.0.post1
@@ -551,7 +551,7 @@ wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.28.0
 yandexcloud==0.191.0
-yarl==1.8.1
+yarl==1.8.2
 zeep==4.2.1
 zenpy==2.0.25
 zict==2.2.0

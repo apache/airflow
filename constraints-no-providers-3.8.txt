@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-02T16:32:07Z
+# This constraints file was automatically generated on 2022-12-03T14:25:20Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-5-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -70,11 +70,11 @@ connexion==2.14.1
 cron-descriptor==1.2.32
 croniter==1.3.8
 cryptography==36.0.2
-dask==2022.11.1
+dask==2022.12.0
 decorator==5.1.1
 dill==0.3.2
 distlib==0.3.6
-distributed==2022.11.1
+distributed==2022.12.0
 dnspython==2.2.1
 docutils==0.19
 email-validator==1.3.0
@@ -118,7 +118,7 @@ marshmallow==3.19.0
 mdit-py-plugins==0.3.1
 mdurl==0.1.2
 msgpack==1.0.4
-multidict==6.0.2
+multidict==6.0.3
 numpy==1.23.5
 oauthlib==3.2.2
 packaging==21.3
@@ -172,7 +172,7 @@ text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
 toolz==0.12.0
-tornado==6.1
+tornado==6.2
 typing_extensions==4.4.0
 uc-micro-py==1.0.1
 unicodecsv==0.14.1
@@ -182,7 +182,7 @@ virtualenv==20.17.0
 wcwidth==0.2.5
 websocket-client==1.4.2
 wrapt==1.14.1
-yarl==1.8.1
+yarl==1.8.2
 zict==2.2.0
 zipp==3.11.0
 zope.event==4.5.0
