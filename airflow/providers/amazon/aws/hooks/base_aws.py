@@ -420,6 +420,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         try:
             manager = ProvidersManager()
             hook = manager.hooks[cls.conn_type]
+            if not hook:
+                # This gets caught immediately, but without it MyPy complains
+                # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
+                # on the following line and static checks fail.
+                raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
             provider = manager.providers[hook.package_name]
             return provider.version
         except Exception:
@@ -466,7 +471,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         extracted from the resulting UUID.
         """
         try:
-            dag_id = os.getenv("AIRFLOW_CTX_DAG_ID")
+            dag_id = os.environ["AIRFLOW_CTX_DAG_ID"]
             return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
         except Exception:
             # Under no condition should an error here ever cause an issue for the user.
@@ -479,6 +484,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             # This can be a circular import under specific configurations.
             # Importing locally to either avoid or catch it if it does happen.
             from airflow import __version__ as airflow_version
+
             return airflow_version
         except Exception:
             # Under no condition should an error here ever cause an issue for the user.
