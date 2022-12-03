@@ -67,7 +67,7 @@ class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
     _instance = None
-    resource_version: dict[str | None, str | None] = {}
+    resource_version: dict[str | None, str] = {}
 
     def __new__(cls):
         if cls._instance is None:
@@ -639,7 +639,7 @@ class KubernetesExecutor(BaseExecutor):
             self.log.debug("self.queued: %s", self.queued_tasks)
         self.kube_scheduler.sync()
 
-        last_resource_version = defaultdict(lambda: "0")
+        last_resource_version: dict[str | None, str] = defaultdict(lambda: "0")
         while True:
             try:
                 results = self.result_queue.get_nowait()
@@ -663,9 +663,9 @@ class KubernetesExecutor(BaseExecutor):
                 break
 
         resource_instance = ResourceVersion()
-        for namespace in resource_instance.resource_version.keys():
-            resource_instance.resource_version[namespace] = (
-                last_resource_version[namespace] or resource_instance.resource_version[namespace]
+        for ns in resource_instance.resource_version.keys():
+            resource_instance.resource_version[ns] = (
+                last_resource_version[ns] or resource_instance.resource_version[ns]
             )
 
         for _ in range(self.kube_config.worker_pods_creation_batch_size):
