@@ -97,6 +97,8 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
     :param **_: other keyword arguments that is not being used by this function
     :return: None
     """
+    from sqlalchemy.exc import OperationalError, ProgrammingError
+
     from airflow.models.log import Log
     from airflow.utils import timezone
     from airflow.utils.session import create_session
@@ -121,8 +123,18 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
                     }
                 ],
             )
-    except Exception as error:
-        logging.warning("Failed to log action with %s", error)
+    except (OperationalError, ProgrammingError) as e:
+        expected = [
+            '"log" does not exist',  # postgres
+            "no such table",  # sqlite
+            "log' doesn't exist",  # mysql
+            "Invalid object name 'log'",  # mssql
+        ]
+        error_is_ok = e.args and any(x in e.args[0] for x in expected)
+        if not error_is_ok:
+            logging.warning("Failed to log action %s", e)
+    except Exception as e:
+        logging.warning("Failed to log action %s", e)
 
 
 __pre_exec_callbacks: list[Callable] = []
