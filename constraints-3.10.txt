@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-03T18:05:27Z
+# This constraints file was automatically generated on 2022-12-04T20:04:10Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -533,7 +533,7 @@ snowflake-connector-python==2.8.3
 snowflake-sqlalchemy==1.4.4
 sortedcontainers==2.4.0
 soupsieve==2.3.2.post1
-sphinx-airflow-theme==0.0.10
+sphinx-airflow-theme==0.0.11
 sphinx-argparse==0.4.0
 sphinx-autoapi==2.0.0
 sphinx-copybutton==0.5.1
