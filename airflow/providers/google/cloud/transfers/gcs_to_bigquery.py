@@ -27,7 +27,11 @@ from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, Q
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
+from airflow.providers.google.cloud.hooks.bigquery import (
+    BigQueryHook,
+    BigQueryJob,
+    _cleanse_time_partitioning,
+)
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
@@ -390,8 +394,28 @@ class GCSToBigQueryOperator(BaseOperator):
                     "ignoreUnknownValues": self.ignore_unknown_values,
                     "allowQuotedNewlines": self.allow_quoted_newlines,
                     "encoding": self.encoding,
+                    "allowJaggedRows": self.allow_jagged_rows,
+                    "fieldDelimiter": self.field_delimiter,
+                    "maxBadRecords": self.max_bad_records,
+                    "quote": self.quote_character,
+                    "schemaUpdateOptions": self.schema_update_options,
                 },
             }
+            if self.cluster_fields:
+                self.configuration["load"].update({"clustering": {"fields": self.cluster_fields}})
+            time_partitioning = _cleanse_time_partitioning(
+                self.destination_project_dataset_table, self.time_partitioning
+            )
+            if time_partitioning:
+                self.configuration["load"].update({"timePartitioning": time_partitioning})
+            # fields that should only be set if defined
+            set_if_def = {
+                "quote": self.quote_character,
+                "destinationEncryptionConfiguration": self.encryption_configuration,
+            }
+            for k, v in set_if_def.items():
+                if v:
+                    self.configuration["load"][k] = v
             self.configuration = self._check_schema_fields(self.configuration)
             try:
                 self.log.info("Executing: %s", self.configuration)
