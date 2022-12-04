@@ -636,9 +636,10 @@ class TestBackfillJob:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=2),
         )
-        job.run()
-        error_log_records = [record for record in caplog.records if record.levelname == "ERROR"]
-        assert "Backfill cannot be created for DagRun" in error_log_records[0].msg
+        with caplog.at_level(logging.ERROR, logger="airflow.jobs.backfill_job.BackfillJob"):
+            caplog.clear()
+            job.run()
+            assert "Backfill cannot be created for DagRun" in caplog.messages[0]
 
         ti = TI(
             task=dag.get_task("test_backfill_skip_active_scheduled_dagrun-1"), execution_date=DEFAULT_DATE
