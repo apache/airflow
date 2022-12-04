@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import time
 import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, call, patch
