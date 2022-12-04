@@ -187,3 +187,4 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 3.  Merge your Apache and GitHub accounts using `GitBox (Apache Account Linking utility) <https://gitbox.apache.org/setup/>`__. You should see 3 green checks in GitBox.
 4.  Wait at least 30  minutes for an email inviting you to Apache GitHub Organization and accept invitation.
 5.  After accepting the GitHub Invitation verify that you are a member of the `Airflow committers team on GitHub <https://github.com/orgs/apache/teams/airflow-committers>`__.
+6.  Ask in ``#internal-airflow-ci-cd`` channel to be `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_ by the CI maintainers
