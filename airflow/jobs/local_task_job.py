@@ -34,6 +34,36 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
+SIGSEGV_MESSAGE = """
+******************************************* Received SIGSEGV *******************************************
+SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which refers to
+an attempt by a program/library to write or read outside its allocated memory.
+
+In Python environment usually this signal refers to libraries which use low level C API.
+Make sure that you use use right libraries/Docker Images
+for your architecture (Intel/ARM) and/or Operational System (Linux/macOS).
+
+Suggested way to debug
+======================
+  - Set environment variable 'PYTHONFAULTHANDLER' to 'true'.
+  - Start airflow services.
+  - Restart failed airflow task.
+  - Check 'scheduler' and 'worker' services logs for additional traceback
+    which might contain information about module/library where actual error happen.
+
+Known Issues
+============
+
+Note: Only Linux-based distros supported as "Production" execution environment for Airflow.
+
+macOS
+-----
+ 1. Due to limitations in Apple's libraries not every process might 'fork' safe.
+    One of the general error is unable to query the macOS system configuration for network proxies.
+    If your are not using a proxy you could disable it by set environment variable 'no_proxy' to '*'.
+    See: https://github.com/python/cpython/issues/58037 and https://bugs.python.org/issue30385#msg293958
+********************************************************************************************************"""
+
 
 class LocalTaskJob(BaseJob):
     """LocalTaskJob runs a single task instance."""
@@ -83,6 +113,14 @@ class LocalTaskJob(BaseJob):
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
 
+        def segfault_signal_handler(signum, frame):
+            """Setting sigmentation violation signal handler"""
+            self.log.critical(SIGSEGV_MESSAGE)
+            self.task_runner.terminate()
+            self.handle_task_exit(128 + signum)
+            raise AirflowException("Segmentation Fault detected.")
+
+        signal.signal(signal.SIGSEGV, segfault_signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
