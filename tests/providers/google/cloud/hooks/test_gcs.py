@@ -32,6 +32,7 @@ import pytest
 
 # dynamic storage type in google.cloud needs to be type-ignored
 from google.cloud import exceptions, storage  # type: ignore[attr-defined]
+from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
@@ -156,7 +157,7 @@ class TestGCSHook(unittest.TestCase):
         assert response
         bucket_mock.assert_called_once_with(test_bucket)
         blob_object.assert_called_once_with(blob_name=test_object)
-        exists_method.assert_called_once_with()
+        exists_method.assert_called_once_with(retry=DEFAULT_RETRY)
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_exists_nonexisting_object(self, mock_service):
