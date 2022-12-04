@@ -680,7 +680,7 @@ def perform_environment_checks():
     check_docker_is_running()
     check_docker_version()
     check_docker_compose_version()
-    # check_docker_context()
+    check_docker_context()
 
 
 def get_docker_syntax_version() -> str:
