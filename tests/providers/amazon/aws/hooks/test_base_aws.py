@@ -27,6 +27,7 @@ import boto3
 import pytest
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from botocore.exceptions import NoCredentialsError
 from moto import mock_dynamodb, mock_emr, mock_iam, mock_sts
 from moto.core import DEFAULT_ACCOUNT_ID
 
@@ -871,3 +872,19 @@ class TestRetryDecorator:  # ptlint: disable=invalid-name
         custom_fn = ThrowErrorUntilCount(count=2, quota_retry=None)
         with pytest.raises(Exception):
             _retryable_test(custom_fn)
+
+
+def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypatch):
+    """Test raise an error if no credentials provided and default boto3 strategy unable to get creds."""
+    for env_key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN"):
+        # Delete aws credentials environment variables
+        monkeypatch.delenv(env_key, raising=False)
+
+    hook = AwsBaseHook(aws_conn_id=None, client_type="sts")
+    with pytest.raises(NoCredentialsError):
+        # Call AWS STS API method GetCallerIdentity
+        # which should return result in case of valid credentials
+        result = hook.conn.get_caller_identity()
+        # In normal circumstances lines below should not execute.
+        # We want to show additional information why this test not passed
+        assert not result, f"Credentials Method: {hook.get_session().get_credentials().method}"
