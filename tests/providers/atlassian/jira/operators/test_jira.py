@@ -72,7 +72,7 @@ class TestJiraOperator:
 
     @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_update_issue(self, jira_mock):
-        jira_mock.return_value.issue_add_comment.return_value = True
+        jira_mock.return_value.issue_add_comment.return_value = minimal_test_ticket
 
         add_comment_operator = JiraOperator(
             task_id="add_comment_test",

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from requests import HTTPError
@@ -81,7 +80,7 @@ class JiraOperator(BaseOperator):
 
             jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
 
-            output = json.loads(jira_result["id"]) if "id" in jira_result else None
+            output = jira_result.get("id", None) if jira_result is not None else None
             self.xcom_push(context, key="id", value=output)
 
             if self.result_processor:
