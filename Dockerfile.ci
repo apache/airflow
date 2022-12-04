@@ -802,6 +802,7 @@ fi
 set -u
 
 export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -816,6 +817,8 @@ EXTRA_PYTEST_ARGS=(
     "--setup-timeout=${TEST_TIMEOUT}"
     "--execution-timeout=${TEST_TIMEOUT}"
     "--teardown-timeout=${TEST_TIMEOUT}"
+    "--output=${WARNINGS_FILE}"
+    "--disable-warnings"
     # Only display summary for non-expected case
     # f - failed
     # E - error

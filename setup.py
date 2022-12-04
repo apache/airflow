@@ -391,6 +391,7 @@ devel_only = [
     # TODO: upgrade it and remove the limit
     "pytest~=6.0",
     "pytest-asyncio",
+    "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
     # We should attempt to remove the limit when we upgrade Pytest
