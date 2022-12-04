@@ -51,6 +51,9 @@ Follow the guidelines when writing unit tests:
 * For new tests, use standard "asserts" of Python and ``pytest`` decorators/context managers for testing
   rather than ``unittest`` ones. See `pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
 * Use a parameterized framework for tests that have variations in parameters.
+* Use with ``pytest.warn`` to capture warnings rather than ``recwarn`` fixture. We are aiming for 0-warning in our
+  tests, so we run Pytest with ``--disable-warnings`` but instead we have ``pytest-capture-warnings`` plugin that
+  overrides ``recwarn`` fixture behaviour.
 
 **NOTE:** We plan to convert all unit tests to standard "asserts" semi-automatically, but this will be done later
 in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators.
