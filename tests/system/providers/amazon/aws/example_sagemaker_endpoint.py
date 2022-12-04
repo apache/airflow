@@ -90,13 +90,14 @@ def delete_endpoint(endpoint_name):
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_logs(env_id, endpoint_name):
-    generated_logs = [
-        # Format: ('log group name', 'log stream prefix')
-        ("/aws/sagemaker/TrainingJobs", env_id),
-        (f"/aws/sagemaker/Endpoints/{endpoint_name}", env_id),
-    ]
+    purge_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            ("/aws/sagemaker/TrainingJobs", env_id),
+        ]
+    )
 
-    purge_logs(generated_logs)
+    purge_logs(test_logs=[(f"/aws/sagemaker/Endpoints/{endpoint_name}", None)], force_delete=True)
 
 
 @task
