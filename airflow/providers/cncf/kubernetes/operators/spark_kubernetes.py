@@ -232,28 +232,13 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.log.info("xcom result: \n%s", result)
         return json.loads(result)
 
-    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
-        pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
-        if not self.delete_on_termination:
-            with _suppress(Exception):
-                self.patch_already_checked(pod)
-        if pod_phase != PodPhase.SUCCEEDED:
-            if self.log_events_on_failure:
-                with _suppress(Exception):
-                    for event in self.pod_manager.read_pod_events(pod).items:
-                        self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            with _suppress(Exception):
-                self.process_spark_job_deletion(pod)
-        else:
-            with _suppress(Exception):
-                self.process_spark_job_deletion(pod)
-
-    def process_spark_job_deletion(self, pod):
-        if self.delete_on_termination:
-            self.log.info("Deleting spark job: %s", pod.metadata)
-            self.launcher.delete_spark_job(pod.metadata.name.replace('-driver', ''))
-        else:
-            self.log.info("skipping deleting spark job: %s", pod.metadata.name)
+    def process_pod_deletion(self, pod):
+        if pod is not None:
+            if self.delete_on_termination:
+                self.log.info("Deleting spark job: %s", pod.metadata.name.replace('-driver', ''))
+                self.launcher.delete_spark_job(pod.metadata.name.replace('-driver', ''))
+            else:
+                self.log.info("skipping deleting spark job: %s", pod.metadata.name)
 
     @cached_property
     def hook(self) -> KubernetesHook:
