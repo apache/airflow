@@ -52,14 +52,14 @@ class TestSecretsManagerBackend:
         assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
 
     @pytest.mark.parametrize(
-        "full_url_mode, login, host",
+        "are_secret_values_urlencoded, login, host",
         [
-            (False, "is url encoded", "not%20idempotent"),
-            (True, "is%20url%20encoded", "not%2520idempotent"),
+            (True, "is url encoded", "not%20idempotent"),
+            (False, "is%20url%20encoded", "not%2520idempotent"),
         ],
     )
     @mock_secretsmanager
-    def test_get_connection_broken_field_mode_url_encoding(self, full_url_mode, login, host):
+    def test_get_connection_broken_field_mode_url_encoding(self, are_secret_values_urlencoded, login, host):
         secret_id = "airflow/connections/test_postgres"
         create_param = {
             "Name": secret_id,
@@ -78,16 +78,13 @@ class TestSecretsManagerBackend:
             ),
         }
 
-        secrets_manager_backend = SecretsManagerBackend(full_url_mode=full_url_mode)
+        secrets_manager_backend = SecretsManagerBackend(
+            are_secret_values_urlencoded=are_secret_values_urlencoded
+        )
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        if full_url_mode:
-            conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
-        else:
-            warning_match = r"When full_url_mode=False, URL-encoding secret values is deprecated\..+"
-            with pytest.warns(DeprecationWarning, match=warning_match):
-                conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
+        conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
 
         assert conn.login == login
         assert conn.password == "not url encoded"
@@ -139,13 +136,9 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        warning_match = (
-            r"In future versions, `SecretsManagerBackend\.get_conn_value` will return a JSON string when "
-            r"full_url_mode is False, not a URI\."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_match):
-            returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
+        conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
+        returned_uri = conn.get_uri()
+        assert "postgres://airflow:airflow@host:5432/airflow" == returned_uri
 
     @mock_secretsmanager
     def test_get_conn_value_broken_field_mode_extra_words_added(self):
@@ -166,23 +159,9 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        warning_match = (
-            r"In future versions, `SecretsManagerBackend\.get_conn_value` will return a JSON string when "
-            r"full_url_mode is False, not a URI\."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_match):
-            returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
-
-    @mock_secretsmanager
-    def test_format_uri_with_extra(self):
-        secret = {"extra": '{"key1": "value1", "key2": "value2"}'}
-        conn_string = "CS"
-        secrets_manager_backend = SecretsManagerBackend()
-
-        conn_string_with_extra = secrets_manager_backend._format_uri_with_extra(secret, conn_string)
-
-        assert conn_string_with_extra == "CS?key1=value1&key2=value2"
+        conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
+        returned_uri = conn.get_uri()
+        assert "postgres://airflow:airflow@host:5432/airflow" == returned_uri
 
     @mock_secretsmanager
     def test_get_conn_value_non_existent_key(self):
