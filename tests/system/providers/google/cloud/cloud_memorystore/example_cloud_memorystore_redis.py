@@ -48,15 +48,16 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID_LOWER = ENV_ID.lower() if ENV_ID else ""
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "cloud_memorystore_redis"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 LOCATION = "europe-north1"
-MEMORYSTORE_REDIS_INSTANCE_NAME = f"redis-{ENV_ID.lower()}-1"
-MEMORYSTORE_REDIS_INSTANCE_NAME_2 = f"redis-{ENV_ID.lower()}-2"
-MEMORYSTORE_REDIS_INSTANCE_NAME_3 = f"redis-{ENV_ID.lower()}-3"
+MEMORYSTORE_REDIS_INSTANCE_NAME = f"redis-{ENV_ID_LOWER}-1"
+MEMORYSTORE_REDIS_INSTANCE_NAME_2 = f"redis-{ENV_ID_LOWER}-2"
+MEMORYSTORE_REDIS_INSTANCE_NAME_3 = f"redis-{ENV_ID_LOWER}-3"
 
 EXPORT_GCS_URL = f"gs://{BUCKET_NAME}/my-export.rdb"
 
