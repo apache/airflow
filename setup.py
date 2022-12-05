@@ -49,7 +49,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = "2.5.0.dev0"
+version = "2.6.0.dev0"
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -391,6 +391,7 @@ devel_only = [
     # TODO: upgrade it and remove the limit
     "pytest~=6.0",
     "pytest-asyncio",
+    "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
     # We should attempt to remove the limit when we upgrade Pytest

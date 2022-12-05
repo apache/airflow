@@ -47,6 +47,10 @@ To check the health status of your Airflow instance, you can simply access the e
     "scheduler":{
       "status":"healthy",
       "latest_scheduler_heartbeat":"2018-12-26 17:15:11+00:00"
+    },
+    "triggerer":{
+      "status":"healthy",
+      "latest_triggerer_heartbeat":"2018-12-26 17:16:12+00:00"
     }
   }
 
@@ -62,6 +66,10 @@ To check the health status of your Airflow instance, you can simply access the e
       ``[scheduler]`` section in ``airflow.cfg``
     * If you run more than one scheduler, only the state of one scheduler will be reported, i.e. only one working scheduler is enough
       for the scheduler state to be considered healthy
+
+  * The status of the ``triggerer`` behaves exactly like that of the ``scheduler`` as described above.
+    Note that the ``status`` and ``latest_triggerer_heartbeat`` fields in the health check response will be null for
+    deployments that do not include a ``triggerer`` component.
 
 Please keep in mind that the HTTP response code of ``/health`` endpoint **should not** be used to determine the health
 status of the application. The return code is only indicative of the state of the rest call (200 for success).

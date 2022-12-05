@@ -22,6 +22,7 @@ import unittest
 from unittest import mock
 
 import boto3
+import pytest
 from moto import mock_s3
 
 from airflow import AirflowException
@@ -95,8 +96,8 @@ class TestS3CopyObjectOperator(unittest.TestCase):
         assert objects_in_dest_bucket["Contents"][0]["Key"] == self.dest_key
 
 
-class TestS3DeleteObjectsOperator(unittest.TestCase):
-    @mock_s3
+@mock_s3
+class TestS3DeleteObjectsOperator:
     def test_s3_delete_single_object(self):
         bucket = "testbucket"
         key = "path/data.txt"
@@ -116,7 +117,6 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # There should be no object found in the bucket created earlier
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key)
 
-    @mock_s3
     def test_s3_delete_multiple_objects(self):
         bucket = "testbucket"
         key_pattern = "path/data"
@@ -139,7 +139,6 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # There should be no object found in the bucket created earlier
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key_pattern)
 
-    @mock_s3
     def test_s3_delete_prefix(self):
         bucket = "testbucket"
         key_pattern = "path/data"
@@ -162,7 +161,6 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # There should be no object found in the bucket created earlier
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key_pattern)
 
-    @mock_s3
     def test_s3_delete_empty_list(self):
         bucket = "testbucket"
         key_of_test = "path/data.txt"
@@ -185,7 +183,6 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # the object found should be consistent with dest_key specified earlier
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
-    @mock_s3
     def test_s3_delete_empty_string(self):
         bucket = "testbucket"
         key_of_test = "path/data.txt"
@@ -208,36 +205,32 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # the object found should be consistent with dest_key specified earlier
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
-    @mock_s3
-    def test_assert_s3_both_keys_and_prifix_given(self):
-        bucket = "testbucket"
-        keys = "path/data.txt"
-        key_pattern = "path/data"
-
-        conn = boto3.client("s3")
-        conn.create_bucket(Bucket=bucket)
-        conn.upload_fileobj(Bucket=bucket, Key=keys, Fileobj=io.BytesIO(b"input"))
-
-        # The object should be detected before the DELETE action is tested
-        objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=keys)
-        assert len(objects_in_dest_bucket["Contents"]) == 1
-        assert objects_in_dest_bucket["Contents"][0]["Key"] == keys
-        with self.assertRaises(AirflowException):
-            op = S3DeleteObjectsOperator(
-                task_id="test_assert_s3_both_keys_and_prifix_given",
-                bucket=bucket,
+    @pytest.mark.parametrize(
+        "keys, prefix",
+        [
+            pytest.param("path/data.txt", "path/data", id="single-key-and-prefix"),
+            pytest.param(["path/data.txt"], "path/data", id="multiple-keys-and-prefix"),
+            pytest.param(None, None, id="both-none"),
+        ],
+    )
+    def test_validate_keys_and_prefix_in_constructor(self, keys, prefix):
+        with pytest.raises(AirflowException, match=r"Either keys or prefix should be set\."):
+            S3DeleteObjectsOperator(
+                task_id="test_validate_keys_and_prefix_in_constructor",
+                bucket="foo-bar-bucket",
                 keys=keys,
-                prefix=key_pattern,
+                prefix=prefix,
             )
-            op.execute(None)
 
-        # The object found in the bucket created earlier should still be there
-        assert len(objects_in_dest_bucket["Contents"]) == 1
-        # the object found should be consistent with dest_key specified earlier
-        assert objects_in_dest_bucket["Contents"][0]["Key"] == keys
-
-    @mock_s3
-    def test_assert_s3_no_keys_or_prifix_given(self):
+    @pytest.mark.parametrize(
+        "keys, prefix",
+        [
+            pytest.param("path/data.txt", "path/data", id="single-key-and-prefix"),
+            pytest.param(["path/data.txt"], "path/data", id="multiple-keys-and-prefix"),
+            pytest.param(None, None, id="both-none"),
+        ],
+    )
+    def test_validate_keys_and_prefix_in_execute(self, keys, prefix):
         bucket = "testbucket"
         key_of_test = "path/data.txt"
 
@@ -245,13 +238,24 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         conn.create_bucket(Bucket=bucket)
         conn.upload_fileobj(Bucket=bucket, Key=key_of_test, Fileobj=io.BytesIO(b"input"))
 
+        # Set valid values for constructor, and change them later for emulate rendering template
+        op = S3DeleteObjectsOperator(
+            task_id="test_validate_keys_and_prefix_in_execute",
+            bucket=bucket,
+            keys="keys-exists",
+            prefix=None,
+        )
+        op.keys = keys
+        op.prefix = prefix
+
         # The object should be detected before the DELETE action is tested
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_of_test)
         assert len(objects_in_dest_bucket["Contents"]) == 1
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
-        with self.assertRaises(AirflowException):
-            op = S3DeleteObjectsOperator(task_id="test_assert_s3_no_keys_or_prifix_given", bucket=bucket)
+
+        with pytest.raises(AirflowException, match=r"Either keys or prefix should be set\."):
             op.execute(None)
+
         # The object found in the bucket created earlier should still be there
         assert len(objects_in_dest_bucket["Contents"]) == 1
         # the object found should be consistent with dest_key specified earlier

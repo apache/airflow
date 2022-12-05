@@ -30,7 +30,6 @@ derived from the moto test suite for testing the Batch client.
 from __future__ import annotations
 
 import inspect
-import unittest
 from typing import NamedTuple
 from unittest import mock
 
@@ -317,12 +316,12 @@ def test_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_definiti
     assert job_status == "SUCCEEDED"
 
 
-class TestBatchWaiters(unittest.TestCase):
+class TestBatchWaiters:
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def setUp(self, get_client_type_mock):
+    def setup_method(self, method, get_client_type_mock):
         self.job_id = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
         self.region_name = AWS_REGION
 
