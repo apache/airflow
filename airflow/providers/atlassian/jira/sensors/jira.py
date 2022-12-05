@@ -109,26 +109,23 @@ class JiraTicketSensor(JiraSensor):
     def issue_field_checker(self, jira_result: dict) -> bool | None:
         """Check issue using different conditions to prepare to evaluate sensor."""
         result = None
-        try:
-            if jira_result is not None and self.field is not None and self.expected_value is not None:
+        if jira_result is not None and self.field is not None and self.expected_value is not None:
 
-                field_val = jira_result.get("fields", {}).get(self.field, None)
-                if field_val is not None:
-                    if isinstance(field_val, list):
-                        result = self.expected_value in field_val
-                    elif isinstance(field_val, str):
-                        result = self.expected_value.lower() == field_val.lower()
-                    elif isinstance(field_val, dict) and field_val.get("name", None):
-                        result = self.expected_value.lower() == field_val.get("name", "").lower()
-                    else:
-                        self.log.warning(
-                            "Not implemented checker for issue field %s which "
-                            "is neither string nor list nor Jira Resource",
-                            self.field,
-                        )
+            field_val = jira_result.get("fields", {}).get(self.field, None)
+            if field_val is not None:
+                if isinstance(field_val, list):
+                    result = self.expected_value in field_val
+                elif isinstance(field_val, str):
+                    result = self.expected_value.lower() == field_val.lower()
+                elif isinstance(field_val, dict) and field_val.get("name", None):
+                    result = self.expected_value.lower() == field_val.get("name", "").lower()
+                else:
+                    self.log.warning(
+                        "Not implemented checker for issue field %s which "
+                        "is neither string nor list nor Jira Resource",
+                        self.field,
+                    )
 
-        except HTTPError as e:
-            self.log.error("Jira error while checking with expected value, error: %s", e.response)
         if result is True:
             self.log.info(
                 "Issue field %s has expected value %s, returning success", self.field, self.expected_value

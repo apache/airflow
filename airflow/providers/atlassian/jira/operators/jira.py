@@ -62,30 +62,27 @@ class JiraOperator(BaseOperator):
         self.get_jira_resource_method = get_jira_resource_method
 
     def execute(self, context: Context) -> Any:
-        try:
-            if self.get_jira_resource_method is not None:
-                # if get_jira_resource_method is provided, jira_method will be executed on
-                # resource returned by executing the get_jira_resource_method.
-                # This makes all the provided methods of atlassian-python-api JIRA sdk accessible and usable
-                # directly at the JiraOperator without additional wrappers.
-                # ref: https://atlassian-python-api.readthedocs.io/jira.html
-                if isinstance(self.get_jira_resource_method, JiraOperator):
-                    resource = self.get_jira_resource_method.execute(**context)
-                else:
-                    resource = self.get_jira_resource_method(**context)
+        if self.get_jira_resource_method is not None:
+            # if get_jira_resource_method is provided, jira_method will be executed on
+            # resource returned by executing the get_jira_resource_method.
+            # This makes all the provided methods of atlassian-python-api JIRA sdk accessible and usable
+            # directly at the JiraOperator without additional wrappers.
+            # ref: https://atlassian-python-api.readthedocs.io/jira.html
+            if isinstance(self.get_jira_resource_method, JiraOperator):
+                resource = self.get_jira_resource_method.execute(**context)
             else:
-                # Default method execution is on the top level jira client resource
-                hook = JiraHook(jira_conn_id=self.jira_conn_id)
-                resource = hook.client
+                resource = self.get_jira_resource_method(**context)
+        else:
+            # Default method execution is on the top level jira client resource
+            hook = JiraHook(jira_conn_id=self.jira_conn_id)
+            resource = hook.client
 
-            jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
+        jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
 
-            output = jira_result.get("id", None) if jira_result is not None else None
-            self.xcom_push(context, key="id", value=output)
+        output = jira_result.get("id", None) if jira_result is not None else None
+        self.xcom_push(context, key="id", value=output)
 
-            if self.result_processor:
-                return self.result_processor(context, jira_result)
+        if self.result_processor:
+            return self.result_processor(context, jira_result)
 
-            return jira_result
-        except HTTPError as e:
-            raise AirflowException(f"Failed to execute jiraOperator, error: {str(e.response)}")
+        return jira_result
