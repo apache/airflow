@@ -359,14 +359,13 @@ class TestExternalTaskSensor:
         op = ExternalTaskSensor(
             task_id="test_external_dag_sensor_check",
             external_dag_id="other_dag",
-            external_task_ids=None,
             dag=self.dag,
         )
         with self.assertLogs(op.log, level=logging.INFO) as cm:
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                f"INFO:airflow.task.operators:Poking for tasks None "
-                f"in dag other_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+                f"INFO:airflow.task.operators:Poking for "
+                f"dag 'other_dag' on {DEFAULT_DATE.isoformat()} ... " in cm.output
             )
 
     def test_external_dag_sensor_soft_fail_as_skipped(self):
