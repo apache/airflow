@@ -27,6 +27,14 @@ Airflow 2.5.0 (2022-12-02)
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
+``allowed_deserialization_classes`` restrict what classed might be used in XCom
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+  In order to improve security of Airflow, only allowed classes can be used to pass data via
+  XCom. The administrators of Airflow should add all such classes to the allowed list of classes
+  in ``allowed_deserialization_classes`` in ``core`` section of Airflow configuration.
+
+
 ``airflow dags test`` no longer performs a backfill job (#26400)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 

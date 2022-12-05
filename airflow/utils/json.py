@@ -212,7 +212,11 @@ class XComDecoder(json.JSONDecoder):
                     break
 
             if not cls:
-                raise ImportError(f"{classname} was not found in allow list for import")
+                raise ImportError(
+                    f"{classname} was not found in allow list for import in XCom. "
+                    "If you want to continue to use your class in XCom, add it to "
+                    "allowed_deserialization_classes config in core section of config."
+                )
 
             if hasattr(cls, "deserialize"):
                 return getattr(cls, "deserialize")(dct[DATA], dct[VERSION])
