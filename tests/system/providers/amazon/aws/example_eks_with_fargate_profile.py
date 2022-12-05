@@ -138,6 +138,7 @@ with DAG(
         get_logs=True,
         # Delete the pod when it reaches its final state, or the execution is interrupted.
         is_delete_operator_pod=True,
+        startup_timeout_seconds=200,
     )
 
     # [START howto_operator_eks_delete_fargate_profile]

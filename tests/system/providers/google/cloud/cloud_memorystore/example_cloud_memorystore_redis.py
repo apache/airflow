@@ -54,9 +54,9 @@ DAG_ID = "cloud_memorystore_redis"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 LOCATION = "europe-north1"
-MEMORYSTORE_REDIS_INSTANCE_NAME = f"{ENV_ID}-redis-1"
-MEMORYSTORE_REDIS_INSTANCE_NAME_2 = f"{ENV_ID}-redis-2"
-MEMORYSTORE_REDIS_INSTANCE_NAME_3 = f"{ENV_ID}-redis-3"
+MEMORYSTORE_REDIS_INSTANCE_NAME = f"redis-{ENV_ID.lower()}-1"
+MEMORYSTORE_REDIS_INSTANCE_NAME_2 = f"redis-{ENV_ID.lower()}-2"
+MEMORYSTORE_REDIS_INSTANCE_NAME_3 = f"redis-{ENV_ID.lower()}-3"
 
 EXPORT_GCS_URL = f"gs://{BUCKET_NAME}/my-export.rdb"
 

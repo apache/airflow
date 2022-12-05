@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, call, patch
 
@@ -41,7 +40,7 @@ TEMPLATE_SEARCHPATH = os.path.join(
 )
 
 
-class TestEmrAddStepsOperator(unittest.TestCase):
+class TestEmrAddStepsOperator:
     # When
     _config = [
         {
@@ -54,7 +53,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         }
     ]
 
-    def setUp(self):
+    def setup_method(self):
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         # Mock out the emr_client (moto has incorrect response)
@@ -78,6 +77,22 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     def test_init(self):
         assert self.operator.job_flow_id == "j-8989898989"
         assert self.operator.aws_conn_id == "aws_default"
+
+    @pytest.mark.parametrize(
+        "job_flow_id, job_flow_name",
+        [
+            pytest.param("j-8989898989", "test_cluster", id="both-specified"),
+            pytest.param(None, None, id="both-none"),
+        ],
+    )
+    def test_validate_mutually_exclusive_args(self, job_flow_id, job_flow_name):
+        error_message = r"Exactly one of job_flow_id or job_flow_name must be specified\."
+        with pytest.raises(AirflowException, match=error_message):
+            EmrAddStepsOperator(
+                task_id="test_validate_mutually_exclusive_args",
+                job_flow_id=job_flow_id,
+                job_flow_name=job_flow_name,
+            )
 
     def test_render_template(self):
         dag_run = DagRun(dag_id=self.operator.dag.dag_id, execution_date=DEFAULT_DATE, run_id="test")

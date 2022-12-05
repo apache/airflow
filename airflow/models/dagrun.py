@@ -769,7 +769,8 @@ class DagRun(Base, LoggingMixin):
             """Try to expand the ti, if needed.
 
             If the ti needs expansion, newly created task instances are
-            returned. The original ti is modified in-place and assigned the
+            returned as well as the original ti.
+            The original ti is also modified in-place and assigned the
             ``map_index`` of 0.
 
             If the ti does not need expansion, either because the task is not
@@ -782,8 +783,7 @@ class DagRun(Base, LoggingMixin):
             except NotMapped:  # Not a mapped task, nothing needed.
                 return None
             if expanded_tis:
-                assert expanded_tis[0] is ti
-                return expanded_tis[1:]
+                return expanded_tis
             return ()
 
         # Check dependencies.
@@ -799,12 +799,13 @@ class DagRun(Base, LoggingMixin):
             # in the scheduler to ensure that the mapped task is correctly
             # expanded before executed. Also see _revise_map_indexes_if_mapped
             # docstring for additional information.
+            new_tis = None
             if schedulable.map_index < 0:
                 new_tis = _expand_mapped_task_if_needed(schedulable)
                 if new_tis is not None:
                     additional_tis.extend(new_tis)
                     expansion_happened = True
-            if schedulable.state in SCHEDULEABLE_STATES:
+            if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
                 ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
                 ready_tis.append(schedulable)
 

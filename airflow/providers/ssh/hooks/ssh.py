@@ -290,17 +290,16 @@ class SSHHook(BaseHook):
             known_hosts = os.path.expanduser("~/.ssh/known_hosts")
             if not self.allow_host_key_change and os.path.isfile(known_hosts):
                 client.load_host_keys(known_hosts)
-        else:
-            if self.host_key is not None:
-                client_host_keys = client.get_host_keys()
-                if self.port == SSH_PORT:
-                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
-                else:
-                    client_host_keys.add(
-                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
-                    )
+
+        elif self.host_key is not None:
+            # Get host key from connection extra if it not set or None then we fallback to system host keys
+            client_host_keys = client.get_host_keys()
+            if self.port == SSH_PORT:
+                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
             else:
-                pass  # will fallback to system host keys if none explicitly specified in conn extra
+                client_host_keys.add(
+                    f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                )
 
         connect_kwargs: dict[str, Any] = dict(
             hostname=self.remote_host,

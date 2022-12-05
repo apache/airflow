@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -71,7 +72,7 @@ class EmrAddStepsOperator(BaseOperator):
         wait_for_completion: bool = False,
         **kwargs,
     ):
-        if not (job_flow_id is None) ^ (job_flow_name is None):
+        if not exactly_one(job_flow_id is None, job_flow_name is None):
             raise AirflowException("Exactly one of job_flow_id or job_flow_name must be specified.")
         super().__init__(**kwargs)
         cluster_states = cluster_states or []
