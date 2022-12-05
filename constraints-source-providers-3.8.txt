@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-04T19:58:40Z
+# This constraints file was automatically generated on 2022-12-05T16:36:54Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -66,7 +66,7 @@ asana==2.0.0
 asgiref==3.5.2
 asn1crypto==1.5.1
 astroid==2.11.7
-asttokens==2.2.0
+asttokens==2.2.1
 async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
@@ -167,7 +167,7 @@ facebook-business==15.0.0
 fastavro==1.7.0
 fasteners==0.18
 fastjsonschema==2.16.2
-filelock==3.8.0
+filelock==3.8.1
 fissix==21.11.13
 flake8-colors==0.1.9
 flake8==6.0.0
@@ -300,7 +300,7 @@ marshmallow-sqlalchemy==0.26.1
 marshmallow==3.19.0
 matplotlib-inline==0.1.6
 mccabe==0.7.0
-mdit-py-plugins==0.3.1
+mdit-py-plugins==0.3.2
 mdurl==0.1.2
 mongomock==4.1.2
 monotonic==1.6
@@ -402,6 +402,7 @@ pyrsistent==0.19.2
 pyspark==3.3.1
 pyspnego==0.6.3
 pytest-asyncio==0.20.2
+pytest-capture-warnings==0.0.4
 pytest-cov==4.0.0
 pytest-httpx==0.21.2
 pytest-instafail==0.4.2
@@ -440,7 +441,7 @@ requests-toolbelt==0.10.1
 requests==2.28.1
 responses==0.22.0
 rfc3986==1.5.0
-rich-click==1.5.2
+rich-click==1.6.0
 rich==12.6.0
 rsa==4.9
 s3transfer==0.6.0
