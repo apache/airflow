@@ -1793,8 +1793,8 @@ class Airflow(AirflowBaseView):
 
         executor = ExecutorLoader.get_default_executor()
 
-        if not getattr(executor, "supports_ad_hoc_ti_run", False):
-            msg = "Only works with the Celery, CeleryKubernetes or Kubernetes executors"
+        if not executor.supports_ad_hoc_ti_run:
+            msg = f"{executor.__class__.__name__} does not support ad hoc task runs"
             return redirect_or_json(origin, msg, "error", 400)
 
         dag_run = dag.get_dagrun(run_id=dag_run_id)
