@@ -64,6 +64,7 @@ from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    check_remote_ghcr_io_commands,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
@@ -216,6 +217,7 @@ def prepare_provider_documentation(
     packages: list[str],
 ):
     perform_environment_checks()
+    check_remote_ghcr_io_commands()
     cleanup_python_generated_files()
     shell_params = ShellParams(
         mount_sources=MOUNT_ALL,
@@ -383,6 +385,7 @@ def generate_constraints(
     github_repository: str,
 ):
     perform_environment_checks()
+    check_remote_ghcr_io_commands()
     cleanup_python_generated_files()
     if debug and run_in_parallel:
         get_console().print("\n[error]Cannot run --debug and --run-in-parallel at the same time[/]\n")
@@ -568,6 +571,7 @@ def release_prod_images(
     skip_latest: bool,
 ):
     perform_environment_checks()
+    check_remote_ghcr_io_commands()
     rebuild_or_pull_ci_image_if_needed(command_params=ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION))
     if not match(r"^\d*\.\d*\.\d*$", airflow_version):
         get_console().print(
