@@ -195,7 +195,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
 
     def test_wait_for_completion(self):
         def check_wait_for_completion(**kwargs):
-            return kwargs.get('wait_for_completion')
+            return kwargs.get("wait_for_completion")
 
         wait_for_completion = False
         with patch(
@@ -203,11 +203,11 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         ) as mock_add_job_flow_steps:
             mock_add_job_flow_steps.side_effect = check_wait_for_completion
             operator = EmrAddStepsOperator(
-                task_id="test_check_wait_for_completion_task",
+                task_id="test_task",
                 job_flow_id="j-8989898989",
                 aws_conn_id="aws_default",
                 dag=DAG("test_dag_id", default_args=self.args),
-                wait_for_completion=wait_for_completion
+                wait_for_completion=wait_for_completion,
             )
 
             assert operator.execute(self.mock_context) == wait_for_completion
