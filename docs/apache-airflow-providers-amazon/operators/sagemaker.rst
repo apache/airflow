@@ -24,7 +24,7 @@ machine learning service. With Amazon SageMaker, data scientists and developers
 can quickly build and train machine learning models, and then deploy them into a
 production-ready hosted environment.
 
-Airflow provides operators to create and interact with SageMaker Jobs.
+Airflow provides operators to create and interact with SageMaker Jobs and Pipelines.
 
 Prerequisite Tasks
 ------------------
@@ -146,6 +146,34 @@ To create an Amazon Sagemaker endpoint you can use
     :start-after: [START howto_operator_sagemaker_endpoint]
     :end-before: [END howto_operator_sagemaker_endpoint]
 
+.. _howto/operator:SageMakerStartPipelineOperator:
+
+Start an Amazon SageMaker pipeline execution
+============================================
+
+To trigger an execution run for an already-defined Amazon Sagemaker pipeline, you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerStartPipelineOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_start_pipeline]
+    :end-before: [END howto_operator_sagemaker_start_pipeline]
+
+.. _howto/operator:SageMakerStopPipelineOperator:
+
+Stop an Amazon SageMaker pipeline execution
+===========================================
+
+To stop an Amazon Sagemaker pipeline execution that is currently running, you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerStopPipelineOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_stop_pipeline]
+    :end-before: [END howto_operator_sagemaker_stop_pipeline]
+
 Sensors
 -------
 
@@ -204,6 +232,20 @@ you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerEnd
     :dedent: 4
     :start-after: [START howto_sensor_sagemaker_endpoint]
     :end-before: [END howto_sensor_sagemaker_endpoint]
+
+.. _howto/sensor:SageMakerPipelineSensor:
+
+Wait on an Amazon SageMaker pipeline execution state
+====================================================
+
+To check the state of an Amazon Sagemaker pipeline execution until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerPipelineSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sagemaker_pipeline]
+    :end-before: [END howto_sensor_sagemaker_pipeline]
 
 Reference
 ---------
