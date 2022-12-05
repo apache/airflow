@@ -4169,7 +4169,7 @@
                     }
                 },
                 "env": {
-                    "description": "Add additional env vars to flower.",
+                    "description": "Add additional env vars to StatsD.",
                     "type": "array",
                     "default": [],
                     "items": {
