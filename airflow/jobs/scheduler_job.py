@@ -881,12 +881,20 @@ class SchedulerJob(BaseJob):
                     self.log.debug("Waiting for processors to finish since we're using sqlite")
                     self.processor_agent.wait_until_finished()
 
-                with create_session() as session:
-                    num_queued_tis = self._do_scheduling(session)
+                for retry_count in range(1, 5):
+                    start_time = time.time()
+                    try:
+                        with create_session() as session:
+                            num_queued_tis = self._do_scheduling(session)
 
-                    self.executor.heartbeat()
-                    session.expunge_all()
-                    num_finished_events = self._process_executor_events(session=session)
+                            self.executor.heartbeat()
+                            session.expunge_all()
+                            num_finished_events = self._process_executor_events(session=session)
+                            break
+                    except OperationalError as e:
+                        end_time = time.time()
+                        Stats.incr("scheduler.scheduler_loop_failures")
+                        self.log.error("got a MySql exception (retry:" + str(retry_count) + ", total time in seconds: " + str(end_time - start_time) + "), details: " + str(e))
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
 
