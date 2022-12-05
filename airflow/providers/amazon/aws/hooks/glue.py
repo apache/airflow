@@ -94,7 +94,7 @@ class GlueJobHook(AwsBaseHook):
 
     def create_glue_job_config(self) -> dict:
         if self.s3_bucket is None:
-            raise AirflowException("Could not initialize glue job, error: Specify Parameter `s3_bucket`")
+            raise ValueError("Could not initialize glue job, error: Specify Parameter `s3_bucket`")
 
         default_command = {
             "Name": "glueetl",
@@ -256,15 +256,6 @@ class GlueJobHook(AwsBaseHook):
                         next_token=next_log_token,
                     )
 
-    def get_job(self, job_name) -> dict:
-        """
-        Gets job configurations
-
-        :param job_name: unique job name per AWS account
-        :return: Nested dictionary of job configurations
-        """
-        return self.get_conn().get_job(JobName=job_name)["Job"]
-
     def has_job(self, job_name) -> bool:
         """
         Checks if the job already exists
@@ -275,7 +266,7 @@ class GlueJobHook(AwsBaseHook):
         self.log.info("Checking if job already exists: %s", job_name)
 
         try:
-            self.get_job(job_name)
+            self.get_conn().get_job(JobName=job_name)
             return True
         except self.get_conn().exceptions.EntityNotFoundException:
             return False
@@ -288,7 +279,7 @@ class GlueJobHook(AwsBaseHook):
         :return: True if job was updated and false otherwise
         """
         job_name = job_kwargs.pop("Name")
-        current_job = self.get_job(job_name)
+        current_job = self.get_conn().get_job(JobName=job_name)["Job"]
 
         update_config = {
             key: value for key, value in job_kwargs.items() if current_job.get(key) != job_kwargs[key]
@@ -301,17 +292,6 @@ class GlueJobHook(AwsBaseHook):
         else:
             return False
 
-    def create_job(self, **job_kwargs) -> str:
-        """
-        Creates an AWS Glue Job
-
-        :param job_kwargs: Keyword args that define the configurations used to create the job
-        :return: Name of the job
-        """
-        job_name = job_kwargs["Name"]
-        self.log.info("Creating job: %s", job_name)
-        return self.get_conn().create_job(**job_kwargs)
-
     def create_or_update_glue_job(self) -> str | None:
         """
         Creates(or updates) and returns the Job name
@@ -322,6 +302,7 @@ class GlueJobHook(AwsBaseHook):
         if self.has_job(self.job_name):
             self.update_job(**config)
         else:
-            self.create_job(**config)
+            self.log.info("Creating job: %s", self.job_name)
+            self.get_conn().create_job(**config)
 
         return self.job_name
