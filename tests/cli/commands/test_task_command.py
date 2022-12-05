@@ -618,8 +618,6 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             f"'{self.task_id}', '{self.run_id}'," in logs
         )
 
-        print(logs_list)
-
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
