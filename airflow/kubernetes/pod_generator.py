@@ -28,7 +28,6 @@ import hashlib
 import logging
 import os
 import re
-import uuid
 import warnings
 from functools import reduce
 
@@ -37,6 +36,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import AirflowConfigException, PodReconciliationError, RemovedInAirflow3Warning
+from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
@@ -125,9 +125,10 @@ class PodGenerator:
 
     def gen_pod(self) -> k8s.V1Pod:
         """Generates pod"""
+        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
-        result.metadata.name = self.make_unique_pod_id(result.metadata.name)
+        result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
 
         if self.extract_xcom:
             result = self.add_xcom_sidecar(result)
@@ -340,6 +341,11 @@ class PodGenerator:
             - executor_config
             - dynamic arguments
         """
+        if len(pod_id) > 253:
+            warnings.warn(
+                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
+            )
+            pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
@@ -374,7 +380,7 @@ class PodGenerator:
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
                 annotations=annotations,
-                name=PodGenerator.make_unique_pod_id(pod_id),
+                name=pod_id,
                 labels=labels,
             ),
             spec=k8s.V1PodSpec(
@@ -445,7 +451,7 @@ class PodGenerator:
         r"""
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
-        characters. Each label has a maximum length of 63 characters.
+        characters.
 
         Name must pass the following regex for validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
@@ -453,21 +459,22 @@ class PodGenerator:
         For more details, see:
         https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/design/identifiers.md
 
-        :param pod_id: a dag_id with only alphanumeric characters
+        :param pod_id: requested pod name
         :return: ``str`` valid Pod name of appropriate length
         """
+        warnings.warn(
+            "This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
+            RemovedInAirflow3Warning,
+        )
+
         if not pod_id:
             return None
 
-        safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-
-        # Get prefix length after subtracting the uuid length. Clean up '.' and '-' from
-        # end of podID ('.' can't be followed by '-').
-        label_prefix_length = MAX_LABEL_LEN - len(safe_uuid) - 1  # -1 for separator
-        trimmed_pod_id = pod_id[:label_prefix_length].rstrip("-.")
-
-        # previously used a '.' as the separator, but this could create errors in some situations
-        return f"{trimmed_pod_id}-{safe_uuid}"
+        max_pod_id_len = 100  # arbitrarily chosen
+        suffix = rand_str(8)  # 8 seems good enough
+        base_pod_id_len = max_pod_id_len - len(suffix) - 1  # -1 for separator
+        trimmed_pod_id = pod_id[:base_pod_id_len].rstrip("-.")
+        return f"{trimmed_pod_id}-{suffix}"
 
 
 def merge_objects(base_obj, client_obj):

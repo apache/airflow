@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import logging
+import secrets
+import string
 
 import pendulum
 from slugify import slugify
@@ -25,17 +27,41 @@ from airflow.models.taskinstance import TaskInstanceKey
 
 log = logging.getLogger(__name__)
 
+alphanum_lower = string.ascii_lowercase + string.digits
 
-def create_pod_id(dag_id: str | None = None, task_id: str | None = None) -> str:
+
+def rand_str(num):
+    """Generate random lowercase alphanumeric string of length num.
+
+    :meta private:
     """
-    Generates the kubernetes safe pod_id. Note that this is
-    NOT the full ID that will be launched to k8s. We will add a uuid
-    to ensure uniqueness.
+    return "".join(secrets.choice(alphanum_lower) for _ in range(num))
+
+
+def add_pod_suffix(*, pod_name, rand_len=8, max_len=80):
+    """Add random string to pod name while staying under max len"""
+    suffix = "-" + rand_str(rand_len)
+    return pod_name[: max_len - len(suffix)].strip("-.") + suffix
+
+
+def create_pod_id(
+    dag_id: str | None = None,
+    task_id: str | None = None,
+    *,
+    max_length: int = 80,
+    unique: bool = True,
+) -> str:
+    """
+    Generates unique pod ID given a dag_id and / or task_id.
 
     :param dag_id: DAG ID
     :param task_id: Task ID
-    :return: The non-unique pod_id for this task/DAG pairing
+    :param max_length: max number of characters
+    :param unique: whether a random string suffix should be added
+    :return: A valid identifier for a kubernetes pod name
     """
+    if not (dag_id or task_id):
+        raise ValueError("Must supply either dag_id or task_id.")
     name = ""
     if dag_id:
         name += dag_id
@@ -43,7 +69,11 @@ def create_pod_id(dag_id: str | None = None, task_id: str | None = None) -> str:
         if name:
             name += "-"
         name += task_id
-    return slugify(name, lowercase=True)[:253].strip("-.")
+    base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
+    if unique:
+        return add_pod_suffix(pod_name=base_name, rand_len=8, max_len=max_length)
+    else:
+        return base_name
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
