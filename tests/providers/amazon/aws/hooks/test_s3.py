@@ -26,7 +26,7 @@ from unittest.mock import Mock
 
 import boto3
 import pytest
-from botocore.exceptions import ClientError, NoCredentialsError
+from botocore.exceptions import ClientError
 from moto import mock_s3
 
 from airflow.exceptions import AirflowException
@@ -46,21 +46,6 @@ def s3_bucket(mocked_s3_res):
     bucket = "airflow-test-s3-bucket"
     mocked_s3_res.create_bucket(Bucket=bucket)
     return bucket
-
-
-# This class needs to be separated out because if there are earlier mocks in the same class
-# the tests will fail on teardown.
-class TestAwsS3HookNoMock:
-    def test_check_for_bucket_raises_error_with_invalid_conn_id(self, monkeypatch):
-        monkeypatch.delenv("AWS_PROFILE", raising=False)
-        monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
-        monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
-        hook = S3Hook(aws_conn_id="does_not_exist")
-        # We're mocking all actual AWS calls and don't need a connection. This
-        # avoids an Airflow warning about connection cannot be found.
-        hook.get_connection = lambda _: None
-        with pytest.raises(NoCredentialsError):
-            hook.check_for_bucket("test-non-existing-bucket")
 
 
 class TestAwsS3Hook:
