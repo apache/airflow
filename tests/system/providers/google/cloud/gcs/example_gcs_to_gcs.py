@@ -213,6 +213,7 @@ with models.DAG(
 
     chain(
         # TEST SETUP
+        generate_random_file,
         [create_bucket_src, create_bucket_dst],
         [upload_file_src, upload_file_src_sub],
         [upload_file_dst, upload_file_dst_sub],
