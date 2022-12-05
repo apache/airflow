@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from copy import deepcopy
 from unittest import mock
 
@@ -89,18 +88,16 @@ mock_config = {
 }
 
 
-class TestGlueCrawlerHook(unittest.TestCase):
-    @classmethod
-    def setUp(cls):
-        cls.hook = GlueCrawlerHook(aws_conn_id="aws_default", region_name=AWS_REGION)
+class TestGlueCrawlerHook:
+    def setup_method(self):
+        self.hook = GlueCrawlerHook(aws_conn_id="aws_default")
 
     def test_init(self):
         assert self.hook.aws_conn_id == "aws_default"
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_has_crawler(self, mock_get_conn):
-        response = self.hook.has_crawler(mock_crawler_name)
-        assert response == True
+        assert self.hook.has_crawler(mock_crawler_name) is True
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
@@ -110,8 +107,7 @@ class TestGlueCrawlerHook(unittest.TestCase):
 
         mock_get_conn.return_value.exceptions.EntityNotFoundException = MockException
         mock_get_conn.return_value.get_crawler.side_effect = MockException("AAA")
-        response = self.hook.has_crawler(mock_crawler_name)
-        assert not response
+        assert self.hook.has_crawler(mock_crawler_name) is False
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock_sts
@@ -121,9 +117,7 @@ class TestGlueCrawlerHook(unittest.TestCase):
 
         mock_config_two = deepcopy(mock_config)
         mock_config_two["Role"] = "test-2-role"
-        mock_config_two.pop("Tags")
-        response = self.hook.update_crawler(**mock_config_two)
-        assert response == True
+        assert self.hook.update_crawler(**mock_config_two) is True
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
         mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
 
@@ -189,9 +183,7 @@ class TestGlueCrawlerHook(unittest.TestCase):
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_not_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
-        mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
-        response = self.hook.update_crawler(**mock_config)
-        assert not response
+        assert self.hook.update_crawler(**mock_config) is False
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
@@ -276,7 +268,3 @@ class TestGlueCrawlerHook(unittest.TestCase):
                 mock.call(mock_crawler_name),
             ]
         )
-
-
-if __name__ == "__main__":
-    unittest.main()

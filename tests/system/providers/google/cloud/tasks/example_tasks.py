@@ -48,7 +48,7 @@ DAG_ID = "cloud_tasks_tasks"
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))
 
-LOCATION = "europe-central2"
+LOCATION = "europe-west2"
 # queue cannot use recent names even if queue was removed
 QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID.replace('_', '-')}"
 TASK_NAME = "task-to-run"
