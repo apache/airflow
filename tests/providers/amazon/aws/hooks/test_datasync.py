@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import boto3
@@ -29,7 +28,7 @@ from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 
 
 @mock_datasync
-class TestDataSyncHook(unittest.TestCase):
+class TestDataSyncHook:
     def test_get_conn(self):
         hook = DataSyncHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
@@ -50,21 +49,13 @@ class TestDataSyncHook(unittest.TestCase):
 
 @mock_datasync
 @mock.patch.object(DataSyncHook, "get_conn")
-class TestDataSyncHookMocked(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.source_server_hostname = "host"
-        self.source_subdirectory = "somewhere"
-        self.destination_bucket_name = "my_bucket"
-        self.destination_bucket_dir = "dir"
+class TestDataSyncHookMocked:
+    source_server_hostname = "host"
+    source_subdirectory = "somewhere"
+    destination_bucket_name = "my_bucket"
+    destination_bucket_dir = "dir"
 
-        self.client = None
-        self.hook = None
-        self.source_location_arn = None
-        self.destination_location_arn = None
-        self.task_arn = None
-
-    def setUp(self):
+    def setup_method(self, method):
         self.client = boto3.client("datasync", region_name="us-east-1")
         self.hook = DataSyncHook(aws_conn_id="aws_default", wait_interval_seconds=0)
 
@@ -86,7 +77,7 @@ class TestDataSyncHookMocked(unittest.TestCase):
             DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
-    def tearDown(self):
+    def teardown_method(self, method):
         # Delete all tasks:
         tasks = self.client.list_tasks()
         for task in tasks["Tasks"]:

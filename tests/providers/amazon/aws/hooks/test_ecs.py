@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import timedelta
 from unittest import mock
 
@@ -56,38 +55,34 @@ class TestEksHooks:
         assert EcsHook().get_task_state(cluster="cluster_name", task="task_name") == "ACTIVE"
 
 
-class TestShouldRetry(unittest.TestCase):
+class TestShouldRetry:
     def test_return_true_on_valid_reason(self):
-        self.assertTrue(should_retry(EcsOperatorError([{"reason": "RESOURCE:MEMORY"}], "Foo")))
+        assert should_retry(EcsOperatorError([{"reason": "RESOURCE:MEMORY"}], "Foo"))
 
     def test_return_false_on_invalid_reason(self):
-        self.assertFalse(should_retry(EcsOperatorError([{"reason": "CLUSTER_NOT_FOUND"}], "Foo")))
+        assert not should_retry(EcsOperatorError([{"reason": "CLUSTER_NOT_FOUND"}], "Foo"))
 
 
-class TestShouldRetryEni(unittest.TestCase):
+class TestShouldRetryEni:
     def test_return_true_on_valid_reason(self):
-        self.assertTrue(
-            should_retry_eni(
-                EcsTaskFailToStart(
-                    "The task failed to start due to: "
-                    "Timeout waiting for network interface provisioning to complete."
-                )
+        assert should_retry_eni(
+            EcsTaskFailToStart(
+                "The task failed to start due to: "
+                "Timeout waiting for network interface provisioning to complete."
             )
         )
 
     def test_return_false_on_invalid_reason(self):
-        self.assertFalse(
-            should_retry_eni(
-                EcsTaskFailToStart(
-                    "The task failed to start due to: "
-                    "CannotPullContainerError: "
-                    "ref pull has been retried 5 time(s): failed to resolve reference"
-                )
+        assert not should_retry_eni(
+            EcsTaskFailToStart(
+                "The task failed to start due to: "
+                "CannotPullContainerError: "
+                "ref pull has been retried 5 time(s): failed to resolve reference"
             )
         )
 
 
-class TestEcsTaskLogFetcher(unittest.TestCase):
+class TestEcsTaskLogFetcher:
     @mock.patch("logging.Logger")
     def set_up_log_fetcher(self, logger_mock):
         self.logger_mock = logger_mock
@@ -99,7 +94,7 @@ class TestEcsTaskLogFetcher(unittest.TestCase):
             logger=logger_mock,
         )
 
-    def setUp(self):
+    def setup_method(self):
         self.set_up_log_fetcher()
 
     @mock.patch(

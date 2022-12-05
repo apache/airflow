@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from typing import Any
 from unittest import mock
 
@@ -68,8 +67,8 @@ MOCK_STOP_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_D
 MOCK_DELETE_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "deleting"}}
 
 
-class TestDmsHook(unittest.TestCase):
-    def setUp(self):
+class TestDmsHook:
+    def setup_method(self):
         self.dms = DmsHook()
 
     def test_init(self):

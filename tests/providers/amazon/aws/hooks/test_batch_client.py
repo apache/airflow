@@ -284,11 +284,11 @@ class TestBatchClient:
                 }
             ]
         }
-        with caplog.at_level(level=logging.getLevelName("WARNING")):
+
+        with caplog.at_level(level=logging.WARNING):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(caplog.records) == 1
-            log_record = caplog.records[0]
-            assert "doesn't create AWS CloudWatch Stream" in log_record.message
+            assert "doesn't create AWS CloudWatch Stream" in caplog.messages[0]
 
     def test_job_splunk_logs(self, caplog):
         self.client_mock.describe_jobs.return_value = {
@@ -304,11 +304,10 @@ class TestBatchClient:
                 }
             ]
         }
-        with caplog.at_level(level=logging.getLevelName("WARNING")):
+        with caplog.at_level(level=logging.WARNING):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(caplog.records) == 1
-            log_record = caplog.records[0]
-            assert "uses logDriver (splunk). AWS CloudWatch logging disabled." in log_record.message
+            assert "uses logDriver (splunk). AWS CloudWatch logging disabled." in caplog.messages[0]
 
 
 class TestBatchClientDelays:

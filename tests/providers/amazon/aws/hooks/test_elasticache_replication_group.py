@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase
 from unittest.mock import Mock
 
 import pytest
@@ -26,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.elasticache_replication_group import ElastiCacheReplicationGroupHook
 
 
-class TestElastiCacheReplicationGroupHook(TestCase):
+class TestElastiCacheReplicationGroupHook:
     REPLICATION_GROUP_ID = "test-elasticache-replication-group-hook"
 
     REPLICATION_GROUP_CONFIG = {
@@ -44,7 +43,7 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         {"creating", "available", "modifying", "deleting", "create - failed", "snapshotting"}
     )
 
-    def setUp(self):
+    def setup_method(self):
         self.hook = ElastiCacheReplicationGroupHook()
         # noinspection PyPropertyAccess
         self.hook.conn = Mock()

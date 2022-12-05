@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 import uuid
 
 from moto import mock_dynamodb
@@ -25,7 +24,7 @@ from moto import mock_dynamodb
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 
 
-class TestDynamoDBHook(unittest.TestCase):
+class TestDynamoDBHook:
     @mock_dynamodb
     def test_get_conn_returns_a_boto3_connection(self):
         hook = DynamoDBHook(aws_conn_id="aws_default")
@@ -39,7 +38,7 @@ class TestDynamoDBHook(unittest.TestCase):
         )
 
         # this table needs to be created in production
-        table = hook.get_conn().create_table(
+        hook.get_conn().create_table(
             TableName="test_airflow",
             KeySchema=[
                 {"AttributeName": "id", "KeyType": "HASH"},

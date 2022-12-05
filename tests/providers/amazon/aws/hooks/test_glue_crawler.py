@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from copy import deepcopy
 from unittest import mock
 
@@ -83,18 +82,16 @@ mock_config = {
 }
 
 
-class TestGlueCrawlerHook(unittest.TestCase):
-    @classmethod
-    def setUp(cls):
-        cls.hook = GlueCrawlerHook(aws_conn_id="aws_default")
+class TestGlueCrawlerHook:
+    def setup_method(self):
+        self.hook = GlueCrawlerHook(aws_conn_id="aws_default")
 
     def test_init(self):
-        self.assertEqual(self.hook.aws_conn_id, "aws_default")
+        assert self.hook.aws_conn_id == "aws_default"
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_has_crawler(self, mock_get_conn):
-        response = self.hook.has_crawler(mock_crawler_name)
-        self.assertEqual(response, True)
+        assert self.hook.has_crawler(mock_crawler_name) is True
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
@@ -104,8 +101,7 @@ class TestGlueCrawlerHook(unittest.TestCase):
 
         mock_get_conn.return_value.exceptions.EntityNotFoundException = MockException
         mock_get_conn.return_value.get_crawler.side_effect = MockException("AAA")
-        response = self.hook.has_crawler(mock_crawler_name)
-        self.assertEqual(response, False)
+        assert self.hook.has_crawler(mock_crawler_name) is False
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
@@ -114,30 +110,28 @@ class TestGlueCrawlerHook(unittest.TestCase):
 
         mock_config_two = deepcopy(mock_config)
         mock_config_two["Role"] = "test-2-role"
-        response = self.hook.update_crawler(**mock_config_two)
-        self.assertEqual(response, True)
+        assert self.hook.update_crawler(**mock_config_two) is True
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
         mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_not_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
-        response = self.hook.update_crawler(**mock_config)
-        self.assertEqual(response, False)
+        assert self.hook.update_crawler(**mock_config) is False
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_create_crawler(self, mock_get_conn):
         mock_get_conn.return_value.create_crawler.return_value = {"Crawler": {"Name": mock_crawler_name}}
         glue_crawler = self.hook.create_crawler(**mock_config)
-        self.assertIn("Crawler", glue_crawler)
-        self.assertIn("Name", glue_crawler["Crawler"])
-        self.assertEqual(glue_crawler["Crawler"]["Name"], mock_crawler_name)
+        assert "Crawler" in glue_crawler
+        assert "Name" in glue_crawler["Crawler"]
+        assert glue_crawler["Crawler"]["Name"] == mock_crawler_name
 
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_start_crawler(self, mock_get_conn):
         result = self.hook.start_crawler(mock_crawler_name)
-        self.assertEqual(result, mock_get_conn.return_value.start_crawler.return_value)
+        assert result == mock_get_conn.return_value.start_crawler.return_value
 
         mock_get_conn.return_value.start_crawler.assert_called_once_with(Name=mock_crawler_name)
 
@@ -159,7 +153,7 @@ class TestGlueCrawlerHook(unittest.TestCase):
             ]
         }
         result = self.hook.wait_for_crawler_completion(mock_crawler_name)
-        self.assertEqual(result, "MOCK_STATUS")
+        assert result == "MOCK_STATUS"
         mock_get_conn.assert_has_calls(
             [
                 mock.call(),
@@ -195,7 +189,7 @@ class TestGlueCrawlerHook(unittest.TestCase):
             },
         ]
         result = self.hook.wait_for_crawler_completion(mock_crawler_name)
-        self.assertEqual(result, "MOCK_STATUS")
+        assert result == "MOCK_STATUS"
         mock_get_conn.assert_has_calls(
             [
                 mock.call(),
@@ -208,7 +202,3 @@ class TestGlueCrawlerHook(unittest.TestCase):
                 mock.call(mock_crawler_name),
             ]
         )
-
-
-if __name__ == "__main__":
-    unittest.main()

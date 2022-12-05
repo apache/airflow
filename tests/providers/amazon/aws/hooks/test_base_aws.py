@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import unittest
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from unittest import mock
@@ -606,7 +605,7 @@ class TestAwsBaseHook:
     def test_connection_region_name(
         self, conn_type, connection_uri, region_name, env_region, expected_region_name
     ):
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW_CONN_TEST_CONN=connection_uri, AWS_DEFAULT_REGION=env_region
         ):
             if conn_type == "client":
@@ -629,10 +628,7 @@ class TestAwsBaseHook:
         ],
     )
     def test_connection_aws_partition(self, conn_type, connection_uri, expected_partition):
-        with unittest.mock.patch.dict(
-            "os.environ",
-            AIRFLOW_CONN_TEST_CONN=connection_uri,
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=connection_uri):
             if conn_type == "client":
                 hook = AwsBaseHook(aws_conn_id="test_conn", client_type="dynamodb")
             elif conn_type == "resource":
@@ -772,7 +768,7 @@ class TestAwsBaseHook:
             extra={"verify": conn_verify} if conn_verify is not None else {},
         )
 
-        with unittest.mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=mock_conn.get_uri()):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=mock_conn.get_uri()):
             hook = AwsBaseHook(aws_conn_id="test_conn", verify=verify)
             expected = verify if verify is not None else conn_verify
             assert hook.verify == expected

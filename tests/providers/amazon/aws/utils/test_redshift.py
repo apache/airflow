@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from boto3.session import Session
@@ -25,7 +24,7 @@ from boto3.session import Session
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 
 
-class TestS3ToRedshiftTransfer(unittest.TestCase):
+class TestS3ToRedshiftTransfer:
     @mock.patch("boto3.session.Session")
     def test_build_credentials_block(self, mock_session):
         access_key = "aws_access_key_id"

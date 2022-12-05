@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
@@ -48,8 +47,8 @@ MOCK_QUERY_EXECUTION_OUTPUT = {
 }
 
 
-class TestAthenaHook(unittest.TestCase):
-    def setUp(self):
+class TestAthenaHook:
+    def setup_method(self):
         self.athena = AthenaHook(sleep_time=0)
 
     def test_init(self):
@@ -196,7 +195,3 @@ class TestAthenaHook(unittest.TestCase):
         mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
         result = self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
         assert result == "s3://test_bucket/test.csv"
-
-
-if __name__ == "__main__":
-    unittest.main()
