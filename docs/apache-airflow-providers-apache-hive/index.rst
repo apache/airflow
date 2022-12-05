@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/3.0.0/tests/system/providers/apache/hive>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/|versrion|/tests/system/providers/apache/hive>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hive/>
     Installing from sources <installing-providers-from-sources>
 

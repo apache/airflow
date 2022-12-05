@@ -38,7 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-zendesk/4.0.0/tests/system/providers/zendesk/example_zendesk_custom_get.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-zendesk/|version|/tests/system/providers/zendesk/example_zendesk_custom_get.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-zendesk/>
     Installing from sources <installing-providers-from-sources>
 

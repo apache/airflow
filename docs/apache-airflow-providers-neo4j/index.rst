@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-neo4j/3.0.0/tests/system/providers/neo4j>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-neo4j/|version|/tests/system/providers/neo4j>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-neo4j/>
     Installing from sources <installing-providers-from-sources>
 

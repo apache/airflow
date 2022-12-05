@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/blob/main/tests/system/providers/mysql/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-mysql/|version|/tests/system/providers/mysql/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-mysql/>
     Installing from sources <installing-providers-from-sources>
 
