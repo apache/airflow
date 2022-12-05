@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable
+from typing import Any, Callable, Collection
 from urllib.parse import unquote, urljoin, urlsplit
 
 import configupdater
@@ -1886,7 +1886,7 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get("execution_date", default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        dag_orm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
@@ -1894,6 +1894,22 @@ class Airflow(AirflowBaseView):
         if dag_orm.has_import_errors:
             flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
             return redirect(origin)
+
+        recent_runs = (
+            session.query(DagRun.conf, func.max(DagRun.execution_date))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.run_type == DagRunType.MANUAL,
+                DagRun.conf.isnot(None),
+            )
+            .group_by(DagRun.conf)
+            .order_by(func.max(DagRun.execution_date).desc())
+            .limit(5)
+            .all()
+        )
+
+        recent_confs = [getattr(run, "conf") for run in recent_runs]
+        recent_confs = [conf[0] for conf in map(wwwutils.get_dag_run_conf, recent_confs) if conf[1]]
 
         if request.method == "GET":
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1919,6 +1935,7 @@ class Airflow(AirflowBaseView):
                 doc_md=doc_md,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                recent_confs=recent_confs,
             )
 
         try:
@@ -1933,6 +1950,7 @@ class Airflow(AirflowBaseView):
                 conf=request_conf,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                recent_confs=recent_confs,
             )
 
         dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
@@ -1966,6 +1984,7 @@ class Airflow(AirflowBaseView):
                         conf=request_conf,
                         form=form,
                         is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                        recent_confs=recent_confs,
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
@@ -1977,6 +1996,7 @@ class Airflow(AirflowBaseView):
                     conf=request_conf,
                     form=form,
                     is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                    recent_confs=recent_confs,
                 )
 
         if unpause and dag.is_paused:
@@ -2013,11 +2033,12 @@ class Airflow(AirflowBaseView):
         dag: DAG,
         start_date: datetime | None,
         end_date: datetime | None,
-        origin: str,
-        task_ids=None,
-        recursive=False,
-        confirmed=False,
-        only_failed=False,
+        *,
+        origin: str | None,
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        recursive: bool = False,
+        confirmed: bool = False,
+        only_failed: bool = False,
         session: Session = NEW_SESSION,
     ):
         if confirmed:
@@ -2144,7 +2165,7 @@ class Airflow(AirflowBaseView):
             dag,
             start_date,
             end_date,
-            origin,
+            origin=origin,
             task_ids=task_ids,
             recursive=recursive,
             confirmed=confirmed,
@@ -2164,7 +2185,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def dagrun_clear(self):
+    @provide_session
+    def dagrun_clear(self, *, session: Session = NEW_SESSION):
         """Clears the DagRun"""
         dag_id = request.form.get("dag_id")
         dag_run_id = request.form.get("dag_run_id")
@@ -2182,6 +2204,7 @@ class Airflow(AirflowBaseView):
             origin=None,
             recursive=True,
             confirmed=confirmed,
+            session=session,
         )
 
     @expose("/blocked", methods=["POST"])

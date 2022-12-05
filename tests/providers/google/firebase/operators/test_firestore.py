@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
@@ -30,7 +29,7 @@ EXPORT_DOCUMENT_BODY = {
 }
 
 
-class TestCloudFirestoreExportDatabaseOperator(unittest.TestCase):
+class TestCloudFirestoreExportDatabaseOperator:
     @mock.patch("airflow.providers.google.firebase.operators.firestore.CloudFirestoreHook")
     def test_execute(self, mock_firestore_hook):
         op = CloudFirestoreExportDatabaseOperator(
