@@ -43,7 +43,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "datacatalog_tag_templates"
 
 LOCATION = "us-central1"
-TEMPLATE_ID = "template_id"
+TEMPLATE_ID = f"template_id_templ_{ENV_ID}"
 TAG_TEMPLATE_DISPLAY_NAME = f"Data Catalog {DAG_ID} {ENV_ID}"
 FIELD_NAME_1 = "first"
 FIELD_NAME_2 = "second"
