@@ -157,6 +157,7 @@ def check_for_rosetta_environment():
         return
 
     from inputimeout import TimeoutOccurred, inputimeout
+
     try:
         runs_in_rosetta = subprocess.check_output(
             ["sysctl", "-n", "sysctl.proc_translated"],
