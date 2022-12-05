@@ -43,6 +43,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
+from airflow.models.taskinstance import PastDependenciesAction
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
@@ -226,7 +227,9 @@ def _run_task_by_executor(args, dag, ti):
         mark_success=args.mark_success,
         pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_depends_on_past=(
+            args.ignore_depends_on_past or args.depends_on_past == PastDependenciesAction.IGNORE
+        ),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -242,7 +245,9 @@ def _run_task_by_local_task_job(args, ti):
         mark_success=args.mark_success,
         pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_depends_on_past=(
+            args.ignore_depends_on_past or args.depends_on_past == PastDependenciesAction.IGNORE
+        ),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -259,6 +264,7 @@ def _run_task_by_local_task_job(args, ti):
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
     "ignore_depends_on_past",
+    "depends_on_past",
     "ignore_dependencies",
     "force",
 ]
