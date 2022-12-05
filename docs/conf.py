@@ -172,6 +172,13 @@ elif PACKAGE_NAME == "helm-chart":
 elif PACKAGE_NAME == "docker-stack":
     # No extra extensions
     pass
+elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
+    extensions.extend(
+        [
+            "extra_provider_files_with_substitutions",
+            "autoapi.extension",
+        ]
+    )
 else:
     extensions.append("autoapi.extension")
 # List of patterns, relative to source directory, that match files and
@@ -298,7 +305,8 @@ if PACKAGE_NAME == "apache-airflow":
         "installation/installing-from-pypi.html",
         "installation/installing-from-sources.html",
     ]
-
+if PACKAGE_NAME.startswith("apache-airflow-providers"):
+    manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
     # Replace "|version|" inside ```` quotes
     manual_substitutions_in_generated_html = ["build.html"]
