@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from google.api_core.exceptions import NotFound, PermissionDenied
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
@@ -28,7 +28,7 @@ INTERNAL_CLIENT_MODULE = "airflow.providers.google.cloud._internal_client.secret
 INTERNAL_COMMON_MODULE = "airflow.providers.google.common.consts"
 
 
-class TestSecretManagerClient(TestCase):
+class TestSecretManagerClient:
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
     def test_auth(self, mock_secrets_client):
         mock_secrets_client.return_value = mock.MagicMock()

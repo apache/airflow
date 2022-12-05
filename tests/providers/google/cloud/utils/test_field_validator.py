@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.providers.google.cloud.utils.field_validator import (
@@ -27,7 +25,7 @@ from airflow.providers.google.cloud.utils.field_validator import (
 )
 
 
-class TestGcpBodyFieldValidator(unittest.TestCase):
+class TestGcpBodyFieldValidator:
     def test_validate_should_not_raise_exception_if_field_and_body_are_both_empty(self):
         specification = []
         body = {}

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import base64
 import binascii
-import unittest
 from unittest import mock
 
 import dill
@@ -31,7 +30,7 @@ except ImportError as e:
         pytestmark = pytest.mark.skip(f"package apache_beam not present. Skipping all tests in {__name__}")
 
 
-class TestJsonCode(unittest.TestCase):
+class TestJsonCode:
     def test_encode(self):
         assert b'{"a": 1}' == mlengine_prediction_summary.JsonCoder.encode({"a": 1})
 
@@ -39,7 +38,7 @@ class TestJsonCode(unittest.TestCase):
         assert {"a": 1} == mlengine_prediction_summary.JsonCoder.decode('{"a": 1}')
 
 
-class TestMakeSummary(unittest.TestCase):
+class TestMakeSummary:
     def test_make_summary(self):
         print(mlengine_prediction_summary.MakeSummary(1, lambda x: x, []))
 

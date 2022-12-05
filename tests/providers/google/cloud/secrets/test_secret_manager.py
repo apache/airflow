@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import re
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from google.api_core.exceptions import NotFound
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -46,7 +46,7 @@ MODULE_NAME = "airflow.providers.google.cloud.secrets.secret_manager"
 CLIENT_MODULE_NAME = "airflow.providers.google.cloud._internal_client.secret_manager_client"
 
 
-class TestCloudSecretManagerBackend(TestCase):
+class TestCloudSecretManagerBackend:
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
     def test_default_valid_and_sep(self, mock_client_callable, mock_get_creds):
@@ -57,31 +57,32 @@ class TestCloudSecretManagerBackend(TestCase):
         backend = CloudSecretManagerBackend()
         assert backend._is_valid_prefix_and_sep()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "prefix, sep",
         [
-            ("colon:", "not:valid", ":"),
-            ("slash/", "not/valid", "/"),
-            ("space_with_char", "a b", ""),
-            ("space_only", "", " "),
-        ]
+            pytest.param("not:valid", ":", id="colon separator"),
+            pytest.param("not/valid", "/", id="backslash separator"),
+            pytest.param("a b", "", id="space with char and empty separator"),
+            pytest.param(" ", "", id="space only and empty separator"),
+        ],
     )
-    def test_raise_exception_with_invalid_prefix_sep(self, _, prefix, sep):
+    def test_raise_exception_with_invalid_prefix_sep(self, prefix, sep):
         with pytest.raises(AirflowException):
             CloudSecretManagerBackend(connections_prefix=prefix, sep=sep)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "prefix, sep, is_valid",
         [
-            ("dash-", "valid1", "-", True),
-            ("underscore_", "isValid", "_", True),
-            ("empty_string", "", "", True),
-            ("space_prefix", " ", "", False),
-            ("space_sep", "", " ", False),
-            ("colon:", "not:valid", ":", False),
-        ]
+            pytest.param("valid1", "-", True, id="valid: dash separator"),
+            pytest.param("isValid", "_", True, id="valid: underscore separator"),
+            pytest.param("", "", True, id="valid: empty string and empty separator"),
+            pytest.param("", " ", False, id="invalid: empty string and space separator"),
+            pytest.param("not:valid", ":", False, id="invalid: colon separator"),
+        ],
     )
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
-    def test_is_valid_prefix_and_sep(self, _, prefix, sep, is_valid, mock_client_callable, mock_get_creds):
+    def test_is_valid_prefix_and_sep(self, mock_client_callable, mock_get_creds, prefix, sep, is_valid):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
@@ -90,10 +91,10 @@ class TestCloudSecretManagerBackend(TestCase):
         backend.sep = sep
         assert backend._is_valid_prefix_and_sep() == is_valid
 
-    @parameterized.expand(["airflow-connections", "connections", "airflow"])
+    @pytest.mark.parametrize("connections_prefix", ["airflow-connections", "connections", "airflow"])
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
-    def test_get_conn_uri(self, connections_prefix, mock_client_callable, mock_get_creds):
+    def test_get_conn_uri(self, mock_client_callable, mock_get_creds, connections_prefix):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
@@ -118,7 +119,7 @@ class TestCloudSecretManagerBackend(TestCase):
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
-    def test_get_conn_uri_non_existent_key(self, mock_client_callable, mock_get_creds):
+    def test_get_conn_uri_non_existent_key(self, mock_client_callable, mock_get_creds, caplog):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
@@ -127,18 +128,18 @@ class TestCloudSecretManagerBackend(TestCase):
 
         secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=CONNECTIONS_PREFIX)
         secret_id = secrets_manager_backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)
-        with self.assertLogs(secrets_manager_backend.client.log, level="DEBUG") as log_output:
+        with caplog.at_level(level=logging.DEBUG, logger=secrets_manager_backend.client.log.name):
             assert secrets_manager_backend.get_conn_uri(conn_id=CONN_ID) is None
             assert secrets_manager_backend.get_connection(conn_id=CONN_ID) is None
             assert re.search(
                 f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
-                log_output.output[0],
+                caplog.messages[0],
             )
 
-    @parameterized.expand(["airflow-variables", "variables", "airflow"])
+    @pytest.mark.parametrize("variables_prefix", ["airflow-variables", "variables", "airflow"])
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
-    def test_get_variable(self, variables_prefix, mock_client_callable, mock_get_creds):
+    def test_get_variable(self, mock_client_callable, mock_get_creds, variables_prefix):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
@@ -153,10 +154,10 @@ class TestCloudSecretManagerBackend(TestCase):
         assert VAR_VALUE == returned_uri
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
-    @parameterized.expand(["airflow-config", "config", "airflow"])
+    @pytest.mark.parametrize("config_prefix", ["airflow-config", "config", "airflow"])
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
-    def test_get_config(self, config_prefix, mock_client_callable, mock_get_creds):
+    def test_get_config(self, mock_client_callable, mock_get_creds, config_prefix):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
@@ -171,10 +172,10 @@ class TestCloudSecretManagerBackend(TestCase):
         assert CONFIG_VALUE == returned_val
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
-    @parameterized.expand(["airflow-variables", "variables", "airflow"])
+    @pytest.mark.parametrize("variables_prefix", ["airflow-variables", "variables", "airflow"])
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
-    def test_get_variable_override_project_id(self, variables_prefix, mock_client_callable, mock_get_creds):
+    def test_get_variable_override_project_id(self, mock_client_callable, mock_get_creds, variables_prefix):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
@@ -193,7 +194,7 @@ class TestCloudSecretManagerBackend(TestCase):
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
-    def test_get_variable_non_existent_key(self, mock_client_callable, mock_get_creds):
+    def test_get_variable_non_existent_key(self, mock_client_callable, mock_get_creds, caplog):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
         mock_client_callable.return_value = mock_client
@@ -202,11 +203,11 @@ class TestCloudSecretManagerBackend(TestCase):
 
         secrets_manager_backend = CloudSecretManagerBackend(variables_prefix=VARIABLES_PREFIX)
         secret_id = secrets_manager_backend.build_path(VARIABLES_PREFIX, VAR_KEY, SEP)
-        with self.assertLogs(secrets_manager_backend.client.log, level="DEBUG") as log_output:
+        with caplog.at_level(level=logging.DEBUG, logger=secrets_manager_backend.client.log.name):
             assert secrets_manager_backend.get_variable(VAR_KEY) is None
             assert re.search(
                 f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
-                log_output.output[0],
+                caplog.messages[0],
             )
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")

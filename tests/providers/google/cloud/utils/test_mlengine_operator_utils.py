@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import base64
 import json
-import unittest
 from datetime import datetime
 from unittest import mock
 
@@ -92,7 +91,7 @@ def validate_err_and_count(summary):
     return summary
 
 
-class TestMlengineOperatorUtils(unittest.TestCase):
+class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops(self, mock_beam_pipeline, mock_python):
