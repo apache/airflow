@@ -30,6 +30,7 @@ import pytest
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.celery_executor import CeleryExecutor
+from airflow.executors.local_executor import LocalExecutor
 from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
@@ -603,6 +604,35 @@ def test_run_with_not_runnable_states(_, admin_client, session, state):
     check_content_in_response("", resp)
 
     msg = f"Task is in the &#39;{state}&#39; state."
+    assert re.search(msg, resp.get_data(as_text=True))
+
+
+@pytest.mark.parametrize("state", QUEUEABLE_STATES)
+@unittest.mock.patch(
+    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
+    return_value=LocalExecutor(),
+)
+def test_run_with_the_unsupported_executor(_, admin_client, session, state):
+    assert state not in RUNNABLE_STATES
+
+    task_id = "runme_0"
+    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
+        {"state": state, "end_date": timezone.utcnow()}
+    )
+    session.commit()
+
+    form = dict(
+        task_id=task_id,
+        dag_id="example_bash_operator",
+        ignore_all_deps="false",
+        ignore_ti_state="false",
+        dag_run_id=DEFAULT_DAGRUN,
+        origin="/home",
+    )
+    resp = admin_client.post("run", data=form, follow_redirects=True)
+    check_content_in_response("", resp)
+
+    msg = "LocalExecutor does not support ad hoc task runs"
     assert re.search(msg, resp.get_data(as_text=True))
 
 

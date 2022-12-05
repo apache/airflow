@@ -64,6 +64,8 @@ class BaseExecutor(LoggingMixin):
         ``0`` for infinity
     """
 
+    supports_ad_hoc_ti_run: bool = False
+
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None
 
