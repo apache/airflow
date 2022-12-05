@@ -2289,7 +2289,8 @@ class Airflow(AirflowBaseView):
 
             return htmlsafe_json_dumps(details, separators=(",", ":"))
 
-    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool):
+    @provide_session
+    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool, session=None):
         if not dag_run_id:
             return {"status": "error", "message": "Invalid dag_run_id"}
 
@@ -2298,13 +2299,23 @@ class Airflow(AirflowBaseView):
         if not dag:
             return {"status": "error", "message": f"Cannot find DAG: {dag_id}"}
 
-        new_dag_state = set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
+        set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
 
         if confirmed:
             return {"status": "success", "message": "Marked the DagRun as queued."}
 
         else:
-            details = [str(t) for t in new_dag_state]
+            # Identify tasks that will be queued up to run when confirmed
+            all_task_ids = [task.task_id for task in dag.tasks]
+
+            existing_tis = session.query(TaskInstance.task_id).filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == dag_run_id,
+            )
+
+            completed_tis_ids = [task_id for task_id, in existing_tis]
+            tasks_with_no_state = list(set(all_task_ids) - set(completed_tis_ids))
+            details = [str(t) for t in tasks_with_no_state]
 
             return htmlsafe_json_dumps(details, separators=(",", ":"))
 
