@@ -335,7 +335,6 @@ class TestCliTasks:
         [
             ("--ignore-all-dependencies",),
             ("--ignore-depends-on-past",),
-            ("--depends-on-past ignore",),
             ("--ignore-dependencies",),
             ("--force",),
         ],
@@ -618,6 +617,8 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
             f"'{self.task_id}', '{self.run_id}'," in logs
         )
+
+        print(logs_list)
 
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)

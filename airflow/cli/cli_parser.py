@@ -547,11 +547,11 @@ ARG_IGNORE_DEPENDS_ON_PAST = Arg(
 )
 ARG_DEPENDS_ON_PAST = Arg(
     ("-d", "--depends-on-past"),
-    help="Determine how Airflow should deak with past dependencies. The default action is `check`, Airflow "
+    help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
     "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
     "them, if `ignore` is provided, the past dependencies will be ignored.",
     type=PastDependenciesAction,
-    default="check",
+    default=PastDependenciesAction.CHECK,
 )
 ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
