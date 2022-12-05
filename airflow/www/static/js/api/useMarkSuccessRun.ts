@@ -41,7 +41,7 @@ export default function useMarkSuccessRun(dagId: string, runId: string) {
         dag_run_id: runId,
       }).toString();
 
-      return axios.post<AxiosResponse, string>(markSuccessUrl, params, {
+      return axios.post<AxiosResponse, string[]>(markSuccessUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

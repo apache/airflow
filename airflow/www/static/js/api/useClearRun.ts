@@ -42,7 +42,7 @@ export default function useClearRun(dagId: string, runId: string) {
         dag_run_id: runId,
       }).toString();
 
-      return axios.post<AxiosResponse, string>(clearRunUrl, params, {
+      return axios.post<AxiosResponse, string[]>(clearRunUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

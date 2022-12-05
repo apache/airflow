@@ -44,7 +44,7 @@ const Run = ({
   mapIndexes,
   isGroup,
 }: CommonActionProps) => {
-  const [affectedTasks, setAffectedTasks] = useState('');
+  const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
 
   // Options check/unchecked
   const [past, setPast] = useState(false);
@@ -98,7 +98,7 @@ const Run = ({
       confirmed: true,
       mapIndexes,
     });
-    setAffectedTasks('');
+    setAffectedTasks([]);
     onClose();
   };
 

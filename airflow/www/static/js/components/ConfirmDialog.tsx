@@ -37,7 +37,7 @@ interface Props extends PropsWithChildren {
   onClose: () => void;
   title?: string;
   description: string;
-  affectedTasks: string[] | string;
+  affectedTasks: string[];
   onConfirm: () => void;
   isLoading?: boolean;
 }
@@ -67,11 +67,11 @@ const ConfirmDialog = ({
           <AlertDialogBody overflowY="auto">
             {children}
             <Text mb={2}>{description}</Text>
-            {Array.isArray(affectedTasks) && affectedTasks.map((ti) => (
+            {affectedTasks.map((ti) => (
               <Code width="100%" key={ti} fontSize="lg">{ti}</Code>
             ))}
-            {((Array.isArray(affectedTasks) && !affectedTasks.length) || !affectedTasks) && (
-              <Text>No task instances found.</Text>
+            {!affectedTasks.length && (
+              <Text>No task instances to change.</Text>
             )}
           </AlertDialogBody>
 

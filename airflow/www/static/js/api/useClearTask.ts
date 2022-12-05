@@ -74,7 +74,7 @@ export default function useClearTask({
         params.append('map_index', mi.toString());
       });
 
-      return axios.post<AxiosResponse, string>(clearUrl, params.toString(), {
+      return axios.post<AxiosResponse, string[]>(clearUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
