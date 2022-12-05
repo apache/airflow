@@ -95,7 +95,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.kube_config = kube_config
 
     def run(self) -> None:
-        """Performs watching"""
+        """Performs watching."""
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
@@ -553,7 +553,7 @@ class KubernetesExecutor(BaseExecutor):
         queue: str | None = None,
         executor_config: Any | None = None,
     ) -> None:
-        """Executes task asynchronously"""
+        """Executes task asynchronously."""
         if TYPE_CHECKING:
             assert self.task_queue
 
@@ -666,7 +666,7 @@ class KubernetesExecutor(BaseExecutor):
         self.log.debug("Next timed event is in %f", next_event)
 
     def _check_worker_pods_pending_timeout(self):
-        """Check if any pending worker pods have timed out"""
+        """Check if any pending worker pods have timed out."""
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
