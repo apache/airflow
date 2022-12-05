@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module contains AWS Glue Crawler Hook"""
 from __future__ import annotations
 
 from time import sleep
@@ -99,7 +100,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
         :param crawler_name: Name of the crawler for which to update tags
         :param crawler_tags: Dictionary of new tags. If empty, all tags will be deleted
-        :return True if tags were updated and false otherwise
+        :return: True if tags were updated and false otherwise
         """
         account_number = StsHook(aws_conn_id=self.aws_conn_id).get_account_number()
         crawler_arn = (

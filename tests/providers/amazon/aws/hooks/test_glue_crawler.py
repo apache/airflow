@@ -174,6 +174,7 @@ class TestGlueCrawlerHook:
             ResourceArn=self.crawler_arn, TagsToAdd={"test": "bla"}
         )
 
+    @mock_sts
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_not_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
