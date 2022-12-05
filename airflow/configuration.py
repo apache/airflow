@@ -1266,7 +1266,7 @@ class AirflowConfigParser(ConfigParser):
 
     @staticmethod
     def _replace_section_config_with_display_sources(
-        config: AirflowConfigParser,
+        config: ConfigParser,
         config_sources: ConfigSourcesType,
         display_source: bool,
         raw: bool,
