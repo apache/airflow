@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from enum import Enum
 
 from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
@@ -26,6 +27,8 @@ from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+log = logging.getLogger(__name__)
 
 
 class DagWarning(Base):
@@ -80,6 +83,24 @@ class DagWarning(Base):
         else:
             query = session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
         query.delete(synchronize_session=False)
+        session.commit()
+
+    @classmethod
+    @provide_session
+    def purge_filepath(cls, filepath: str, session: Session = NEW_SESSION) -> None:
+        """
+        Delete records for given filepath.
+
+        :param filepath: Path of the file for which to remove records
+        :param session: SQLAlchemy session
+        """
+        log.debug("Removing DagWarnings where filepath = %s.", filepath)
+
+        from airflow.models.dag import DagModel
+
+        session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.fileloc == filepath).delete(
+            synchronize_session=False
+        )
         session.commit()
 
 

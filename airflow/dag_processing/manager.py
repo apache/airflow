@@ -819,8 +819,7 @@ class DagFileProcessorManager(LoggingMixin):
         DagCode.remove_code_deleted_file(filepath=filepath)
 
         errors.ImportError.purge_filepath(filepath=filepath)
-
-        # TODO remove dagwarnings
+        DagWarning.purge_filepath(filepath=filepath)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
