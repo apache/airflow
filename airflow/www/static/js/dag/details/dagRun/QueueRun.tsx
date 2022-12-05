@@ -67,7 +67,7 @@ const QueueRun = ({ dagId, runId }: Props) => {
         onConfirm={onConfirm}
         isLoading={isLoading}
         description="Task instances you are about to queue:"
-        body={affectedTasks}
+        affectedTasks={affectedTasks}
       />
     </>
   );

@@ -49,10 +49,11 @@ export default function useClearRun(dagId: string, runId: string) {
       });
     },
     {
-      onSuccess: () => {
-        // Invalidating the query will force a new API request
-        queryClient.invalidateQueries('gridData');
-        startRefresh();
+      onSuccess: (_, { confirmed }) => {
+        if (confirmed) {
+          queryClient.invalidateQueries('gridData');
+          startRefresh();
+        }
       },
       onError: (error: Error) => errorToast({ error }),
     },

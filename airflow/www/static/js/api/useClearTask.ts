@@ -81,10 +81,12 @@ export default function useClearTask({
       });
     },
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries('gridData');
-        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
-        startRefresh();
+      onSuccess: (_, { confirmed }) => {
+        if (confirmed) {
+          queryClient.invalidateQueries('gridData');
+          queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
+          startRefresh();
+        }
       },
       onError: (error: Error) => errorToast({ error }),
     },

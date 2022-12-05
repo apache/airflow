@@ -57,7 +57,7 @@ const MarkSuccessRun = ({ dagId, runId }: Props) => {
         onConfirm={onConfirm}
         isLoading={isLoading}
         description="Task instances you are about to mark as success:"
-        body={affectedTasks}
+        affectedTasks={affectedTasks}
       />
     </>
   );

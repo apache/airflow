@@ -48,9 +48,11 @@ export default function useMarkSuccessRun(dagId: string, runId: string) {
       });
     },
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries('gridData');
-        startRefresh();
+      onSuccess: (_, { confirmed }) => {
+        if (confirmed) {
+          queryClient.invalidateQueries('gridData');
+          startRefresh();
+        }
       },
       onError: (error: Error) => errorToast({ error }),
     },

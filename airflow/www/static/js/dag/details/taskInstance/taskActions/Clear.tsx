@@ -127,7 +127,7 @@ const Run = ({
         onConfirm={onConfirm}
         isLoading={isLoading}
         description={`Task instances you are about to clear (${affectedTasks.length}):`}
-        body={affectedTasks}
+        affectedTasks={affectedTasks}
       >
         { isGroup && (past || future) && (
           <Alert status="warning" mb={3}>

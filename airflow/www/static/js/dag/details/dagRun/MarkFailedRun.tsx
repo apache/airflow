@@ -57,7 +57,7 @@ const MarkFailedRun = ({ dagId, runId }: Props) => {
         onConfirm={onConfirm}
         isLoading={isLoading}
         description="Task instances you are about to mark as failed or skipped:"
-        body={affectedTasks}
+        affectedTasks={affectedTasks}
       />
     </>
   );

@@ -63,7 +63,7 @@ const ClearRun = ({ dagId, runId }: Props) => {
         onConfirm={onConfirm}
         isLoading={isLoading}
         description="Task instances you are about to clear:"
-        body={affectedTasks}
+        affectedTasks={affectedTasks}
       />
     </>
   );
