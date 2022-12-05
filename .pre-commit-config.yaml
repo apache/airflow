@@ -402,6 +402,19 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: check-links-to-example-dags-do-not-use-hardcoded-versions
+        name: Check that example dags do not use hard-coded version numbers
+        description: The links to example dags should use |version| as version specification
+        language: pygrep
+        entry: >
+          (?i)
+          .*https://github.*[0-9]/tests/system/providers|
+          .*https://github.*/main/tests/system/providers|
+          .*https://github.*/master/tests/system/providers|
+          .*https://github.*/main/airflow/providers/.*/example_dags/|
+          .*https://github.*/master/airflow/providers/.*/example_dags/
+        pass_filenames: true
+        files: ^docs/apache-airflow-providers-.*\.rst
       - id: check-safe-filter-usage-in-html
         language: pygrep
         name: Don't use safe in templates

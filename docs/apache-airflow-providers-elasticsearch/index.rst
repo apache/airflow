@@ -46,7 +46,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-elasticsearch/4.0.0/system/tests/elasticsearch/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-elasticsearch/|version|/system/tests/elasticsearch/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-elasticsearch/>
     Installing from sources <installing-providers-from-sources>
 

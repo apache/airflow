@@ -40,14 +40,14 @@ AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 EXAMPLE_DAGS_URL_MATCHER = re.compile(
     r"^(.*)(https://github.com/apache/airflow/tree/(.*)/airflow/providers/(.*)/example_dags)(/?\".*)$"
 )
-
 SYSTEM_TESTS_URL_MATCHER = re.compile(
     r"^(.*)(https://github.com/apache/airflow/tree/(.*)/tests/system/providers/(.*))(/?\".*)$"
 )
 
 
 def check_if_url_exists(url: str) -> bool:  # type: ignore[return]
-    response = requests.head(url)
+    return True  # uncomment to check URLs
+    response = requests.head(url, allow_redirects=True)
     if response.status_code == 200:
         return True
     if response.status_code == 404:
@@ -57,12 +57,12 @@ def check_if_url_exists(url: str) -> bool:  # type: ignore[return]
 
 
 def replace_match(file: str, line: str, provider: str, version: str) -> str | None:
-    for matcher in [EXAMPLE_DAGS_URL_MATCHER, SYSTEM_TESTS_URL_MATCHER]:
+    for index, matcher in enumerate([EXAMPLE_DAGS_URL_MATCHER, SYSTEM_TESTS_URL_MATCHER]):
         match = matcher.match(line)
         if match:
             url_path_to_dir = match.group(4)
             branch = match.group(3)
-            if branch.startswith("providers-"):
+            if branch.startswith("providers-") and branch.endswith(f"/{version}"):
                 console.print(f"[green]Already corrected[/]: {provider}:{version}")
                 continue
             system_tests_url = (
@@ -73,17 +73,17 @@ def replace_match(file: str, line: str, provider: str, version: str) -> str | No
                 f"https://github.com/apache/airflow/tree/providers-{provider}/{version}"
                 f"/airflow/providers/{url_path_to_dir}/example_dags"
             )
-            if check_if_url_exists(system_tests_url):
+            if check_if_url_exists(system_tests_url) and index == 1:
                 new_line = re.sub(matcher, r"\1" + system_tests_url + r"\5", line)
-            elif check_if_url_exists(example_dags_url):
+            elif check_if_url_exists(example_dags_url) and index == 0:
                 new_line = re.sub(matcher, r"\1" + example_dags_url + r"\5", line)
             else:
                 console.print(
                     f"[yellow] Neither example dags nor system tests folder"
-                    f" exists for {provider}:{version} -> removing:[/]"
+                    f" exists for {provider}:{version} -> skipping:[/]"
                 )
                 console.print(line)
-                return None
+                return line
             if line != new_line:
                 console.print(f"[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}")
                 return new_line
@@ -101,8 +101,8 @@ def find_matches(_file: Path, provider: str, version: str):
 
 
 if __name__ == "__main__":
-    curdir = Path(os.curdir).resolve()
-    dirs = list(filter(os.path.isdir, curdir.iterdir()))
+    curdir: Path = Path(os.curdir).resolve()
+    dirs: list[Path] = list(filter(os.path.isdir, curdir.iterdir()))
     with Progress(console=console) as progress:
         task = progress.add_task(f"Updating {len(dirs)}", total=len(dirs))
         for directory in dirs:
@@ -113,8 +113,8 @@ if __name__ == "__main__":
                 for version_dir in version_dirs:
                     version = version_dir.name
                     console.print(version)
-                    for file_name in ["index.html", "example-dags.html"]:
-                        candidate_file = version_dir / file_name
+                    for file in version_dir.rglob("*.html"):
+                        candidate_file = file
                         if candidate_file.exists():
                             find_matches(candidate_file, provider, version)
             progress.advance(task)

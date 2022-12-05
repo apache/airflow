@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-arangodb/2.0.0/airflow/providers/arangodb/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-arangodb/|version|/airflow/providers/arangodb/example_dags>
 
 .. toctree::
     :maxdepth: 1

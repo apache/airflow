@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-jdbc/3.0.0/tests/system/providers/jdbc/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-jdbc/|version|/tests/system/providers/jdbc/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jdbc/>
     Installing from sources <installing-providers-from-sources>
 
