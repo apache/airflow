@@ -69,7 +69,7 @@ class SFTPSensor(BaseSensorOperator):
         if self.file_pattern:
             file_from_pattern = self.hook.get_file_by_pattern(self.path, self.file_pattern)
             if file_from_pattern:
-                actual_file_to_check = file_from_pattern
+                actual_file_to_check = self.path + file_from_pattern
             else:
                 return False
         else:
