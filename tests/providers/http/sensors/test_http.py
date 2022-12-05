@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
@@ -206,8 +205,8 @@ class FakeSession:
         pass
 
 
-class TestHttpOpSensor(unittest.TestCase):
-    def setUp(self):
+class TestHttpOpSensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag

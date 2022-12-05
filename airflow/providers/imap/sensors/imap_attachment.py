@@ -67,7 +67,6 @@ class ImapAttachmentSensor(BaseSensorOperator):
 
         :param context: The context that is being provided when poking.
         :return: True if attachment with the given name is present and False if not.
-        :rtype: bool
         """
         self.log.info("Poking for %s", self.attachment_name)
 

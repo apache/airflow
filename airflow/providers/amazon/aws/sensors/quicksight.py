@@ -65,13 +65,12 @@ class QuickSightSensor(BaseSensorOperator):
         self.quicksight_hook: QuickSightHook | None = None
         self.sts_hook: StsHook | None = None
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         """
         Pokes until the QuickSight Ingestion has successfully finished.
 
         :param context: The task context during execution.
         :return: True if it COMPLETED and False if not.
-        :rtype: bool
         """
         quicksight_hook = self.get_quicksight_hook
         sts_hook = self.get_sts_hook

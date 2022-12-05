@@ -176,6 +176,11 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
         " adheres to: 'pyarrow<3.1.0,>=3.0.0; extra == \"pandas\"'",
         "snowflake",
     ),
+    (
+        "You have an incompatible version of 'pyarrow' installed (9.0.0), please install a version that"
+        " adheres to: 'pyarrow<8.1.0,>=8.0.0; extra == \"pandas\"'",
+        "snowflake",
+    ),
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
     ("This module is deprecated. Please use `airflow.operators.empty`.", "dbt"),
@@ -204,6 +209,11 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
     (
         "'urllib3.contrib.pyopenssl' module is deprecated and will be removed in a future release of "
         "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
+        "azure/datalake/store",
+    ),
+    (
+        "'urllib3.contrib.pyopenssl' module is deprecated and will be removed in a future release of "
+        "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
         "botocore",
     ),
     (
@@ -227,22 +237,6 @@ KNOWN_COMMON_DEPRECATED_MESSAGES: set[str] = {
 # ignore those messages when the warnings are generated directly by importlib - which means that
 # we imported it directly during module walk by the importlib library
 KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.batch`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_instance`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_registry`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_volume`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_factory`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_lake`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.fileshare`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.batch`.",
-    "This module is deprecated. "
-    "Please use `airflow.providers.microsoft.azure.operators.container_instances`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.key_vault`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
     (
@@ -252,7 +246,6 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
     "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
     "numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,"
     " got 216 from PyObject",
-    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.lambda_function`.",
     (
         """
@@ -266,9 +259,8 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
 
 def filter_known_warnings(warn: warnings.WarningMessage) -> bool:
     msg_string = str(warn.message).replace("\n", " ")
-    for m in KNOWN_DEPRECATED_MESSAGES:
-        expected_package_string = "/" + m[1] + "/"
-        if msg_string == m[0] and warn.filename.find(expected_package_string) != -1:
+    for message, origin in KNOWN_DEPRECATED_MESSAGES:
+        if msg_string == message and warn.filename.find(f"/{origin}/") != -1:
             return False
     return True
 
@@ -767,12 +759,16 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: list[warnin
         console.print()
     else:
         console.print()
+        if os.environ.get("CI") != "":
+            console.print("::endgroup::")
         console.print(
             f"[red]ERROR! There are in total: {bad} entities badly named out of {total} entities[/]"
         )
         console.print()
         raise_error = True
     if warns:
+        if os.environ.get("CI") != "" and bad == 0:
+            console.print("::endgroup::")
         console.print()
         console.print("[red]Unknown warnings generated:[/]")
         console.print()

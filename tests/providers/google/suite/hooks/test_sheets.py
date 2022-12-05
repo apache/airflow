@@ -20,7 +20,6 @@ Unit Tests for the GSheets Hook
 """
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -45,8 +44,8 @@ NUM_RETRIES = 5
 API_RESPONSE = {"test": "response"}
 
 
-class TestGSheetsHook(unittest.TestCase):
-    def setUp(self):
+class TestGSheetsHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -75,6 +74,28 @@ class TestGSheetsHook(unittest.TestCase):
             date_time_render_option=DATE_TIME_RENDER_OPTION,
         )
         assert result is VALUES
+        execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
+        get_method.assert_called_once_with(
+            spreadsheetId=SPREADSHEET_ID,
+            range=RANGE_,
+            majorDimension=MAJOR_DIMENSION,
+            valueRenderOption=VALUE_RENDER_OPTION,
+            dateTimeRenderOption=DATE_TIME_RENDER_OPTION,
+        )
+
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
+    def test_get_values_empty(self, get_conn):
+        get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.get
+        execute_method = get_method.return_value.execute
+        execute_method.return_value = {}
+        result = self.hook.get_values(
+            spreadsheet_id=SPREADSHEET_ID,
+            range_=RANGE_,
+            major_dimension=MAJOR_DIMENSION,
+            value_render_option=VALUE_RENDER_OPTION,
+            date_time_render_option=DATE_TIME_RENDER_OPTION,
+        )
+        assert result == []
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         get_method.assert_called_once_with(
             spreadsheetId=SPREADSHEET_ID,

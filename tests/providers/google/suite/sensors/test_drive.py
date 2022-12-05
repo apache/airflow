@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
 
@@ -30,7 +30,7 @@ TEST_DELEGATE_TO = "TEST_DELEGATE_TO"
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestGoogleDriveFileSensor(TestCase):
+class TestGoogleDriveFileSensor:
     @mock.patch("airflow.providers.google.suite.sensors.drive.GoogleDriveHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
         task = GoogleDriveFileExistenceSensor(
@@ -46,8 +46,8 @@ class TestGoogleDriveFileSensor(TestCase):
         mock_hook.return_value.exists.return_value = True
 
         result = task.poke(mock.MagicMock())
+        assert result
 
-        self.assertEqual(True, result)
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,

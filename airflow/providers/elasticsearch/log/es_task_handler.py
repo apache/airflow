@@ -392,7 +392,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from.
         :return: URL to the external log collection service
-        :rtype: str
         """
         log_id = self._render_log_id(task_instance, try_number)
         scheme = "" if "://" in self.frontend else "https://"

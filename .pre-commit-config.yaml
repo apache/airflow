@@ -146,29 +146,14 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  # Keep version of black in sync wit blackend-docs and pre-commit-hook-names
+  # Keep version of black in sync wit blacken-docs and pre-commit-hook-names
   - repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
       - id: black
-        name: Run black (python formatter) on core
-        args: [--config=./pyproject.toml, --skip-string-normalization]
-        exclude: ^airflow/_vendor/|^airflow/contrib/|^airflow/providers/
-        files: ^airflow/
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
-    hooks:
-      - id: black
-        name: Run black (python formatter) on providers
+        name: Run black (python formatter)
         args: [--config=./pyproject.toml]
-        files: ^airflow/providers/
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
-    hooks:
-      - id: black
-        name: Run black (python formatter) on other
-        args: [--config=./pyproject.toml]
-        exclude: ^airflow/
+        exclude: ^airflow/_vendor/|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
@@ -180,7 +165,6 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-          - --skip-string-normalization
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -375,7 +359,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
-        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
+        entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         language: python
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^airflow/providers/.*/provider.yaml$
         pass_filenames: false

@@ -18,27 +18,19 @@
 from __future__ import annotations
 
 import json
-import unittest
 from datetime import datetime
 from unittest import mock
 
 import numpy
+import oracledb
 import pytest
 
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
-try:
-    import oracledb
-except ImportError:
-    oracledb = None  # type: ignore
 
-
-@unittest.skipIf(oracledb is None, "oracledb package not present")
-class TestOracleHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestOracleHookConn:
+    def setup_method(self):
         self.connection = Connection(
             login="login", password="password", host="host", schema="schema", port=1521
         )
@@ -265,11 +257,8 @@ class TestOracleHookConn(unittest.TestCase):
             self.db_hook.get_conn()
 
 
-@unittest.skipIf(oracledb is None, "oracledb package not present")
-class TestOracleHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestOracleHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur

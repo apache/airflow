@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import logging
+import secrets
+import string
 
 import pendulum
 from slugify import slugify
@@ -25,53 +27,71 @@ from airflow.models.taskinstance import TaskInstanceKey
 
 log = logging.getLogger(__name__)
 
+alphanum_lower = string.ascii_lowercase + string.digits
 
-def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
+
+def rand_str(num):
+    """Generate random lowercase alphanumeric string of length num.
+
+    :meta private:
     """
-    Kubernetes only supports lowercase alphanumeric characters, "-" and "." in
-    the pod name.
-    However, there are special rules about how "-" and "." can be used so let's
-    only keep
-    alphanumeric chars  see here for detail:
-    https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
+    return "".join(secrets.choice(alphanum_lower) for _ in range(num))
 
-    :param string: The requested Pod name
-    :return: Pod name stripped of any unsafe characters
+
+def add_pod_suffix(*, pod_name, rand_len=8, max_len=80):
+    """Add random string to pod name while staying under max len"""
+    suffix = "-" + rand_str(rand_len)
+    return pod_name[: max_len - len(suffix)].strip("-.") + suffix
+
+
+def create_pod_id(
+    dag_id: str | None = None,
+    task_id: str | None = None,
+    *,
+    max_length: int = 80,
+    unique: bool = True,
+) -> str:
     """
-    return slugify(string, separator='', lowercase=True)
-
-
-def create_pod_id(dag_id: str, task_id: str) -> str:
-    """
-    Generates the kubernetes safe pod_id. Note that this is
-    NOT the full ID that will be launched to k8s. We will add a uuid
-    to ensure uniqueness.
+    Generates unique pod ID given a dag_id and / or task_id.
 
     :param dag_id: DAG ID
     :param task_id: Task ID
-    :return: The non-unique pod_id for this task/DAG pairing
+    :param max_length: max number of characters
+    :param unique: whether a random string suffix should be added
+    :return: A valid identifier for a kubernetes pod name
     """
-    safe_dag_id = _strip_unsafe_kubernetes_special_chars(dag_id)
-    safe_task_id = _strip_unsafe_kubernetes_special_chars(task_id)
-    return safe_dag_id + safe_task_id
+    if not (dag_id or task_id):
+        raise ValueError("Must supply either dag_id or task_id.")
+    name = ""
+    if dag_id:
+        name += dag_id
+    if task_id:
+        if name:
+            name += "-"
+        name += task_id
+    base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
+    if unique:
+        return add_pod_suffix(pod_name=base_name, rand_len=8, max_len=max_length)
+    else:
+        return base_name
 
 
-def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey | None:
+def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
     """Build a TaskInstanceKey based on pod annotations"""
     log.debug("Creating task key for annotations %s", annotations)
-    dag_id = annotations['dag_id']
-    task_id = annotations['task_id']
-    try_number = int(annotations['try_number'])
-    annotation_run_id = annotations.get('run_id')
-    map_index = int(annotations.get('map_index', -1))
+    dag_id = annotations["dag_id"]
+    task_id = annotations["task_id"]
+    try_number = int(annotations["try_number"])
+    annotation_run_id = annotations.get("run_id")
+    map_index = int(annotations.get("map_index", -1))
 
-    if not annotation_run_id and 'execution_date' in annotations:
+    if not annotation_run_id and "execution_date" in annotations:
         # Compat: Look up the run_id from the TI table!
         from airflow.models.dagrun import DagRun
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import Session
 
-        execution_date = pendulum.parse(annotations['execution_date'])
+        execution_date = pendulum.parse(annotations["execution_date"])
         # Do _not_ use create-session, we don't want to expunge
         session = Session()
 

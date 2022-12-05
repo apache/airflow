@@ -73,14 +73,13 @@ class SqsPublishOperator(BaseOperator):
         self.message_attributes = message_attributes or {}
         self.message_group_id = message_group_id
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> dict:
         """
         Publish the message to the Amazon SQS queue
 
         :param context: the context object
         :return: dict with information about the message sent
             For details of the returned dict see :py:meth:`botocore.client.SQS.send_message`
-        :rtype: dict
         """
         hook = SqsHook(aws_conn_id=self.aws_conn_id)
 

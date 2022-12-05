@@ -29,13 +29,13 @@ from airflow.configuration import AirflowConfigException, conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
-from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+    from airflow.utils.log.logging_mixin import SetContextPropagate
 
 
 class FileTaskHandler(logging.Handler):
@@ -62,19 +62,18 @@ class FileTaskHandler(logging.Handler):
                 stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
 
-    def set_context(self, ti: TaskInstance):
+    def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
         """
         local_loc = self._init_file(ti)
-        self.handler = NonCachingFileHandler(local_loc, encoding='utf-8')
+        self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
-
-        return DISABLE_PROPOGATE
+        return None
 
     def emit(self, record):
         if self.handler:
@@ -173,8 +172,8 @@ class FileTaskHandler(logging.Handler):
             except Exception as e:
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
-                return log, {'end_of_log': True}
-        elif conf.get('core', 'executor') == 'KubernetesExecutor':
+                return log, {"end_of_log": True}
+        elif conf.get("core", "executor") == "KubernetesExecutor":
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
@@ -184,7 +183,7 @@ class FileTaskHandler(logging.Handler):
                     # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
                     # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
                     # on any label of a FQDN.
-                    pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes_executor', 'namespace'))
+                    pod_list = kube_client.list_namespaced_pod(conf.get("kubernetes_executor", "namespace"))
                     matches = [
                         pod.metadata.name
                         for pod in pod_list.items
@@ -194,12 +193,12 @@ class FileTaskHandler(logging.Handler):
                         if len(matches[0]) > len(ti.hostname):
                             ti.hostname = matches[0]
 
-                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
+                log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
-                    namespace=conf.get('kubernetes_executor', 'namespace'),
-                    container='base',
+                    namespace=conf.get("kubernetes_executor", "namespace"),
+                    container="base",
                     follow=False,
                     tail_lines=100,
                     _preload_content=False,
@@ -209,8 +208,8 @@ class FileTaskHandler(logging.Handler):
                     log += line.decode()
 
             except Exception as f:
-                log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
-                return log, {'end_of_log': True}
+                log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
+                return log, {"end_of_log": True}
         else:
             import httpx
 
@@ -220,21 +219,21 @@ class FileTaskHandler(logging.Handler):
             try:
                 timeout = None  # No timeout
                 try:
-                    timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
+                    timeout = conf.getint("webserver", "log_fetch_timeout_sec")
                 except (AirflowConfigException, ValueError):
                     pass
 
                 signer = JWTSigner(
-                    secret_key=conf.get('webserver', 'secret_key'),
+                    secret_key=conf.get("webserver", "secret_key"),
                     expiration_time_in_seconds=conf.getint(
-                        'webserver', 'log_request_clock_grace', fallback=30
+                        "webserver", "log_request_clock_grace", fallback=30
                     ),
                     audience="task-instance-logs",
                 )
                 response = httpx.get(
                     url,
                     timeout=timeout,
-                    headers={'Authorization': signer.generate_signed_token({"filename": log_relative_path})},
+                    headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
                 )
                 response.encoding = "utf-8"
 
@@ -252,19 +251,19 @@ class FileTaskHandler(logging.Handler):
                 # Check if the resource was properly fetched
                 response.raise_for_status()
 
-                log += '\n' + response.text
+                log += "\n" + response.text
             except Exception as e:
                 log += f"*** Failed to fetch log file from worker. {str(e)}\n"
-                return log, {'end_of_log': True}
+                return log, {"end_of_log": True}
 
         # Process tailing if log is not at it's end
         end_of_log = ti.try_number != try_number or ti.state not in State.running
         log_pos = len(log)
-        if metadata and 'log_pos' in metadata:
-            previous_chars = metadata['log_pos']
+        if metadata and "log_pos" in metadata:
+            previous_chars = metadata["log_pos"]
             log = log[previous_chars:]  # Cut off previously passed log test as new tail
 
-        return log, {'end_of_log': end_of_log, 'log_pos': log_pos}
+        return log, {"end_of_log": end_of_log, "log_pos": log_pos}
 
     @staticmethod
     def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
@@ -295,13 +294,13 @@ class FileTaskHandler(logging.Handler):
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [
-                [('default_host', f'Error fetching the logs. Try number {try_number} is invalid.')],
+                [("default_host", f"Error fetching the logs. Try number {try_number} is invalid.")],
             ]
-            return logs, [{'end_of_log': True}]
+            return logs, [{"end_of_log": True}]
         else:
             try_numbers = [try_number]
 
-        logs = [''] * len(try_numbers)
+        logs = [""] * len(try_numbers)
         metadata_array = [{}] * len(try_numbers)
         for i, try_number_element in enumerate(try_numbers):
             log, out_metadata = self._read(task_instance, try_number_element, metadata)

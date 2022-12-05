@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
@@ -27,8 +26,8 @@ from airflow.utils import db
 jira_client_mock = Mock(name="jira_client")
 
 
-class TestJiraHook(unittest.TestCase):
-    def setUp(self):
+class TestJiraHook:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="jira_default",

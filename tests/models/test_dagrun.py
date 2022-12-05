@@ -28,8 +28,16 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.decorators import task
-from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.decorators import task, task_group
+from airflow.models import (
+    DAG,
+    DagBag,
+    DagModel,
+    DagRun,
+    TaskInstance,
+    TaskInstance as TI,
+    clear_task_instances,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
@@ -1285,6 +1293,39 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     ]
 
 
+def test_mapped_literal_faulty_state_in_db(dag_maker, session):
+    """
+    This test tries to recreate a faulty state in the database and checks if we can recover from it.
+    The state that happens is that there exists mapped task instances and the unmapped task instance.
+    So we have instances with map_index [-1, 0, 1]. The -1 task instances should be removed in this case.
+    """
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_1():
+            return [1, 2]
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1")
+    ti.run()
+    decision = dr.task_instance_scheduling_decisions()
+    assert len(decision.schedulable_tis) == 2
+
+    # We insert a faulty record
+    session.add(TaskInstance(dag.get_task("task_2"), dr.execution_date, dr.run_id))
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions()
+    assert len(decision.schedulable_tis) == 2
+
+
 def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_integrity(dag_maker, session):
     """
     Test that when there's no change to mapped task indexes at runtime, the dagrun.verify_integrity
@@ -1670,7 +1711,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
 
 
 @pytest.mark.need_serialized_dag
-def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
+def test_mapped_mixed_literal_not_expanded_at_create(dag_maker, session):
     literal = [1, 2, 3, 4]
     with dag_maker(session=session):
         task = BaseOperator(task_id="task_1")
@@ -1688,6 +1729,47 @@ def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
     # Verify_integrity shouldn't change the result now that the TIs exist
     dr.verify_integrity(session=session)
     assert query.all() == [(-1, None)]
+
+
+def test_mapped_task_group_expands_at_create(dag_maker, session):
+    literal = [[1, 2], [3, 4]]
+
+    with dag_maker(session=session):
+
+        @task_group
+        def tg(x):
+            # Normal operator in mapped task group, expands to 2 tis.
+            MockOperator(task_id="t1")
+            # Mapped operator expands *again* against mapped task group arguments to 4 tis.
+            with pytest.raises(NotImplementedError) as ctx:
+                MockOperator.partial(task_id="t2").expand(arg1=literal)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+            # Normal operator referencing mapped task group arguments does not further expand, only 2 tis.
+            MockOperator(task_id="t3", arg1=x)
+            # It can expand *again* (since each item in x is a list) but this is not done at parse time.
+            with pytest.raises(NotImplementedError) as ctx:
+                MockOperator.partial(task_id="t4").expand(arg1=x)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+
+        tg.expand(x=literal)
+
+    dr = dag_maker.create_dagrun()
+    query = (
+        session.query(TI.task_id, TI.map_index, TI.state)
+        .filter_by(dag_id=dr.dag_id, run_id=dr.run_id)
+        .order_by(TI.task_id, TI.map_index)
+    )
+    assert query.all() == [
+        ("tg.t1", 0, None),
+        ("tg.t1", 1, None),
+        # ("tg.t2", 0, None),
+        # ("tg.t2", 1, None),
+        # ("tg.t2", 2, None),
+        # ("tg.t2", 3, None),
+        ("tg.t3", 0, None),
+        ("tg.t3", 1, None),
+        # ("tg.t4", -1, None),
+    ]
 
 
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
@@ -1902,7 +1984,9 @@ def test_mapped_skip_upstream_not_deadlock(dag_maker):
     tis["say_hi"].state = TaskInstanceState.SUCCESS
     session.flush()
 
-    dr.update_state(session=session)
+    dr.update_state(session=session)  # expands the mapped tasks
+    dr.update_state(session=session)  # marks the task as skipped
+    dr.update_state(session=session)  # marks dagrun as success
     assert dr.state == DagRunState.SUCCESS
     assert tis["add_one__1"].state == TaskInstanceState.SKIPPED
 
@@ -1972,3 +2056,134 @@ def test_mapped_expand_against_params(dag_maker, partial_params, mapped_params, 
         ti.run()
 
     assert sorted(results) == expected
+
+
+def test_mapped_task_group_expands(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task_group
+        def tg(x, y):
+            return MockOperator(task_id="task_2", arg1=x, arg2=y)
+
+        task_1 = BaseOperator(task_id="task_1")
+        tg.expand(x=task_1.output, y=[1, 2, 3])
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    # Not expanding task_2 yet since it depends on result from task_1.
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert {(ti.task_id, ti.map_index, ti.state) for ti in decision.tis} == {
+        ("task_1", -1, None),
+        ("tg.task_2", -1, None),
+    }
+
+    # Simulate task_1 execution to produce TaskMap.
+    (ti_1,) = decision.schedulable_tis
+    assert ti_1.task_id == "task_1"
+    ti_1.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(ti_1, ["a", "b"]))
+    session.flush()
+
+    # Now task_2 in mapped tagk group is expanded.
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert {(ti.task_id, ti.map_index, ti.state) for ti in decision.schedulable_tis} == {
+        ("tg.task_2", 0, None),
+        ("tg.task_2", 1, None),
+        ("tg.task_2", 2, None),
+        ("tg.task_2", 3, None),
+        ("tg.task_2", 4, None),
+        ("tg.task_2", 5, None),
+    }
+
+
+def test_operator_mapped_task_group_receives_value(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def t(value, *, ti=None):
+            results[(ti.task_id, ti.map_index)] = value
+            return value
+
+        @task_group
+        def tg(va):
+            # Each expanded group has one t1 and t2 each.
+            t1 = t.override(task_id="t1")(va)
+            t2 = t.override(task_id="t2")(t1)
+
+            with pytest.raises(NotImplementedError) as ctx:
+                t.override(task_id="t4").expand(value=va)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+
+            return t2
+
+        # The group is mapped by 3.
+        t2 = tg.expand(va=[["a", "b"], [4], ["z"]])
+
+        # Aggregates results from task group.
+        t.override(task_id="t3")(t2)
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert results == {("tg.t1", 0): ["a", "b"], ("tg.t1", 1): [4], ("tg.t1", 2): ["z"]}
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert results == {("tg.t2", 0): ["a", "b"], ("tg.t2", 1): [4], ("tg.t2", 2): ["z"]}
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert len(results) == 1
+    assert list(results[("t3", -1)]) == [["a", "b"], [4], ["z"]]
+
+
+def test_mapping_against_empty_list(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def add_one(x: int):
+            return x + 1
+
+        @task
+        def say_hi():
+            print("Hi")
+
+        @task
+        def say_bye():
+            print("Bye")
+
+        added_values = add_one.expand(x=[])
+        added_more_values = add_one.expand(x=[])
+        added_more_more_values = add_one.expand(x=[])
+        say_hi() >> say_bye() >> added_values
+        added_values >> added_more_values >> added_more_more_values
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    say_hi_ti = tis["say_hi"]
+    say_bye_ti = tis["say_bye"]
+    say_hi_ti.state = TaskInstanceState.SUCCESS
+    say_bye_ti.state = TaskInstanceState.SUCCESS
+    session.merge(say_hi_ti)
+    session.merge(say_bye_ti)
+    session.flush()
+
+    dr.update_state(session=session)
+    dr.update_state(session=session)  # marks first empty mapped task as skipped
+    dr.update_state(session=session)  # marks second empty mapped task as skipped
+    dr.update_state(session=session)  # marks the third empty mapped task as skipped and dagrun as success
+    tis = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+    assert tis["say_hi"] == TaskInstanceState.SUCCESS
+    assert tis["say_bye"] == TaskInstanceState.SUCCESS
+    assert tis["add_one"] == TaskInstanceState.SKIPPED
+    assert tis["add_one__1"] == TaskInstanceState.SKIPPED
+    assert tis["add_one__2"] == TaskInstanceState.SKIPPED
+    assert dr.state == State.SUCCESS

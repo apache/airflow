@@ -269,11 +269,7 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """
-        Opens a ssh connection to the remote host.
-
-        :rtype: paramiko.client.SSHClient
-        """
+        """Opens a ssh connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -294,17 +290,16 @@ class SSHHook(BaseHook):
             known_hosts = os.path.expanduser("~/.ssh/known_hosts")
             if not self.allow_host_key_change and os.path.isfile(known_hosts):
                 client.load_host_keys(known_hosts)
-        else:
-            if self.host_key is not None:
-                client_host_keys = client.get_host_keys()
-                if self.port == SSH_PORT:
-                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
-                else:
-                    client_host_keys.add(
-                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
-                    )
+
+        elif self.host_key is not None:
+            # Get host key from connection extra if it not set or None then we fallback to system host keys
+            client_host_keys = client.get_host_keys()
+            if self.port == SSH_PORT:
+                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
             else:
-                pass  # will fallback to system host keys if none explicitly specified in conn extra
+                client_host_keys.add(
+                    f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                )
 
         connect_kwargs: dict[str, Any] = dict(
             hostname=self.remote_host,
@@ -345,12 +340,12 @@ class SSHHook(BaseHook):
 
         if self.keepalive_interval:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
-            # type "Optional[Transport]" and item "None" has no attribute "set_keepalive".
+            # type "Transport | None" and item "None" has no attribute "set_keepalive".
             client.get_transport().set_keepalive(self.keepalive_interval)  # type: ignore[union-attr]
 
         if self.ciphers:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
-            # type "Optional[Transport]" and item "None" has no method `get_security_options`".
+            # type "Transport | None" and item "None" has no method `get_security_options`".
             client.get_transport().get_security_options().ciphers = self.ciphers  # type: ignore[union-attr]
 
         self.client = client
@@ -491,23 +486,28 @@ class SSHHook(BaseHook):
         if stdout_buffer_length > 0:
             agg_stdout += stdout.channel.recv(stdout_buffer_length)
 
+        timedout = False
+
         # read from both stdout and stderr
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
             readq, _, _ = select([channel], [], [], timeout)
+            timedout = len(readq) == 0
             for recv in readq:
                 if recv.recv_ready():
-                    line = stdout.channel.recv(len(recv.in_buffer))
-                    agg_stdout += line
-                    self.log.info(line.decode("utf-8", "replace").strip("\n"))
+                    output = stdout.channel.recv(len(recv.in_buffer))
+                    agg_stdout += output
+                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                        self.log.info(line)
                 if recv.recv_stderr_ready():
-                    line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
-                    agg_stderr += line
-                    self.log.warning(line.decode("utf-8", "replace").strip("\n"))
+                    output = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
+                    agg_stderr += output
+                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                        self.log.warning(line)
             if (
                 stdout.channel.exit_status_ready()
                 and not stderr.channel.recv_stderr_ready()
                 and not stdout.channel.recv_ready()
-            ):
+            ) or timedout:
                 stdout.channel.shutdown_read()
                 try:
                     stdout.channel.close()
@@ -520,6 +520,9 @@ class SSHHook(BaseHook):
 
         stdout.close()
         stderr.close()
+
+        if timedout:
+            raise AirflowException("SSH command timed out")
 
         exit_status = stdout.channel.recv_exit_status()
 

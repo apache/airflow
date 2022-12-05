@@ -30,7 +30,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
-from airflow.utils.db_cleanup import _build_query, _cleanup_table, config_dict, run_cleanup
+from airflow.utils.db_cleanup import CreateTableAs, _build_query, _cleanup_table, config_dict, run_cleanup
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
@@ -172,6 +172,7 @@ class TestDBCleanup:
             num_tis=10,
             external_trigger=external_trigger,
         )
+        target_table_name = "_airflow_temp_table_name"
         with create_session() as session:
             clean_before_date = base_date.add(**date_add_kwargs)
             query = _build_query(
@@ -179,7 +180,11 @@ class TestDBCleanup:
                 clean_before_timestamp=clean_before_date,
                 session=session,
             )
-            assert len(query.all()) == expected_to_delete
+            stmt = CreateTableAs(target_table_name, query.selectable)
+            session.execute(stmt)
+            res = session.execute(f"SELECT COUNT(1) FROM {target_table_name}")
+            for row in res:
+                assert row[0] == expected_to_delete
 
     @pytest.mark.parametrize(
         "table_name, date_add_kwargs, expected_to_delete, external_trigger",
@@ -255,6 +260,7 @@ class TestDBCleanup:
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})
         exclusion_list = {
+            "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
             "trigger",  # self-maintaining
@@ -272,6 +278,8 @@ class TestDBCleanup:
             "task_outlet_dataset_reference",  # leave alone for now
             "dataset_dag_run_queue",  # self-managed
             "dataset_event_dag_run",  # foreign keys
+            "task_instance_note",  # foreign keys
+            "dag_run_note",  # foreign keys
         }
 
         from airflow.utils.db_cleanup import config_dict

@@ -82,7 +82,6 @@ class PubSubHook(GoogleBaseHook):
         Retrieves connection to Google Cloud Pub/Sub.
 
         :return: Google Cloud Pub/Sub client object.
-        :rtype: google.cloud.pubsub_v1.PublisherClient
         """
         if not self._client:
             self._client = PublisherClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -94,7 +93,6 @@ class PubSubHook(GoogleBaseHook):
         Creates SubscriberClient.
 
         :return: Google Cloud Pub/Sub client object.
-        :rtype: google.cloud.pubsub_v1.SubscriberClient
         """
         return SubscriberClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
@@ -191,7 +189,7 @@ class PubSubHook(GoogleBaseHook):
             of Google Cloud regions where messages published to
             the topic may be stored. If not present, then no constraints
             are in effect.
-            Union[Dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
+            Union[dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
         :param kms_key_name: The resource name of the Cloud KMS CryptoKey
             to be used to protect access to messages published on this topic.
             The expected format is
@@ -359,7 +357,6 @@ class PubSubHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :return: subscription name which will be the system-generated value if
             the ``subscription`` parameter is not supplied
-        :rtype: str
         """
         subscriber = self.subscriber_client
 
@@ -541,9 +538,9 @@ class PubSubHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         """
         if ack_ids is not None and messages is None:
-            pass
+            pass  # use ack_ids as is
         elif ack_ids is None and messages is not None:
-            ack_ids = [message.ack_id for message in messages]
+            ack_ids = [message.ack_id for message in messages]  # extract ack_ids from messages
         else:
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 

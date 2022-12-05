@@ -69,7 +69,6 @@ class ImapHook(BaseHook):
             to automatically open and close the connection to the mail server.
 
         :return: an authorized ImapHook object.
-        :rtype: ImapHook
         """
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
@@ -104,7 +103,6 @@ class ImapHook(BaseHook):
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
         :returns: True if there is an attachment with the given name and False if not.
-        :rtype: bool
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, True, mail_folder, mail_filter
@@ -136,7 +134,6 @@ class ImapHook(BaseHook):
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
         :returns: a list of tuple each containing the attachment filename and its payload.
-        :rtype: a list of tuple
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, latest_only, mail_folder, mail_filter
@@ -185,14 +182,12 @@ class ImapHook(BaseHook):
         self._create_files(mail_attachments, local_output_directory)
 
     def _handle_not_found_mode(self, not_found_mode: str) -> None:
-        if not_found_mode == "raise":
-            raise AirflowException("No mail attachments found!")
-        if not_found_mode == "warn":
-            self.log.warning("No mail attachments found!")
-        elif not_found_mode == "ignore":
-            pass  # Do not notify if the attachment has not been found.
-        else:
+        if not_found_mode not in ("raise", "warn", "ignore"):
             self.log.error('Invalid "not_found_mode" %s', not_found_mode)
+        elif not_found_mode == "raise":
+            raise AirflowException("No mail attachments found!")
+        elif not_found_mode == "warn":
+            self.log.warning("No mail attachments found!")
 
     def _retrieve_mails_attachments_by_name(
         self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
@@ -287,7 +282,6 @@ class Mail(LoggingMixin):
         Checks the mail for a attachments.
 
         :returns: True if it has attachments and False if not.
-        :rtype: bool
         """
         return self.mail.get_content_maintype() == "multipart"
 
@@ -302,7 +296,6 @@ class Mail(LoggingMixin):
         :param find_first: If set to True it will only find the first match and then quit.
         :returns: a list of tuples each containing name and payload
             where the attachments name matches the given name.
-        :rtype: list(tuple)
         """
         attachments = []
 
@@ -341,7 +334,6 @@ class MailPart:
         Checks if the part is a valid mail attachment.
 
         :returns: True if it is an attachment and False if not.
-        :rtype: bool
         """
         return self.part.get_content_maintype() != "multipart" and self.part.get("Content-Disposition")
 
@@ -351,7 +343,6 @@ class MailPart:
 
         :param name: The name to look for.
         :returns: True if it matches the name (including regular expression).
-        :rtype: tuple
         """
         return re.match(name, self.part.get_filename())  # type: ignore
 
@@ -361,7 +352,6 @@ class MailPart:
 
         :param name: The name to look for.
         :returns: True if it is equal to the given name.
-        :rtype: bool
         """
         return self.part.get_filename() == name
 
@@ -370,6 +360,5 @@ class MailPart:
         Gets the file including name and payload.
 
         :returns: the part's name and payload.
-        :rtype: tuple
         """
         return self.part.get_filename(), self.part.get_payload(decode=True)

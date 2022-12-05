@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import time
-import unittest
 from datetime import datetime
 from unittest import mock
 from unittest.mock import patch
@@ -241,7 +240,7 @@ test_evaluation_config = {
 }
 
 
-class TestSageMakerHook(unittest.TestCase):
+class TestSageMakerHook:
     @mock.patch.object(AwsLogsHook, "get_log_events")
     def test_multi_stream_iter(self, mock_log_stream):
         event = {"timestamp": 1}
@@ -298,8 +297,7 @@ class TestSageMakerHook(unittest.TestCase):
         hook.check_tuning_config(create_tuning_params)
         mock_check_url.assert_called_once_with(data_url)
 
-    @mock.patch.object(SageMakerHook, "get_client_type")
-    def test_conn(self, mock_get_client_type):
+    def test_conn(self):
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
         assert hook.aws_conn_id == "sagemaker_test_conn_id"
 
@@ -320,7 +318,8 @@ class TestSageMakerHook(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, "check_training_config")
     @mock.patch.object(SageMakerHook, "get_conn")
-    def test_training_ends_with_wait(self, mock_client, mock_check_training):
+    @mock.patch("time.sleep", return_value=None)
+    def test_training_ends_with_wait(self, _, mock_client, mock_check_training):
         mock_check_training.return_value = True
         mock_session = mock.Mock()
         attrs = {
@@ -329,20 +328,20 @@ class TestSageMakerHook(unittest.TestCase):
                 DESCRIBE_TRAINING_INPROGRESS_RETURN,
                 DESCRIBE_TRAINING_STOPPING_RETURN,
                 DESCRIBE_TRAINING_COMPLETED_RETURN,
-                DESCRIBE_TRAINING_COMPLETED_RETURN,
             ],
         }
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id_1")
         hook.create_training_job(
-            create_training_params, wait_for_completion=True, print_log=False, check_interval=1
+            create_training_params, wait_for_completion=True, print_log=False, check_interval=0
         )
-        assert mock_session.describe_training_job.call_count == 4
+        assert mock_session.describe_training_job.call_count == 3
 
     @mock.patch.object(SageMakerHook, "check_training_config")
     @mock.patch.object(SageMakerHook, "get_conn")
-    def test_training_throws_error_when_failed_with_wait(self, mock_client, mock_check_training):
+    @mock.patch("time.sleep", return_value=None)
+    def test_training_throws_error_when_failed_with_wait(self, _, mock_client, mock_check_training):
         mock_check_training.return_value = True
         mock_session = mock.Mock()
         attrs = {
@@ -362,7 +361,7 @@ class TestSageMakerHook(unittest.TestCase):
                 create_training_params,
                 wait_for_completion=True,
                 print_log=False,
-                check_interval=1,
+                check_interval=0,
             )
         assert mock_session.describe_training_job.call_count == 3
 
@@ -564,9 +563,10 @@ class TestSageMakerHook(unittest.TestCase):
         )
         assert response == (LogState.JOB_COMPLETE, {}, 50)
 
+    @pytest.mark.parametrize("log_state", [LogState.JOB_COMPLETE, LogState.COMPLETE])
     @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(SageMakerHook, "get_conn")
-    def test_describe_training_job_with_logs_job_complete(self, mock_client, mock_log_client):
+    def test_describe_training_job_with_complete_states(self, mock_client, mock_log_client, log_state):
         mock_session = mock.Mock()
         mock_log_session = mock.Mock()
         attrs = {"describe_training_job.return_value": DESCRIBE_TRAINING_COMPLETED_RETURN}
@@ -584,33 +584,7 @@ class TestSageMakerHook(unittest.TestCase):
             positions={},
             stream_names=[],
             instance_count=1,
-            state=LogState.JOB_COMPLETE,
-            last_description={},
-            last_describe_job_call=0,
-        )
-        assert response == (LogState.COMPLETE, {}, 0)
-
-    @mock.patch.object(AwsLogsHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "get_conn")
-    def test_describe_training_job_with_logs_complete(self, mock_client, mock_log_client):
-        mock_session = mock.Mock()
-        mock_log_session = mock.Mock()
-        attrs = {"describe_training_job.return_value": DESCRIBE_TRAINING_COMPLETED_RETURN}
-        log_attrs = {
-            "describe_log_streams.side_effect": LIFECYCLE_LOG_STREAMS,
-            "get_log_events.side_effect": STREAM_LOG_EVENTS,
-        }
-        mock_session.configure_mock(**attrs)
-        mock_client.return_value = mock_session
-        mock_log_session.configure_mock(**log_attrs)
-        mock_log_client.return_value = mock_log_session
-        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-        response = hook.describe_training_job_with_log(
-            job_name=job_name,
-            positions={},
-            stream_names=[],
-            instance_count=1,
-            state=LogState.COMPLETE,
+            state=log_state,
             last_description={},
             last_describe_job_call=0,
         )
@@ -620,7 +594,8 @@ class TestSageMakerHook(unittest.TestCase):
     @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "describe_training_job_with_log")
-    def test_training_with_logs(self, mock_describe, mock_client, mock_log_client, mock_check_training):
+    @mock.patch("time.sleep", return_value=None)
+    def test_training_with_logs(self, _, mock_describe, mock_client, mock_log_client, mock_check_training):
         mock_check_training.return_value = True
         mock_describe.side_effect = [
             (LogState.WAIT_IN_PROGRESS, DESCRIBE_TRAINING_INPROGRESS_RETURN, 0),
@@ -643,7 +618,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_log_client.return_value = mock_log_session
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id_1")
         hook.create_training_job(
-            create_training_params, wait_for_completion=True, print_log=True, check_interval=1
+            create_training_params, wait_for_completion=True, print_log=True, check_interval=0
         )
         assert mock_describe.call_count == 3
         assert mock_session.describe_training_job.call_count == 1
@@ -651,9 +626,13 @@ class TestSageMakerHook(unittest.TestCase):
     @mock.patch.object(SageMakerHook, "get_conn")
     def test_find_processing_job_by_name(self, mock_conn):
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-        mock_conn.describe_processing_job.return_value = {}
-        ret = hook.find_processing_job_by_name("existing_job")
-        assert ret
+        mock_conn().list_processing_jobs.return_value = {
+            "ProcessingJobSummaries": [{"ProcessingJobName": "existing_job"}]
+        }
+
+        with pytest.warns(DeprecationWarning):
+            ret = hook.find_processing_job_by_name("existing_job")
+            assert ret
 
     @mock.patch.object(SageMakerHook, "get_conn")
     def test_find_processing_job_by_name_job_not_exists_should_return_false(self, mock_conn):
@@ -663,8 +642,75 @@ class TestSageMakerHook(unittest.TestCase):
         )
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
 
-        ret = hook.find_processing_job_by_name("existing_job")
-        assert not ret
+        with pytest.warns(DeprecationWarning):
+            ret = hook.find_processing_job_by_name("existing_job")
+            assert not ret
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    def test_count_processing_jobs_by_name(self, mock_conn):
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+        existing_job_name = "existing_job"
+        mock_conn().list_processing_jobs.return_value = {
+            "ProcessingJobSummaries": [{"ProcessingJobName": existing_job_name}]
+        }
+        ret = hook.count_processing_jobs_by_name(existing_job_name)
+        assert ret == 1
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    def test_count_processing_jobs_by_name_only_counts_actual_hits(self, mock_conn):
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+        existing_job_name = "existing_job"
+        mock_conn().list_processing_jobs.return_value = {
+            "ProcessingJobSummaries": [
+                {"ProcessingJobName": existing_job_name},
+                {"ProcessingJobName": f"contains_but_does_not_start_with_{existing_job_name}"},
+                {"ProcessingJobName": f"{existing_job_name}_with_different_suffix-123"},
+            ]
+        }
+        ret = hook.count_processing_jobs_by_name(existing_job_name)
+        assert ret == 1
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_count_processing_jobs_by_name_retries_on_throttle_exception(self, _, mock_conn):
+        throttle_exception = ClientError(
+            error_response={"Error": {"Code": "ThrottlingException"}}, operation_name="empty"
+        )
+        successful_result = {"ProcessingJobSummaries": [{"ProcessingJobName": "existing_job"}]}
+        # Return a ThrottleException on the first call, then a mocked successful value the second.
+        mock_conn().list_processing_jobs.side_effect = [throttle_exception, successful_result]
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+
+        ret = hook.count_processing_jobs_by_name("existing_job")
+
+        assert mock_conn().list_processing_jobs.call_count == 2
+        assert ret == 1
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_count_processing_jobs_by_name_fails_after_max_retries(self, _, mock_conn):
+        mock_conn().list_processing_jobs.side_effect = ClientError(
+            error_response={"Error": {"Code": "ThrottlingException"}}, operation_name="empty"
+        )
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+        retries = 3
+
+        with pytest.raises(ClientError) as raised_exception:
+            hook.count_processing_jobs_by_name("existing_job", retries=retries)
+
+        assert mock_conn().list_processing_jobs.call_count == retries + 1
+        assert raised_exception.value.response["Error"]["Code"] == "ThrottlingException"
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    def test_count_processing_jobs_by_name_job_not_exists_should_return_falsy(self, mock_conn):
+        error_resp = {"Error": {"Code": "ResourceNotFound"}}
+        mock_conn().list_processing_jobs.side_effect = ClientError(
+            error_response=error_resp, operation_name="empty"
+        )
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
+
+        ret = hook.count_processing_jobs_by_name("existing_job")
+        assert ret == 0
 
     @mock_sagemaker
     def test_delete_model(self):

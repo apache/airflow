@@ -17,20 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
+
+from moto import mock_glue
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
 
-try:
-    from moto import mock_glue
-except ImportError:
-    mock_glue = None
 
-
-@unittest.skipIf(mock_glue is None, "Skipping test because moto.mock_glue is not available")
-class TestGlueCatalogPartitionSensor(unittest.TestCase):
+class TestGlueCatalogPartitionSensor:
 
     task_id = "test_glue_catalog_partition_sensor"
 

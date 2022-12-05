@@ -36,7 +36,7 @@ from airflow.utils.types import DagRunType
 
 
 class ConfObject(fields.Field):
-    """The conf field"""
+    """The conf field."""
 
     def _serialize(self, value, attr, obj, **kwargs):
         if not value:
@@ -53,15 +53,15 @@ _MISSING = object()
 
 
 class DAGRunSchema(SQLAlchemySchema):
-    """Schema for DAGRun"""
+    """Schema for DAGRun."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DagRun
         dateformat = "iso"
 
-    run_id = auto_field(data_key='dag_run_id')
+    run_id = auto_field(data_key="dag_run_id")
     dag_id = auto_field(dump_only=True)
     execution_date = auto_field(data_key="logical_date", validate=validate_istimezone)
     start_date = auto_field(dump_only=True)
@@ -73,6 +73,7 @@ class DAGRunSchema(SQLAlchemySchema):
     data_interval_end = auto_field(dump_only=True)
     last_scheduling_decision = auto_field(dump_only=True)
     run_type = auto_field(dump_only=True)
+    note = auto_field(dump_only=True)
 
     @pre_load
     def autogenerate(self, data, **kwargs):
@@ -112,7 +113,7 @@ class DAGRunSchema(SQLAlchemySchema):
 
 
 class SetDagRunStateFormSchema(Schema):
-    """Schema for handling the request of setting state of DAG run"""
+    """Schema for handling the request of setting state of DAG run."""
 
     state = DagStateField(
         validate=validate.OneOf(
@@ -122,32 +123,32 @@ class SetDagRunStateFormSchema(Schema):
 
 
 class ClearDagRunStateFormSchema(Schema):
-    """Schema for handling the request of clearing a DAG run"""
+    """Schema for handling the request of clearing a DAG run."""
 
     dry_run = fields.Boolean(load_default=True)
 
 
 class DAGRunCollection(NamedTuple):
-    """List of DAGRuns with metadata"""
+    """List of DAGRuns with metadata."""
 
     dag_runs: list[DagRun]
     total_entries: int
 
 
 class DAGRunCollectionSchema(Schema):
-    """DAGRun Collection schema"""
+    """DAGRun Collection schema."""
 
     dag_runs = fields.List(fields.Nested(DAGRunSchema))
     total_entries = fields.Int()
 
 
 class DagRunsBatchFormSchema(Schema):
-    """Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint"""
+    """Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
-        datetimeformat = 'iso'
+        datetimeformat = "iso"
         strict = True
 
     order_by = fields.String()
@@ -163,8 +164,15 @@ class DagRunsBatchFormSchema(Schema):
     end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
 
 
+class SetDagRunNoteFormSchema(Schema):
+    """Schema for handling the request of clearing a DAG run."""
+
+    note = fields.String(allow_none=True, validate=validate.Length(max=1000))
+
+
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
 set_dagrun_state_form_schema = SetDagRunStateFormSchema()
 clear_dagrun_form_schema = ClearDagRunStateFormSchema()
 dagruns_batch_form_schema = DagRunsBatchFormSchema()
+set_dagrun_note_form_schema = SetDagRunNoteFormSchema()

@@ -31,12 +31,22 @@ from airflow.api_connexion.schemas.variable_schema import variable_collection_sc
 from airflow.api_connexion.types import UpdateMask
 from airflow.models import Variable
 from airflow.security import permissions
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.decorators import action_logging
+
+RESOURCE_EVENT_PREFIX = "variable"
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_DELETE,
+    ),
+)
 def delete_variable(*, variable_key: str) -> Response:
-    """Delete variable"""
+    """Delete variable."""
     if Variable.delete(variable_key) == 0:
         raise NotFound("Variable not found")
     return Response(status=HTTPStatus.NO_CONTENT)
@@ -45,7 +55,7 @@ def delete_variable(*, variable_key: str) -> Response:
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
 @provide_session
 def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
-    """Get a variable by key"""
+    """Get a variable by key."""
     var = session.query(Variable).filter(Variable.key == variable_key)
     if not var.count():
         raise NotFound("Variable not found")
@@ -62,10 +72,10 @@ def get_variables(
     offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> Response:
-    """Get all variable values"""
+    """Get all variable values."""
     total_entries = session.query(func.count(Variable.id)).scalar()
     to_replace = {"value": "val"}
-    allowed_filter_attrs = ['value', 'key', 'id']
+    allowed_filter_attrs = ["value", "key", "id"]
     query = session.query(Variable)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     variables = query.offset(offset).limit(limit).all()
@@ -78,8 +88,14 @@ def get_variables(
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_EDIT,
+    ),
+)
 def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Response:
-    """Update a variable by key"""
+    """Update a variable by key."""
     try:
         data = variable_schema.load(get_json_request_dict())
     except ValidationError as err:
@@ -99,8 +115,14 @@ def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Resp
 
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_CREATE,
+    ),
+)
 def post_variables() -> Response:
-    """Create a variable"""
+    """Create a variable."""
     try:
         data = variable_schema.load(get_json_request_dict())
 

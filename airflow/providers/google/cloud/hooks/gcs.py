@@ -30,13 +30,15 @@ from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
 from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from google.api_core.exceptions import NotFound
+from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
@@ -119,7 +121,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
 
 # A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
-# This allows the 'bucket' argument to be of type str instead of Optional[str],
+# This allows the 'bucket' argument to be of type str instead of str | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
 PROVIDE_BUCKET: str = cast(str, None)
@@ -533,18 +535,19 @@ class GCSHook(GoogleBaseHook):
         else:
             raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")
 
-    def exists(self, bucket_name: str, object_name: str) -> bool:
+    def exists(self, bucket_name: str, object_name: str, retry: Retry = DEFAULT_RETRY) -> bool:
         """
         Checks for the existence of a file in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
+        :param retry: (Optional) How to retry the RPC
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name)
-        return blob.exists()
+        return blob.exists(retry=retry)
 
     def get_blob_update_time(self, bucket_name: str, object_name: str):
         """
@@ -1161,7 +1164,7 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
     tuple containing the corresponding bucket and blob.
     """
-    parsed_url = urlparse(gsurl)
+    parsed_url = urlsplit(gsurl)
     if not parsed_url.netloc:
         raise AirflowException("Please provide a bucket name")
     if parsed_url.scheme.lower() != "gs":

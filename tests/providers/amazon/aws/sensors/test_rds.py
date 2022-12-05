@@ -16,9 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+from moto import mock_rds
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.sensors.rds import (
@@ -29,12 +28,6 @@ from airflow.providers.amazon.aws.sensors.rds import (
 )
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.utils import timezone
-
-try:
-    from moto import mock_rds
-except ImportError:
-    mock_rds = None
-
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
@@ -124,24 +117,7 @@ class TestBaseRdsSensor:
         assert hasattr(self.base_sensor, "hook")
         assert self.base_sensor.hook.__class__.__name__ == "RdsHook"
 
-    def test_describe_item_wrong_type(self):
-        with pytest.raises(AirflowException):
-            self.base_sensor._describe_item("database", "auth-db")
 
-    def test_check_item_true(self):
-        self.base_sensor._describe_item = lambda item_type, item_name: [{"Status": "available"}]
-        self.base_sensor.target_statuses = ["available", "created"]
-
-        assert self.base_sensor._check_item(item_type="instance_snapshot", item_name="")
-
-    def test_check_item_false(self):
-        self.base_sensor._describe_item = lambda item_type, item_name: [{"Status": "creating"}]
-        self.base_sensor.target_statuses = ["available", "created"]
-
-        assert not self.base_sensor._check_item(item_type="instance_snapshot", item_name="")
-
-
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsSnapshotExistenceSensor:
     @classmethod
     def setup_class(cls):
@@ -167,6 +143,7 @@ class TestRdsSnapshotExistenceSensor:
 
     @mock_rds
     def test_db_instance_snapshot_poke_false(self):
+        _create_db_instance(self.hook)
         op = RdsSnapshotExistenceSensor(
             task_id="test_instance_snap_false",
             db_type="instance",
@@ -200,7 +177,6 @@ class TestRdsSnapshotExistenceSensor:
         assert not op.poke(None)
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsExportTaskExistenceSensor:
     @classmethod
     def setup_class(cls):
@@ -236,7 +212,6 @@ class TestRdsExportTaskExistenceSensor:
         assert not op.poke(None)
 
 
-@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
 class TestRdsDbSensor:
     @classmethod
     def setup_class(cls):

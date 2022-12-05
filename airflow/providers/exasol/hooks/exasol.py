@@ -24,7 +24,7 @@ import pandas as pd
 import pyexasol
 from pyexasol import ExaConnection
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 
 
 class ExasolHook(DbApiHook):
@@ -82,7 +82,6 @@ class ExasolHook(DbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
     ) -> list[dict | tuple[Any, ...]]:
         """
         Executes the sql and returns a set of records.
@@ -95,7 +94,7 @@ class ExasolHook(DbApiHook):
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: dict | None = None) -> Any | None:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
@@ -158,27 +157,35 @@ class ExasolHook(DbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the LAST SQL expression if handler was provided.
         """
-        scalar_return_last = isinstance(sql, str) and return_last
+        self.descriptions = []
         if isinstance(sql, str):
             if split_statements:
-                sql = self.split_sql_string(sql)
+                sql_list: Iterable[str] = self.split_sql_string(sql)
             else:
-                sql = [self.strip_sql_string(sql)]
+                statement = self.strip_sql_string(sql)
+                sql_list = [statement] if statement.strip() else []
+        else:
+            sql_list = sql
 
-        if sql:
-            self.log.debug("Executing following statements against Exasol DB: %s", list(sql))
+        if sql_list:
+            self.log.debug("Executing following statements against Exasol DB: %s", list(sql_list))
         else:
             raise ValueError("List of SQL statements is empty")
-
+        _last_result = None
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
             results = []
-            for sql_statement in sql:
+            for sql_statement in sql_list:
                 with closing(conn.execute(sql_statement, parameters)) as cur:
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     if handler is not None:
                         result = handler(cur)
-                        results.append(result)
+                        if return_single_query_results(sql, return_last, split_statements):
+                            _last_result = result
+                            _last_description = cur.description
+                        else:
+                            results.append(result)
+                            self.descriptions.append(cur.description)
 
                     self.log.info("Rows affected: %s", cur.rowcount)
 
@@ -188,8 +195,9 @@ class ExasolHook(DbApiHook):
 
         if handler is None:
             return None
-        elif scalar_return_last:
-            return results[-1]
+        if return_single_query_results(sql, return_last, split_statements):
+            self.descriptions = [_last_description]
+            return _last_result
         else:
             return results
 
@@ -216,7 +224,6 @@ class ExasolHook(DbApiHook):
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting.
-        :rtype: bool
         """
         autocommit = conn.attr.get("autocommit")
         if autocommit is None:
@@ -224,7 +231,7 @@ class ExasolHook(DbApiHook):
         return autocommit
 
     @staticmethod
-    def _serialize_cell(cell, conn=None) -> object:
+    def _serialize_cell(cell, conn=None) -> Any:
         """
         Exasol will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -232,6 +239,5 @@ class ExasolHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
-        :rtype: object
         """
         return cell

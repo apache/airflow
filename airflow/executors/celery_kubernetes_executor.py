@@ -41,7 +41,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = True
     callback_sink: BaseCallbackSink | None = None
 
-    KUBERNETES_QUEUE = conf.get('celery_kubernetes_executor', 'kubernetes_queue')
+    KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
@@ -167,7 +167,6 @@ class CeleryKubernetesExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: Sequence[airflow.models.TaskInstance]
         """
         celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
@@ -192,7 +191,6 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
         :param simple_task_instance: SimpleTaskInstance
         :return: celery_executor or kubernetes_executor
-        :rtype: Union[CeleryExecutor, KubernetesExecutor]
         """
         if simple_task_instance.queue == self.KUBERNETES_QUEUE:
             return self.kubernetes_executor

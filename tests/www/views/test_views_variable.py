@@ -26,7 +26,12 @@ from airflow.models import Variable
 from airflow.security import permissions
 from airflow.utils.session import create_session
 from tests.test_utils.api_connexion_utils import create_user
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests.test_utils.www import (
+    _check_last_log,
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
 
 VARIABLE = {
     "key": "test_key",
@@ -119,6 +124,7 @@ def test_import_variables_success(session, admin_client):
         "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
     )
     check_content_in_response("4 variable(s) successfully updated.", resp)
+    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
 
 
 def test_import_variables_anon(session, app):

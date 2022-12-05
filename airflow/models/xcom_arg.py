@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from airflow.exceptions import XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
@@ -91,23 +92,23 @@ class XComArg(ResolveMixin, DependencyMixin):
         return super().__new__(cls)
 
     @staticmethod
-    def iter_xcom_args(arg: Any) -> Iterator[XComArg]:
-        """Return XComArg instances in an arbitrary value.
+    def iter_xcom_references(arg: Any) -> Iterator[tuple[Operator, str]]:
+        """Return XCom references in an arbitrary value.
 
         Recursively traverse ``arg`` and look for XComArg instances in any
         collection objects, and instances with ``template_fields`` set.
         """
-        if isinstance(arg, XComArg):
-            yield arg
+        if isinstance(arg, ResolveMixin):
+            yield from arg.iter_references()
         elif isinstance(arg, (tuple, set, list)):
             for elem in arg:
-                yield from XComArg.iter_xcom_args(elem)
+                yield from XComArg.iter_xcom_references(elem)
         elif isinstance(arg, dict):
             for elem in arg.values():
-                yield from XComArg.iter_xcom_args(elem)
+                yield from XComArg.iter_xcom_references(elem)
         elif isinstance(arg, AbstractOperator):
-            for elem in arg.template_fields:
-                yield from XComArg.iter_xcom_args(elem)
+            for attr in arg.template_fields:
+                yield from XComArg.iter_xcom_references(getattr(arg, attr))
 
     @staticmethod
     def apply_upstream_relationship(op: Operator, arg: Any):
@@ -117,9 +118,8 @@ class XComArg(ResolveMixin, DependencyMixin):
         collections objects and classes decorated with ``template_fields``), and
         sets the relationship to ``op`` on any found.
         """
-        for ref in XComArg.iter_xcom_args(arg):
-            for operator, _ in ref.iter_references():
-                op.set_upstream(operator)
+        for operator, _ in XComArg.iter_xcom_references(arg):
+            op.set_upstream(operator)
 
     @property
     def roots(self) -> list[DAGNode]:
@@ -173,10 +173,6 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
-    def iter_references(self) -> Iterator[tuple[Operator, str]]:
-        """Iterate through (operator, key) references."""
-        raise NotImplementedError()
-
     def map(self, f: Callable[[Any], Any]) -> MapXComArg:
         return MapXComArg(self, [f])
 
@@ -196,7 +192,11 @@ class XComArg(ResolveMixin, DependencyMixin):
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
         """Pull XCom value.
 
-        This should only be called during ``op.execute()`` in respectable context.
+        This should only be called during ``op.execute()`` with an appropriate
+        context (e.g. generated from ``TaskInstance.get_template_context()``).
+        Although the ``ResolveMixin`` parent mixin also has a ``resolve``
+        protocol, this adds the optional ``session`` argument that some of the
+        subclasses need.
 
         :meta private:
         """
@@ -302,7 +302,7 @@ class PlainXComArg(XComArg):
         from airflow.models.xcom import XCom
 
         task = self.operator
-        if task.is_mapped:
+        if isinstance(task, MappedOperator):
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,
@@ -321,13 +321,25 @@ class PlainXComArg(XComArg):
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+        ti = context["ti"]
         task_id = self.operator.task_id
-        result = context["ti"].xcom_pull(task_ids=task_id, key=str(self.key), default=NOTSET, session=session)
+        map_indexes = ti.get_relevant_upstream_map_indexes(
+            self.operator,
+            context["expanded_ti_count"],
+            session=session,
+        )
+        result = ti.xcom_pull(
+            task_ids=task_id,
+            map_indexes=map_indexes,
+            key=self.key,
+            default=NOTSET,
+            session=session,
+        )
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
-        raise XComNotFound(context["ti"].dag_id, task_id, self.key)
+        raise XComNotFound(ti.dag_id, task_id, self.key)
 
 
 def _get_callable_name(f: Callable | str) -> str:

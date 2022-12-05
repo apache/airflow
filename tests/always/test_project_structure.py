@@ -400,6 +400,8 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
         # Glue Catalog sensor difficult to test
         "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
+        # EMR Step sensor difficult to test, see: https://github.com/apache/airflow/pull/27286
+        "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
     }
 
 

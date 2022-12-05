@@ -65,7 +65,6 @@ class SecretsManagerHook(GoogleBaseHook):
         Retrieves the connection to Secret Manager.
 
         :return: Secret Manager client.
-        :rtype: airflow.providers.google.cloud._internal_client.secret_manager_client._SecretManagerClient
         """
         return self.client
 

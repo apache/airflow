@@ -123,7 +123,6 @@ class FacebookAdsReportingHook(BaseHook):
 
         :return: Facebook Ads API response,
             converted to Facebook Ads Row objects regarding given Account ID type
-        :rtype: List[AdsInsights] or Dict[str, List[AdsInsights]]
         """
         api = self._get_service()
         if self.multiple_accounts:

@@ -118,7 +118,9 @@ If you are configuring the connection via a URI, ensure that all components of t
 Examples
 --------
 
-**Snippet for create Connection as URI**:
+Snippet to create Connection and convert to URI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
   .. code-block:: python
 
     import os
@@ -146,14 +148,31 @@ Examples
     os.environ[env_key] = conn_uri
     print(conn.test_connection())
 
-**Using instance profile**:
+Using instance profile
+^^^^^^^^^^^^^^^^^^^^^^
+
+  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files,
+  and instance profile when running inside AWS)
+
+  **URI format example**
+
   .. code-block:: bash
 
     export AIRFLOW_CONN_AWS_DEFAULT=aws://
 
-  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files, and instance profile when running inside AWS)
 
-**With a AWS IAM key pair**:
+  **JSON format example**
+
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT='{"conn_type": "aws"}'
+
+
+With a AWS IAM key pair
+^^^^^^^^^^^^^^^^^^^^^^^
+
+  **URI format example**
+
   .. code-block:: bash
 
     export AIRFLOW_CONN_AWS_DEFAULT=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@
@@ -161,6 +180,15 @@ Examples
   Note here, that the secret access key has been URL-encoded (changing ``/`` to ``%2F``), and also the
   trailing ``@`` (without which, it is treated as ``<host>:<port>`` and will not work)
 
+  **JSON format example**
+
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT='{
+      "conn_type": "aws",
+      "login": "AKIAIOSFODNN7EXAMPLE",
+      "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    }'
 
 Examples for the **Extra** field
 --------------------------------
@@ -373,13 +401,13 @@ Example
         def federated(self):
             return "federation" in self.extra_config
 
-        def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        def _create_basic_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
             if self.federated:
                 return self._create_federated_session(session_kwargs)
             else:
                 return super()._create_basic_session(session_kwargs)
 
-        def _create_federated_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        def _create_federated_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
             username = self.extra_config["federation"]["username"]
             region_name = self._get_region_name()
             self.log.debug(
@@ -396,7 +424,7 @@ Example
             session.set_config_variable("region", region_name)
             return boto3.session.Session(botocore_session=session, **session_kwargs)
 
-        def _refresh_federated_credentials(self) -> Dict[str, str]:
+        def _refresh_federated_credentials(self) -> dict[str, str]:
             self.log.debug("Refreshing federated AWS credentials")
             credentials = get_federated_aws_credentials(**self.extra_config["federation"])
             access_key_id = credentials["AccessKeyId"]

@@ -18,8 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
-from typing import List
 from unittest.mock import patch
 
 from airflow.models import Connection
@@ -61,11 +59,11 @@ at_least_one_event = [
     },
 ]
 
-zero_events = []  # type: List
+zero_events: list = []
 
 
-class TestDatadogSensor(unittest.TestCase):
-    def setUp(self):
+class TestDatadogSensor:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="datadog_default",

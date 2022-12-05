@@ -61,11 +61,12 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
+    SummarizeAfter,
     bytes2human,
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_DIR
+from airflow_breeze.utils.path_utils import FILES_DIR, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
@@ -84,20 +85,18 @@ def testing():
         allow_extra_args=True,
     ),
 )
-@option_verbose
-@option_dry_run
 @option_python
-@option_github_repository
 @option_image_tag_for_running
 @option_image_name
+@option_github_repository
+@option_verbose
+@option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def docker_compose_tests(
-    verbose: bool,
-    dry_run: bool,
     python: str,
-    github_repository: str,
     image_name: str,
     image_tag: str | None,
+    github_repository: str,
     extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
@@ -109,8 +108,6 @@ def docker_compose_tests(
     get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
-        verbose=verbose,
-        dry_run=dry_run,
         extra_pytest_args=extra_pytest_args,
     )
     sys.exit(return_code)
@@ -126,8 +123,6 @@ def _run_test(
     db_reset: bool,
     output: Output | None,
     test_timeout: int,
-    dry_run: bool,
-    verbose: bool,
 ) -> tuple[int, str]:
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"
@@ -135,7 +130,7 @@ def _run_test(
         env_variables["TEST_TIMEOUT"] = str(test_timeout)
     if db_reset:
         env_variables["DB_RESET"] = "true"
-    perform_environment_checks(verbose=verbose)
+    perform_environment_checks()
     env_variables["TEST_TYPE"] = exec_shell_params.test_type
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
         get_console(output=output).print(
@@ -157,7 +152,7 @@ def _run_test(
         "down",
         "--remove-orphans",
     ]
-    run_command(down_cmd, verbose=verbose, dry_run=dry_run, env=env_variables, output=output, check=False)
+    run_command(down_cmd, env=env_variables, output=output, check=False)
     run_cmd = [
         *DOCKER_COMPOSE_COMMAND,
         "--project-name",
@@ -170,9 +165,7 @@ def _run_test(
     ]
     run_cmd.extend(list(extra_pytest_args))
     try:
-        result = run_command(
-            run_cmd, verbose=verbose, dry_run=dry_run, env=env_variables, output=output, check=False
-        )
+        result = run_command(run_cmd, env=env_variables, output=output, check=False)
         if os.environ.get("CI") == "true" and result.returncode != 0:
             ps_result = run_command(
                 ["docker", "ps", "--all", "--format", "{{.Names}}"],
@@ -201,11 +194,10 @@ def _run_test(
                 "--force",
                 "-v",
             ],
-            verbose=False,
-            dry_run=dry_run,
             env=env_variables,
             output=output,
             check=False,
+            verbose_override=False,
         )
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
@@ -224,8 +216,6 @@ def _run_tests_in_pool(
     include_success_outputs: bool,
     debug_resources: bool,
     skip_cleanup: bool,
-    dry_run: bool,
-    verbose: bool,
 ):
     with ci_group(f"Testing {' '.join(tests_to_run)}"):
         all_params = [f"Test {test_type}" for test_type in tests_to_run]
@@ -249,8 +239,6 @@ def _run_tests_in_pool(
                         ),
                         "extra_pytest_args": extra_pytest_args,
                         "db_reset": db_reset,
-                        "dry_run": dry_run,
-                        "verbose": verbose,
                         "output": outputs[index],
                         "test_timeout": test_timeout,
                     },
@@ -263,6 +251,8 @@ def _run_tests_in_pool(
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
+        summarize_on_ci=SummarizeAfter.FAILURE,
+        summary_start_regexp=r".*= FAILURES.*|.*= ERRORS.*",
     )
 
 
@@ -271,28 +261,39 @@ def run_tests_in_parallel(
     test_types_list: list[str],
     extra_pytest_args: tuple,
     db_reset: bool,
+    full_tests_needed: bool,
     test_timeout: int,
     include_success_outputs: bool,
     debug_resources: bool,
     parallelism: int,
     skip_cleanup: bool,
-    dry_run: bool,
-    verbose: bool,
 ) -> None:
     import psutil
 
     memory_available = psutil.virtual_memory()
+    if (
+        memory_available.available < LOW_MEMORY_CONDITION
+        and not full_tests_needed
+        and "Integration" in test_types_list
+        and exec_shell_params.backend != "sqlite"
+    ):
+        get_console().print(
+            f"[warning]Integration tests are skipped on {exec_shell_params.backend} when "
+            "memory is constrained as we are in non full-test-mode!"
+        )
+        test_types_list.remove("Integration")
     if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ["mssql", "mysql"]:
         # Run heavy tests sequentially
-        heavy_test_types = ["Core", "Integration", "Providers"]
-        if bool(set(heavy_test_types) & set(test_types_list)):
+        heavy_test_types_to_run = {"Core", "Integration", "Providers"} & set(test_types_list)
+        if heavy_test_types_to_run:
             # some of those are requested
             get_console().print(
-                f"[warning]Running {heavy_test_types} tests sequentially for {exec_shell_params.backend}"
+                f"[warning]Running {heavy_test_types_to_run} tests sequentially"
+                f"for {exec_shell_params.backend}"
                 f" backend due to low memory available: {bytes2human(memory_available.available)}"
             )
             tests_to_run_sequentially = []
-            for heavy_test_type in heavy_test_types:
+            for heavy_test_type in heavy_test_types_to_run:
                 for test_type in test_types_list:
                     if test_type.startswith(heavy_test_type):
                         test_types_list.remove(test_type)
@@ -307,8 +308,6 @@ def run_tests_in_parallel(
                 include_success_outputs=include_success_outputs,
                 debug_resources=debug_resources,
                 skip_cleanup=skip_cleanup,
-                dry_run=dry_run,
-                verbose=verbose,
             )
     _run_tests_in_pool(
         tests_to_run=test_types_list,
@@ -320,8 +319,6 @@ def run_tests_in_parallel(
         include_success_outputs=include_success_outputs,
         debug_resources=debug_resources,
         skip_cleanup=skip_cleanup,
-        dry_run=dry_run,
-        verbose=verbose,
     )
 
 
@@ -333,8 +330,6 @@ def run_tests_in_parallel(
         allow_extra_args=True,
     ),
 )
-@option_dry_run
-@option_verbose
 @option_python
 @option_backend
 @option_postgres_version
@@ -370,17 +365,22 @@ def run_tests_in_parallel(
     show_default=True,
     envvar="TEST_TYPES",
 )
+@click.option(
+    "--full-tests-needed",
+    help="Whether full set of tests is run.",
+    is_flag=True,
+    envvar="FULL_TESTS_NEEDED",
+)
+@option_verbose
+@option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def tests(
-    dry_run: bool,
-    verbose: bool,
     python: str,
     backend: str,
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
     integration: tuple,
-    extra_pytest_args: tuple,
     test_type: str,
     test_timeout: int,
     db_reset: bool,
@@ -391,13 +391,13 @@ def tests(
     debug_resources: bool,
     include_success_outputs: bool,
     test_types: str,
+    full_tests_needed: bool,
     mount_sources: str,
+    extra_pytest_args: tuple,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
     exec_shell_params = ShellParams(
-        verbose=verbose,
-        dry_run=dry_run,
         python=python,
         backend=backend,
         integration=integration,
@@ -409,19 +409,22 @@ def tests(
         forward_ports=False,
         test_type=test_type,
     )
+    cleanup_python_generated_files()
     if run_in_parallel:
         run_tests_in_parallel(
             exec_shell_params=exec_shell_params,
             test_types_list=test_types.split(" "),
             extra_pytest_args=extra_pytest_args,
             db_reset=db_reset,
+            # Allow to pass information on whether to use full tests in the parallel execution mode
+            # or not - this will allow to skip some heavy tests on more resource-heavy configurations
+            # in case full tests are not required, some of those will be skipped
+            full_tests_needed=full_tests_needed,
             test_timeout=test_timeout,
             include_success_outputs=include_success_outputs,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            dry_run=dry_run,
-            verbose=verbose,
         )
     else:
         returncode, _ = _run_test(
@@ -430,8 +433,6 @@ def tests(
             db_reset=db_reset,
             output=None,
             test_timeout=test_timeout,
-            dry_run=dry_run,
-            verbose=verbose,
         )
         sys.exit(returncode)
 
@@ -444,29 +445,29 @@ def tests(
         allow_extra_args=True,
     ),
 )
-@option_dry_run
-@option_verbose
 @option_image_tag_for_running
 @option_mount_sources
+@option_github_repository
+@option_verbose
+@option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def helm_tests(
-    dry_run: bool,
-    verbose: bool,
     extra_pytest_args: tuple,
     image_tag: str | None,
     mount_sources: str,
+    github_repository: str,
 ):
     exec_shell_params = ShellParams(
-        verbose=verbose,
-        dry_run=dry_run,
         image_tag=image_tag,
         mount_sources=mount_sources,
+        github_repository=github_repository,
     )
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"
     env_variables["TEST_TYPE"] = "Helm"
-    perform_environment_checks(verbose=verbose)
+    perform_environment_checks()
+    cleanup_python_generated_files()
     cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow"]
     cmd.extend(list(extra_pytest_args))
-    result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
+    result = run_command(cmd, env=env_variables, check=False, output_outside_the_group=True)
     sys.exit(result.returncode)

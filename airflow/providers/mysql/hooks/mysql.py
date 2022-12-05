@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -69,7 +69,6 @@ class MySqlHook(DbApiHook):
 
         :param conn: connection to set autocommit setting
         :param autocommit: autocommit setting
-        :rtype: None
         """
         if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
             conn.autocommit = autocommit
@@ -85,7 +84,6 @@ class MySqlHook(DbApiHook):
 
         :param conn: connection to get autocommit setting from.
         :return: connection autocommit setting
-        :rtype: bool
         """
         if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
             return conn.autocommit
@@ -129,6 +127,8 @@ class MySqlHook(DbApiHook):
             if isinstance(dejson_ssl, str):
                 dejson_ssl = json.loads(dejson_ssl)
             conn_config["ssl"] = dejson_ssl
+        if conn.extra_dejson.get("ssl_mode", False):
+            conn_config["ssl_mode"] = conn.extra_dejson["ssl_mode"]
         if conn.extra_dejson.get("unix_socket"):
             conn_config["unix_socket"] = conn.extra_dejson["unix_socket"]
         if local_infile:
@@ -146,6 +146,10 @@ class MySqlHook(DbApiHook):
 
         if conn.extra_dejson.get("allow_local_infile", False):
             conn_config["allow_local_infile"] = True
+        # Ref: https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html
+        for key, value in conn.extra_dejson.items():
+            if key.startswith("ssl_"):
+                conn_config[key] = value
 
         return conn_config
 
@@ -207,7 +211,7 @@ class MySqlHook(DbApiHook):
         conn.close()
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: Connection | None = None) -> object:
+    def _serialize_cell(cell: object, conn: Connection | None = None) -> Any:
         """
         Convert argument to a literal.
 
@@ -217,7 +221,6 @@ class MySqlHook(DbApiHook):
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The same cell
-        :rtype: object
         """
         return cell
 

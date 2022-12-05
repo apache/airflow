@@ -28,7 +28,6 @@ import hashlib
 import logging
 import os
 import re
-import uuid
 import warnings
 from functools import reduce
 
@@ -37,6 +36,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import AirflowConfigException, PodReconciliationError, RemovedInAirflow3Warning
+from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
@@ -74,7 +74,7 @@ def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
     :param datetime_obj: datetime.datetime object
     :return: ISO-like string representing the datetime
     """
-    return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
+    return datetime_obj.isoformat().replace(":", "_").replace("+", "_plus_")
 
 
 def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
@@ -86,7 +86,7 @@ def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
     :param string: str
     :return: datetime.datetime object
     """
-    return parser.parse(string.replace('_plus_', '+').replace("_", ":"))
+    return parser.parse(string.replace("_plus_", "+").replace("_", ":"))
 
 
 class PodGenerator:
@@ -125,9 +125,10 @@ class PodGenerator:
 
     def gen_pod(self) -> k8s.V1Pod:
         """Generates pod"""
+        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
-        result.metadata.name = self.make_unique_pod_id(result.metadata.name)
+        result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
 
         if self.extract_xcom:
             result = self.add_xcom_sidecar(result)
@@ -173,15 +174,15 @@ class PodGenerator:
             return k8s_object
         elif isinstance(k8s_legacy_object, dict):
             warnings.warn(
-                'Using a dictionary for the executor_config is deprecated and will soon be removed.'
+                "Using a dictionary for the executor_config is deprecated and will soon be removed."
                 'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
-                ' instead. ',
+                " instead. ",
                 category=RemovedInAirflow3Warning,
             )
             return PodGenerator.from_legacy_obj(obj)
         else:
             raise TypeError(
-                'Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig'
+                "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
             )
 
     @staticmethod
@@ -197,18 +198,18 @@ class PodGenerator:
         if not namespaced:
             return None
 
-        resources = namespaced.get('resources')
+        resources = namespaced.get("resources")
 
         if resources is None:
             requests = {
-                'cpu': namespaced.pop('request_cpu', None),
-                'memory': namespaced.pop('request_memory', None),
-                'ephemeral-storage': namespaced.get('ephemeral-storage'),  # We pop this one in limits
+                "cpu": namespaced.pop("request_cpu", None),
+                "memory": namespaced.pop("request_memory", None),
+                "ephemeral-storage": namespaced.get("ephemeral-storage"),  # We pop this one in limits
             }
             limits = {
-                'cpu': namespaced.pop('limit_cpu', None),
-                'memory': namespaced.pop('limit_memory', None),
-                'ephemeral-storage': namespaced.pop('ephemeral-storage', None),
+                "cpu": namespaced.pop("limit_cpu", None),
+                "memory": namespaced.pop("limit_memory", None),
+                "ephemeral-storage": namespaced.pop("ephemeral-storage", None),
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):
@@ -218,7 +219,7 @@ class PodGenerator:
                 requests = {k: v for k, v in requests.items() if v is not None}
                 limits = {k: v for k, v in limits.items() if v is not None}
                 resources = k8s.V1ResourceRequirements(requests=requests, limits=limits)
-        namespaced['resources'] = resources
+        namespaced["resources"] = resources
         return PodGeneratorDeprecated(**namespaced).gen_pod()
 
     @staticmethod
@@ -257,9 +258,9 @@ class PodGenerator:
         elif client_meta and base_meta:
             client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
             client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
-            extend_object_field(base_meta, client_meta, 'managed_fields')
-            extend_object_field(base_meta, client_meta, 'finalizers')
-            extend_object_field(base_meta, client_meta, 'owner_references')
+            extend_object_field(base_meta, client_meta, "managed_fields")
+            extend_object_field(base_meta, client_meta, "finalizers")
+            extend_object_field(base_meta, client_meta, "owner_references")
             return merge_objects(base_meta, client_meta)
 
         return None
@@ -282,8 +283,8 @@ class PodGenerator:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )
-            merged_spec = extend_object_field(base_spec, client_spec, 'init_containers')
-            merged_spec = extend_object_field(base_spec, merged_spec, 'volumes')
+            merged_spec = extend_object_field(base_spec, client_spec, "init_containers")
+            merged_spec = extend_object_field(base_spec, merged_spec, "volumes")
             return merge_objects(base_spec, merged_spec)
 
         return None
@@ -307,11 +308,11 @@ class PodGenerator:
 
         client_container = client_containers[0]
         base_container = base_containers[0]
-        client_container = extend_object_field(base_container, client_container, 'volume_mounts')
-        client_container = extend_object_field(base_container, client_container, 'env')
-        client_container = extend_object_field(base_container, client_container, 'env_from')
-        client_container = extend_object_field(base_container, client_container, 'ports')
-        client_container = extend_object_field(base_container, client_container, 'volume_devices')
+        client_container = extend_object_field(base_container, client_container, "volume_mounts")
+        client_container = extend_object_field(base_container, client_container, "env")
+        client_container = extend_object_field(base_container, client_container, "env_from")
+        client_container = extend_object_field(base_container, client_container, "ports")
+        client_container = extend_object_field(base_container, client_container, "volume_devices")
         client_container = merge_objects(base_container, client_container)
 
         return [client_container] + PodGenerator.reconcile_containers(
@@ -340,6 +341,11 @@ class PodGenerator:
             - executor_config
             - dynamic arguments
         """
+        if len(pod_id) > 253:
+            warnings.warn(
+                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
+            )
+            pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
@@ -348,33 +354,33 @@ class PodGenerator:
             image = kube_image
 
         annotations = {
-            'dag_id': dag_id,
-            'task_id': task_id,
-            'try_number': str(try_number),
+            "dag_id": dag_id,
+            "task_id": task_id,
+            "try_number": str(try_number),
         }
         labels = {
-            'airflow-worker': make_safe_label_value(scheduler_job_id),
-            'dag_id': make_safe_label_value(dag_id),
-            'task_id': make_safe_label_value(task_id),
-            'try_number': str(try_number),
-            'airflow_version': airflow_version.replace('+', '-'),
-            'kubernetes_executor': 'True',
+            "airflow-worker": make_safe_label_value(scheduler_job_id),
+            "dag_id": make_safe_label_value(dag_id),
+            "task_id": make_safe_label_value(task_id),
+            "try_number": str(try_number),
+            "airflow_version": airflow_version.replace("+", "-"),
+            "kubernetes_executor": "True",
         }
         if map_index >= 0:
-            annotations['map_index'] = str(map_index)
-            labels['map_index'] = str(map_index)
+            annotations["map_index"] = str(map_index)
+            labels["map_index"] = str(map_index)
         if date:
-            annotations['execution_date'] = date.isoformat()
-            labels['execution_date'] = datetime_to_label_safe_datestring(date)
+            annotations["execution_date"] = date.isoformat()
+            labels["execution_date"] = datetime_to_label_safe_datestring(date)
         if run_id:
-            annotations['run_id'] = run_id
-            labels['run_id'] = make_safe_label_value(run_id)
+            annotations["run_id"] = run_id
+            labels["run_id"] = make_safe_label_value(run_id)
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
                 annotations=annotations,
-                name=PodGenerator.make_unique_pod_id(pod_id),
+                name=pod_id,
                 labels=labels,
             ),
             spec=k8s.V1PodSpec(
@@ -445,7 +451,7 @@ class PodGenerator:
         r"""
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
-        characters. Each label has a maximum length of 63 characters.
+        characters.
 
         Name must pass the following regex for validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
@@ -453,21 +459,22 @@ class PodGenerator:
         For more details, see:
         https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/design/identifiers.md
 
-        :param pod_id: a dag_id with only alphanumeric characters
+        :param pod_id: requested pod name
         :return: ``str`` valid Pod name of appropriate length
         """
+        warnings.warn(
+            "This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
+            RemovedInAirflow3Warning,
+        )
+
         if not pod_id:
             return None
 
-        safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-
-        # Get prefix length after subtracting the uuid length. Clean up '.' and '-' from
-        # end of podID ('.' can't be followed by '-').
-        label_prefix_length = MAX_LABEL_LEN - len(safe_uuid) - 1  # -1 for separator
-        trimmed_pod_id = pod_id[:label_prefix_length].rstrip('-.')
-
-        # previously used a '.' as the separator, but this could create errors in some situations
-        return f"{trimmed_pod_id}-{safe_uuid}"
+        max_pod_id_len = 100  # arbitrarily chosen
+        suffix = rand_str(8)  # 8 seems good enough
+        base_pod_id_len = max_pod_id_len - len(suffix) - 1  # -1 for separator
+        trimmed_pod_id = pod_id[:base_pod_id_len].rstrip("-.")
+        return f"{trimmed_pod_id}-{suffix}"
 
 
 def merge_objects(base_obj, client_obj):

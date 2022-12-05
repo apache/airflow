@@ -60,7 +60,7 @@ with DAG(
     )
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
-    def compare_result(hive_show_table, hive_s3_location, ti=None):
+    def compare_result(hive_show_table, hive_s3_location, ti=None) -> bool:
         """
         Compares the results of two QuboleOperator tasks.
 
@@ -68,7 +68,6 @@ with DAG(
         :param hive_s3_location: The "hive_s3_location" task.
         :param ti: The TaskInstance object.
         :return: True if the files are the same, False otherwise.
-        :rtype: bool
         """
         qubole_result_1 = hive_show_table.get_results(ti)
         qubole_result_2 = hive_s3_location.get_results(ti)

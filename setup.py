@@ -49,7 +49,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = "2.5.0.dev0"
+version = "2.6.0.dev0"
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -173,7 +173,6 @@ def git_version(version_: str) -> str:
 
     :param str version_: Semver version
     :return: Found Airflow version in Git repo
-    :rtype: str
     """
     try:
         import git
@@ -202,7 +201,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
-    :param str filename: Destination file to write
+    :param str filename: Destination file to write.
     """
     text = f"{git_version(version)}"
     with open(filename, "w") as file:
@@ -244,7 +243,8 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
-    "dask>=2.9.0",
+    # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
+    "dask>=2.9.0,!=2022.10.1",
     "distributed>=2.11.1",
 ]
 deprecated_api = [
@@ -276,7 +276,9 @@ doc = [
     "sphinxcontrib-spelling>=7.3",
 ]
 flask_appbuilder_oauth = [
-    "flask-appbuilder[oauth]",
+    "authlib>=1.0.0",
+    # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
+    "flask-appbuilder[oauth]==4.1.4",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -365,7 +367,7 @@ devel_only = [
     "click>=8.0",
     "coverage",
     "filelock",
-    "flake8>=3.6.0",
+    "flake8>=3.9.0",
     "flake8-colors",
     "flake8-implicit-str-concat",
     "flaky",
@@ -376,7 +378,7 @@ devel_only = [
     "jira",
     "jsondiff",
     "mongomock",
-    "moto[cloudformation, glue]>=3.1.12",
+    "moto[cloudformation, glue]>=4.0",
     "parameterized",
     "paramiko",
     "pipdeptree",
@@ -389,6 +391,7 @@ devel_only = [
     # TODO: upgrade it and remove the limit
     "pytest~=6.0",
     "pytest-asyncio",
+    "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
     # We should attempt to remove the limit when we upgrade Pytest

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""User sub-commands"""
+"""User sub-commands."""
 from __future__ import annotations
 
 import functools
@@ -36,7 +36,7 @@ from airflow.www.app import cached_app
 
 
 class UserSchema(Schema):
-    """user collection item schema"""
+    """user collection item schema."""
 
     id = fields.Int()
     firstname = fields.Str(required=True)
@@ -48,10 +48,10 @@ class UserSchema(Schema):
 
 @suppress_logs_and_warning
 def users_list(args):
-    """Lists users at the command line"""
+    """Lists users at the command line."""
     appbuilder = cached_app().appbuilder
     users = appbuilder.sm.get_all_users()
-    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+    fields = ["id", "username", "email", "first_name", "last_name", "roles"]
 
     AirflowConsole().print_as(
         data=users, output=args.output, mapper=lambda x: {f: x.__getattribute__(f) for f in fields}
@@ -60,39 +60,39 @@ def users_list(args):
 
 @cli_utils.action_cli(check_db=True)
 def users_create(args):
-    """Creates new user in the DB"""
+    """Creates new user in the DB."""
     appbuilder = cached_app().appbuilder
     role = appbuilder.sm.find_role(args.role)
     if not role:
         valid_roles = appbuilder.sm.get_all_roles()
-        raise SystemExit(f'{args.role} is not a valid role. Valid roles are: {valid_roles}')
+        raise SystemExit(f"{args.role} is not a valid role. Valid roles are: {valid_roles}")
 
     if args.use_random_password:
-        password = ''.join(random.choice(string.printable) for _ in range(16))
+        password = "".join(random.choice(string.printable) for _ in range(16))
     elif args.password:
         password = args.password
     else:
-        password = getpass.getpass('Password:')
-        password_confirmation = getpass.getpass('Repeat for confirmation:')
+        password = getpass.getpass("Password:")
+        password_confirmation = getpass.getpass("Repeat for confirmation:")
         if password != password_confirmation:
-            raise SystemExit('Passwords did not match')
+            raise SystemExit("Passwords did not match")
 
     if appbuilder.sm.find_user(args.username):
-        print(f'{args.username} already exist in the db')
+        print(f"{args.username} already exist in the db")
         return
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname, args.email, role, password)
     if user:
         print(f'User "{args.username}" created with role "{args.role}"')
     else:
-        raise SystemExit('Failed to create user')
+        raise SystemExit("Failed to create user")
 
 
 def _find_user(args):
     if not args.username and not args.email:
-        raise SystemExit('Missing args: must supply one of --username or --email')
+        raise SystemExit("Missing args: must supply one of --username or --email")
 
     if args.username and args.email:
-        raise SystemExit('Conflicting args: must supply either --username or --email, but not both')
+        raise SystemExit("Conflicting args: must supply either --username or --email, but not both")
 
     appbuilder = cached_app().appbuilder
 
@@ -104,7 +104,7 @@ def _find_user(args):
 
 @cli_utils.action_cli
 def users_delete(args):
-    """Deletes user from DB"""
+    """Deletes user from DB."""
     user = _find_user(args)
 
     appbuilder = cached_app().appbuilder
@@ -112,12 +112,12 @@ def users_delete(args):
     if appbuilder.sm.del_register_user(user):
         print(f'User "{user.username}" deleted')
     else:
-        raise SystemExit('Failed to delete user')
+        raise SystemExit("Failed to delete user")
 
 
 @cli_utils.action_cli
 def users_manage_role(args, remove=False):
-    """Deletes or appends user roles"""
+    """Deletes or appends user roles."""
     user = _find_user(args)
 
     appbuilder = cached_app().appbuilder
@@ -144,10 +144,10 @@ def users_manage_role(args, remove=False):
 
 
 def users_export(args):
-    """Exports all users to the json file"""
+    """Exports all users to the json file."""
     appbuilder = cached_app().appbuilder
     users = appbuilder.sm.get_all_users()
-    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+    fields = ["id", "username", "email", "first_name", "last_name", "roles"]
 
     # In the User model the first and last name fields have underscores,
     # but the corresponding parameters in the CLI don't
@@ -157,22 +157,22 @@ def users_export(args):
     users = [
         {
             remove_underscores(field): user.__getattribute__(field)
-            if field != 'roles'
+            if field != "roles"
             else [r.name for r in user.roles]
             for field in fields
         }
         for user in users
     ]
 
-    with open(args.export, 'w') as file:
+    with open(args.export, "w") as file:
         file.write(json.dumps(users, sort_keys=True, indent=4))
         print(f"{len(users)} users successfully exported to {file.name}")
 
 
 @cli_utils.action_cli
 def users_import(args):
-    """Imports users from the json file"""
-    json_file = getattr(args, 'import')
+    """Imports users from the json file."""
+    json_file = getattr(args, "import")
     if not os.path.exists(json_file):
         raise SystemExit(f"File '{json_file}' does not exist")
 
@@ -201,15 +201,15 @@ def _import_users(users_list: list[dict[str, Any]]):
     except ValidationError as e:
         msg = []
         for row_num, failure in e.normalized_messages().items():
-            msg.append(f'[Item {row_num}]')
+            msg.append(f"[Item {row_num}]")
             for key, value in failure.items():
-                msg.append(f'\t{key}: {value}')
-        raise SystemExit("Error: Input file didn't pass validation. See below:\n{}".format('\n'.join(msg)))
+                msg.append(f"\t{key}: {value}")
+        raise SystemExit("Error: Input file didn't pass validation. See below:\n{}".format("\n".join(msg)))
 
     for user in users_list:
 
         roles = []
-        for rolename in user['roles']:
+        for rolename in user["roles"]:
             role = appbuilder.sm.find_role(rolename)
             if not role:
                 valid_roles = appbuilder.sm.get_all_roles()
@@ -217,31 +217,31 @@ def _import_users(users_list: list[dict[str, Any]]):
 
             roles.append(role)
 
-        existing_user = appbuilder.sm.find_user(email=user['email'])
+        existing_user = appbuilder.sm.find_user(email=user["email"])
         if existing_user:
             print(f"Found existing user with email '{user['email']}'")
-            if existing_user.username != user['username']:
+            if existing_user.username != user["username"]:
                 raise SystemExit(
                     f"Error: Changing the username is not allowed - please delete and recreate the user with"
                     f" email {user['email']!r}"
                 )
 
             existing_user.roles = roles
-            existing_user.first_name = user['firstname']
-            existing_user.last_name = user['lastname']
+            existing_user.first_name = user["firstname"]
+            existing_user.last_name = user["lastname"]
             appbuilder.sm.update_user(existing_user)
-            users_updated.append(user['email'])
+            users_updated.append(user["email"])
         else:
             print(f"Creating new user with email '{user['email']}'")
             appbuilder.sm.add_user(
-                username=user['username'],
-                first_name=user['firstname'],
-                last_name=user['lastname'],
-                email=user['email'],
+                username=user["username"],
+                first_name=user["firstname"],
+                last_name=user["lastname"],
+                email=user["email"],
                 role=roles,
             )
 
-            users_created.append(user['email'])
+            users_created.append(user["email"])
 
     return users_created, users_updated
 

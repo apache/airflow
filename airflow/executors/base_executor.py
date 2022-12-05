@@ -31,9 +31,7 @@ from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-PARALLELISM: int = conf.getint('core', 'PARALLELISM')
-
-NOT_STARTED_MESSAGE = "The executor should be started first!"
+PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
 QUEUEING_ATTEMPTS = 5
 
@@ -164,9 +162,9 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("%s in queue", num_queued_tasks)
         self.log.debug("%s open slots", open_slots)
 
-        Stats.gauge('executor.open_slots', open_slots)
-        Stats.gauge('executor.queued_tasks', num_queued_tasks)
-        Stats.gauge('executor.running_tasks', num_running_tasks)
+        Stats.gauge("executor.open_slots", open_slots)
+        Stats.gauge("executor.queued_tasks", num_queued_tasks)
+        Stats.gauge("executor.running_tasks", num_running_tasks)
 
         self.trigger_tasks(open_slots)
 
@@ -243,7 +241,7 @@ class BaseExecutor(LoggingMixin):
         try:
             self.running.remove(key)
         except KeyError:
-            self.log.debug('Could not find key: %s', str(key))
+            self.log.debug("Could not find key: %s", str(key))
         self.event_buffer[key] = state, info
 
     def fail(self, key: TaskInstanceKey, info=None) -> None:
@@ -321,7 +319,6 @@ class BaseExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: Sequence[airflow.models.TaskInstance]
         """
         # By default, assume Executors cannot adopt tasks, so just say we failed to adopt anything.
         # Subclasses can do better!
@@ -364,7 +361,7 @@ class BaseExecutor(LoggingMixin):
         if len(command) > 3 and "--help" not in command:
             dag_id: str | None = None
             task_id: str | None = None
-            for arg in command[4:]:
+            for arg in command[3:]:
                 if not arg.startswith("--"):
                     if dag_id is None:
                         dag_id = arg

@@ -18,31 +18,24 @@
 from __future__ import annotations
 
 import logging
-import unittest
 from unittest import mock
 from unittest.mock import call
 
 import pytest
+from docker import APIClient
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
+from docker.types import DeviceRequest, LogConfig, Mount
 
 from airflow.exceptions import AirflowException
-
-try:
-    from docker import APIClient
-    from docker.types import DeviceRequest, LogConfig, Mount
-
-    from airflow.providers.docker.hooks.docker import DockerHook
-    from airflow.providers.docker.operators.docker import DockerOperator
-except ImportError:
-    pass
-
+from airflow.providers.docker.hooks.docker import DockerHook
+from airflow.providers.docker.operators.docker import DockerOperator
 
 TEMPDIR_MOCK_RETURN_VALUE = "/mkdtemp"
 
 
-class TestDockerOperator(unittest.TestCase):
-    def setUp(self):
+class TestDockerOperator:
+    def setup_method(self):
         self.tempdir_patcher = mock.patch("airflow.providers.docker.operators.docker.TemporaryDirectory")
         self.tempdir_mock = self.tempdir_patcher.start()
         self.tempdir_mock.return_value.__enter__.return_value = TEMPDIR_MOCK_RETURN_VALUE
@@ -69,16 +62,34 @@ class TestDockerOperator(unittest.TestCase):
         )
         self.client_class_mock = self.client_class_patcher.start()
 
-    def tearDown(self) -> None:
+        def dotenv_mock_return_value(**kwargs):
+            env_dict = {}
+            env_str = kwargs["stream"]
+            for env_var in env_str.split("\n"):
+                kv = env_var.split("=")
+                env_dict[kv[0]] = kv[1]
+            return env_dict
+
+        self.dotenv_patcher = mock.patch("airflow.providers.docker.operators.docker.dotenv_values")
+        self.dotenv_mock = self.dotenv_patcher.start()
+        self.dotenv_mock.side_effect = dotenv_mock_return_value
+
+    def teardown_method(self) -> None:
         self.tempdir_patcher.stop()
         self.client_class_patcher.stop()
+        self.dotenv_patcher.stop()
 
     def test_execute(self):
+        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
+        stringio_mock = stringio_patcher.start()
+        stringio_mock.side_effect = lambda *args: args[0]
+
         operator = DockerOperator(
             api_version="1.19",
             command="env",
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
+            env_file="ENV=FILE\nVAR=VALUE",
             image="ubuntu:latest",
             network_mode="bridge",
             owner="unittest",
@@ -90,6 +101,7 @@ class TestDockerOperator(unittest.TestCase):
             host_tmp_dir="/host/airflow",
             container_name="test_container",
             tty=True,
+            hostname="test.contrainer.host",
             device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
             log_opts_max_file="5",
             log_opts_max_size="10m",
@@ -103,13 +115,20 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.create_container.assert_called_once_with(
             command="env",
             name="test_container",
-            environment={"AIRFLOW_TMP_DIR": "/tmp/airflow", "UNIT": "TEST", "PRIVATE": "MESSAGE"},
+            environment={
+                "AIRFLOW_TMP_DIR": "/tmp/airflow",
+                "UNIT": "TEST",
+                "PRIVATE": "MESSAGE",
+                "ENV": "FILE",
+                "VAR": "VALUE",
+            },
             host_config=self.client_mock.create_host_config.return_value,
             image="ubuntu:latest",
             user=None,
             entrypoint=["sh", "-c"],
             working_dir="/container/path",
             tty=True,
+            hostname="test.contrainer.host",
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
@@ -128,6 +147,7 @@ class TestDockerOperator(unittest.TestCase):
             privileged=False,
             device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
             log_config=LogConfig(config={"max-size": "10m", "max-file": "5"}),
+            ipc_mode=None,
         )
         self.tempdir_mock.assert_called_once_with(dir="/host/airflow", prefix="airflowtmp")
         self.client_mock.images.assert_called_once_with(name="ubuntu:latest")
@@ -139,13 +159,21 @@ class TestDockerOperator(unittest.TestCase):
         assert (
             operator.cli.pull("ubuntu:latest", stream=True, decode=True) == self.client_mock.pull.return_value
         )
+        stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
+        self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
+        stringio_patcher.stop()
 
     def test_execute_no_temp_dir(self):
+        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
+        stringio_mock = stringio_patcher.start()
+        stringio_mock.side_effect = lambda *args: args[0]
+
         operator = DockerOperator(
             api_version="1.19",
             command="env",
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
+            env_file="ENV=FILE\nVAR=VALUE",
             image="ubuntu:latest",
             network_mode="bridge",
             owner="unittest",
@@ -157,6 +185,7 @@ class TestDockerOperator(unittest.TestCase):
             shm_size=1000,
             host_tmp_dir="/host/airflow",
             container_name="test_container",
+            hostname="test.contrainer.host",
             tty=True,
         )
         operator.execute(None)
@@ -168,13 +197,14 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.create_container.assert_called_once_with(
             command="env",
             name="test_container",
-            environment={"UNIT": "TEST", "PRIVATE": "MESSAGE"},
+            environment={"UNIT": "TEST", "PRIVATE": "MESSAGE", "ENV": "FILE", "VAR": "VALUE"},
             host_config=self.client_mock.create_host_config.return_value,
             image="ubuntu:latest",
             user=None,
             entrypoint=["sh", "-c"],
             working_dir="/container/path",
             tty=True,
+            hostname="test.contrainer.host",
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
@@ -192,6 +222,7 @@ class TestDockerOperator(unittest.TestCase):
             privileged=False,
             device_requests=None,
             log_config=LogConfig(config={}),
+            ipc_mode=None,
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name="ubuntu:latest")
@@ -203,17 +234,26 @@ class TestDockerOperator(unittest.TestCase):
         assert (
             operator.cli.pull("ubuntu:latest", stream=True, decode=True) == self.client_mock.pull.return_value
         )
+        stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
+        self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
+        stringio_patcher.stop()
 
-    def test_execute_fallback_temp_dir(self):
+    def test_execute_fallback_temp_dir(self, caplog):
         self.client_mock.create_container.side_effect = [
             APIError(message="wrong path: " + TEMPDIR_MOCK_RETURN_VALUE),
             {"Id": "some_id"},
         ]
+
+        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
+        stringio_mock = stringio_patcher.start()
+        stringio_mock.side_effect = lambda *args: args[0]
+
         operator = DockerOperator(
             api_version="1.19",
             command="env",
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
+            env_file="ENV=FILE\nVAR=VALUE",
             image="ubuntu:latest",
             network_mode="bridge",
             owner="unittest",
@@ -227,12 +267,16 @@ class TestDockerOperator(unittest.TestCase):
             container_name="test_container",
             tty=True,
         )
-        with self.assertLogs(operator.log, level=logging.WARNING) as captured:
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger=operator.log.name):
             operator.execute(None)
-            assert (
-                "WARNING:airflow.task.operators:Using remote engine or docker-in-docker "
-                "and mounting temporary volume from host is not supported" in captured.output[0]
+            warning_message = (
+                "Using remote engine or docker-in-docker and mounting temporary volume from host "
+                "is not supported. Falling back to `mount_tmp_dir=False` mode. "
+                "You can set `mount_tmp_dir` parameter to False to disable mounting and remove the warning"
             )
+            assert warning_message in caplog.messages
+
         self.client_class_mock.assert_called_once_with(
             base_url="unix://var/run/docker.sock", tls=None, version="1.19", timeout=DEFAULT_TIMEOUT_SECONDS
         )
@@ -241,24 +285,32 @@ class TestDockerOperator(unittest.TestCase):
                 call(
                     command="env",
                     name="test_container",
-                    environment={"AIRFLOW_TMP_DIR": "/tmp/airflow", "UNIT": "TEST", "PRIVATE": "MESSAGE"},
+                    environment={
+                        "AIRFLOW_TMP_DIR": "/tmp/airflow",
+                        "UNIT": "TEST",
+                        "PRIVATE": "MESSAGE",
+                        "ENV": "FILE",
+                        "VAR": "VALUE",
+                    },
                     host_config=self.client_mock.create_host_config.return_value,
                     image="ubuntu:latest",
                     user=None,
                     entrypoint=["sh", "-c"],
                     working_dir="/container/path",
                     tty=True,
+                    hostname=None,
                 ),
                 call(
                     command="env",
                     name="test_container",
-                    environment={"UNIT": "TEST", "PRIVATE": "MESSAGE"},
+                    environment={"UNIT": "TEST", "PRIVATE": "MESSAGE", "ENV": "FILE", "VAR": "VALUE"},
                     host_config=self.client_mock.create_host_config.return_value,
                     image="ubuntu:latest",
                     user=None,
                     entrypoint=["sh", "-c"],
                     working_dir="/container/path",
                     tty=True,
+                    hostname=None,
                 ),
             ]
         )
@@ -281,6 +333,7 @@ class TestDockerOperator(unittest.TestCase):
                     privileged=False,
                     device_requests=None,
                     log_config=LogConfig(config={}),
+                    ipc_mode=None,
                 ),
                 call(
                     mounts=[
@@ -298,6 +351,7 @@ class TestDockerOperator(unittest.TestCase):
                     privileged=False,
                     device_requests=None,
                     log_config=LogConfig(config={}),
+                    ipc_mode=None,
                 ),
             ]
         )
@@ -311,6 +365,9 @@ class TestDockerOperator(unittest.TestCase):
         assert (
             operator.cli.pull("ubuntu:latest", stream=True, decode=True) == self.client_mock.pull.return_value
         )
+        stringio_mock.assert_called_with("ENV=FILE\nVAR=VALUE")
+        self.dotenv_mock.assert_called_with(stream="ENV=FILE\nVAR=VALUE")
+        stringio_patcher.stop()
 
     def test_private_environment_is_private(self):
         operator = DockerOperator(
@@ -319,6 +376,43 @@ class TestDockerOperator(unittest.TestCase):
         assert operator._private_environment == {
             "PRIVATE": "MESSAGE"
         }, "To keep this private, it must be an underscored attribute."
+
+    @mock.patch("airflow.providers.docker.operators.docker.StringIO")
+    def test_environment_overrides_env_file(self, stringio_mock):
+        stringio_mock.side_effect = lambda *args: args[0]
+        operator = DockerOperator(
+            command="env",
+            environment={"UNIT": "TEST"},
+            private_environment={"PRIVATE": "MESSAGE"},
+            env_file="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE",
+            image="ubuntu:latest",
+            task_id="unittest",
+            entrypoint='["sh", "-c"]',
+            working_dir="/container/path",
+            host_tmp_dir="/host/airflow",
+            container_name="test_container",
+            tty=True,
+        )
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once_with(
+            command="env",
+            name="test_container",
+            environment={
+                "AIRFLOW_TMP_DIR": "/tmp/airflow",
+                "UNIT": "TEST",
+                "PRIVATE": "MESSAGE",
+                "VAR": "VALUE",
+            },
+            host_config=self.client_mock.create_host_config.return_value,
+            image="ubuntu:latest",
+            user=None,
+            entrypoint=["sh", "-c"],
+            working_dir="/container/path",
+            tty=True,
+            hostname=None,
+        )
+        stringio_mock.assert_called_once_with("UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
+        self.dotenv_mock.assert_called_once_with(stream="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
 
     @mock.patch("airflow.providers.docker.operators.docker.tls.TLSConfig")
     def test_execute_tls(self, tls_class_mock):

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Local client API"""
+"""Local client API."""
 from __future__ import annotations
 
 from airflow.api.client import api_client
@@ -28,9 +28,13 @@ from airflow.models.pool import Pool
 class Client(api_client.Client):
     """Local API client implementation."""
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
+    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
         dag_run = trigger_dag.trigger_dag(
-            dag_id=dag_id, run_id=run_id, conf=conf, execution_date=execution_date
+            dag_id=dag_id,
+            run_id=run_id,
+            conf=conf,
+            execution_date=execution_date,
+            replace_microseconds=replace_microseconds,
         )
         return f"Created {dag_run}"
 

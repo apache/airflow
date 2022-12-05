@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import wraps
 from inspect import signature
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import oss2
 from oss2.exceptions import ClientError
@@ -108,7 +108,7 @@ class OSSHook(BaseHook):
         :param ossurl: The OSS Url to parse.
         :return: the parsed bucket name and key
         """
-        parsed_url = urlparse(ossurl)
+        parsed_url = urlsplit(ossurl)
 
         if not parsed_url.netloc:
             raise AirflowException(f'Please provide a bucket_name instead of "{ossurl}"')
@@ -127,7 +127,6 @@ class OSSHook(BaseHook):
         :param key: the path of the object
         :param bucket_name: the name of the bucket
         :return: True if it exists and False if not.
-        :rtype: bool
         """
         try:
             return self.get_bucket(bucket_name).object_exists(key)
@@ -142,7 +141,6 @@ class OSSHook(BaseHook):
 
         :param bucket_name: the name of the bucket
         :return: the bucket object to the bucket name.
-        :rtype: oss2.api.Bucket
         """
         auth = self.get_credential()
         assert self.region is not None
@@ -198,7 +196,6 @@ class OSSHook(BaseHook):
         :param local_file: local path + file name to save.
         :param bucket_name: the name of the bucket
         :return: the file name.
-        :rtype: str
         """
         try:
             self.get_bucket(bucket_name).get_object_to_file(key, local_file)

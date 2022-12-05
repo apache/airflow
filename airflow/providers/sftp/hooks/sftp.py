@@ -111,11 +111,7 @@ class SFTPHook(SSHHook):
         super().__init__(*args, **kwargs)
 
     def get_conn(self) -> paramiko.SFTPClient:  # type: ignore[override]
-        """
-        Opens an SFTP connection to the remote host
-
-        :rtype: paramiko.SFTPClient
-        """
+        """Opens an SFTP connection to the remote host"""
         if self.conn is None:
             # TODO: remove support for ssh_hook when it is removed from SFTPOperator
             if self.ssh_hook is not None:
@@ -355,7 +351,6 @@ class SFTPHook(SSHHook):
         :param prefix: if set paths will be added if start with prefix
         :param delimiter: if set paths will be added if end with delimiter
         :return: tuple with list of files, dirs and unknown items
-        :rtype: Tuple[List[str], List[str], List[str]]
         """
         files: list[str] = []
         dirs: list[str] = []
@@ -391,12 +386,8 @@ class SFTPHook(SSHHook):
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
         :return: string containing the first found file, or an empty string if none matched
         """
-        files_list = self.list_directory(path)
-
-        for file in files_list:
-            if not fnmatch(file, fnmatch_pattern):
-                pass
-            else:
+        for file in self.list_directory(path):
+            if fnmatch(file, fnmatch_pattern):
                 return file
 
         return ""

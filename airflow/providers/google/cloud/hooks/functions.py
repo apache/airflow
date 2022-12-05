@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Optional, Sequence
+from typing import Sequence
 
 import requests
 from googleapiclient.discovery import build
@@ -39,7 +39,7 @@ class CloudFunctionsHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    _conn = None  # type: Optional[Any]
+    _conn = None
 
     def __init__(
         self,
@@ -72,7 +72,6 @@ class CloudFunctionsHook(GoogleBaseHook):
         Retrieves the connection to Cloud Functions.
 
         :return: Google Cloud Function services object.
-        :rtype: dict
         """
         if not self._conn:
             http_authorized = self._authorize()
@@ -87,7 +86,6 @@ class CloudFunctionsHook(GoogleBaseHook):
 
         :param name: Name of the function.
         :return: A Cloud Functions object representing the function.
-        :rtype: dict
         """
         # fmt: off
         return self.get_conn().projects().locations().functions().get(
@@ -143,7 +141,6 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
         :return: The upload URL that was returned by generateUploadUrl method.
-        :rtype: str
         """
         # fmt: off
 
@@ -219,7 +216,6 @@ class CloudFunctionsHook(GoogleBaseHook):
 
         :param operation_name: The name of the operation.
         :return: The response returned by the operation.
-        :rtype: dict
         :exception: AirflowException in case error is returned.
         """
         service = self.get_conn()

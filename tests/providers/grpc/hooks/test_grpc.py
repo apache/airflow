@@ -61,7 +61,7 @@ class StubClass:
 
 
 class TestGrpcHook:
-    def setup(self):
+    def setup_method(self):
         self.channel_mock = mock.patch("grpc.Channel").start()
 
     def custom_conn_func(self, _):

@@ -19,8 +19,6 @@ Tests for Google Cloud Firestore
 """
 from __future__ import annotations
 
-import unittest
-from typing import Optional
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -48,10 +46,10 @@ TEST_ERROR_OPERATION = {"done": True, "response": "response", "error": "error"}
 TEST_PROJECT_ID = "firestore--project-id"
 
 
-class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+class TestCloudFirestoreHookWithPassedProjectId:
+    hook: CloudFirestoreHook | None = None
 
-    def setUp(self):
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -127,10 +125,10 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
 
-class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
+    hook: CloudFirestoreHook | None = None
 
-    def setUp(self):
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -221,10 +219,10 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY)
 
 
-class TestCloudFirestoreHookWithoutProjectId(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+class TestCloudFirestoreHookWithoutProjectId:
+    hook: CloudFirestoreHook | None = None
 
-    def setUp(self):
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

@@ -72,9 +72,9 @@ class LambdaHook(AwsBaseHook):
         self,
         *,
         function_name: str,
-        runtime: str,
+        runtime: str | None = None,
         role: str,
-        handler: str,
+        handler: str | None = None,
         code: dict,
         description: str | None = None,
         timeout: int | None = None,
@@ -93,6 +93,12 @@ class LambdaHook(AwsBaseHook):
         code_signing_config_arn: str | None = None,
         architectures: list[str] | None = None,
     ) -> dict:
+        if package_type == "Zip":
+            if handler is None:
+                raise TypeError("Parameter 'handler' is required if 'package_type' is 'Zip'")
+            if runtime is None:
+                raise TypeError("Parameter 'runtime' is required if 'package_type' is 'Zip'")
+
         """Create a Lambda Function"""
         create_function_args = {
             "FunctionName": function_name,

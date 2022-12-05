@@ -64,7 +64,7 @@ Package apache-airflow-providers-arangodb
 `ArangoDB <https://www.arangodb.com/>`__
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -85,7 +85,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``python-arango``   ``>=7.3.2``
 ==================  ==================
 

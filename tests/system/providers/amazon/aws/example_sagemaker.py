@@ -170,7 +170,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         docker_build_and_push_commands = f"""
             cp /root/.aws/credentials /tmp/credentials &&
-            docker build -f {dockerfile.name} -t {repository_uri} /tmp &&
+            docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
             rm /tmp/credentials &&
             aws ecr get-login-password --region {ecr_region} |
             docker login --username {username} --password {password} {repository_uri} &&
@@ -182,11 +182,12 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        docker_build.communicate()
+        _, stderr = docker_build.communicate()
         if docker_build.returncode != 0:
-            # Note: The stderr output from communicate() contains an unrelated
-            # warning message, not the actual cause of the failure.
-            raise RuntimeError("Failed to push docker image to the repository.")
+            raise RuntimeError(
+                "Failed to push docker image to the repository.  The following error "
+                f"message may be useful, but can occasionally be misleading: {stderr}"
+            )
 
 
 @task

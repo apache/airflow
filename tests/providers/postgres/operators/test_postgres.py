@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.models.dag import DAG
@@ -32,13 +30,13 @@ TEST_DAG_ID = "unit_test_dag"
 
 
 @pytest.mark.backend("postgres")
-class TestPostgres(unittest.TestCase):
-    def setUp(self):
+class TestPostgres:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    def tearDown(self):
+    def teardown_method(self):
         tables_to_drop = ["test_postgres_to_postgres", "test_airflow"]
         from airflow.providers.postgres.hooks.postgres import PostgresHook
 
@@ -79,14 +77,14 @@ class TestPostgres(unittest.TestCase):
         op = PostgresOperator(task_id="postgres_operator_test_vacuum", sql=sql, dag=self.dag, autocommit=True)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_overwrite_schema(self):
+    def test_overwrite_database(self):
         """
-        Verifies option to overwrite connection schema
+        Verifies option to overwrite connection database
         """
 
         sql = "SELECT 1;"
         op = PostgresOperator(
-            task_id="postgres_operator_test_schema_overwrite",
+            task_id="postgres_operator_test_database_overwrite",
             sql=sql,
             dag=self.dag,
             autocommit=True,

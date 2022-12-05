@@ -27,6 +27,7 @@ from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParamet
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.utils import get_field
 from airflow.utils import timezone
 
 
@@ -43,6 +44,14 @@ class AzureBatchHook(BaseHook):
     conn_type = "azure_batch"
     hook_name = "Azure Batch Service"
 
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
+
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
@@ -51,9 +60,7 @@ class AzureBatchHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure_batch__account_url": StringField(
-                lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()
-            ),
+            "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -85,7 +92,7 @@ class AzureBatchHook(BaseHook):
         """
         conn = self._connection()
 
-        batch_account_url = conn.extra_dejson.get("extra__azure_batch__account_url")
+        batch_account_url = self._get_field(conn.extra_dejson, "account_url")
         if not batch_account_url:
             raise AirflowException("Batch Account URL parameter is missing.")
 
@@ -96,13 +103,13 @@ class AzureBatchHook(BaseHook):
     def configure_pool(
         self,
         pool_id: str,
-        vm_size: str | None = None,
+        vm_size: str,
+        vm_node_agent_sku_id: str,
         vm_publisher: str | None = None,
         vm_offer: str | None = None,
         sku_starts_with: str | None = None,
         vm_sku: str | None = None,
         vm_version: str | None = None,
-        vm_node_agent_sku_id: str | None = None,
         os_family: str | None = None,
         os_version: str | None = None,
         display_name: str | None = None,
@@ -205,8 +212,8 @@ class AzureBatchHook(BaseHook):
             self.log.info("Attempting to create a pool: %s", pool.id)
             self.connection.pool.add(pool)
             self.log.info("Created pool: %s", pool.id)
-        except batch_models.BatchErrorException as e:
-            if e.error.code != "PoolExists":
+        except batch_models.BatchErrorException as err:
+            if not err.error or err.error.code != "PoolExists":
                 raise
             else:
                 self.log.info("Pool %s already exists", pool.id)
@@ -295,7 +302,7 @@ class AzureBatchHook(BaseHook):
             self.connection.job.add(job)
             self.log.info("Job %s created", job.id)
         except batch_models.BatchErrorException as err:
-            if err.error.code != "JobExists":
+            if not err.error or err.error.code != "JobExists":
                 raise
             else:
                 self.log.info("Job %s already exists", job.id)
@@ -340,7 +347,7 @@ class AzureBatchHook(BaseHook):
 
             self.connection.task.add(job_id=job_id, task=task)
         except batch_models.BatchErrorException as err:
-            if err.error.code != "TaskExists":
+            if not err.error or err.error.code != "TaskExists":
                 raise
             else:
                 self.log.info("Task %s already exists", task.id)
@@ -362,8 +369,7 @@ class AzureBatchHook(BaseHook):
                 fail_tasks = [
                     task
                     for task in tasks
-                    if task.executionInfo.result
-                    == batch_models.TaskExecutionInformation.TaskExecutionResult.failure
+                    if task.executionInfo.result == batch_models.TaskExecutionResult.failure
                 ]
                 return fail_tasks
             for task in incomplete_tasks:

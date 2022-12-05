@@ -27,10 +27,11 @@ DAGs scheduled with a cron expression or ``timedelta`` object are
 internally converted to always use a timetable.
 
 If a cron expression or ``timedelta`` is sufficient for your use case, you don't need
-to worry about timetables.  But for more complicated scheduling requirements,
-you may create your own timetable class and pass that to the DAG's ``schedule`` argument instead.
+to worry about writing a custom timetable because Airflow has default timetables that handle those cases.
+But for more complicated scheduling requirements,
+you may create your own timetable class and pass that to the DAG's ``schedule`` argument.
 
-Some examples:
+Here are some examples of when custom timetable implementations are useful:
 
 * Data intervals with "holes" between. (Instead of continuous, as both the cron
   expression and ``timedelta`` schedules represent.)
@@ -78,7 +79,7 @@ A timetable that accepts a cron expression, and triggers DAG runs according to i
 
 
     @dag(
-        timetable=CronTriggerTimetable('0 1 * * 3', timezone='UTC'),  # At 01:00 on Wednesday
+        timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"),  # At 01:00 on Wednesday
     )
     def example_dag():
         pass

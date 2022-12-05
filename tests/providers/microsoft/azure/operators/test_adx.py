@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from azure.kusto.data._models import KustoResultTable
@@ -60,8 +59,8 @@ class MockResponse:
     primary_results = [MOCK_RESULT]
 
 
-class TestAzureDataExplorerQueryOperator(unittest.TestCase):
-    def setUp(self):
+class TestAzureDataExplorerQueryOperator:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE, "provide_context": True}
 
         self.dag = DAG(TEST_DAG_ID + "test_schedule_dag_once", default_args=args, schedule="@once")

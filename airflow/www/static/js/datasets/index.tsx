@@ -19,11 +19,11 @@
 
 /* global document */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import createCache from '@emotion/cache';
 import { useSearchParams } from 'react-router-dom';
-import { Flex, Box } from '@chakra-ui/react';
+import { Flex, Box, useDimensions } from '@chakra-ui/react';
 
 import App from 'src/App';
 
@@ -44,6 +44,9 @@ const DATASET_URI = 'uri';
 
 const Datasets = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const graphRef = useRef<HTMLDivElement>(null);
+  const dimensions = useDimensions(graphRef, true);
 
   const onBack = () => {
     searchParams.delete(DATASET_URI);
@@ -58,13 +61,20 @@ const Datasets = () => {
   const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || '');
 
   return (
-    <Flex alignItems="flex-start" justifyContent="space-between">
-      <Box width="600px" height="calc(100vh - 125px)" overflowY="scroll">
+    <Flex alignItems="flex-start" justifyContent="space-between" ref={contentRef}>
+      <Box minWidth="450px" height="100%" overflowY="auto">
         {datasetUri
           ? <DatasetDetails uri={datasetUri} onBack={onBack} />
           : <DatasetsList onSelect={onSelect} />}
       </Box>
-      <Graph selectedUri={datasetUri} onSelect={onSelect} />
+      <Box flex={1} ref={graphRef} height="calc(100vh - 68px)" borderColor="gray.200" borderWidth={1}>
+        <Graph
+          selectedUri={datasetUri}
+          onSelect={onSelect}
+          height={dimensions?.contentBox.height || 0}
+          width={dimensions?.contentBox.width || 0}
+        />
+      </Box>
     </Flex>
   );
 };

@@ -63,7 +63,7 @@ class JdbcHook(DbApiHook):
     def _get_field(self, extras: dict, field_name: str):
         """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
         backcompat_prefix = "extra__jdbc__"
-        if field_name.startswith("extra_"):
+        if field_name.startswith("extra__"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
                 "when using this method."
@@ -107,6 +107,5 @@ class JdbcHook(DbApiHook):
 
         :param conn: The connection.
         :return: connection autocommit setting.
-        :rtype: bool
         """
         return conn.jconn.getAutoCommit()

@@ -24,7 +24,7 @@ from airflow.utils.state import State
 
 @provide_session
 def check(args, session=None):
-    """Checks if job(s) are still alive"""
+    """Checks if job(s) are still alive."""
     if args.allow_multiple and not args.limit > 1:
         raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
     if args.hostname and args.local:

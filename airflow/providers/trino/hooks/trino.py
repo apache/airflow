@@ -98,7 +98,6 @@ class TrinoHook(DbApiHook):
         extra = db.extra_dejson
         auth = None
         user = db.login
-        session_properties = extra.get("session_properties")
         if db.password and extra.get("auth") in ("kerberos", "certs"):
             raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
         elif db.password:
@@ -143,7 +142,8 @@ class TrinoHook(DbApiHook):
             # type: ignore[func-returns-value]
             isolation_level=self.get_isolation_level(),
             verify=_boolify(extra.get("verify", True)),
-            session_properties=session_properties if session_properties else None,
+            session_properties=extra.get("session_properties") or None,
+            client_tags=extra.get("client_tags") or None,
         )
 
         return trino_conn
@@ -158,8 +158,7 @@ class TrinoHook(DbApiHook):
         self,
         sql: str | list[str] = "",
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Trino Hook must be a string and is {sql}!")
         try:
@@ -240,3 +239,15 @@ class TrinoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every, replace)
+
+    @staticmethod
+    def _serialize_cell(cell: Any, conn: Connection | None = None) -> Any:
+        """
+        Trino will adapt all arguments to the execute() method internally,
+        hence we return cell without any conversion.
+
+        :param cell: The cell to insert into the table
+        :param conn: The database connection
+        :return: The cell
+        """
+        return cell

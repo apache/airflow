@@ -121,3 +121,53 @@ class TestDataplexHook(TestCase):
             timeout=None,
             metadata=(),
         )
+
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_create_lake(self, mock_client):
+        self.hook.create_lake(
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            body=BODY,
+            validate_only=None,
+        )
+
+        parent = f"projects/{PROJECT_ID}/locations/{REGION}"
+        mock_client.return_value.create_lake.assert_called_once_with(
+            request=dict(
+                parent=parent,
+                lake_id=LAKE_ID,
+                lake=BODY,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_delete_lake(self, mock_client):
+        self.hook.delete_lake(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
+
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
+        mock_client.return_value.delete_lake.assert_called_once_with(
+            request=dict(
+                name=name,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_get_lake(self, mock_client):
+        self.hook.get_lake(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
+
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/"
+        mock_client.return_value.get_lake.assert_called_once_with(
+            request=dict(
+                name=name,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
