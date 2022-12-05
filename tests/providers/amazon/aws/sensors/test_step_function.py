@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -36,8 +35,8 @@ AWS_CONN_ID = "aws_non_default"
 REGION_NAME = "us-west-2"
 
 
-class TestStepFunctionExecutionSensor(unittest.TestCase):
-    def setUp(self):
+class TestStepFunctionExecutionSensor:
+    def setup_method(self):
         self.mock_context = MagicMock()
 
     def test_init(self):

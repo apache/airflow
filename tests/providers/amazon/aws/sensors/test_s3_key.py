@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -30,7 +29,7 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from airflow.utils import timezone
 
 
-class TestS3KeySensor(unittest.TestCase):
+class TestS3KeySensor:
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
         Test if exception is raised when bucket_name is None

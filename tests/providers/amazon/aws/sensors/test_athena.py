@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 
 
-class TestAthenaSensor(unittest.TestCase):
-    def setUp(self):
+class TestAthenaSensor:
+    def setup_method(self):
         self.sensor = AthenaSensor(
             task_id="test_athena_sensor",
             query_execution_id="abc",

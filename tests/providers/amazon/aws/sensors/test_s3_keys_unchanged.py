@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from freezegun import freeze_time
@@ -31,8 +31,8 @@ TEST_DAG_ID = "unit_tests_aws_sensor"
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
-class TestS3KeysUnchangedSensor(TestCase):
-    def setUp(self):
+class TestS3KeysUnchangedSensor:
+    def setup_method(self):
         self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", start_date=DEFAULT_DATE, schedule="@once")
 
         self.sensor = S3KeysUnchangedSensor(
