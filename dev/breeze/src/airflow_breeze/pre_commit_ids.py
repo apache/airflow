@@ -47,6 +47,7 @@ PRE_COMMIT_LIST = [
     "check-incorrect-use-of-LoggingMixin",
     "check-init-decorator-arguments",
     "check-lazy-logging",
+    "check-links-to-example-dags-do-not-use-hardcoded-versions",
     "check-merge-conflict",
     "check-newsfragments-are-valid",
     "check-no-providers-in-core-examples",
