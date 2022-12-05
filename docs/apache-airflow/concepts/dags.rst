@@ -796,7 +796,7 @@ the dependency graph.
 The dependency detector is configurable, so you can implement your own logic different than the defaults in
 :class:`~airflow.serialization.serialized_objects.DependencyDetector`
 
-Unschedule or Delete a DAG
+Deschedule or Delete a DAG
 --------------------------
 
 A DAG can be prevented from running by either being paused, deactivated, or deleted.
