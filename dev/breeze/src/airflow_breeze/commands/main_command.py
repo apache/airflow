@@ -155,6 +155,9 @@ def check_for_python_emulation():
 def check_for_rosetta_environment():
     if sys.platform != "darwin":
         return
+
+    from inputimeout import TimeoutOccurred, inputimeout
+
     try:
         runs_in_rosetta = subprocess.check_output(
             ["sysctl", "-n", "sysctl.proc_translated"],
@@ -181,7 +184,6 @@ def check_for_rosetta_environment():
                 "If you have mixed Intel/ARM binaries installed you should likely nuke and "
                 "reinstall your development environment (including brew and Python) from scratch!\n\n"
             )
-            from inputimeout import TimeoutOccurred, inputimeout
 
             user_status = inputimeout(
                 prompt="Are you REALLY sure you want to continue? (answer with y otherwise we exit in 20s)\n",
