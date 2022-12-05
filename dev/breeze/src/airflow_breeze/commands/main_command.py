@@ -118,6 +118,8 @@ def main(ctx: click.Context, **kwargs: dict[str, Any]):
 
 
 def check_for_python_emulation():
+    from inputimeout import TimeoutOccurred
+
     try:
         system_machine = subprocess.check_output(["uname", "-m"], text=True).strip()
         python_machine = platform.uname().machine
@@ -135,7 +137,7 @@ def check_for_python_emulation():
                 "[warning]You likely installed your Python wrongly and you should "
                 "remove it and reinstall from scratch[/]\n"
             )
-            from inputimeout import TimeoutOccurred, inputimeout
+            from inputimeout import inputimeout
 
             user_status = inputimeout(
                 prompt="Are you REALLY sure you want to continue? (answer with y otherwise we exit in 20s)\n",
@@ -155,6 +157,8 @@ def check_for_python_emulation():
 def check_for_rosetta_environment():
     if sys.platform != "darwin":
         return
+    from inputimeout import TimeoutOccurred
+
     try:
         runs_in_rosetta = subprocess.check_output(
             ["sysctl", "-n", "sysctl.proc_translated"],
@@ -181,7 +185,7 @@ def check_for_rosetta_environment():
                 "If you have mixed Intel/ARM binaries installed you should likely nuke and "
                 "reinstall your development environment (including brew and Python) from scratch!\n\n"
             )
-            from inputimeout import TimeoutOccurred, inputimeout
+            from inputimeout import inputimeout
 
             user_status = inputimeout(
                 prompt="Are you REALLY sure you want to continue? (answer with y otherwise we exit in 20s)\n",
