@@ -19,9 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from requests import HTTPError
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 
