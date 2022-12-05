@@ -117,11 +117,6 @@ class GlueCrawlerHook(AwsBaseHook):
             elif wanted_tag_value != value:
                 update_tags[key] = wanted_tag_value
 
-        update_tags = {
-            key: value
-            for key, value in crawler_tags.items()
-            if current_crawler_tags.get(key, None) != crawler_tags.get(key)
-        }
         updated_tags = False
         if update_tags:
             self.log.info("Updating crawler tags: %s", crawler_name)
