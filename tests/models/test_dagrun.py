@@ -29,7 +29,15 @@ from sqlalchemy.orm.session import Session
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import task, task_group
-from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models import (
+    DAG,
+    DagBag,
+    DagModel,
+    DagRun,
+    TaskInstance,
+    TaskInstance as TI,
+    clear_task_instances,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
@@ -1283,6 +1291,39 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
         (1, State.NONE),
         (2, TaskInstanceState.REMOVED),
     ]
+
+
+def test_mapped_literal_faulty_state_in_db(dag_maker, session):
+    """
+    This test tries to recreate a faulty state in the database and checks if we can recover from it.
+    The state that happens is that there exists mapped task instances and the unmapped task instance.
+    So we have instances with map_index [-1, 0, 1]. The -1 task instances should be removed in this case.
+    """
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_1():
+            return [1, 2]
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1")
+    ti.run()
+    decision = dr.task_instance_scheduling_decisions()
+    assert len(decision.schedulable_tis) == 2
+
+    # We insert a faulty record
+    session.add(TaskInstance(dag.get_task("task_2"), dr.execution_date, dr.run_id))
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions()
+    assert len(decision.schedulable_tis) == 2
 
 
 def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_integrity(dag_maker, session):

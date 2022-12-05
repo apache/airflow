@@ -484,7 +484,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 # are not done yet, so the task can't fail yet.
                 if not self.dag or not self.dag.partial:
                     unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
-                indexes_to_map: Iterable[int] = ()
             elif total_length < 1:
                 # If the upstream maps this to a zero-length value, simply mark
                 # the unmapped task instance as SKIPPED (if needed).
@@ -494,18 +493,33 @@ class AbstractOperator(LoggingMixin, DAGNode):
                     total_length,
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
-                indexes_to_map = ()
             else:
-                # Otherwise convert this into the first mapped index, and create
-                # TaskInstance for other indexes.
-                unmapped_ti.map_index = 0
-                self.log.debug("Updated in place to become %s", unmapped_ti)
-                all_expanded_tis.append(unmapped_ti)
-                indexes_to_map = range(1, total_length)
-            state = unmapped_ti.state
-        elif not total_length:
+                zero_index_ti_exists = (
+                    session.query(TaskInstance)
+                    .filter(
+                        TaskInstance.dag_id == self.dag_id,
+                        TaskInstance.task_id == self.task_id,
+                        TaskInstance.run_id == run_id,
+                        TaskInstance.map_index == 0,
+                    )
+                    .count()
+                    > 0
+                )
+                if not zero_index_ti_exists:
+                    # Otherwise convert this into the first mapped index, and create
+                    # TaskInstance for other indexes.
+                    unmapped_ti.map_index = 0
+                    self.log.debug("Updated in place to become %s", unmapped_ti)
+                    all_expanded_tis.append(unmapped_ti)
+                    session.flush()
+                else:
+                    self.log.debug("Deleting the original task instance: %s", unmapped_ti)
+                    session.delete(unmapped_ti)
+                state = unmapped_ti.state
+
+        if total_length is None or total_length < 1:
             # Nothing to fixup.
-            indexes_to_map = ()
+            indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
             current_max_mapping = (
