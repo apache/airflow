@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from typing import Any
 from unittest import mock
 
@@ -92,8 +91,8 @@ class CreateNodegroupParams(TypedDict):
     nodegroup_role_arn: str
 
 
-class TestEksCreateClusterOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksCreateClusterOperator:
+    def setup_method(self) -> None:
         # Parameters which are needed to create a cluster.
         self.create_cluster_params: ClusterParams = dict(  # type: ignore
             cluster_name=CLUSTER_NAME,
@@ -172,8 +171,7 @@ class TestEksCreateClusterOperator(unittest.TestCase):
         ]
 
         for (operator, parameters) in operator_under_test:
-            with self.subTest():
-                operator.execute({})
+            operator.execute({})
 
             mock_create_cluster.assert_called_with(**convert_keys(parameters))
             mock_create_nodegroup.assert_not_called()
@@ -243,8 +241,8 @@ class TestEksCreateClusterOperator(unittest.TestCase):
             missing_fargate_pod_execution_role_arn.execute({})
 
 
-class TestEksCreateFargateProfileOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksCreateFargateProfileOperator:
+    def setup_method(self) -> None:
         self.create_fargate_profile_params: CreateFargateProfileParams = dict(  # type: ignore
             cluster_name=CLUSTER_NAME,
             pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
@@ -273,14 +271,13 @@ class TestEksCreateFargateProfileOperator(unittest.TestCase):
         ]
 
         for (operator, parameters) in operator_under_test:
-            with self.subTest():
-                operator.execute({})
+            operator.execute({})
 
-                mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
+            mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
 
 
-class TestEksCreateNodegroupOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksCreateNodegroupOperator:
+    def setup_method(self) -> None:
         self.create_nodegroup_params: CreateNodegroupParams = dict(  # type: ignore
             cluster_name=CLUSTER_NAME,
             nodegroup_name=NODEGROUP_NAME,
@@ -309,14 +306,13 @@ class TestEksCreateNodegroupOperator(unittest.TestCase):
         ]
 
         for (operator, parameters) in operator_under_test:
-            with self.subTest():
-                operator.execute({})
+            operator.execute({})
 
-                mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
+            mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
 
 
-class TestEksDeleteClusterOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksDeleteClusterOperator:
+    def setup_method(self) -> None:
         self.cluster_name: str = CLUSTER_NAME
 
         self.delete_cluster_operator = EksDeleteClusterOperator(
@@ -334,8 +330,8 @@ class TestEksDeleteClusterOperator(unittest.TestCase):
         mock_delete_cluster.assert_called_once_with(name=self.cluster_name)
 
 
-class TestEksDeleteNodegroupOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksDeleteNodegroupOperator:
+    def setup_method(self) -> None:
         self.cluster_name: str = CLUSTER_NAME
         self.nodegroup_name: str = NODEGROUP_NAME
 
@@ -352,8 +348,8 @@ class TestEksDeleteNodegroupOperator(unittest.TestCase):
         )
 
 
-class TestEksDeleteFargateProfileOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksDeleteFargateProfileOperator:
+    def setup_method(self) -> None:
         self.cluster_name: str = CLUSTER_NAME
         self.fargate_profile_name: str = FARGATE_PROFILE_NAME
 
@@ -370,7 +366,7 @@ class TestEksDeleteFargateProfileOperator(unittest.TestCase):
         )
 
 
-class TestEksPodOperator(unittest.TestCase):
+class TestEksPodOperator:
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
@@ -396,5 +392,5 @@ class TestEksPodOperator(unittest.TestCase):
         mock_generate_config_file.assert_called_once_with(
             eks_cluster_name=CLUSTER_NAME, pod_namespace="default"
         )
-        self.assertEqual(mock_k8s_pod_operator_execute.return_value, op_return_value)
-        self.assertEqual(mock_generate_config_file.return_value.__enter__.return_value, op.config_file)
+        assert mock_k8s_pod_operator_execute.return_value == op_return_value
+        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
