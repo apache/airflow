@@ -50,6 +50,7 @@ def _resolve_dagrun_model():
 class BaseJob(Base, LoggingMixin):
     """
     Abstract class to be derived for jobs.
+
     Jobs are processing items with state and duration that aren't task instances.
     For instance a BackfillJob is a collection of task instance runs,
     but should have its own state, start and end time.

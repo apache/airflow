@@ -51,6 +51,7 @@ ExecutorWorkType = Tuple[Optional[TaskInstanceKey], Optional[CommandType]]
 class LocalWorkerBase(Process, LoggingMixin):
     """
     LocalWorkerBase implementation to run airflow commands.
+
     Executes the given command and puts the result into a result queue when done, terminating execution.
 
     :param result_queue: the queue to store result state
@@ -163,6 +164,7 @@ class LocalWorker(LocalWorkerBase):
 class QueuedLocalWorker(LocalWorkerBase):
     """
     LocalWorker implementation that is waiting for tasks from a queue.
+
     Will continue executing commands as they become available in the queue.
     It will terminate execution once the poison token is found.
 
@@ -269,6 +271,7 @@ class LocalExecutor(BaseExecutor):
     class LimitedParallelism:
         """
         Implements LocalExecutor with limited parallelism.
+
         Uses a task queue to coordinate work distribution.
 
         :param executor: the executor instance to implement.

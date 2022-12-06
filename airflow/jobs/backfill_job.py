@@ -56,6 +56,7 @@ if TYPE_CHECKING:
 class BackfillJob(BaseJob):
     """
     A backfill job consists of a dag or subdag for a specific time range.
+
     It triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
     """
@@ -68,6 +69,7 @@ class BackfillJob(BaseJob):
     class _DagRunTaskStatus:
         """
         Internal status of the backfill job.
+
         This class is intended to be instantiated only within a BackfillJob
         instance and will track the execution of tasks, e.g. running, skipped,
         succeeded, failed, etc. Information about the dag runs related to the
@@ -123,6 +125,7 @@ class BackfillJob(BaseJob):
     ):
         """
         Create a BackfillJob.
+
         :param dag: DAG object.
         :param start_date: start date for the backfill date range.
         :param end_date: end date for the backfill date range.
@@ -164,6 +167,7 @@ class BackfillJob(BaseJob):
     def _update_counters(self, ti_status, session=None):
         """
         Updates the counters per state of the tasks that were running.
+
         Can re-add to tasks to run when required.
 
         :param ti_status: the internal status of the backfill job tasks
@@ -292,6 +296,7 @@ class BackfillJob(BaseJob):
     def _get_dag_run(self, dagrun_info: DagRunInfo, dag: DAG, session: Session = None):
         """
         Return an existing dag run for the given run date or create one.
+
         If the max_active_runs limit is reached, this function will return None.
 
         :param dagrun_info: Schedule information for the dag run
@@ -411,7 +416,8 @@ class BackfillJob(BaseJob):
         session=None,
     ) -> list:
         """
-        Process a set of task instances from a set of dag runs.
+        Process a set of task instances from a set of DAG runs.
+
         Special handling is done to account for different task instance states
         that could be present when running them in a backfill process.
 
@@ -732,6 +738,7 @@ class BackfillJob(BaseJob):
     def _execute_dagruns(self, dagrun_infos, ti_status, executor, pickle_id, start_date, session=None):
         """
         Compute and execute dag runs and their respective task instances for the given dates.
+
         Returns a list of execution dates of the dag runs that were executed.
 
         :param dagrun_infos: Schedule information for dag runs
@@ -896,6 +903,7 @@ class BackfillJob(BaseJob):
     def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None) -> int | None:
         """
         Reset state of orphaned tasks.
+
         This function checks if there are any tasks in the dagrun (or all) that
         have a schedule or queued states but are not known by the executor. If
         it finds those it will reset the state to None so they will get picked

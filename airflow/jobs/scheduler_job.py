@@ -86,6 +86,7 @@ DM = DagModel
 def _is_parent_process() -> bool:
     """
     Whether this is a parent process.
+
     Return True if the current process is the parent process.
     False if the current process is a child process started by multiprocessing.
     """
@@ -95,6 +96,7 @@ def _is_parent_process() -> bool:
 class SchedulerJob(BaseJob):
     """
     SchedulerJob runs for a specific time interval and schedules jobs that are ready to run.
+
     It figures out the latest runs for each task and sees if the dependencies
     for the next schedules are met.
     If so, it creates appropriate TaskInstances and sends run commands to the
@@ -243,9 +245,10 @@ class SchedulerJob(BaseJob):
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
+
         Conditions include:
         - pool limits
-        - dag max_active_tasks
+        - DAG max_active_tasks
         - executor state
         - priority
 
@@ -821,6 +824,7 @@ class SchedulerJob(BaseJob):
     def _run_scheduler_loop(self) -> None:
         """
         The actual scheduler loop.
+
         The main steps in the loop are:
             #. Harvest DAG parsing results through DagFileProcessorAgent
             #. Find and queue executable tasks

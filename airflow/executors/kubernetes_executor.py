@@ -414,6 +414,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 def get_base_pod_from_template(pod_template_file: str | None, kube_config: Any) -> k8s.V1Pod:
     """
     Get base pod from template.
+
     Reads either the pod_template_file set in the executor_config or the base pod_template_file
     set in the airflow.cfg to craft a "base pod" that will be used by the KubernetesExecutor
 
@@ -449,6 +450,7 @@ class KubernetesExecutor(BaseExecutor):
     def clear_not_launched_queued_tasks(self, session=None) -> None:
         """
         Clear tasks that were not yet launched, but were previously queued.
+
         Tasks can end up in a "Queued" state through either the executor being
         abruptly shut down (leaving a non-empty task_queue on this executor)
         or when a rescheduled/deferred operator comes back up for execution

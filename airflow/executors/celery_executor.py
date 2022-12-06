@@ -542,6 +542,7 @@ class CeleryExecutor(BaseExecutor):
     ) -> None:
         """
         Set pending task timeout.
+
         We use the fact that dicts maintain insertion order, and the the timeout for a
         task is always "now + delta" to maintain the property that oldest item = first to
         time out.

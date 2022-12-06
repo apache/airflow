@@ -67,6 +67,7 @@ class LocalKubernetesExecutor(LoggingMixin):
     def job_id(self) -> str | None:
         """
         Inherited attribute from BaseExecutor.
+
         Since this is not really an executor, but a wrapper of executors
         we implemented it as property, so we can have custom setter.
         """
@@ -74,10 +75,7 @@ class LocalKubernetesExecutor(LoggingMixin):
 
     @job_id.setter
     def job_id(self, value: str | None) -> None:
-        """
-        job_id is manipulated by SchedulerJob.
-        We must propagate the job_id to wrapped executors.
-        """
+        """Expose job ID for SchedulerJob."""
         self._job_id = value
         self.kubernetes_executor.job_id = value
         self.local_executor.job_id = value
