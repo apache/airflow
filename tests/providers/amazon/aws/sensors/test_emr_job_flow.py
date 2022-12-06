@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import unittest
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -188,8 +188,8 @@ DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN = {
 }
 
 
-class TestEmrJobFlowSensor(unittest.TestCase):
-    def setUp(self):
+class TestEmrJobFlowSensor:
+    def setup_method(self):
         # Mock out the emr_client (moto has incorrect response)
         self.mock_emr_client = MagicMock()
 
@@ -216,7 +216,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             assert self.mock_emr_client.describe_cluster.call_count == 3
 
             # make sure it was called with the job_flow_id
-            calls = [unittest.mock.call(ClusterId="j-8989898989")]
+            calls = [mock.call(ClusterId="j-8989898989")]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)
 
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_failed_state_with_exception(self):
@@ -262,5 +262,5 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             assert self.mock_emr_client.describe_cluster.call_count == 3
 
             # make sure it was called with the job_flow_id
-            calls = [unittest.mock.call(ClusterId="j-8989898989")]
+            calls = [mock.call(ClusterId="j-8989898989")]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)

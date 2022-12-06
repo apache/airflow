@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 
 
-class TestEmrContainerSensor(unittest.TestCase):
-    def setUp(self):
+class TestEmrContainerSensor:
+    def setup_method(self):
         self.sensor = EmrContainerSensor(
             task_id="test_emrcontainer_sensor",
             virtual_cluster_id="vzwemreks",
