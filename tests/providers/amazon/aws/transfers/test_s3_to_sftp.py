@@ -66,6 +66,7 @@ class TestS3ToSFTPOperator:
     @mock_s3
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_s3_to_sftp_operation(self):
+        s3_hook = S3Hook(aws_conn_id=None)
         # Setting
         test_remote_file_content = (
             "This is remote file content \n which is also multiline "
@@ -75,11 +76,10 @@ class TestS3ToSFTPOperator:
         # Test for creation of s3 bucket
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
-        assert self.s3_hook.check_for_bucket(self.s3_bucket)
+        assert s3_hook.check_for_bucket(self.s3_bucket)
 
         with open(LOCAL_FILE_PATH, "w") as file:
             file.write(test_remote_file_content)
-        s3_hook = S3Hook(aws_conn_id=None)
         s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
         # Check if object was created in s3
