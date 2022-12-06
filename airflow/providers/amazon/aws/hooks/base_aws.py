@@ -411,7 +411,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self.resource_type = resource_type
 
         self._region_name = region_name
-        self._config = config or botocore.config.Config()
+        self._config = config
         self._verify = verify
 
     @classmethod
@@ -527,9 +527,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return self.conn_config.region_name
 
     @property
-    def config(self) -> Config | None:
+    def config(self) -> Config:
         """Configuration for botocore client read-only property."""
-        return self.conn_config.botocore_config
+        return self.conn_config.botocore_config or botocore.config.Config()
 
     @property
     def verify(self) -> bool | str | None:
