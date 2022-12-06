@@ -35,7 +35,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.models.taskinstance import PastDependenciesAction
 from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
@@ -550,8 +549,8 @@ ARG_DEPENDS_ON_PAST = Arg(
     help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
     "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
     "them, if `ignore` is provided, the past dependencies will be ignored.",
-    choices={action.value for action in PastDependenciesAction},
-    default=PastDependenciesAction.CHECK.value,
+    choices={"check", "ignore"},
+    default="check",
 )
 ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"

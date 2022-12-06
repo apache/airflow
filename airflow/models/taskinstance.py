@@ -28,7 +28,6 @@ import signal
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
-from enum import Enum
 from functools import partial
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
@@ -293,13 +292,6 @@ def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
     if isinstance(value, (bytearray, bytes, str)):
         return False
     return True
-
-
-class PastDependenciesAction(Enum):
-    """Enum for possible options to deal with past dependencies"""
-
-    CHECK = "check"
-    IGNORE = "ignore"
 
 
 class TaskInstanceKey(NamedTuple):
@@ -693,7 +685,7 @@ class TaskInstance(Base, LoggingMixin):
         if ignore_task_deps:
             cmd.extend(["--ignore-dependencies"])
         if ignore_depends_on_past:
-            cmd.extend(["--depends-on-past", PastDependenciesAction.IGNORE.value])
+            cmd.extend(["--depends-on-past", "ignore"])
         if ignore_ti_state:
             cmd.extend(["--force"])
         if local:
