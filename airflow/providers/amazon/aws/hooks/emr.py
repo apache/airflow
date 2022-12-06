@@ -27,6 +27,7 @@ from botocore.exceptions import ClientError
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.waiter import get_state, waiter
 
 
 class EmrHook(AwsBaseHook):
@@ -260,27 +261,32 @@ class EmrServerlessHook(AwsBaseHook):
         :param check_interval_seconds: Number of seconds waiter should wait before attempting
             to retry get_state_callable. Defaults to 60 seconds.
         """
-        response = get_state_callable(**get_state_args)
-        state: str = self.get_state(response, parse_response)
-        while state not in desired_state:
-            if state in failure_states:
-                raise AirflowException(f"{object_type.title()} reached failure state {state}.")
-            if countdown >= check_interval_seconds:
-                countdown -= check_interval_seconds
-                self.log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
-                sleep(check_interval_seconds)
-                state = self.get_state(get_state_callable(**get_state_args), parse_response)
-            else:
-                message = f"{object_type.title()} still not {action.lower()} after the allocated time limit."
-                self.log.error(message)
-                raise RuntimeError(message)
+        warnings.warn(
+            """This method is deprecated.
+            Please use `airflow.providers.amazon.aws.utils.waiter.waiter`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        waiter(
+            get_state_callable=get_state_callable,
+            get_state_args=get_state_args,
+            parse_response=parse_response,
+            desired_state=desired_state,
+            failure_states=failure_states,
+            object_type=object_type,
+            action=action,
+            countdown=countdown,
+            check_interval_seconds=check_interval_seconds,
+        )
 
     def get_state(self, response, keys) -> str:
-        value = response
-        for key in keys:
-            if value is not None:
-                value = value.get(key, None)
-        return value
+        warnings.warn(
+            """This method is deprecated.
+            Please use `airflow.providers.amazon.aws.utils.waiter.get_state`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return get_state(response=response, keys=keys)
 
 
 class EmrContainerHook(AwsBaseHook):

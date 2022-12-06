@@ -75,7 +75,8 @@ class TestEmrServerlessCreateApplicationOperator:
         assert id == application_id
         mock_conn.get_application.call_count == 2
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    # @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_execute_successfully_no_wait_for_completion(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -106,7 +107,7 @@ class TestEmrServerlessCreateApplicationOperator:
         mock_waiter.assert_called_once()
         assert id == application_id
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_failed_create_application_request(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -196,7 +197,7 @@ class TestEmrServerlessCreateApplicationOperator:
         )
         mock_conn.get_application.call_count == 2
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_no_client_request_token(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -316,7 +317,7 @@ class TestEmrServerlessStartJobOperator:
             name=default_name,
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_job_run_app_not_started(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -377,7 +378,7 @@ class TestEmrServerlessStartJobOperator:
         mock_conn.get_application.call_count == 2
         mock_conn.assert_not_called()
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_job_run_app_not_started_no_wait_for_completion(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -411,7 +412,7 @@ class TestEmrServerlessStartJobOperator:
             name=default_name,
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_job_run_app_started_no_wait_for_completion(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -443,7 +444,7 @@ class TestEmrServerlessStartJobOperator:
         )
         assert not mock_waiter.called
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_failed_start_job_run(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -572,7 +573,7 @@ class TestEmrServerlessStartJobOperator:
 
 
 class TestEmrServerlessDeleteOperator:
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_delete_application_with_wait_for_completion_successfully(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -590,7 +591,7 @@ class TestEmrServerlessDeleteOperator:
         mock_conn.stop_application.assert_called_once()
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_delete_application_without_wait_for_completion_successfully(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -610,7 +611,7 @@ class TestEmrServerlessDeleteOperator:
         mock_conn.stop_application.assert_called_once()
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_delete_application_failed_deleteion(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
