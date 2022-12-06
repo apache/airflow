@@ -880,7 +880,7 @@ class SchedulerJob(BaseJob):
                     # is finished to avoid concurrent access to the DB.
                     self.log.debug("Waiting for processors to finish since we're using sqlite")
                     self.processor_agent.wait_until_finished()
-                max_retry_count = conf.getint('scheduler', 'scheduler_loop_max_retries', fallback=5)
+                max_retry_count = conf.getint('database', 'max_db_retries', fallback=3)
                 for retry_count in range(1, max_retry_count):
                     start_time = time.time()
                     try:
