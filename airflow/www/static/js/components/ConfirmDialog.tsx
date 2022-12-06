@@ -37,13 +37,13 @@ interface Props extends PropsWithChildren {
   onClose: () => void;
   title?: string;
   description: string;
-  body?: string[] | string;
+  affectedTasks: string[];
   onConfirm: () => void;
   isLoading?: boolean;
 }
 
 const ConfirmDialog = ({
-  isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm, isLoading = false, children,
+  isOpen, onClose, title = 'Wait a minute', description, affectedTasks, onConfirm, isLoading = false, children,
 }: Props) => {
   const initialFocusRef = useRef<HTMLButtonElement>(null);
   const containerRef = useContainerRef();
@@ -67,7 +67,12 @@ const ConfirmDialog = ({
           <AlertDialogBody overflowY="auto">
             {children}
             <Text mb={2}>{description}</Text>
-            {Array.isArray(body) && body.map((ti) => (<Code width="100%" key={ti} fontSize="lg">{ti}</Code>))}
+            {affectedTasks.map((ti) => (
+              <Code width="100%" key={ti} fontSize="lg">{ti}</Code>
+            ))}
+            {!affectedTasks.length && (
+              <Text>No task instances to change.</Text>
+            )}
           </AlertDialogBody>
 
           <AlertDialogFooter>

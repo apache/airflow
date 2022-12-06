@@ -40,16 +40,18 @@ export default function useQueueRun(dagId: string, runId: string) {
         dag_id: dagId,
         dag_run_id: runId,
       }).toString();
-      return axios.post<AxiosResponse, string>(queuedUrl, params, {
+      return axios.post<AxiosResponse, string[]>(queuedUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
     },
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries('gridData');
-        startRefresh();
+      onSuccess: (_, { confirmed }) => {
+        if (confirmed) {
+          queryClient.invalidateQueries('gridData');
+          startRefresh();
+        }
       },
       onError: (error: Error) => errorToast({ error }),
     },
