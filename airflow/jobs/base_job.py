@@ -135,7 +135,7 @@ class BaseJob(Base, LoggingMixin):
         return (
             session.query(cls)
             .order_by(
-                # Make sure "running" jobs first in order.
+                # Put "running" jobs at the front.
                 or_(cls.state.is_(None), cls.state != State.RUNNING),
                 cls.latest_heartbeat.desc(),
             )
