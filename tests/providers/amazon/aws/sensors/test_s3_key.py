@@ -82,8 +82,8 @@ class TestS3KeySensor:
     @pytest.mark.parametrize(
         "key, bucket, parsed_key, parsed_bucket",
         [
-            ("s3://bucket/key", None, "key", "bucket"),
-            ("key", "bucket", "key", "bucket"),
+            pytest.param("s3://bucket/key", None, "key", "bucket", id="key as s3url"),
+            pytest.param("key", "bucket", "key", "bucket", id="separate bucket and key"),
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")

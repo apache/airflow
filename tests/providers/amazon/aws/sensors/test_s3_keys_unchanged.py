@@ -78,14 +78,24 @@ class TestS3KeysUnchangedSensor:
     @pytest.mark.parametrize(
         "current_objects, expected_returns, inactivity_periods",
         [
-            # Test: resetting inactivity period after key change
-            (({"a"}, {"a", "b"}, {"a", "b", "c"}), (False, False, False), (0, 0, 0)),
-            # ..and in case an item was deleted with option `allow_delete=True`
-            (({"a", "b"}, {"a"}, {"a", "c"}), (False, False, False), (0, 0, 0)),
-            # Test: passes after inactivity period was exceeded
-            (({"a"}, {"a"}, {"a"}), (False, False, True), (0, 10, 20)),
-            # ..and do not pass if empty key is given
-            ((set(), set(), set()), (False, False, False), (0, 10, 20)),
+            pytest.param(
+                ({"a"}, {"a", "b"}, {"a", "b", "c"}),
+                (False, False, False),
+                (0, 0, 0),
+                id="resetting inactivity period after key change",
+            ),
+            pytest.param(
+                ({"a", "b"}, {"a"}, {"a", "c"}),
+                (False, False, False),
+                (0, 0, 0),
+                id="item was deleted with option `allow_delete=True`",
+            ),
+            pytest.param(
+                ({"a"}, {"a"}, {"a"}), (False, False, True), (0, 10, 20), id="inactivity period was exceeded"
+            ),
+            pytest.param(
+                (set(), set(), set()), (False, False, False), (0, 10, 20), id="not pass if empty key is given"
+            ),
         ],
     )
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
