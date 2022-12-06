@@ -1006,6 +1006,39 @@ jobs:
         with:
           directory: "./coverage-files"
 
+  summarize-warnings:
+    timeout-minutes: 15
+    name: "Summarize warnings"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs:
+      - build-info
+      - tests-postgres
+      - tests-sqlite
+      - tests-mysql
+      - tests-mssql
+      - tests-quarantined
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: "Download all artifacts from the current build"
+        uses: actions/download-artifact@v3
+        with:
+          path: ./artifacts
+      - name: "Summarize all warnings"
+        run: |
+          ls -R ./artifacts/
+          cat ./artifacts/test-warnings*/* | sort | uniq
+          echo
+          echo Total number of unique warnings $(cat ./artifacts/test-warnings*/* | sort | uniq | wc -l)
+
+
   wait-for-prod-images:
     timeout-minutes: 120
     name: "Wait for PROD images"
