@@ -511,7 +511,7 @@ class TestDagFileProcessorManager:
         )
 
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
-        dagbag = DagBag(test_dag_path, read_dags_from_db=False)
+        dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
 
         with create_session() as session:
             # Add stale DAG to the DB
