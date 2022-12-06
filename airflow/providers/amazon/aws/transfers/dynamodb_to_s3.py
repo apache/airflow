@@ -44,7 +44,7 @@ class JSONEncoder(json.JSONEncoder):
         """Convert decimal objects in a json serializable format."""
         if isinstance(obj, Decimal):
             return float(obj)
-        return json.JSONEncoder.default(self, obj)
+        return super().default(obj)
 
 
 def _convert_item_to_json_bytes(item: dict[str, Any]) -> bytes:
