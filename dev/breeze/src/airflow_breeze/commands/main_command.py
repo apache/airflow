@@ -153,7 +153,7 @@ def check_for_python_emulation():
 
 
 def check_for_rosetta_environment():
-    if sys.platform != "darwin":
+    if sys.platform != "darwin" or platform.processor() == "i386":
         return
 
     from inputimeout import TimeoutOccurred, inputimeout
