@@ -104,7 +104,7 @@ class TestInternalApiCall(unittest.TestCase):
             {
                 "jsonrpc": "2.0",
                 "method": "tests.api_internal.test_internal_api_call.fake_method",
-                "params": '{"__var": {}, "__type": "dict"}',
+                "params": json.dumps(BaseSerialization.serialize({})),
             }
         )
         mock_requests.post.assert_called_once_with(
