@@ -226,7 +226,7 @@ def _run_tests_in_pool(
             progress_matcher=GenericRegexpProgressMatcher(
                 regexp=TEST_PROGRESS_REGEXP,
                 regexp_for_joined_line=PERCENT_TEST_PROGRESS_REGEXP,
-                lines_to_search=40,
+                lines_to_search=200,
             ),
         ) as (pool, outputs):
             results = [
