@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import os
 import warnings
 
 try:
@@ -59,3 +60,46 @@ def filter_botocore_warnings(botocore_version):
                 message="The .* client is currently using a deprecated endpoint.*",
             )
         yield
+
+
+@pytest.fixture(scope="package")
+def aws_testing_env_vars(tmp_path_factory):
+    """Session scoped fixture, return mock AWS specific environment variables for unit tests."""
+    tmp_dir = tmp_path_factory.mktemp("aws-configs-")
+
+    def empty_config(name: str) -> str:
+        config = tmp_dir / name
+        config.touch()
+        return str(config)
+
+    return {
+        # Mock values for access_key, secret_key and token
+        "AWS_ACCESS_KEY_ID": "airflow-testing",
+        "AWS_SECRET_ACCESS_KEY": "airflow-testing",
+        "AWS_SESSION_TOKEN": "airflow-testing",
+        "AWS_SECURITY_TOKEN": "airflow-testing",
+        # Set default region as N.Virginia (eu-west-1).
+        # Otherwise some unit tests might fail if this sets to other region.
+        "AWS_DEFAULT_REGION": "us-east-1",
+        "AWS_REGION": "us-east-1",
+        # Create empty configuration file
+        "AWS_SHARED_CREDENTIALS_FILE": empty_config("aws_shared_credentials_file"),
+        "AWS_CONFIG_FILE": empty_config("aws_config_file"),
+        "BOTO_CONFIG": empty_config("legacy_boto2_config.cfg"),
+    }
+
+
+@pytest.fixture(autouse=True)
+def set_default_aws_settings(aws_testing_env_vars, monkeypatch):
+    """
+    Change AWS configurations (env vars) before start each test.
+    1. Remove all existed variables which prefixed by AWS.
+        It might be some credentials, botocore configurations, etc.
+    2. Use pre-defined variables for unit testing.
+    """
+    for env_name in os.environ:
+        if env_name.startswith("AWS"):
+            monkeypatch.delenv(env_name, raising=False)
+    for env_name, value in aws_testing_env_vars.items():
+        monkeypatch.setenv(env_name, value)
+    yield
