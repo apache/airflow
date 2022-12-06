@@ -21,6 +21,7 @@ import datetime
 import os
 
 import boto3
+import pytest
 from moto import mock_s3
 
 from airflow.models.dag import DAG
@@ -68,7 +69,7 @@ class TestFileToS3Operator:
             dest_bucket=self.dest_bucket,
             **CONFIG,
         )
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             operator.execute(None)
 
     @mock_s3

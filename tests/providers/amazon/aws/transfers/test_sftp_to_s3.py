@@ -116,4 +116,4 @@ class TestSFTPToS3Operator:
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
-        assert not self.s3_hook.check_for_bucket(self.s3_bucket)
+        assert not s3_hook.check_for_bucket(self.s3_bucket)
