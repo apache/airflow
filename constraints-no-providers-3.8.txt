@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-05T20:11:32Z
+# This constraints file was automatically generated on 2022-12-06T20:00:58Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -7,7 +7,7 @@
 # Those constraints represent the "newest" dependencies airflow could use, if providers did not limit
 # Airflow in any way.
 #
-Authlib==1.1.0
+Authlib==1.2.0
 Babel==2.11.0
 ConfigUpdater==3.1.1
 Deprecated==1.2.13
@@ -98,7 +98,7 @@ httpx==0.23.1
 humanize==4.4.0
 idna==3.4
 importlib-metadata==5.1.0
-importlib-resources==5.10.0
+importlib-resources==5.10.1
 inflection==0.5.1
 itsdangerous==2.1.2
 jsonschema==4.17.3
@@ -115,7 +115,7 @@ marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.19.0
-mdit-py-plugins==0.3.2
+mdit-py-plugins==0.3.3
 mdurl==0.1.2
 msgpack==1.0.4
 multidict==6.0.3
@@ -178,7 +178,7 @@ uc-micro-py==1.0.1
 unicodecsv==0.14.1
 urllib3==1.26.13
 vine==5.0.0
-virtualenv==20.17.0
+virtualenv==20.17.1
 wcwidth==0.2.5
 websocket-client==1.4.2
 wrapt==1.14.1

@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-05T20:13:17Z
+# This constraints file was automatically generated on 2022-12-06T20:02:43Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -9,7 +9,7 @@
 # "constraints-X.Y.Z" tag to build the production image for that version.
 #
 APScheduler==3.6.3
-Authlib==1.1.0
+Authlib==1.2.0
 Babel==2.11.0
 ConfigUpdater==3.1.1
 Deprecated==1.2.13
@@ -173,9 +173,9 @@ billiard==3.6.4.0
 black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.22
+boto3==1.26.23
 boto==2.49.0
-botocore==1.29.22
+botocore==1.29.23
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -185,7 +185,7 @@ celery==5.2.7
 certifi==2022.9.24
 cffi==1.15.1
 cfgv==3.3.1
-cfn-lint==0.72.1
+cfn-lint==0.72.2
 cgroupspy==0.2.2
 chardet==4.0.0
 charset-normalizer==2.1.1
@@ -324,7 +324,7 @@ idna==3.4
 ijson==3.1.4
 imagesize==1.4.1
 importlib-metadata==5.1.0
-importlib-resources==5.10.0
+importlib-resources==5.10.1
 incremental==22.10.0
 inflection==0.5.1
 influxdb-client==1.35.0
@@ -370,7 +370,7 @@ marshmallow-sqlalchemy==0.26.1
 marshmallow==3.19.0
 matplotlib-inline==0.1.6
 mccabe==0.7.0
-mdit-py-plugins==0.3.2
+mdit-py-plugins==0.3.3
 mdurl==0.1.2
 mongomock==4.1.2
 monotonic==1.6
@@ -385,7 +385,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.3
 mypy-boto3-appflow==1.26.15
-mypy-boto3-rds==1.26.17
+mypy-boto3-rds==1.26.23
 mypy-boto3-redshift-data==1.26.0.post1
 mypy-extensions==0.4.3
 mypy==0.971
@@ -491,7 +491,7 @@ python-jose==3.3.0
 python-ldap==3.4.3
 python-nvd3==0.15.0
 python-slugify==7.0.0
-python-telegram-bot==13.14
+python-telegram-bot==13.15
 pytz-deprecation-shim==0.1.0.post0
 pytz==2022.6
 pytzdata==2020.1
@@ -592,13 +592,13 @@ types-cryptography==3.3.23.2
 types-docutils==0.19.1.1
 types-freezegun==1.1.10
 types-paramiko==2.12.0.1
-types-protobuf==4.21.0.1
+types-protobuf==4.21.0.2
 types-python-dateutil==2.8.19.4
 types-python-slugify==7.0.0.1
 types-pytz==2022.6.0.1
 types-redis==4.3.21.6
 types-requests==2.28.11.5
-types-setuptools==65.6.0.1
+types-setuptools==65.6.0.2
 types-tabulate==0.9.0.0
 types-termcolor==1.1.6
 types-toml==0.10.8.1
@@ -614,7 +614,7 @@ urllib3==1.26.13
 userpath==1.8.0
 vertica-python==1.1.1
 vine==5.0.0
-virtualenv==20.17.0
+virtualenv==20.17.1
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.5
@@ -623,7 +623,7 @@ websocket-client==1.4.2
 wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.28.0
-yandexcloud==0.191.0
+yandexcloud==0.192.0
 yarl==1.8.2
 zeep==4.2.1
 zenpy==2.0.25
