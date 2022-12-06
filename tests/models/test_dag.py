@@ -23,6 +23,7 @@ import logging
 import os
 import pickle
 import re
+import sys
 from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
@@ -42,7 +43,12 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
+from airflow.exceptions import (
+    AirflowException,
+    DuplicateTaskIdFound,
+    ParamValidationError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
@@ -2739,6 +2745,20 @@ class TestDagDecorator:
 
         dag = xcom_pass_to_op()
         assert dag.params["value"] == value
+
+    def test_warning_location(self):
+        # NOTE: This only works as long as there is some warning we can emit from `DAG()`
+        @dag_decorator(schedule_interval=None)
+        def mydag():
+            ...
+
+        with pytest.warns(RemovedInAirflow3Warning) as warnings:
+            line = sys._getframe().f_lineno + 1
+            mydag()
+
+        w = warnings.pop(RemovedInAirflow3Warning)
+        assert w.filename == __file__
+        assert w.lineno == line
 
 
 @pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
