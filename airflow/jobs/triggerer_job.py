@@ -66,7 +66,7 @@ class TriggererJob(BaseJob):
         self.runner = TriggerRunner()
 
     def register_signals(self) -> None:
-        """Register signals that stop child processes"""
+        """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
@@ -178,7 +178,7 @@ class TriggererJob(BaseJob):
 
 
 class TriggerDetails(TypedDict):
-    """Type class for the trigger details dictionary"""
+    """Type class for the trigger details dictionary."""
 
     task: asyncio.Task
     name: str
@@ -416,7 +416,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """
-        Gets a trigger class by its classpath ("path.to.module.classname")
+        Gets a trigger class by its classpath ("path.to.module.classname").
 
         Uses a cache dictionary to speed up lookups after the first time.
         """

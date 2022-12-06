@@ -19,9 +19,21 @@ from __future__ import annotations
 
 import json
 import unittest
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
+from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator, JSONEncoder
+
+
+class JSONEncoderTest(unittest.TestCase):
+    def test_jsonencoder_with_decimal(self):
+        """Test JSONEncoder correctly encodes and decodes decimal values."""
+
+        for i in ["102938.3043847474", 1.010001, 10, "100", "1E-128", 1e-128]:
+            org = Decimal(i)
+            encoded = json.dumps(org, cls=JSONEncoder)
+            decoded = json.loads(encoded, parse_float=Decimal)
+            self.assertAlmostEqual(decoded, org)
 
 
 class DynamodbToS3Test(unittest.TestCase):
@@ -64,6 +76,35 @@ class DynamodbToS3Test(unittest.TestCase):
         dynamodb_to_s3_operator.execute(context={})
 
         assert [{"a": 1}, {"b": 2}, {"c": 3}] == self.output_queue
+
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
+    def test_dynamodb_to_s3_success_with_decimal(self, mock_aws_dynamodb_hook, mock_s3_hook):
+        a = Decimal(10.028)
+        b = Decimal("10.048")
+        responses = [
+            {
+                "Items": [{"a": a}, {"b": b}],
+            }
+        ]
+        table = MagicMock()
+        table.return_value.scan.side_effect = responses
+        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+
+        s3_client = MagicMock()
+        s3_client.return_value.upload_file = self.mock_upload_file
+        mock_s3_hook.return_value.get_conn = s3_client
+
+        dynamodb_to_s3_operator = DynamoDBToS3Operator(
+            task_id="dynamodb_to_s3",
+            dynamodb_table_name="airflow_rocks",
+            s3_bucket_name="airflow-bucket",
+            file_size=4000,
+        )
+
+        dynamodb_to_s3_operator.execute(context={})
+
+        assert [{"a": float(a)}, {"b": float(b)}] == self.output_queue
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
