@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/ftp/example_ftp.py>
+    Example DAGs <https://github.com/apache/airflow/tree/|version|/tests/system/providers/ftp/example_ftp.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ftp/>
     Installing from sources <installing-providers-from-sources>
 
