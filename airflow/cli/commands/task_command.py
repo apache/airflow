@@ -228,7 +228,7 @@ def _run_task_by_executor(args, dag, ti):
         pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=(
-            args.ignore_depends_on_past or args.depends_on_past == PastDependenciesAction.IGNORE
+            args.ignore_depends_on_past or args.depends_on_past == PastDependenciesAction.IGNORE.value
         ),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
