@@ -156,7 +156,9 @@ def set_state(
         for task_instance in tis_altered:
             # The try_number was decremented when setting to up_for_reschedule and deferred.
             # Increment it back when changing the state again
-            if task_instance.state in (State.UP_FOR_RESCHEDULE or State.DEFERRED):
+            if task_instance.state is not None and task_instance.state in (
+                State.UP_FOR_RESCHEDULE or State.DEFERRED
+            ):
                 task_instance._try_number += 1
             task_instance.set_state(state, session=session)
         session.flush()
