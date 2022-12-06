@@ -36,7 +36,7 @@ class JSONEncoderTest:
 
 
 class DynamodbToS3Test:
-    def setup(self):
+    def setup_method(self):
         self.output_queue = []
 
     def mock_upload_file(self, Filename, Bucket, Key):
