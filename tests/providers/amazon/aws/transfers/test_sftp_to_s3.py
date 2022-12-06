@@ -85,7 +85,7 @@ class TestSFTPToS3Operator:
         create_file_task.execute(None)
 
         # Test for creation of s3 bucket
-        s3_hook = S3Hook("aws_default")
+        s3_hook = S3Hook(aws_conn_id=None)
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
         assert s3_hook.check_for_bucket(self.s3_bucket)

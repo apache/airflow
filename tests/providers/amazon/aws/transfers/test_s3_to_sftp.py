@@ -79,7 +79,7 @@ class TestS3ToSFTPOperator:
 
         with open(LOCAL_FILE_PATH, "w") as file:
             file.write(test_remote_file_content)
-        s3_hook = S3Hook("aws_default")
+        s3_hook = S3Hook(aws_conn_id=None)
         s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
         # Check if object was created in s3
