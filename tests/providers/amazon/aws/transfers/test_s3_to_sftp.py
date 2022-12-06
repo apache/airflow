@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import boto3
 from moto import mock_s3
 
 from airflow.models import DAG
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
+from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -42,14 +42,10 @@ TEST_DAG_ID = "unit_tests_s3_to_sftp"
 DEFAULT_DATE = datetime(2018, 1, 1)
 
 
-class TestS3ToSFTPOperator(unittest.TestCase):
-    @mock_s3
-    def setUp(self):
-        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-        from airflow.providers.ssh.hooks.ssh import SSHHook
+class TestS3ToSFTPOperator:
+    def setup_method(self):
 
         hook = SSHHook(ssh_conn_id="ssh_default")
-        s3_hook = S3Hook("aws_default")
         hook.no_host_key_check = True
         dag = DAG(
             f"{TEST_DAG_ID}test_schedule_dag_once",
@@ -58,7 +54,6 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         )
 
         self.hook = hook
-        self.s3_hook = s3_hook
 
         self.ssh_client = self.hook.get_conn()
         self.sftp_client = self.ssh_client.open_sftp()
@@ -84,7 +79,8 @@ class TestS3ToSFTPOperator(unittest.TestCase):
 
         with open(LOCAL_FILE_PATH, "w") as file:
             file.write(test_remote_file_content)
-        self.s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
+        s3_hook = S3Hook("aws_default")
+        s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
         # Check if object was created in s3
         objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
@@ -136,5 +132,5 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         assert remove_file_task is not None
         remove_file_task.execute(None)
 
-    def tearDown(self):
+    def teardown_method(self):
         self.delete_remote_resource()

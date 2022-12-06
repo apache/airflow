@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
 
 
-class DynamodbToS3Test(unittest.TestCase):
+class DynamodbToS3Test:
     def setUp(self):
         self.output_queue = []
 

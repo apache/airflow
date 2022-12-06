@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
@@ -29,7 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 
-class TestSqlToS3Operator(unittest.TestCase):
+class TestSqlToS3Operator:
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.NamedTemporaryFile")
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
     def test_execute_csv(self, mock_s3_hook, temp_mock):
@@ -146,11 +145,12 @@ class TestSqlToS3Operator(unittest.TestCase):
                 replace=True,
             )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "_, params",
         [
             ("with-csv", {"file_format": "csv", "null_string_result": None}),
             ("with-parquet", {"file_format": "parquet", "null_string_result": "None"}),
-        ]
+        ],
     )
     def test_fix_dtypes(self, _, params):
         op = SqlToS3Operator(
