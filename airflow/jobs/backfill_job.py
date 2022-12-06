@@ -36,6 +36,7 @@ from airflow.exceptions import (
     TaskConcurrencyLimitReached,
 )
 from airflow.executors import executor_constants
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
@@ -519,10 +520,11 @@ class BackfillJob(BaseJob):
                             return
 
                         cfg_path = None
-                        if self.executor_class in (
-                            executor_constants.LOCAL_EXECUTOR,
-                            executor_constants.SEQUENTIAL_EXECUTOR,
-                        ):
+
+                        executor_class, _ = ExecutorLoader.import_executor_cls(
+                            self.executor_class,
+                        )
+                        if executor_class.is_local:
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(

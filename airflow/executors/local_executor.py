@@ -205,6 +205,8 @@ class LocalExecutor(BaseExecutor):
     :param parallelism: how many parallel processes are run in the executor
     """
 
+    is_local: bool = True
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
         if self.parallelism < 0:

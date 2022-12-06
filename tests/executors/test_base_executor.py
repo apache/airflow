@@ -29,6 +29,10 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 
 
+def test_is_local_default_value():
+    assert not BaseExecutor.is_local
+
+
 def test_get_event_buffer():
     executor = BaseExecutor()
 
