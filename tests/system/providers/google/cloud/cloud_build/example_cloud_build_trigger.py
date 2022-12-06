@@ -41,7 +41,6 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-TRIGGER_NAME = f"cloud-build-trigger-{ENV_ID}"
 
 DAG_ID = "example_gcp_cloud_build_trigger"
 
