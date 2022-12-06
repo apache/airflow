@@ -30,6 +30,7 @@ from collections import OrderedDict
 from unittest import mock
 
 import pytest
+from pytest import param
 
 from airflow import configuration
 from airflow.configuration import (
@@ -1370,7 +1371,7 @@ sql_alchemy_conn=sqlite://test
                 os.environ.clear()
                 assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
 
-    def test_should_not_falsely_emit_future_warning(self):
+    def test_as_dict_should_not_falsely_emit_future_warning(self):
         from airflow.configuration import AirflowConfigParser
 
         test_conf = AirflowConfigParser()
@@ -1378,4 +1379,55 @@ sql_alchemy_conn=sqlite://test
 
         with warnings.catch_warnings(record=True) as captured:
             test_conf.as_dict()
-        assert captured == []
+        for w in captured:  # only one expected
+            assert "deactivate_stale_dags_interval option in [scheduler] has been renamed" in str(w.message)
+
+    def test_suppress_future_warnings_no_future_warning(self):
+        from airflow.configuration import AirflowConfigParser
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
+        with warnings.catch_warnings(record=True) as captured:
+            test_conf.items("scheduler")
+        assert len(captured) == 1
+        c = captured[0]
+        assert c.category == FutureWarning
+        assert (
+            "you should use[scheduler/parsing_cleanup_interval] "
+            "instead. Please update your `conf.get*`" in str(c.message)
+        )
+        with warnings.catch_warnings(record=True) as captured:
+            with test_conf.suppress_future_warnings():
+                test_conf.items("scheduler")
+        assert len(captured) == 1
+        c = captured[0]
+        assert c.category == DeprecationWarning
+        assert (
+            "deactivate_stale_dags_interval option in [scheduler] "
+            "has been renamed to parsing_cleanup_interval" in str(c.message)
+        )
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            param("deactivate_stale_dags_interval", id="old"),
+            param("parsing_cleanup_interval", id="new"),
+        ],
+    )
+    def test_future_warning_only_for_code_ref(self, key):
+        from airflow.configuration import AirflowConfigParser
+
+        old_val = "deactivate_stale_dags_interval"
+        test_conf = AirflowConfigParser()
+        test_conf.read_dict({"scheduler": {old_val: 60}})  # config has old value
+        with warnings.catch_warnings(record=True) as captured:
+            test_conf.get("scheduler", str(key))  # could be old or new value
+
+        w = captured.pop()
+        assert "the old setting has been used, but please update" in str(w.message)
+        assert w.category == DeprecationWarning
+        # only if we use old value, do we also get a warning about code update
+        if key == old_val:
+            w = captured.pop()
+            assert "your `conf.get*` call to use the new name" in str(w.message)
+            assert w.category == FutureWarning

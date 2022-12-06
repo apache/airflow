@@ -866,7 +866,7 @@ class DagRun(Base, LoggingMixin):
 
             ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
             ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
-            first_start_date = ordered_tis_by_start_date[0].start_date
+            first_start_date = ordered_tis_by_start_date[0].start_date if ordered_tis_by_start_date else None
             if first_start_date:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
