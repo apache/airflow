@@ -23,10 +23,9 @@ import os
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urljoin
 
-from airflow.configuration import AirflowConfigException, conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -154,8 +153,6 @@ class FileTaskHandler(logging.Handler):
                              This is determined by the status of the TaskInstance
                  log_pos: (absolute) Char position to which the log is retrieved
         """
-        from airflow.utils.jwt_signer import JWTSigner
-
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
@@ -173,88 +170,15 @@ class FileTaskHandler(logging.Handler):
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
-        elif conf.get("core", "executor") == "KubernetesExecutor":
-            try:
-                from airflow.kubernetes.kube_client import get_kube_client
-
-                kube_client = get_kube_client()
-
-                if len(ti.hostname) >= 63:
-                    # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
-                    # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
-                    # on any label of a FQDN.
-                    pod_list = kube_client.list_namespaced_pod(conf.get("kubernetes_executor", "namespace"))
-                    matches = [
-                        pod.metadata.name
-                        for pod in pod_list.items
-                        if pod.metadata.name.startswith(ti.hostname)
-                    ]
-                    if len(matches) == 1:
-                        if len(matches[0]) > len(ti.hostname):
-                            ti.hostname = matches[0]
-
-                log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
-
-                res = kube_client.read_namespaced_pod_log(
-                    name=ti.hostname,
-                    namespace=conf.get("kubernetes_executor", "namespace"),
-                    container="base",
-                    follow=False,
-                    tail_lines=100,
-                    _preload_content=False,
-                )
-
-                for line in res:
-                    log += line.decode()
-
-            except Exception as f:
-                log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
-                return log, {"end_of_log": True}
         else:
-            import httpx
 
-            url = self._get_log_retrieval_url(ti, log_relative_path)
-            log += f"*** Log file does not exist: {location}\n"
-            log += f"*** Fetching from: {url}\n"
-            try:
-                timeout = None  # No timeout
-                try:
-                    timeout = conf.getint("webserver", "log_fetch_timeout_sec")
-                except (AirflowConfigException, ValueError):
-                    pass
+            executor = ExecutorLoader.get_default_executor()
+            task_log = executor.get_task_log(ti, log_relative_path=log_relative_path)
 
-                signer = JWTSigner(
-                    secret_key=conf.get("webserver", "secret_key"),
-                    expiration_time_in_seconds=conf.getint(
-                        "webserver", "log_request_clock_grace", fallback=30
-                    ),
-                    audience="task-instance-logs",
-                )
-                response = httpx.get(
-                    url,
-                    timeout=timeout,
-                    headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
-                )
-                response.encoding = "utf-8"
+            if isinstance(task_log, tuple):
+                return task_log
 
-                if response.status_code == 403:
-                    log += (
-                        "*** !!!! Please make sure that all your Airflow components (e.g. "
-                        "schedulers, webservers and workers) have "
-                        "the same 'secret_key' configured in 'webserver' section and "
-                        "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
-                    )
-                    log += (
-                        "*** See more at https://airflow.apache.org/docs/apache-airflow/"
-                        "stable/configurations-ref.html#secret-key\n***"
-                    )
-                # Check if the resource was properly fetched
-                response.raise_for_status()
-
-                log += "\n" + response.text
-            except Exception as e:
-                log += f"*** Failed to fetch log file from worker. {str(e)}\n"
-                return log, {"end_of_log": True}
+            log = str(task_log)
 
         # Process tailing if log is not at it's end
         end_of_log = ti.try_number != try_number or ti.state not in State.running
@@ -264,14 +188,6 @@ class FileTaskHandler(logging.Handler):
             log = log[previous_chars:]  # Cut off previously passed log test as new tail
 
         return log, {"end_of_log": end_of_log, "log_pos": log_pos}
-
-    @staticmethod
-    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
-        url = urljoin(
-            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
-            log_relative_path,
-        )
-        return url
 
     def read(self, task_instance, try_number=None, metadata=None):
         """
