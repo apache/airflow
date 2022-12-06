@@ -69,6 +69,8 @@ class BaseExecutor(LoggingMixin):
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None
 
+    is_local: bool = False
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
