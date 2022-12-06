@@ -318,7 +318,7 @@ class SchedulerJob(BaseJob):
                 .filter(not_(DM.is_paused))
                 .filter(TI.state == TaskInstanceState.SCHEDULED)
                 .options(selectinload("dag_model"))
-                .order_by(-TI.priority_weight, DR.execution_date)
+                .order_by(-TI.priority_weight, DR.execution_date, TI.map_index)
             )
 
             if starved_pools:
