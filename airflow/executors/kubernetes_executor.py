@@ -67,7 +67,7 @@ class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
     _instance = None
-    resource_version: dict[str | None, str] = {}
+    resource_version: dict[str, str] = {}
 
     def __new__(cls):
         if cls._instance is None:
@@ -80,7 +80,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
     def __init__(
         self,
-        namespace: str | None,
+        namespace: str,
         multi_namespace_mode: bool,
         watcher_queue: Queue[KubernetesWatchType],
         resource_version: str | None,
@@ -293,13 +293,13 @@ class AirflowKubernetesScheduler(LoggingMixin):
         watcher.start()
         return watcher
 
-    def _make_kube_watchers(self) -> dict[str | None, KubernetesJobWatcher]:
+    def _make_kube_watchers(self) -> dict[str, KubernetesJobWatcher]:
         watchers = {}
         if self.kube_config.multi_namespace_mode:
             namespaces_to_watch = (
                 self.kube_config.multi_namespace_mode_namespace_list
                 if self.kube_config.multi_namespace_mode_namespace_list
-                else [None]
+                else ["ALL_NAMESPACES"]
             )
         else:
             namespaces_to_watch = [self.kube_config.kube_namespace]
@@ -641,7 +641,7 @@ class KubernetesExecutor(BaseExecutor):
             self.log.debug("self.queued: %s", self.queued_tasks)
         self.kube_scheduler.sync()
 
-        last_resource_version: dict[str | None, str] = defaultdict(lambda: "0")
+        last_resource_version: dict[str, str] = defaultdict(lambda: "0")
         while True:
             try:
                 results = self.result_queue.get_nowait()

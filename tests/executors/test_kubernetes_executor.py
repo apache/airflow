@@ -525,7 +525,7 @@ class TestKubernetesExecutor:
         "multi_namespace_mode_namespace_list, watchers_keys",
         [
             pytest.param(["A", "B", "C"], ["A", "B", "C"]),
-            pytest.param(None, [None]),
+            pytest.param(None, ["ALL_NAMESPACES"]),
         ],
     )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
