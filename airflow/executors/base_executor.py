@@ -57,11 +57,11 @@ TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 class BaseExecutor(LoggingMixin):
     """
-    Class to derive in order to interface with executor-type systems
-    like Celery, Kubernetes, Local, Sequential and the likes.
+    Class to derive in order to implement concrete executors.
+    Such as, Celery, Kubernetes, Local, Sequential and the likes.
 
     :param parallelism: how many jobs should run at one time. Set to
-        ``0`` for infinity
+        ``0`` for infinity.
     """
 
     supports_ad_hoc_ti_run: bool = False
@@ -90,7 +90,7 @@ class BaseExecutor(LoggingMixin):
         priority: int = 1,
         queue: str | None = None,
     ):
-        """Queues command to task"""
+        """Queues command to task."""
         if task_instance.key not in self.queued_tasks:
             self.log.info("Adding to queue: %s", command)
             self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
@@ -266,9 +266,10 @@ class BaseExecutor(LoggingMixin):
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
-        Returns and flush the event buffer. In case dag_ids is specified
-        it will only return and flush events for the given dag_ids. Otherwise
-        it returns and flushes all events.
+        Return and flush the event buffer.
+
+        In case dag_ids is specified it will only return and flush events
+        for the given dag_ids. Otherwise, it returns and flushes all events.
 
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
@@ -302,15 +303,11 @@ class BaseExecutor(LoggingMixin):
         raise NotImplementedError()
 
     def end(self) -> None:  # pragma: no cover
-        """
-        This method is called when the caller is done submitting job and
-        wants to wait synchronously for the job submitted previously to be
-        all done.
-        """
+        """Wait synchronously for the previously submitted job to complete."""
         raise NotImplementedError()
 
     def terminate(self):
-        """This method is called when the daemon receives a SIGTERM"""
+        """This method is called when the daemon receives a SIGTERM."""
         raise NotImplementedError()
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
@@ -328,7 +325,7 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """Number of new tasks this executor instance can accept"""
+        """Number of new tasks this executor instance can accept."""
         if self.parallelism:
             return self.parallelism - len(self.running) - len(self.queued_tasks)
         else:
@@ -337,10 +334,9 @@ class BaseExecutor(LoggingMixin):
     @staticmethod
     def validate_command(command: list[str]) -> None:
         """
-        Back-compat method to Check if the command to execute is airflow command
+        Back-compat method to Check if the command to execute is airflow command.
 
         :param command: command to check
-        :return: None
         """
         warnings.warn(
             """
@@ -354,7 +350,7 @@ class BaseExecutor(LoggingMixin):
     @staticmethod
     def validate_airflow_tasks_run_command(command: list[str]) -> tuple[str | None, str | None]:
         """
-        Check if the command to execute is airflow command
+        Check if the command to execute is airflow command.
 
         Returns tuple (dag_id,task_id) retrieved from the command (replaced with None values if missing)
         """
@@ -374,7 +370,7 @@ class BaseExecutor(LoggingMixin):
         return None, None
 
     def debug_dump(self):
-        """Called in response to SIGUSR2 by the scheduler"""
+        """Called in response to SIGUSR2 by the scheduler."""
         self.log.info(
             "executor.queued (%d)\n\t%s",
             len(self.queued_tasks),

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-LocalExecutor
+LocalExecutor.
 
 .. seealso::
     For more information on how the LocalExecutor works, take a look at the guide:
@@ -50,8 +50,9 @@ ExecutorWorkType = Tuple[Optional[TaskInstanceKey], Optional[CommandType]]
 
 class LocalWorkerBase(Process, LoggingMixin):
     """
-    LocalWorkerBase implementation to run airflow commands. Executes the given
-    command and puts the result into a result queue when done, terminating execution.
+    LocalWorkerBase implementation to run airflow commands.
+
+    Executes the given command and puts the result into a result queue when done, terminating execution.
 
     :param result_queue: the queue to store result state
     """
@@ -136,7 +137,7 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     @abstractmethod
     def do_work(self):
-        """Called in the subprocess and should then execute tasks"""
+        """Called in the subprocess and should then execute tasks."""
         raise NotImplementedError()
 
 
@@ -162,8 +163,9 @@ class LocalWorker(LocalWorkerBase):
 
 class QueuedLocalWorker(LocalWorkerBase):
     """
-    LocalWorker implementation that is waiting for tasks from a queue and will
-    continue executing commands as they become available in the queue.
+    LocalWorker implementation that is waiting for tasks from a queue.
+
+    Will continue executing commands as they become available in the queue.
     It will terminate execution once the poison token is found.
 
     :param task_queue: queue from which worker reads tasks
@@ -216,8 +218,7 @@ class LocalExecutor(BaseExecutor):
 
     class UnlimitedParallelism:
         """
-        Implements LocalExecutor with unlimited parallelism, starting one process
-        per each command to execute.
+        Implement LocalExecutor with unlimited parallelism, starting one process per command executed.
 
         :param executor: the executor instance to implement.
         """
@@ -263,18 +264,15 @@ class LocalExecutor(BaseExecutor):
                 self.executor.workers_active -= 1
 
         def end(self) -> None:
-            """
-            This method is called when the caller is done submitting job and
-            wants to wait synchronously for the job submitted previously to be
-            all done.
-            """
+            """Wait synchronously for the previously submitted job to complete."""
             while self.executor.workers_active > 0:
                 self.executor.sync()
 
     class LimitedParallelism:
         """
-        Implements LocalExecutor with limited parallelism using a task queue to
-        coordinate work distribution.
+        Implements LocalExecutor with limited parallelism.
+
+        Uses a task queue to coordinate work distribution.
 
         :param executor: the executor instance to implement.
         """
@@ -342,7 +340,7 @@ class LocalExecutor(BaseExecutor):
             self.executor.sync()
 
     def start(self) -> None:
-        """Starts the executor"""
+        """Starts the executor."""
         old_proctitle = getproctitle()
         setproctitle("airflow executor -- LocalExecutor")
         self.manager = Manager()
