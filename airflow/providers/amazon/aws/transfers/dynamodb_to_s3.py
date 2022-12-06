@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 
 class JSONEncoder(json.JSONEncoder):
-    """Custom json eoncoder implementation"""
+    """Custom json encoder implementation"""
 
     def default(self, obj):
         """Convert decimal objects in a json serializable format."""
