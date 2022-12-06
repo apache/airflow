@@ -311,27 +311,3 @@ class TestTrinoHook:
     def test_serialize_cell(self):
         assert "foo" == self.db_hook._serialize_cell("foo", None)
         assert 1 == self.db_hook._serialize_cell(1, None)
-
-
-@pytest.mark.integration("trino")
-class TestTrinoHookIntegration:
-    @mock.patch.dict("os.environ", AIRFLOW_CONN_TRINO_DEFAULT="trino://airflow@trino:8080/")
-    def test_should_record_records(self):
-        hook = TrinoHook()
-        sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
-        records = hook.get_records(sql)
-        assert [["Customer#000000001"], ["Customer#000000002"], ["Customer#000000003"]] == records
-
-    @pytest.mark.integration("kerberos")
-    def test_should_record_records_with_kerberos_auth(self):
-        conn_url = (
-            "trino://airflow@trino.example.com:7778/?"
-            "auth=kerberos&kerberos__service_name=HTTP&"
-            "verify=False&"
-            "protocol=https"
-        )
-        with mock.patch.dict("os.environ", AIRFLOW_CONN_TRINO_DEFAULT=conn_url):
-            hook = TrinoHook()
-            sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
-            records = hook.get_records(sql)
-            assert [["Customer#000000001"], ["Customer#000000002"], ["Customer#000000003"]] == records
