@@ -101,6 +101,7 @@ PRE_COMMIT_LIST = [
     "ts-compile-and-lint-javascript",
     "update-breeze-cmd-output",
     "update-breeze-readme-config-hash",
+    "update-common-sql-api-stubs",
     "update-er-diagram",
     "update-extras",
     "update-in-the-wild-to-be-sorted",
