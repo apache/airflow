@@ -50,6 +50,7 @@ class GlueCrawlerOperator(BaseOperator):
         self,
         config,
         aws_conn_id="aws_default",
+        region_name: str | None = None,
         poll_interval: int = 5,
         wait_for_completion: bool = True,
         **kwargs,
@@ -58,12 +59,13 @@ class GlueCrawlerOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.poll_interval = poll_interval
         self.wait_for_completion = wait_for_completion
+        self.region_name = region_name
         self.config = config
 
     @cached_property
     def hook(self) -> GlueCrawlerHook:
         """Create and return an GlueCrawlerHook."""
-        return GlueCrawlerHook(self.aws_conn_id)
+        return GlueCrawlerHook(self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
         """

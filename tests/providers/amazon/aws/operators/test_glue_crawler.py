@@ -92,7 +92,7 @@ class TestGlueCrawlerOperator(unittest.TestCase):
 
         mock_hook.assert_has_calls(
             [
-                mock.call("aws_default"),
+                mock.call("aws_default", region_name=None),
                 mock.call().has_crawler("test-crawler"),
                 mock.call().update_crawler(**mock_config),
                 mock.call().start_crawler(mock_crawler_name),

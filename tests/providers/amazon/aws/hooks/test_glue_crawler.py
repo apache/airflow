@@ -20,6 +20,9 @@ from __future__ import annotations
 from copy import deepcopy
 from unittest import mock
 
+from moto import mock_sts
+from moto.core import DEFAULT_ACCOUNT_ID
+
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 
 mock_crawler_name = "test-crawler"
@@ -78,13 +81,16 @@ mock_config = {
     }
     """,
     "SecurityConfiguration": "test",
-    "Tags": {"test": "foo"},
+    "Tags": {"test": "foo", "bar": "test"},
 }
 
 
 class TestGlueCrawlerHook:
     def setup_method(self):
         self.hook = GlueCrawlerHook(aws_conn_id="aws_default")
+        self.crawler_arn = (
+            f"arn:aws:glue:{self.hook.conn_region_name}:{DEFAULT_ACCOUNT_ID}:crawler/{mock_crawler_name}"
+        )
 
     def test_init(self):
         assert self.hook.aws_conn_id == "aws_default"
@@ -104,16 +110,71 @@ class TestGlueCrawlerHook:
         assert self.hook.has_crawler(mock_crawler_name) is False
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
+    @mock_sts
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
 
         mock_config_two = deepcopy(mock_config)
         mock_config_two["Role"] = "test-2-role"
+        mock_config_two.pop("Tags")
         assert self.hook.update_crawler(**mock_config_two) is True
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
         mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
 
+    @mock_sts
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    def test_update_crawler_missing_keys(self, mock_get_conn):
+        mock_config_missing_configuration = deepcopy(mock_config)
+        mock_config_missing_configuration.pop("Configuration")
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config_missing_configuration}
+
+        mock_config_two = deepcopy(mock_config)
+        mock_config_two.pop("Tags")
+        assert self.hook.update_crawler(**mock_config_two) is True
+        mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
+        mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
+
+    @mock_sts
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    def test_update_tags_not_needed(self, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
+        mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
+
+        assert self.hook.update_tags(mock_crawler_name, mock_config["Tags"]) is False
+        mock_get_conn.return_value.get_tags.assert_called_once_with(ResourceArn=self.crawler_arn)
+        mock_get_conn.return_value.tag_resource.assert_not_called()
+        mock_get_conn.return_value.untag_resource.assert_not_called()
+
+    @mock_sts
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    def test_remove_all_tags(self, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
+        mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
+
+        assert self.hook.update_tags(mock_crawler_name, {}) is True
+        mock_get_conn.return_value.get_tags.assert_called_once_with(ResourceArn=self.crawler_arn)
+        mock_get_conn.return_value.tag_resource.assert_not_called()
+        mock_get_conn.return_value.untag_resource.assert_called_once_with(
+            ResourceArn=self.crawler_arn, TagsToRemove=["test", "bar"]
+        )
+
+    @mock_sts
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
+    def test_replace_tag(self, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
+        mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
+
+        mock_config_two = deepcopy(mock_config)
+        mock_config_two.pop("Tags")
+        assert self.hook.update_tags(mock_crawler_name, {"test": "bla", "bar": "test"}) is True
+        mock_get_conn.return_value.get_tags.assert_called_once_with(ResourceArn=self.crawler_arn)
+        mock_get_conn.return_value.untag_resource.assert_not_called()
+        mock_get_conn.return_value.tag_resource.assert_called_once_with(
+            ResourceArn=self.crawler_arn, TagsToAdd={"test": "bla"}
+        )
+
+    @mock_sts
     @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_update_crawler_not_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
@@ -152,8 +213,7 @@ class TestGlueCrawlerHook:
                 }
             ]
         }
-        result = self.hook.wait_for_crawler_completion(mock_crawler_name)
-        assert result == "MOCK_STATUS"
+        assert self.hook.wait_for_crawler_completion(mock_crawler_name) == "MOCK_STATUS"
         mock_get_conn.assert_has_calls(
             [
                 mock.call(),
@@ -188,8 +248,7 @@ class TestGlueCrawlerHook:
                 ]
             },
         ]
-        result = self.hook.wait_for_crawler_completion(mock_crawler_name)
-        assert result == "MOCK_STATUS"
+        assert self.hook.wait_for_crawler_completion(mock_crawler_name) == "MOCK_STATUS"
         mock_get_conn.assert_has_calls(
             [
                 mock.call(),
