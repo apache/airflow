@@ -48,7 +48,7 @@ class TestBatchOperator:
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def setup(self, get_client_type_mock):
+    def setup_method(self, method, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch = BatchOperator(
             task_id="task",
