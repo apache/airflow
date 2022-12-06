@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import ANY
 
@@ -28,8 +27,8 @@ from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 
 
-class TestGlueJobSensor(unittest.TestCase):
-    def setUp(self):
+class TestGlueJobSensor:
+    def setup_method(self):
         conf.load_test_config()
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
@@ -142,7 +141,3 @@ class TestGlueJobSensor(unittest.TestCase):
                 filter_pattern="?ERROR ?Exception",
                 next_token=ANY,
             )
-
-
-if __name__ == "__main__":
-    unittest.main()

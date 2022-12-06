@@ -63,7 +63,7 @@ class TestEksClusterStateSensor:
 
     @mock.patch.object(EksHook, "get_cluster_state", return_value=ClusterStates.ACTIVE)
     def test_poke_reached_target_state(self, mock_get_cluster_state, setUp):
-        assert self.sensor.poke({})
+        assert self.sensor.poke({}) is True
         mock_get_cluster_state.assert_called_once_with(clusterName=CLUSTER_NAME)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_cluster_state")
@@ -71,7 +71,7 @@ class TestEksClusterStateSensor:
     def test_poke_reached_pending_state(self, mock_get_cluster_state, setUp, pending_state):
         mock_get_cluster_state.return_value = pending_state
 
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_get_cluster_state.assert_called_once_with(clusterName=CLUSTER_NAME)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_cluster_state")
@@ -104,7 +104,7 @@ class TestEksFargateProfileStateSensor:
 
     @mock.patch.object(EksHook, "get_fargate_profile_state", return_value=FargateProfileStates.ACTIVE)
     def test_poke_reached_target_state(self, mock_get_fargate_profile_state, setUp):
-        assert self.sensor.poke({})
+        assert self.sensor.poke({}) is True
         mock_get_fargate_profile_state.assert_called_once_with(
             clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
         )
@@ -114,7 +114,7 @@ class TestEksFargateProfileStateSensor:
     def test_poke_reached_pending_state(self, mock_get_fargate_profile_state, setUp, pending_state):
         mock_get_fargate_profile_state.return_value = pending_state
 
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_get_fargate_profile_state.assert_called_once_with(
             clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
         )
@@ -153,7 +153,7 @@ class TestEksNodegroupStateSensor:
 
     @mock.patch.object(EksHook, "get_nodegroup_state", return_value=NodegroupStates.ACTIVE)
     def test_poke_reached_target_state(self, mock_get_nodegroup_state, setUp):
-        assert self.sensor.poke({})
+        assert self.sensor.poke({}) is True
         mock_get_nodegroup_state.assert_called_once_with(
             clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME
         )
@@ -163,7 +163,7 @@ class TestEksNodegroupStateSensor:
     def test_poke_reached_pending_state(self, mock_get_nodegroup_state, setUp, pending_state):
         mock_get_nodegroup_state.return_value = pending_state
 
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_get_nodegroup_state.assert_called_once_with(
             clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME
         )

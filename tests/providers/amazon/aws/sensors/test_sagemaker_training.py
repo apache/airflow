@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest import mock
 
@@ -48,7 +47,7 @@ DESCRIBE_TRAINING_STOPPING_RESPONSE = dict(DESCRIBE_TRAINING_COMPLETED_RESPONSE)
 DESCRIBE_TRAINING_STOPPING_RESPONSE.update({"TrainingJobStatus": "Stopping"})
 
 
-class TestSageMakerTrainingSensor(unittest.TestCase):
+class TestSageMakerTrainingSensor:
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "__init__")
     @mock.patch.object(SageMakerHook, "describe_training_job")

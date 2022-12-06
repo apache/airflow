@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -142,8 +142,8 @@ DESCRIBE_JOB_STEP_COMPLETED_RETURN = {
 }
 
 
-class TestEmrStepSensor(unittest.TestCase):
-    def setUp(self):
+class TestEmrStepSensor:
+    def setup_method(self):
         self.emr_client_mock = MagicMock()
         self.sensor = EmrStepSensor(
             task_id="test_task",
@@ -170,8 +170,8 @@ class TestEmrStepSensor(unittest.TestCase):
 
             assert self.emr_client_mock.describe_step.call_count == 2
             calls = [
-                unittest.mock.call(ClusterId="j-8989898989", StepId="s-VK57YR1Z9Z5N"),
-                unittest.mock.call(ClusterId="j-8989898989", StepId="s-VK57YR1Z9Z5N"),
+                mock.call(ClusterId="j-8989898989", StepId="s-VK57YR1Z9Z5N"),
+                mock.call(ClusterId="j-8989898989", StepId="s-VK57YR1Z9Z5N"),
             ]
             self.emr_client_mock.describe_step.assert_has_calls(calls)
 

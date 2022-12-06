@@ -17,11 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
@@ -30,7 +28,7 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from airflow.utils import timezone
 
 
-class TestS3KeySensor(unittest.TestCase):
+class TestS3KeySensor:
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
         Test if exception is raised when bucket_name is None
@@ -81,14 +79,16 @@ class TestS3KeySensor(unittest.TestCase):
         with pytest.raises(TypeError):
             op.poke(None)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "key, bucket, parsed_key, parsed_bucket",
         [
-            ["s3://bucket/key", None, "key", "bucket"],
-            ["key", "bucket", "key", "bucket"],
-        ]
+            pytest.param("s3://bucket/key", None, "key", "bucket", id="key as s3url"),
+            pytest.param("key", "bucket", "key", "bucket", id="separate bucket and key"),
+        ],
     )
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket, mock_head_object):
+    def test_parse_bucket_key(self, mock_head_object, key, bucket, parsed_key, parsed_bucket):
+        print(key, bucket, parsed_key, parsed_bucket)
         mock_head_object.return_value = None
 
         op = S3KeySensor(

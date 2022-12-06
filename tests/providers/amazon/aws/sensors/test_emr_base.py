@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -60,7 +58,7 @@ class EmrBaseSensorSubclass(EmrBaseSensor):
         return None
 
 
-class TestEmrBaseSensor(unittest.TestCase):
+class TestEmrBaseSensor:
     def test_poke_returns_true_when_state_is_in_target_states(self):
         operator = EmrBaseSensorSubclass(
             task_id="test_task",

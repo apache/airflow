@@ -63,11 +63,9 @@ class TestCloudFormationCreateStackSensor:
             self.cloudformation_client_mock.describe_stacks.return_value = {
                 "Stacks": [{"StackStatus": "bar"}]
             }
-            with pytest.raises(ValueError) as ctx:
+            with pytest.raises(ValueError, match="Stack foo in bad state: bar"):
                 op = CloudFormationCreateStackSensor(task_id="task", stack_name="foo")
                 op.poke({})
-
-            assert "Stack foo in bad state: bar" == str(ctx.value)
 
 
 class TestCloudFormationDeleteStackSensor:
@@ -105,11 +103,9 @@ class TestCloudFormationDeleteStackSensor:
             self.cloudformation_client_mock.describe_stacks.return_value = {
                 "Stacks": [{"StackStatus": "bar"}]
             }
-            with pytest.raises(ValueError) as ctx:
+            with pytest.raises(ValueError, match="Stack foo in bad state: bar"):
                 op = CloudFormationDeleteStackSensor(task_id="task", stack_name="foo")
                 op.poke({})
-
-            assert "Stack foo in bad state: bar" == str(ctx.value)
 
     @mock_cloudformation
     def test_poke_stack_does_not_exist(self):

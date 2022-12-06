@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -36,8 +35,8 @@ QUEUE_NAME = "test-queue"
 QUEUE_URL = f"https://{QUEUE_NAME}"
 
 
-class TestSqsSensor(unittest.TestCase):
-    def setUp(self):
+class TestSqsSensor:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         self.dag = DAG("test_dag_id", default_args=args)

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -53,7 +52,7 @@ DESCRIBE_TRANSFORM_STOPPING_RESPONSE = {
 }
 
 
-class TestSageMakerTransformSensor(unittest.TestCase):
+class TestSageMakerTransformSensor:
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     def test_sensor_with_failure(self, mock_describe_job, mock_client):
