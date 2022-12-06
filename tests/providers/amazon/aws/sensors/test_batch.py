@@ -19,7 +19,6 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -49,34 +48,27 @@ class TestBatchSensor:
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_failure_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {"status": "FAILED"}
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match="Batch sensor failed. AWS Batch job status: FAILED"):
             self.batch_sensor.poke({})
 
-        assert "Batch sensor failed. AWS Batch job status: FAILED" == str(ctx.value)
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_invalid_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {"status": "INVALID"}
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(
+            AirflowException, match="Batch sensor failed. Unknown AWS Batch job status: INVALID"
+        ):
             self.batch_sensor.poke({})
 
-        assert "Batch sensor failed. Unknown AWS Batch job status: INVALID" == str(ctx.value)
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
-    @parameterized.expand(
-        [
-            ("SUBMITTED",),
-            ("PENDING",),
-            ("RUNNABLE",),
-            ("STARTING",),
-            ("RUNNING",),
-        ]
-    )
+    @pytest.mark.parametrize("job_status", ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"])
     @mock.patch.object(BatchClientHook, "get_job_description")
-    def test_poke_on_intermediate_state(self, job_status, mock_get_job_description):
+    def test_poke_on_intermediate_state(self, mock_get_job_description, job_status):
+        print(job_status)
         mock_get_job_description.return_value = {"status": job_status}
-        assert not self.batch_sensor.poke({})
+        assert self.batch_sensor.poke({}) is False
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
 
@@ -103,7 +95,7 @@ class TestBatchComputeEnvironmentSensor:
         mock_batch_client.describe_compute_environments.return_value = {
             "computeEnvironments": [{"status": "VALID"}]
         }
-        assert self.sensor.poke({})
+        assert self.sensor.poke({}) is True
         mock_batch_client.describe_compute_environments.assert_called_once_with(
             computeEnvironments=[self.environment_name],
         )
@@ -117,7 +109,7 @@ class TestBatchComputeEnvironmentSensor:
                 }
             ]
         }
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_batch_client.describe_compute_environments.assert_called_once_with(
             computeEnvironments=[self.environment_name],
         )
@@ -161,7 +153,7 @@ class TestBatchJobQueueSensor:
     def test_poke_no_queue_with_treat_non_existing_as_deleted(self, mock_batch_client):
         self.sensor.treat_non_existing_as_deleted = True
         mock_batch_client.describe_job_queues.return_value = {"jobQueues": []}
-        assert self.sensor.poke({})
+        assert self.sensor.poke({}) is True
         mock_batch_client.describe_job_queues.assert_called_once_with(
             jobQueues=[self.job_queue],
         )
@@ -169,7 +161,7 @@ class TestBatchJobQueueSensor:
     @mock.patch.object(BatchClientHook, "client")
     def test_poke_valid(self, mock_batch_client):
         mock_batch_client.describe_job_queues.return_value = {"jobQueues": [{"status": "VALID"}]}
-        assert self.sensor.poke({})
+        assert self.sensor.poke({}) is True
         mock_batch_client.describe_job_queues.assert_called_once_with(
             jobQueues=[self.job_queue],
         )
@@ -183,7 +175,7 @@ class TestBatchJobQueueSensor:
                 }
             ]
         }
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_batch_client.describe_job_queues.assert_called_once_with(
             jobQueues=[self.job_queue],
         )

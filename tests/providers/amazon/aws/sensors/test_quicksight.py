@@ -44,7 +44,7 @@ class TestQuickSightSensor:
     @mock.patch.object(QuickSightHook, "get_status")
     def test_poke_success(self, mock_get_status):
         mock_get_status.return_value = "COMPLETED"
-        assert self.sensor.poke({})
+        assert self.sensor.poke({}) is True
         mock_get_status.assert_called_once_with(DEFAULT_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)
 
     @mock_sts
@@ -67,5 +67,5 @@ class TestQuickSightSensor:
     @mock.patch.object(QuickSightHook, "get_status")
     def test_poke_initialized(self, mock_get_status):
         mock_get_status.return_value = "INITIALIZED"
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_get_status.assert_called_once_with(DEFAULT_ACCOUNT_ID, DATA_SET_ID, INGESTION_ID)

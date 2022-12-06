@@ -35,17 +35,17 @@ class TestGlueCrawlerSensor:
     @mock.patch.object(GlueCrawlerHook, "get_crawler")
     def test_poke_success(self, mock_get_crawler):
         mock_get_crawler.return_value["LastCrawl"]["Status"] = "SUCCEEDED"
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_get_crawler.assert_called_once_with("aws_test_glue_crawler")
 
     @mock.patch.object(GlueCrawlerHook, "get_crawler")
     def test_poke_failed(self, mock_get_crawler):
         mock_get_crawler.return_value["LastCrawl"]["Status"] = "FAILED"
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_get_crawler.assert_called_once_with("aws_test_glue_crawler")
 
     @mock.patch.object(GlueCrawlerHook, "get_crawler")
     def test_poke_cancelled(self, mock_get_crawler):
         mock_get_crawler.return_value["LastCrawl"]["Status"] = "CANCELLED"
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
         mock_get_crawler.assert_called_once_with("aws_test_glue_crawler")

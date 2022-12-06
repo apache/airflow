@@ -21,7 +21,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
@@ -49,9 +48,9 @@ class TestStepFunctionExecutionSensor:
         assert AWS_CONN_ID == sensor.aws_conn_id
         assert REGION_NAME == sensor.region_name
 
-    @parameterized.expand([("FAILED",), ("TIMED_OUT",), ("ABORTED",)])
+    @pytest.mark.parametrize("mock_status", ["FAILED", "TIMED_OUT", "ABORTED"])
     @mock.patch("airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook")
-    def test_exceptions(self, mock_status, mock_hook):
+    def test_exceptions(self, mock_hook, mock_status):
         hook_response = {"status": mock_status}
 
         hook_instance = mock_hook.return_value

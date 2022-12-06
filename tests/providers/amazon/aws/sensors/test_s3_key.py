@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
@@ -80,14 +79,16 @@ class TestS3KeySensor:
         with pytest.raises(TypeError):
             op.poke(None)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "key, bucket, parsed_key, parsed_bucket",
         [
-            ["s3://bucket/key", None, "key", "bucket"],
-            ["key", "bucket", "key", "bucket"],
-        ]
+            ("s3://bucket/key", None, "key", "bucket"),
+            ("key", "bucket", "key", "bucket"),
+        ],
     )
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket, mock_head_object):
+    def test_parse_bucket_key(self, mock_head_object, key, bucket, parsed_key, parsed_bucket):
+        print(key, bucket, parsed_key, parsed_bucket)
         mock_head_object.return_value = None
 
         op = S3KeySensor(

@@ -22,7 +22,6 @@ from unittest import mock
 
 import pytest
 from freezegun import freeze_time
-from parameterized import parameterized
 
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.amazon.aws.sensors.s3 import S3KeysUnchangedSensor
@@ -76,7 +75,8 @@ class TestS3KeysUnchangedSensor:
         with pytest.raises(AirflowException):
             self.sensor.is_keys_unchanged({"a"})
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "current_objects, expected_returns, inactivity_periods",
         [
             # Test: resetting inactivity period after key change
             (({"a"}, {"a", "b"}, {"a", "b", "c"}), (False, False, False), (0, 0, 0)),
@@ -86,7 +86,7 @@ class TestS3KeysUnchangedSensor:
             (({"a"}, {"a"}, {"a"}), (False, False, True), (0, 10, 20)),
             # ..and do not pass if empty key is given
             ((set(), set(), set()), (False, False, False), (0, 10, 20)),
-        ]
+        ],
     )
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_key_changes(self, current_objects, expected_returns, inactivity_periods):
