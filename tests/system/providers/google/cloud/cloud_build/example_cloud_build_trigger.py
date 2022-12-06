@@ -47,6 +47,8 @@ DAG_ID = "example_gcp_cloud_build_trigger"
 
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
+TRIGGER_NAME = f"cloud-build-trigger-{ENV_ID}"
+
 # [START howto_operator_gcp_create_build_trigger_body]
 create_build_trigger_body = {
     "name": TRIGGER_NAME,
