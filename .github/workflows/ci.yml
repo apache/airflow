@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Tests
+name: Tests  # TRIGGER_TESTS
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
