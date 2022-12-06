@@ -72,7 +72,7 @@ def internal_api_call(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
 
     If [core]database_access_isolation is true then such method are not executed locally,
     but instead RPC call is made to Database API (aka Internal API). This makes some components
-    stop depending on Airflow database access.
+    decouple from direct Airflow database access.
     Each decorated method must be present in METHODS list in airflow.api_internal.endpoints.rpc_api_endpoint.
     Only static methods can be decorated. This decorator must be before "provide_session".
 
