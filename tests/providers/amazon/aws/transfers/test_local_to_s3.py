@@ -29,8 +29,8 @@ from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemTo
 
 CONFIG = {"verify": False, "replace": False, "encrypt": False, "gzip": False}
 
-class TestFileToS3Operator:
 
+class TestFileToS3Operator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
