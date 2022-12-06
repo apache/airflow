@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from time import sleep
 
-from sqlalchemy import Column, Index, Integer, String, or_
+from sqlalchemy import Column, Index, Integer, String, case
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
@@ -136,7 +136,7 @@ class BaseJob(Base, LoggingMixin):
             session.query(cls)
             .order_by(
                 # Put "running" jobs at the front.
-                or_(cls.state.is_(None), cls.state != State.RUNNING),
+                case({State.RUNNING: 0}, value=cls.state, else_=1),
                 cls.latest_heartbeat.desc(),
             )
             .limit(1)
