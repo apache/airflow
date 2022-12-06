@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""CeleryExecutor
+"""CeleryExecutor.
 
 .. seealso::
     For more information on how the CeleryExecutor works, take a look at the guide:
@@ -187,8 +187,7 @@ def send_task_to_executor(
 @celery_import_modules.connect
 def on_celery_import_modules(*args, **kwargs):
     """
-    Preload some "expensive" airflow modules so that every task process doesn't have to import it again and
-    again.
+    Preload some "expensive" airflow modules once, so other task processes won't have to import it again.
 
     Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
     doesn't matter, but for short tasks this starts to be a noticeable impact.
@@ -219,8 +218,9 @@ class _CeleryPendingTaskTimeoutType(Enum):
 
 class CeleryExecutor(BaseExecutor):
     """
-    CeleryExecutor is recommended for production use of Airflow. It allows
-    distributing the execution of task instances to multiple worker nodes.
+    CeleryExecutor is recommended for production use of Airflow.
+
+    It allows distributing the execution of task instances to multiple worker nodes.
 
     Celery is a simple, flexible and reliable distributed system to process
     vast amounts of messages, while providing operations with the tools
@@ -358,13 +358,14 @@ class CeleryExecutor(BaseExecutor):
         self, task_timeouts: dict[TaskInstanceKey, datetime.datetime]
     ) -> list[TaskInstanceKey]:
         """
-        These timeouts exist to check to see if any of our tasks have not progressed
-        in the expected time. This can happen for few different reasons, usually related
-        to race conditions while shutting down schedulers and celery workers.
+        Evaluate whether other tasks have stalled during the expected time.
+
+        This can happen for few different reasons,
+        usually related to race conditions while shutting down schedulers and celery workers.
 
         It is, of course, always possible that these tasks are not actually
         stalled - they could just be waiting in a long celery queue.
-        Unfortunately there's no way for us to know for sure, so we'll just
+        Unfortunately, there's no way for us to know for sure, so we'll just
         reschedule them and let the normal scheduler loop requeue them.
         """
         now = utcnow()
@@ -421,7 +422,7 @@ class CeleryExecutor(BaseExecutor):
                     self.log.error("Error revoking task instance %s from celery: %s", key, ex)
 
     def debug_dump(self) -> None:
-        """Called in response to SIGUSR2 by the scheduler"""
+        """Called in response to SIGUSR2 by the scheduler."""
         super().debug_dump()
         self.log.info(
             "executor.tasks (%d)\n\t%s", len(self.tasks), "\n\t".join(map(repr, self.tasks.items()))
@@ -540,6 +541,8 @@ class CeleryExecutor(BaseExecutor):
         self, key: TaskInstanceKey, timeout_type: _CeleryPendingTaskTimeoutType | None
     ) -> None:
         """
+        Set pending task timeout.
+
         We use the fact that dicts maintain insertion order, and the the timeout for a
         task is always "now + delta" to maintain the property that oldest item = first to
         time out.
@@ -554,8 +557,9 @@ class CeleryExecutor(BaseExecutor):
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
     """
-    Fetch and return the state of the given celery task. The scope of this function is
-    global so that it can be called by subprocesses in the pool.
+    Fetch and return the state of the given celery task.
+
+    The scope of this function is global so that it can be called by subprocesses in the pool.
 
     :param async_result: a tuple of the Celery task key and the async Celery object used
         to fetch the task's state
@@ -575,7 +579,7 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
 
 class BulkStateFetcher(LoggingMixin):
     """
-    Gets status for many Celery tasks using the best method available
+    Gets status for many Celery tasks using the best method available.
 
     If BaseKeyValueStoreBackend is used as result backend, the mget method is used.
     If DatabaseBackend is used as result backend, the SELECT ...WHERE task_id IN (...) query is used

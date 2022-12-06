@@ -49,10 +49,11 @@ def _resolve_dagrun_model():
 
 class BaseJob(Base, LoggingMixin):
     """
-    Abstract class to be derived for jobs. Jobs are processing items with state
-    and duration that aren't task instances. For instance a BackfillJob is
-    a collection of task instance runs, but should have its own state, start
-    and end time.
+    Abstract class to be derived for jobs.
+
+    Jobs are processing items with state and duration that aren't task instances.
+    For instance a BackfillJob is a collection of task instance runs,
+    but should have its own state, start and end time.
     """
 
     __tablename__ = "job"
@@ -122,8 +123,7 @@ class BaseJob(Base, LoggingMixin):
     @provide_session
     def most_recent_job(cls, session=None) -> BaseJob | None:
         """
-        Return the most recent job of this type, if any, based on last
-        heartbeat received.
+        Return the most recent job of this type, if any, based on last heartbeat received.
 
         This method should be called on a subclass (i.e. on SchedulerJob) to
         return jobs of that type.
@@ -162,7 +162,7 @@ class BaseJob(Base, LoggingMixin):
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
-        """Will be called when an external kill command is received"""
+        """Will be called when an external kill command is received."""
 
     def heartbeat_callback(self, session=None):
         """Callback that is called during heartbeat. This method should be overwritten."""

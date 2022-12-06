@@ -108,7 +108,7 @@ class LocalTaskJob(BaseJob):
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
-            """Setting kill signal handler"""
+            """Setting kill signal handler."""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
@@ -188,9 +188,9 @@ class LocalTaskJob(BaseJob):
 
     def handle_task_exit(self, return_code: int) -> None:
         """
-        Handle case where self.task_runner exits by itself or is externally killed
+        Handle case where self.task_runner exits by itself or is externally killed.
 
-        Dont run any callbacks
+        Don't run any callbacks.
         """
         # Without setting this, heartbeat may get us
         self.terminating = True
@@ -207,7 +207,7 @@ class LocalTaskJob(BaseJob):
 
     @provide_session
     def heartbeat_callback(self, session=None):
-        """Self destruct task if state has been moved away from running externally"""
+        """Self destruct task if state has been moved away from running externally."""
         if self.terminating:
             # ensure termination if processes are created later
             self.task_runner.terminate()
@@ -271,9 +271,6 @@ class LocalTaskJob(BaseJob):
 
     @staticmethod
     def _enable_task_listeners():
-        """
-        Check if we have any registered listeners, then register sqlalchemy hooks for
-        TI state change if we do.
-        """
+        """Check for registered listeners, then register sqlalchemy hooks for TI state changes."""
         if get_listener_manager().has_listeners:
             register_task_instance_state_events()

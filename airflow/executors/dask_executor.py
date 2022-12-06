@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DaskExecutor
+DaskExecutor.
 
 .. seealso::
     For more information on how the DaskExecutor works, take a look at the guide:
