@@ -26,8 +26,8 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Op
 
 
 class JSONEncoderTest(unittest.TestCase):
-    def test_jsonencode_with_decimal(self):
-        """Test JSONEncoder correctly encodes decimal to float"""
+    def test_jsonencoder_with_decimal(self):
+        """Test JSONEncoder correctly encodes and decodes decimal values."""
 
         for i in ["102938.3043847474", 1.010001, 10, "100", "1E-128", 1e-128]:
             org = Decimal(i)
