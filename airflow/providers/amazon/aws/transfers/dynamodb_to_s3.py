@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 from copy import copy
+from decimal import Decimal
 from os.path import getsize
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
@@ -36,8 +37,18 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+class JSONEncoder(json.JSONEncoder):
+    """Custom json encoder implementation"""
+
+    def default(self, obj):
+        """Convert decimal objects in a json serializable format."""
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
+
 def _convert_item_to_json_bytes(item: dict[str, Any]) -> bytes:
-    return (json.dumps(item) + "\n").encode("utf-8")
+    return (json.dumps(item, cls=JSONEncoder) + "\n").encode("utf-8")
 
 
 def _upload_file_to_s3(
