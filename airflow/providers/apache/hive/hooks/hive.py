@@ -63,10 +63,8 @@ class HiveCliHook(BaseHook):
     traditional CLI. To enable ``beeline``, set the use_beeline param in the
     extra field of your connection as in ``{ "use_beeline": true }``
 
-    Note that you can also set default hive CLI parameters using the
-    ``hive_cli_params`` to be used in your connection as in
-    ``{"hive_cli_params": "-hiveconf mapred.job.tracker=some.jobtracker:444"}``
-    Parameters passed here can be overridden by run_cli's hive_conf param
+    Note that you can also set default hive CLI parameters by passing ``hive_cli_params``
+    space separated list of parameters to add to the hive command.
 
     The extra connection parameter ``auth`` gets passed as in the ``jdbc``
     connection string as is.
@@ -78,6 +76,8 @@ class HiveCliHook(BaseHook):
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
     :param mapred_job_name: This name will appear in the jobtracker.
         This can make monitoring easier.
+    :param hive_cli_params: Space separated list of hive command parameters to add to the
+        hive command.
     """
 
     conn_name_attr = "hive_cli_conn_id"
@@ -92,10 +92,11 @@ class HiveCliHook(BaseHook):
         mapred_queue: str | None = None,
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
+        hive_cli_params: str = "",
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
-        self.hive_cli_params: str = conn.extra_dejson.get("hive_cli_params", "")
+        self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
         self.auth = conn.extra_dejson.get("auth", "noSasl")
         self.conn = conn

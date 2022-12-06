@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``hive_cli_params`` from connection were moved to the Hook. If you have extra parameters defined in your
+connections as ``hive_cli_params`` extra, you should move them to the DAG where your HiveOperator is used.
+
 4.1.1
 .....
 

@@ -68,8 +68,6 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Hive CLI connection.
     The following parameters are all optional:
 
-    * ``hive_cli_params``
-      Specify an object CLI params for use with Beeline CLI and Hive CLI.
     * ``use_beeline``
       Specify as ``True`` if using the Beeline CLI. Default is ``False``.
     * ``auth``
