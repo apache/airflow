@@ -33,8 +33,6 @@ from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
-NOT_STARTED_MESSAGE = "The executor should be started first!"
-
 QUEUEING_ATTEMPTS = 5
 
 # Command to execute - list of strings
@@ -65,6 +63,8 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time. Set to
         ``0`` for infinity
     """
+
+    supports_ad_hoc_ti_run: bool = False
 
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None

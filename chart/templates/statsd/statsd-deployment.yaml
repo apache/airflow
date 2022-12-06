@@ -91,6 +91,9 @@ spec:
           securityContext: {{ $containerSecurityContext | nindent 12 }}
           args:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+          {{- if .Values.statsd.args }}
+          args: {{ tpl (toYaml .Values.statsd.args) . | nindent 12 }}
+          {{- end }}
           resources:
 {{ toYaml .Values.statsd.resources | indent 12 }}
           ports:

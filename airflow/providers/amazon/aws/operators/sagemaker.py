@@ -103,7 +103,7 @@ class SageMakerBaseOperator(BaseOperator):
         """
         self.integer_fields = []
 
-    def execute(self, context: Context) -> None | dict:
+    def execute(self, context: Context):
         raise NotImplementedError("Please implement execute() in sub class!")
 
     @cached_property
@@ -750,3 +750,121 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         sagemaker_hook.delete_model(model_name=self.config["ModelName"])
         self.log.info("Model %s deleted successfully.", self.config["ModelName"])
+
+
+class SageMakerStartPipelineOperator(SageMakerBaseOperator):
+    """
+    Starts a SageMaker pipeline execution.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerStartPipelineOperator`
+
+    :param config: The configuration to start the pipeline execution.
+    :param aws_conn_id: The AWS connection ID to use.
+    :param pipeline_name: Name of the pipeline to start.
+    :param display_name: The name this pipeline execution will have in the UI. Doesn't need to be unique.
+    :param pipeline_params: Optional parameters for the pipeline.
+        All parameters supplied need to already be present in the pipeline definition.
+    :param wait_for_completion: If true, this operator will only complete once the pipeline is complete.
+    :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+    :param verbose: Whether to print steps details when waiting for completion.
+        Defaults to true, consider turning off for pipelines that have thousands of steps.
+
+    :return str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
+    """
+
+    template_fields: Sequence[str] = ("aws_conn_id", "pipeline_name", "display_name", "pipeline_params")
+
+    def __init__(
+        self,
+        *,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        pipeline_name: str,
+        display_name: str = "airflow-triggered-execution",
+        pipeline_params: dict | None = None,
+        wait_for_completion: bool = False,
+        check_interval: int = CHECK_INTERVAL_SECOND,
+        verbose: bool = True,
+        **kwargs,
+    ):
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
+        self.pipeline_name = pipeline_name
+        self.display_name = display_name
+        self.pipeline_params = pipeline_params
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+        self.verbose = verbose
+
+    def execute(self, context: Context) -> str:
+        arn = self.hook.start_pipeline(
+            pipeline_name=self.pipeline_name,
+            display_name=self.display_name,
+            pipeline_params=self.pipeline_params,
+            wait_for_completion=self.wait_for_completion,
+            check_interval=self.check_interval,
+            verbose=self.verbose,
+        )
+        self.log.info(
+            "Starting a new execution for pipeline %s, running with ARN %s", self.pipeline_name, arn
+        )
+        return arn
+
+
+class SageMakerStopPipelineOperator(SageMakerBaseOperator):
+    """
+    Stops a SageMaker pipeline execution.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerStopPipelineOperator`
+
+    :param config: The configuration to start the pipeline execution.
+    :param aws_conn_id: The AWS connection ID to use.
+    :param pipeline_exec_arn: Amazon Resource Name of the pipeline execution to stop.
+    :param wait_for_completion: If true, this operator will only complete once the pipeline is fully stopped.
+    :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+    :param verbose: Whether to print steps details when waiting for completion.
+        Defaults to true, consider turning off for pipelines that have thousands of steps.
+    :param fail_if_not_running: raises an exception if the pipeline stopped or succeeded before this was run
+
+    :return str: Returns the status of the pipeline execution after the operation has been done.
+    """
+
+    template_fields: Sequence[str] = (
+        "aws_conn_id",
+        "pipeline_exec_arn",
+    )
+
+    def __init__(
+        self,
+        *,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        pipeline_exec_arn: str,
+        wait_for_completion: bool = False,
+        check_interval: int = CHECK_INTERVAL_SECOND,
+        verbose: bool = True,
+        fail_if_not_running: bool = False,
+        **kwargs,
+    ):
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
+        self.pipeline_exec_arn = pipeline_exec_arn
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+        self.verbose = verbose
+        self.fail_if_not_running = fail_if_not_running
+
+    def execute(self, context: Context) -> str:
+        status = self.hook.stop_pipeline(
+            pipeline_exec_arn=self.pipeline_exec_arn,
+            wait_for_completion=self.wait_for_completion,
+            check_interval=self.check_interval,
+            verbose=self.verbose,
+            fail_if_not_running=self.fail_if_not_running,
+        )
+        self.log.info(
+            "Stop requested for pipeline execution with ARN %s. Status is now %s",
+            self.pipeline_exec_arn,
+            status,
+        )
+        return status
