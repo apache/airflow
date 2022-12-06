@@ -26,8 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
-from airflow.utils.helpers import exactly_one
 from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -499,7 +499,9 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
     :param release_label: The EMR release version associated with the application.
     :param job_type: The type of application you want to start, such as Spark or Hive.
-    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
+    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True.
+        If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied when
+        waiting for the application to be in the ``CREATED`` state.
     :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
@@ -602,6 +604,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
+        If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied
+        when waiting for the application be to in the ``STARTED`` state.
     :param aws_conn_id: AWS connection to use.
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
     :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
