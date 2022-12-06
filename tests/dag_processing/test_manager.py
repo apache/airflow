@@ -257,6 +257,7 @@ class TestDagFileProcessorManager:
 
         manager.set_file_paths(["abc.txt"])
         assert manager._processors == {}
+        assert "missing_file.txt" not in manager._file_stats
 
     def test_set_file_paths_when_processor_file_path_is_in_new_file_paths(self):
         manager = DagFileProcessorManager(
