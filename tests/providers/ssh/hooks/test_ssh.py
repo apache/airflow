@@ -961,6 +961,7 @@ class TestSSHHook:
         status, msg = hook.test_connection()
         assert status is True
         assert msg == "Connection successfully tested"
+
     def test_connection_failure(self):
         hook = SSHHook(ssh_conn_id="ssh_default")
         hook.get_conn = mock.MagicMock(name="mock_conn", side_effect=Exception("Test failure case"))
