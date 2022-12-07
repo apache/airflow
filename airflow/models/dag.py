@@ -153,6 +153,13 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
+    # This is a workaround because mypy doesn't work with hybrid_property
+    # TODO: remove this hack and move hybrid_property back to main import block
+    # See https://github.com/python/mypy/issues/4430
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
+
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
@@ -407,6 +414,7 @@ class DAG(LoggingMixin):
     :param fail_stop: Fails currently running tasks when task in DAG fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
     _comps = {
@@ -470,6 +478,7 @@ class DAG(LoggingMixin):
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_stop: bool = False,
+        dag_display_name: str | None = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -502,6 +511,8 @@ class DAG(LoggingMixin):
         validate_key(dag_id)
 
         self._dag_id = dag_id
+        self._dag_display_name = dag_display_name
+
         if concurrency:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
@@ -1280,6 +1291,10 @@ class DAG(LoggingMixin):
     @access_control.setter
     def access_control(self, value):
         self._access_control = DAG._upgrade_outdated_dag_access_control(value)
+
+    @property
+    def dag_display_name(self) -> str:
+        return self._dag_display_name or self._dag_id
 
     @property
     def description(self) -> str | None:
@@ -3094,6 +3109,7 @@ class DAG(LoggingMixin):
             orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
+            orm_dag._dag_display_name = dag._dag_display_name
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
@@ -3544,6 +3560,8 @@ class DagModel(Base):
     processor_subdir = Column(String(2000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
+    # Display name of the dag
+    _dag_display_name = Column("dag_display_name", String(2000), nullable=True)
     # Description of the dag
     description = Column(Text)
     # Default view of the DAG inside the webserver
@@ -3730,6 +3748,10 @@ class DagModel(Base):
         )
         session.commit()
 
+    @hybrid_property
+    def dag_display_name(self) -> str:
+        return self._dag_display_name or self.dag_id
+
     @classmethod
     @internal_api_call
     @provide_session
@@ -3906,6 +3928,7 @@ def dag(
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
     fail_stop: bool = False,
+    dag_display_name: str | None = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator which wraps a function into an Airflow DAG.
@@ -3961,6 +3984,7 @@ def dag(
                 owner_links=owner_links,
                 auto_register=auto_register,
                 fail_stop=fail_stop,
+                dag_display_name=dag_display_name,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:

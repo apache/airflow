@@ -1254,6 +1254,7 @@ class TaskInstance(Base, LoggingMixin):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
+    _task_display_name = Column("task_display_name", String(2000), nullable=True)
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
@@ -1412,6 +1413,7 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
+            "_task_display_name": task.task_display_name,
         }
 
     @reconstructor
@@ -1474,6 +1476,10 @@ class TaskInstance(Base, LoggingMixin):
     def operator_name(self) -> str | None:
         """@property: use a more friendly display name for the operator, if set."""
         return self.custom_operator_name or self.operator
+
+    @hybrid_property
+    def task_display_name(self) -> str:
+        return self._task_display_name or self.task_id
 
     @staticmethod
     def _command_as_list(

@@ -1085,6 +1085,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 expand_input=EXPAND_INPUT_EMPTY,
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
+                task_display_name=encoded_op.get("task_display_name", None),
                 params={},
                 deps=MappedOperator.deps_for(BaseOperator),
                 operator_extra_links=BaseOperator.operator_extra_links,
@@ -1292,6 +1293,7 @@ class SerializedDAG(DAG, BaseSerialization):
     def __get_constructor_defaults():
         param_to_attr = {
             "max_active_tasks": "_max_active_tasks",
+            "dag_display_name": "_dag_display_name",
             "description": "_description",
             "default_view": "_default_view",
             "access_control": "_access_control",

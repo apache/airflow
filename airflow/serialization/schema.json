@@ -139,7 +139,8 @@
                 {"type": "string"}
             ]
         },
-         "orientation": { "type" : "string"},
+        "orientation": { "type" : "string"},
+        "_dag_display_name": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},
@@ -208,6 +209,7 @@
         "_task_module": { "type": "string" },
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
+        "task_display_name": { "type": "string" },
         "label": { "type": "string" },
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },

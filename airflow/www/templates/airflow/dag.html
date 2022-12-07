@@ -102,7 +102,7 @@
   {% if dag.parent_dag is defined and dag.parent_dag %}
     <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}" title="Go to parent DAG">
       <span class="material-icons" aria-hidden="true">keyboard_arrow_up</span>
-      DAG: {{ dag.parent_dag.dag_id }}</a>
+      DAG: {{ dag.parent_dag.dag_display_name }}</a>
   {% endif %}
 
   <div>

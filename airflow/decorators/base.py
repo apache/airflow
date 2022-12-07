@@ -474,6 +474,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except AttributeError:
             operator_name = self.operator_class.__name__
 
+        task_display_name = partial_kwargs.get("task_display_name", None)
+
         operator = _MappedOperator(
             operator_class=self.operator_class,
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
@@ -499,6 +501,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             python_callable=self.function,
             op_kwargs_expand_input=expand_input,
             disallow_kwargs_override=strict,
+            task_display_name=task_display_name,
             # Different from classic operators, kwargs passed to a taskflow
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.

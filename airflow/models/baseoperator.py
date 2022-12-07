@@ -261,6 +261,7 @@ def partial(
     doc_json: str | None | ArgNotSet = NOTSET,
     doc_yaml: str | None | ArgNotSet = NOTSET,
     doc_rst: str | None | ArgNotSet = NOTSET,
+    task_display_name: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
@@ -326,6 +327,7 @@ def partial(
         "doc_md": doc_md,
         "doc_rst": doc_rst,
         "doc_yaml": doc_yaml,
+        "task_display_name": task_display_name,
         "logger_name": logger_name,
     }
 
@@ -655,6 +657,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that is visible in Task Instance details View in the Webserver
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
+    :param task_display_name: The display name of the task which appears on the UI.
     :param logger_name: Name of the logger used by the Operator to emit logs.
         If set to `None` (default), the logger name will fall back to
         `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
@@ -790,6 +793,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_json: str | None = None,
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
+        task_display_name: str | None = None,
         logger_name: str | None = None,
         **kwargs,
     ):
@@ -935,6 +939,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.doc_yaml = doc_yaml
         self.doc_rst = doc_rst
         self.doc = doc
+        self._task_display_name = task_display_name
 
         self.upstream_task_ids: set[str] = set()
         self.downstream_task_ids: set[str] = set()
@@ -1120,6 +1125,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             dag.add_task(self)
 
         self._dag = dag
+
+    @property
+    def task_display_name(self) -> str:
+        return self._task_display_name or self.task_id
 
     def has_dag(self):
         """Return True if the Operator has been assigned to a DAG."""
