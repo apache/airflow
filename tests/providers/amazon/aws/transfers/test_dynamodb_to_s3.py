@@ -18,14 +18,13 @@
 from __future__ import annotations
 
 import json
-import unittest
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator, JSONEncoder
 
 
-class JSONEncoderTest(unittest.TestCase):
+class JSONEncoderTest:
     def test_jsonencoder_with_decimal(self):
         """Test JSONEncoder correctly encodes and decodes decimal values."""
 
@@ -36,8 +35,8 @@ class JSONEncoderTest(unittest.TestCase):
             self.assertAlmostEqual(decoded, org)
 
 
-class DynamodbToS3Test(unittest.TestCase):
-    def setUp(self):
+class DynamodbToS3Test:
+    def setup_method(self):
         self.output_queue = []
 
     def mock_upload_file(self, Filename, Bucket, Key):

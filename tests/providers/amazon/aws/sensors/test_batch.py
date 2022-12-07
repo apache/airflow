@@ -42,7 +42,7 @@ class TestBatchSensor:
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_success_state(self, mock_get_job_description):
         mock_get_job_description.return_value = {"status": "SUCCEEDED"}
-        assert self.batch_sensor.poke({})
+        assert self.batch_sensor.poke({}) is True
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
