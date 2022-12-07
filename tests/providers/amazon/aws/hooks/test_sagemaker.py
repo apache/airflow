@@ -727,3 +727,98 @@ class TestSageMakerHook:
         ex = raised_exception.value
         assert ex.operation_name == "DeleteModel"
         assert ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_start_pipeline_returns_arn(self, mock_conn):
+        mock_conn().start_pipeline_execution.return_value = {"PipelineExecutionArn": "hellotest"}
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        params_dict = {"one": "1", "two": "2"}
+        arn = hook.start_pipeline(pipeline_name="test_name", pipeline_params=params_dict)
+
+        assert arn == "hellotest"
+
+        args_passed = mock_conn().start_pipeline_execution.call_args[1]
+        assert args_passed["PipelineName"] == "test_name"
+
+        # check conversion to the weird format for passing parameters (list of tuples)
+        assert len(args_passed["PipelineParameters"]) == 2
+        for transformed_param in args_passed["PipelineParameters"]:
+            assert "Name" in transformed_param.keys()
+            assert "Value" in transformed_param.keys()
+            # Name contains the key
+            assert transformed_param["Name"] in params_dict.keys()
+            # Value contains the value associated with the key in Name
+            assert transformed_param["Value"] == params_dict[transformed_param["Name"]]
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_start_pipeline_waits_for_completion(self, mock_conn):
+        mock_conn().describe_pipeline_execution.side_effect = [
+            {"PipelineExecutionStatus": "Executing"},
+            {"PipelineExecutionStatus": "Executing"},
+            {"PipelineExecutionStatus": "Succeeded"},
+        ]
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        hook.start_pipeline(pipeline_name="test_name", wait_for_completion=True, check_interval=0)
+
+        assert mock_conn().describe_pipeline_execution.call_count == 3
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_pipeline_returns_status(self, mock_conn):
+        mock_conn().describe_pipeline_execution.return_value = {"PipelineExecutionStatus": "Stopping"}
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        pipeline_status = hook.stop_pipeline(pipeline_exec_arn="test")
+
+        assert pipeline_status == "Stopping"
+        mock_conn().stop_pipeline_execution.assert_called_once_with(PipelineExecutionArn="test")
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_pipeline_waits_for_completion(self, mock_conn):
+        mock_conn().describe_pipeline_execution.side_effect = [
+            {"PipelineExecutionStatus": "Stopping"},
+            {"PipelineExecutionStatus": "Stopping"},
+            {"PipelineExecutionStatus": "Stopped"},
+        ]
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        pipeline_status = hook.stop_pipeline(
+            pipeline_exec_arn="test", wait_for_completion=True, check_interval=0
+        )
+
+        assert pipeline_status == "Stopped"
+        assert mock_conn().describe_pipeline_execution.call_count == 3
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_pipeline_waits_for_completion_even_when_already_stopped(self, mock_conn):
+        mock_conn().stop_pipeline_execution.side_effect = ClientError(
+            error_response={"Error": {"Message": "Only pipelines with 'Executing' status can be stopped"}},
+            operation_name="empty",
+        )
+        mock_conn().describe_pipeline_execution.side_effect = [
+            {"PipelineExecutionStatus": "Stopping"},
+            {"PipelineExecutionStatus": "Stopped"},
+        ]
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        pipeline_status = hook.stop_pipeline(
+            pipeline_exec_arn="test", wait_for_completion=True, check_interval=0
+        )
+
+        assert pipeline_status == "Stopped"
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_pipeline_raises_when_already_stopped_if_specified(self, mock_conn):
+        error = ClientError(
+            error_response={"Error": {"Message": "Only pipelines with 'Executing' status can be stopped"}},
+            operation_name="empty",
+        )
+        mock_conn().stop_pipeline_execution.side_effect = error
+        mock_conn().describe_pipeline_execution.return_value = {"PipelineExecutionStatus": "Stopping"}
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        with pytest.raises(ClientError) as raised_exception:
+            hook.stop_pipeline(pipeline_exec_arn="test", fail_if_not_running=True)
+
+        assert raised_exception.value == error

@@ -228,6 +228,57 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     assert indices == expected
 
 
+def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
+    """
+    This test tries to recreate a faulty state in the database and checks if we can recover from it.
+    The state that happens is that there exists mapped task instances and the unmapped task instance.
+    So we have instances with map_index [-1, 0, 1]. The -1 task instances should be removed in this case.
+    """
+    literal = [1, 2]
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
+
+    dr = dag_maker.create_dagrun()
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=len(literal),
+            keys=None,
+        )
+    )
+
+    for index in range(2):
+        # Give the existing TIs a state to make sure we don't change them
+        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        session.add(ti)
+    session.flush()
+
+    indices = (
+        session.query(TaskInstance.map_index, TaskInstance.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TaskInstance.map_index)
+        .all()
+    )
+    # Make sure we have the faulty state in the database
+    assert indices == [(-1, None), (0, "success"), (1, "success")]
+
+    mapped.expand_mapped_task(dr.run_id, session=session)
+
+    indices = (
+        session.query(TaskInstance.map_index, TaskInstance.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TaskInstance.map_index)
+        .all()
+    )
+    # The -1 index should be cleaned up
+    assert indices == [(0, "success"), (1, "success")]
+
+
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
