@@ -53,6 +53,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
+ALL_NAMESPACES = "ALL_NAMESPACES"
+
 # TaskInstance key, command, configuration, pod_template_file
 KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
 
@@ -140,20 +142,16 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 kwargs[key] = value
 
         last_resource_version: str | None = None
-        if self.multi_namespace_mode:
-            if self.kube_config.multi_namespace_mode_namespace_list:
-                list_worker_pods = functools.partial(
-                    watcher.stream, kube_client.list_namespaced_pod, self.namespace, **kwargs
-                )
-            else:
-                list_worker_pods = functools.partial(
-                    watcher.stream, kube_client.list_pod_for_all_namespaces, **kwargs
-                )
+        if self.namespace == ALL_NAMESPACES:
+            pod_events = functools.partial(
+                watcher.stream, kube_client.list_pod_for_all_namespaces, **kwargs
+            )
         else:
-            list_worker_pods = functools.partial(
+            pod_events = functools.partial(
                 watcher.stream, kube_client.list_namespaced_pod, self.namespace, **kwargs
             )
-        for event in list_worker_pods():
+
+        for event in pod_events():
             task = event["object"]
             self.log.debug("Event: %s had an event of type %s", task.metadata.name, event["type"])
             if event["type"] == "ERROR":
@@ -299,7 +297,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             namespaces_to_watch = (
                 self.kube_config.multi_namespace_mode_namespace_list
                 if self.kube_config.multi_namespace_mode_namespace_list
-                else ["ALL_NAMESPACES"]
+                else [ALL_NAMESPACES]
             )
         else:
             namespaces_to_watch = [self.kube_config.kube_namespace]
