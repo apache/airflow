@@ -23,6 +23,7 @@ from unittest.mock import patch
 import freezegun
 import pendulum
 import pytest
+from parameterized import parameterized
 
 from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
@@ -40,13 +41,12 @@ DEFAULT_DATE_WITH_TZ = datetime(2015, 1, 1, tzinfo=pendulum.tz.timezone(DEFAULT_
     return_value=timezone.datetime(2020, 1, 1, 23, 0).replace(tzinfo=timezone.utc),
 )
 class TestTimeSensor:
-    @pytest.mark.parametrize(
-        "default_timezone, start_date, expected",
+    @parameterized.expand(
         [
             ("UTC", DEFAULT_DATE_WO_TZ, True),
             ("UTC", DEFAULT_DATE_WITH_TZ, False),
             (DEFAULT_TIMEZONE, DEFAULT_DATE_WO_TZ, False),
-        ],
+        ]
     )
     def test_timezone(self, mock_utcnow, default_timezone, start_date, expected):
         with patch("airflow.settings.TIMEZONE", pendulum.timezone(default_timezone)):
