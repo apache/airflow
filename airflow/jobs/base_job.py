@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from time import sleep
 
-from sqlalchemy import Column, Index, Integer, String
+from sqlalchemy import Column, Index, Integer, String, case
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
@@ -125,12 +125,23 @@ class BaseJob(Base, LoggingMixin):
         """
         Return the most recent job of this type, if any, based on last heartbeat received.
 
+        Jobs in "running" state take precedence over others to make sure alive
+        job is returned if it is available.
         This method should be called on a subclass (i.e. on SchedulerJob) to
         return jobs of that type.
 
         :param session: Database session
         """
-        return session.query(cls).order_by(cls.latest_heartbeat.desc()).limit(1).first()
+        return (
+            session.query(cls)
+            .order_by(
+                # Put "running" jobs at the front.
+                case({State.RUNNING: 0}, value=cls.state, else_=1),
+                cls.latest_heartbeat.desc(),
+            )
+            .limit(1)
+            .first()
+        )
 
     def is_alive(self, grace_multiplier=2.1):
         """
