@@ -846,7 +846,7 @@ The drawbacks:
   same worker might be affected by previous tasks creating/modifying files et.c
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
-that make it smother to move from development phase to production phase. As a DAG author you'd normally
+that make it smoother to move from development phase to production phase. As a DAG author you'd normally
 iterate with dependencies and develop your DAG using ``PythonVirtualenvOperator`` (thus decorating
 your tasks with ``@task.virtualenv`` decorators) while after the iteration and changes you would likely
 want to change it for production to switch to the ``ExternalPythonOperator`` (and ``@task.external_python``)
