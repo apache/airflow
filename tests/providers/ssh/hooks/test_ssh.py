@@ -955,3 +955,16 @@ class TestSSHHook:
                     ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
                 )
                 assert ssh_mock.return_value.load_host_keys.called is False
+
+    def test_connection_success(self):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        status, msg = hook.test_connection()
+        assert status is True
+        assert msg == "Connection successfully tested"
+
+    def test_connection_failure(self):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook.get_conn = mock.MagicMock(name="mock_conn", side_effect=Exception("Test failure case"))
+        status, msg = hook.test_connection()
+        assert status is False
+        assert msg == "Test failure case"
