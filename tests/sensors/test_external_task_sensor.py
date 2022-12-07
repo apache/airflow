@@ -21,6 +21,7 @@ import hashlib
 import logging
 import os
 import tempfile
+import unittest
 import zipfile
 from datetime import time, timedelta
 
@@ -87,8 +88,8 @@ def dag_zip_maker():
     yield DagZipMaker()
 
 
-class TestExternalTaskSensor:
-    def setup_method(self):
+class TestExternalTaskSensor(unittest.TestCase):
+    def setUp(self):
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
@@ -165,9 +166,8 @@ class TestExternalTaskSensor:
                 task_id="test_external_task_sensor_check",
                 external_dag_id=TEST_DAG_ID,
                 external_task_group_id="fake-task-group",
-                timeout=0.001,
+                timeout=1,
                 dag=self.dag,
-                poke_interval=0.1,
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -232,7 +232,7 @@ class TestExternalTaskSensor:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_external_task_sensor_failed_states_as_success(self, caplog):
+    def test_external_task_sensor_failed_states_as_success(self):
         self.add_time_sensor()
         op = ExternalTaskSensor(
             task_id="test_external_task_sensor_check",
@@ -242,16 +242,20 @@ class TestExternalTaskSensor:
             failed_states=["success"],
             dag=self.dag,
         )
-        error_message = rf"Some of the external tasks \['{TEST_TASK_ID}'\] in DAG {TEST_DAG_ID} failed\."
-        with pytest.raises(AirflowException, match=error_message):
-            with caplog.at_level(logging.INFO, logger=op.log.name):
-                caplog.clear()
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert (
-            f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
-        ) in caplog.messages
+            assert (
+                f"INFO:airflow.task.operators:Poking for tasks ['time_sensor_check'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
+            assert (
+                str(ctx.value) == "Some of the external tasks "
+                "['time_sensor_check'] in DAG "
+                "unit_test_dag failed."
+            )
 
-    def test_external_task_sensor_soft_fail_failed_states_as_skipped(self):
+    def test_external_task_sensor_soft_fail_failed_states_as_skipped(self, session=None):
         self.add_time_sensor()
         op = ExternalTaskSensor(
             task_id="test_external_task_sensor_check",
@@ -273,7 +277,7 @@ class TestExternalTaskSensor:
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
-    def test_external_task_sensor_external_task_id_param(self, caplog):
+    def test_external_task_sensor_external_task_id_param(self):
         """Test external_task_ids is set properly when external_task_id is passed as a template"""
         self.add_time_sensor()
         op = ExternalTaskSensor(
@@ -284,15 +288,14 @@ class TestExternalTaskSensor:
             dag=self.dag,
         )
 
-        with caplog.at_level(logging.INFO, logger=op.log.name):
-            caplog.clear()
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                f"Poking for tasks ['{TEST_TASK_ID}'] "
-                f"in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
-            ) in caplog.messages
+                f"INFO:airflow.task.operators:Poking for tasks ['{TEST_TASK_ID}'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
 
-    def test_external_task_sensor_external_task_ids_param(self, caplog):
+    def test_external_task_sensor_external_task_ids_param(self):
         """Test external_task_ids rendering when a template is passed."""
         self.add_time_sensor()
         op = ExternalTaskSensor(
@@ -303,15 +306,14 @@ class TestExternalTaskSensor:
             dag=self.dag,
         )
 
-        with caplog.at_level(logging.INFO, logger=op.log.name):
-            caplog.clear()
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                f"Poking for tasks ['{TEST_TASK_ID}'] "
-                f"in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
-            ) in caplog.messages
+                f"INFO:airflow.task.operators:Poking for tasks ['{TEST_TASK_ID}'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
 
-    def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(self, caplog):
+    def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(self):
         self.add_time_sensor(task_id=TEST_TASK_ID)
         self.add_time_sensor(task_id=TEST_TASK_ID_ALTERNATE)
         op = ExternalTaskSensor(
@@ -322,18 +324,19 @@ class TestExternalTaskSensor:
             failed_states=["success"],
             dag=self.dag,
         )
-        error_message = (
-            rf"Some of the external tasks \['{TEST_TASK_ID}'\, \'{TEST_TASK_ID_ALTERNATE}\'] "
-            rf"in DAG {TEST_DAG_ID} failed\."
-        )
-        with pytest.raises(AirflowException, match=error_message):
-            with caplog.at_level(logging.INFO, logger=op.log.name):
-                caplog.clear()
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert (
-            f"Poking for tasks ['{TEST_TASK_ID}', '{TEST_TASK_ID_ALTERNATE}'] "
-            f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... "
-        ) in caplog.messages
+            assert (
+                f"INFO:airflow.task.operators:Poking for tasks "
+                f"['time_sensor_check', 'time_sensor_check_alternate'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
+            assert (
+                str(ctx.value) == "Some of the external tasks "
+                "['time_sensor_check', 'time_sensor_check_alternate'] in DAG "
+                "unit_test_dag failed."
+            )
 
     def test_external_dag_sensor(self):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
@@ -664,7 +667,7 @@ def test_external_task_sensor_templated(dag_maker, app):
         assert f"/dags/dag_{DEFAULT_DATE.date()}/grid" in url
 
 
-class TestExternalTaskMarker:
+class TestExternalTaskMarker(unittest.TestCase):
     def test_serialized_fields(self):
         assert {"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields())
 
