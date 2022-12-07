@@ -208,7 +208,7 @@ class TestEmrAddStepsOperator:
                 operator.execute(self.mock_context)
             assert str(ctx.value) == f"No cluster found for name: {cluster_name}"
 
-    @mock.patch.object(EmrHook, "add_job_flow_steps")
+    @patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps")
     def test_wait_for_completion(self, mock_add_job_flow_steps):
         job_flow_id = "j-8989898989"
         operator = EmrAddStepsOperator(
@@ -218,6 +218,7 @@ class TestEmrAddStepsOperator:
             dag=DAG("test_dag_id", default_args=self.args),
             wait_for_completion=False,
         )
+        operator.execute(self.mock_context)
 
         mock_add_job_flow_steps.assert_called_once_with(
             job_flow_id=job_flow_id,
