@@ -208,21 +208,19 @@ class TestEmrAddStepsOperator:
                 operator.execute(self.mock_context)
             assert str(ctx.value) == f"No cluster found for name: {cluster_name}"
 
-    def test_wait_for_completion(self):
-        def check_wait_for_completion(**kwargs):
-            return kwargs.get("wait_for_completion")
+    @mock.patch.object(EmrHook, "add_job_flow_steps")
+    def test_wait_for_completion(self, mock_add_job_flow_steps):
+        job_flow_id = "j-8989898989"
+        operator = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_id=job_flow_id,
+            aws_conn_id="aws_default",
+            dag=DAG("test_dag_id", default_args=self.args),
+            wait_for_completion=False,
+        )
 
-        wait_for_completion = False
-        with patch(
-            "airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps"
-        ) as mock_add_job_flow_steps:
-            mock_add_job_flow_steps.side_effect = check_wait_for_completion
-            operator = EmrAddStepsOperator(
-                task_id="test_task",
-                job_flow_id="j-8989898989",
-                aws_conn_id="aws_default",
-                dag=DAG("test_dag_id", default_args=self.args),
-                wait_for_completion=wait_for_completion,
-            )
-
-            assert operator.execute(self.mock_context) == wait_for_completion
+        mock_add_job_flow_steps.assert_called_once_with(
+            job_flow_id=job_flow_id,
+            steps=[],
+            wait_for_completion=False,
+        )
