@@ -52,7 +52,7 @@ class TestInternalApiConfig(unittest.TestCase):
         self.assertTrue(InternalApiConfig.get_use_internal_api())
         self.assertEqual(
             InternalApiConfig.get_internal_api_endpoint(),
-            "http://localhost:8888/internal/v1/rpcapi",
+            "http://localhost:8888/internal_api/v1/rpcapi",
         )
 
 
@@ -108,7 +108,7 @@ class TestInternalApiCall(unittest.TestCase):
             }
         )
         mock_requests.post.assert_called_once_with(
-            url="http://localhost:8888/internal/v1/rpcapi",
+            url="http://localhost:8888/internal_api/v1/rpcapi",
             data=expected_data,
             headers={"Content-Type": "application/json"},
         )
@@ -145,7 +145,7 @@ class TestInternalApiCall(unittest.TestCase):
             }
         )
         mock_requests.post.assert_called_once_with(
-            url="http://localhost:8888/internal/v1/rpcapi",
+            url="http://localhost:8888/internal_api/v1/rpcapi",
             data=expected_data,
             headers={"Content-Type": "application/json"},
         )

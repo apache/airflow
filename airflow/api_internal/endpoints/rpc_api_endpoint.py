@@ -40,10 +40,10 @@ METHODS_MAP = _build_methods_map(
 )
 
 
-def json_rpc(
+def internal_airflow_api(
     body: dict,
 ) -> APIResponse:
-    """Handler for Internal API /internal/v1/rpcapi endpoint."""
+    """Handler for Internal API /internal_api/v1/rpcapi endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":

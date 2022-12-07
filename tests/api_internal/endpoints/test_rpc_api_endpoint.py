@@ -79,7 +79,9 @@ class TestRpcApiEndpoint:
             mock_test_method.return_value = method_result
 
         response = self.client.post(
-            "/internal/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(input_data)
+            "/internal_api/v1/rpcapi",
+            headers={"Content-Type": "application/json"},
+            data=json.dumps(input_data),
         )
         assert response.status_code == expected_code
         if method_result:
@@ -95,7 +97,7 @@ class TestRpcApiEndpoint:
         data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": ""}
 
         response = self.client.post(
-            "/internal/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
+            "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 500
         assert response.data, b"Error executing method: test_method."
@@ -105,7 +107,7 @@ class TestRpcApiEndpoint:
         data = {"jsonrpc": "2.0", "method": "i-bet-it-does-not-exist", "params": ""}
 
         response = self.client.post(
-            "/internal/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
+            "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 400
         assert response.data == b"Unrecognized method: i-bet-it-does-not-exist."
@@ -115,7 +117,7 @@ class TestRpcApiEndpoint:
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": ""}
 
         response = self.client.post(
-            "/internal/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
+            "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
         )
         assert response.status_code == 400
         assert response.data == b"Expected jsonrpc 2.0 request."

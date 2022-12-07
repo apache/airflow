@@ -58,7 +58,7 @@ class InternalApiConfig:
         internal_api_endpoint = ""
         if use_internal_api:
             internal_api_url = conf.get("core", "database_api_url")
-            internal_api_endpoint = internal_api_url + "/internal/v1/rpcapi"
+            internal_api_endpoint = internal_api_url + "/internal_api/v1/rpcapi"
             if not internal_api_endpoint.startswith("http://"):
                 raise AirflowConfigException("[core]database_api_url must start with http://")
 
@@ -76,7 +76,8 @@ def internal_api_call(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
     Each decorated method must be present in METHODS list in airflow.api_internal.endpoints.rpc_api_endpoint.
     Only static methods can be decorated. This decorator must be before "provide_session".
 
-    See AIP-44 for more information.
+    See [AIP-44](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-44+Airflow+Internal+API)
+    for more information .
     """
     headers = {
         "Content-Type": "application/json",
