@@ -193,7 +193,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
 
     pattern = r"^[A-Za-z0-9_.-]+$"
     if not re.match(pattern, stat_name):
-        raise InvalidStatsNameException(f"The stat name ({stat_name}) must match regex {pattern}.")
+        raise InvalidStatsNameException(f"The stat name '{stat_name}' must match regex {pattern}.")
     return stat_name
 
 
