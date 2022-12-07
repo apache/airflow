@@ -196,7 +196,8 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
         )
     if not all((c in ALLOWED_CHARACTERS) for c in stat_name):
         raise InvalidStatsNameException(
-            f"The stat name ({stat_name}) has to be composed with characters in {ALLOWED_CHARACTERS}."
+            f"The stat name ({stat_name}) has to be composed of ASCII "
+            f"alphabets, numbers, or the underscore, dot, or dash characters."
         )
     return stat_name
 
