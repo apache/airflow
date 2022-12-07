@@ -257,6 +257,7 @@ class TestDagFileProcessorManager:
 
         manager.set_file_paths(["abc.txt"])
         assert manager._processors == {}
+        assert "missing_file.txt" not in manager._file_stats
 
     def test_set_file_paths_when_processor_file_path_is_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -510,7 +511,7 @@ class TestDagFileProcessorManager:
         )
 
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
-        dagbag = DagBag(test_dag_path, read_dags_from_db=False)
+        dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
 
         with create_session() as session:
             # Add stale DAG to the DB
