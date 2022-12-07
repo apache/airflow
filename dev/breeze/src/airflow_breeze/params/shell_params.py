@@ -111,10 +111,9 @@ class ShellParams:
     dry_run: bool = False
     verbose: bool = False
 
-    def clone_with_test(self, test_type: str, integration: tuple[str, ...]) -> ShellParams:
+    def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
         new_params.test_type = test_type
-        new_params.integration = integration if test_type == "Integration" else ()
         return new_params
 
     @property
@@ -152,16 +151,6 @@ class ShellParams:
     @property
     def airflow_sources(self):
         return AIRFLOW_SOURCES_ROOT
-
-    @property
-    def enabled_integrations(self) -> str:
-        if "all" in self.integration:
-            enabled_integration = " ".join(AVAILABLE_INTEGRATIONS)
-        elif len(self.integration) > 0:
-            enabled_integration = " ".join(self.integration)
-        else:
-            enabled_integration = ""
-        return enabled_integration
 
     @property
     def image_type(self) -> str:
