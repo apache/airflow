@@ -25,14 +25,15 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Op
 
 
 class TestJSONEncoder:
-    def test_jsonencoder_with_decimal(self):
+
+    @pytest.mark.parametrize('value', ["102938.3043847474", 1.010001, 10, "100", "1E-128", 1e-128])
+    def test_jsonencoder_with_decimal(self,value):
         """Test JSONEncoder correctly encodes and decodes decimal values."""
 
-        for i in ["102938.3043847474", 1.010001, 10, "100", "1E-128", 1e-128]:
-            org = Decimal(i)
-            encoded = json.dumps(org, cls=JSONEncoder)
-            decoded = json.loads(encoded, parse_float=Decimal)
-            assert org == pytest.approx(decoded)
+        org = Decimal(value)
+        encoded = json.dumps(org, cls=JSONEncoder)
+        decoded = json.loads(encoded, parse_float=Decimal)
+        assert org == pytest.approx(decoded)
 
 
 class TestDynamodbToS3:
