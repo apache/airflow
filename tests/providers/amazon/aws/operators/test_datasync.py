@@ -70,7 +70,7 @@ MOCK_DATA = {
 @mock.patch.object(DataSyncHook, "get_conn")
 class DataSyncTestCaseBase:
     # Runs once for each test
-    def setup(self):
+    def setup_method(self, method):
         args = {
             "owner": "airflow",
             "start_date": DEFAULT_DATE,
@@ -96,7 +96,7 @@ class DataSyncTestCaseBase:
             DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
-    def teardown(self):
+    def teardown_method(self, method):
         # Delete all tasks:
         tasks = self.client.list_tasks()
         for task in tasks["Tasks"]:
