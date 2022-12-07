@@ -111,3 +111,7 @@ class XComDecoder(json.JSONDecoder):
     def orm_object_hook(dct: dict) -> object:
         """Creates a readable representation of a serialized object"""
         return deserialize(dct, False)
+
+
+# backwards compatibility
+AirflowJsonEncoder = WebEncoder
