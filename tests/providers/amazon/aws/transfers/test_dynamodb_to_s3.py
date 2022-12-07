@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
-import pytest 
+import pytest
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator, JSONEncoder
 
 
@@ -32,7 +32,7 @@ class TestJSONEncoder:
             org = Decimal(i)
             encoded = json.dumps(org, cls=JSONEncoder)
             decoded = json.loads(encoded, parse_float=Decimal)
-            pytest.approx(decoded, org)
+            assert org == pytest.approx(decoded)
 
 
 class TestDynamodbToS3:
