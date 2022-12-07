@@ -86,7 +86,7 @@ class TestRedshiftSQLHookConn:
     def test_get_conn_iam(self, mock_connect, mock_aws_hook_conn, aws_conn_id):
         mock_conn_extra = {"iam": True, "profile": "default", "cluster_identifier": "my-test-cluster"}
         if aws_conn_id is not NOTSET:
-            mock_conn_extra["aws_conn_id"] = aws_conn_id
+            self.db_hook.aws_conn_id = aws_conn_id
         self.connection.extra = json.dumps(mock_conn_extra)
 
         mock_db_user = f"IAM:{self.connection.login}"

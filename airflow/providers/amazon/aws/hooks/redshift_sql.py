@@ -40,10 +40,8 @@ class RedshiftSQLHook(DbApiHook):
     Note: For AWS IAM authentication, use iam in the extra connection parameters
     and set it to true. Leave the password field empty. This will use the
     "aws_default" connection to get the temporary token unless you override
-    in extras.
-    extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
-    For Redshift, also use redshift in the extra connection parameters and
-    set it to true. The cluster-identifier is extracted from the beginning of
+    with aws_conn_id when initializing the hook.
+    The cluster-identifier is extracted from the beginning of
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true}``
 
@@ -59,6 +57,10 @@ class RedshiftSQLHook(DbApiHook):
     conn_type = "redshift"
     hook_name = "Amazon Redshift"
     supports_autocommit = True
+
+    def __init__(self, *args, aws_conn_id: str = "aws_default", **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.aws_conn_id = aws_conn_id
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
@@ -99,12 +101,11 @@ class RedshiftSQLHook(DbApiHook):
         Uses AWSHook to retrieve a temporary password to connect to Redshift.
         Port is required. If none is provided, default is used for each service
         """
-        aws_conn_id = conn.extra_dejson.get("aws_conn_id", "aws_default")
         port = conn.port or 5439
         # Pull the custer-identifier from the beginning of the Redshift URL
         # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
         cluster_identifier = conn.extra_dejson.get("cluster_identifier", conn.host.split(".")[0])
-        redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
+        redshift_client = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type="redshift").conn
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
         cluster_creds = redshift_client.get_cluster_credentials(
             DbUser=conn.login,
@@ -166,6 +167,5 @@ class RedshiftSQLHook(DbApiHook):
         """Returns a redshift_connector.Connection object"""
         conn_params = self._get_conn_params()
         conn_kwargs_dejson = self.conn.extra_dejson
-        conn_kwargs_dejson.pop("aws_conn_id", None)
         conn_kwargs: dict = {**conn_params, **conn_kwargs_dejson}
         return redshift_connector.connect(**conn_kwargs)
