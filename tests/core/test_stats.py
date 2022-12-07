@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import importlib
 import re
+import string
+from random import random
 from unittest import mock
 from unittest.mock import Mock
 
@@ -27,7 +29,7 @@ import statsd
 
 import airflow
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
-from airflow.stats import AllowListValidator, SafeDogStatsdLogger, SafeStatsdLogger
+from airflow.stats import AllowListValidator, SafeDogStatsdLogger, SafeStatsdLogger, stat_name_default_handler
 from tests.test_utils.config import conf_vars
 
 
@@ -327,3 +329,19 @@ class TestCustomStatsName:
     def teardown_method(self) -> None:
         # To avoid side-effect
         importlib.reload(airflow.stats)
+
+
+def test_ALLOWED_CHARACTERS_deprecated():
+    # todo: remove in airflow 3.0
+    with pytest.warns(DeprecationWarning, match="is deprecated and will be removed in future"):
+        from airflow.stats import ALLOWED_CHARACTERS  # noqa
+
+
+def test_stat_name_default_handler_regex():
+    alphabet = ".-_" + string.ascii_letters + string.digits
+    scramble = "".join(sorted(alphabet, key=lambda x: random()))
+    assert stat_name_default_handler(scramble) == scramble
+    alphabet += " "
+    scramble = "".join(sorted(alphabet, key=lambda x: random()))
+    with pytest.raises(InvalidStatsNameException, match=r"must match regex \^\[A-Za-z0-9_.-\]\+\$"):
+        stat_name_default_handler(scramble)

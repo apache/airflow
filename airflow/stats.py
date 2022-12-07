@@ -177,11 +177,6 @@ class DummyStatsLogger:
         return Timer()
 
 
-# Only characters in the character set are considered valid
-# for the stat_name if stat_name_default_handler is used.
-ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + "_.-")
-
-
 def stat_name_default_handler(stat_name, max_length=250) -> str:
     """
     Validate the StatsD stat name.
@@ -194,10 +189,11 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
         raise InvalidStatsNameException(
             f"The stat_name ({stat_name}) has to be less than {max_length} characters."
         )
-    if not all((c in ALLOWED_CHARACTERS) for c in stat_name):
-        raise InvalidStatsNameException(
-            f"The stat name ({stat_name}) has to be composed with characters in {ALLOWED_CHARACTERS}."
-        )
+    import re
+
+    pattern = r"^[A-Za-z0-9_.-]+$"
+    if not re.match(pattern, stat_name):
+        raise InvalidStatsNameException(f"The stat name ({stat_name}) must match regex {pattern}.")
     return stat_name
 
 
@@ -427,3 +423,21 @@ else:
 
     class Stats(metaclass=_Stats):
         """Empty class for Stats - we use metaclass to inject the right one."""
+
+
+_deprecated = {
+    "ALLOWED_CHARACTERS": "_.-" + string.ascii_letters + string.digits,
+}
+
+
+def __getattr__(name):
+    if name in _deprecated:
+        import warnings
+
+        warnings.warn(
+            f"{__name__}.{name} is deprecated and will be removed in future",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return _deprecated[name]
+    raise AttributeError(f"module {__name__} has no attribute {name}")
