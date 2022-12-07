@@ -18,11 +18,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from freezegun import freeze_time
-from parameterized import parameterized
 
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.amazon.aws.sensors.s3 import S3KeysUnchangedSensor
@@ -31,8 +30,8 @@ TEST_DAG_ID = "unit_tests_aws_sensor"
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
-class TestS3KeysUnchangedSensor(TestCase):
-    def setUp(self):
+class TestS3KeysUnchangedSensor:
+    def setup_method(self):
         self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", start_date=DEFAULT_DATE, schedule="@once")
 
         self.sensor = S3KeysUnchangedSensor(
@@ -76,17 +75,28 @@ class TestS3KeysUnchangedSensor(TestCase):
         with pytest.raises(AirflowException):
             self.sensor.is_keys_unchanged({"a"})
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "current_objects, expected_returns, inactivity_periods",
         [
-            # Test: resetting inactivity period after key change
-            (({"a"}, {"a", "b"}, {"a", "b", "c"}), (False, False, False), (0, 0, 0)),
-            # ..and in case an item was deleted with option `allow_delete=True`
-            (({"a", "b"}, {"a"}, {"a", "c"}), (False, False, False), (0, 0, 0)),
-            # Test: passes after inactivity period was exceeded
-            (({"a"}, {"a"}, {"a"}), (False, False, True), (0, 10, 20)),
-            # ..and do not pass if empty key is given
-            ((set(), set(), set()), (False, False, False), (0, 10, 20)),
-        ]
+            pytest.param(
+                ({"a"}, {"a", "b"}, {"a", "b", "c"}),
+                (False, False, False),
+                (0, 0, 0),
+                id="resetting inactivity period after key change",
+            ),
+            pytest.param(
+                ({"a", "b"}, {"a"}, {"a", "c"}),
+                (False, False, False),
+                (0, 0, 0),
+                id="item was deleted with option `allow_delete=True`",
+            ),
+            pytest.param(
+                ({"a"}, {"a"}, {"a"}), (False, False, True), (0, 10, 20), id="inactivity period was exceeded"
+            ),
+            pytest.param(
+                (set(), set(), set()), (False, False, False), (0, 10, 20), id="not pass if empty key is given"
+            ),
+        ],
     )
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_key_changes(self, current_objects, expected_returns, inactivity_periods):

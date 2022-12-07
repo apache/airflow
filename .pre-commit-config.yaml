@@ -467,6 +467,7 @@ repos:
           ^airflow/www/static/|
           ^airflow/providers/|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^tests/integration/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^tests/system/providers/apache/spark/example_spark_dag.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
@@ -675,7 +676,7 @@ repos:
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
-        files: ^dev/breeze/setup.*$|^dev/breeze/pyproject.toml$|^dev/breeze/README.md$
+        files: dev/breeze/setup.py|dev/breeze/setup.cfg|dev/breeze/pyproject.toml|dev/breeze/README.md
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
