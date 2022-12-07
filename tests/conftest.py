@@ -23,8 +23,8 @@ import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 
-import freezegun
 import pytest
+import time_machine
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -396,7 +396,7 @@ def pytest_runtest_setup(item):
 @pytest.fixture
 def frozen_sleep(monkeypatch):
     """
-    Use freezegun to "stub" sleep, so that it takes no time, but that
+    Use time-machine to "stub" sleep, so that it takes no time, but that
     ``datetime.now()`` appears to move forwards
 
     If your module under test does ``import time`` and then ``time.sleep``::
@@ -412,21 +412,21 @@ def frozen_sleep(monkeypatch):
             monkeypatch.setattr('my_mod.sleep', frozen_sleep)
             my_mod.fn_under_test()
     """
-    freezegun_control = None
+    traveller = None
 
     def fake_sleep(seconds):
-        nonlocal freezegun_control
+        nonlocal traveller
         utcnow = datetime.utcnow()
-        if freezegun_control is not None:
-            freezegun_control.stop()
-        freezegun_control = freezegun.freeze_time(utcnow + timedelta(seconds=seconds))
-        freezegun_control.start()
+        if traveller is not None:
+            traveller.stop()
+        traveller = time_machine.travel(utcnow + timedelta(seconds=seconds))
+        traveller.start()
 
     monkeypatch.setattr("time.sleep", fake_sleep)
     yield fake_sleep
 
-    if freezegun_control is not None:
-        freezegun_control.stop()
+    if traveller is not None:
+        traveller.stop()
 
 
 @pytest.fixture(scope="session")

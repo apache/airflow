@@ -27,9 +27,9 @@ from unittest import mock
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
+import time_machine
 from celery import Celery
 from celery.result import AsyncResult
-from freezegun import freeze_time
 from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
@@ -162,7 +162,7 @@ class TestCeleryExecutor:
         assert executor.try_adopt_task_instances(tis) == tis
 
     @pytest.mark.backend("mysql", "postgres")
-    @freeze_time("2020-01-01")
+    @time_machine.travel("2020-01-01", tick=False)
     def test_try_adopt_task_instances(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -270,7 +270,7 @@ class TestCeleryExecutor:
         assert ti.external_executor_id is None
 
     @pytest.mark.backend("mysql", "postgres")
-    @freeze_time("2020-01-01")
+    @time_machine.travel("2020-01-01", tick=False)
     def test_pending_tasks_timeout_with_appropriate_config_setting(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
