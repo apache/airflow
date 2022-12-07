@@ -57,10 +57,10 @@ class InternalApiConfig:
         use_internal_api = conf.getboolean("core", "database_access_isolation")
         internal_api_endpoint = ""
         if use_internal_api:
-            internal_api_url = conf.get("core", "database_api_url")
+            internal_api_url = conf.get("core", "internal_api_url")
             internal_api_endpoint = internal_api_url + "/internal_api/v1/rpcapi"
             if not internal_api_endpoint.startswith("http://"):
-                raise AirflowConfigException("[core]database_api_url must start with http://")
+                raise AirflowConfigException("[core]internal_api_url must start with http://")
 
         InternalApiConfig._initialized = True
         InternalApiConfig._use_internal_api = use_internal_api

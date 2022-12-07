@@ -424,7 +424,7 @@
       type: boolean
       example: ~
       default: "False"
-    - name: database_api_url
+    - name: internal_api_url
       description: |
         (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
       version_added: 2.6.0

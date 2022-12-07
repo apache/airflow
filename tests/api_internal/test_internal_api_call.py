@@ -36,7 +36,7 @@ class TestInternalApiConfig(unittest.TestCase):
     @conf_vars(
         {
             ("core", "database_access_isolation"): "false",
-            ("core", "database_api_url"): "http://localhost:8888",
+            ("core", "internal_api_url"): "http://localhost:8888",
         }
     )
     def test_get_use_internal_api_disabled(self):
@@ -45,7 +45,7 @@ class TestInternalApiConfig(unittest.TestCase):
     @conf_vars(
         {
             ("core", "database_access_isolation"): "true",
-            ("core", "database_api_url"): "http://localhost:8888",
+            ("core", "internal_api_url"): "http://localhost:8888",
         }
     )
     def test_get_use_internal_api_enabled(self):
@@ -73,7 +73,7 @@ class TestInternalApiCall(unittest.TestCase):
     @conf_vars(
         {
             ("core", "database_access_isolation"): "false",
-            ("core", "database_api_url"): "http://localhost:8888",
+            ("core", "internal_api_url"): "http://localhost:8888",
         }
     )
     @mock.patch("airflow.api_internal.internal_api_call.requests")
@@ -86,7 +86,7 @@ class TestInternalApiCall(unittest.TestCase):
     @conf_vars(
         {
             ("core", "database_access_isolation"): "true",
-            ("core", "database_api_url"): "http://localhost:8888",
+            ("core", "internal_api_url"): "http://localhost:8888",
         }
     )
     @mock.patch("airflow.api_internal.internal_api_call.requests")
@@ -116,7 +116,7 @@ class TestInternalApiCall(unittest.TestCase):
     @conf_vars(
         {
             ("core", "database_access_isolation"): "true",
-            ("core", "database_api_url"): "http://localhost:8888",
+            ("core", "internal_api_url"): "http://localhost:8888",
         }
     )
     @mock.patch("airflow.api_internal.internal_api_call.requests")
