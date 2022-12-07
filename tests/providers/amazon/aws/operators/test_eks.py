@@ -190,7 +190,9 @@ class TestEksCreateClusterOperator:
     @mock.patch.object(Waiter, "wait")
     @mock.patch.object(EksHook, "create_cluster")
     @mock.patch.object(EksHook, "create_nodegroup")
-    def test_execute_create_cluster_with_wait(self, mock_create_nodegroup, mock_create_cluster, mock_waiter, create_cluster_kwargs):
+    def test_execute_create_cluster_with_wait(
+        self, mock_create_nodegroup, mock_create_cluster, mock_waiter, create_cluster_kwargs
+    ):
         op_kwargs = {**self.create_cluster_params, "compute": None}
         if create_cluster_kwargs:
             op_kwargs["create_cluster_kwargs"] = create_cluster_kwargs

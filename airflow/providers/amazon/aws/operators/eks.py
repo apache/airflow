@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import warnings
 from ast import literal_eval
-from time import sleep
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
@@ -41,7 +40,6 @@ DEFAULT_FARGATE_PROFILE_NAME = "profile"
 DEFAULT_NAMESPACE_NAME = "default"
 DEFAULT_NODEGROUP_NAME = "nodegroup"
 
-ABORT_MSG = "{compute} are still active after the allocated time limit.  Aborting."
 CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
 MISSING_ARN_MSG = "Creating an {compute} requires {requirement} to be passed in."
 SUCCESS_MSG = "No {compute} remain, deleting cluster."
@@ -480,23 +478,9 @@ class EksDeleteClusterOperator(BaseOperator):
             self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=len(nodegroups)))
             for group in nodegroups:
                 eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
-
-            # Scaling up the timeout based on the number of nodegroups that are being processed.
-            # boto does not provide a "wait for all nodegroups to deactivate" waiter.
-            additional_seconds = 5 * 60
-            countdown = TIMEOUT_SECONDS + (len(nodegroups) * additional_seconds)
-            while eks_hook.list_nodegroups(clusterName=self.cluster_name):
-                if countdown >= CHECK_INTERVAL_SECONDS:
-                    countdown -= CHECK_INTERVAL_SECONDS
-                    sleep(CHECK_INTERVAL_SECONDS)
-                    self.log.info(
-                        "Waiting for the remaining %s nodegroups to delete.  "
-                        "Checking again in %d seconds.",
-                        len(nodegroups),
-                        CHECK_INTERVAL_SECONDS,
-                    )
-                else:
-                    raise RuntimeError(ABORT_MSG.format(compute=NODEGROUP_FULL_NAME))
+            # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
+            self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
+            eks_hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
         self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
 
     def delete_any_fargate_profiles(self, eks_hook) -> None:

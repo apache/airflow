@@ -30,6 +30,7 @@ from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.waiters.eks import EksBotoWaiter
 from airflow.utils import yaml
 from airflow.utils.json import AirflowJsonEncoder
 
@@ -596,3 +597,6 @@ class EksHook(AwsBaseHook):
 
         # remove any base64 encoding padding:
         return "k8s-aws-v1." + base64_url.rstrip("=")
+
+    def get_waiter(self, waiter_name):
+        return EksBotoWaiter(client=self.conn).waiter(waiter_name)
