@@ -1713,6 +1713,7 @@ class Airflow(AirflowBaseView):
             root=root,
             dag=dag,
             title=title,
+            display_name=task.display_name,
         )
 
     @expose("/xcom")

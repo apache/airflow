@@ -53,6 +53,7 @@ import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
+from slugify import slugify
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, joinedload, relationship
@@ -440,9 +441,12 @@ class DAG(LoggingMixin):
                 stacklevel=2,
             )
 
-        validate_key(dag_id)
+        dag_id_slugified = slugify(dag_id, separator="_")
+        validate_key(dag_id_slugified)
 
-        self._dag_id = dag_id
+        self._dag_id = dag_id_slugified
+        self._display_name = dag_id
+
         if concurrency:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
@@ -1154,6 +1158,10 @@ class DAG(LoggingMixin):
     @access_control.setter
     def access_control(self, value):
         self._access_control = DAG._upgrade_outdated_dag_access_control(value)
+
+    @property
+    def display_name(self) -> str | None:
+        return self._display_name
 
     @property
     def description(self) -> str | None:
@@ -2737,6 +2745,7 @@ class DAG(LoggingMixin):
             orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
+            orm_dag.display_name = dag._display_name
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
@@ -3131,6 +3140,8 @@ class DagModel(Base):
     processor_subdir = Column(String(2000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
+    # Display name of the dag
+    display_name = Column(Text)
     # Description of the dag
     description = Column(Text)
     # Default view of the DAG inside the webserver

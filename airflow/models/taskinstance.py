@@ -398,6 +398,7 @@ class TaskInstance(Base, LoggingMixin):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
+    display_name = Column(Text)
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
@@ -527,6 +528,7 @@ class TaskInstance(Base, LoggingMixin):
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "map_index": map_index,
+            "display_name": task.display_name,
         }
 
     @reconstructor
@@ -814,6 +816,7 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
+            self.display_name = ti.display_name
         else:
             self.state = None
 

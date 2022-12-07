@@ -49,6 +49,7 @@ from typing import (
 import attr
 import pendulum
 from dateutil.relativedelta import relativedelta
+from slugify import slugify
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -750,6 +751,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 category=RemovedInAirflow3Warning,
                 stacklevel=3,
             )
+
+        self.display_name = task_id
+        task_id = slugify(task_id, separator="_")
         validate_key(task_id)
 
         dag = dag or DagContext.get_current_dag()
