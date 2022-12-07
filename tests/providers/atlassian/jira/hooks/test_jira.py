@@ -38,7 +38,7 @@ class TestJiraHook:
             )
         )
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
+    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_jira_client_connection(self, jira_mock):
         jira_hook = JiraHook()
 

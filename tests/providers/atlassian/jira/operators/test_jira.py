@@ -53,35 +53,35 @@ class TestJiraOperator:
             )
         )
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
+    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_issue_search(self, jira_mock):
         jql_str = "issuekey=TEST-1226"
-        jira_mock.return_value.search_issues.return_value = minimal_test_ticket
+        jira_mock.return_value.jql_get_list_of_tickets.return_value = minimal_test_ticket
 
         jira_ticket_search_operator = JiraOperator(
             task_id="search-ticket-test",
-            jira_method="search_issues",
-            jira_method_args={"jql_str": jql_str, "maxResults": "1"},
+            jira_method="jql_get_list_of_tickets",
+            jira_method_args={"jql": jql_str, "limit": "1"},
             dag=self.dag,
         )
 
         jira_ticket_search_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         assert jira_mock.called
-        assert jira_mock.return_value.search_issues.called
+        assert jira_mock.return_value.jql_get_list_of_tickets.called
 
-    @patch("airflow.providers.atlassian.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
+    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_update_issue(self, jira_mock):
-        jira_mock.return_value.add_comment.return_value = True
+        jira_mock.return_value.issue_add_comment.return_value = minimal_test_ticket
 
         add_comment_operator = JiraOperator(
             task_id="add_comment_test",
-            jira_method="add_comment",
-            jira_method_args={"issue": minimal_test_ticket.get("key"), "body": "this is test comment"},
+            jira_method="issue_add_comment",
+            jira_method_args={"issue_key": minimal_test_ticket.get("key"), "comment": "this is test comment"},
             dag=self.dag,
         )
 
         add_comment_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         assert jira_mock.called
-        assert jira_mock.return_value.add_comment.called
+        assert jira_mock.return_value.issue_add_comment.called

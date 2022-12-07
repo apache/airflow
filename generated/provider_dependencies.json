@@ -168,8 +168,8 @@
   },
   "atlassian.jira": {
     "deps": [
-      "JIRA>1.0.7",
-      "apache-airflow>=2.3.0"
+      "apache-airflow>=2.3.0",
+      "atlassian-python-api>=1.14.2"
     ],
     "cross-providers-deps": []
   },

@@ -24,6 +24,23 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Changing atlassian JIRA SDK to official atlassian-python-api SDK (#27633)``
+
+Migrated ``Jira`` provider from Atlassian ``Jira`` SDK to ``atlassian-python-api`` SDK.
+``Jira`` provider doesn't support ``validate`` and ``get_server_info`` in connection extra dict.
+Changed the return type of ``JiraHook.get_conn`` to return an ``atlassian.Jira`` object instead of a ``jira.Jira`` object.
+
+.. warning:: Due to the underlying SDK change, the ``JiraOperator`` now requires ``jira_method`` and ``jira_method_args``
+             arguments as per ``atlassian-python-api``.
+
+             Please refer `Atlassian Python API Documentation <https://atlassian-python-api.readthedocs.io/jira.html>`__
+
 1.1.0
 .....
 
