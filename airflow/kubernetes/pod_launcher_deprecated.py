@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Launches PODs"""
+"""Launches PODs."""
 from __future__ import annotations
 
 import json
@@ -53,7 +53,7 @@ warnings.warn(
 
 
 class PodStatus:
-    """Status of the PODs"""
+    """Status of the PODs."""
 
     PENDING = "pending"
     RUNNING = "running"
@@ -62,8 +62,10 @@ class PodStatus:
 
 
 class PodLauncher(LoggingMixin):
-    """Deprecated class for launching pods. please use
-    airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager instead
+    """
+    Deprecated class for launching pods.
+
+    Please use airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager instead
     """
 
     def __init__(
@@ -74,9 +76,10 @@ class PodLauncher(LoggingMixin):
         extract_xcom: bool = False,
     ):
         """
-        Deprecated class for launching pods. please use
-        airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager instead
-        Creates the launcher.
+        Deprecated class for launching pods.
+
+        Please use airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager
+        instead to create the launcher.
 
         :param kube_client: kubernetes client
         :param in_cluster: whether we are in cluster
@@ -89,7 +92,7 @@ class PodLauncher(LoggingMixin):
         self.extract_xcom = extract_xcom
 
     def run_pod_async(self, pod: V1Pod, **kwargs):
-        """Runs POD asynchronously"""
+        """Runs POD asynchronously."""
         pod_mutation_hook(pod)
 
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
@@ -107,7 +110,7 @@ class PodLauncher(LoggingMixin):
         return resp
 
     def delete_pod(self, pod: V1Pod):
-        """Deletes POD"""
+        """Deletes POD."""
         try:
             self._client.delete_namespaced_pod(
                 pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions()
@@ -137,7 +140,7 @@ class PodLauncher(LoggingMixin):
 
     def monitor_pod(self, pod: V1Pod, get_logs: bool) -> tuple[State, str | None]:
         """
-        Monitors a pod and returns the final state
+        Monitors a pod and returns the final state.
 
         :param pod: pod spec that will be monitored
         :param get_logs: whether to read the logs locally
@@ -177,7 +180,7 @@ class PodLauncher(LoggingMixin):
 
     def parse_log_line(self, line: str) -> tuple[str | None, str]:
         """
-        Parse K8s log line and returns the final state
+        Parse K8s log line and returns the final state.
 
         :param line: k8s log line
         :return: timestamp and log message
@@ -248,7 +251,7 @@ class PodLauncher(LoggingMixin):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod):
-        """Reads events from the POD"""
+        """Reads events from the POD."""
         try:
             return self._client.list_namespaced_event(
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
@@ -258,7 +261,7 @@ class PodLauncher(LoggingMixin):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod(self, pod: V1Pod):
-        """Read POD information"""
+        """Read POD information."""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except HTTPError as e:
@@ -300,7 +303,7 @@ class PodLauncher(LoggingMixin):
         return None
 
     def process_status(self, job_id, status):
-        """Process status information for the JOB"""
+        """Process status information for the JOB."""
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED

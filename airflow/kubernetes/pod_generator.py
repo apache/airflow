@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
+Pod generator.
+
 This module provides an interface between the previous Pod
 API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
@@ -48,6 +50,8 @@ MAX_LABEL_LEN = 63
 
 def make_safe_label_value(string: str) -> str:
     """
+    Normalize a provided label to be of valid length and characters.
+
     Valid label values must be 63 characters or less and must be empty or begin and
     end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
     dots (.), and alphanumerics between.
@@ -67,6 +71,8 @@ def make_safe_label_value(string: str) -> str:
 
 def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
     """
+    Transform a datetime string to use as a label.
+
     Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
     not "_" let's
     replace ":" with "_"
@@ -79,6 +85,8 @@ def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
 
 def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
     """
+    Transform a label back to a datetime object.
+
     Kubernetes doesn't permit ":" in labels. ISO datetime format uses ":" but not
     "_", let's
     replace ":" with "_"
@@ -91,7 +99,7 @@ def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
 
 class PodGenerator:
     """
-    Contains Kubernetes Airflow Worker configuration logic
+    Contains Kubernetes Airflow Worker configuration logic.
 
     Represents a kubernetes pod and manages execution of a single pod.
     Any configuration that is container specific gets applied to
@@ -137,7 +145,7 @@ class PodGenerator:
 
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar"""
+        """Adds sidecar."""
         warnings.warn(
             "This function is deprecated. "
             "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
@@ -153,7 +161,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> dict | k8s.V1Pod | None:
-        """Converts to pod from obj"""
+        """Converts to pod from obj."""
         if obj is None:
             return None
 
@@ -187,7 +195,7 @@ class PodGenerator:
 
     @staticmethod
     def from_legacy_obj(obj) -> k8s.V1Pod | None:
-        """Converts to pod from obj"""
+        """Converts to pod from obj."""
         if obj is None:
             return None
 
@@ -245,7 +253,8 @@ class PodGenerator:
     @staticmethod
     def reconcile_metadata(base_meta, client_meta):
         """
-        Merge kubernetes Metadata objects
+        Merge kubernetes Metadata objects.
+
         :param base_meta: has the base attributes which are overwritten if they exist
             in the client_meta and remain if they do not exist in the client_meta
         :param client_meta: the spec that the client wants to create.
@@ -407,8 +416,7 @@ class PodGenerator:
     @staticmethod
     def serialize_pod(pod: k8s.V1Pod) -> dict:
         """
-
-        Converts a k8s.V1Pod into a jsonified object
+        Convert a k8s.V1Pod into a json serializable dictionary.
 
         :param pod: k8s.V1Pod object
         :return: Serialized version of the pod returned as dict
@@ -434,7 +442,7 @@ class PodGenerator:
     @staticmethod
     def deserialize_model_dict(pod_dict: dict | None) -> k8s.V1Pod:
         """
-        Deserializes python dictionary to k8s.V1Pod
+        Deserializes python dictionary to k8s.V1Pod.
 
         Unfortunately we need access to the private method
         ``_ApiClient__deserialize_model`` from the kubernetes client.
@@ -448,7 +456,9 @@ class PodGenerator:
 
     @staticmethod
     def make_unique_pod_id(pod_id: str) -> str | None:
-        r"""
+        """
+        Generate a unique Pod name.
+
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
         characters.
