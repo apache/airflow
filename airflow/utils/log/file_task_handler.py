@@ -132,6 +132,24 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
+    @staticmethod
+    def _should_check_k8s(queue):
+        """
+        If the task is running through kubernetes executor, return True.
+
+        When logs aren't available locally, in this case we read from k8s pod logs.
+        """
+        executor = conf.get("core", "executor")
+        if executor == "KubernetesExecutor":
+            return True
+        elif executor == "LocalKubernetesExecutor":
+            if queue == conf.get("local_kubernetes_executor", "kubernetes_queue"):
+                return True
+        elif executor == "CeleryKubernetesExecutor":
+            if queue == conf.get("celery_kubernetes_executor", "kubernetes_queue"):
+                return True
+        return False
+
     def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
@@ -163,7 +181,6 @@ class FileTaskHandler(logging.Handler):
         location = os.path.join(self.local_base, log_relative_path)
 
         log = ""
-
         if os.path.exists(location):
             try:
                 with open(location, encoding="utf-8", errors="surrogateescape") as file:
@@ -173,7 +190,7 @@ class FileTaskHandler(logging.Handler):
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
-        elif conf.get("core", "executor") == "KubernetesExecutor":
+        elif self._should_check_k8s(ti.queue):
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
