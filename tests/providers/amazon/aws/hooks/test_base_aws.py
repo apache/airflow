@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from unittest import mock
+from uuid import UUID
 
 import boto3
 import pytest
@@ -346,13 +346,13 @@ class TestAwsBaseHook:
 
         assert user_agent_tags["Caller"] == default_caller_name
 
+    @pytest.mark.parametrize("env_var, expected_version", [({"AIRFLOW_CTX_DAG_ID": "banana"}, 5), [{}, None]])
     @mock.patch.object(AwsBaseHook, "_get_caller", return_value="Test")
-    def test_user_agent_dag_run_key_is_hashed(self, _):
-        uuid5_template = r"^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    def test_user_agent_dag_run_key_is_hashed_correctly(self, _, env_var, expected_version):
+        with mock.patch.dict(os.environ, env_var, clear=True):
+            dag_run_key = self.fetch_tags()["DagRunKey"]
 
-        dag_run_key = self.fetch_tags()["DagRunKey"]
-
-        assert re.match(uuid5_template, dag_run_key)
+            assert UUID(dag_run_key).version == expected_version
 
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts

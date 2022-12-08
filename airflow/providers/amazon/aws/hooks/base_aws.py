@@ -475,7 +475,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
         except Exception:
             # Under no condition should an error here ever cause an issue for the user.
-            return "00000000-0000-5000-0000-000000000000"
+            return "00000000-0000-0000-0000-000000000000"
 
     @staticmethod
     def _get_airflow_version() -> str:
