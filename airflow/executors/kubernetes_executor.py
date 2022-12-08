@@ -82,7 +82,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def __init__(
         self,
         namespace: str,
-        multi_namespace_mode: bool,
         watcher_queue: Queue[KubernetesWatchType],
         resource_version: str | None,
         scheduler_job_id: str,
@@ -90,7 +89,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ):
         super().__init__()
         self.namespace = namespace
-        self.multi_namespace_mode = multi_namespace_mode
         self.scheduler_job_id = scheduler_job_id
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
@@ -281,7 +279,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
         watcher = KubernetesJobWatcher(
             watcher_queue=self.watcher_queue,
             namespace=namespace,
-            multi_namespace_mode=self.kube_config.multi_namespace_mode,
             resource_version=resource_version,
             scheduler_job_id=self.scheduler_job_id,
             kube_config=self.kube_config,
