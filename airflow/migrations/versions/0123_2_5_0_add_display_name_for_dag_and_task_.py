@@ -24,22 +24,23 @@ Create Date: 2022-12-06 20:26:07.521273
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = 'd83579315023'
-down_revision = '290244fb8b83'
+revision = "d83579315023"
+down_revision = "290244fb8b83"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    op.add_column('dag', sa.Column('display_name', sa.Text(), nullable=True))
-    op.add_column('task_instance', sa.Column('display_name', sa.Text(), nullable=True))
+    op.add_column("dag", sa.Column("display_name", sa.Text(), nullable=True))
+    op.add_column("task_instance", sa.Column("display_name", sa.Text(), nullable=True))
 
 
 def downgrade():
-    op.drop_column('dag', 'display_name')
-    op.drop_column('task_instance', 'display_name')
+    op.drop_column("dag", "display_name")
+    op.drop_column("task_instance", "display_name")

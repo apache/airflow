@@ -253,6 +253,7 @@ class MappedOperator(AbstractOperator):
 
     # Needed for serialization.
     task_id: str
+    display_name: str
     params: ParamsDict | dict
     deps: frozenset[BaseTIDep]
     operator_extra_links: Collection[BaseOperatorLink]
