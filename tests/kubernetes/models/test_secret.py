@@ -63,11 +63,14 @@ class TestSecret:
         )
 
     @mock.patch("uuid.uuid4")
-    def test_attach_to_pod(self, mock_uuid):
+    @mock.patch("airflow.kubernetes.pod_generator.rand_str")
+    def test_attach_to_pod(self, mock_rand_str, mock_uuid):
         static_uuid = uuid.UUID("cf4a56d2-8101-4217-b027-2af6216feb48")
         mock_uuid.return_value = static_uuid
+        rand_str = "abcd1234"
+        mock_rand_str.return_value = rand_str
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base.yaml"
-        pod = PodGenerator(pod_template_file=path).gen_pod()
+        pod = PodGenerator(pod_template_file=path).ud_pod
         secrets = [
             # This should be a secretRef
             Secret("env", None, "secret_a"),
@@ -84,7 +87,7 @@ class TestSecret:
             "kind": "Pod",
             "metadata": {
                 "labels": {"app": "myapp"},
-                "name": "myapp-pod-cf4a56d281014217b0272af6216feb48",
+                "name": "myapp-pod",
                 "namespace": "default",
             },
             "spec": {
@@ -108,7 +111,6 @@ class TestSecret:
                         "ports": [{"containerPort": 1234, "name": "foo"}],
                         "resources": {"limits": {"memory": "200Mi"}, "requests": {"memory": "100Mi"}},
                         "volumeMounts": [
-                            {"mountPath": "/airflow/xcom", "name": "xcom"},
                             {
                                 "mountPath": "/etc/foo",
                                 "name": "secretvol" + str(static_uuid),
@@ -116,19 +118,11 @@ class TestSecret:
                             },
                         ],
                     },
-                    {
-                        "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 30; done;'],
-                        "image": "alpine",
-                        "name": "airflow-xcom-sidecar",
-                        "resources": {"requests": {"cpu": "1m"}},
-                        "volumeMounts": [{"mountPath": "/airflow/xcom", "name": "xcom"}],
-                    },
                 ],
                 "hostNetwork": True,
                 "imagePullSecrets": [{"name": "pull_secret_a"}, {"name": "pull_secret_b"}],
                 "securityContext": {"fsGroup": 2000, "runAsUser": 1000},
                 "volumes": [
-                    {"emptyDir": {}, "name": "xcom"},
                     {"name": "secretvol" + str(static_uuid), "secret": {"secretName": "secret_b"}},
                 ],
             },

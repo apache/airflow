@@ -15,7 +15,7 @@
 
 # This is an example Dockerfile. It is not intended for PRODUCTION use
 # [START Dockerfile]
-FROM apache/airflow:2.5.0.dev0
+FROM apache/airflow:2.6.0.dev0
 
 COPY --chown=airflow:root test_dag.py /opt/airflow/dags
 

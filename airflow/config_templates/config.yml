@@ -99,6 +99,17 @@
       type: string
       example: ~
       default: "16"
+    - name: mp_start_method
+      description: |
+        The name of the method used in order to start Python processes via the multiprocessing module.
+        This corresponds directly with the options available in the Python docs:
+        https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_start_method.
+        Must be one of the values returned by:
+        https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods.
+      version_added: "2.0.0"
+      type: string
+      default: ~
+      example: "fork"
     - name: load_examples
       description: |
         Whether to load the DAG examples that ship with Airflow. It's good to
@@ -407,6 +418,19 @@
       type: string
       default: ~
       example: '{"some_param": "some_value"}'
+    - name: database_access_isolation
+      description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: internal_api_url
+      description: |
+        (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
+      version_added: 2.6.0
+      type: string
+      default: ~
+      example: 'http://localhost:8080'
 
 - name: database
   description: ~
@@ -1471,6 +1495,13 @@
       type: string
       example: "dagrun_cleared,failed"
       default: ~
+    - name: run_internal_api
+      description: |
+        Boolean for running Internal API in the webserver.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
 
 - name: email
   description: |
@@ -2306,6 +2337,13 @@
       type: string
       example: ~
       default: "offset"
+    - name: index_patterns
+      description: |
+        Comma separated list of index patterns to use when searching for logs (default: `_all`).
+      version_added: 2.6.0
+      type: string
+      example: something-*
+      default: "_all"
 - name: elasticsearch_configs
   description: ~
   options:

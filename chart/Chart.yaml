@@ -20,7 +20,7 @@
 apiVersion: v2
 name: airflow
 version: 1.8.0-dev
-appVersion: 2.4.3
+appVersion: 2.5.0
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
@@ -46,25 +46,25 @@ annotations:
       url: https://airflow.apache.org/docs/helm-chart/1.6.0/
   artifacthub.io/screenshots: |
     - title: DAGs View
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/dags.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/dags.png
     - title: Datasets View
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/datasets.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/datasets.png
     - title: Grid View
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/grid.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/grid.png
     - title: Graph View
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/graph.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/graph.png
     - title: Calendar View
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/calendar.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/calendar.png
     - title: Variable View
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/variable_hidden.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/variable_hidden.png
     - title: Gantt Chart
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/gantt.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/gantt.png
     - title: Task Duration
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/duration.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/duration.png
     - title: Code View
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/code.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/code.png
     - title: Task Instance Context Menu
-      url: https://airflow.apache.org/docs/apache-airflow/2.4.3/_images/context.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.0/_images/context.png
   artifacthub.io/changes: |
     - description: Make cleanup job history configurable
       kind: added
@@ -235,7 +235,7 @@ annotations:
       links:
       - name: '#23836'
         url: https://github.com/apache/airflow/pull/23836
-    - description: 'Misc: Default Airflow version to 2.4.3'
+    - description: 'Misc: Default Airflow version to 2.5.0'
       kind: changed
       links:
       - name: '#26485'

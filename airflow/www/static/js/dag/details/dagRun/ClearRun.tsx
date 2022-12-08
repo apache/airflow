@@ -32,7 +32,7 @@ interface Props {
 }
 
 const ClearRun = ({ dagId, runId }: Props) => {
-  const [affectedTasks, setAffectedTasks] = useState('');
+  const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { mutateAsync: onClear, isLoading } = useClearRun(dagId, runId);
 
@@ -44,7 +44,7 @@ const ClearRun = ({ dagId, runId }: Props) => {
 
   const onConfirm = async () => {
     await onClear({ confirmed: true });
-    setAffectedTasks('');
+    setAffectedTasks([]);
     onClose();
   };
 
@@ -63,7 +63,7 @@ const ClearRun = ({ dagId, runId }: Props) => {
         onConfirm={onConfirm}
         isLoading={isLoading}
         description="Task instances you are about to clear:"
-        body={affectedTasks}
+        affectedTasks={affectedTasks}
       />
     </>
   );

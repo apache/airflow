@@ -61,6 +61,7 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
         through native Okta.
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
+    :return Returns list of dictionaries in { 'column': 'value', 'column2': 'value2' } form.
     """
 
     template_fields: Sequence[str] = ("sql",)
@@ -91,7 +92,6 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
                 "session_parameters": session_parameters,
                 **hook_params,
             }
-
         super().__init__(conn_id=snowflake_conn_id, **kwargs)
         warnings.warn(
             """This class is deprecated.
@@ -102,6 +102,26 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
             DeprecationWarning,
             stacklevel=2,
         )
+
+    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+        validated_descriptions: list[Sequence[Sequence]] = []
+        for idx, description in enumerate(descriptions):
+            if not description:
+                raise RuntimeError(
+                    f"The query did not return descriptions of the cursor for query number {idx}. "
+                    "Cannot return values in a form of dictionary for that query."
+                )
+            validated_descriptions.append(description)
+        returned_results = []
+        for result_id, result_list in enumerate(results):
+            current_processed_result = []
+            for row in result_list:
+                dict_result: dict[Any, Any] = {}
+                for idx, description in enumerate(validated_descriptions[result_id]):
+                    dict_result[description[0]] = row[idx]
+                current_processed_result.append(dict_result)
+            returned_results.append(current_processed_result)
+        return returned_results
 
 
 class SnowflakeCheckOperator(SQLCheckOperator):

@@ -22,10 +22,7 @@ from airflow.utils.context import Context
 
 
 class SmoothOperator(BaseOperator):
-    """
-    Operator that does literally nothing but it logs YouTube link to
-    Sade song "Smooth Operator".
-    """
+    """Operator that does nothing, it logs a YouTube link to Sade song "Smooth Operator"."""
 
     ui_color = "#e8f7e4"
     yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
