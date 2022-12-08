@@ -970,8 +970,10 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
+  # This string (can be templated) will be mounted into the Airflow Webserver
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
@@ -981,6 +983,7 @@ webserver:
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
+  webserverConfigConfigMapName: ~
 
   service:
     type: ClusterIP

@@ -758,6 +758,18 @@ class TestWebserverConfigmap:
         docs = render_chart(show_only=["templates/configmaps/webserver-configmap.yaml"])
         assert 0 == len(docs)
 
+    def test_no_webserver_config_configmap_with_configmap_name(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "webserverConfigConfigMapName": "my-configmap",
+                }
+            },
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
+        assert 0 == len(docs)
+
     def test_webserver_config_configmap(self):
         docs = render_chart(
             values={"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},

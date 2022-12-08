@@ -132,6 +132,9 @@ spec:
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
 {{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{- end }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:
@@ -169,11 +172,8 @@ spec:
               readOnly: true
 {{- end }}
 {{- include "airflow_config_mount" . | nindent 12 }}
-{{- if .Values.webserver.webserverConfig }}
-            - name: webserver-config
-              mountPath: {{ template "airflow_webserver_config_path" . }}
-              subPath: webserver_config.py
-              readOnly: true
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
 {{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
             {{- include "airflow_dags_mount" . | nindent 12 }}
@@ -232,10 +232,10 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if .Values.webserver.webserverConfig }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
         - name: webserver-config
           configMap:
-            name: {{ .Release.Name }}-webserver-config
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
         {{- end }}
         {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- if .Values.dags.persistence.enabled }}
