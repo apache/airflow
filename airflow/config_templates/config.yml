@@ -277,6 +277,14 @@
       type: integer
       example: ~
       default: "300"
+    - name: max_task_retry_delay
+      description: |
+        The maximum delay (in seconds) each task is going to wait by default between retries.
+        This is a global setting and cannot be overridden at task or DAG level.
+      version_added: 2.6.0
+      type: integer
+      default: "86400"
+      example: ~
     - name: default_task_weight_rule
       description: |
         The weighting method used for the effective total priority weight of the task
@@ -431,7 +439,6 @@
       type: string
       default: ~
       example: 'http://localhost:8080'
-
 - name: database
   description: ~
   options:

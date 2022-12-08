@@ -1,0 +1,1 @@
+Maximum retry task delay is set to be 24h (86400s) by default. You can change it globally via ``core.max_task_retry_delay`` parameter.
