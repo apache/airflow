@@ -39,6 +39,7 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
             "init_connection_form",
             "init_error_handlers",
             "init_api_connexion",
+            "init_api_internal",
             "init_api_experimental",
             "sync_appbuilder_roles",
             "init_jinja_globals",

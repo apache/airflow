@@ -220,6 +220,27 @@ def init_api_connexion(app: Flask) -> None:
     app.extensions["csrf"].exempt(api_bp)
 
 
+def init_api_internal(app: Flask) -> None:
+    """Initialize Internal API"""
+    if not conf.getboolean("webserver", "run_internal_api", fallback=False):
+        return
+    base_path = "/internal_api/v1"
+
+    spec_dir = path.join(ROOT_APP_DIR, "api_internal", "openapi")
+    internal_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
+    internal_app.app = app
+    api_bp = internal_app.add_api(
+        specification="internal_api_v1.yaml",
+        base_path=base_path,
+        validate_responses=True,
+        strict_validation=True,
+    ).blueprint
+    # Like "api_bp.after_request", but the BP is already registered, so we have
+    # to register it in the app directly.
+    app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
+    app.extensions["csrf"].exempt(api_bp)
+
+
 def init_api_experimental(app):
     """Initialize Experimental API"""
     if not conf.getboolean("api", "enable_experimental_api", fallback=False):

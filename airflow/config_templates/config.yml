@@ -418,6 +418,19 @@
       type: string
       default: ~
       example: '{"some_param": "some_value"}'
+    - name: database_access_isolation
+      description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: internal_api_url
+      description: |
+        (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
+      version_added: 2.6.0
+      type: string
+      default: ~
+      example: 'http://localhost:8080'
 
 - name: database
   description: ~
@@ -1482,6 +1495,13 @@
       type: string
       example: "dagrun_cleared,failed"
       default: ~
+    - name: run_internal_api
+      description: |
+        Boolean for running Internal API in the webserver.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
 
 - name: email
   description: |
