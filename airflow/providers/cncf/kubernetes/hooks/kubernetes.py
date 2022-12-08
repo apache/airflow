@@ -16,18 +16,23 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import tempfile
 import warnings
 from typing import TYPE_CHECKING, Any, Generator
 
 from kubernetes import client, config, watch
+from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
+from kubernetes_asyncio import client as async_client, config as async_config
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.utils import yaml
+
+LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
 
 def _load_body_to_dict(body):
@@ -417,6 +422,12 @@ class KubernetesHook(BaseHook):
             **kwargs,
         )
 
+    def get_pod(self, name: str, namespace: str) -> V1Pod:
+        return self.core_v1_client.read_namespaced_pod(
+            name=name,
+            namespace=namespace,
+        )
+
 
 def _get_bool(val) -> bool | None:
     """
@@ -431,3 +442,90 @@ def _get_bool(val) -> bool | None:
         elif val.strip().lower() == "false":
             return False
     return None
+
+
+class AsyncKubernetesHook(KubernetesHook):
+    """Hook to use Kubernetes SDK asynchronously."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def _load_config(self):
+        """Returns Kubernetes API session for use with requests"""
+        in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
+        cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
+        kubeconfig_path = self._coalesce_param(self.config_file, self._get_field("kube_config_path"))
+        kubeconfig = self._get_field("kube_config")
+
+        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
+
+        if num_selected_configuration > 1:
+            raise AirflowException(
+                "Invalid connection configuration. Options kube_config_path, "
+                "kube_config, in_cluster are mutually exclusive. "
+                "You can only use one option at a time."
+            )
+
+        if in_cluster:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
+            self._is_in_cluster = True
+            async_config.load_incluster_config()
+            return async_client.ApiClient()
+
+        if kubeconfig_path is not None:
+            self.log.debug(
+                LOADING_KUBE_CONFIG_FILE_RESOURCE.format("provided custom file %s", kubeconfig_path)
+            )
+            self._is_in_cluster = False
+            await async_config.load_kube_config(
+                config_file=kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
+            return async_client.ApiClient()
+
+        if kubeconfig is not None:
+            with tempfile.NamedTemporaryFile() as temp_config:
+                self.log.debug(
+                    "Reading kubernetes configuration file from connection "
+                    "object and writing temporary config file with its content",
+                )
+                temp_config.write(kubeconfig.encode())
+                temp_config.flush()
+                self._is_in_cluster = False
+                await async_config.load_kube_config(
+                    config_file=temp_config.name,
+                    client_configuration=self.client_configuration,
+                    context=cluster_context,
+                )
+            return async_client.ApiClient()
+        self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
+        await async_config.load_kube_config(
+            client_configuration=self.client_configuration,
+            context=cluster_context,
+        )
+
+    @contextlib.asynccontextmanager
+    async def get_conn(self) -> async_client.ApiClient:
+        kube_client = None
+        try:
+            kube_client = await self._load_config() or async_client.ApiClient()
+            yield kube_client
+        finally:
+            if kube_client is not None:
+                await kube_client.close()
+
+    async def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """
+        Gets pod's object.
+
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        """
+        async with self.get_conn() as connection:
+            v1_api = async_client.CoreV1Api(connection)
+            pod: V1Pod = await v1_api.read_namespaced_pod(
+                name=name,
+                namespace=namespace,
+            )
+        return pod

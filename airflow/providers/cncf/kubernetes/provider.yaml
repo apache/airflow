@@ -62,6 +62,7 @@ dependencies:
   # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
   # core is not hard-limited via install-requirements, only by extra).
   - kubernetes>=21.7.0,<24
+  - kubernetes_asyncio==24.2.2
 
 integrations:
   - integration-name: Kubernetes

@@ -19,10 +19,8 @@
 from __future__ import annotations
 
 import os
-import tempfile
 import warnings
-from contextlib import contextmanager
-from typing import TYPE_CHECKING, Generator, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.cloud.container_v1.types import Cluster
 
@@ -34,8 +32,10 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
     KubernetesEnginePodLink,
 )
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from airflow.utils.process_utils import execute_in_subprocess, patch_environ
+from airflow.providers.google.cloud.utils.kubernetes_engine_config import (
+    temporary_gke_config_file,
+    write_permanent_gke_config_file,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -249,9 +249,6 @@ class GKECreateClusterOperator(BaseOperator):
         return create_op
 
 
-KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
-
-
 class GKEStartPodOperator(KubernetesPodOperator):
     """
     Executes a task in a Kubernetes pod in the specified Google Kubernetes
@@ -293,6 +290,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         state, or the execution is interrupted. If True, delete the
         pod; if False, leave the pod.  Current default is False, but this will be
         changed in the next major release of this provider.
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -344,89 +342,43 @@ class GKEStartPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    @staticmethod
-    @contextmanager
-    def get_gke_config_file(
-        gcp_conn_id,
-        project_id: str | None,
-        cluster_name: str,
-        impersonation_chain: str | Sequence[str] | None,
-        regional: bool,
-        location: str,
-        use_internal_ip: bool,
-    ) -> Generator[str, None, None]:
+    def execute(self, context: Context) -> None:
+        """Look for a pod, if not found then create one and defer"""
+        config_args = {
+            "gcp_conn_id": self.gcp_conn_id,
+            "project_id": self.project_id,
+            "cluster_name": self.cluster_name,
+            "impersonation_chain": self.impersonation_chain,
+            "regional": self.regional,
+            "location": self.location,
+            "use_internal_ip": self.use_internal_ip,
+        }
 
-        hook = GoogleBaseHook(gcp_conn_id=gcp_conn_id)
-        project_id = project_id or hook.project_id
-
-        if not project_id:
-            raise AirflowException(
-                "The project id must be passed either as "
-                "keyword project_id parameter or as project_id extra "
-                "in Google Cloud connection definition. Both are not set!"
-            )
-
-        # Write config to a temp file and set the environment variable to point to it.
-        # This is to avoid race conditions of reading/writing a single file
-        with tempfile.NamedTemporaryFile() as conf_file, patch_environ(
-            {KUBE_CONFIG_ENV_VAR: conf_file.name}
-        ), hook.provide_authorized_gcloud():
-            # Attempt to get/update credentials
-            # We call gcloud directly instead of using google-cloud-python api
-            # because there is no way to write kubernetes config to a file, which is
-            # required by KubernetesPodOperator.
-            # The gcloud command looks at the env variable `KUBECONFIG` for where to save
-            # the kubernetes config file.
-            cmd = [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                cluster_name,
-                "--project",
-                project_id,
-            ]
-            if impersonation_chain:
-                if isinstance(impersonation_chain, str):
-                    impersonation_account = impersonation_chain
-                elif len(impersonation_chain) == 1:
-                    impersonation_account = impersonation_chain[0]
-                else:
-                    raise AirflowException(
-                        "Chained list of accounts is not supported, please specify only one service account"
-                    )
-
-                cmd.extend(
-                    [
-                        "--impersonate-service-account",
-                        impersonation_account,
-                    ]
-                )
-            if regional:
-                cmd.append("--region")
-            else:
-                cmd.append("--zone")
-            cmd.append(location)
-            if use_internal_ip:
-                cmd.append("--internal-ip")
-            execute_in_subprocess(cmd)
-
-            # Tell `KubernetesPodOperator` where the config file is located
-            yield os.environ[KUBE_CONFIG_ENV_VAR]
-
-    def execute(self, context: Context) -> str | None:
-
-        with GKEStartPodOperator.get_gke_config_file(
-            gcp_conn_id=self.gcp_conn_id,
-            project_id=self.project_id,
-            cluster_name=self.cluster_name,
-            impersonation_chain=self.impersonation_chain,
-            regional=self.regional,
-            location=self.location,
-            use_internal_ip=self.use_internal_ip,
-        ) as config_file:
+        if self.deferrable:
+            config_file = write_permanent_gke_config_file(**config_args)  # type: ignore[arg-type]
             self.config_file = config_file
-            result = super().execute(context)
-            if not self.is_delete_operator_pod:
-                KubernetesEnginePodLink.persist(context=context, task_instance=self)
-            return result
+            super().execute(context)
+        else:
+            with temporary_gke_config_file(**config_args) as config_file:  # type: ignore[arg-type]
+                self.config_file = config_file
+                super().execute(context)
+
+    def execute_complete(self, context: Context, event: dict):
+        # Config file should be set to successfully use Kubernetes API after triggers work
+        config_file = event["config_file"]
+        if config_file is not None:
+            self.config_file = config_file
+
+        return super().execute_complete(context, event)
+
+    def post_complete_action(self, **kwargs):
+        super().post_complete_action(**kwargs)
+        # Remove config file which was created in execute method
+        self._remove_config_file()
+
+    def on_kill(self) -> None:
+        self._remove_config_file()
+
+    def _remove_config_file(self):
+        if self.config_file is not None and os.path.exists(self.config_file):
+            os.remove(self.config_file)

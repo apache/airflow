@@ -137,6 +137,13 @@ Then use it in your pod like so:
     :start-after: [START howto_operator_k8s_private_image]
     :end-before: [END howto_operator_k8s_private_image]
 
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_async.py
+    :language: python
+    :start-after: [START howto_operator_k8s_private_image_async]
+    :end-before: [END howto_operator_k8s_private_image_async]
+
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` handles
@@ -152,6 +159,13 @@ See the following example on how this occurs:
     :end-before: [END howto_operator_k8s_write_xcom]
 .. note::
   XCOMs will be pushed only for tasks marked as ``State.SUCCESS``.
+
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_async.py
+    :language: python
+    :start-after: [START howto_operator_k8s_write_xcom_async]
+    :end-before: [END howto_operator_k8s_write_xcom_async]
 
 Reference
 ^^^^^^^^^

@@ -131,6 +131,14 @@ And then use it in other operators:
     :start-after: [START howto_operator_gke_xcom_result]
     :end-before: [END howto_operator_gke_xcom_result]
 
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_start_pod_xcom_async]
+    :end-before: [END howto_operator_gke_start_pod_xcom_async]
+
 Reference
 ^^^^^^^^^
 
