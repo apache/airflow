@@ -24,11 +24,12 @@ import logging.config
 import os
 import sys
 import textwrap
+from unittest.mock import patch
 
 import pytest
 
 from airflow import settings
-from airflow.utils.log.secrets_masker import RedactedIO, SecretsMasker, should_hide_value_for_key
+from airflow.utils.log.secrets_masker import RedactedIO, SecretsMasker, mask_secret, should_hide_value_for_key
 from tests.test_utils.config import conf_vars
 
 settings.MASK_SECRETS_IN_LOGS = True
@@ -352,3 +353,42 @@ class TestRedactedIO:
         monkeypatch.setattr(sys, "stdin", io.StringIO("a\n"))
         with contextlib.redirect_stdout(RedactedIO()):
             assert input() == "a"
+
+
+class TestMaskSecretAdapter:
+    @pytest.fixture(scope="function", autouse=True)
+    def setup(self):
+        with patch("airflow.utils.log.secrets_masker.SecretsMasker.add_mask", self._add_mask):
+            self.secrets = []
+            yield
+
+    def _add_mask(self, secret, name):
+        self.secrets.append(
+            (
+                secret,
+                name,
+            )
+        )
+
+    def test_calling_mask_secret_adds_adaptations_for_returned_str(self):
+        with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.quote"}):
+            mask_secret("secret<>&", "name")
+
+        assert self.secrets == [("secret%3C%3E%26", "name"), ("secret<>&", "name")]
+
+    def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self):
+        with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.urlparse"}):
+            mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", "name")
+
+        assert self.secrets == [
+            ("https", "name"),
+            ("airflow.apache.org", "name"),
+            ("/docs/apache-airflow/stable", "name"),
+            ("https://airflow.apache.org/docs/apache-airflow/stable", "name"),
+        ]
+
+    def test_calling_mask_secret_not_set(self):
+        with conf_vars({("logging", "secret_mask_adapter"): None}):
+            mask_secret("a secret")
+
+        assert self.secrets == [("a secret", None)]

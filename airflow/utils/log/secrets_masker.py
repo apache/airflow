@@ -25,6 +25,7 @@ from typing import Any, Dict, Iterable, List, TextIO, Tuple, TypeVar, Union
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
+from airflow.exceptions import AirflowConfigException
 
 Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
@@ -84,10 +85,31 @@ def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     If ``secret`` is a dict or a iterable (excluding str) then it will be
     recursively walked and keys with sensitive names will be hidden.
     """
+    from airflow.configuration import conf
+
     # Filtering all log messages is not a free process, so we only do it when
     # running tasks
     if not secret:
         return
+
+    mask_adapter: callable | None = None
+    try:
+        mask_adapter = conf.getimport("logging", "secret_mask_adapter")
+    except AirflowConfigException:
+        pass
+
+    if mask_adapter:
+        # This can return an iterable of secrets to mask OR a single secret as a string
+        secret_or_secrets = mask_adapter(secret)
+
+        if not isinstance(secret_or_secrets, str):
+            # if its not a string, it must be a iterable of secrets to mask
+            for s in secret_or_secrets:
+                if s:
+                    _secrets_masker().add_mask(s, name)
+        elif secret_or_secrets:
+            # if it is a string (with at least 1 char), then we can just add it to the masker
+            _secrets_masker().add_mask(secret_or_secrets, name)
 
     _secrets_masker().add_mask(secret, name)
 
