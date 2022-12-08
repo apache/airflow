@@ -810,7 +810,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/migration_tests
-      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}} (w/Kerberos)"
         run: breeze testing tests --run-in-parallel
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
@@ -938,6 +938,104 @@ jobs:
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
+  tests-integration-postgres:
+    timeout-minutes: 130
+    name: Integration Tests Postgres
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      JOB_ID: "integration"
+      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Integration Tests Postgres: cassandra"
+        run: |
+          breeze testing integration-tests --integration cassandra
+          breeze stop
+        if: needs.build-info.outputs.runs-on != 'self-hosted'
+      - name: "Integration Tests Postgres: mongo"
+        run: |
+          breeze testing integration-tests --integration mongo
+          breeze stop
+        if: needs.build-info.outputs.runs-on != 'self-hosted'
+      - name: "Integration Tests Postgres: pinot"
+        run: |
+          breeze testing integration-tests --integration pinot
+          breeze stop
+        if: needs.build-info.outputs.runs-on != 'self-hosted'
+      - name: "Integration Tests Postgres: celery"
+        run: |
+          breeze testing integration-tests --integration celery
+          breeze stop
+        if: needs.build-info.outputs.runs-on != 'self-hosted'
+      - name: "Integration Tests Postgres: trino, kerberos"
+        run: |
+          breeze testing integration-tests --integration trino --integration kerberos
+          breeze stop
+        if: needs.build-info.outputs.runs-on != 'self-hosted'
+      - name: "Integration Tests Postgres: all"
+        run: breeze testing integration-tests --integration all
+        if: needs.build-info.outputs.runs-on == 'self-hosted'
+      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+        uses: ./.github/actions/post_tests
+
+  tests-integration-mysql:
+    timeout-minutes: 130
+    name: Integration Tests MySQL
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      JOB_ID: "integration"
+      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.runs-on == 'self-hosted'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+        if: needs.build-info.outputs.runs-on == 'self-hosted'
+      - name: "Prepare breeze & CI image: ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        if: needs.build-info.outputs.runs-on == 'self-hosted'
+      - name: "Integration Tests MySQL: all"
+        run: breeze testing integration-tests --integration all
+        if: needs.build-info.outputs.runs-on == 'self-hosted'
+      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+        uses: ./.github/actions/post_tests
+        if: needs.build-info.outputs.runs-on == 'self-hosted'
+
+
   tests-quarantined:
     timeout-minutes: 60
     name: "Quarantined tests"
@@ -985,6 +1083,8 @@ jobs:
       - tests-mysql
       - tests-mssql
       - tests-quarantined
+      - tests-integration-postgres
+      - tests-integration-mysql
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
     # Only upload coverage on merges to main
@@ -1019,6 +1119,8 @@ jobs:
       - tests-mysql
       - tests-mssql
       - tests-quarantined
+      - tests-integration-postgres
+      - tests-integration-mysql
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
     steps:
@@ -1180,6 +1282,8 @@ jobs:
       - tests-mysql
       - tests-mssql
       - tests-postgres
+      - tests-integration-postgres
+      - tests-integration-mysql
       - push-early-buildx-cache-to-github-registry
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1340,6 +1444,8 @@ jobs:
       - tests-mysql
       - tests-mssql
       - tests-postgres
+      - tests-integration-postgres
+      - tests-integration-mysql
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
