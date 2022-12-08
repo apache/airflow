@@ -550,6 +550,7 @@ class SchedulerJob(BaseJob):
             command = ti.command_as_list(
                 local=True,
                 pickle_id=ti.dag_model.pickle_id,
+                interactive=self.executor_class == "KubernetesExecutor",
             )
 
             priority = ti.priority_weight

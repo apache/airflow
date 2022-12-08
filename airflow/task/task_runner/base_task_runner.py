@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import subprocess
 import threading
+from typing import TYPE_CHECKING
 
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.platform import IS_WINDOWS
@@ -37,6 +38,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
+if TYPE_CHECKING:
+    from airflow.jobs.local_task_job import LocalTaskJob
+
 PYTHONPATH_VAR = "PYTHONPATH"
 
 
@@ -50,7 +54,7 @@ class BaseTaskRunner(LoggingMixin):
         associated task instance.
     """
 
-    def __init__(self, local_task_job):
+    def __init__(self, local_task_job: LocalTaskJob):
         # Pass task instance context into log handlers to setup the logger.
         super().__init__(local_task_job.task_instance)
         self._task_instance = local_task_job.task_instance
@@ -99,6 +103,7 @@ class BaseTaskRunner(LoggingMixin):
             job_id=local_task_job.id,
             pool=local_task_job.pool,
             cfg_path=cfg_path,
+            interactive=local_task_job.interactive,
         )
         self.process = None
 

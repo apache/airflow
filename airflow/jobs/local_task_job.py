@@ -81,6 +81,7 @@ class LocalTaskJob(BaseJob):
         pickle_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
+        interactive: bool = False,
         *args,
         **kwargs,
     ):
@@ -94,6 +95,7 @@ class LocalTaskJob(BaseJob):
         self.pickle_id = pickle_id
         self.mark_success = mark_success
         self.external_executor_id = external_executor_id
+        self.interactive = interactive
 
         # terminating state is used so that a job don't try to
         # terminate multiple times

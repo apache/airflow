@@ -585,6 +585,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id=None,
         pool=None,
         cfg_path=None,
+        interactive=False,
     ):
         """
         Returns a command that can be executed anywhere where airflow is
@@ -628,6 +629,7 @@ class TaskInstance(Base, LoggingMixin):
             pool=pool,
             cfg_path=cfg_path,
             map_index=self.map_index,
+            interactive=interactive,
         )
 
     @staticmethod
@@ -648,6 +650,7 @@ class TaskInstance(Base, LoggingMixin):
         pool: str | None = None,
         cfg_path: str | None = None,
         map_index: int = -1,
+        interactive: bool = False,
     ) -> list[str]:
         """
         Generates the shell command required to execute this task instance.
@@ -671,6 +674,7 @@ class TaskInstance(Base, LoggingMixin):
         :param job_id: job ID (needs more details)
         :param pool: the Airflow pool that the task should run in
         :param cfg_path: the Path to the configuration file
+        :param interactive: if interactive option should be included
         :return: shell command that can be used to run the task instance
         """
         cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
@@ -694,6 +698,8 @@ class TaskInstance(Base, LoggingMixin):
             cmd.extend(["--pool", pool])
         if raw:
             cmd.extend(["--raw"])
+        if interactive:
+            cmd.extend(["--interactive"])
         if file_path:
             cmd.extend(["--subdir", file_path])
         if cfg_path:
@@ -2136,7 +2142,7 @@ class TaskInstance(Base, LoggingMixin):
             pod_id=create_pod_id(self.dag_id, self.task_id),
             try_number=self.try_number,
             kube_image=kube_config.kube_image,
-            args=self.command_as_list(),
+            args=self.command_as_list(interactive=True),
             pod_override_object=PodGenerator.from_obj(self.executor_config),
             scheduler_job_id="0",
             namespace=kube_config.executor_namespace,

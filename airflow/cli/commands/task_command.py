@@ -247,6 +247,7 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool,
         external_executor_id=_extract_external_executor_id(args),
+        interactive=args.interactive,
     )
     try:
         run_job.run()
@@ -388,6 +389,7 @@ def task_run(args, dag=None):
     log.info("Running %s on host %s", ti, hostname)
 
     try:
+        assert args.interactive
         if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
         else:

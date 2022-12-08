@@ -128,6 +128,7 @@ class BaseExecutor(LoggingMixin):
             pool=pool,
             pickle_id=pickle_id,
             cfg_path=cfg_path,
+            interactive=self.__class__.__name__ == "KubernetesExecutor",
         )
         self.log.debug("created command %s", command_list_to_run)
         self.queue_command(
