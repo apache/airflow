@@ -23,7 +23,6 @@ KubernetesExecutor.
 """
 from __future__ import annotations
 
-import functools
 import json
 import logging
 import multiprocessing
@@ -124,6 +123,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     self.resource_version,
                 )
 
+    def _pod_events(self, kube_client: client.CoreV1Api, query_kwargs: dict):
+        watcher = watch.Watch()
+
+        if self.namespace == ALL_NAMESPACES:
+            return watcher.stream(kube_client.list_pod_for_all_namespaces, **query_kwargs)
+        else:
+            return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
+
     def _run(
         self,
         kube_client: client.CoreV1Api,
@@ -132,7 +139,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         kube_config: Any,
     ) -> str | None:
         self.log.info("Event: and now my watch begins starting at resource_version: %s", resource_version)
-        watcher = watch.Watch()
 
         kwargs = {"label_selector": f"airflow-worker={scheduler_job_id}"}
         if resource_version:
@@ -142,16 +148,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 kwargs[key] = value
 
         last_resource_version: str | None = None
-        if self.namespace == ALL_NAMESPACES:
-            pod_events = functools.partial(
-                watcher.stream, kube_client.list_pod_for_all_namespaces, **kwargs
-            )
-        else:
-            pod_events = functools.partial(
-                watcher.stream, kube_client.list_namespaced_pod, self.namespace, **kwargs
-            )
 
-        for event in pod_events():
+        for event in self._pod_events(kube_client=kube_client, query_kwargs=kwargs):
             task = event["object"]
             self.log.debug("Event: %s had an event of type %s", task.metadata.name, event["type"])
             if event["type"] == "ERROR":
