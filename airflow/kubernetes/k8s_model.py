@@ -39,6 +39,8 @@ class K8SModel(ABC):
     @abstractmethod
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
         """
+        Attaches to pod.
+
         :param pod: A pod to attach this Kubernetes object to
         :return: The pod with the object attached
         """

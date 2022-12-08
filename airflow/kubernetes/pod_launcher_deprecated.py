@@ -203,17 +203,17 @@ class PodLauncher(LoggingMixin):
         return status
 
     def pod_not_started(self, pod: V1Pod):
-        """Tests if pod has not started"""
+        """Tests if pod has not started."""
         state = self._task_status(self.read_pod(pod))
         return state == State.QUEUED
 
     def pod_is_running(self, pod: V1Pod):
-        """Tests if pod is running"""
+        """Tests if pod is running."""
         state = self._task_status(self.read_pod(pod))
         return state not in (State.SUCCESS, State.FAILED)
 
     def base_container_is_running(self, pod: V1Pod):
-        """Tests if base container is running"""
+        """Tests if base container is running."""
         event = self.read_pod(pod)
         status = next((s for s in event.status.container_statuses if s.name == "base"), None)
         if not status:
@@ -228,7 +228,7 @@ class PodLauncher(LoggingMixin):
         timestamps: bool = False,
         since_seconds: int | None = None,
     ):
-        """Reads log from the POD"""
+        """Reads log from the POD."""
         additional_kwargs = {}
         if since_seconds:
             additional_kwargs["since_seconds"] = since_seconds

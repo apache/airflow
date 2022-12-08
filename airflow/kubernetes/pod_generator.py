@@ -132,7 +132,7 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
-        """Generates pod"""
+        """Generates pod."""
         warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
@@ -233,12 +233,14 @@ class PodGenerator:
     @staticmethod
     def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
         """
+        Merge Kubernetes Pod objects.
+
         :param base_pod: has the base attributes which are overwritten if they exist
             in the client pod and remain if they do not exist in the client_pod
         :param client_pod: the pod that the client wants to create.
         :return: the merged pods
 
-        This can't be done recursively as certain fields some overwritten, and some concatenated.
+        This can't be done recursively as certain fields are overwritten and some are concatenated.
         """
         if client_pod is None:
             return base_pod
@@ -253,7 +255,7 @@ class PodGenerator:
     @staticmethod
     def reconcile_metadata(base_meta, client_meta):
         """
-        Merge kubernetes Metadata objects.
+        Merge Kubernetes Metadata objects.
 
         :param base_meta: has the base attributes which are overwritten if they exist
             in the client_meta and remain if they do not exist in the client_meta
@@ -279,6 +281,8 @@ class PodGenerator:
         base_spec: k8s.V1PodSpec | None, client_spec: k8s.V1PodSpec | None
     ) -> k8s.V1PodSpec | None:
         """
+        Merge Kubernetes PodSpec objects.
+
         :param base_spec: has the base attributes which are overwritten if they exist
             in the client_spec and remain if they do not exist in the client_spec
         :param client_spec: the spec that the client wants to create.
@@ -303,6 +307,8 @@ class PodGenerator:
         base_containers: list[k8s.V1Container], client_containers: list[k8s.V1Container]
     ) -> list[k8s.V1Container]:
         """
+        Merge Kubernetes Container objects.
+
         :param base_containers: has the base attributes which are overwritten if they exist
             in the client_containers and remain if they do not exist in the client_containers
         :param client_containers: the containers that the client wants to create.
@@ -345,6 +351,8 @@ class PodGenerator:
         map_index: int = -1,
     ) -> k8s.V1Pod:
         """
+        Create a Pod.
+
         Construct a pod by gathering and consolidating the configuration from 3 places:
             - airflow.cfg
             - executor_config
@@ -427,6 +435,8 @@ class PodGenerator:
     @staticmethod
     def deserialize_model_file(path: str) -> k8s.V1Pod:
         """
+        Generate a Pod from a file.
+
         :param path: Path to the file
         :return: a kubernetes.client.models.V1Pod
         """
@@ -456,7 +466,7 @@ class PodGenerator:
 
     @staticmethod
     def make_unique_pod_id(pod_id: str) -> str | None:
-        """
+        r"""
         Generate a unique Pod name.
 
         Kubernetes pod names must consist of one or more lowercase
@@ -489,6 +499,8 @@ class PodGenerator:
 
 def merge_objects(base_obj, client_obj):
     """
+    Merge objects.
+
     :param base_obj: has the base attributes which are overwritten if they exist
         in the client_obj and remain if they do not exist in the client_obj
     :param client_obj: the object that the client wants to create.
@@ -518,6 +530,8 @@ def merge_objects(base_obj, client_obj):
 
 def extend_object_field(base_obj, client_obj, field_name):
     """
+    Add field values to existing objects.
+
     :param base_obj: an object which has a property `field_name` that is a list
     :param client_obj: an object which has a property `field_name` that is a list.
         A copy of this object is returned with `field_name` modified
