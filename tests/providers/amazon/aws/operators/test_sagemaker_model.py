@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -41,8 +40,8 @@ CREATE_MODEL_PARAMS: dict = {
 EXPECTED_INTEGER_FIELDS: list[list[str]] = []
 
 
-class TestSageMakerModelOperator(unittest.TestCase):
-    def setUp(self):
+class TestSageMakerModelOperator:
+    def setup_method(self):
         self.sagemaker = SageMakerModelOperator(task_id="test_sagemaker_operator", config=CREATE_MODEL_PARAMS)
 
     @mock.patch.object(SageMakerHook, "describe_model", return_value="")
@@ -60,7 +59,7 @@ class TestSageMakerModelOperator(unittest.TestCase):
             self.sagemaker.execute(None)
 
 
-class TestSageMakerDeleteModelOperator(unittest.TestCase):
+class TestSageMakerDeleteModelOperator:
     @mock.patch.object(SageMakerHook, "delete_model")
     def test_execute(self, delete_model):
         op = SageMakerDeleteModelOperator(
