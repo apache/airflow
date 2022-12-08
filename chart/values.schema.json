@@ -3429,7 +3429,7 @@
                     }
                 },
                 "webserverConfig": {
-                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
+                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
                         "string",
                         "null"
@@ -3438,6 +3438,18 @@
                     "default": null,
                     "examples": [
                         "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                    ]
+                },
+                "webserverConfigConfigMapName": {
+                    "description": "The configmap name containing the webserver_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "my-webserver-configmap"
                     ]
                 },
                 "service": {

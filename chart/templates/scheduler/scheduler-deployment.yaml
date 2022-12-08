@@ -140,6 +140,9 @@ spec:
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{- end }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom:
@@ -204,6 +207,9 @@ spec:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
 {{- include "airflow_config_mount" . | nindent 12 }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{- end }}
 {{- if and $localOrDagProcessorDisabled (or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
 {{- include "airflow_dags_mount" . | nindent 12 }}
 {{- end }}
@@ -236,6 +242,9 @@ spec:
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{- end }}
           {{- end }}
 {{- if .Values.scheduler.extraContainers }}
 {{- toYaml .Values.scheduler.extraContainers | nindent 8 }}
@@ -244,6 +253,11 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        - name: webserver-config
+          configMap:
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
+        {{- end }}
 {{- if $localOrDagProcessorDisabled }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
