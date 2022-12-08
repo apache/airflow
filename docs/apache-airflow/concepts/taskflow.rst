@@ -156,7 +156,7 @@ yourself. To do so add the ``serialize()`` method to your class and the staticme
 
 
     class MyCustom:
-        version: ClassVar[int] = 1
+        __version__: ClassVar[int] = 1
 
         def __init__(self, x):
             self.x = x
@@ -174,13 +174,13 @@ Object Versioning
 ^^^^^^^^^^^^^^^^^
 
 It is good practice to version the objects that will be used in serialization. To do this add
-``version: ClassVar[int] = <x>`` to your class. Airflow assumes that your classes are backwards compatible,
+``__version__: ClassVar[int] = <x>`` to your class. Airflow assumes that your classes are backwards compatible,
 so that a version 2 is able to deserialize a version 1. In case you need custom logic
 for deserialization ensure that ``deserialize(data: dict, version: int)`` is specified.
 
 ::
 
-  Note: Typing of ``version`` is required and needs to be ``ClassVar[int]``
+  Note: Typing of ``__version__`` is required and needs to be ``ClassVar[int]``
 
 History
 -------

@@ -55,7 +55,7 @@ from airflow.settings import DAGS_FOLDER, json
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
-from airflow.utils.module_loading import as_importable_string, import_string
+from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
@@ -182,7 +182,7 @@ def _encode_timetable(var: Timetable) -> dict[str, Any]:
     can be completely controlled by a custom subclass.
     """
     timetable_class = type(var)
-    importable_string = as_importable_string(timetable_class)
+    importable_string = qualname(timetable_class)
     if _get_registered_timetable(importable_string) is None:
         raise _TimetableNotRegistered(importable_string)
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
@@ -1005,19 +1005,19 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             raise AirflowException("Can not load plugins")
 
         instances = set()
-        for qualname in set(deps):
+        for qn in set(deps):
             if (
-                not qualname.startswith("airflow.ti_deps.deps.")
-                and qualname not in plugins_manager.registered_ti_dep_classes
+                not qn.startswith("airflow.ti_deps.deps.")
+                and qn not in plugins_manager.registered_ti_dep_classes
             ):
                 raise SerializationError(
-                    f"Custom dep class {qualname} not deserialized, please register it through plugins."
+                    f"Custom dep class {qn} not deserialized, please register it through plugins."
                 )
 
             try:
-                instances.add(import_string(qualname)())
+                instances.add(import_string(qn)())
             except ImportError:
-                log.warning("Error importing dep %r", qualname, exc_info=True)
+                log.warning("Error importing dep %r", qn, exc_info=True)
         return instances
 
     @classmethod
@@ -1108,6 +1108,15 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         return serialize_operator_extra_links
 
+    @classmethod
+    def serialize(cls, var: Any, *, strict: bool = False) -> Any:
+        # the wonders of multiple inheritance BaseOperator defines an instance method
+        return BaseSerialization.serialize(var=var, strict=strict)
+
+    @classmethod
+    def deserialize(cls, encoded_var: Any) -> Any:
+        return BaseSerialization.deserialize(encoded_var=encoded_var)
+
 
 class SerializedDAG(DAG, BaseSerialization):
     """
@@ -1159,6 +1168,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 del serialized_dag["timetable"]
 
             serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
+
             dag_deps = {
                 dep
                 for task in dag.task_dict.values()
