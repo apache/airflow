@@ -25,9 +25,13 @@ This module contains Base AWS Hook.
 from __future__ import annotations
 
 import datetime
+import inspect
 import json
 import logging
+import os
+import uuid
 import warnings
+from copy import deepcopy
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
@@ -47,6 +51,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
@@ -409,6 +414,92 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self._config = config
         self._verify = verify
 
+    @classmethod
+    def _get_provider_version(cls) -> str:
+        """Checks the Providers Manager for the package version."""
+        try:
+            manager = ProvidersManager()
+            hook = manager.hooks[cls.conn_type]
+            if not hook:
+                # This gets caught immediately, but without it MyPy complains
+                # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
+                # on the following line and static checks fail.
+                raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
+            provider = manager.providers[hook.package_name]
+            return provider.version
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "Unknown"
+
+    @staticmethod
+    def _find_class_name(target_function_name: str) -> str:
+        """
+        Given a frame off the stack, return the name of the class which made the call.
+        Note: This method may raise a ValueError or an IndexError, but the calling
+        method is catching and handling those.
+        """
+        stack = inspect.stack()
+        # Find the index of the most recent frame which called the provided function name.
+        target_frame_index = [frame.function for frame in stack].index(target_function_name)
+        # Pull that frame off the stack.
+        target_frame = stack[target_frame_index][0]
+        # Get the local variables for that frame.
+        frame_variables = target_frame.f_locals["self"]
+        # Get the class object for that frame.
+        frame_class_object = frame_variables.__class__
+        # Return the name of the class object.
+        return frame_class_object.__name__
+
+    def _get_caller(self, target_function_name: str = "execute") -> str:
+        """Given a function name, walk the stack and return the name of the class which called it last."""
+        try:
+            caller = self._find_class_name(target_function_name)
+            if caller == "BaseSensorOperator":
+                # If the result is a BaseSensorOperator, then look for whatever last called "poke".
+                return self._get_caller("poke")
+            return caller
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "Unknown"
+
+    @staticmethod
+    def _generate_dag_key() -> str:
+        """
+        The Object Identifier (OID) namespace is used to salt the dag_id value.
+        That salted value is used to generate a SHA-1 hash which, by definition,
+        can not (reasonably) be reversed.  No personal data can be inferred or
+        extracted from the resulting UUID.
+        """
+        try:
+            dag_id = os.environ["AIRFLOW_CTX_DAG_ID"]
+            return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "00000000-0000-0000-0000-000000000000"
+
+    @staticmethod
+    def _get_airflow_version() -> str:
+        """Fetch and return the current Airflow version."""
+        try:
+            # This can be a circular import under specific configurations.
+            # Importing locally to either avoid or catch it if it does happen.
+            from airflow import __version__ as airflow_version
+
+            return airflow_version
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "Unknown"
+
+    def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
+        user_agent_extra_values = [
+            f"Airflow/{self._get_airflow_version()}",
+            f"AmPP/{self._get_provider_version()}",
+            f"Caller/{self._get_caller()}",
+            f"DagRunKey/{self._generate_dag_key()}",
+            existing_user_agent_extra or "",
+        ]
+        return " ".join(user_agent_extra_values).strip()
+
     @cached_property
     def conn_config(self) -> AwsConnectionWrapper:
         """Get the Airflow Connection object and wrap it in helper (cached)."""
@@ -436,9 +527,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return self.conn_config.region_name
 
     @property
-    def config(self) -> Config | None:
+    def config(self) -> Config:
         """Configuration for botocore client read-only property."""
-        return self.conn_config.botocore_config
+        return self.conn_config.botocore_config or botocore.config.Config()
 
     @property
     def verify(self) -> bool | str | None:
@@ -451,6 +542,23 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             conn=self.conn_config, region_name=region_name, config=self.config
         ).create_session()
 
+    def _get_config(self, config: Config | None = None) -> Config:
+        """
+        No AWS Operators use the config argument to this method.
+        Keep backward compatibility with other users who might use it
+        """
+        if config is None:
+            config = deepcopy(self.config)
+
+        # ignore[union-attr] is required for this block to appease MyPy
+        # because the user_agent_extra field is generated at runtime.
+        user_agent_config = Config(
+            user_agent_extra=self._generate_user_agent_extra_field(
+                existing_user_agent_extra=config.user_agent_extra  # type: ignore[union-attr]
+            )
+        )
+        return config.merge(user_agent_config)  # type: ignore[union-attr]
+
     def get_client_type(
         self,
         region_name: str | None = None,
@@ -458,15 +566,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         client_type = self.client_type
-
-        # No AWS Operators use the config argument to this method.
-        # Keep backward compatibility with other users who might use it
-        if config is None:
-            config = self.config
-
         session = self.get_session(region_name=region_name)
         return session.client(
-            client_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+            client_type,
+            endpoint_url=self.conn_config.endpoint_url,
+            config=self._get_config(config),
+            verify=self.verify,
         )
 
     def get_resource_type(
@@ -476,15 +581,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         resource_type = self.resource_type
-
-        # No AWS Operators use the config argument to this method.
-        # Keep backward compatibility with other users who might use it
-        if config is None:
-            config = self.config
-
         session = self.get_session(region_name=region_name)
         return session.resource(
-            resource_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+            resource_type,
+            endpoint_url=self.conn_config.endpoint_url,
+            config=self._get_config(config),
+            verify=self.verify,
         )
 
     @cached_property
