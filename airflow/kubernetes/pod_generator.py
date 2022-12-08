@@ -346,6 +346,15 @@ class PodGenerator:
                 "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
             )
             pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
+        if len(pod_id) > 63:
+            # because in task handler we get pod name from ti hostname (which truncates
+            # pod_id to 63 characters) we won't be able to find the pod unless it is <= 63 characters.
+            # our code creates pod names shorter than this so this warning should not normally be triggered.
+            warnings.warn(
+                "Supplied pod_id is longer than 63 characters. Due to implementation details, the webserver "
+                "may not be able to stream logs while task is running. Please choose a shorter pod name."
+            )
+
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:

@@ -92,7 +92,7 @@ def _create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
     *,
-    max_length: int = 80,
+    max_length: int = 63,
     unique: bool = True,
 ) -> str:
     """
@@ -648,7 +648,9 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = _create_pod_id(task_id=self.task_id, unique=self.random_name_suffix)
+            pod.metadata.name = _create_pod_id(
+                task_id=self.task_id, unique=self.random_name_suffix, max_length=80
+            )
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix
             pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)

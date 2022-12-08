@@ -88,12 +88,14 @@ class TestCreatePodId:
 
     def test_create_pod_id_dag_too_long_with_suffix(self, create_pod_id):
         actual = create_pod_id("0" * 254)
-        assert re.match(r"0{71}-[a-z0-9]{8}", actual)
+        assert len(actual) == 63
+        assert re.match(r"0{54}-[a-z0-9]{8}", actual)
         assert re.match(pod_name_regex, actual)
 
     def test_create_pod_id_dag_too_long_non_unique(self, create_pod_id):
         actual = create_pod_id("0" * 254, unique=False)
-        assert re.match(r"0{80}", actual)
+        assert len(actual) == 63
+        assert re.match(r"0{63}", actual)
         assert re.match(pod_name_regex, actual)
 
     @pytest.mark.parametrize("unique", [True, False])
