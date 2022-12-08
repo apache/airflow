@@ -2317,6 +2317,13 @@
       type: string
       example: ~
       default: "offset"
+    - name: index_patterns
+      description: |
+        Comma separated list of index patterns to use when searching for logs (default: `_all`).
+      version_added: 2.6.0
+      type: string
+      example: something-*
+      default: "_all"
 - name: elasticsearch_configs
   description: ~
   options:
