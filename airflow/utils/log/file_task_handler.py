@@ -190,7 +190,6 @@ class FileTaskHandler(logging.Handler):
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
-
         elif self._should_check_k8s(ti.queue):
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
