@@ -409,6 +409,7 @@ desc
 deserialization
 Deserialize
 deserialize
+deserializer
 Deserialized
 deserialized
 deserializing
@@ -1276,6 +1277,8 @@ Sendgrid
 sendgrid
 serde
 serialise
+serializer
+serializers
 serializable
 SerializedDAG
 serverless
