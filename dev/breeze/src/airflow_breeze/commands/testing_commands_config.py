@@ -18,14 +18,13 @@ from __future__ import annotations
 
 TESTING_COMMANDS: dict[str, str | list[str]] = {
     "name": "Testing",
-    "commands": ["tests", "helm-tests", "docker-compose-tests"],
+    "commands": ["tests", "integration-tests", "helm-tests", "docker-compose-tests"],
 }
 TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze testing tests": [
         {
             "name": "Basic flag for tests command",
             "options": [
-                "--integration",
                 "--test-type",
                 "--test-timeout",
                 "--db-reset",
@@ -50,6 +49,28 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         {
             "name": "Advanced flag for tests command",
+            "options": [
+                "--image-tag",
+                "--mount-sources",
+            ],
+        },
+    ],
+    "breeze testing integration-tests": [
+        {
+            "name": "Basic flag for integration tests command",
+            "options": [
+                "--integration",
+                "--test-timeout",
+                "--db-reset",
+                "--backend",
+                "--python",
+                "--postgres-version",
+                "--mysql-version",
+                "--mssql-version",
+            ],
+        },
+        {
+            "name": "Advanced flag for integration tests command",
             "options": [
                 "--image-tag",
                 "--mount-sources",

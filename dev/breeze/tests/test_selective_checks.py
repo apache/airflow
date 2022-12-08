@@ -233,7 +233,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "test-types": "API Always CLI Core Integration Other Providers WWW",
+                    "test-types": "API Always CLI Core Other Providers WWW",
                 },
                 id="Everything should run - including all providers and upgrading to "
                 "newer requirements as setup.py changed and all Python versions",
@@ -252,7 +252,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "test-types": "API Always CLI Core Integration Other Providers WWW",
+                    "test-types": "API Always CLI Core Other Providers WWW",
                 },
                 id="Everything should run and upgrading to newer requirements as dependencies change",
             )
@@ -292,7 +292,7 @@ def test_expected_output_pull_request_main(
                     "full-tests-needed": "true",
                     "providers-package-format-exclude": "[]",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always CLI Core Integration Other Providers WWW",
+                    "test-types": "API Always CLI Core Other Providers WWW",
                 },
                 id="Everything should run including all providers when full tests are needed",
             )
@@ -316,7 +316,7 @@ def test_expected_output_pull_request_main(
                     "full-tests-needed": "true",
                     "providers-package-format-exclude": "[]",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always CLI Core Integration Other Providers WWW",
+                    "test-types": "API Always CLI Core Other Providers WWW",
                 },
                 id="Everything should run including full providers when full "
                 "tests are needed even with different label set as well",
@@ -338,7 +338,7 @@ def test_expected_output_pull_request_main(
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "providers-package-format-exclude": "[]",
-                    "test-types": "API Always CLI Core Integration Other Providers WWW",
+                    "test-types": "API Always CLI Core Other Providers WWW",
                 },
                 id="Everything should run including full providers when"
                 "full tests are needed even if no files are changed",
@@ -362,8 +362,7 @@ def test_expected_output_pull_request_main(
                     "providers-package-format-exclude": "[]",
                     "test-types": "API Always CLI Core Other WWW",
                 },
-                id="Everything should run except Providers and Integration "
-                "when full tests are needed for non-main branch",
+                id="Everything should run except Providers when full tests are needed for non-main branch",
             )
         ),
     ],
@@ -462,8 +461,7 @@ def test_expected_output_full_tests_needed(
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "API Always CLI Core Other WWW",
             },
-            id="All tests except providers and Integration should "
-            "run if core file changed in non-main branch",
+            id="All tests except Providers and should run if core file changed in non-main branch",
         ),
     ],
 )
@@ -531,7 +529,7 @@ def test_expected_output_pull_request_v2_3(
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "test-types": "API Always CLI Core Integration Other Providers WWW",
+                "test-types": "API Always CLI Core Other Providers WWW",
             },
             id="All tests except should run if core file changed",
         ),
@@ -566,7 +564,7 @@ def test_expected_output_pull_request_target(
                 "run-tests": "true",
                 "docs-build": "true",
                 "upgrade-to-newer-dependencies": "true",
-                "test-types": "API Always CLI Core Integration Other Providers WWW",
+                "test-types": "API Always CLI Core Other Providers WWW",
             },
             id="All tests run on push even if unimportant file changed",
         ),
@@ -584,7 +582,7 @@ def test_expected_output_pull_request_target(
                 "upgrade-to-newer-dependencies": "true",
                 "test-types": "API Always CLI Core Other WWW",
             },
-            id="All tests except Providers Integration and Helm run on push"
+            id="All tests except Providers and Helm run on push"
             " even if unimportant file changed in non-main branch",
         ),
         pytest.param(
@@ -599,7 +597,7 @@ def test_expected_output_pull_request_target(
                 "run-tests": "true",
                 "docs-build": "true",
                 "upgrade-to-newer-dependencies": "true",
-                "test-types": "API Always CLI Core Integration Other Providers WWW",
+                "test-types": "API Always CLI Core Other Providers WWW",
             },
             id="All tests run on push if core file changed",
         ),
@@ -650,7 +648,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "upgrade-to-newer-dependencies": "true"
             if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
             else "false",
-            "test-types": "API Always CLI Core Integration Other Providers WWW",
+            "test-types": "API Always CLI Core Other Providers WWW",
         },
         str(stderr),
     )

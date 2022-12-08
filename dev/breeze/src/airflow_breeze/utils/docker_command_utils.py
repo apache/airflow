@@ -607,7 +607,6 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "INIT_SCRIPT_FILE", "init.sh")
     set_value_to_default_if_not_set(env, "INSTALL_PACKAGES_FROM_CONTEXT", "false")
     set_value_to_default_if_not_set(env, "INSTALL_PROVIDERS_FROM_SOURCES", "true")
-    set_value_to_default_if_not_set(env, "LIST_OF_INTEGRATION_TESTS_TO_RUN", "")
     set_value_to_default_if_not_set(env, "LOAD_DEFAULT_CONNECTIONS", "false")
     set_value_to_default_if_not_set(env, "LOAD_EXAMPLES", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
@@ -642,7 +641,6 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "DB_RESET": "db_reset",
     "DEV_MODE": "dev_mode",
     "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
-    "ENABLED_INTEGRATIONS": "enabled_integrations",
     "GITHUB_ACTIONS": "github_actions",
     "INSTALL_AIRFLOW_VERSION": "install_airflow_version",
     "INSTALL_PROVIDERS_FROM_SOURCES": "install_providers_from_sources",

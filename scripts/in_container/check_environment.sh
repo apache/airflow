@@ -146,9 +146,6 @@ fi
 if [[ ${INTEGRATION_CASSANDRA} == "true" ]]; then
     check_service "Cassandra" "run_nc cassandra 9042" 50
 fi
-if [[ ${INTEGRATION_OPENLDAP} == "true" ]]; then
-    check_service "OpenLDAP" "run_nc openldap 389" 50
-fi
 if [[ ${INTEGRATION_TRINO} == "true" ]]; then
     check_service "Trino (HTTP)" "run_nc trino 8080" 50
     check_service "Trino (HTTPS)" "run_nc trino 7778" 50
