@@ -27,7 +27,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-@pytest.mark.integration("redis")
+@pytest.mark.integration("celery")
 class TestRedisSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}

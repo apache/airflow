@@ -49,8 +49,7 @@ ALL_INTEGRATIONS = [
     "mongo",
     "openldap",
     "pinot",
-    "rabbitmq",
-    "redis",
+    "celery",
     "statsd",
     "trino",
 ]
@@ -199,8 +198,7 @@ AVAILABLE_INTEGRATIONS = [
     "mongo",
     "openldap",
     "pinot",
-    "rabbitmq",
-    "redis",
+    "celery",
     "statsd",
     "trino",
 ]

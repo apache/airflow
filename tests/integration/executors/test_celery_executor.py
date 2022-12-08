@@ -93,8 +93,7 @@ def _prepare_app(broker_url=None, execute=None):
             set_event_loop(None)
 
 
-@pytest.mark.integration("redis")
-@pytest.mark.integration("rabbitmq")
+@pytest.mark.integration("celery")
 @pytest.mark.backend("mysql", "postgres")
 class TestCeleryExecutor:
     def setup_method(self) -> None:
@@ -260,8 +259,7 @@ class ClassWithCustomAttributes:
         return not self.__eq__(other)
 
 
-@pytest.mark.integration("redis")
-@pytest.mark.integration("rabbitmq")
+@pytest.mark.integration("celery")
 @pytest.mark.backend("mysql", "postgres")
 class TestBulkStateFetcher(unittest.TestCase):
     @mock.patch(
