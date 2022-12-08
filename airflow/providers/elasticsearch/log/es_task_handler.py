@@ -83,6 +83,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset_field: str = "offset",
         host: str = "localhost:9200",
         frontend: str = "localhost:5601",
+        index_patterns: str | None = conf.get("elasticsearch", "index_patterns", fallback="_all"),
         es_kwargs: dict | None = conf.getsection("elasticsearch_configs"),
         *,
         filename_template: str | None = None,
@@ -114,6 +115,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.json_fields = [label.strip() for label in json_fields.split(",")]
         self.host_field = host_field
         self.offset_field = offset_field
+        self.index_patterns = index_patterns
         self.context_set = False
 
         self.formatter: logging.Formatter
@@ -282,7 +284,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param metadata: log metadata, used for steaming log download.
         """
         # Offset is the unique key for sorting logs given log_id.
-        search = Search(using=self.client).query("match_phrase", log_id=log_id).sort(self.offset_field)
+        search = (
+            Search(index=self.index_patterns, using=self.client)
+            .query("match_phrase", log_id=log_id)
+            .sort(self.offset_field)
+        )
 
         search = search.filter("range", **{self.offset_field: {"gt": int(offset)}})
         max_log_line = search.count()
