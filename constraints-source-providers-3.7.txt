@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-08T05:28:57Z
+# This constraints file was automatically generated on 2022-12-08T09:24:49Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -479,7 +479,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.7.0
-spython==0.2.14
+spython==0.3.0
 sqlalchemy-bigquery==1.5.0
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.11
