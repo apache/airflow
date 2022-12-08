@@ -22,6 +22,7 @@ import os
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from unittest import mock
+from uuid import UUID
 
 import boto3
 import pytest
@@ -301,6 +302,58 @@ class TestAwsBaseHook:
 
         assert table.item_count == 0
 
+    @pytest.mark.parametrize(
+        "client_meta",
+        [
+            AwsBaseHook(client_type="s3").get_client_type().meta,
+            AwsBaseHook(resource_type="dynamodb").get_resource_type().meta.client.meta,
+        ],
+    )
+    def test_user_agent_extra_update(self, client_meta):
+        """
+        We are only looking for the keys appended by the AwsBaseHook. A user_agent string
+        is a number of key/value pairs such as: `BOTO3/1.25.4 AIRFLOW/2.5.0.DEV0 AMPP/6.0.0`.
+        """
+        expected_user_agent_tag_keys = ["Airflow", "AmPP", "Caller", "DagRunKey"]
+
+        result_user_agent_tags = client_meta.config.user_agent.split(" ")
+        result_user_agent_tag_keys = [tag.split("/")[0].lower() for tag in result_user_agent_tags]
+
+        for key in expected_user_agent_tag_keys:
+            assert key.lower() in result_user_agent_tag_keys
+
+    @staticmethod
+    def fetch_tags() -> dict[str:str]:
+        """Helper method which creates an AwsBaseHook and returns the user agent string split into a dict."""
+        user_agent_string = AwsBaseHook(client_type="s3").get_client_type().meta.config.user_agent
+        # Split the list of {Key}/{Value} into a dict
+        return dict(tag.split("/") for tag in user_agent_string.split(" "))
+
+    @pytest.mark.parametrize("found_classes", [["RandomOperator"], ["BaseSensorOperator", "TestSensor"]])
+    @mock.patch.object(AwsBaseHook, "_find_class_name")
+    def test_user_agent_caller_target_function_found(self, mock_class_name, found_classes):
+        mock_class_name.side_effect = found_classes
+
+        user_agent_tags = self.fetch_tags()
+
+        assert mock_class_name.call_count == len(found_classes)
+        assert user_agent_tags["Caller"] == found_classes[-1]
+
+    def test_user_agent_caller_target_function_not_found(self):
+        default_caller_name = "Unknown"
+
+        user_agent_tags = self.fetch_tags()
+
+        assert user_agent_tags["Caller"] == default_caller_name
+
+    @pytest.mark.parametrize("env_var, expected_version", [({"AIRFLOW_CTX_DAG_ID": "banana"}, 5), [{}, None]])
+    @mock.patch.object(AwsBaseHook, "_get_caller", return_value="Test")
+    def test_user_agent_dag_run_key_is_hashed_correctly(self, _, env_var, expected_version):
+        with mock.patch.dict(os.environ, env_var, clear=True):
+            dag_run_key = self.fetch_tags()["DagRunKey"]
+
+            assert UUID(dag_run_key).version == expected_version
+
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
     def test_assume_role(self, mock_get_connection):
@@ -346,7 +399,7 @@ class TestAwsBaseHook:
             hook.get_client_type("s3")
 
         calls_assume_role = [
-            mock.call.session.Session().client("sts", config=None),
+            mock.call.session.Session().client("sts", config=mock.ANY),
             mock.call.session.Session()
             .client()
             .assume_role(
@@ -510,7 +563,7 @@ class TestAwsBaseHook:
             mock_xpath.assert_called_once_with(xpath)
 
         calls_assume_role_with_saml = [
-            mock.call.session.Session().client("sts", config=None),
+            mock.call.session.Session().client("sts", config=mock.ANY),
             mock.call.session.Session()
             .client()
             .assume_role_with_saml(
@@ -735,7 +788,7 @@ class TestAwsBaseHook:
         mock_session_factory.assert_called_once_with(
             conn=hook.conn_config,
             region_name=method_region_name,
-            config=hook_botocore_config,
+            config=mock.ANY,
         )
         assert mock_session_factory_instance.create_session.assert_called_once
         assert session == MOCK_BOTO3_SESSION
@@ -807,7 +860,7 @@ class ThrowErrorUntilCount:
 
     def __call__(self):
         """
-        Raise an Forbidden until after count threshold has been crossed.
+        Raise an Exception until after count threshold has been crossed.
         Then return True.
         """
         if self.counter < self.count:
@@ -839,7 +892,8 @@ class TestRetryDecorator:  # ptlint: disable=invalid-name
         result = _retryable_test(lambda: 42)
         assert result, 42
 
-    def test_retry_on_exception(self):
+    @mock.patch("time.sleep", return_value=0)
+    def test_retry_on_exception(self, _):
         quota_retry = {
             "stop_after_delay": 2,
             "multiplier": 1,
