@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-07T18:31:37Z
+# This constraints file was automatically generated on 2022-12-08T03:14:03Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -54,7 +54,7 @@ cachelib==0.9.0
 cachetools==5.2.0
 cattrs==22.2.0
 celery==5.2.7
-certifi==2022.9.24
+certifi==2022.12.7
 cffi==1.15.1
 cgroupspy==0.2.2
 chardet==4.0.0
@@ -123,7 +123,7 @@ msgpack==1.0.4
 multidict==6.0.3
 numpy==1.21.6
 oauthlib==3.2.2
-packaging==21.3
+packaging==22.0
 pandas==1.3.5
 partd==1.3.0
 pathspec==0.9.0
@@ -143,7 +143,6 @@ pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycparser==2.21
 pykerberos==1.2.4
-pyparsing==3.0.9
 pyrsistent==0.19.2
 pyspnego==0.6.3
 python-daemon==2.3.2

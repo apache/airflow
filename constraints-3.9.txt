@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-07T18:33:04Z
+# This constraints file was automatically generated on 2022-12-08T03:15:34Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -173,16 +173,16 @@ billiard==3.6.4.0
 black==22.10.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.24
+boto3==1.26.25
 boto==2.49.0
-botocore==1.29.24
+botocore==1.29.25
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==22.2.0
 celery==5.2.7
-certifi==2022.9.24
+certifi==2022.12.7
 cffi==1.15.1
 cfgv==3.3.1
 cfn-lint==0.72.2
@@ -585,7 +585,7 @@ types-PyMySQL==1.0.19.1
 types-PyYAML==6.0.12.2
 types-boto==2.49.18.3
 types-certifi==2021.10.8.3
-types-croniter==1.3.2
+types-croniter==1.3.2.1
 types-cryptography==3.3.23.2
 types-docutils==0.19.1.1
 types-freezegun==1.1.10
