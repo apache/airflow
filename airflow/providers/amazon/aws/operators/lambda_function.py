@@ -37,9 +37,12 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
     review the boto3 Lambda invoke docs.
 
     :param function_name: The name of the AWS Lambda function, version, or alias.
-    :param payload: The JSON string that you want to provide to your Lambda function as input.
     :param log_type: Set to Tail to include the execution log in the response. Otherwise, set to "None".
     :param qualifier: Specify a version or alias to invoke a published version of the function.
+    :param invocation_type: One of RequestResponse / Event / DryRun
+    :param client_context: Up to 3,583 bytes of base64-encoded data about the invoking client
+        to pass to the function in the context object.
+    :param payload: The JSON string that you want to provide to your Lambda function as input.
     :param aws_conn_id: The AWS connection ID to use
 
     .. seealso::
