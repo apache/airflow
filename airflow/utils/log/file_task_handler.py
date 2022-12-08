@@ -133,7 +133,12 @@ class FileTaskHandler(logging.Handler):
         return False
 
     @staticmethod
-    def _try_read_from_k8s(queue):
+    def _should_check_k8s(queue):
+        """
+        If the task is running through kubernetes executor, return True.
+
+        When logs aren't available locally, in this case we read from k8s pod logs.
+        """
         executor = conf.get("core", "executor")
         if executor == "KubernetesExecutor":
             return True
@@ -186,7 +191,7 @@ class FileTaskHandler(logging.Handler):
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
 
-        elif self._try_read_from_k8s(ti.queue):
+        elif self._should_check_k8s(ti.queue):
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
