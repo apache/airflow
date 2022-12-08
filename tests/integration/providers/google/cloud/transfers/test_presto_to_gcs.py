@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 import pytest
@@ -48,7 +47,7 @@ SCHEMA_JSON = b'[{"name": "some_num", "type": "INT64"}, {"name": "some_str", "ty
 
 
 @pytest.mark.integration("presto")
-class TestPrestoToGCSOperator(unittest.TestCase):
+class TestPrestoToGCSOperator:
     def test_init(self):
         """Test PrestoToGCSOperator instance is properly initialized."""
         op = PrestoToGCSOperator(
