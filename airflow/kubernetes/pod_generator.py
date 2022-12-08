@@ -19,6 +19,8 @@ This module provides an interface between the previous Pod
 API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
+
+:meta private:
 """
 from __future__ import annotations
 
@@ -36,7 +38,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import AirflowConfigException, PodReconciliationError, RemovedInAirflow3Warning
-from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
+from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str, create_pod_id
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
@@ -321,9 +323,9 @@ class PodGenerator:
 
     @staticmethod
     def construct_pod(
+        *,
         dag_id: str,
         task_id: str,
-        pod_id: str,
         try_number: int,
         kube_image: str,
         date: datetime.datetime | None,
@@ -341,11 +343,9 @@ class PodGenerator:
             - executor_config
             - dynamic arguments
         """
-        if len(pod_id) > 253:
-            warnings.warn(
-                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
-            )
-            pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
+        # we must keep length 62 because ti.hostname is used store pod_id
+        # which we use in file task hander to read logs live
+        pod_id = create_pod_id(dag_id=dag_id, task_id=task_id, max_length=62, unique=True)
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:

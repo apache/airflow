@@ -49,7 +49,6 @@ def generate_pod_yaml(args):
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,
-            pod_id=create_pod_id(args.dag_id, ti.task_id),
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
             date=ti.execution_date,

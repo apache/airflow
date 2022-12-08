@@ -316,7 +316,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
         pod = PodGenerator.construct_pod(
             namespace=self.namespace,
             scheduler_job_id=self.scheduler_job_id,
-            pod_id=create_pod_id(dag_id, task_id),
             dag_id=dag_id,
             task_id=task_id,
             kube_image=self.kube_config.kube_image,

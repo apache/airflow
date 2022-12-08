@@ -414,7 +414,6 @@ class TestPodGenerator:
         result = PodGenerator.construct_pod(
             dag_id=self.dag_id,
             task_id=self.task_id,
-            pod_id="pod_id",
             kube_image=config_image,
             try_number=self.try_number,
             date=self.execution_date,

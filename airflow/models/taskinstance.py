@@ -2131,7 +2131,6 @@ class TaskInstance(Base, LoggingMixin):
             task_id=self.task_id,
             map_index=self.map_index,
             date=None,
-            pod_id=create_pod_id(self.dag_id, self.task_id),
             try_number=self.try_number,
             kube_image=kube_config.kube_image,
             args=self.command_as_list(),
