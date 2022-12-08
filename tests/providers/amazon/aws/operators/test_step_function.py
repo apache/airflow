@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -37,10 +36,10 @@ NAME = "NAME"
 INPUT = "{}"
 
 
-class TestStepFunctionGetExecutionOutputOperator(unittest.TestCase):
+class TestStepFunctionGetExecutionOutputOperator:
     TASK_ID = "step_function_get_execution_output"
 
-    def setUp(self):
+    def setup_method(self):
         self.mock_context = MagicMock()
 
     def test_init(self):
@@ -80,10 +79,10 @@ class TestStepFunctionGetExecutionOutputOperator(unittest.TestCase):
         assert {} == result
 
 
-class TestStepFunctionStartExecutionOperator(unittest.TestCase):
+class TestStepFunctionStartExecutionOperator:
     TASK_ID = "step_function_start_execution_task"
 
-    def setUp(self):
+    def setup_method(self):
         self.mock_context = MagicMock()
 
     def test_init(self):

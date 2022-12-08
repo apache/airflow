@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
@@ -30,7 +29,7 @@ SUBJECT = "Subject to send"
 MESSAGE_ATTRIBUTES = {"test-attribute": "Attribute to send"}
 
 
-class TestSnsPublishOperator(unittest.TestCase):
+class TestSnsPublishOperator:
     def test_init(self):
         # Given / When
         operator = SnsPublishOperator(

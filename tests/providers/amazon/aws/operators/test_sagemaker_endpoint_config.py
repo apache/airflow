@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -42,8 +41,8 @@ CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [["ProductionVariants", "InitialInstanceCount"]]
 
 
-class TestSageMakerEndpointConfigOperator(unittest.TestCase):
-    def setUp(self):
+class TestSageMakerEndpointConfigOperator:
+    def setup_method(self):
         self.sagemaker = SageMakerEndpointConfigOperator(
             task_id="test_sagemaker_operator",
             config=CREATE_ENDPOINT_CONFIG_PARAMS,

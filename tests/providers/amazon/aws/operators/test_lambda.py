@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import io
 import json
-import unittest
 import zipfile
 
 import pytest
@@ -33,7 +32,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import AwsLambdaInvo
 @mock_lambda
 @mock_sts
 @mock_iam
-class TestAwsLambdaInvokeFunctionOperator(unittest.TestCase):
+class TestAwsLambdaInvokeFunctionOperator:
     def test_init(self):
         lambda_operator = AwsLambdaInvokeFunctionOperator(
             task_id="test",

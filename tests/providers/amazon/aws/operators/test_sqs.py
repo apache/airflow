@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock
 
 import pytest
@@ -38,8 +37,8 @@ FIFO_QUEUE_NAME = "test-queue.fifo"
 FIFO_QUEUE_URL = f"https://{FIFO_QUEUE_NAME}"
 
 
-class TestSqsPublishOperator(unittest.TestCase):
-    def setUp(self):
+class TestSqsPublishOperator:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         self.dag = DAG("test_dag_id", default_args=args)

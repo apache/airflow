@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -87,8 +86,8 @@ EXPECTED_INTEGER_FIELDS: list[list[str]] = [
 EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS: list[list[str]] = [["StoppingCondition", "MaxRuntimeInSeconds"]]
 
 
-class TestSageMakerProcessingOperator(unittest.TestCase):
-    def setUp(self):
+class TestSageMakerProcessingOperator:
+    def setup_method(self):
         self.processing_config_kwargs = dict(
             task_id="test_sagemaker_operator", wait_for_completion=False, check_interval=5
         )
@@ -185,7 +184,7 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             sagemaker.execute(None)
 
-    @unittest.skip("Currently, the auto-increment jobname functionality is not missing.")
+    @pytest.mark.skip("Currently, the auto-increment jobname functionality is not missing.")
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=1)
     @mock.patch.object(

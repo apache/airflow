@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -57,11 +56,11 @@ CREATE_TRAINING_PARAMS = {
 }
 
 
-class TestSageMakerTrainingOperator(unittest.TestCase):
-    def setUp(self):
+class TestSageMakerTrainingOperator:
+    def setup_method(self):
         self.sagemaker = SageMakerTrainingOperator(
             task_id="test_sagemaker_operator",
-            config=CREATE_TRAINING_PARAMS,
+            config=CREATE_TRAINING_PARAMS.copy(),
             wait_for_completion=False,
             check_interval=5,
         )

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from typing import Any
 
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator
@@ -27,8 +26,8 @@ PARSED_CONFIG: dict = {"key1": 1, "key2": {"key3": 3, "key4": 4}, "key5": [{"key
 EXPECTED_INTEGER_FIELDS: list[list[Any]] = []
 
 
-class TestSageMakerBaseOperator(unittest.TestCase):
-    def setUp(self):
+class TestSageMakerBaseOperator:
+    def setup_method(self):
         self.sagemaker = SageMakerBaseOperator(task_id="test_sagemaker_operator", config=CONFIG)
         self.sagemaker.aws_conn_id = "aws_default"
 

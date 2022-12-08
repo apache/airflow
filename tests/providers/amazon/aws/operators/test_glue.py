@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
@@ -27,18 +26,16 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
 
 
-class TestGlueJobOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue.GlueJobHook")
-    def setUp(self, glue_hook_mock):
+class TestGlueJobOperator:
+    def setup_method(self):
         conf.load_test_config()
 
-        self.glue_hook_mock = glue_hook_mock
-
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "script_location",
         [
             "s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
             "/glue-examples/glue-scripts/sample_aws_glue_job.py",
-        ]
+        ],
     )
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_job_state")
@@ -47,12 +44,12 @@ class TestGlueJobOperator(unittest.TestCase):
     @mock.patch.object(S3Hook, "load_file")
     def test_execute_without_failure(
         self,
-        script_location,
         mock_load_file,
         mock_get_conn,
         mock_initialize_job,
         mock_get_job_state,
         mock_print_job_logs,
+        script_location,
     ):
         glue = GlueJobOperator(
             task_id="test_glue_operator",

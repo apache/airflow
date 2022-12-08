@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import io
-import unittest
 from unittest import mock
 
 import boto3
@@ -38,8 +37,8 @@ S3_KEY = "test-airflow-key"
 TASK_ID = "test-s3-operator"
 
 
-class TestS3CopyObjectOperator(unittest.TestCase):
-    def setUp(self):
+class TestS3CopyObjectOperator:
+    def setup_method(self):
         self.source_bucket = "bucket1"
         self.source_key = "path1/data.txt"
         self.dest_bucket = "bucket2"
@@ -262,7 +261,7 @@ class TestS3DeleteObjectsOperator:
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
 
-class TestS3CreateObjectOperator(unittest.TestCase):
+class TestS3CreateObjectOperator:
     @mock.patch.object(S3Hook, "load_string")
     def test_execute_if_data_is_string(self, mock_load_string):
         data = "data"

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 from moto import mock_s3
@@ -35,8 +34,8 @@ TAG_SET = [{"Key": "Color", "Value": "Green"}]
 TASK_ID = os.environ.get("TASK_ID", "test-s3-operator")
 
 
-class TestS3GetBucketTaggingOperator(unittest.TestCase):
-    def setUp(self):
+class TestS3GetBucketTaggingOperator:
+    def setup_method(self):
         self.get_bucket_tagging_operator = S3GetBucketTaggingOperator(
             task_id=TASK_ID,
             bucket_name=BUCKET_NAME,
@@ -63,8 +62,8 @@ class TestS3GetBucketTaggingOperator(unittest.TestCase):
         get_bucket_tagging.assert_not_called()
 
 
-class TestS3PutBucketTaggingOperator(unittest.TestCase):
-    def setUp(self):
+class TestS3PutBucketTaggingOperator:
+    def setup_method(self):
         self.put_bucket_tagging_operator = S3PutBucketTaggingOperator(
             task_id=TASK_ID,
             tag_set=TAG_SET,
@@ -94,8 +93,8 @@ class TestS3PutBucketTaggingOperator(unittest.TestCase):
         put_bucket_tagging.assert_not_called()
 
 
-class TestS3DeleteBucketTaggingOperator(unittest.TestCase):
-    def setUp(self):
+class TestS3DeleteBucketTaggingOperator:
+    def setup_method(self):
         self.delete_bucket_tagging_operator = S3DeleteBucketTaggingOperator(
             task_id=TASK_ID,
             bucket_name=BUCKET_NAME,

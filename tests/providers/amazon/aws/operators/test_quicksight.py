@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
@@ -37,8 +36,8 @@ MOCK_RESPONSE = {
 }
 
 
-class TestQuickSightCreateIngestionOperator(unittest.TestCase):
-    def setUp(self):
+class TestQuickSightCreateIngestionOperator:
+    def setup_method(self):
         self.quicksight = QuickSightCreateIngestionOperator(
             task_id="test_quicksight_operator",
             data_set_id=DATA_SET_ID,
