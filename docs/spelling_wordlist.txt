@@ -409,9 +409,9 @@ desc
 deserialization
 Deserialize
 deserialize
-deserializer
 Deserialized
 deserialized
+deserializer
 deserializing
 dest
 dev
@@ -1277,10 +1277,10 @@ Sendgrid
 sendgrid
 serde
 serialise
-serializer
-serializers
 serializable
 SerializedDAG
+serializer
+serializers
 serverless
 ServiceAccount
 setattr

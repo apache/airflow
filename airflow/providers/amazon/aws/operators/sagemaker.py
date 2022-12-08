@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.utils.json import WebEncoder
+from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -36,7 +36,7 @@ CHECK_INTERVAL_SECOND: int = 30
 
 
 def serialize(result: dict) -> str:
-    return json.loads(json.dumps(result, cls=WebEncoder))
+    return json.loads(json.dumps(result, cls=AirflowJsonEncoder))
 
 
 class SageMakerBaseOperator(BaseOperator):

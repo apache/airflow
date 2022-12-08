@@ -31,7 +31,7 @@ from botocore.signers import RequestSigner
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils import yaml
-from airflow.utils.json import WebEncoder
+from airflow.utils.json import AirflowJsonEncoder
 
 DEFAULT_PAGINATION_TOKEN = ""
 STS_TOKEN_EXPIRES_IN = 60
@@ -276,7 +276,7 @@ class EksHook(AwsBaseHook):
         )
         if verbose:
             cluster_data = response.get("cluster")
-            self.log.info("Amazon EKS cluster details: %s", json.dumps(cluster_data, cls=WebEncoder))
+            self.log.info("Amazon EKS cluster details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
         return response
 
     def describe_nodegroup(self, clusterName: str, nodegroupName: str, verbose: bool = False) -> dict:
@@ -302,7 +302,7 @@ class EksHook(AwsBaseHook):
             nodegroup_data = response.get("nodegroup")
             self.log.info(
                 "Amazon EKS managed node group details: %s",
-                json.dumps(nodegroup_data, cls=WebEncoder),
+                json.dumps(nodegroup_data, cls=AirflowJsonEncoder),
             )
         return response
 
@@ -331,7 +331,9 @@ class EksHook(AwsBaseHook):
         )
         if verbose:
             fargate_profile_data = response.get("fargateProfile")
-            self.log.info("AWS Fargate profile details: %s", json.dumps(fargate_profile_data, cls=WebEncoder))
+            self.log.info(
+                "AWS Fargate profile details: %s", json.dumps(fargate_profile_data, cls=AirflowJsonEncoder)
+            )
         return response
 
     def get_cluster_state(self, clusterName: str) -> ClusterStates:
