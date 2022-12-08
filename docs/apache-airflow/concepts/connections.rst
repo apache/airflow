@@ -44,8 +44,8 @@ Custom connections
 ------------------
 
 Airflow allows to define custom connection types. This is what is described in detail in
-:doc:`apache-airflow-providers:index` - providers give you the capability of defining your own connections.
+:doc:`apache-airflow-providers-imap:index` - providers give you the capability of defining your own connections.
 The connection customization can be done by any provider, but also
 many of the providers managed by the community define custom connection types.
 The full list of all providers delivered by ``Apache Airflow community managed providers`` can be found in
-:doc:`apache-airflow-providers:core-extensions/connections`.
+:doc:`apache-airflow-providers-imap:core-extensions/connections`.
