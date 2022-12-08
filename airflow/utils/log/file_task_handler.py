@@ -146,7 +146,7 @@ class FileTaskHandler(logging.Handler):
             if queue == conf.get("local_kubernetes_executor", "kubernetes_queue"):
                 return True
         elif executor == "CeleryKubernetesExecutor":
-            if queue == conf.get("local_kubernetes_executor", "kubernetes_queue"):
+            if queue == conf.get("celery_kubernetes_executor", "kubernetes_queue"):
                 return True
         return False
 
