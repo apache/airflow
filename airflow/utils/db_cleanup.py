@@ -270,7 +270,7 @@ def _cleanup_table(
     session.commit()
 
 
-def _confirm_delete(*, date: DateTime, tables: list[str]):
+def _confirm_delete(*, date: DateTime, tables: set[str]):
     for_tables = f" for tables {tables!r}" if tables else ""
     question = (
         f"You have requested that we purge all data prior to {date}{for_tables}.\n"
@@ -336,8 +336,14 @@ def run_cleanup(
     :param session: Session representing connection to the metadata database.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
-    effective_table_names = table_names if table_names else list(config_dict.keys())
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
+    desired_table_names = set(table_names if table_names else config_dict.keys())
+    effective_config_dict = {k: v for k, v in config_dict.items() if k in desired_table_names}
+    effective_table_names = set(effective_config_dict.keys())
+    if desired_table_names != effective_table_names:
+        outliers = desired_table_names - effective_table_names
+        logger.warning("The following table(s) are not valid choices and will be skipped: %s", outliers)
+    if not effective_table_names:
+        raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
     if dry_run:
         print("Performing dry run for db cleanup.")
         print(
@@ -346,7 +352,7 @@ def run_cleanup(
         )
         _print_config(configs=effective_config_dict)
     if not dry_run and confirm:
-        _confirm_delete(date=clean_before_timestamp, tables=list(effective_config_dict.keys()))
+        _confirm_delete(date=clean_before_timestamp, tables=effective_table_names)
     existing_tables = reflect_tables(tables=None, session=session).tables
     for table_name, table_config in effective_config_dict.items():
         if table_name not in existing_tables:
