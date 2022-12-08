@@ -720,7 +720,7 @@
         is expected to require a single parameter: the secret to be adapted. It may return a
         single adaptation of the secret or an iterable of adaptations to each be masked as secrets.
         The original secret will be masked as well as any adaptations returned.
-      version_added: 2.5.0
+      version_added: 2.6.0
       type: string
       default: ""
       example: "urllib.parse.quote"
