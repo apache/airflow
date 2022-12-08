@@ -389,7 +389,6 @@ def task_run(args, dag=None):
     log.info("Running %s on host %s", ti, hostname)
 
     try:
-        assert args.interactive
         if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
         else:
