@@ -243,6 +243,11 @@ class ShellParams:
         if len(integrations) > 0:
             for integration in integrations:
                 compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
+        if "trino" in integrations and "kerberos" not in integrations:
+            get_console().print(
+                "[warning]Adding `kerberos` integration as it is implicitly needed by trino",
+            )
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-kerberos.yml")
         return os.pathsep.join([os.fspath(f) for f in compose_file_list])
 
     @property
