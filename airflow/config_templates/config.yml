@@ -723,7 +723,7 @@
     - name: secret_mask_adapter
       description: |
         An import path to a function to add adaptations of each secret added with
-        `airflow.utils.log.secrets_masker.mask_secret` to the log message. The given function
+        `airflow.utils.log.secrets_masker.mask_secret` to be masked in log messages. The given function
         is expected to require a single parameter: the secret to be adapted. It may return a
         single adaptation of the secret or an iterable of adaptations to each be masked as secrets.
         The original secret will be masked as well as any adaptations returned.
