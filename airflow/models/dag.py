@@ -3204,6 +3204,13 @@ class DagModel(Base):
         return f"<DAG: {self.dag_id}>"
 
     @property
+    def schedule_description(self) -> str | None:
+        if isinstance(self.schedule_interval, str) and self.schedule_interval != '@once':
+            return str(self.schedule_interval) + " " + str(self.timezone.name)
+        else:
+            return str(self.schedule_interval)
+
+    @property
     def next_dagrun_data_interval(self) -> DataInterval | None:
         return _get_model_data_interval(
             self,
