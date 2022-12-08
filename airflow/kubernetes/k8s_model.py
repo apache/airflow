@@ -27,7 +27,7 @@ class K8SModel(ABC):
     """
     Airflow Kubernetes models are here for backwards compatibility reasons only.
 
-    Ideally clients should use the kubernetes api
+    Ideally clients should use the kubernetes API
     and the process of
 
         client input -> Airflow k8s models -> k8s models

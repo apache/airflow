@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Launches PODs."""
+"""Launches pods."""
 from __future__ import annotations
 
 import json
@@ -53,7 +53,7 @@ warnings.warn(
 
 
 class PodStatus:
-    """Status of the PODs."""
+    """Status of the pods."""
 
     PENDING = "pending"
     RUNNING = "running"
@@ -65,7 +65,7 @@ class PodLauncher(LoggingMixin):
     """
     Deprecated class for launching pods.
 
-    Please use airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager instead
+    Please use airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager instead.
     """
 
     def __init__(
@@ -92,7 +92,7 @@ class PodLauncher(LoggingMixin):
         self.extract_xcom = extract_xcom
 
     def run_pod_async(self, pod: V1Pod, **kwargs):
-        """Runs POD asynchronously."""
+        """Runs pod asynchronously."""
         pod_mutation_hook(pod)
 
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
@@ -110,7 +110,7 @@ class PodLauncher(LoggingMixin):
         return resp
 
     def delete_pod(self, pod: V1Pod):
-        """Deletes POD."""
+        """Deletes pod."""
         try:
             self._client.delete_namespaced_pod(
                 pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions()
@@ -228,7 +228,7 @@ class PodLauncher(LoggingMixin):
         timestamps: bool = False,
         since_seconds: int | None = None,
     ):
-        """Reads log from the POD."""
+        """Reads log from the pod."""
         additional_kwargs = {}
         if since_seconds:
             additional_kwargs["since_seconds"] = since_seconds
@@ -251,7 +251,7 @@ class PodLauncher(LoggingMixin):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod):
-        """Reads events from the POD."""
+        """Reads events from the pod."""
         try:
             return self._client.list_namespaced_event(
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
@@ -261,7 +261,7 @@ class PodLauncher(LoggingMixin):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod(self, pod: V1Pod):
-        """Read POD information."""
+        """Read pod information."""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except HTTPError as e:
@@ -303,7 +303,7 @@ class PodLauncher(LoggingMixin):
         return None
 
     def process_status(self, job_id, status):
-        """Process status information for the JOB."""
+        """Process status information for the job."""
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED

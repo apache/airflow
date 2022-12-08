@@ -452,7 +452,7 @@ class PodGenerator:
     @staticmethod
     def deserialize_model_dict(pod_dict: dict | None) -> k8s.V1Pod:
         """
-        Deserializes python dictionary to k8s.V1Pod.
+        Deserializes a Python dictionary to k8s.V1Pod.
 
         Unfortunately we need access to the private method
         ``_ApiClient__deserialize_model`` from the kubernetes client.
