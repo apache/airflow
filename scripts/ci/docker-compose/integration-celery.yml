@@ -17,6 +17,17 @@
 ---
 version: "3.7"
 services:
+  rabbitmq:
+    image: rabbitmq:3.7
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - rabbitmq-db-volume:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: "on-failure"
   redis:
     image: redis:5.0.1
     volumes:
@@ -30,13 +41,15 @@ services:
       timeout: 30s
       retries: 50
     restart: "on-failure"
-
   airflow:
     environment:
-      - INTEGRATION_REDIS=true
+      - INTEGRATION_CELERY=true
     depends_on:
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
+  rabbitmq-db-volume:
   redis-db-volume:
