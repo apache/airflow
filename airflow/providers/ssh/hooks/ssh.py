@@ -527,3 +527,12 @@ class SSHHook(BaseHook):
         exit_status = stdout.channel.recv_exit_status()
 
         return exit_status, agg_stdout, agg_stderr
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test the ssh connection by execute remote bash commands"""
+        try:
+            with self.get_conn() as conn:
+                conn.exec_command("pwd")
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)

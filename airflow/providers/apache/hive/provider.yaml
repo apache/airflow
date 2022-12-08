@@ -22,6 +22,7 @@ description: |
   `Apache Hive <https://hive.apache.org/>`__
 
 versions:
+  - 5.0.0
   - 4.1.1
   - 4.1.0
   - 4.0.1
