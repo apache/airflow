@@ -21,7 +21,7 @@ import collections
 import logging
 import re
 import sys
-from typing import Any, Dict, Iterable, List, TextIO, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable, List, TextIO, Tuple, TypeVar, Union
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
@@ -92,7 +92,7 @@ def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     if not secret:
         return
 
-    mask_adapter: callable | None = None
+    mask_adapter: Callable | None = None
     try:
         mask_adapter = conf.getimport("logging", "secret_mask_adapter")
     except AirflowConfigException:
