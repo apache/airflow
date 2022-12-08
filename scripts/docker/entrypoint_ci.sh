@@ -393,13 +393,7 @@ fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
 
-if [[ -n ${LIST_OF_INTEGRATION_TESTS_TO_RUN=} ]]; then
-    # Integration tests
-    for INT in ${LIST_OF_INTEGRATION_TESTS_TO_RUN}
-    do
-        EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
-    done
-elif [[ ${TEST_TYPE:=""} == "Long" ]]; then
+if [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"

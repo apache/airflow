@@ -17,30 +17,39 @@
 ---
 version: "3.7"
 services:
-  openldap:
-    image: ghcr.io/apache/airflow-openldap:2.4.50-2021.07.04
-    command: "--copy-service"
-    environment:
-      - LDAP_DOMAIN=example.com
-      - LDAP_ADMIN_PASSWORD=insecure
-      - LDAP_CONFIG_PASSWORD=insecure
+  rabbitmq:
+    image: rabbitmq:3.7
     volumes:
-      - ../openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - openldap-db-volume:/var/lib/ldap
+      - rabbitmq-db-volume:/var/lib/rabbitmq
     healthcheck:
-      test: 'ss -ltp | grep 389'
+      test: rabbitmq-diagnostics -q ping
       interval: 5s
       timeout: 30s
       retries: 50
     restart: "on-failure"
-
+  redis:
+    image: redis:5.0.1
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - redis-db-volume:/data/redis
+    ports:
+      - "${REDIS_HOST_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: "on-failure"
   airflow:
     environment:
-      - INTEGRATION_OPENLDAP=true
+      - INTEGRATION_CELERY=true
     depends_on:
-      openldap:
+      redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
 volumes:
-  openldap-db-volume:
+  rabbitmq-db-volume:
+  redis-db-volume:

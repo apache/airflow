@@ -47,11 +47,8 @@ ALL_INTEGRATIONS = [
     "cassandra",
     "kerberos",
     "mongo",
-    "openldap",
     "pinot",
-    "rabbitmq",
-    "redis",
-    "statsd",
+    "celery",
     "trino",
 ]
 ALLOWED_INTEGRATIONS = [
@@ -88,7 +85,6 @@ class SelectiveUnitTestTypes(Enum):
     CLI = "CLI"
     CORE = "Core"
     OTHER = "Other"
-    INTEGRATION = "Integration"
     PROVIDERS = "Providers"
     WWW = "WWW"
 
@@ -197,14 +193,11 @@ AVAILABLE_INTEGRATIONS = [
     "cassandra",
     "kerberos",
     "mongo",
-    "openldap",
     "pinot",
-    "rabbitmq",
-    "redis",
+    "celery",
     "statsd",
     "trino",
 ]
-ENABLED_INTEGRATIONS = ""
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
