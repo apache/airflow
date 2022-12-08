@@ -48,11 +48,16 @@ def create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
     *,
-    max_length: int = 80,
+    max_length: int = 63,  # must be 63 for now, see below
     unique: bool = True,
 ) -> str:
     """
     Generates unique pod ID given a dag_id and / or task_id.
+
+    Because of the way that the task log handler reads from running k8s executor pods,
+    we must keep pod name <= 63 characters.  The handler gets pod name from ti.hostname.
+    TI hostname is derived from the container hostname, which is truncated to 63 characters.
+    We could lift this limit by using label selectors instead of pod name to find the pod.
 
     :param dag_id: DAG ID
     :param task_id: Task ID
