@@ -439,7 +439,7 @@ option_run_in_parallel = click.option(
 option_parallelism = click.option(
     "--parallelism",
     help="Maximum number of processes to use while running the operation in parallel.",
-    type=click.IntRange(1, mp.cpu_count() * 2 if not generating_command_images() else 8),
+    type=click.IntRange(1, mp.cpu_count() * 3 if not generating_command_images() else 8),
     default=mp.cpu_count() if not generating_command_images() else 4,
     envvar="PARALLELISM",
     show_default=True,
