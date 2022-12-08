@@ -1209,7 +1209,7 @@ class TestKubernetesJobWatcher:
             except Exception as e:
                 assert e.args == ("sentinel",)
 
-            # both resource_version should be 0 after _run raises and exception
+            # both resource_version should be 0 after _run raises an exception
             assert self.watcher.resource_version == "0"
             assert ResourceVersion().resource_version == {self.test_namespace: "0"}
 
