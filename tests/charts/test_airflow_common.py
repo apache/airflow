@@ -89,6 +89,42 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
+    def test_webserver_config_configmap_name_volume_mounts(self):
+        configmap_name = "my-configmap"
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "webserverConfigConfigMapName": configmap_name,
+                },
+                "workers": {"kerberosSidecar": {"enabled": True}},
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+        for index in range(len(docs)):
+            print(docs[index])
+            assert "webserver-config" in [
+                c["name"]
+                for r in jmespath.search(
+                    "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].volumeMounts",
+                    docs[index],
+                )
+                for c in r
+            ]
+            for container in jmespath.search("spec.template.spec.containers", docs[index]):
+                assert "webserver-config" in [c["name"] for c in jmespath.search("volumeMounts", container)]
+            assert "webserver-config" in [
+                c["name"] for c in jmespath.search("spec.template.spec.volumes", docs[index])
+            ]
+            assert configmap_name == jmespath.search(
+                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", docs[index]
+            )
+
     def test_annotations(self):
         """
         Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
