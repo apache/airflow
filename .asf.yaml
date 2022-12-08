@@ -73,8 +73,8 @@ github:
     - petedejoy
     - gmcdonald
     - o-nikolas
+    - mhenc
     - ferruzzi
-    - Taragolis
 
 notifications:
   jobs: jobs@airflow.apache.org
