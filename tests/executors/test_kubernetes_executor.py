@@ -1072,7 +1072,6 @@ class TestKubernetesJobWatcher:
     def setup_method(self):
         self.watcher = KubernetesJobWatcher(
             namespace=self.test_namespace,
-            multi_namespace_mode=False,
             watcher_queue=mock.MagicMock(),
             resource_version="0",
             scheduler_job_id="123",
