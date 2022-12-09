@@ -181,7 +181,7 @@ class TestDagFileProcessorManager:
         child_pipe.close()
         parent_pipe.close()
 
-    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
+    @conf_vars({("core", "load_examples"): "False"})
     def test_zipfile_import_error_not_cleared(self, tmpdir):
         UNPARSEABLE_DAG_FILE_CONTENTS = "an invalid airflow DAG"
         TEMP_DAG_FILENAME = "temp_dag.py"
