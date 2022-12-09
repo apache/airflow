@@ -281,6 +281,7 @@ class TestCliWebServer:
                     raise
                 time.sleep(1)
 
+    @pytest.mark.execution_timeout(210)
     def test_cli_webserver_background(self):
         with tempfile.TemporaryDirectory(prefix="gunicorn") as tmpdir, mock.patch.dict(
             "os.environ",
