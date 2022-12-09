@@ -222,6 +222,7 @@ class FileTaskHandler(logging.Handler):
                 return log, {"end_of_log": True}
         else:
 
+            log += f"*** Log file does not exist: {location}\n"
             executor = ExecutorLoader.get_default_executor()
             task_log = executor.get_task_log(ti)
 
@@ -234,7 +235,7 @@ class FileTaskHandler(logging.Handler):
             if isinstance(task_log, tuple):
                 return task_log
 
-            log = str(task_log)
+            log += str(task_log)
 
         # Process tailing if log is not at it's end
         end_of_log = ti.try_number != try_number or ti.state not in State.running
