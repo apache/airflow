@@ -85,20 +85,17 @@ DM = DagModel
 
 def _is_parent_process() -> bool:
     """
-    Whether this is a parent process.
-
-    Return True if the current process is the parent process.
-    False if the current process is a child process started by multiprocessing.
+    Returns True if the current process is the parent process. False if the current process is a child
+    process started by multiprocessing.
     """
     return multiprocessing.current_process().name == "MainProcess"
 
 
 class SchedulerJob(BaseJob):
     """
-    SchedulerJob runs for a specific time interval and schedules jobs that are ready to run.
-
-    It figures out the latest runs for each task and sees if the dependencies
-    for the next schedules are met.
+    This SchedulerJob runs for a specific time interval and schedules the jobs
+    that are ready to run. It figures out the latest runs for each
+    task and sees if the dependencies for the next schedules are met.
     If so, it creates appropriate TaskInstances and sends run commands to the
     executor. It does this for each task in each DAG and repeats.
 
@@ -168,7 +165,7 @@ class SchedulerJob(BaseJob):
         self._paused_dag_without_running_dagruns: set = set()
 
     def register_signals(self) -> None:
-        """Register signals that stop child processes."""
+        """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
@@ -201,7 +198,7 @@ class SchedulerJob(BaseJob):
 
     def is_alive(self, grace_multiplier: float | None = None) -> bool:
         """
-        Whether the SchedulerJob is alive.
+        Is this SchedulerJob alive?
 
         We define alive as in a state of running and a heartbeat within the
         threshold defined in the ``scheduler_health_check_threshold`` config
@@ -244,13 +241,8 @@ class SchedulerJob(BaseJob):
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
-        Find TIs that are ready for execution based on conditions.
-
-        Conditions include:
-        - pool limits
-        - DAG max_active_tasks
-        - executor state
-        - priority
+        Finds TIs that are ready for execution with respect to pool limits,
+        dag max_active_tasks, executor state, and priority.
 
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
@@ -537,7 +529,8 @@ class SchedulerJob(BaseJob):
 
     def _enqueue_task_instances_with_queued_state(self, task_instances: list[TI], session: Session) -> None:
         """
-        Enqueue task_instances which should have been set to queued with the executor.
+        Takes task_instances, which should have been set to queued, and enqueues them
+        with the executor.
 
         :param task_instances: TaskInstances to enqueue
         :param session: The session object
@@ -823,9 +816,7 @@ class SchedulerJob(BaseJob):
 
     def _run_scheduler_loop(self) -> None:
         """
-        The actual scheduler loop.
-
-        The main steps in the loop are:
+        The actual scheduler loop. The main steps in the loop are:
             #. Harvest DAG parsing results through DagFileProcessorAgent
             #. Find and queue executable tasks
                 #. Change task instance state in DB
@@ -889,7 +880,7 @@ class SchedulerJob(BaseJob):
                     # is finished to avoid concurrent access to the DB.
                     self.log.debug("Waiting for processors to finish since we're using sqlite")
                     self.processor_agent.wait_until_finished()
-
+                
                 for attempt in run_with_db_retries():
                     with attempt:
                         start_time = time.time()
@@ -907,7 +898,7 @@ class SchedulerJob(BaseJob):
                                 attempt.retry_state.attempt_number) + ", total time in seconds: " + str(
                                 end_time - start_time) + "), details: " + str(e))
                             raise
-
+                
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
 
@@ -944,9 +935,8 @@ class SchedulerJob(BaseJob):
 
     def _do_scheduling(self, session: Session) -> int:
         """
-        This function is where the main scheduling decisions take places.
+        This function is where the main scheduling decisions take places. It:
 
-        It:
         - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
 
           Since creating Dag Runs is a relatively time consuming process, we select only 10 dags by default
@@ -1031,12 +1021,12 @@ class SchedulerJob(BaseJob):
 
     @retry_db_transaction
     def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
-        """Get Next DagRuns to Examine with retries."""
+        """Get Next DagRuns to Examine with retries"""
         return DagRun.next_dagruns_to_examine(state, session)
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
-        """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
+        """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError"""
         query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
         dataset_triggered_dags = [
@@ -1227,7 +1217,7 @@ class SchedulerJob(BaseJob):
         return True
 
     def _start_queued_dagruns(self, session: Session) -> None:
-        """Find DagRuns in queued state and decide moving them to running state."""
+        """Find DagRuns in queued state and decide moving them to running state"""
         dag_runs = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
 
         active_runs_of_dags = defaultdict(
@@ -1285,7 +1275,7 @@ class SchedulerJob(BaseJob):
         session: Session,
     ) -> DagCallbackRequest | None:
         """
-        Make scheduling decisions about an individual dag run.
+        Make scheduling decisions about an individual dag run
 
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
@@ -1385,7 +1375,7 @@ class SchedulerJob(BaseJob):
             self.log.debug("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG) -> None:
-        """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
+        """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
         if not settings.CHECK_SLAS:
             return
 
