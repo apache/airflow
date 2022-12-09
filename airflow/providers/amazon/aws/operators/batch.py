@@ -155,9 +155,9 @@ class BatchOperator(BaseOperator):
         self.job_name = job_name
         self.job_definition = job_definition
         self.job_queue = job_queue
-        self.container_overrides = overrides or None
-        self.array_properties = array_properties or None
-        self.node_overrides = node_overrides or None
+        self.container_overrides = overrides
+        self.node_overrides = node_overrides
+        self.array_properties = array_properties
         self.parameters = parameters or {}
         self.waiters = waiters
         self.tags = tags or {}
@@ -205,17 +205,20 @@ class BatchOperator(BaseOperator):
         if (self.node_overrides):
             self.log.info("AWS Batch job - node properties: %s", self.node_overrides)
 
+
+        args = {
+            "jobName": self.job_name,
+            "jobQueue": self.job_queue,
+            "jobDefinition": self.job_definition,
+            "arrayProperties": self.array_properties,
+            "parameters": self.parameters,
+            "tags": self.tags,
+            "containerOverrides": self.container_overrides,
+            "nodeOverrides": self.node_overrides,
+        }
+
         try:
-            response = self.hook.client.submit_job(
-                jobName=self.job_name,
-                jobQueue=self.job_queue,
-                jobDefinition=self.job_definition,
-                arrayProperties=self.array_properties,
-                parameters=self.parameters,
-                containerOverrides=self.container_overrides,
-                nodeOverrides=self.node_overrides,
-                tags=self.tags,
-            )
+            response = self.hook.client.submit_job(**trim_none_values(args))
         except Exception as e:
             self.log.error(
                 "AWS Batch job failed submission - job definition: %s - on queue %s",
