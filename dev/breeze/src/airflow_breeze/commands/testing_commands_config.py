@@ -33,6 +33,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
+                "--integration",
             ],
         },
         {
