@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import unittest
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
@@ -109,6 +110,7 @@ class TestBatchOperator(unittest.TestCase):
             "job_definition",
             "job_queue",
             "overrides",
+            "node_overrides",
             "array_properties",
             "parameters",
             "waiters",
@@ -186,6 +188,45 @@ class TestBatchOperator(unittest.TestCase):
         self.client_mock.terminate_job.return_value = {}
         self.batch.on_kill()
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
+
+class TestBatchOperator2:
+    """test class that does not inherit from unittest.TestCase"""
+    @pytest.mark.parametrize("override", ["overrides", "node_overrides"])
+    @patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
+           new_callable=mock.PropertyMock)
+    def test_override_not_sent_if_not_set(self, client_mock, override):
+        """
+        check that when setting container override or node override, the other key is not sent
+        in the API call (which would create a validation error from boto)
+        """
+        override_arg = {override: {"a": "a"}}
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            **override_arg,
+
+            # setting those to bypass code that is not relevant here
+            do_xcom_push=False,
+            wait_for_completion=False,
+        )
+
+        batch.execute(None)
+
+        expected_args = {
+            "jobQueue": "queue",
+            "jobName": JOB_NAME,
+            "jobDefinition": "hello-world",
+            "arrayProperties": {},
+            "parameters": {},
+            "tags": {},
+        }
+        if override == "overrides":
+            expected_args["containerOverrides"] = {"a": "a"}
+        else:
+            expected_args["nodeOverrides"] = {"a": "a"}
+        client_mock().submit_job.assert_called_once_with(**expected_args)
 
 
 class TestBatchCreateComputeEnvironmentOperator(unittest.TestCase):
