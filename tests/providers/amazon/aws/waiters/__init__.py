@@ -14,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-import boto3
-from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
-
-
-class BaseBotoWaiter:
-    """
-    Used to create custom Boto3 Waiters.
-
-    For more details, see airflow/providers/amazon/aws/waiters/README.md
-    """
-
-    def __init__(self, client: boto3.client, model_config: dict) -> None:
-        self.model = WaiterModel(model_config)
-        self.client = client
-
-    def waiter(self, waiter_name: str) -> Waiter:
-        return create_waiter_with_client(waiter_name=waiter_name, waiter_model=self.model, client=self.client)
