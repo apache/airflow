@@ -428,14 +428,15 @@ class BatchClientHook(AwsBaseHook):
                 # "logStreamName" value is not available in the "container" object for multinode jobs --
                 # it is available in the "attempts" object
                 job_attempts = job_desc.get("attempts", [])
-                if len(job_attempts) > 1:
-                    self.log.warning(
-                        "AWS Batch job (%s) has had more than one attempt. Only returning logs from the most recent attempt.",
-                        job_id,
-                    )
-                elif not len(job_attempts):
+                if len(job_attempts):
+                    if len(job_attempts) > 1:
+                        self.log.warning(
+                            "AWS Batch job (%s) has had more than one attempt. Only returning logs from the most recent attempt.",
+                            job_id,
+                        )
+                    awslogs_stream_name = job_attempts[-1].get("container", {}).get("logStreamName")
+                else:
                     awslogs_stream_name = None
-                awslogs_stream_name = job_attempts[-1].get("container", {}).get("logStreamName")
 
         elif job_container_desc:
             log_configuration = job_container_desc.get("logConfiguration", {})
