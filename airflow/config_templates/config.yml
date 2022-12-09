@@ -2440,7 +2440,7 @@
         If multi_namespace_mode is True while scheduler does not have a cluster-role,
         give the list of namespaces where the scheduler will schedule jobs
         Scheduler needs to have the necessary permissions in these namespaces.
-      version_added: 2.5.0
+      version_added: 2.5.1
       type: string
       example: ~
       default: ""
