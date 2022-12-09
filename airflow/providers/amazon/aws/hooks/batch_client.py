@@ -425,8 +425,21 @@ class BatchClientHook(AwsBaseHook):
                     job_id,
                 )
                 log_configuration = job_node_range_properties[0].get("container", {}).get("logConfiguration", {})
+                # "logStreamName" value is not available in the "container" object for multinode jobs --
+                # it is available in the "attempts" object
+                job_attempts = job_desc.get("attempts", [])
+                if len(job_attempts) > 1:
+                    self.log.warning(
+                        "AWS Batch job (%s) has had more than one attempt. Only returning logs from the most recent attempt.",
+                        job_id,
+                    )
+                elif not len(job_attempts):
+                    awslogs_stream_name = None
+                awslogs_stream_name = job_attempts[-1].get("container", {}).get("logStreamName")
+
         elif job_container_desc:
             log_configuration = job_container_desc.get("logConfiguration", {})
+            awslogs_stream_name = job_container_desc.get("logStreamName")
         else:
             self.log.warning("AWS Batch job (%s) is neither a container nor multinode job. Log info not found.")
             return None
@@ -444,7 +457,6 @@ class BatchClientHook(AwsBaseHook):
             )
             return None
 
-        awslogs_stream_name = job_container_desc.get("logStreamName")
         if not awslogs_stream_name:
             # In case of call this method on very early stage of running AWS Batch
             # there is possibility than AWS CloudWatch Stream Name not exists yet.

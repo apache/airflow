@@ -189,7 +189,7 @@ class TestBatchOperator(unittest.TestCase):
         self.batch.on_kill()
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
 
-class TestBatchOperator2:
+class TestBatchOperatorTrimmedArgs:
     """test class that does not inherit from unittest.TestCase"""
     @pytest.mark.parametrize("override", ["overrides", "node_overrides"])
     @patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",

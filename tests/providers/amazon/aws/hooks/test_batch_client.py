@@ -303,6 +303,43 @@ class TestBatchClient(unittest.TestCase):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(capture_logs.records) == 1
 
+    def test_job_awslogs_multinode_job(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "attempts": [
+                        {
+                            "container": {
+                                "exitCode": 0,
+                                "logStreamName": LOG_STREAM_NAME
+                            }
+                        }
+                    ],
+                    "nodeProperties": {
+                        "mainNode": 0,
+                        "nodeRangeProperties": [
+                            {
+                                "targetNodes": "0:",
+                                "container": {
+                                    "logConfiguration": {
+                                        "logDriver": "awslogs",
+                                        "options": {
+                                            "awslogs-group": "/test/batch/job",
+                                            "awslogs-region": AWS_REGION
+                                        },
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+        awslogs = self.batch_client.get_job_awslogs_info(JOB_ID)
+        assert awslogs["awslogs_stream_name"] == LOG_STREAM_NAME
+        assert awslogs["awslogs_group"] == "/test/batch/job"
+        assert awslogs["awslogs_region"] == AWS_REGION
 
 class TestBatchClientDelays(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
