@@ -720,7 +720,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.debug("Could not find key: %s", str(key))
         self.event_buffer[key] = state, None
 
-    def get_task_log(self, ti: TaskInstance):
+    def get_task_log(self, ti: TaskInstance) -> str | tuple[str, dict[str, bool]]:
         log = ""
         try:
             from airflow.kubernetes.kube_client import get_kube_client
@@ -740,6 +740,8 @@ class KubernetesExecutor(BaseExecutor):
 
             for line in res:
                 log += line.decode()
+
+            return log
 
         except Exception as f:
             log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"

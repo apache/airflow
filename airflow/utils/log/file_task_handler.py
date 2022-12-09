@@ -133,14 +133,6 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    @staticmethod
-    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
-        url = urljoin(
-            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
-            log_relative_path,
-        )
-        return url
-
     def _get_task_log_from_worker(
         self, ti: TaskInstance, log_relative_path: str
     ) -> str | tuple[str, dict[str, bool]]:
@@ -252,6 +244,14 @@ class FileTaskHandler(logging.Handler):
             log = log[previous_chars:]  # Cut off previously passed log test as new tail
 
         return log, {"end_of_log": end_of_log, "log_pos": log_pos}
+
+    @staticmethod
+    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
+        url = urljoin(
+            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
+            log_relative_path,
+        )
+        return url
 
     def read(self, task_instance, try_number=None, metadata=None):
         """
