@@ -32,6 +32,7 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
+from zipfile import ZipFile
 
 import pytest
 import time_machine
@@ -175,6 +176,47 @@ class TestDagFileProcessorManager:
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 0
+            session.rollback()
+
+        child_pipe.close()
+        parent_pipe.close()
+
+    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
+    def test_zipfile_import_error_not_cleared(self, tmpdir):
+        UNPARSEABLE_DAG_FILE_CONTENTS = "an invalid airflow DAG"
+        TEMP_DAG_FILENAME = "temp_dag.py"
+
+        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+        with ZipFile(zip_filename, "w") as zip_file:
+            zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta(days=365),
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=async_mode,
+        )
+
+        with create_session() as session:
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+            import_errors = session.query(errors.ImportError).all()
+            assert len(import_errors) == 1
+
+            manager.clear_nonexistent_import_errors(session)
+            import_errors = session.query(errors.ImportError).all()
+            assert len(import_errors) == 1
+
+            os.remove(zip_filename)
+            manager.clear_nonexistent_import_errors(session)
+            import_errors = session.query(errors.ImportError).all()
+            assert len(import_errors) == 0
+
             session.rollback()
 
         child_pipe.close()
