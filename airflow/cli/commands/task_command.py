@@ -292,7 +292,6 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
 
     """
     modify = not settings.DONOT_MODIFY_HANDLERS
-
     if modify:
         root_logger, task_logger = logging.getLogger(), logging.getLogger("airflow.task")
 
