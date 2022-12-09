@@ -891,7 +891,6 @@ class SchedulerJob(BaseJob):
                                 self.executor.heartbeat()
                                 session.expunge_all()
                                 num_finished_events = self._process_executor_events(session=session)
-                                break
                         except OperationalError as e:
                             end_time = time.time()
                             self.log.error("got a MySql exception (retry:" + str(
