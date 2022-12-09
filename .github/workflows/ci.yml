@@ -556,7 +556,7 @@ jobs:
         with:
           path: ~/.cache/pre-commit-full
           # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          key: "pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: |
             pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}
             pre-commit-full
@@ -604,9 +604,13 @@ jobs:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
           key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: |
-            pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
-            pre-commit-basic-
+          restore-keys: "\
+            pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}-\
+            ${{ hashFiles('.pre-commit-config.yaml') }}\n
+            pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}\n
+            pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}\n
+            pre-commit-basic-\n
+            pre-commit-full-"
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v3
         with:
