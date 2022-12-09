@@ -17,18 +17,15 @@
  * under the License.
  */
 
-const config = {
-  verbose: true,
-  transform: {
-    '^.+\\.[jt]sx?$': 'babel-jest',
-  },
-  testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['./jest-setup.js'],
-  moduleDirectories: ['node_modules'],
-  moduleNameMapper: { // Listing all aliases
-    '^src/(.*)$': '<rootDir>/static/js/$1',
-  },
-  transformIgnorePatterns: [], // transform node_modules
-};
+module.exports = function (api) {
+  api.cache(true);
 
-module.exports = config;
+  const presets = ['@babel/preset-env', '@babel/preset-react', '@babel/preset-typescript'];
+
+  const plugins = ['@babel/plugin-transform-runtime'];
+
+  return {
+    presets,
+    plugins,
+  };
+};

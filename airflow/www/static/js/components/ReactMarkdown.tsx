@@ -37,9 +37,12 @@ import {
   UnorderedList,
 } from '@chakra-ui/react';
 import React, { PropsWithChildren, ReactNode } from 'react';
+
 import type { Components } from 'react-markdown';
 
-import { ReactMarkdown as ReactMD, ReactMarkdownOptions } from 'react-markdown/lib/react-markdown';
+import ReactMD from 'react-markdown';
+import type { ReactMarkdownOptions } from 'react-markdown/lib/react-markdown';
+
 import remarkGfm from 'remark-gfm';
 
 const fontSizeMapping = {
