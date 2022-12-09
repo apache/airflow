@@ -633,7 +633,7 @@ class AirflowAppBuilder:
                         view.get_init_inner_views().append(v)
 
 
-def init_appbuilder(app):
+def init_appbuilder(app) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
     from airflow.www.security import AirflowSecurityManager
 
@@ -645,7 +645,7 @@ def init_appbuilder(app):
              not FAB's security manager."""
         )
 
-    AirflowAppBuilder(
+    return AirflowAppBuilder(
         app=app,
         session=settings.Session,
         security_manager_class=security_manager_class,
