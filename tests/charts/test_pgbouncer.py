@@ -307,6 +307,32 @@ class TestPgbouncer:
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                },
+                "volumes": [
+                    {
+                        "name": "pgbouncer-client-certificates",
+                        "secret": {"secretName": "pgbouncer-client-tls-certificate"},
+                    }
+                ],
+                "volumeMounts": [
+                    {"name": "pgbouncer-client-certificates", "mountPath": "/etc/pgbouncer/certs"}
+                ],
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert "pgbouncer-client-certificates" in jmespath.search(
+            "spec.template.spec.volumes[*].name", docs[0]
+        )
+        assert "pgbouncer-client-certificates" in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
+        )
+
     def test_pgbouncer_replicas_are_configurable(self):
         docs = render_chart(
             values={

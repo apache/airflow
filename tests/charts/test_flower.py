@@ -268,6 +268,23 @@ class TestFlowerDeployment:
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                },
+                "volumes": [{"name": "myvolume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "myvolume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert {"name": "myvolume", "mountPath": "/opt/test"} in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
