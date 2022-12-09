@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-KubernetesExecutor
+KubernetesExecutor.
 
 .. seealso::
     For more information on how the KubernetesExecutor works, take a look at the guide:
@@ -64,7 +64,7 @@ KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 
 
 class ResourceVersion:
-    """Singleton for tracking resourceVersion from Kubernetes"""
+    """Singleton for tracking resourceVersion from Kubernetes."""
 
     _instance = None
     resource_version = "0"
@@ -76,7 +76,7 @@ class ResourceVersion:
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
-    """Watches for Kubernetes jobs"""
+    """Watches for Kubernetes jobs."""
 
     def __init__(
         self,
@@ -96,7 +96,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.kube_config = kube_config
 
     def run(self) -> None:
-        """Performs watching"""
+        """Performs watching."""
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
@@ -178,7 +178,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         return last_resource_version
 
     def process_error(self, event: Any) -> str:
-        """Process error response"""
+        """Process error response."""
         self.log.error("Encountered Error response from k8s list namespaced pod stream => %s", event)
         raw_object = event["raw_object"]
         if raw_object["code"] == 410:
@@ -201,7 +201,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         resource_version: str,
         event: Any,
     ) -> None:
-        """Process status response"""
+        """Process status response."""
         if status == "Pending":
             if event["type"] == "DELETED":
                 self.log.info("Event: Failed to start pod %s", pod_id)
@@ -233,7 +233,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
 
 class AirflowKubernetesScheduler(LoggingMixin):
-    """Airflow Scheduler for Kubernetes"""
+    """Airflow Scheduler for Kubernetes."""
 
     def __init__(
         self,
@@ -255,7 +255,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.kube_watcher = self._make_kube_watcher()
 
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
-        """Runs POD asynchronously"""
+        """Runs POD asynchronously."""
         try:
             pod_mutation_hook(pod)
         except Exception as e:
@@ -340,7 +340,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes Job created!")
 
     def delete_pod(self, pod_id: str, namespace: str) -> None:
-        """Deletes POD"""
+        """Deletes POD."""
         try:
             self.log.debug("Deleting pod %s in namespace %s", pod_id, namespace)
             self.kube_client.delete_namespaced_pod(
@@ -414,6 +414,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
 def get_base_pod_from_template(pod_template_file: str | None, kube_config: Any) -> k8s.V1Pod:
     """
+    Get base pod from template.
+
     Reads either the pod_template_file set in the executor_config or the base pod_template_file
     set in the airflow.cfg to craft a "base pod" that will be used by the KubernetesExecutor
 
@@ -428,7 +430,7 @@ def get_base_pod_from_template(pod_template_file: str | None, kube_config: Any) 
 
 
 class KubernetesExecutor(BaseExecutor):
-    """Executor for Kubernetes"""
+    """Executor for Kubernetes."""
 
     supports_ad_hoc_ti_run: bool = True
 
@@ -448,6 +450,8 @@ class KubernetesExecutor(BaseExecutor):
     @provide_session
     def clear_not_launched_queued_tasks(self, session=None) -> None:
         """
+        Clear tasks that were not yet launched, but were previously queued.
+
         Tasks can end up in a "Queued" state through either the executor being
         abruptly shut down (leaving a non-empty task_queue on this executor)
         or when a rescheduled/deferred operator comes back up for execution
@@ -518,7 +522,7 @@ class KubernetesExecutor(BaseExecutor):
             ).update({TaskInstance.state: State.SCHEDULED})
 
     def start(self) -> None:
-        """Starts the executor"""
+        """Starts the executor."""
         self.log.info("Start Kubernetes executor")
         if not self.job_id:
             raise AirflowException("Could not get scheduler_job_id")
@@ -552,7 +556,7 @@ class KubernetesExecutor(BaseExecutor):
         queue: str | None = None,
         executor_config: Any | None = None,
     ) -> None:
-        """Executes task asynchronously"""
+        """Executes task asynchronously."""
         if TYPE_CHECKING:
             assert self.task_queue
 
@@ -665,7 +669,7 @@ class KubernetesExecutor(BaseExecutor):
         self.log.debug("Next timed event is in %f", next_event)
 
     def _check_worker_pods_pending_timeout(self):
-        """Check if any pending worker pods have timed out"""
+        """Check if any pending worker pods have timed out."""
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
@@ -716,24 +720,12 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.debug("Could not find key: %s", str(key))
         self.event_buffer[key] = state, None
 
-    def get_task_log(self, ti: TaskInstance, log_relative_path: str):
+    def get_task_log(self, ti: TaskInstance):
         log = ""
         try:
             from airflow.kubernetes.kube_client import get_kube_client
 
             kube_client = get_kube_client()
-
-            if len(ti.hostname) >= 63:
-                # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
-                # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
-                # on any label of a FQDN.
-                pod_list = kube_client.list_namespaced_pod(conf.get("kubernetes_executor", "namespace"))
-                matches = [
-                    pod.metadata.name for pod in pod_list.items if pod.metadata.name.startswith(ti.hostname)
-                ]
-                if len(matches) == 1:
-                    if len(matches[0]) > len(ti.hostname):
-                        ti.hostname = matches[0]
 
             log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
 
@@ -749,7 +741,6 @@ class KubernetesExecutor(BaseExecutor):
             for line in res:
                 log += line.decode()
 
-            return log
         except Exception as f:
             log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
             return log, {"end_of_log": True}
@@ -773,7 +764,7 @@ class KubernetesExecutor(BaseExecutor):
         self, kube_client: client.CoreV1Api, pod: k8s.V1Pod, pod_ids: dict[TaskInstanceKey, k8s.V1Pod]
     ) -> None:
         """
-        Patch existing pod so that the current KubernetesJobWatcher can monitor it via label selectors
+        Patch existing pod so that the current KubernetesJobWatcher can monitor it via label selectors.
 
         :param kube_client: kubernetes client for speaking to kube API
         :param pod: V1Pod spec that we will patch with new label
@@ -802,7 +793,6 @@ class KubernetesExecutor(BaseExecutor):
 
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
         """
-
         Patch completed pod so that the KubernetesJobWatcher can delete it.
 
         :param kube_client: kubernetes client for speaking to kube API

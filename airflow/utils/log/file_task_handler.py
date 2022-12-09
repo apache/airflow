@@ -219,7 +219,6 @@ class FileTaskHandler(logging.Handler):
         location = os.path.join(self.local_base, log_relative_path)
 
         log = ""
-
         if os.path.exists(location):
             try:
                 with open(location, encoding="utf-8", errors="surrogateescape") as file:
@@ -232,7 +231,7 @@ class FileTaskHandler(logging.Handler):
         else:
 
             executor = ExecutorLoader.get_default_executor()
-            task_log = executor.get_task_log(ti, log_relative_path=log_relative_path)
+            task_log = executor.get_task_log(ti)
 
             if isinstance(task_log, tuple):
                 return task_log

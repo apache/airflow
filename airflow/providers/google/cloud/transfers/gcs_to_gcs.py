@@ -298,8 +298,8 @@ class GCSToGCSOperator(BaseOperator):
         Example 1:
 
 
-        The following Operator would copy all the files from ``a/``folder
-        (i.e a/a.csv, a/b.csv, a/c.csv)in ``data`` bucket to the ``b/`` folder in
+        The following Operator would copy all the files from ``a/`` folder
+        (i.e a/a.csv, a/b.csv, a/c.csv) in ``data`` bucket to the ``b/`` folder in
         the ``data_backup`` bucket (b/a.csv, b/b.csv, b/c.csv) ::
 
             copy_files = GCSToGCSOperator(
@@ -314,8 +314,8 @@ class GCSToGCSOperator(BaseOperator):
         Example 2:
 
 
-        The following Operator would copy all avro files from ``a/``folder
-        (i.e a/a.avro, a/b.avro, a/c.avro)in ``data`` bucket to the ``b/`` folder in
+        The following Operator would copy all avro files from ``a/`` folder
+        (i.e a/a.avro, a/b.avro, a/c.avro) in ``data`` bucket to the ``b/`` folder in
         the ``data_backup`` bucket (b/a.avro, b/b.avro, b/c.avro) ::
 
             copy_files = GCSToGCSOperator(
@@ -327,6 +327,22 @@ class GCSToGCSOperator(BaseOperator):
                 delimiter='.avro',
                 gcp_conn_id=google_cloud_conn_id
             )
+
+        Example 3:
+
+
+        The following Operator would copy files (a/file_1.txt, a/file_2.csv, a/file_3.avro)
+        in ``data`` bucket to the ``b/`` folder in
+        the ``data_backup`` bucket (b/file_1.txt, b/file_2.csv, b/file_3.avro) ::
+
+            copy_files = GCSToGCSOperator(
+                task_id='copy_files_without_wildcard',
+                source_bucket='data',
+                source_objects=['a/file_1.txt', 'a/file_2.csv', 'a/file_3.avro'],
+                destination_bucket='data_backup',
+                destination_object='b/',
+                gcp_conn_id=google_cloud_conn_id
+            )
         """
         objects = hook.list(self.source_bucket, prefix=prefix, delimiter=self.delimiter)
 
@@ -334,7 +350,7 @@ class GCSToGCSOperator(BaseOperator):
             # If we are not replacing, ignore files already existing in source buckets
             objects = self._ignore_existing_files(hook, prefix, objects=objects, delimiter=self.delimiter)
 
-        # If objects is empty and we have prefix, let's check if prefix is a blob
+        # If objects is empty, and we have prefix, let's check if prefix is a blob
         # and copy directly
         if len(objects) == 0 and prefix:
             if hook.exists(self.source_bucket, prefix):
@@ -346,13 +362,31 @@ class GCSToGCSOperator(BaseOperator):
                 self.log.warning(msg)
                 raise AirflowException(msg)
 
-        for source_obj in objects:
+        if len(objects) == 1 and objects[0][-1] != "/":
+            self._copy_file(hook=hook, source_object=objects[0])
+        elif len(objects):
+            self._copy_directory(hook=hook, source_objects=objects, prefix=prefix)
+
+    def _copy_file(self, hook, source_object):
+        destination_object = self.destination_object or source_object
+        if self.destination_object[-1] == "/":
+            file_name = source_object.split("/")[-1]
+            destination_object += file_name
+        self._copy_single_object(
+            hook=hook, source_object=source_object, destination_object=destination_object
+        )
+
+    def _copy_directory(self, hook, source_objects, prefix):
+        _prefix = prefix.rstrip("/") + "/"
+        for source_obj in source_objects:
             if self.exact_match and (source_obj != prefix or not source_obj.endswith(prefix)):
                 continue
             if self.destination_object is None:
                 destination_object = source_obj
             else:
-                destination_object = source_obj.replace(prefix, self.destination_object, 1)
+                file_name_postfix = source_obj.replace(_prefix, "", 1)
+                destination_object = self.destination_object.rstrip("/") + "/" + file_name_postfix
+
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
             )

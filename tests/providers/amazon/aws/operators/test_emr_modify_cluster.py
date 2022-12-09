@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,9 +33,9 @@ MODIFY_CLUSTER_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "S
 MODIFY_CLUSTER_ERROR_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 400}}
 
 
-class TestEmrModifyClusterOperator(unittest.TestCase):
-    def setUp(self):
-        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+class TestEmrModifyClusterOperator:
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         # Mock out the emr_client (moto has incorrect response)
         self.emr_client_mock = MagicMock()
@@ -53,7 +52,7 @@ class TestEmrModifyClusterOperator(unittest.TestCase):
             cluster_id="j-8989898989",
             step_concurrency_level=1,
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", default_args=args),
         )
 
     def test_init(self):

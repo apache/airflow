@@ -23,10 +23,13 @@ import itertools
 import json
 import os
 
+from flask import Flask
+
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.www.app import cached_app
+from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.fab_security.sqla.models import Action, Permission, Resource, Role
 from airflow.www.security import EXISTING_ROLES, AirflowSecurityManager
 
@@ -34,8 +37,10 @@ from airflow.www.security import EXISTING_ROLES, AirflowSecurityManager
 @suppress_logs_and_warning
 def roles_list(args):
     """Lists all existing roles."""
-    appbuilder = cached_app().appbuilder
-    roles = appbuilder.sm.get_all_roles()
+    flask_app = Flask(__name__)
+    with flask_app.app_context():
+        appbuilder = init_appbuilder(flask_app)
+        roles = appbuilder.sm.get_all_roles()
 
     if not args.permission:
         AirflowConsole().print_as(
