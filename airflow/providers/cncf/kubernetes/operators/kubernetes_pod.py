@@ -500,7 +500,7 @@ class KubernetesPodOperator(BaseOperator):
         if self.deferrable:
             self.asynchronously(context)
         else:
-            self.synchronously(context)
+            return self.synchronously(context)
 
     def synchronously(self, context: Context):
         try:
