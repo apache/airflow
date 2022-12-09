@@ -24,9 +24,6 @@ import typing
 from airflow.configuration import conf
 from airflow.utils.context import Context
 
-if typing.TYPE_CHECKING:
-    from airflow.models.operator import Operator
-
 
 class MultiprocessingStartMethodMixin:
     """Convenience class to add support for different types of multiprocessing."""
@@ -47,15 +44,6 @@ class MultiprocessingStartMethodMixin:
 
 class ResolveMixin:
     """A runtime-resolved value."""
-
-    def iter_references(self) -> typing.Iterable[tuple[Operator, str]]:
-        """Find underlying XCom references this contains.
-
-        This is used by the DAG parser to recursively find task dependencies.
-
-        :meta private:
-        """
-        raise NotImplementedError
 
     def resolve(self, context: Context) -> typing.Any:
         """Resolve this value for runtime.

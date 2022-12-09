@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -98,7 +98,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         Recursively traverse ``arg`` and look for XComArg instances in any
         collection objects, and instances with ``template_fields`` set.
         """
-        if isinstance(arg, ResolveMixin):
+        if isinstance(arg, XComArg):
             yield from arg.iter_references()
         elif isinstance(arg, (tuple, set, list)):
             for elem in arg:
@@ -188,6 +188,15 @@ class XComArg(ResolveMixin, DependencyMixin):
         *None* may be returned if the depended XCom has not been pushed.
         """
         raise NotImplementedError()
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        """Find underlying XCom references this contains.
+
+        This is used by the DAG parser to recursively find task dependencies.
+
+        :meta private:
+        """
+        raise NotImplementedError
 
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
         """Pull XCom value.

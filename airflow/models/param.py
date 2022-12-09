@@ -21,7 +21,7 @@ import copy
 import json
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMapping, ValuesView
+from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, MutableMapping, ValuesView
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils.context import Context
@@ -283,9 +283,6 @@ class DagParam(ResolveMixin):
             current_dag.params[name] = default
         self._name = name
         self._default = default
-
-    def iter_references(self) -> Iterable[tuple[Operator, str]]:
-        return ()
 
     def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
