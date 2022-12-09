@@ -370,6 +370,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         reattach: bool = False,
         number_logs_exception: int = 10,
         wait_for_completion: bool = True,
+        reference_id: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -384,6 +385,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.placement_strategy = placement_strategy
         self.platform_version = platform_version
         self.network_configuration = network_configuration
+        self.reference_id = reference_id
 
         self.tags = tags
         self.awslogs_group = awslogs_group
@@ -479,6 +481,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
             run_opts["tags"] = [{"key": k, "value": v} for (k, v) in self.tags.items()]
         if self.propagate_tags is not None:
             run_opts["propagateTags"] = self.propagate_tags
+        if self.reference_id is not None:
+            run_opts["referenceId"] = self.reference_id
 
         response = self.client.run_task(**run_opts)
 
