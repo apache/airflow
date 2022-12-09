@@ -551,14 +551,15 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
+        id: breeze
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
-          path: ~/.cache/pre-commit-full
+          path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
-          key: "pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          key: "pre-commit-full-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: |
-            pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}
+            pre-commit-full-${{steps.breeze.outputs.host-python-version}}
             pre-commit-full
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
@@ -598,17 +599,18 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        id: breeze
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
-          key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          key: "pre-commit-basic-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: "\
-            pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}-\
+            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-\
             ${{ hashFiles('.pre-commit-config.yaml') }}\n
-            pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}\n
-            pre-commit-full-${{steps.host-python-version.outputs.host-python-version}}\n
+            pre-commit-basic-${{steps.breeze.outputs.host-python-version}}\n
+            pre-commit-full-${{steps.breeze.outputs.host-python-version}}\n
             pre-commit-basic-\n
             pre-commit-full-"
       - name: Fetch incoming commit ${{ github.sha }} with its parent
