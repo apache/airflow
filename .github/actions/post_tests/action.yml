@@ -42,6 +42,12 @@ runs:
         name: coverage-${{env.JOB_ID}}
         path: ./files/coverage*.xml
         retention-days: 7
+    - name: "Upload artifact for warnings"
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-warnings-${{env.JOB_ID}}
+        path: ./files/warnings-*.txt
+        retention-days: 7
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership

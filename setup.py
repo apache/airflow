@@ -49,7 +49,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = "2.5.0.dev0"
+version = "2.6.0.dev0"
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -333,6 +333,8 @@ webhdfs = [
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
+    # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
+    # when you upgrade it here !!!!
     "mypy==0.971",
     "types-boto",
     "types-certifi",
@@ -391,6 +393,7 @@ devel_only = [
     # TODO: upgrade it and remove the limit
     "pytest~=6.0",
     "pytest-asyncio",
+    "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
     # We should attempt to remove the limit when we upgrade Pytest

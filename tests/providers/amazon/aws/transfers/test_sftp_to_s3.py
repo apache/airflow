@@ -17,11 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import boto3
+import pytest
 from moto import mock_s3
-from parameterized import parameterized
 
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -44,12 +42,10 @@ TEST_DAG_ID = "unit_tests_sftp_tos3_op"
 DEFAULT_DATE = datetime(2018, 1, 1)
 
 
-class TestSFTPToS3Operator(unittest.TestCase):
-    @mock_s3
-    def setUp(self):
+class TestSFTPToS3Operator:
+    def setup_method(self):
         hook = SSHHook(ssh_conn_id="ssh_default")
 
-        s3_hook = S3Hook("aws_default")
         hook.no_host_key_check = True
         dag = DAG(
             f"{TEST_DAG_ID}test_schedule_dag_once",
@@ -58,7 +54,6 @@ class TestSFTPToS3Operator(unittest.TestCase):
         )
 
         self.hook = hook
-        self.s3_hook = s3_hook
 
         self.ssh_client = self.hook.get_conn()
         self.sftp_client = self.ssh_client.open_sftp()
@@ -68,15 +63,10 @@ class TestSFTPToS3Operator(unittest.TestCase):
         self.sftp_path = SFTP_PATH
         self.s3_key = S3_KEY
 
-    @parameterized.expand(
-        [
-            (True,),
-            (False,),
-        ]
-    )
+    @pytest.mark.parametrize("use_temp_file", [True, False])
     @mock_s3
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_sftp_to_s3_operation(self, use_temp_file=True):
+    def test_sftp_to_s3_operation(self, use_temp_file):
         # Setting
         test_remote_file_content = (
             "This is remote file content \n which is also multiline "
@@ -95,9 +85,10 @@ class TestSFTPToS3Operator(unittest.TestCase):
         create_file_task.execute(None)
 
         # Test for creation of s3 bucket
+        s3_hook = S3Hook(aws_conn_id=None)
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
-        assert self.s3_hook.check_for_bucket(self.s3_bucket)
+        assert s3_hook.check_for_bucket(self.s3_bucket)
 
         # get remote file to local
         run_task = SFTPToS3Operator(
@@ -125,4 +116,4 @@ class TestSFTPToS3Operator(unittest.TestCase):
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
-        assert not self.s3_hook.check_for_bucket(self.s3_bucket)
+        assert not s3_hook.check_for_bucket(self.s3_bucket)

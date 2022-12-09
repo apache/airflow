@@ -281,7 +281,6 @@ class TestCliWebServer:
                     raise
                 time.sleep(1)
 
-    @pytest.mark.quarantined
     def test_cli_webserver_background(self):
         with tempfile.TemporaryDirectory(prefix="gunicorn") as tmpdir, mock.patch.dict(
             "os.environ",
@@ -319,6 +318,11 @@ class TestCliWebServer:
 
                 # Assert that gunicorn and its monitor are launched.
                 assert 0 == subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver --daemon"]).wait()
+                # wait for gunicorn to start
+                for i in range(30):
+                    if 0 == subprocess.Popen(["pgrep", "-f", "-c", "^gunicorn"]).wait():
+                        break
+                    time.sleep(1)
                 assert 0 == subprocess.Popen(["pgrep", "-c", "-f", "gunicorn: master"]).wait()
 
                 # Terminate monitor process.

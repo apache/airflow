@@ -687,12 +687,12 @@ on how to run them.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
-Running unit/integration tests in groups
-........................................
+Running unit tests
+..................
 
-Another option you have is that you can also run tests via built-in ``breeze testing`` command.
+Another option you have is that you can also run tests via built-in ``breeze testing tests`` command.
 The iterative ``pytest`` command allows to run test individually, or by class or in any other way
-pytest allows to test them and run them interactively, but ``breeze testing`` command allows to
+pytest allows to test them and run them interactively, but ``breeze testing tests`` command allows to
 run the tests in the same test "types" that are used to run the tests in CI: for example Core, Always
 API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
 replicate this behaviour.
@@ -723,6 +723,28 @@ Here is the detailed set of options for the ``breeze testing tests`` command.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_tests.svg
   :width: 100%
   :alt: Breeze testing tests
+
+Running integration tests
+.........................
+
+You can also run integration tests via built-in ``breeze testing integration-tests`` command. Some of our
+tests require additional integrations to be started in docker-compose. The integration tests command will
+run the expected integration and tests that need that integration.
+
+For example this will only run kerberos tests:
+
+.. code-block:: bash
+
+   breeze testing integration-tests --integration Kerberos
+
+
+Here is the detailed set of options for the ``breeze testing integration-tests`` command.
+
+.. image:: ./images/breeze/output_testing_integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_integration_tests.svg
+  :width: 100%
+  :alt: Breeze testing integration-tests
+
 
 Running Helm tests
 ..................

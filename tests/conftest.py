@@ -158,7 +158,7 @@ def pytest_addoption(parser):
         action="append",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
-        "[cassandra,kerberos,mongo,openldap,rabbitmq,redis,statsd,trino]. ",
+        "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
     )
     group.addoption(
         "--backend",
