@@ -22,14 +22,18 @@ from typing import Sequence
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
+from airflow.executors.base_executor import (
+    BaseExecutor,
+    CommandType,
+    EventBufferValueType,
+    QueuedTaskInstanceType,
+)
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class CeleryKubernetesExecutor(LoggingMixin):
+class CeleryKubernetesExecutor(BaseExecutor):
     """
     CeleryKubernetesExecutor consists of CeleryExecutor and KubernetesExecutor.
     It chooses an executor to use based on the queue defined on the task.
@@ -44,14 +48,14 @@ class CeleryKubernetesExecutor(LoggingMixin):
     KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
-        super().__init__()
+        self._set_context(None)
         self._job_id: int | None = None
         self.celery_executor = celery_executor
         self.kubernetes_executor = kubernetes_executor
         self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
 
     @property
-    def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
+    def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:  # type: ignore[override]
         """Return queued tasks from celery and kubernetes executor."""
         queued_tasks = self.celery_executor.queued_tasks.copy()
         queued_tasks.update(self.kubernetes_executor.queued_tasks)
@@ -59,12 +63,12 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return queued_tasks
 
     @property
-    def running(self) -> set[TaskInstanceKey]:
+    def running(self) -> set[TaskInstanceKey]:  # type: ignore[override]
         """Return running tasks from celery and kubernetes executor."""
         return self.celery_executor.running.union(self.kubernetes_executor.running)
 
-    @property
-    def job_id(self) -> int | None:
+    @property  # type: ignore[override]
+    def job_id(self) -> int | None:  # type: ignore[override]
         """
         Inherited attribute from BaseExecutor.
 
