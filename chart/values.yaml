@@ -243,6 +243,12 @@ env: []
 # - name: ""
 #   value: ""
 
+# Volumes for all airflow containers
+volumes: []
+
+# VolumeMounts for all airflow containers
+volumeMounts: []
+
 # Secrets for all airflow containers
 secret: []
 # - envName: ""

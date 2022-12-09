@@ -129,6 +129,9 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
 {{- end }}
@@ -181,6 +184,9 @@ spec:
 {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+{{- end }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
@@ -255,6 +261,9 @@ spec:
           persistentVolumeClaim:
             claimName: {{ template "airflow_logs_volume_claim" . }}
         {{- end }}
+{{- if .Values.volumes }}
+{{- toYaml .Values.volumes | nindent 8 }}
+{{- end }}
 {{- if .Values.webserver.extraVolumes }}
 {{ toYaml .Values.webserver.extraVolumes | indent 8 }}
 {{- end }}
