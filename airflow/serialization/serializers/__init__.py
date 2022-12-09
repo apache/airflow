@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,25 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-################################
-## Airflow ConfigMap
-#################################
-{{- if and .Values.webserver.webserverConfig (not .Values.webserver.webserverConfigConfigMapName) }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ template "airflow_webserver_config_configmap_name" . }}
-  labels:
-    tier: airflow
-    component: config
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-data:
-  webserver_config.py: |
-    {{- tpl .Values.webserver.webserverConfig . | nindent 4 }}
-{{- end }}
