@@ -21,12 +21,11 @@ import sys
 import warnings
 from collections import OrderedDict
 from typing import Any, Counter, List, Optional, Sequence, Tuple
-from urllib.parse import urljoin
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -302,6 +301,11 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
+    def get_task_log(
+        self, ti: TaskInstance, log_relative_path: str
+    ) -> None | str | tuple[str, dict[str, bool]]:
+        pass
+
     def end(self) -> None:  # pragma: no cover
         """
         This method is called when the caller is done submitting job and
@@ -373,62 +377,6 @@ class BaseExecutor(LoggingMixin):
                         break
             return dag_id, task_id
         return None, None
-
-    @staticmethod
-    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
-        url = urljoin(
-            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
-            log_relative_path,
-        )
-        return url
-
-    def get_task_log(self, ti: TaskInstance, log_relative_path: str) -> str | tuple[str, dict[str, bool]]:
-        import httpx
-
-        from airflow.utils.jwt_signer import JWTSigner
-
-        log = ""
-        url = self._get_log_retrieval_url(ti, log_relative_path)
-        log += f"*** Fetching from: {url}\n"
-
-        try:
-            timeout = None  # No timeout
-            try:
-                timeout = conf.getint("webserver", "log_fetch_timeout_sec")
-            except (AirflowConfigException, ValueError):
-                pass
-
-            signer = JWTSigner(
-                secret_key=conf.get("webserver", "secret_key"),
-                expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
-                audience="task-instance-logs",
-            )
-            response = httpx.get(
-                url,
-                timeout=timeout,
-                headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
-            )
-            response.encoding = "utf-8"
-
-            if response.status_code == 403:
-                log += (
-                    "*** !!!! Please make sure that all your Airflow components (e.g. "
-                    "schedulers, webservers and workers) have "
-                    "the same 'secret_key' configured in 'webserver' section and "
-                    "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
-                )
-                log += (
-                    "*** See more at https://airflow.apache.org/docs/apache-airflow/"
-                    "stable/configurations-ref.html#secret-key\n***"
-                )
-            # Check if the resource was properly fetched
-            response.raise_for_status()
-
-            log += "\n" + response.text
-            return log
-        except Exception as e:
-            log += f"*** Failed to fetch log file from worker. {str(e)}\n"
-            return log, {"end_of_log": True}
 
     def debug_dump(self):
         """Called in response to SIGUSR2 by the scheduler"""

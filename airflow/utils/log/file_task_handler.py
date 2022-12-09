@@ -23,8 +23,10 @@ import os
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urljoin
 
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
@@ -131,6 +133,63 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
+    @staticmethod
+    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
+        url = urljoin(
+            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
+            log_relative_path,
+        )
+        return url
+
+    def _get_task_log_from_worker(
+        self, ti: TaskInstance, log_relative_path: str
+    ) -> str | tuple[str, dict[str, bool]]:
+        import httpx
+
+        from airflow.utils.jwt_signer import JWTSigner
+
+        url = self._get_log_retrieval_url(ti, log_relative_path)
+        log = f"*** Fetching from: {url}\n"
+
+        try:
+            timeout = None  # No timeout
+            try:
+                timeout = conf.getint("webserver", "log_fetch_timeout_sec")
+            except (AirflowConfigException, ValueError):
+                pass
+
+            signer = JWTSigner(
+                secret_key=conf.get("webserver", "secret_key"),
+                expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
+                audience="task-instance-logs",
+            )
+            response = httpx.get(
+                url,
+                timeout=timeout,
+                headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+            )
+            response.encoding = "utf-8"
+
+            if response.status_code == 403:
+                log += (
+                    "*** !!!! Please make sure that all your Airflow components (e.g. "
+                    "schedulers, webservers and workers) have "
+                    "the same 'secret_key' configured in 'webserver' section and "
+                    "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
+                )
+                log += (
+                    "*** See more at https://airflow.apache.org/docs/apache-airflow/"
+                    "stable/configurations-ref.html#secret-key\n***"
+                )
+            # Check if the resource was properly fetched
+            response.raise_for_status()
+
+            log += "\n" + response.text
+            return log
+        except Exception as e:
+            log += f"*** Failed to fetch log file from worker. {str(e)}\n"
+            return log, {"end_of_log": True}
+
     def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
@@ -174,6 +233,12 @@ class FileTaskHandler(logging.Handler):
 
             executor = ExecutorLoader.get_default_executor()
             task_log = executor.get_task_log(ti, log_relative_path=log_relative_path)
+
+            if isinstance(task_log, tuple):
+                return task_log
+
+            if task_log is None:
+                task_log = self._get_task_log_from_worker(ti, log_relative_path=log_relative_path)
 
             if isinstance(task_log, tuple):
                 return task_log
