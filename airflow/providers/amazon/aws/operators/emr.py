@@ -71,6 +71,9 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
+        cancel_existing_steps: bool = True,
+        steps_states: list[str],
+        cancellation_option: str = 'SEND_INTERRUPT',
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -84,6 +87,9 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
         self.wait_for_completion = wait_for_completion
+        self.cancel_existing_steps = cancel_existing_steps
+        self.steps_states = steps_states
+        self.cancellation_option = cancellation_option
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -113,6 +119,17 @@ class EmrAddStepsOperator(BaseOperator):
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
+
+        self.log.info("List of steps to be added: %s ", steps)
+
+        if self.cancel_existing_steps:
+            response = emr_hook.send_cancel_steps(
+                emr_cluster_id=job_flow_id,
+                steps=steps,
+                steps_states=self.steps_states,
+                cancellation_option=self.cancellation_option)
+
+            self.log.info("Response from cancellation : %s ", response)
 
         return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=True)
 
