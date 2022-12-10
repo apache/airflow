@@ -304,7 +304,7 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def get_task_log(self, ti: TaskInstance) -> None | str | tuple[str, dict[str, bool]]:
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> None | str | tuple[str, dict[str, bool]]:
         pass
 
     def end(self) -> None:  # pragma: no cover

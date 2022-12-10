@@ -720,8 +720,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.debug("Could not find key: %s", str(key))
         self.event_buffer[key] = state, None
 
-    def get_task_log(self, ti: TaskInstance) -> str | tuple[str, dict[str, bool]]:
-        log = ""
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
         try:
             from airflow.kubernetes.kube_client import get_kube_client
 

@@ -132,9 +132,10 @@ class LocalKubernetesExecutor(LoggingMixin):
             cfg_path,
         )
 
-    def get_task_log(self, ti: TaskInstance) -> None | str | tuple[str, dict[str, bool]]:
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> None | str | tuple[str, dict[str, bool]]:
+        """Fetch task log from kubernetes executor"""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
-            return self.kubernetes_executor.get_task_log(ti)
+            return self.kubernetes_executor.get_task_log(ti, log)
 
         return None
 

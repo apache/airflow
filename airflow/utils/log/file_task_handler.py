@@ -134,14 +134,14 @@ class FileTaskHandler(logging.Handler):
         return False
 
     def _get_task_log_from_worker(
-        self, ti: TaskInstance, log_relative_path: str
+        self, ti: TaskInstance, log: str, log_relative_path: str
     ) -> str | tuple[str, dict[str, bool]]:
         import httpx
 
         from airflow.utils.jwt_signer import JWTSigner
 
         url = self._get_log_retrieval_url(ti, log_relative_path)
-        log = f"*** Fetching from: {url}\n"
+        log += f"*** Fetching from: {url}\n"
 
         try:
             timeout = None  # No timeout
@@ -221,16 +221,18 @@ class FileTaskHandler(logging.Handler):
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
         else:
-
-            log += f"*** Log file does not exist: {location}\n"
+            log += f"*** Local log file does not exist: {location}\n"
             executor = ExecutorLoader.get_default_executor()
-            task_log = executor.get_task_log(ti)
+            task_log = None
 
-            if isinstance(task_log, tuple):
-                return task_log
+            if hasattr(executor, "get_task_log"):
+                task_log = executor.get_task_log(ti, log)
+                if isinstance(task_log, tuple):
+                    return task_log
 
             if task_log is None:
-                task_log = self._get_task_log_from_worker(ti, log_relative_path=log_relative_path)
+                log += "Couldn't fetch log from executor. Falling back to fetching log from worker."
+                task_log = self._get_task_log_from_worker(ti, log, log_relative_path=log_relative_path)
 
             if isinstance(task_log, tuple):
                 return task_log
