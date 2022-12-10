@@ -33,8 +33,12 @@ from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
 
 import dill
 
-from airflow.exceptions import AirflowConfigException, AirflowException, RemovedInAirflow3Warning, \
-    DeserializingResultError
+from airflow.exceptions import (
+    AirflowConfigException,
+    AirflowException,
+    DeserializingResultError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT

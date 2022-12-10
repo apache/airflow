@@ -31,7 +31,7 @@ from unittest import mock
 import pytest
 from slugify import slugify
 
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, DeserializingResultError
+from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
@@ -286,10 +286,10 @@ class TestPythonOperator(BasePythonTest):
             python_callable=func,
             dag=self.dag,
             show_return_value_in_logs=False,
-            templates_exts=['test_ext']
+            templates_exts=["test_ext"],
         )
 
-        assert python_operator.template_ext == ['test_ext']
+        assert python_operator.template_ext == ["test_ext"]
 
 
 class TestBranchOperator(BasePythonTest):
