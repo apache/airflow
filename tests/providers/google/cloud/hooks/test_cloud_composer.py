@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -60,8 +59,8 @@ def mock_init(*args, **kwargs):
     pass
 
 
-class TestCloudComposerHook(unittest.TestCase):
-    def setUp(self) -> None:
+class TestCloudComposerHook:
+    def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerHook(gcp_conn_id="test")
 
@@ -197,7 +196,7 @@ class TestCloudComposerHook(unittest.TestCase):
 
 
 class TestCloudComposerAsyncHook:
-    def setup_method(self, method) -> None:
+    def setup_method(self, method):
         with async_mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
 
