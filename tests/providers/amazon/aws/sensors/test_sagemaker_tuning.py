@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -56,7 +55,7 @@ DESCRIBE_TUNING_STOPPING_RESPONSE = {
 }
 
 
-class TestSageMakerTuningSensor(unittest.TestCase):
+class TestSageMakerTuningSensor:
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "describe_tuning_job")
     def test_sensor_with_failure(self, mock_describe_job, mock_client):

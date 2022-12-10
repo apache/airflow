@@ -19,92 +19,92 @@
         font-weight: 700;
     }
 
-    .terminal-3949946042-matrix {
+    .breeze-ci-image-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-3949946042-title {
+    .breeze-ci-image-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-3949946042-r1 { fill: #c5c8c6;font-weight: bold }
-.terminal-3949946042-r2 { fill: #c5c8c6 }
-.terminal-3949946042-r3 { fill: #d0b344;font-weight: bold }
-.terminal-3949946042-r4 { fill: #868887 }
-.terminal-3949946042-r5 { fill: #68a0b3;font-weight: bold }
-.terminal-3949946042-r6 { fill: #98a84b;font-weight: bold }
+    .breeze-ci-image-r1 { fill: #c5c8c6;font-weight: bold }
+.breeze-ci-image-r2 { fill: #c5c8c6 }
+.breeze-ci-image-r3 { fill: #d0b344;font-weight: bold }
+.breeze-ci-image-r4 { fill: #68a0b3;font-weight: bold }
+.breeze-ci-image-r5 { fill: #868887 }
+.breeze-ci-image-r6 { fill: #98a84b;font-weight: bold }
     </style>
 
     <defs>
-    <clipPath id="terminal-3949946042-clip-terminal">
+    <clipPath id="breeze-ci-image-clip-terminal">
       <rect x="0" y="0" width="1463.0" height="316.2" />
     </clipPath>
-    <clipPath id="terminal-3949946042-line-0">
+    <clipPath id="breeze-ci-image-line-0">
     <rect x="0" y="1.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-1">
+<clipPath id="breeze-ci-image-line-1">
     <rect x="0" y="25.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-2">
+<clipPath id="breeze-ci-image-line-2">
     <rect x="0" y="50.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-3">
+<clipPath id="breeze-ci-image-line-3">
     <rect x="0" y="74.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-4">
+<clipPath id="breeze-ci-image-line-4">
     <rect x="0" y="99.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-5">
+<clipPath id="breeze-ci-image-line-5">
     <rect x="0" y="123.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-6">
+<clipPath id="breeze-ci-image-line-6">
     <rect x="0" y="147.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-7">
+<clipPath id="breeze-ci-image-line-7">
     <rect x="0" y="172.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-8">
+<clipPath id="breeze-ci-image-line-8">
     <rect x="0" y="196.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-9">
+<clipPath id="breeze-ci-image-line-9">
     <rect x="0" y="221.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-10">
+<clipPath id="breeze-ci-image-line-10">
     <rect x="0" y="245.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3949946042-line-11">
+<clipPath id="breeze-ci-image-line-11">
     <rect x="0" y="269.9" width="1464" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="365.2" rx="8"/><text class="terminal-3949946042-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;ci-image</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="365.2" rx="8"/><text class="breeze-ci-image-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;ci-image</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-3949946042-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#breeze-ci-image-clip-terminal)">
     
-    <g class="terminal-3949946042-matrix">
-    <text class="terminal-3949946042-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-3949946042-line-0)">
-</text><text class="terminal-3949946042-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#terminal-3949946042-line-1)">Usage:&#160;</text><text class="terminal-3949946042-r1" x="97.6" y="44.4" textLength="524.6" clip-path="url(#terminal-3949946042-line-1)">breeze&#160;ci-image&#160;[OPTIONS]&#160;COMMAND&#160;[ARGS]...</text><text class="terminal-3949946042-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-3949946042-line-1)">
-</text><text class="terminal-3949946042-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-3949946042-line-2)">
-</text><text class="terminal-3949946042-r2" x="12.2" y="93.2" textLength="707.6" clip-path="url(#terminal-3949946042-line-3)">Tools&#160;that&#160;developers&#160;can&#160;use&#160;to&#160;manually&#160;manage&#160;CI&#160;images</text><text class="terminal-3949946042-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-3949946042-line-3)">
-</text><text class="terminal-3949946042-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-3949946042-line-4)">
-</text><text class="terminal-3949946042-r4" x="0" y="142" textLength="24.4" clip-path="url(#terminal-3949946042-line-5)">╭─</text><text class="terminal-3949946042-r4" x="24.4" y="142" textLength="1415.2" clip-path="url(#terminal-3949946042-line-5)">&#160;Common&#160;options&#160;────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-3949946042-r4" x="1439.6" y="142" textLength="24.4" clip-path="url(#terminal-3949946042-line-5)">─╮</text><text class="terminal-3949946042-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-3949946042-line-5)">
-</text><text class="terminal-3949946042-r4" x="0" y="166.4" textLength="12.2" clip-path="url(#terminal-3949946042-line-6)">│</text><text class="terminal-3949946042-r5" x="24.4" y="166.4" textLength="12.2" clip-path="url(#terminal-3949946042-line-6)">-</text><text class="terminal-3949946042-r5" x="36.6" y="166.4" textLength="61" clip-path="url(#terminal-3949946042-line-6)">-help</text><text class="terminal-3949946042-r6" x="122" y="166.4" textLength="24.4" clip-path="url(#terminal-3949946042-line-6)">-h</text><text class="terminal-3949946042-r2" x="170.8" y="166.4" textLength="329.4" clip-path="url(#terminal-3949946042-line-6)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="terminal-3949946042-r4" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#terminal-3949946042-line-6)">│</text><text class="terminal-3949946042-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-3949946042-line-6)">
-</text><text class="terminal-3949946042-r4" x="0" y="190.8" textLength="1464" clip-path="url(#terminal-3949946042-line-7)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-3949946042-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-3949946042-line-7)">
-</text><text class="terminal-3949946042-r4" x="0" y="215.2" textLength="24.4" clip-path="url(#terminal-3949946042-line-8)">╭─</text><text class="terminal-3949946042-r4" x="24.4" y="215.2" textLength="1415.2" clip-path="url(#terminal-3949946042-line-8)">&#160;CI&#160;Image&#160;tools&#160;────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-3949946042-r4" x="1439.6" y="215.2" textLength="24.4" clip-path="url(#terminal-3949946042-line-8)">─╮</text><text class="terminal-3949946042-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-3949946042-line-8)">
-</text><text class="terminal-3949946042-r4" x="0" y="239.6" textLength="12.2" clip-path="url(#terminal-3949946042-line-9)">│</text><text class="terminal-3949946042-r5" x="24.4" y="239.6" textLength="97.6" clip-path="url(#terminal-3949946042-line-9)">build&#160;&#160;&#160;</text><text class="terminal-3949946042-r2" x="146.4" y="239.6" textLength="1293.2" clip-path="url(#terminal-3949946042-line-9)">Build&#160;CI&#160;image.&#160;Include&#160;building&#160;multiple&#160;images&#160;for&#160;all&#160;python&#160;versions.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3949946042-r4" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#terminal-3949946042-line-9)">│</text><text class="terminal-3949946042-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#terminal-3949946042-line-9)">
-</text><text class="terminal-3949946042-r4" x="0" y="264" textLength="12.2" clip-path="url(#terminal-3949946042-line-10)">│</text><text class="terminal-3949946042-r5" x="24.4" y="264" textLength="97.6" clip-path="url(#terminal-3949946042-line-10)">pull&#160;&#160;&#160;&#160;</text><text class="terminal-3949946042-r2" x="146.4" y="264" textLength="1293.2" clip-path="url(#terminal-3949946042-line-10)">Pull&#160;and&#160;optionally&#160;verify&#160;CI&#160;images&#160;-&#160;possibly&#160;in&#160;parallel&#160;for&#160;all&#160;Python&#160;versions.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3949946042-r4" x="1451.8" y="264" textLength="12.2" clip-path="url(#terminal-3949946042-line-10)">│</text><text class="terminal-3949946042-r2" x="1464" y="264" textLength="12.2" clip-path="url(#terminal-3949946042-line-10)">
-</text><text class="terminal-3949946042-r4" x="0" y="288.4" textLength="12.2" clip-path="url(#terminal-3949946042-line-11)">│</text><text class="terminal-3949946042-r5" x="24.4" y="288.4" textLength="97.6" clip-path="url(#terminal-3949946042-line-11)">verify&#160;&#160;</text><text class="terminal-3949946042-r2" x="146.4" y="288.4" textLength="1293.2" clip-path="url(#terminal-3949946042-line-11)">Verify&#160;CI&#160;image.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3949946042-r4" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#terminal-3949946042-line-11)">│</text><text class="terminal-3949946042-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#terminal-3949946042-line-11)">
-</text><text class="terminal-3949946042-r4" x="0" y="312.8" textLength="1464" clip-path="url(#terminal-3949946042-line-12)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-3949946042-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#terminal-3949946042-line-12)">
+    <g class="breeze-ci-image-matrix">
+    <text class="breeze-ci-image-r2" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-ci-image-line-0)">
+</text><text class="breeze-ci-image-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#breeze-ci-image-line-1)">Usage:&#160;</text><text class="breeze-ci-image-r1" x="97.6" y="44.4" textLength="207.4" clip-path="url(#breeze-ci-image-line-1)">breeze&#160;ci-image&#160;[</text><text class="breeze-ci-image-r4" x="305" y="44.4" textLength="85.4" clip-path="url(#breeze-ci-image-line-1)">OPTIONS</text><text class="breeze-ci-image-r1" x="390.4" y="44.4" textLength="24.4" clip-path="url(#breeze-ci-image-line-1)">]&#160;</text><text class="breeze-ci-image-r4" x="414.8" y="44.4" textLength="85.4" clip-path="url(#breeze-ci-image-line-1)">COMMAND</text><text class="breeze-ci-image-r1" x="500.2" y="44.4" textLength="24.4" clip-path="url(#breeze-ci-image-line-1)">&#160;[</text><text class="breeze-ci-image-r4" x="524.6" y="44.4" textLength="48.8" clip-path="url(#breeze-ci-image-line-1)">ARGS</text><text class="breeze-ci-image-r1" x="573.4" y="44.4" textLength="48.8" clip-path="url(#breeze-ci-image-line-1)">]...</text><text class="breeze-ci-image-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-ci-image-line-1)">
+</text><text class="breeze-ci-image-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-ci-image-line-2)">
+</text><text class="breeze-ci-image-r2" x="12.2" y="93.2" textLength="597.8" clip-path="url(#breeze-ci-image-line-3)">Tools&#160;that&#160;developers&#160;can&#160;use&#160;to&#160;manually&#160;manage&#160;</text><text class="breeze-ci-image-r4" x="610" y="93.2" textLength="24.4" clip-path="url(#breeze-ci-image-line-3)">CI</text><text class="breeze-ci-image-r2" x="634.4" y="93.2" textLength="85.4" clip-path="url(#breeze-ci-image-line-3)">&#160;images</text><text class="breeze-ci-image-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-ci-image-line-3)">
+</text><text class="breeze-ci-image-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-ci-image-line-4)">
+</text><text class="breeze-ci-image-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-ci-image-line-5)">╭─</text><text class="breeze-ci-image-r5" x="24.4" y="142" textLength="195.2" clip-path="url(#breeze-ci-image-line-5)">&#160;Common&#160;options&#160;</text><text class="breeze-ci-image-r5" x="219.6" y="142" textLength="1220" clip-path="url(#breeze-ci-image-line-5)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-ci-image-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-ci-image-line-5)">─╮</text><text class="breeze-ci-image-r2" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-ci-image-line-5)">
+</text><text class="breeze-ci-image-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-image-line-6)">│</text><text class="breeze-ci-image-r4" x="24.4" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-image-line-6)">-</text><text class="breeze-ci-image-r4" x="36.6" y="166.4" textLength="61" clip-path="url(#breeze-ci-image-line-6)">-help</text><text class="breeze-ci-image-r6" x="122" y="166.4" textLength="24.4" clip-path="url(#breeze-ci-image-line-6)">-h</text><text class="breeze-ci-image-r2" x="170.8" y="166.4" textLength="329.4" clip-path="url(#breeze-ci-image-line-6)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-ci-image-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-image-line-6)">│</text><text class="breeze-ci-image-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-ci-image-line-6)">
+</text><text class="breeze-ci-image-r5" x="0" y="190.8" textLength="1464" clip-path="url(#breeze-ci-image-line-7)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-ci-image-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-ci-image-line-7)">
+</text><text class="breeze-ci-image-r5" x="0" y="215.2" textLength="24.4" clip-path="url(#breeze-ci-image-line-8)">╭─</text><text class="breeze-ci-image-r5" x="24.4" y="215.2" textLength="195.2" clip-path="url(#breeze-ci-image-line-8)">&#160;CI&#160;Image&#160;tools&#160;</text><text class="breeze-ci-image-r5" x="219.6" y="215.2" textLength="1220" clip-path="url(#breeze-ci-image-line-8)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-ci-image-r5" x="1439.6" y="215.2" textLength="24.4" clip-path="url(#breeze-ci-image-line-8)">─╮</text><text class="breeze-ci-image-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-ci-image-line-8)">
+</text><text class="breeze-ci-image-r5" x="0" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-image-line-9)">│</text><text class="breeze-ci-image-r4" x="24.4" y="239.6" textLength="97.6" clip-path="url(#breeze-ci-image-line-9)">build&#160;&#160;&#160;</text><text class="breeze-ci-image-r2" x="146.4" y="239.6" textLength="73.2" clip-path="url(#breeze-ci-image-line-9)">Build&#160;</text><text class="breeze-ci-image-r4" x="219.6" y="239.6" textLength="24.4" clip-path="url(#breeze-ci-image-line-9)">CI</text><text class="breeze-ci-image-r2" x="244" y="239.6" textLength="1195.6" clip-path="url(#breeze-ci-image-line-9)">&#160;image.&#160;Include&#160;building&#160;multiple&#160;images&#160;for&#160;all&#160;python&#160;versions.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-ci-image-r5" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-image-line-9)">│</text><text class="breeze-ci-image-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-ci-image-line-9)">
+</text><text class="breeze-ci-image-r5" x="0" y="264" textLength="12.2" clip-path="url(#breeze-ci-image-line-10)">│</text><text class="breeze-ci-image-r4" x="24.4" y="264" textLength="97.6" clip-path="url(#breeze-ci-image-line-10)">pull&#160;&#160;&#160;&#160;</text><text class="breeze-ci-image-r2" x="146.4" y="264" textLength="329.4" clip-path="url(#breeze-ci-image-line-10)">Pull&#160;and&#160;optionally&#160;verify&#160;</text><text class="breeze-ci-image-r4" x="475.8" y="264" textLength="24.4" clip-path="url(#breeze-ci-image-line-10)">CI</text><text class="breeze-ci-image-r2" x="500.2" y="264" textLength="939.4" clip-path="url(#breeze-ci-image-line-10)">&#160;images&#160;-&#160;possibly&#160;in&#160;parallel&#160;for&#160;all&#160;Python&#160;versions.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-ci-image-r5" x="1451.8" y="264" textLength="12.2" clip-path="url(#breeze-ci-image-line-10)">│</text><text class="breeze-ci-image-r2" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-ci-image-line-10)">
+</text><text class="breeze-ci-image-r5" x="0" y="288.4" textLength="12.2" clip-path="url(#breeze-ci-image-line-11)">│</text><text class="breeze-ci-image-r4" x="24.4" y="288.4" textLength="97.6" clip-path="url(#breeze-ci-image-line-11)">verify&#160;&#160;</text><text class="breeze-ci-image-r2" x="146.4" y="288.4" textLength="85.4" clip-path="url(#breeze-ci-image-line-11)">Verify&#160;</text><text class="breeze-ci-image-r4" x="231.8" y="288.4" textLength="24.4" clip-path="url(#breeze-ci-image-line-11)">CI</text><text class="breeze-ci-image-r2" x="256.2" y="288.4" textLength="1183.4" clip-path="url(#breeze-ci-image-line-11)">&#160;image.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-ci-image-r5" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#breeze-ci-image-line-11)">│</text><text class="breeze-ci-image-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-ci-image-line-11)">
+</text><text class="breeze-ci-image-r5" x="0" y="312.8" textLength="1464" clip-path="url(#breeze-ci-image-line-12)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-ci-image-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#breeze-ci-image-line-12)">
 </text>
     </g>
     </g>

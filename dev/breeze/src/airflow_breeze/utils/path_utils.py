@@ -57,11 +57,17 @@ def in_self_upgrade() -> bool:
 
 
 def in_help() -> bool:
-    return "--help" in sys.argv
+    return "--help" in sys.argv or "-h" in sys.argv
 
 
 def skip_upgrade_check():
-    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, "_called_from_test")
+    return (
+        in_self_upgrade()
+        or in_autocomplete()
+        or in_help()
+        or hasattr(sys, "_called_from_test")
+        or os.environ.get("SKIP_UPGRADE_CHECK")
+    )
 
 
 def skip_group_output():
@@ -134,6 +140,17 @@ def set_forced_answer_for_upgrade_check():
         set_forced_answer("quit")
 
 
+def process_breeze_readme(breeze_sources: Path, sources_hash: str):
+    breeze_readme = breeze_sources / "README.md"
+    lines = breeze_readme.read_text().splitlines(keepends=True)
+    result_lines = []
+    for line in lines:
+        if line.startswith("Package config hash:"):
+            line = f"Package config hash: {sources_hash}\n"
+        result_lines.append(line)
+    breeze_readme.write_text("".join(result_lines))
+
+
 def reinstall_if_setup_changed() -> bool:
     """
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
@@ -156,6 +173,7 @@ def reinstall_if_setup_changed() -> bool:
         if installation_sources is not None:
             breeze_sources = installation_sources / "dev" / "breeze"
             warn_dependencies_changed()
+            process_breeze_readme(breeze_sources, sources_hash)
             set_forced_answer_for_upgrade_check()
             reinstall_breeze(breeze_sources)
             set_forced_answer(None)

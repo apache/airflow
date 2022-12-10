@@ -31,6 +31,9 @@ class TestLocalExecutor:
 
     TEST_SUCCESS_COMMANDS = 5
 
+    def test_is_local_default_value(self):
+        assert LocalExecutor.is_local
+
     @mock.patch("airflow.executors.local_executor.subprocess.check_call")
     def execution_parallelism_subprocess(self, mock_check_call, parallelism=0):
         success_command = ["airflow", "tasks", "run", "true", "some_parameter", "2020-10-07"]

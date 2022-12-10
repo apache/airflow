@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -45,7 +44,7 @@ TASK_DATA = {
 }
 
 
-class TestDmsCreateTaskOperator(unittest.TestCase):
+class TestDmsCreateTaskOperator:
     def test_init(self):
         create_operator = DmsCreateTaskOperator(task_id="create_task", **TASK_DATA)
 

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import os
 import re
 import signal
@@ -34,7 +35,7 @@ import pytest
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.jobs.local_task_job import SIGSEGV_MESSAGE, LocalTaskJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -804,6 +805,40 @@ class TestLocalTaskJob:
         assert retry_callback_called.value == 1
         assert "Received SIGTERM. Terminating subprocesses" in caplog.text
         assert "Task exited with return code 143" in caplog.text
+
+    def test_process_sigsegv_error_message(self, caplog, dag_maker):
+        """Test that shows error if process failed with segmentation fault."""
+        caplog.set_level(logging.CRITICAL, logger="local_task_job.py")
+
+        def task_function(ti):
+            # pytest enable faulthandler by default unless `-p no:faulthandler` is given.
+            # It can not be disabled on the test level out of the box and
+            # that mean debug traceback would show in pytest output.
+            # For avoid this we disable it within the task which run in separate process.
+            import faulthandler
+
+            if faulthandler.is_enabled():
+                faulthandler.disable()
+
+            while not ti.pid:
+                time.sleep(0.1)
+
+            os.kill(psutil.Process(os.getpid()).ppid(), signal.SIGSEGV)
+
+        with dag_maker(dag_id="test_segmentation_fault"):
+            task = PythonOperator(
+                task_id="test_sigsegv",
+                python_callable=task_function,
+            )
+        dag_run = dag_maker.create_dagrun()
+        ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        ti.refresh_from_db()
+        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        settings.engine.dispose()
+        with timeout(10):
+            with pytest.raises(AirflowException, match=r"Segmentation Fault detected"):
+                job.run()
+        assert SIGSEGV_MESSAGE in caplog.messages
 
 
 @pytest.fixture()

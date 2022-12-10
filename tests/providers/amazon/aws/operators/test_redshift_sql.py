@@ -16,20 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 
 
-class TestRedshiftSQLOperator(unittest.TestCase):
-    @parameterized.expand([(True, ("a", "b")), (False, ("c", "d"))])
+class TestRedshiftSQLOperator:
+    @pytest.mark.parametrize("test_autocommit, test_parameters", [(True, ("a", "b")), (False, ("c", "d"))])
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_sql.RedshiftSQLOperator.get_db_hook")
-    def test_redshift_operator(self, test_autocommit, test_parameters, mock_get_hook):
+    def test_redshift_operator(self, mock_get_hook, test_autocommit, test_parameters):
         hook = MagicMock()
         mock_run = hook.run
         mock_get_hook.return_value = hook
