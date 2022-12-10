@@ -83,7 +83,7 @@ with models.DAG(
     )
 
     load_json = GCSToBigQueryOperator(
-        task_id="gcs_to_bigquery_example_date_csv_async",
+        task_id="gcs_to_bigquery_example_date_json_async",
         bucket="cloud-samples-data",
         source_objects=["bigquery/us-states/us-states.json"],
         source_format="NEWLINE_DELIMITED_JSON",
