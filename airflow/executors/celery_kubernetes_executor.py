@@ -43,6 +43,8 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
+    is_local: bool = False
+
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
         self._job_id: int | None = None

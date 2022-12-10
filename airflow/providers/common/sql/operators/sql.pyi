@@ -80,6 +80,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
 class SQLColumnCheckOperator(BaseSQLOperator):
     template_fields: Incomplete
+    template_fields_renderers: Incomplete
     sql_check_template: str
     column_checks: Incomplete
     table: Incomplete
@@ -102,6 +103,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
 class SQLTableCheckOperator(BaseSQLOperator):
     template_fields: Incomplete
+    template_fields_renderers: Incomplete
     sql_check_template: str
     table: Incomplete
     checks: Incomplete
