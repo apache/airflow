@@ -44,6 +44,15 @@ from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTr
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+ALLOWED_FORMATS = [
+    "CSV",
+    "NEWLINE_DELIMITED_JSON",
+    "AVRO",
+    "GOOGLE_SHEETS",
+    "DATASTORE_BACKUP",
+    "PARQUET",
+]
+
 
 class GCSToBigQueryOperator(BaseOperator):
     """
@@ -238,7 +247,13 @@ class GCSToBigQueryOperator(BaseOperator):
         # BQ config
         self.destination_project_dataset_table = destination_project_dataset_table
         self.schema_fields = schema_fields
-        self.source_format = source_format
+        if source_format not in ALLOWED_FORMATS:
+            raise ValueError(
+                f"{source_format} is not a valid source format. "
+                f"Please use one of the following types: {ALLOWED_FORMATS}."
+            )
+        else:
+            self.source_format = source_format
         self.compression = compression
         self.create_disposition = create_disposition
         self.skip_leading_rows = skip_leading_rows
@@ -306,14 +321,6 @@ class GCSToBigQueryOperator(BaseOperator):
         )
         self.hook = hook
         self.source_format = self.source_format.upper()
-        allowed_formats = [
-            "CSV",
-            "NEWLINE_DELIMITED_JSON",
-            "AVRO",
-            "GOOGLE_SHEETS",
-            "DATASTORE_BACKUP",
-            "PARQUET",
-        ]
 
         job_id = self.hook.generate_job_id(
             job_id=self.job_id,
@@ -343,12 +350,6 @@ class GCSToBigQueryOperator(BaseOperator):
                 raise AirflowException(
                     "Table schema was not found. Neither schema object nor schema fields were specified"
                 )
-
-        if self.source_format not in allowed_formats:
-            raise ValueError(
-                f"{self.source_format} is not a valid source format. "
-                f"Please use one of the following types: {allowed_formats}."
-            )
 
         if self.external_table:
             self.log.info("Creating a new BigQuery table for storing data...")
