@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sync permission command."""
+
 from __future__ import annotations
 
-from airflow.utils import cli as cli_utils
+from contextlib import contextmanager
+from functools import lru_cache
+from typing import Generator
+
+from flask import Flask
+
+from airflow.www.extensions.init_appbuilder import AirflowAppBuilder, init_appbuilder
 
 
-@cli_utils.action_cli
-def sync_perm(args):
-    """Updates permissions for existing roles and DAGs."""
-    from airflow.utils.cli_app_builder import get_application_builder
+@lru_cache(maxsize=None)
+def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
+    """Returns an appbuilder instance for the given app"""
+    return init_appbuilder(app)
 
-    with get_application_builder() as appbuilder:
-        print("Updating actions and resources for all existing roles")
-        # Add missing permissions for all the Base Views _before_ syncing/creating roles
-        appbuilder.add_permissions(update_perms=True)
-        appbuilder.sm.sync_roles()
-        if args.include_dags:
-            print("Updating permission on all DAG views")
-            appbuilder.sm.create_dag_specific_permissions()
+
+@contextmanager
+def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
+    flask_app = Flask(__name__)
+    with flask_app.app_context():
+        yield _return_appbuilder(flask_app)
