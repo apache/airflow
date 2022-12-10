@@ -57,6 +57,14 @@ class KubeConfig:
         # create, watch, get, and delete pods in this namespace.
         self.kube_namespace = conf.get(self.kubernetes_section, "namespace")
         self.multi_namespace_mode = conf.getboolean(self.kubernetes_section, "multi_namespace_mode")
+        if self.multi_namespace_mode and conf.get(
+            self.kubernetes_section, "multi_namespace_mode_namespace_list"
+        ):
+            self.multi_namespace_mode_namespace_list = conf.get(
+                self.kubernetes_section, "multi_namespace_mode_namespace_list"
+            ).split(",")
+        else:
+            self.multi_namespace_mode_namespace_list = None
         # The Kubernetes Namespace in which pods will be created by the executor. Note
         # that if your
         # cluster has RBAC enabled, your workers may need service account permissions to
