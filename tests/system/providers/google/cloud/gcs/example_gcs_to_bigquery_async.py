@@ -81,6 +81,20 @@ with models.DAG(
         max_id_key=MAX_ID_DATE,
         deferrable=True,
     )
+
+    load_json = GCSToBigQueryOperator(
+        task_id="gcs_to_bigquery_example_date_csv_async",
+        bucket="cloud-samples-data",
+        source_objects=["bigquery/us-states/us-states.json"],
+        source_format="NEWLINE_DELIMITED_JSON",
+        destination_project_dataset_table=f"{DATASET_NAME_DATE}.{TABLE_NAME_DATE}",
+        write_disposition="WRITE_TRUNCATE",
+        external_table=False,
+        autodetect=True,
+        max_id_key=MAX_ID_DATE,
+        deferrable=True,
+    )
+
     # [END howto_operator_gcs_to_bigquery_async]
 
     delete_test_dataset_str = BigQueryDeleteDatasetOperator(
@@ -104,6 +118,7 @@ with models.DAG(
         # TEST BODY
         >> load_string_based_csv
         >> load_date_based_csv
+        >> load_json
         # TEST TEARDOWN
         >> delete_test_dataset_str
         >> delete_test_dataset_date
