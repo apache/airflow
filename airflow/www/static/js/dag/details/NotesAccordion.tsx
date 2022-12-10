@@ -111,7 +111,7 @@ const NotesAccordion = ({
                     data-testid="notes-input"
                   />
                 </Box>
-                <Flex mt={3}>
+                <Flex mt={3} justify="right">
                   <Button type="submit" isLoading={isLoading} colorScheme="blue">
                     Save Note
                   </Button>
