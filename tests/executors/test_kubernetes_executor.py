@@ -540,6 +540,7 @@ class TestKubernetesExecutor:
         assert all(
             isinstance(v, KubernetesJobWatcher) for v in executor.kube_scheduler.kube_watchers.values()
         )
+        executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
@@ -863,6 +864,7 @@ class TestKubernetesExecutor:
             executor.job_id = "123"
             executor.start()
             executor._check_worker_pods_pending_timeout()
+            executor.end()
 
         assert mock_kube_client.list_namespaced_pod.call_count == 3
         mock_kube_client.list_namespaced_pod.assert_has_calls(
