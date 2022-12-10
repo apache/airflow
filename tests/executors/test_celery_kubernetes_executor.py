@@ -31,6 +31,9 @@ KUBERNETES_QUEUE = CeleryKubernetesExecutor.KUBERNETES_QUEUE
 
 
 class TestCeleryKubernetesExecutor:
+    def test_is_local_default_value(self):
+        assert not CeleryKubernetesExecutor.is_local
+
     def test_queued_tasks(self):
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
