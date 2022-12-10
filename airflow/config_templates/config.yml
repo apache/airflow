@@ -2429,11 +2429,21 @@
     - name: multi_namespace_mode
       description: |
         Allows users to launch pods in multiple namespaces.
-        Will require creating a cluster-role for the scheduler
+        Will require creating a cluster-role for the scheduler,
+        or use multi_namespace_mode_namespace_list configuration.
       version_added: 1.10.12
       type: boolean
       example: ~
       default: "False"
+    - name: multi_namespace_mode_namespace_list
+      description: |
+        If multi_namespace_mode is True while scheduler does not have a cluster-role,
+        give the list of namespaces where the scheduler will schedule jobs
+        Scheduler needs to have the necessary permissions in these namespaces.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
     - name: in_cluster
       description: |
         Use the service account kubernetes gives to pods to connect to kubernetes cluster.
