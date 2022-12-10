@@ -18,6 +18,10 @@
 ---
 name: 'Setup Breeze'
 description: 'Sets up Python and Breeze'
+outputs:
+  host-python-version:
+    description: Python version used in host
+    value: ${{ steps.host-python-version.outputs.host-python-version }}
 runs:
   using: "composite"
   steps:
