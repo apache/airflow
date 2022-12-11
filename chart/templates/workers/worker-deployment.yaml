@@ -147,8 +147,14 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
+{{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
@@ -198,6 +204,9 @@ spec:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
 {{- end }}
@@ -216,6 +225,9 @@ spec:
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
             {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -254,8 +266,14 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
+{{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
 {{- end }}
         {{- if .Values.workers.kerberosSidecar.enabled }}
@@ -280,8 +298,14 @@ spec:
             - name: kerberos-ccache
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: false
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
+{{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
@@ -297,12 +321,20 @@ spec:
 {{- toYaml .Values.workers.extraContainers | nindent 8 }}
 {{- end }}
       volumes:
+{{- if .Values.volumes }}
+{{- toYaml .Values.volumes | nindent 8 }}
+{{- end }}
 {{- if .Values.workers.extraVolumes }}
 {{ toYaml .Values.workers.extraVolumes | indent 8 }}
 {{- end }}
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        - name: webserver-config
+          configMap:
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
+        {{- end }}
         {{- if .Values.kerberos.enabled }}
         - name: kerberos-keytab
           secret:

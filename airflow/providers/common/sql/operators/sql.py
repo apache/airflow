@@ -324,7 +324,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields = ("partition_clause",)
+    template_fields = ("partition_clause", "table", "sql")
+    template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
         SELECT '{column}' AS col_name, '{check}' AS check_type, {column}_{check} AS check_result
@@ -550,7 +551,9 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields = ("partition_clause",)
+    template_fields = ("partition_clause", "table", "sql")
+
+    template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
     SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
@@ -603,6 +606,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.log.info("All tests have passed")
 
     def _generate_sql_query(self):
+        self.log.info("Partition clause: %s", self.partition_clause)
+
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:
                 return f"WHERE {self.partition_clause}"
@@ -953,8 +958,8 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
-        self.min_threshold = _convert_to_float_if_possible(min_threshold)
-        self.max_threshold = _convert_to_float_if_possible(max_threshold)
+        self.min_threshold = min_threshold
+        self.max_threshold = max_threshold
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
@@ -962,15 +967,18 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         if not result:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
-        if isinstance(self.min_threshold, float):
-            lower_bound = self.min_threshold
-        else:
-            lower_bound = hook.get_first(self.min_threshold)[0]
+        min_threshold = _convert_to_float_if_possible(self.min_threshold)
+        max_threshold = _convert_to_float_if_possible(self.max_threshold)
 
-        if isinstance(self.max_threshold, float):
-            upper_bound = self.max_threshold
+        if isinstance(min_threshold, float):
+            lower_bound = min_threshold
         else:
-            upper_bound = hook.get_first(self.max_threshold)[0]
+            lower_bound = hook.get_first(min_threshold)[0]
+
+        if isinstance(max_threshold, float):
+            upper_bound = max_threshold
+        else:
+            upper_bound = hook.get_first(max_threshold)[0]
 
         meta_data = {
             "result": result,

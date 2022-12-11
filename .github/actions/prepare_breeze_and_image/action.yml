@@ -22,11 +22,16 @@ inputs:
   pull-image-type:
     description: 'Which image to pull'
     default: CI
+outputs:
+  host-python-version:
+    description: Python version used in host
+    value: ${{ steps.breeze.outputs.host-python-version }}
 runs:
   using: "composite"
   steps:
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
+      id: breeze
     - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG }}
       shell: bash
       run: breeze ci-image pull --tag-as-latest

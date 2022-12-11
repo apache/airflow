@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from unittest import mock
 
 import pytest
@@ -241,18 +240,6 @@ class TestSqlSensor:
         with pytest.raises(AirflowException) as ctx:
             op.poke(None)
         assert "self.success is present, but not callable -> [1]" == str(ctx.value)
-
-    @pytest.mark.skipif(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
-    )
-    def test_sql_sensor_presto(self):
-        op = SqlSensor(
-            task_id="hdfs_sensor_check",
-            conn_id="presto_default",
-            sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
-            dag=self.dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_sql_sensor_hook_params(self):
         op = SqlSensor(

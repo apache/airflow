@@ -313,6 +313,18 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="ftp_default",
+            conn_type="ftp",
+            host="localhost",
+            port=21,
+            login="airflow",
+            password="airflow",
+            extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="google_cloud_default",
             conn_type="google_cloud_platform",
             schema="default",
