@@ -219,6 +219,22 @@ class TestMigrateDatabaseJob:
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "myvolume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+        assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
+        )
+
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",
         [
