@@ -99,12 +99,12 @@ class OracleStoredProcedureOperator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        ti = context.get("task_instance")
         try:
             return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
         except oracledb.DatabaseError as e:
-            if not self.do_xcom_push or not ti:
+            if not self.do_xcom_push or not context:
                 raise
+            ti = context["ti"]
             code_match = re.search("^ORA-(\\d+):.+", str(e))
             if code_match:
                 ti.xcom_push(key="ORA", value=code_match.group(1))

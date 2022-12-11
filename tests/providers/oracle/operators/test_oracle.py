@@ -96,11 +96,11 @@ class TestOracleOperator:
 
 class TestOracleStoredProcedureOperator:
     @mock.patch.object(OracleHook, "run", autospec=OracleHook.run)
-    def test_execute(self, mock_run, **context):
+    def test_execute(self, mock_run):
         procedure = "test"
         oracle_conn_id = "oracle_default"
         parameters = {"parameter": "value"}
-        # context = "test_context"
+        context = "test_context"
         task_id = "test_task_id"
 
         operator = OracleStoredProcedureOperator(
