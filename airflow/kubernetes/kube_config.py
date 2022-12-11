@@ -22,7 +22,7 @@ from airflow.settings import AIRFLOW_HOME
 
 
 class KubeConfig:
-    """Configuration for Kubernetes"""
+    """Configuration for Kubernetes."""
 
     core_section = "core"
     kubernetes_section = "kubernetes_executor"
