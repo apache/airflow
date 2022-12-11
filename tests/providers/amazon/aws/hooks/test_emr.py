@@ -216,10 +216,11 @@ class TestEmrHook:
         ]
 
         did_not_execute_response = hook.send_cancel_steps(
-            steps_states=['PENDING', 'RUNNING'],
+            steps_states=["PENDING", "RUNNING"],
             emr_cluster_id=job_flow_id,
-            cancellation_option='SEND_INTERRUPT',
-            steps=step)
+            cancellation_option="SEND_INTERRUPT",
+            steps=step,
+        )
 
         assert did_not_execute_response is None
 
@@ -256,27 +257,28 @@ class TestEmrHook:
                     "Args": ["test args"],
                     "Jar": "test.jar",
                 },
-                "Name": f"retry_step_1",
+                "Name": "retry_step_1",
             }
         ]
 
         triggered = hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps)
 
-        triggered_steps = hook._get_list_of_steps_already_triggered(job_flow_id, ['PENDING', 'RUNNING'])
+        triggered_steps = hook._get_list_of_steps_already_triggered(job_flow_id, ["PENDING", "RUNNING"])
         assert len(triggered_steps) == num_steps == len(triggered)
 
         cancel_steps = hook._cancel_list_of_steps_already_triggered(
-            steps + retry_step, job_flow_id,
-            ['PENDING', 'RUNNING'])
+            steps + retry_step, job_flow_id, ["PENDING", "RUNNING"]
+        )
 
         assert len(cancel_steps) == num_steps
 
-        with pytest.raises(NotImplementedError) as ctx:
+        with pytest.raises(NotImplementedError):
             response = hook.send_cancel_steps(
-                steps_states=['PENDING', 'RUNNING'],
+                steps_states=["PENDING", "RUNNING"],
                 emr_cluster_id=job_flow_id,
-                cancellation_option='SEND_INTERRUPT',
-                steps=steps+retry_step)
+                cancellation_option="SEND_INTERRUPT",
+                steps=steps + retry_step,
+            )
 
             assert response
 

@@ -73,7 +73,7 @@ class EmrAddStepsOperator(BaseOperator):
         wait_for_completion: bool = False,
         cancel_existing_steps: bool = True,
         steps_states: list[str],
-        cancellation_option: str = 'SEND_INTERRUPT',
+        cancellation_option: str = "SEND_INTERRUPT",
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -125,9 +125,10 @@ class EmrAddStepsOperator(BaseOperator):
         if self.cancel_existing_steps:
             response = emr_hook.send_cancel_steps(
                 emr_cluster_id=job_flow_id,
-                steps=steps,
+                steps=list(steps),
                 steps_states=self.steps_states,
-                cancellation_option=self.cancellation_option)
+                cancellation_option=self.cancellation_option,
+            )
 
             self.log.info("Response from cancellation : %s ", response)
 
