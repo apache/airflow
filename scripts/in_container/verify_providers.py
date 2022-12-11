@@ -62,8 +62,8 @@ class ProviderPackageDetails(NamedTuple):
     provider_package_id: str
     full_package_name: str
     pypi_package_name: str
-    source_provider_package_path: str
-    documentation_provider_package_path: str
+    source_provider_package_path: Path
+    documentation_provider_package_path: Path
     provider_description: str
     versions: list[str]
     excluded_python_versions: list[str]

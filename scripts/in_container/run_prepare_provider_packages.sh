@@ -18,24 +18,11 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-function copy_sources() {
-    group_start "Copy sources"
-    echo "==================================================================================="
-    echo " Copying sources for provider packages"
-    echo "==================================================================================="
-    mkdir -pv "${AIRFLOW_SOURCES}/provider_packages/airflow/"
-    rsync -avz --exclude '*node_modules*' --delete \
-        "${AIRFLOW_SOURCES}/airflow"  \
-        "${AIRFLOW_SOURCES}/provider_packages/"
-    group_end
-}
-
-
 function build_provider_packages() {
     rm -rf dist/*
     local package_format_args=()
-    if [[ ${PACKAGE_FORMAT=} != "" ]]; then
-        package_format_args=("--package-format" "${PACKAGE_FORMAT}")
+    if [[ ${PACKAGE_FORMAT=} != "" && ${PACKAGE_FORMAT=} != "both" ]]; then
+        package_format_args=("--format" "${PACKAGE_FORMAT}")
     fi
 
     local prepared_packages=()
@@ -60,11 +47,13 @@ function build_provider_packages() {
     local provider_package
     for provider_package in "${PROVIDER_PACKAGES[@]}"
     do
+        local provider_package_dir
+        provider_package_dir="${AIRFLOW_SOURCES}/providers/${provider_package//./\/}"
         rm -rf -- *.egg-info build/
         local res
         set +e
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-            generate-setup-files \
+            check-package-releasable \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             --no-git-update \
             --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
@@ -79,30 +68,20 @@ function build_provider_packages() {
             error_packages+=("${provider_package}")
             continue
         fi
+        pushd "${provider_package_dir}" || exit 1
+        rm -rf dist/*
         set +e
-        package_suffix=""
-        if [[ -n ${VERSION_SUFFIX_FOR_PYPI} ]]; then
-            # only adds suffix to setup.py if version suffix for PyPI is set
-            package_suffix="${VERSION_SUFFIX_FOR_PYPI}"
-        fi
-        python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-            build-provider-packages \
-            "${OPTIONAL_VERBOSE_FLAG[@]}" \
-            --no-git-update \
-            --version-suffix "${package_suffix}" \
-            "${package_format_args[@]}" \
-            "${provider_package}"
+        # TODO: fix version suffix
+        flit build "${package_format_args[@]}" --setup-py
         res=$?
         set -e
-        if [[ ${res} == "64" ]]; then
-            skipped_packages+=("${provider_package}")
-            continue
-        fi
+        popd
         if [[ ${res} != "0" ]]; then
             error_packages+=("${provider_package}")
             echo "${COLOR_RED}Error when preparing ${provider_package} package${COLOR_RESET}"
             continue
         fi
+        mv "${provider_package_dir}/dist/"* /dist/
         prepared_packages+=("${provider_package}")
     done
     echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
@@ -141,7 +120,6 @@ install_supported_pip_version
 PROVIDER_PACKAGES=("${@}")
 get_providers_to_act_on "${@}"
 
-copy_sources
 build_provider_packages
 
 echo

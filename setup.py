@@ -373,6 +373,7 @@ devel_only = [
     "flake8-colors",
     "flake8-implicit-str-concat",
     "flaky",
+    "flit",
     "freezegun",
     "gitpython",
     "ipdb",

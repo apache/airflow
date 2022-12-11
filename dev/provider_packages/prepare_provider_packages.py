@@ -22,12 +22,10 @@ from __future__ import annotations
 
 import collections
 import difflib
-import glob
 import json
 import logging
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -36,8 +34,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
-from functools import lru_cache
-from os.path import dirname, relpath
+from os.path import dirname
 from pathlib import Path
 from random import choice
 from shutil import copyfile
@@ -90,16 +87,13 @@ HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}"
 
 MY_DIR_PATH = Path(__file__).parent
 AIRFLOW_SOURCES_ROOT_PATH = MY_DIR_PATH.parents[1]
+TEMPLATE_DIR_PATH = MY_DIR_PATH / "templates"
 AIRFLOW_PATH = AIRFLOW_SOURCES_ROOT_PATH / "airflow"
 DIST_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dist"
-PROVIDERS_PATH = AIRFLOW_PATH / "providers"
+PROVIDERS_PATH = AIRFLOW_SOURCES_ROOT_PATH / "providers"
 DOCUMENTATION_PATH = AIRFLOW_SOURCES_ROOT_PATH / "docs"
 
 DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT_PATH / "generated" / "provider_dependencies.json"
-
-TARGET_PROVIDER_PACKAGES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "provider_packages"
-GENERATED_AIRFLOW_PATH = TARGET_PROVIDER_PACKAGES_PATH / "airflow"
-GENERATED_PROVIDERS_PATH = GENERATED_AIRFLOW_PATH / "providers"
 
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "provider_info.schema.json"
 
@@ -130,8 +124,8 @@ class ProviderPackageDetails(NamedTuple):
     provider_package_id: str
     full_package_name: str
     pypi_package_name: str
-    source_provider_package_path: str
-    documentation_provider_package_path: str
+    source_provider_package_path: Path
+    documentation_provider_package_path: Path
     provider_description: str
     versions: list[str]
     excluded_python_versions: list[str]
@@ -162,15 +156,6 @@ option_git_update = click.option(
     default=True,
     is_flag=True,
     help=f"If the git remote {HTTPS_REMOTE} already exists, don't try to update it",
-)
-
-option_package_format = click.option(
-    "--package-format",
-    type=click.Choice(["wheel", "sdist", "both"]),
-    help="Format of packages.",
-    default="wheel",
-    show_default=True,
-    envvar="PACKAGE_FORMAT",
 )
 
 option_version_suffix = click.option(
@@ -402,7 +387,7 @@ def render_template(
     """
     import jinja2
 
-    template_loader = jinja2.FileSystemLoader(searchpath=MY_DIR_PATH)
+    template_loader = jinja2.FileSystemLoader(searchpath=TEMPLATE_DIR_PATH)
     template_env = jinja2.Environment(
         loader=template_loader,
         undefined=jinja2.StrictUndefined,
@@ -780,59 +765,22 @@ def get_git_tag_check_command(tag: str) -> list[str]:
     ]
 
 
-def get_source_package_path(provider_package_id: str) -> str:
+def get_source_package_path(provider_package_id: str) -> Path:
     """
     Retrieves source package path from package id.
     :param provider_package_id: id of the package
     :return: path of the providers folder
     """
-    return os.path.join(PROVIDERS_PATH, *provider_package_id.split("."))
+    return PROVIDERS_PATH / provider_package_id.replace(".", "/")
 
 
-def get_documentation_package_path(provider_package_id: str) -> str:
+def get_documentation_package_path(provider_package_id: str) -> Path:
     """
     Retrieves documentation package path from package id.
     :param provider_package_id: id of the package
     :return: path of the documentation folder
     """
-    return os.path.join(
-        DOCUMENTATION_PATH, f"apache-airflow-providers-{provider_package_id.replace('.','-')}"
-    )
-
-
-def get_generated_package_path(provider_package_id: str) -> str:
-    """
-    Retrieves generated package path from package id.
-    :param provider_package_id: id of the package
-    :return: path of the providers folder
-    """
-    provider_package_path = os.path.join(GENERATED_PROVIDERS_PATH, *provider_package_id.split("."))
-    return provider_package_path
-
-
-def get_additional_package_info(provider_package_path: str) -> str:
-    """
-    Returns additional info for the package.
-
-    :param provider_package_path: path for the package
-    :return: additional information for the path (empty string if missing)
-    """
-    additional_info_file_path = os.path.join(provider_package_path, "ADDITIONAL_INFO.md")
-    if os.path.isfile(additional_info_file_path):
-        with open(additional_info_file_path) as additional_info_file:
-            additional_info = additional_info_file.read()
-
-        additional_info_lines = additional_info.splitlines(keepends=True)
-        result = ""
-        skip_comment = True
-        for line in additional_info_lines:
-            if line.startswith(" -->"):
-                skip_comment = False
-                continue
-            if not skip_comment:
-                result += line
-        return result
-    return ""
+    return get_source_package_path(provider_package_id) / "docs"
 
 
 def get_package_pip_name(provider_package_id: str):
@@ -869,7 +817,7 @@ def get_provider_yaml(provider_package_id: str) -> dict[str, Any]:
     :param provider_package_id: package id to retrieve provider.yaml from
     :return: provider_info dictionary
     """
-    provider_yaml_file_name = os.path.join(get_source_package_path(provider_package_id), "provider.yaml")
+    provider_yaml_file_name = get_source_package_path(provider_package_id) / "provider.yaml"
     if not os.path.exists(provider_yaml_file_name):
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
@@ -931,10 +879,10 @@ def get_all_changes_for_package(
         )
         if changes:
             provider_details = get_provider_details(provider_package_id)
-            doc_only_change_file = os.path.join(
-                provider_details.source_provider_package_path, ".latest-doc-only-change.txt"
+            doc_only_change_file = (
+                provider_details.source_provider_package_path / ".latest-doc-only-change.txt"
             )
-            if os.path.exists(doc_only_change_file):
+            if doc_only_change_file.exists():
                 with open(doc_only_change_file) as f:
                     last_doc_only_hash = f.read().strip()
                 try:
@@ -1076,9 +1024,6 @@ def get_provider_jinja_context(
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
         "VERSION_SUFFIX": version_suffix or "",
-        "ADDITIONAL_INFO": get_additional_package_info(
-            provider_package_path=provider_details.source_provider_package_path
-        ),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
         "PIP_REQUIREMENTS": get_provider_requirements(provider_details.provider_package_id),
         "PROVIDER_TYPE": "Provider",
@@ -1094,24 +1039,14 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE": pip_requirements_table,
         "PIP_REQUIREMENTS_TABLE_RST": pip_requirements_table_rst,
         "PROVIDER_INFO": provider_info,
-        "CHANGELOG_RELATIVE_PATH": relpath(
-            provider_details.source_provider_package_path,
-            provider_details.documentation_provider_package_path,
+        "CHANGELOG_RELATIVE_PATH": provider_details.documentation_provider_package_path.relative_to(
+            provider_details.source_provider_package_path
         ),
         "CHANGELOG": changelog,
         "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
         "PYTHON_REQUIRES": python_requires,
     }
     return context
-
-
-def prepare_readme_file(context):
-    readme_content = LICENCE_RST + render_template(
-        template_name="PROVIDER_README", context=context, extension=".rst"
-    )
-    readme_file_path = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.rst")
-    with open(readme_file_path, "wt") as readme_file:
-        readme_file.write(readme_content)
 
 
 def confirm(message: str, answer: str | None = None) -> bool:
@@ -1181,12 +1116,11 @@ def mark_latest_changes_as_documentation_only(provider_package_id: str, latest_c
         f"Marking last change: {latest_change.short_hash} and all above changes since the last release "
         "as doc-only changes!"
     )
-    with open(
-        os.path.join(provider_details.source_provider_package_path, ".latest-doc-only-change.txt"), "tw"
-    ) as f:
-        f.write(latest_change.full_hash + "\n")
-        # exit code 66 marks doc-only change marked
-        sys.exit(66)
+    (provider_details.source_provider_package_path / ".latest-doc-only-change.txt").write_text(
+        latest_change.full_hash + "\n"
+    )
+    # exit code 66 marks doc-only change
+    sys.exit(66)
 
 
 def add_new_version(type_of_change: TypeOfChange, provider_package_id: str):
@@ -1199,7 +1133,7 @@ def add_new_version(type_of_change: TypeOfChange, provider_package_id: str):
         v = v.bump_minor()
     elif type_of_change == TypeOfChange.BUGFIX:
         v = v.bump_patch()
-    provider_yaml_path = Path(get_source_package_path(provider_package_id)) / "provider.yaml"
+    provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
     original_text = provider_yaml_path.read_text()
     new_text = re.sub(r"versions:", f"versions:\n  - {v}", original_text, 1)
     provider_yaml_path.write_text(new_text)
@@ -1273,38 +1207,6 @@ def update_release_notes(
     return True
 
 
-def update_setup_files(
-    provider_package_id: str,
-    version_suffix: str,
-):
-    """
-    Updates generated setup.cfg/setup.py/manifest.in/provider_info for packages
-
-    :param provider_package_id: id of the package
-    :param version_suffix: version suffix corresponding to the version in the code
-    :returns False if the package should be skipped, True if everything generated properly
-    """
-    verify_provider_package(provider_package_id)
-    provider_details = get_provider_details(provider_package_id)
-    provider_info = get_provider_info_from_provider_yaml(provider_package_id)
-    current_release_version = provider_details.versions[0]
-    jinja_context = get_provider_jinja_context(
-        provider_info=provider_info,
-        provider_details=provider_details,
-        current_release_version=current_release_version,
-        version_suffix=version_suffix,
-    )
-    console.print()
-    console.print(f"Generating setup files for {provider_package_id}")
-    console.print()
-    prepare_setup_py_file(jinja_context)
-    prepare_setup_cfg_file(jinja_context)
-    prepare_get_provider_info_py_file(jinja_context, provider_package_id)
-    prepare_manifest_in_file(jinja_context)
-    prepare_readme_file(jinja_context)
-    return True
-
-
 def replace_content(file_path, old_text, new_text, provider_package_id):
     if new_text != old_text:
         _, temp_file_path = tempfile.mkstemp()
@@ -1366,89 +1268,6 @@ def update_commits_rst(
         with open(index_file_path) as readme_file_read:
             old_text = readme_file_read.read()
     replace_content(index_file_path, old_text, new_text, provider_package_id)
-
-
-@lru_cache(maxsize=None)
-def black_mode():
-    from black import Mode, parse_pyproject_toml, target_version_option_callback
-
-    config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT_PATH, "pyproject.toml"))
-
-    target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
-    )
-
-    return Mode(
-        target_versions=target_versions,
-        line_length=config.get("line_length", Mode.line_length),
-        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
-        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
-        experimental_string_processing=bool(
-            config.get("experimental_string_processing", Mode.experimental_string_processing)
-        ),
-    )
-
-
-def black_format(content) -> str:
-    from black import format_str
-
-    return format_str(content, mode=black_mode())
-
-
-def prepare_setup_py_file(context):
-    setup_py_template_name = "SETUP"
-    setup_py_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.py"))
-    setup_py_content = render_template(
-        template_name=setup_py_template_name, context=context, extension=".py", autoescape=False
-    )
-    with open(setup_py_file_path, "wt") as setup_py_file:
-        setup_py_file.write(black_format(setup_py_content))
-
-
-def prepare_setup_cfg_file(context):
-    setup_cfg_template_name = "SETUP"
-    setup_cfg_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.cfg"))
-    setup_cfg_content = render_template(
-        template_name=setup_cfg_template_name,
-        context=context,
-        extension=".cfg",
-        autoescape=False,
-        keep_trailing_newline=True,
-    )
-    with open(setup_cfg_file_path, "wt") as setup_cfg_file:
-        setup_cfg_file.write(setup_cfg_content)
-
-
-def prepare_get_provider_info_py_file(context, provider_package_id: str):
-    get_provider_template_name = "get_provider_info"
-    get_provider_file_path = os.path.abspath(
-        os.path.join(
-            get_target_providers_package_folder(provider_package_id),
-            "get_provider_info.py",
-        )
-    )
-    get_provider_content = render_template(
-        template_name=get_provider_template_name,
-        context=context,
-        extension=".py",
-        autoescape=False,
-        keep_trailing_newline=True,
-    )
-    with open(get_provider_file_path, "wt") as get_provider_file:
-        get_provider_file.write(black_format(get_provider_content))
-
-
-def prepare_manifest_in_file(context):
-    target = os.path.abspath(os.path.join(get_target_folder(), "MANIFEST.in"))
-    content = render_template(
-        template_name="MANIFEST",
-        context=context,
-        extension=".in",
-        autoescape=False,
-        keep_trailing_newline=True,
-    )
-    with open(target, "wt") as fh:
-        fh.write(content)
 
 
 def get_all_providers() -> list[str]:
@@ -1567,25 +1386,22 @@ def tag_exists_for_version(provider_package_id: str, current_tag: str, verbose: 
 @argument_package_id
 @option_verbose
 @option_skip_tag_check
-def generate_setup_files(
+def check_package_releasable(
     version_suffix: str, git_update: bool, package_id: str, verbose: bool, skip_tag_check: bool
 ):
     """
-    Generates setup files for the package.
+    Check if the package is releasable.
 
     See `list-providers-packages` subcommand for the possible PACKAGE_ID values
     """
     provider_package_id = package_id
-    with with_group(f"Generate setup files for '{provider_package_id}'"):
+    with with_group(f"Check if '{provider_package_id}' is releasable"):
         if not skip_tag_check:
             current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
             if tag_exists_for_version(provider_package_id, current_tag, verbose):
                 console.print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
                 sys.exit(64)
-        if update_setup_files(provider_package_id, version_suffix):
-            console.print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
-        else:
-            sys.exit(64)
+        console.print(f"[green]The {provider_package_id} is releasable[/]")
 
 
 def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, verbose: bool):
@@ -1596,99 +1412,6 @@ def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, ver
     current_version = versions[0]
     current_tag = get_version_tag(current_version, provider_package_id, suffix)
     return current_tag
-
-
-def cleanup_remnants(verbose: bool):
-    if verbose:
-        console.print("Cleaning remnants")
-    files = glob.glob("*.egg-info")
-    for file in files:
-        shutil.rmtree(file, ignore_errors=True)
-    files = glob.glob("build")
-    for file in files:
-        shutil.rmtree(file, ignore_errors=True)
-
-
-def verify_setup_cfg_prepared(provider_package):
-    with open("setup.cfg") as f:
-        setup_content = f.read()
-    search_for = f"providers-{provider_package.replace('.','-')} for Apache Airflow"
-    if search_for not in setup_content:
-        console.print(
-            f"[red]The setup.py is probably prepared for another package. "
-            f"It does not contain [bold]{search_for}[/bold]![/]"
-        )
-        console.print(
-            f"\nRun:\n\n[bold]./dev/provider_packages/prepare_provider_packages.py "
-            f"generate-setup-files {provider_package}[/bold]\n"
-        )
-        raise Exception("Wrong setup!")
-
-
-@cli.command()
-@option_package_format
-@option_git_update
-@option_version_suffix
-@argument_package_id
-@option_verbose
-@option_skip_tag_check
-def build_provider_packages(
-    package_format: str,
-    git_update: bool,
-    version_suffix: str,
-    package_id: str,
-    verbose: bool,
-    skip_tag_check: bool,
-):
-    """
-    Builds provider package.
-
-    See `list-providers-packages` subcommand for the possible PACKAGE_ID values
-    """
-
-    import tempfile
-
-    # we cannot use context managers because if the directory gets deleted (which bdist_wheel does),
-    # the context manager will throw an exception when trying to delete it again
-    tmp_build_dir = tempfile.TemporaryDirectory().name
-    tmp_dist_dir = tempfile.TemporaryDirectory().name
-    try:
-        provider_package_id = package_id
-        with with_group(f"Prepare provider package for '{provider_package_id}'"):
-            if not skip_tag_check and (version_suffix.startswith("rc") or version_suffix == ""):
-                # For RC and official releases we check if the "officially released" version exists
-                # and skip the released if it was. This allows to skip packages that have not been
-                # marked for release. For "dev" suffixes, we always build all packages
-                released_tag = get_current_tag(provider_package_id, "", git_update, verbose)
-                if tag_exists_for_version(provider_package_id, released_tag, verbose):
-                    console.print(f"[yellow]The tag {released_tag} exists. Skipping the package.[/]")
-                    return False
-            console.print(f"Changing directory to {TARGET_PROVIDER_PACKAGES_PATH}")
-            os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
-            cleanup_remnants(verbose)
-            provider_package = package_id
-            verify_setup_cfg_prepared(provider_package)
-
-            console.print(f"Building provider package: {provider_package} in format {package_format}")
-            command: list[str] = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
-            if version_suffix is not None:
-                command.extend(["egg_info", "--tag-build", version_suffix])
-            if package_format in ["sdist", "both"]:
-                command.append("sdist")
-            if package_format in ["wheel", "both"]:
-                command.extend(["bdist_wheel", "--bdist-dir", tmp_dist_dir])
-            console.print(f"Executing command: '{' '.join(command)}'")
-            try:
-                subprocess.check_call(args=command, stdout=subprocess.DEVNULL)
-            except subprocess.CalledProcessError as ex:
-                console.print("[red]The command returned an error %s", ex)
-                sys.exit(ex.returncode)
-            console.print(
-                f"[green]Prepared provider package {provider_package} in format {package_format}[/]"
-            )
-    finally:
-        shutil.rmtree(tmp_build_dir, ignore_errors=True)
-        shutil.rmtree(tmp_dist_dir, ignore_errors=True)
 
 
 def find_insertion_index_for_version(content: list[str], version: str) -> tuple[int, bool]:

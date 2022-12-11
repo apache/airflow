@@ -1,0 +1,65 @@
+[build-system]
+requires = ["flit_core >=3.8.0,<4"]
+build-backend = "flit.buildapi"
+
+[project]
+name = "{{ package_name }}"
+version = "{{ versions[0] }}"
+authors = [
+    {name = "Apache Airflow PMC", email = "dev@airflow.apache.org"},
+]
+maintainers = [
+    {name = "Apache Airflow PMC", email = "dev@airflow.apache.org"},
+]
+description = "Provider for Apache Airflow. Implements {{ package_name }} package"
+readme = "README.rst"
+requires-python = ">=3.7"
+keywords = ["airflow", "airflow-provider", "{{ package_name }}"]
+license = {file = "LICENSE.txt"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Framework :: Apache Airflow",
+    "Framework :: Apache Airflow :: Provider",
+    "License :: OSI Approved :: Apache Software License",
+{%- for python_version in supported_python_versions %}
+    "Programming Language :: Python :: {{ python_version }}",
+{%- endfor %}
+    "Topic :: System :: Monitoring",
+]
+
+{% if dependencies %}
+dependencies = [
+{%- for dependency in escaped_dependencies %}
+    "{{ dependency }}",
+{%- endfor %}
+]
+
+{%- endif %}
+{% if optional_dependencies %}
+[project.optional-dependencies]
+{%- for extra in optional_dependencies %}
+"{{ extra }}" = [
+{%- for dependency in optional_dependencies[extra] %}
+    "{{ dependency }}",
+{%- endfor %}
+]
+{%- endfor %}
+
+{%- endif %}
+[project.urls]
+"Documentation" = "https://airflow.apache.org/docs/{{ package_name }}/{{ versions[0] }}/"
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+"Source Code" = "https://github.com/apache/airflow"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+"Twitter" = "https://twitter.com/ApacheAirflow"
+"YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow.providers.{{ package_id }}.get_provider_info:get_provider_info"
+
+[tool.flit.module]
+name = "airflow.providers.{{ package_id }}"

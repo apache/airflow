@@ -70,9 +70,6 @@ services:
         source: ../../../airflow
         target: /opt/airflow/airflow
       - type: bind
-        source: ../../../provider_packages
-        target: /opt/airflow/provider_packages
-      - type: bind
         source: ../../../dags
         target: /opt/airflow/dags
       - type: bind
@@ -96,6 +93,9 @@ services:
       - type: bind
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
+      - type: bind
+        source: ../../../providers
+        target: /opt/airflow/providers
       - type: bind
         source: ../../../pytest.ini
         target: /opt/airflow/pytest.ini
