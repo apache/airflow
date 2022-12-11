@@ -3206,7 +3206,11 @@ class DagModel(Base):
 
     @property
     def schedule_description(self) -> str | None:
-        if isinstance(self.schedule_interval, str) and self.schedule_interval != "@once":
+        if (
+            isinstance(self.schedule_interval, str)
+            and self.schedule_interval != "@once"
+            and self.timetable_description != DatasetTriggeredTimetable.description
+        ):
             return str(self.schedule_interval) + " " + str(self.timezone.name)
         else:
             return str(self.schedule_interval)
