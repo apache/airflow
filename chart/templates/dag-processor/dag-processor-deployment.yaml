@@ -147,6 +147,9 @@ spec:
           resources:
             {{ toYaml .Values.dagProcessor.resources | nindent 12 }}
           volumeMounts:
+            {{- if .Values.volumeMounts }}
+            {{ toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
             {{ toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
             {{- end }}
@@ -194,6 +197,9 @@ spec:
         {{- end }}
         {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret }}
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+        {{- end }}
+        {{- if .Values.volumes }}
+        {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraVolumes }}
         {{- toYaml .Values.dagProcessor.extraVolumes | nindent 8 }}

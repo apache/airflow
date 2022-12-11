@@ -97,6 +97,9 @@ spec:
 {{ toYaml .Values.flower.resources | indent 12 }}
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if .Values.volumeMounts }}
+            {{ toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
             {{- if .Values.flower.extraVolumeMounts }}
             {{ toYaml .Values.flower.extraVolumeMounts | nindent 12 }}
             {{- end }}
@@ -147,6 +150,9 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- if .Values.volumes }}
+{{- toYaml .Values.volumes | nindent 8 }}
+{{- end }}
 {{- if .Values.flower.extraVolumes }}
 {{ toYaml .Values.flower.extraVolumes | indent 8 }}
 {{- end }}
