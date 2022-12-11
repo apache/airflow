@@ -118,7 +118,6 @@
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
-        "schedule_description": { "type": "string" },
         "dataset_triggers": {
             "type": "array",
             "items": { "$ref": "#/definitions/typed_dataset" }
