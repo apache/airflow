@@ -796,32 +796,44 @@ the dependency graph.
 The dependency detector is configurable, so you can implement your own logic different than the defaults in
 :class:`~airflow.serialization.serialized_objects.DependencyDetector`
 
-Deschedule or Delete a DAG
+Controlling DAG Execution
 --------------------------
 
-A DAG can be prevented from running by either being paused, deactivated, or deleted.
+A DAG can be prevented from running by being paused, deactivated, or deleted.
 
-A DAG can be paused, which prevents scheduled runs. The Scheduler will not schedule a paused DAG, 
-but you can trigger it manually via the UI. The "pause" and "unpause" actions are available
-via the UI and the API.  In the UI, you can see Paused DAGs in the ``Paused`` tab. DAGs that are unpaused
-can be found in the ``Active`` tab.
+Pausing a DAG
+^^^^^^^^^^^^^
 
-A DAG can also be deactivated. A deactivated DAG will not be scheduled, cannot be triggered, and won't show up in the UI, but its metadata 
-and history are still persisted in the database. All of the DAG's history and metadata will still be present when it is reactivated.
+Pausing a DAG will temporarily prevent scheduled runs from occurring.
+The Scheduler will not schedule a paused DAG, but you can still trigger it manually
+via the UI. The "pause" and "unpause" actions are available in the UI and through the API.
+In the UI, paused DAGs can be found in the ``Paused`` tab, and unpaused DAGs can be found in the 
+``Active`` tab.
 
-To deactivate a DAG, remove the DAG from the ``DAGS_FOLDER``. When a DAG is in the database but mising from the ``DAGS_FOLDER``,
-the Scheduler will mark it as deactivated. The metadata and history of the DAG is kept for deactivated DAGs. 
-If the DAG is re-added to the ``DAGS_FOLDER`` the scheduler will mark it as active
-and its history will be visible. You cannot activate/deactivate a DAG via UI or API; this
-can only be done by removing it from the ``DAGS_FOLDER``. Note that the ``Active`` tab in the Airflow UI
-refers to DAGs that are not deactivated and not paused.
+Deactivating a DAG
+^^^^^^^^^^^^^^^^^^
 
-You can also delete the DAG metadata from the database using the UI or the API.
-If the DAG is still in the ``DAGS_FOLDER`` when you delete the metadata, the DAG will re-appear when the
-Scheduler parses the folder: only historical runs for the DAG are removed.
+Deactivating a DAG will prevent it from being scheduled or triggered, and it will not appear in the UI.
+However, its metadata and history will still be persisted in the database.
+When the DAG is reactivated, all of its history and metadata will still be present.
 
-If you want to completely delete a DAG and its all historical metadata, you need to:
+To deactivate a DAG, remove it from the ``DAGS_FOLDER``.
+When the Scheduler finds a DAG in the database but missing from the ``DAGS_FOLDER``,
+it will mark it as deactivated. The metadata and history of the DAG will be kept.
+If the DAG is added back to the ``DAGS_FOLDER``, the Scheduler will mark it as active
+and its history will be visible again. Note that the "Active" tab in the Airflow UI refers
+to DAGs that are not deactivated and not paused.
 
-1. Pause the DAG
-2. Delete the historical metadata from the database, via the UI or API
-3. Delete the DAG file from the ``DAGS_FOLDER`` and wait until it becomes inactive
+Deleting a DAG
+^^^^^^^^^^^^^^
+
+You can delete a DAG's metadata from the database using the UI or the API.
+If the DAG is still in the ``DAGS_FOLDER`` when you delete its metadata, it will reappear
+when the Scheduler parses the folder. Only the DAG's historical runs will be removed.
+
+To completely delete a DAG and all its historical metadata, you need to:
+
+1. Delete its metadata from the database using the UI or the API.
+2. Remove the DAG from the ``DAGS_FOLDER``.
+
+This will ensure that the DAG and all its metadata are permanently deleted.
