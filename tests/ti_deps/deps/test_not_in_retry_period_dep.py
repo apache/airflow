@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import timedelta
 from unittest.mock import Mock
 
-from freezegun import freeze_time
+import time_machine
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -35,7 +35,7 @@ class TestNotInRetryPeriodDep:
         ti.end_date = end_date
         return ti
 
-    @freeze_time("2016-01-01 15:44")
+    @time_machine.travel("2016-01-01 15:44")
     def test_still_in_retry_period(self):
         """
         Task instances that are in their retry period should fail this dep
@@ -44,7 +44,7 @@ class TestNotInRetryPeriodDep:
         assert ti.is_premature
         assert not NotInRetryPeriodDep().is_met(ti=ti)
 
-    @freeze_time("2016-01-01 15:46")
+    @time_machine.travel("2016-01-01 15:46")
     def test_retry_period_finished(self):
         """
         Task instance's that have had their retry period elapse should pass this dep

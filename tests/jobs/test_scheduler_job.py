@@ -30,7 +30,7 @@ from unittest.mock import MagicMock, patch
 
 import psutil
 import pytest
-from freezegun import freeze_time
+import time_machine
 from sqlalchemy import func
 
 import airflow.example_dags
@@ -3290,7 +3290,7 @@ class TestSchedulerJob:
 
         assert dag3.get_last_dagrun().creating_job_id == self.scheduler_job.id
 
-    @freeze_time(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9))
+    @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow.jobs.scheduler_job.Stats.timing")
     def test_start_dagruns(self, stats_timing, dag_maker):
         """

@@ -21,7 +21,7 @@ from datetime import datetime
 from unittest import mock
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.amazon.aws.sensors.s3 import S3KeysUnchangedSensor
@@ -68,7 +68,7 @@ class TestS3KeysUnchangedSensor:
             dag=self.dag,
         ).render_template_fields({})
 
-    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
+    @time_machine.travel(DEFAULT_DATE)
     def test_files_deleted_between_pokes_throw_error(self):
         self.sensor.allow_delete = False
         self.sensor.is_keys_unchanged({"a", "b"})
@@ -98,19 +98,19 @@ class TestS3KeysUnchangedSensor:
             ),
         ],
     )
-    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
-    def test_key_changes(self, current_objects, expected_returns, inactivity_periods):
-        assert self.sensor.is_keys_unchanged(current_objects[0]) == expected_returns[0]
-        assert self.sensor.inactivity_seconds == inactivity_periods[0]
-        assert self.sensor.is_keys_unchanged(current_objects[1]) == expected_returns[1]
-        assert self.sensor.inactivity_seconds == inactivity_periods[1]
-        assert self.sensor.is_keys_unchanged(current_objects[2]) == expected_returns[2]
-        assert self.sensor.inactivity_seconds == inactivity_periods[2]
+    def test_key_changes(self, current_objects, expected_returns, inactivity_periods, time_machine):
+        time_machine.move_to(DEFAULT_DATE)
+        for current, expected, period in zip(current_objects, expected_returns, inactivity_periods):
+            assert self.sensor.is_keys_unchanged(current) == expected
+            assert self.sensor.inactivity_seconds == period
+            time_machine.coordinates.shift(10)
 
-    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook")
-    def test_poke_succeeds_on_upload_complete(self, mock_hook):
+    def test_poke_succeeds_on_upload_complete(self, mock_hook, time_machine):
+        time_machine.move_to(DEFAULT_DATE)
         mock_hook.return_value.list_keys.return_value = {"a"}
         assert not self.sensor.poke(dict())
+        time_machine.coordinates.shift(10)
         assert not self.sensor.poke(dict())
+        time_machine.coordinates.shift(10)
         assert self.sensor.poke(dict())

@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -94,7 +94,7 @@ class TestBranchDayOfWeekOperator:
     @pytest.mark.parametrize(
         "weekday", TEST_CASE_BRANCH_FOLLOW_TRUE.values(), ids=TEST_CASE_BRANCH_FOLLOW_TRUE.keys()
     )
-    @freeze_time("2021-01-25")  # Monday
+    @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_true(self, weekday):
         """Checks if BranchDayOfWeekOperator follows true branch"""
         print(datetime.datetime.now())
@@ -131,7 +131,7 @@ class TestBranchDayOfWeekOperator:
             },
         )
 
-    @freeze_time("2021-01-25")  # Monday
+    @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_true_with_execution_date(self):
         """Checks if BranchDayOfWeekOperator follows true branch when set use_task_logical_date"""
 
@@ -166,7 +166,7 @@ class TestBranchDayOfWeekOperator:
             },
         )
 
-    @freeze_time("2021-01-25")  # Monday
+    @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_false(self):
         """Checks if BranchDayOfWeekOperator follow false branch"""
 
@@ -245,7 +245,7 @@ class TestBranchDayOfWeekOperator:
                 dag=self.dag,
             )
 
-    @freeze_time("2021-01-25")  # Monday
+    @time_machine.travel("2021-01-25")  # Monday
     def test_branch_xcom_push_true_branch(self):
         """Check if BranchDayOfWeekOperator push to xcom value of follow_task_ids_if_true"""
         branch_op = BranchDayOfWeekOperator(

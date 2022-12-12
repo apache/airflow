@@ -34,8 +34,8 @@ from unittest.mock import patch
 import jinja2
 import pendulum
 import pytest
+import time_machine
 from dateutil.relativedelta import relativedelta
-from freezegun import freeze_time
 from sqlalchemy import inspect
 
 import airflow
@@ -2002,7 +2002,7 @@ my_postgres_conn:
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
-    @freeze_time(timezone.datetime(2020, 1, 5))
+    @time_machine.travel(timezone.datetime(2020, 1, 5), tick=False)
     def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self):
         """
         Test that the dag file processor does not create multiple dagruns
@@ -2022,7 +2022,7 @@ my_postgres_conn:
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 5)
 
-    @freeze_time(timezone.datetime(2020, 5, 4))
+    @time_machine.travel(timezone.datetime(2020, 5, 4))
     def test_next_dagrun_info_timedelta_schedule_and_catchup_true(self):
         """
         Test that the dag file processor creates multiple dagruns

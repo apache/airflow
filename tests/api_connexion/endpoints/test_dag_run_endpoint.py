@@ -20,7 +20,7 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -1335,7 +1335,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         }
 
     @pytest.mark.parametrize("invalid_state", ["running"])
-    @freeze_time(TestDagRunEndpoint.default_time)
+    @time_machine.travel(TestDagRunEndpoint.default_time)
     def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state, dag_maker):
         dag_id = "TEST_DAG_ID"
         dag_run_id = "TEST_DAG_RUN_ID"

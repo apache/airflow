@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 import pendulum
 import pytest
 from dateutil.tz import UTC
@@ -29,6 +27,7 @@ from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -129,6 +128,14 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
+# Create this as a fixture so that it is applied before the `dag_with_runs` fixture is!
+@pytest.fixture
+def freeze_time_for_dagruns(time_machine):
+    time_machine.move_to("2022-01-02T00:00:00+00:00", tick=False)
+    yield
+
+
+@pytest.mark.usefixtures("freeze_time_for_dagruns")
 def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     """
     Test a DAG with complex interaction of states:
@@ -159,22 +166,14 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
 
     assert resp.status_code == 200, resp.json
 
-    # We cannot use freezegun here as it does not play well with Flask 2.2 and SqlAlchemy
-    # Unlike real datetime, when FakeDatetime is used, it coerces to
-    # '2020-08-06 09:00:00+00:00' which is rejected by MySQL for EXPIRY Column
-    current_date_placeholder = "2022-01-02T00:00:00+00:00"
-    actual_date_in_json = datetime.fromisoformat(resp.json["dag_runs"][0]["end_date"])
-    assert datetime.now(tz=UTC) - actual_date_in_json < timedelta(minutes=5)
-    res = resp.json
-    res["dag_runs"][0]["end_date"] = current_date_placeholder
-    assert res == {
+    assert resp.json == {
         "dag_runs": [
             {
                 "conf": None,
                 "conf_is_json": False,
                 "data_interval_end": "2016-01-02T00:00:00+00:00",
                 "data_interval_start": "2016-01-01T00:00:00+00:00",
-                "end_date": current_date_placeholder,
+                "end_date": timezone.utcnow().isoformat(),
                 "execution_date": "2016-01-01T00:00:00+00:00",
                 "external_trigger": False,
                 "last_scheduling_decision": None,

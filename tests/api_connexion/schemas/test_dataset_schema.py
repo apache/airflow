@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from freezegun import freeze_time
+import time_machine
 
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
@@ -37,7 +37,7 @@ class TestDatasetSchemaBase:
         clear_db_dags()
         clear_db_datasets()
         self.timestamp = "2022-06-10T12:02:44+00:00"
-        self.freezer = freeze_time(self.timestamp)
+        self.freezer = time_machine.travel(self.timestamp, tick=False)
         self.freezer.start()
 
     def teardown_method(self) -> None:

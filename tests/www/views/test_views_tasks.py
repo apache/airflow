@@ -22,10 +22,9 @@ import json
 import re
 import unittest.mock
 import urllib.parse
-from datetime import timedelta
 
-import freezegun
 import pytest
+import time_machine
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -62,7 +61,7 @@ def reset_dagruns():
 
 @pytest.fixture(autouse=True)
 def init_dagruns(app, reset_dagruns):
-    with freezegun.freeze_time(DEFAULT_DATE):
+    with time_machine.travel(DEFAULT_DATE, tick=False):
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
@@ -551,7 +550,7 @@ def test_run_with_runnable_states(_, admin_client, session, state):
     "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
     return_value=_ForceHeartbeatCeleryExecutor(),
 )
-def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
+def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session, time_machine):
     task_id = "runme_0"
     session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
         {"state": State.SCHEDULED, "queued_dttm": None}
@@ -567,15 +566,13 @@ def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
         dag_run_id=DEFAULT_DAGRUN,
         origin="/home",
     )
+    now = timezone.utcnow()
+
+    time_machine.move_to(now, tick=False)
     resp = admin_client.post("run", data=form, follow_redirects=True)
 
     assert resp.status_code == 200
-    # We cannot use freezegun here as it does not play well with Flask 2.2 and SqlAlchemy
-    # Unlike real datetime, when FakeDatetime is used, it coerces to
-    # '2020-08-06 09:00:00+00:00' which is rejected by MySQL for EXPIRY Column
-    assert timezone.utcnow() - session.query(TaskInstance.queued_dttm).filter(
-        TaskInstance.task_id == task_id
-    ).scalar() < timedelta(minutes=5)
+    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).scalar() == now
 
 
 @pytest.mark.parametrize("state", QUEUEABLE_STATES)
