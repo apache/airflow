@@ -131,7 +131,7 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
     :param cluster_id: The unique identifier of the EMR cluster the notebook is attached to.
     :param service_role: The name or ARN of the IAM role that is used as the service role
         for Amazon EMR (the EMR role) for the notebook execution.
-    :param notebook_execution_name: Optional name for the notebook exeuction.
+    :param notebook_execution_name: Optional name for the notebook execution.
     :param notebook_params: Input parameters in JSON format passed to the EMR notebook at
         runtime for execution.
     :param: notebook_instance_security_group_id: The unique identifier of the Amazon EC2
