@@ -35,8 +35,8 @@ from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 class S3KeySensor(BaseSensorOperator):
     """
     Waits for one or multiple keys (a file-like instance on S3) to be present in a S3 bucket.
-    S3 being a key/value it does not support folders. The path is just a key
-    a resource.
+    The path is just a key/value pointer to a resource for the given S3 path.
+    Note: S3 does not support folders directly, and only provides key/value pairs.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
