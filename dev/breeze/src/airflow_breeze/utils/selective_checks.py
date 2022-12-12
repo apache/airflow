@@ -104,7 +104,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/.*\.lock",
         ],
         FileGroupForCi.API_TEST_FILES: [
-            r"^airflow/api",
+            r"^airflow/api/",
+            r"^airflow/api_connexion/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow/api_connexion/openapi/v1\.yaml",
