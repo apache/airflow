@@ -627,18 +627,18 @@ class KubernetesPodOperator(BaseOperator):
             remote_pod=remote_pod,
         )
 
-    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, reraise=True):
+    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
-        if not self.is_delete_operator_pod:
-            with _optionally_suppress(reraise=reraise):
-                self.patch_already_checked(remote_pod)
+
+        if pod_phase != PodPhase.SUCCEEDED or not self.is_delete_operator_pod:
+            self.patch_already_checked(remote_pod, reraise=False)
+
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
-                with _optionally_suppress(reraise=reraise):
-                    for event in self.pod_manager.read_pod_events(pod).items:
-                        self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            with _optionally_suppress(reraise=reraise):
-                self.process_pod_deletion(remote_pod)
+                self._read_pod_events(pod, reraise=False)
+
+            self.process_pod_deletion(remote_pod, reraise=False)
+
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             error_message = "\n" + error_message if error_message else ""
             raise AirflowException(
@@ -646,8 +646,13 @@ class KubernetesPodOperator(BaseOperator):
                 f"remote_pod: {remote_pod}"
             )
         else:
-            with _optionally_suppress(reraise=reraise):
-                self.process_pod_deletion(remote_pod)
+            self.process_pod_deletion(remote_pod, reraise=False)
+
+    def _read_pod_events(self, pod, *, reraise=True):
+        """Will fetch and emit events from pod"""
+        with _optionally_suppress(reraise=reraise):
+            for event in self.pod_manager.read_pod_events(pod).items:
+                self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
