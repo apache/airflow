@@ -25,6 +25,7 @@ import pytest
 
 from airflow.cli.commands import role_command
 from airflow.security import permissions
+from airflow.utils.cli_app_builder import get_application_builder
 from airflow.www.fab_security.sqla.models import Role
 
 TEST_USER1_EMAIL = "test-user1@example.com"
@@ -33,14 +34,14 @@ TEST_USER2_EMAIL = "test-user2@example.com"
 
 class TestCliRoles:
     @pytest.fixture(autouse=True)
-    def _set_attrs(self, app, dagbag, parser):
-        self.app = app
+    def _set_attrs(self, dagbag, parser):
         self.dagbag = dagbag
         self.parser = parser
-        self.appbuilder = self.app.appbuilder
-        self.clear_roles_and_roles()
-        yield
-        self.clear_roles_and_roles()
+        with get_application_builder() as appbuilder:
+            self.appbuilder = appbuilder
+            self.clear_roles_and_roles()
+            yield
+            self.clear_roles_and_roles()
 
     def clear_roles_and_roles(self):
         for email in [TEST_USER1_EMAIL, TEST_USER2_EMAIL]:
@@ -108,6 +109,8 @@ class TestCliRoles:
 
         role_command.roles_create(self.parser.parse_args(["roles", "create", "FakeTeamC"]))
         assert self.appbuilder.sm.find_role("FakeTeamC") is not None
+        role: Role = self.appbuilder.sm.find_role("FakeTeamC")
+        assert len(role.permissions) == 0
 
         role_command.roles_add_perms(
             self.parser.parse_args(

@@ -146,7 +146,7 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  # Keep version of black in sync wit blacken-docs and pre-commit-hook-names
+  # Keep version of black in sync wit blacken-docs, pre-commit-hook-names, update-common-sql-api-stubs
   - repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
@@ -396,12 +396,33 @@ repos:
         language: python
         files: ^docs
         pass_filenames: false
+      - id: update-common-sql-api-stubs
+        name: Check and update common.sql API stubs
+        entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
+        language: python
+        files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
+        additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.3.0']
+        pass_filenames: false
+        require_serial: true
       - id: check-pydevd-left-in-code
         language: pygrep
         name: Check for pydevd debug statements accidentally left
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: check-links-to-example-dags-do-not-use-hardcoded-versions
+        name: Check that example dags do not use hard-coded version numbers
+        description: The links to example dags should use |version| as version specification
+        language: pygrep
+        entry: >
+          (?i)
+          .*https://github.*[0-9]/tests/system/providers|
+          .*https://github.*/main/tests/system/providers|
+          .*https://github.*/master/tests/system/providers|
+          .*https://github.*/main/airflow/providers/.*/example_dags/|
+          .*https://github.*/master/airflow/providers/.*/example_dags/
+        pass_filenames: true
+        files: ^docs/apache-airflow-providers-.*\.rst
       - id: check-safe-filter-usage-in-html
         language: pygrep
         name: Don't use safe in templates
@@ -446,6 +467,7 @@ repos:
           ^airflow/www/static/|
           ^airflow/providers/|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^tests/integration/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^tests/system/providers/apache/spark/example_spark_dag.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
@@ -654,7 +676,7 @@ repos:
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
-        files: ^dev/breeze/setup.*$|^dev/breeze/pyproject.toml$|^dev/breeze/README.md$
+        files: dev/breeze/setup.py|dev/breeze/setup.cfg|dev/breeze/pyproject.toml|dev/breeze/README.md
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
@@ -809,7 +831,7 @@ repos:
         files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py

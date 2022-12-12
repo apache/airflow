@@ -34,9 +34,13 @@ class LambdaHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param function_name: AWS Lambda Function Name
-    :param log_type: Tail Invocation Request
-    :param qualifier: AWS Lambda Function Version or Alias Name
     :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
+    :param log_type: Tail Invocation Request
+    :param client_context: Up to 3,583 bytes of base64-encoded data about the invoking client
+        to pass to the function in the context object.
+    :param payload: The JSON that you want to provide to your Lambda function as input.
+    :param qualifier: AWS Lambda Function Version or Alias Name
+
     """
 
     def __init__(

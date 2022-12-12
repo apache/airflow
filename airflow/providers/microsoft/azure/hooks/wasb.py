@@ -385,7 +385,7 @@ class WasbHook(BaseHook):
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
     def download(
-        self, container_name, blob_name, offset: int, length: int, **kwargs
+        self, container_name, blob_name, offset: int | None = None, length: int | None = None, **kwargs
     ) -> StorageStreamDownloader:
         """
         Downloads a blob to the StorageStreamDownloader

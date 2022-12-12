@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
@@ -41,7 +40,7 @@ RESPONSE_WITHOUT_FAILURES = {
 }
 
 
-class TestBatchOperator(unittest.TestCase):
+class TestBatchOperator:
 
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
@@ -50,7 +49,7 @@ class TestBatchOperator(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def setUp(self, get_client_type_mock):
+    def setup_method(self, method, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch = BatchOperator(
             task_id="task",
@@ -232,7 +231,7 @@ class TestBatchOperatorTrimmedArgs:
         client_mock().submit_job.assert_called_once_with(**expected_args)
 
 
-class TestBatchCreateComputeEnvironmentOperator(unittest.TestCase):
+class TestBatchCreateComputeEnvironmentOperator:
     @mock.patch.object(BatchClientHook, "client")
     def test_execute(self, mock_conn):
         environment_name = "environment_name"

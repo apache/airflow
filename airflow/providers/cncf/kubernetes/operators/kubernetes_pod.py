@@ -20,11 +20,14 @@ from __future__ import annotations
 import json
 import logging
 import re
+import secrets
+import string
 import warnings
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
+from slugify import slugify
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -61,30 +64,62 @@ if TYPE_CHECKING:
 
     from airflow.utils.context import Context
 
+alphanum_lower = string.ascii_lowercase + string.digits
 
-def _task_id_to_pod_name(val: str) -> str:
-    """
-    Given a task_id, convert it to a pod name.
-    Adds a 0 if start or end char is invalid.
-    Replaces any other invalid char with `-`.
 
-    :param val: non-empty string, presumed to be a task id
-    :return valid kubernetes object name.
+def _rand_str(num):
+    """Generate random lowercase alphanumeric string of length num.
+
+    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
+
+    :meta private:
     """
-    if not val:
-        raise ValueError("_task_id_to_pod_name requires non-empty string.")
-    val = val.lower()
-    if not re.match(r"[a-z0-9]", val[0]):
-        val = f"0{val}"
-    if not re.match(r"[a-z0-9]", val[-1]):
-        val = f"{val}0"
-    val = re.sub(r"[^a-z0-9\-.]", "-", val)
-    if len(val) > 253:
-        raise ValueError(
-            f"Pod name {val} is longer than 253 characters. "
-            "See https://kubernetes.io/docs/concepts/overview/working-with-objects/names/."
-        )
-    return val
+    return "".join(secrets.choice(alphanum_lower) for _ in range(num))
+
+
+def _add_pod_suffix(*, pod_name, rand_len=8, max_len=253):
+    """Add random string to pod name while staying under max len
+
+    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
+
+    :meta private:
+    """
+    suffix = "-" + _rand_str(rand_len)
+    return pod_name[: max_len - len(suffix)].strip("-.") + suffix
+
+
+def _create_pod_id(
+    dag_id: str | None = None,
+    task_id: str | None = None,
+    *,
+    max_length: int = 63,
+    unique: bool = True,
+) -> str:
+    """
+    Generates unique pod ID given a dag_id and / or task_id.
+
+    TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
+
+    :param dag_id: DAG ID
+    :param task_id: Task ID
+    :param max_length: max number of characters
+    :param unique: whether a random string suffix should be added
+    :return: A valid identifier for a kubernetes pod name
+    """
+    if not (dag_id or task_id):
+        raise ValueError("Must supply either dag_id or task_id.")
+    name = ""
+    if dag_id:
+        name += dag_id
+    if task_id:
+        if name:
+            name += "-"
+        name += task_id
+    base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
+    if unique:
+        return _add_pod_suffix(pod_name=base_name, max_len=max_length)
+    else:
+        return base_name
 
 
 class PodReattachFailure(AirflowException):
@@ -186,6 +221,8 @@ class KubernetesPodOperator(BaseOperator):
         "pod_template_file",
         "namespace",
         "container_resources",
+        "volumes",
+        "volume_mounts",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -196,7 +233,7 @@ class KubernetesPodOperator(BaseOperator):
         namespace: str | None = None,
         image: str | None = None,
         name: str | None = None,
-        random_name_suffix: bool | None = True,
+        random_name_suffix: bool = True,
         cmds: list[str] | None = None,
         arguments: list[str] | None = None,
         ports: list[k8s.V1ContainerPort] | None = None,
@@ -316,15 +353,28 @@ class KubernetesPodOperator(BaseOperator):
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:
-        if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
-            seen_oids.add(id(content))
-            self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
-            return
+        if id(content) not in seen_oids:
+            template_fields: tuple | None = None
 
-        if id(content) not in seen_oids and isinstance(content, k8s.V1ResourceRequirements):
-            seen_oids.add(id(content))
-            self._do_render_template_fields(content, ("limits", "requests"), context, jinja_env, seen_oids)
-            return
+            if isinstance(content, k8s.V1EnvVar):
+                template_fields = ("value", "name")
+
+            if isinstance(content, k8s.V1ResourceRequirements):
+                template_fields = ("limits", "requests")
+
+            if isinstance(content, k8s.V1Volume):
+                template_fields = ("name", "persistent_volume_claim")
+
+            if isinstance(content, k8s.V1VolumeMount):
+                template_fields = ("name",)
+
+            if isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
+                template_fields = ("claim_name",)
+
+            if template_fields:
+                seen_oids.add(id(content))
+                self._do_render_template_fields(content, template_fields, context, jinja_env, seen_oids)
+                return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
@@ -598,10 +648,12 @@ class KubernetesPodOperator(BaseOperator):
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
         if not pod.metadata.name:
-            pod.metadata.name = _task_id_to_pod_name(self.task_id)
-
-        if self.random_name_suffix:
-            pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
+            pod.metadata.name = _create_pod_id(
+                task_id=self.task_id, unique=self.random_name_suffix, max_length=80
+            )
+        elif self.random_name_suffix:
+            # user has supplied pod name, we're just adding suffix
+            pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
 
         if not pod.metadata.namespace:
             # todo: replace with call to `hook.get_namespace` in 6.0, when it doesn't default to `default`.
