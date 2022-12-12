@@ -14,3 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from contextlib import contextmanager
+from functools import lru_cache
+from typing import Generator
+
+from flask import Flask
+
+from airflow.www.extensions.init_appbuilder import AirflowAppBuilder, init_appbuilder
+
+
+@lru_cache(maxsize=None)
+def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
+    """Returns an appbuilder instance for the given app"""
+    return init_appbuilder(app)
+
+
+@contextmanager
+def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
+    flask_app = Flask(__name__)
+    with flask_app.app_context():
+        yield _return_appbuilder(flask_app)
