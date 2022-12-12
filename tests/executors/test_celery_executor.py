@@ -364,7 +364,7 @@ def register_signals():
     signal.signal(signal.SIGUSR2, orig_sigusr2)
 
 
-@pytest.mark.quarantined
+@pytest.mark.execution_timeout(200)
 def test_send_tasks_to_celery_hang(register_signals):
     """
     Test that celery_executor does not hang after many runs.
@@ -374,7 +374,7 @@ def test_send_tasks_to_celery_hang(register_signals):
     task = MockTask()
     task_tuples_to_send = [(None, None, None, task) for _ in range(26)]
 
-    for _ in range(500):
+    for _ in range(250):
         # This loop can hang on Linux if celery_executor does something wrong with
         # multiprocessing.
         results = executor._send_tasks_to_celery(task_tuples_to_send)
