@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
 from botocore.exceptions import ClientError
@@ -27,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -751,14 +751,6 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         sagemaker_hook.delete_model(model_name=self.config["ModelName"])
         self.log.info("Model %s deleted successfully.", self.config["ModelName"])
-
-
-class ApprovalStatus(Enum):
-    """Approval statuses for a Sagemaker Model Package."""
-
-    APPROVED = "Approved"
-    REJECTED = "Rejected"
-    PENDING_MANUAL_APPROVAL = "PendingManualApproval"
 
 
 class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
