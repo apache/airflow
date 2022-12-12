@@ -515,7 +515,7 @@ class TestEksHooks:
             arn_under_test=generated_test_data.nodegroup_describe_output[NodegroupAttributes.ARN],
         )
 
-    @time_machine.travel(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME, tick=False)
     def test_create_nodegroup_generates_valid_nodegroup_created_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
@@ -523,7 +523,7 @@ class TestEksHooks:
 
         assert iso_date(result_time) == FROZEN_TIME
 
-    @time_machine.travel(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME, tick=False)
     def test_create_nodegroup_generates_valid_nodegroup_modified_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
@@ -917,7 +917,7 @@ class TestEksHooks:
             arn_under_test=generated_test_data.fargate_describe_output[FargateProfileAttributes.ARN],
         )
 
-    @time_machine.travel(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME, tick=False)
     def test_create_fargate_profile_generates_valid_created_timestamp(self, fargate_profile_builder) -> None:
         _, generated_test_data = fargate_profile_builder()
 
