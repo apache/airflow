@@ -3739,7 +3739,7 @@ class Airflow(AirflowBaseView):
             data = {"datasets": datasets, "total_entries": count_query.scalar()}
 
             return (
-                htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.AirflowJsonEncoder),
+                htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
                 {"Content-Type": "application/json; charset=utf-8"},
             )
 
