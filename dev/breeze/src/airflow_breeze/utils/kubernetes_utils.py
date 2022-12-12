@@ -316,7 +316,7 @@ def _install_packages_in_k8s_virtualenv(with_constraints: bool):
     )
     if install_packages_result.returncode != 0:
         get_console().print(
-            f"[error]Error when updating pip to {PIP_VERSION}:[/]\n"
+            f"[error]Error when running pip install:[/]\n"
             f"{install_packages_result.stdout}\n{install_packages_result.stderr}"
         )
     return install_packages_result

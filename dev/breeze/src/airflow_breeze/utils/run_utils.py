@@ -125,6 +125,7 @@ def run_command(
         if "capture_output" not in kwargs or not kwargs["capture_output"]:
             kwargs["stdout"] = output.file
             kwargs["stderr"] = subprocess.STDOUT
+    kwargs.setdefault("text", True)
     command_to_print = " ".join(shlex.quote(c) for c in cmd)
     env_to_print = get_environments_to_print(env)
     if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
