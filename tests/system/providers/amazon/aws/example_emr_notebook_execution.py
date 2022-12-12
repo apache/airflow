@@ -69,7 +69,7 @@ with DAG(
         target_states={"RUNNING"},
         poke_interval=5,
     )
-    # [START howto_sensor_emr_notebook_execution]
+    # [END howto_sensor_emr_notebook_execution]
 
     # [START howto_operator_emr_stop_notebook_execution]
     stop_execution = EmrStopNotebookExecutionOperator(

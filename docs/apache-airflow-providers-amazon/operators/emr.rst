@@ -132,7 +132,7 @@ Start an EMR notebook execution
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrStartNotebookExecutionOperator` to
 start a notebook execution on an existing notebook attached to a running cluster.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_notebook.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_notebook_execution.py
    :language: python
    :dedent: 4
    :start-after: [START howto_operator_emr_start_notebook_execution]
@@ -146,7 +146,7 @@ Stop an EMR notebook execution
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrStopNotebookExecutionOperator` to
 stop a running notebook execution.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_notebook.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_notebook_execution.py
    :language: python
    :dedent: 4
    :start-after: [START howto_operator_emr_stop_notebook_execution]
@@ -158,12 +158,12 @@ Sensors
 .. _howto/sensor:EmrNotebookExecutionSensor:
 
 Wait on an EMR notebook execution state
-===================================
+=======================================
 
 To monitor the state of an EMR notebook execution you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrNotebookExecutionSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_notebook.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_notebook_execution.py
    :language: python
    :dedent: 4
    :start-after: [START howto_sensor_emr_notebook_execution]

@@ -124,11 +124,10 @@ class TestEmrStartNotebookExecutionOperator:
             master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
             tags=PARAMS["Tags"],
         )
-        with pytest.raises(AirflowException) as ex_message:
+        with pytest.raises(AirflowException, match=r"Starting notebook execution failed:"):
             op.execute(None)
 
         mock_conn.start_notebook_execution.assert_called_once_with(**PARAMS)
-        assert "Starting Notebook execution failed" in str(ex_message.value)
 
     @mock.patch("time.sleep", return_value=None)
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
@@ -190,9 +189,8 @@ class TestEmrStartNotebookExecutionOperator:
             tags=PARAMS["Tags"],
             wait_for_completion=True,
         )
-        with pytest.raises(AirflowException) as ex_message:
+        with pytest.raises(AirflowException, match=r"Notebook Execution reached failure state FAILED\."):
             op.execute(None)
-        assert "Notebook Execution reached failure state FAILED." in str(ex_message.value)
         mock_conn.start_notebook_execution.assert_called_once_with(**PARAMS)
         mock_conn.describe_notebook_execution.assert_called_once_with(NotebookExecutionId=test_execution_id)
 
@@ -237,9 +235,8 @@ class TestStopEmrNotebookExecutionOperator:
             task_id="test-id", notebook_execution_id=test_execution_id, wait_for_completion=True
         )
 
-        with pytest.raises(AirflowException) as ex_message:
+        with pytest.raises(AirflowException, match=r"Notebook Execution reached failure state FAILED."):
             op.execute(None)
-        assert "Notebook Execution reached failure state FAILED." in str(ex_message.value)
         mock_conn.stop_notebook_execution.assert_called_once_with(NotebookExecutionId=test_execution_id)
         mock_conn.describe_notebook_execution.assert_called_once_with(NotebookExecutionId=test_execution_id)
 

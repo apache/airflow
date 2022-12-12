@@ -58,10 +58,9 @@ class TestEmrNotebookExecutionSensor:
             poke_interval=0,
             notebook_execution_id="test-execution-id",
         )
-        with pytest.raises(AirflowException) as ex_message:
+        with pytest.raises(AirflowException, match=rf"EMR job failed: {error_reason}"):
             sensor.poke(None)
         mock_conn.describe_notebook_execution.assert_called_once_with(NotebookExecutionId="test-execution-id")
-        assert str(ex_message.value) == "EMR job failed " + error_reason
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_emr_notebook_execution_sensor_success_state_multiple(self, mock_conn):
