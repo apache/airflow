@@ -279,9 +279,7 @@ class SecretsMasker(logging.Filter):
             else:
                 self.add_mask(secret_or_secrets, name, add_adaptations=False)
 
-    def add_mask(self,
-                 secret: str | dict | Iterable, name: str | None = None,
-                 add_adaptations: bool = True):
+    def add_mask(self, secret: str | dict | Iterable, name: str | None = None, add_adaptations: bool = True):
         """Add a new secret to be masked to this filter instance.
 
         If add_adaptations is True, the secret mask adapter will be used to add adaptations for the secret as well.
