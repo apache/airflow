@@ -25,10 +25,10 @@ from unittest import mock
 from urllib.parse import ParseResult, urlsplit
 
 import pytest
+import time_machine
 import yaml
 from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
-from freezegun import freeze_time
 from moto import mock_eks
 from moto.core import DEFAULT_ACCOUNT_ID
 from moto.core.exceptions import AWSError
@@ -298,7 +298,7 @@ class TestEksHooks:
             arn_under_test=generated_test_data.cluster_describe_output[ClusterAttributes.ARN],
         )
 
-    @freeze_time(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME, tick=False)
     def test_create_cluster_generates_valid_cluster_created_timestamp(self, cluster_builder) -> None:
         _, generated_test_data = cluster_builder()
 
@@ -515,7 +515,7 @@ class TestEksHooks:
             arn_under_test=generated_test_data.nodegroup_describe_output[NodegroupAttributes.ARN],
         )
 
-    @freeze_time(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME)
     def test_create_nodegroup_generates_valid_nodegroup_created_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
@@ -523,7 +523,7 @@ class TestEksHooks:
 
         assert iso_date(result_time) == FROZEN_TIME
 
-    @freeze_time(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME)
     def test_create_nodegroup_generates_valid_nodegroup_modified_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
@@ -917,7 +917,7 @@ class TestEksHooks:
             arn_under_test=generated_test_data.fargate_describe_output[FargateProfileAttributes.ARN],
         )
 
-    @freeze_time(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME)
     def test_create_fargate_profile_generates_valid_created_timestamp(self, fargate_profile_builder) -> None:
         _, generated_test_data = fargate_profile_builder()
 

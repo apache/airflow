@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import fnmatch
 import json
 
 from elasticsearch import Elasticsearch
@@ -363,6 +364,19 @@ class FakeElasticsearch(Elasticsearch):
                     # use in as a proxy for match_phrase
                     matches.append(document)
 
+    # Check index(es) exists.
+    def _validate_search_targets(self, targets):
+        # TODO: support allow_no_indices query parameter
+        matches = set()
+        for target in targets:
+            if target == "_all" or target == "":
+                matches.update(self.__documents_dict)
+            elif "*" in target:
+                matches.update(fnmatch.filter(self.__documents_dict, target))
+            elif target not in self.__documents_dict:
+                raise NotFoundError(404, f"IndexMissingException[[{target}] missing]")
+        return matches
+
     def _normalize_index_to_list(self, index):
         # Ensure to have a list of index
         if index is None:
@@ -375,12 +389,11 @@ class FakeElasticsearch(Elasticsearch):
             # Is it the correct exception to use ?
             raise ValueError("Invalid param 'index'")
 
-        # Check index(es) exists
-        for searchable_index in searchable_indexes:
-            if searchable_index not in self.__documents_dict:
-                raise NotFoundError(404, f"IndexMissingException[[{searchable_index}] missing]")
-
-        return searchable_indexes
+        return list(
+            self._validate_search_targets(
+                target for index in searchable_indexes for target in index.split(",")
+            )
+        )
 
     @staticmethod
     def _normalize_doc_type_to_list(doc_type):

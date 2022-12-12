@@ -564,12 +564,6 @@ class SelectiveChecks:
                         f"is {self._default_branch} and not main[/]"
                     )
                     test_types_to_remove.add(test_type)
-            if "Integration" in current_test_types:
-                get_console().print(
-                    "[warning]Removing 'Integration' because the target branch "
-                    f"is {self._default_branch} and not main[/]"
-                )
-                test_types_to_remove.add("Integration")
             current_test_types = current_test_types - test_types_to_remove
         return " ".join(sorted(current_test_types))
 

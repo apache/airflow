@@ -108,6 +108,26 @@ class TestBaseJob:
 
             session.rollback()
 
+    def test_most_recent_job_running_precedence(self):
+        with create_session() as session:
+            old_running_state_job = MockJob(None, heartrate=10)
+            old_running_state_job.latest_heartbeat = timezone.utcnow()
+            old_running_state_job.state = State.RUNNING
+            new_failed_state_job = MockJob(None, heartrate=10)
+            new_failed_state_job.latest_heartbeat = timezone.utcnow()
+            new_failed_state_job.state = State.FAILED
+            new_null_state_job = MockJob(None, heartrate=10)
+            new_null_state_job.latest_heartbeat = timezone.utcnow()
+            new_null_state_job.state = None
+            session.add(old_running_state_job)
+            session.add(new_failed_state_job)
+            session.add(new_null_state_job)
+            session.flush()
+
+            assert MockJob.most_recent_job(session=session) == old_running_state_job
+
+            session.rollback()
+
     def test_is_alive(self):
         job = MockJob(None, heartrate=10, state=State.RUNNING)
         assert job.is_alive() is True
