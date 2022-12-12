@@ -32,7 +32,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow import models, settings
 from airflow.decorators import task, task_group
@@ -539,11 +539,11 @@ class TestTaskInstance:
         assert ti.next_kwargs is None
         assert ti.state == state
 
-    @freeze_time("2021-09-19 04:56:35", as_kwarg="frozen_time")
-    def test_retry_delay(self, dag_maker, frozen_time=None):
+    def test_retry_delay(self, dag_maker, time_machine):
         """
         Test that retry delays are respected
         """
+        time_machine.move_to("2021-09-19 04:56:35", tick=False)
         with dag_maker(dag_id="test_retry_handling"):
             task = BashOperator(
                 task_id="test_retry_handling_op",
@@ -568,12 +568,12 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
-        frozen_time.tick(delta=datetime.timedelta(seconds=3))
+        time_machine.coordinates.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        frozen_time.tick(delta=datetime.datetime.resolution)
+        time_machine.coordinates.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
 
@@ -731,7 +731,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -831,7 +831,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -930,7 +930,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -998,7 +998,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
