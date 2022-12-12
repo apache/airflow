@@ -308,7 +308,10 @@ class TestBatchClient(unittest.TestCase):
             "jobs": [
                 {
                     "jobId": JOB_ID,
-                    "attempts": [{"container": {"exitCode": 0, "logStreamName": LOG_STREAM_NAME}}],
+                    "attempts": [
+                        {"container": {"exitCode": 0, "logStreamName": "test/stream/attempt0"}},
+                        {"container": {"exitCode": 0, "logStreamName": LOG_STREAM_NAME}},
+                    ],
                     "nodeProperties": {
                         "mainNode": 0,
                         "nodeRangeProperties": [

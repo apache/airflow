@@ -433,7 +433,8 @@ class BatchClientHook(AwsBaseHook):
                 if len(job_attempts):
                     if len(job_attempts) > 1:
                         self.log.warning(
-                            "AWS Batch job (%s) has had more than one attempt. Only returning logs from the most recent attempt.",
+                            "AWS Batch job (%s) has had more than one attempt. \
+                                Only returning logs from the most recent attempt.",
                             job_id,
                         )
                     awslogs_stream_name = job_attempts[-1].get("container", {}).get("logStreamName")
