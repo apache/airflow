@@ -1,0 +1,120 @@
+[build-system]
+requires = ["flit_core >=3.8.0,<4"]
+build-backend = "flit.buildapi"
+
+[project]
+name = "apache-airflow-providers-google"
+version = "8.6.0"
+authors = [
+    {name = "Apache Airflow PMC", email = "dev@airflow.apache.org"},
+]
+maintainers = [
+    {name = "Apache Airflow PMC", email = "dev@airflow.apache.org"},
+]
+description = "Provider for Apache Airflow. Implements apache-airflow-providers-google package"
+readme = "README.rst"
+requires-python = ">=3.7"
+keywords = ["airflow", "airflow-provider", "apache-airflow-providers-google"]
+license = {file = "LICENSE.txt"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Framework :: Apache Airflow",
+    "Framework :: Apache Airflow :: Provider",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: System :: Monitoring",
+]
+
+
+dependencies = [
+    "apache-airflow>=2.3.0",
+    "apache-airflow-providers-common-sql>=1.3.1",
+    "PyOpenSSL",
+    "asgiref>=3.5.2",
+    "gcloud_aio_auth>=4.0.0",
+    "gcloud-aio-bigquery>=6.1.2",
+    "gcloud-aio-storage",
+    "google-ads>=15.1.1",
+    "google-api-core>=2.7.0,<3.0.0",
+    "google-api-python-client>=1.6.0,<2.0.0",
+    "google-auth>=1.0.0",
+    "google-auth-httplib2>=0.0.1",
+    "google-cloud-aiplatform>=1.7.1,<2.0.0",
+    "google-cloud-automl>=2.1.0",
+    "google-cloud-bigquery-datatransfer>=3.0.0",
+    "google-cloud-bigtable>=1.0.0,<2.0.0",
+    "google-cloud-build>=3.0.0",
+    "google-cloud-compute>=0.1.0,<2.0.0",
+    "google-cloud-container>=2.2.0,<3.0.0",
+    "google-cloud-dataform>=0.2.0",
+    "google-cloud-datacatalog>=3.0.0",
+    "google-cloud-dataplex>=0.1.0",
+    "google-cloud-dataproc>=3.1.0",
+    "google-cloud-dataproc-metastore>=1.2.0,<2.0.0",
+    "google-cloud-dlp>=0.11.0,<2.0.0",
+    "google-cloud-kms>=2.0.0",
+    "google-cloud-language>=1.1.1,<2.0.0",
+    "google-cloud-logging>=2.1.1",
+    "google-cloud-memcache>=0.2.0",
+    "google-cloud-monitoring>=2.0.0",
+    "google-cloud-os-login>=2.0.0",
+    "google-cloud-orchestration-airflow>=1.0.0,<2.0.0",
+    "google-cloud-pubsub>=2.0.0",
+    "google-cloud-redis>=2.0.0",
+    "google-cloud-secret-manager>=0.2.0,<2.0.0",
+    "google-cloud-spanner>=1.10.0,<2.0.0",
+    "google-cloud-speech>=0.36.3,<2.0.0",
+    "google-cloud-storage>=1.30,<3.0.0",
+    "google-cloud-tasks>=2.0.0",
+    "google-cloud-texttospeech>=0.4.0,<2.0.0",
+    "google-cloud-translate>=1.5.0,<2.0.0",
+    "google-cloud-videointelligence>=1.7.0,<2.0.0",
+    "google-cloud-vision>=0.35.2,<2.0.0",
+    "google-cloud-workflows>=0.1.0,<2.0.0",
+    "grpcio-gcp>=0.2.2",
+    "httpx",
+    "json-merge-patch>=0.2",
+    "looker-sdk>=22.2.0",
+    "pandas-gbq",
+    "pandas>=0.17.1",
+    "sqlalchemy-bigquery>=1.2.1",
+    "proto-plus>=1.19.6",
+    "protobuf<=3.20.0",
+]
+
+[project.optional-dependencies]
+"apache.beam" = [
+    "apache-beam[gcp]",
+]
+"leveldb" = [
+    "plyvel",
+]
+"oracle" = [
+    "apache-airflow-providers-oracle>=3.1.0",
+]
+"facebook" = [
+    "apache-airflow-providers-facebook>=2.2.0",
+]
+"amazon" = [
+    "apache-airflow-providers-amazon>=2.6.0",
+]
+[project.urls]
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/8.6.0/"
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+"Source Code" = "https://github.com/apache/airflow"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+"Twitter" = "https://twitter.com/ApacheAirflow"
+"YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow.providers.google.get_provider_info:get_provider_info"
+
+[tool.flit.module]
+name = "airflow.providers.google"
