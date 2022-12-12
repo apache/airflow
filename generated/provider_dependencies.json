@@ -564,7 +564,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
-      "psycopg2>=2.8.0"
+      "psycopg2-binary>=2.8.0"
     ],
     "cross-providers-deps": [
       "amazon",
