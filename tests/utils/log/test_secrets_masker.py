@@ -326,6 +326,13 @@ def lineno():
 
 
 class TestRedactedIO:
+    @pytest.fixture(scope="class", autouse=True)
+    def reset_secrets_masker(self):
+        self.secrets_masker = SecretsMasker()
+        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
+            mask_secret(p)
+            yield
+
     def test_redacts_from_print(self, capsys):
         # Without redacting, password is printed.
         print(p)
@@ -356,11 +363,11 @@ class TestRedactedIO:
 
 
 class TestMaskSecretAdapter:
-    @pytest.fixture(scope='function', autouse=True)
+    @pytest.fixture(scope="function", autouse=True)
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
-        with patch('airflow.utils.log.secrets_masker._secrets_masker', return_value=self.secrets_masker):
-            with patch('airflow.utils.log.secrets_masker.re.escape', lambda x: x):
+        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
+            with patch("airflow.utils.log.secrets_masker.re.escape", lambda x: x):
                 yield
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):
@@ -371,9 +378,14 @@ class TestMaskSecretAdapter:
 
     def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self):
         with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.urlparse"}):
-            mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", 'password')
+            mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", "password")
 
-        assert self.secrets_masker.patterns == {"https", "airflow.apache.org", "/docs/apache-airflow/stable", "https://airflow.apache.org/docs/apache-airflow/stable"}
+        assert self.secrets_masker.patterns == {
+            "https",
+            "airflow.apache.org",
+            "/docs/apache-airflow/stable",
+            "https://airflow.apache.org/docs/apache-airflow/stable",
+        }
 
     def test_calling_mask_secret_not_set(self):
         with conf_vars({("logging", "secret_mask_adapter"): None}):

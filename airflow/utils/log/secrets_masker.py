@@ -256,6 +256,16 @@ class SecretsMasker(logging.Filter):
             pass
         return mask_adapter
 
+    @cached_property
+    def _test_mode(self) -> bool:
+        """Pulls the unit test mode flag from config.
+
+        This lives in a function here to be cached and only hit the config once.
+        """
+        from airflow.configuration import conf
+
+        return conf.getboolean("core", "unit_test_mode")
+
     def _add_adaptations(self, secret: str | dict | Iterable, name: str | None = None):
         """Adds any adaptations to the secret that should be masked."""
         if self._mask_adapter:
@@ -269,19 +279,18 @@ class SecretsMasker(logging.Filter):
             else:
                 self.add_mask(secret_or_secrets, name, add_adaptations=False)
 
-    def add_mask(self, secret: str | dict | Iterable, name: str | None = None, add_adaptations: bool = True):
+    def add_mask(self,
+                 secret: str | dict | Iterable, name: str | None = None,
+                 add_adaptations: bool = True):
         """Add a new secret to be masked to this filter instance.
 
         If add_adaptations is True, the secret mask adapter will be used to add adaptations for the secret as well.
         """
-        from airflow.configuration import conf
-
-        test_mode: bool = conf.getboolean("core", "unit_test_mode")
         if isinstance(secret, dict):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
-            if not secret or (test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
+            if not secret or (self._test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
                 return
             if add_adaptations:
                 self._add_adaptations(secret, name)
