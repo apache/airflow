@@ -133,17 +133,24 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
+def get_dag_run_conf(dag_run_conf: Any) -> tuple[str | None, bool]:
+    conf: str | None = None
+
+    conf_is_json: bool = False
+    if isinstance(dag_run_conf, str):
+        conf = dag_run_conf
+    elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
+        conf = json.dumps(dag_run_conf, sort_keys=True)
+        conf_is_json = True
+
+    return conf, conf_is_json
+
+
 def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
-    conf: str | None = None
-    conf_is_json: bool = False
-    if isinstance(dag_run.conf, str):
-        conf = dag_run.conf
-    elif isinstance(dag_run.conf, (dict, list)) and any(dag_run.conf):
-        conf = json.dumps(dag_run.conf, sort_keys=True)
-        conf_is_json = True
+    conf, conf_is_json = get_dag_run_conf(dag_run.conf)
 
     return {
         "run_id": dag_run.run_id,
@@ -159,7 +166,7 @@ def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
         "external_trigger": dag_run.external_trigger,
         "conf": conf,
         "conf_is_json": conf_is_json,
-        "notes": dag_run.notes,
+        "note": dag_run.note,
     }
 
 
@@ -717,10 +724,10 @@ class CustomSQLAInterface(SQLAInterface):
 
         clean_column_names()
         # Support for AssociationProxy in search and list columns
-        for desc in self.obj.__mapper__.all_orm_descriptors:
+        for obj_attr, desc in self.obj.__mapper__.all_orm_descriptors.items():
             if not isinstance(desc, AssociationProxy):
                 continue
-            proxy_instance = getattr(self.obj, desc.value_attr)
+            proxy_instance = getattr(self.obj, obj_attr)
             if hasattr(proxy_instance.remote_attr.prop, "columns"):
                 self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
                 self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop

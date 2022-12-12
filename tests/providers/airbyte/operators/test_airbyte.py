@@ -17,13 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
 
 
-class TestAirbyteTriggerSyncOp(unittest.TestCase):
+class TestAirbyteTriggerSyncOp:
     """
     Test execute function from Airbyte Operator
     """

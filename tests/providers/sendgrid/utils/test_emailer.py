@@ -20,15 +20,14 @@ from __future__ import annotations
 import copy
 import os
 import tempfile
-import unittest
 from unittest import mock
 
 from airflow.providers.sendgrid.utils.emailer import send_email
 
 
-class TestSendEmailSendGrid(unittest.TestCase):
+class TestSendEmailSendGrid:
     # Unit test for sendgrid.send_email()
-    def setUp(self):
+    def setup_method(self):
         self.recipients = ["foo@foo.com", "bar@bar.com"]
         self.subject = "sendgrid-send-email unit test"
         self.html_content = "<b>Foo</b> bar"

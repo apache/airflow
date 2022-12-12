@@ -30,10 +30,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Collection, DefaultDict, Iterator
 
-from sqlalchemy import func, not_, or_, text
+from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
@@ -45,7 +46,13 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -78,17 +85,20 @@ DM = DagModel
 
 def _is_parent_process() -> bool:
     """
-    Returns True if the current process is the parent process. False if the current process is a child
-    process started by multiprocessing.
+    Whether this is a parent process.
+
+    Return True if the current process is the parent process.
+    False if the current process is a child process started by multiprocessing.
     """
     return multiprocessing.current_process().name == "MainProcess"
 
 
 class SchedulerJob(BaseJob):
     """
-    This SchedulerJob runs for a specific time interval and schedules the jobs
-    that are ready to run. It figures out the latest runs for each
-    task and sees if the dependencies for the next schedules are met.
+    SchedulerJob runs for a specific time interval and schedules jobs that are ready to run.
+
+    It figures out the latest runs for each task and sees if the dependencies
+    for the next schedules are met.
     If so, it creates appropriate TaskInstances and sends run commands to the
     executor. It does this for each task in each DAG and repeats.
 
@@ -158,7 +168,7 @@ class SchedulerJob(BaseJob):
         self._paused_dag_without_running_dagruns: set = set()
 
     def register_signals(self) -> None:
-        """Register signals that stop child processes"""
+        """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
@@ -191,7 +201,7 @@ class SchedulerJob(BaseJob):
 
     def is_alive(self, grace_multiplier: float | None = None) -> bool:
         """
-        Is this SchedulerJob alive?
+        Whether the SchedulerJob is alive.
 
         We define alive as in a state of running and a heartbeat within the
         threshold defined in the ``scheduler_health_check_threshold`` config
@@ -234,8 +244,13 @@ class SchedulerJob(BaseJob):
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
-        Finds TIs that are ready for execution with respect to pool limits,
-        dag max_active_tasks, executor state, and priority.
+        Find TIs that are ready for execution based on conditions.
+
+        Conditions include:
+        - pool limits
+        - DAG max_active_tasks
+        - executor state
+        - priority
 
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
@@ -311,7 +326,7 @@ class SchedulerJob(BaseJob):
                 .filter(not_(DM.is_paused))
                 .filter(TI.state == TaskInstanceState.SCHEDULED)
                 .options(selectinload("dag_model"))
-                .order_by(-TI.priority_weight, DR.execution_date)
+                .order_by(-TI.priority_weight, DR.execution_date, TI.map_index)
             )
 
             if starved_pools:
@@ -522,8 +537,7 @@ class SchedulerJob(BaseJob):
 
     def _enqueue_task_instances_with_queued_state(self, task_instances: list[TI], session: Session) -> None:
         """
-        Takes task_instances, which should have been set to queued, and enqueues them
-        with the executor.
+        Enqueue task_instances which should have been set to queued with the executor.
 
         :param task_instances: TaskInstances to enqueue
         :param session: The session object
@@ -783,31 +797,35 @@ class SchedulerJob(BaseJob):
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
-            paused_dag_ids = DagModel.get_all_paused_dag_ids()
-            for dag_id in paused_dag_ids:
-                if dag_id in self._paused_dag_without_running_dagruns:
-                    continue
-
-                dag = SerializedDagModel.get_dag(dag_id)
-                if dag is None:
-                    continue
-                dag_runs = session.query(DagRun).filter(
-                    DagRun.dag_id == dag_id,
+            paused_runs = (
+                session.query(DagRun)
+                .join(DagRun.dag_model)
+                .join(TaskInstance)
+                .filter(
+                    DagModel.is_paused == expression.true(),
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                for dag_run in dag_runs:
-                    dag_run.dag = dag
-                    _, callback_to_run = dag_run.update_state(execute_callbacks=False)
-                    if callback_to_run:
-                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
-                self._paused_dag_without_running_dagruns.add(dag_id)
+                .having(DagRun.last_scheduling_decision <= func.max(TaskInstance.updated_at))
+                .group_by(DagRun)
+            )
+            for dag_run in paused_runs:
+                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+                if dag is None:
+                    continue
+
+                dag_run.dag = dag
+                _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
+                if callback_to_run:
+                    self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", str(e))
 
     def _run_scheduler_loop(self) -> None:
         """
-        The actual scheduler loop. The main steps in the loop are:
+        The actual scheduler loop.
+
+        The main steps in the loop are:
             #. Harvest DAG parsing results through DagFileProcessorAgent
             #. Find and queue executable tasks
                 #. Change task instance state in DB
@@ -851,9 +869,14 @@ class SchedulerJob(BaseJob):
         )
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
 
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._orphan_unreferenced_datasets,
+        )
+
         if self._standalone_dag_processor:
             timers.call_regular_interval(
-                conf.getfloat("scheduler", "deactivate_stale_dags_interval", fallback=60.0),
+                conf.getfloat("scheduler", "parsing_cleanup_interval"),
                 self._cleanup_stale_dags,
             )
 
@@ -909,8 +932,9 @@ class SchedulerJob(BaseJob):
 
     def _do_scheduling(self, session: Session) -> int:
         """
-        This function is where the main scheduling decisions take places. It:
+        This function is where the main scheduling decisions take places.
 
+        It:
         - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
 
           Since creating Dag Runs is a relatively time consuming process, we select only 10 dags by default
@@ -995,12 +1019,12 @@ class SchedulerJob(BaseJob):
 
     @retry_db_transaction
     def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
-        """Get Next DagRuns to Examine with retries"""
+        """Get Next DagRuns to Examine with retries."""
         return DagRun.next_dagruns_to_examine(state, session)
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
-        """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError"""
+        """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
         query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
         dataset_triggered_dags = [
@@ -1191,7 +1215,7 @@ class SchedulerJob(BaseJob):
         return True
 
     def _start_queued_dagruns(self, session: Session) -> None:
-        """Find DagRuns in queued state and decide moving them to running state"""
+        """Find DagRuns in queued state and decide moving them to running state."""
         dag_runs = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
 
         active_runs_of_dags = defaultdict(
@@ -1213,7 +1237,6 @@ class SchedulerJob(BaseJob):
                 Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
 
         for dag_run in dag_runs:
-
             dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
@@ -1230,6 +1253,7 @@ class SchedulerJob(BaseJob):
             else:
                 active_runs_of_dags[dag_run.dag_id] += 1
                 _update_state(dag, dag_run)
+                dag_run.notify_dagrun_state_changed()
 
     @retry_db_transaction
     def _schedule_all_dag_runs(self, guard, dag_runs, session):
@@ -1249,7 +1273,7 @@ class SchedulerJob(BaseJob):
         session: Session,
     ) -> DagCallbackRequest | None:
         """
-        Make scheduling decisions about an individual dag run
+        Make scheduling decisions about an individual dag run.
 
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
@@ -1294,13 +1318,16 @@ class SchedulerJob(BaseJob):
                 msg="timed_out",
             )
 
+            dag_run.notify_dagrun_state_changed()
             return callback_to_execute
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
             self.log.error("Execution date is in future: %s", dag_run.execution_date)
             return callback
 
-        self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
+        if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
+            self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
+            return callback
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
         if dag_run.state in State.finished:
@@ -1316,20 +1343,27 @@ class SchedulerJob(BaseJob):
 
         return callback_to_run
 
-    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> None:
-        """Only run DagRun.verify integrity if Serialized DAG has changed since it is slow"""
+    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
+        """
+        Only run DagRun.verify integrity if Serialized DAG has changed since it is slow.
+
+        Return True if we determine that DAG still exists.
+        """
         latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
         if dag_run.dag_hash == latest_version:
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
-            return
+            return True
 
         dag_run.dag_hash = latest_version
 
         # Refresh the DAG
         dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id, session=session)
+        if not dag_run.dag:
+            return False
 
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
+        return True
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:
         self._send_sla_callbacks_to_processor(dag)
@@ -1339,7 +1373,7 @@ class SchedulerJob(BaseJob):
             self.log.debug("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG) -> None:
-        """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
+        """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
         if not settings.CHECK_SLAS:
             return
 
@@ -1518,7 +1552,6 @@ class SchedulerJob(BaseJob):
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
         for ti, file_loc in zombies:
-
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
@@ -1571,3 +1604,33 @@ class SchedulerJob(BaseJob):
             dag.is_active = False
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
+
+    @provide_session
+    def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
+        """
+        Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
+        sets the dataset is_orphaned flag to True
+        """
+        orphaned_dataset_query = (
+            session.query(DatasetModel)
+            .join(
+                DagScheduleDatasetReference,
+                isouter=True,
+            )
+            .join(
+                TaskOutletDatasetReference,
+                isouter=True,
+            )
+            # MSSQL doesn't like it when we select a column that we haven't grouped by. All other DBs let us
+            # group by id and select all columns.
+            .group_by(DatasetModel if session.get_bind().dialect.name == "mssql" else DatasetModel.id)
+            .having(
+                and_(
+                    func.count(DagScheduleDatasetReference.dag_id) == 0,
+                    func.count(TaskOutletDatasetReference.dag_id) == 0,
+                )
+            )
+        )
+        for dataset in orphaned_dataset_query:
+            self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
+            dataset.is_orphaned = expression.true()

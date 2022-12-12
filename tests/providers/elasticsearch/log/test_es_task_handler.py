@@ -75,7 +75,7 @@ class TestElasticsearchTaskHandler:
         clear_db_dags()
 
     @elasticmock
-    def setup(self):
+    def setup_method(self, method):
         self.local_log_location = "local/log/location"
         self.end_of_log_mark = "end_of_log\n"
         self.write_stdout = False
@@ -100,11 +100,12 @@ class TestElasticsearchTaskHandler:
         self.body = {"message": self.test_message, "log_id": self.LOG_ID, "offset": 1}
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=1)
 
-    def teardown(self):
+    def teardown_method(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
 
     def test_client(self):
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
+        assert self.es_task_handler.index_patterns == "_all"
 
     def test_client_with_config(self):
         es_conf = dict(conf.getsection("elasticsearch_configs"))
@@ -125,6 +126,21 @@ class TestElasticsearchTaskHandler:
             es_kwargs=es_conf,
         )
 
+    def test_client_with_patterns(self):
+        # ensure creating with index patterns does not fail
+        patterns = "test_*,other_*"
+        handler = ElasticsearchTaskHandler(
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
+            index_patterns=patterns,
+        )
+        assert handler.index_patterns == patterns
+
     def test_read(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
@@ -138,6 +154,44 @@ class TestElasticsearchTaskHandler:
         assert not metadatas[0]["end_of_log"]
         assert "1" == metadatas[0]["offset"]
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+    def test_read_with_patterns(self, ti):
+        ts = pendulum.now()
+        with mock.patch.object(self.es_task_handler, "index_patterns", new="test_*,other_*"):
+            logs, metadatas = self.es_task_handler.read(
+                ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+            )
+
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert len(logs[0]) == 1
+        assert self.test_message == logs[0][0][-1]
+        assert not metadatas[0]["end_of_log"]
+        assert "1" == metadatas[0]["offset"]
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+    def test_read_with_patterns_no_match(self, ti):
+        ts = pendulum.now()
+        with mock.patch.object(self.es_task_handler, "index_patterns", new="test_other_*,test_another_*"):
+            logs, metadatas = self.es_task_handler.read(
+                ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+            )
+
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert [[]] == logs
+        assert not metadatas[0]["end_of_log"]
+        assert "0" == metadatas[0]["offset"]
+        # last_log_timestamp won't change if no log lines read.
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+
+    def test_read_with_missing_index(self, ti):
+        ts = pendulum.now()
+        with mock.patch.object(self.es_task_handler, "index_patterns", new="nonexistent,test_*"):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r".*nonexistent.*"):
+                self.es_task_handler.read(
+                    ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+                )
 
     @pytest.mark.parametrize("seconds", [3, 6])
     def test_read_missing_logs(self, seconds, create_task_instance):

@@ -17,15 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerBaseSensor
 
 
-class TestSagemakerBaseSensor(unittest.TestCase):
+class TestSagemakerBaseSensor:
     def test_execute(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
             def non_terminal_states(self):

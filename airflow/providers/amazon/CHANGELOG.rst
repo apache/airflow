@@ -24,6 +24,27 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use Boto waiters instead of customer _await_status method for RDS Operators (#27410)``
+* ``Handle transient state errors in 'RedshiftResumeClusterOperator' and 'RedshiftPauseClusterOperator' (#27276)``
+* ``Add retry option in RedshiftDeleteClusterOperator to retry when an operation is running in the cluster (#27820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Correct job name matching in SagemakerProcessingOperator (#27634)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``System Test for EMR (AIP-47) (#27286)``
+   * ``Prepare for follow-up release for November providers (#27774)``
+
 6.1.0
 .....
 

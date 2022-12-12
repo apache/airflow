@@ -34,6 +34,36 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
+SIGSEGV_MESSAGE = """
+******************************************* Received SIGSEGV *******************************************
+SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which refers to
+an attempt by a program/library to write or read outside its allocated memory.
+
+In Python environment usually this signal refers to libraries which use low level C API.
+Make sure that you use use right libraries/Docker Images
+for your architecture (Intel/ARM) and/or Operational System (Linux/macOS).
+
+Suggested way to debug
+======================
+  - Set environment variable 'PYTHONFAULTHANDLER' to 'true'.
+  - Start airflow services.
+  - Restart failed airflow task.
+  - Check 'scheduler' and 'worker' services logs for additional traceback
+    which might contain information about module/library where actual error happen.
+
+Known Issues
+============
+
+Note: Only Linux-based distros supported as "Production" execution environment for Airflow.
+
+macOS
+-----
+ 1. Due to limitations in Apple's libraries not every process might 'fork' safe.
+    One of the general error is unable to query the macOS system configuration for network proxies.
+    If your are not using a proxy you could disable it by set environment variable 'no_proxy' to '*'.
+    See: https://github.com/python/cpython/issues/58037 and https://bugs.python.org/issue30385#msg293958
+********************************************************************************************************"""
+
 
 class LocalTaskJob(BaseJob):
     """LocalTaskJob runs a single task instance."""
@@ -78,11 +108,19 @@ class LocalTaskJob(BaseJob):
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
-            """Setting kill signal handler"""
+            """Setting kill signal handler."""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
 
+        def segfault_signal_handler(signum, frame):
+            """Setting sigmentation violation signal handler"""
+            self.log.critical(SIGSEGV_MESSAGE)
+            self.task_runner.terminate()
+            self.handle_task_exit(128 + signum)
+            raise AirflowException("Segmentation Fault detected.")
+
+        signal.signal(signal.SIGSEGV, segfault_signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
@@ -150,13 +188,14 @@ class LocalTaskJob(BaseJob):
 
     def handle_task_exit(self, return_code: int) -> None:
         """
-        Handle case where self.task_runner exits by itself or is externally killed
+        Handle case where self.task_runner exits by itself or is externally killed.
 
-        Dont run any callbacks
+        Don't run any callbacks.
         """
         # Without setting this, heartbeat may get us
         self.terminating = True
         self.log.info("Task exited with return code %s", return_code)
+        self._log_return_code_metric(return_code)
 
         if not self.task_instance.test_mode:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
@@ -168,7 +207,7 @@ class LocalTaskJob(BaseJob):
 
     @provide_session
     def heartbeat_callback(self, session=None):
-        """Self destruct task if state has been moved away from running externally"""
+        """Self destruct task if state has been moved away from running externally."""
         if self.terminating:
             # ensure termination if processes are created later
             self.task_runner.terminate()
@@ -225,11 +264,13 @@ class LocalTaskJob(BaseJob):
                 self.terminating = True
             self._state_change_checks += 1
 
+    def _log_return_code_metric(self, return_code: int):
+        Stats.incr(
+            f"local_task_job.task_exit.{self.id}.{self.dag_id}.{self.task_instance.task_id}.{return_code}"
+        )
+
     @staticmethod
     def _enable_task_listeners():
-        """
-        Check if we have any registered listeners, then register sqlalchemy hooks for
-        TI state change if we do.
-        """
+        """Check for registered listeners, then register sqlalchemy hooks for TI state changes."""
         if get_listener_manager().has_listeners:
             register_task_instance_state_events()

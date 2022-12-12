@@ -34,9 +34,13 @@ class LambdaHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     :param function_name: AWS Lambda Function Name
-    :param log_type: Tail Invocation Request
-    :param qualifier: AWS Lambda Function Version or Alias Name
     :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
+    :param log_type: Tail Invocation Request
+    :param client_context: Up to 3,583 bytes of base64-encoded data about the invoking client
+        to pass to the function in the context object.
+    :param payload: The JSON that you want to provide to your Lambda function as input.
+    :param qualifier: AWS Lambda Function Version or Alias Name
+
     """
 
     def __init__(
@@ -72,9 +76,9 @@ class LambdaHook(AwsBaseHook):
         self,
         *,
         function_name: str,
-        runtime: str,
+        runtime: str | None = None,
         role: str,
-        handler: str,
+        handler: str | None = None,
         code: dict,
         description: str | None = None,
         timeout: int | None = None,
@@ -93,6 +97,12 @@ class LambdaHook(AwsBaseHook):
         code_signing_config_arn: str | None = None,
         architectures: list[str] | None = None,
     ) -> dict:
+        if package_type == "Zip":
+            if handler is None:
+                raise TypeError("Parameter 'handler' is required if 'package_type' is 'Zip'")
+            if runtime is None:
+                raise TypeError("Parameter 'runtime' is required if 'package_type' is 'Zip'")
+
         """Create a Lambda Function"""
         create_function_args = {
             "FunctionName": function_name,

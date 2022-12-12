@@ -78,6 +78,7 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
+    check_remote_ghcr_io_commands,
     make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
@@ -245,6 +246,7 @@ def build(
             sys.exit(return_code)
 
     perform_environment_checks()
+    check_remote_ghcr_io_commands()
     parameters_passed = filter_out_none(**kwargs)
 
     fix_group_permissions()
@@ -305,6 +307,7 @@ def pull_prod_image(
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
     perform_environment_checks()
+    check_remote_ghcr_io_commands()
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         prod_image_params_list = [
@@ -381,6 +384,7 @@ def verify(
         )
         image_name = build_params.airflow_image_name_with_tag
     if pull:
+        check_remote_ghcr_io_commands()
         command_to_run = ["docker", "pull", image_name]
         run_command(command_to_run, check=True)
     get_console().print(f"[info]Verifying PROD image: {image_name}[/]")

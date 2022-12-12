@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from typing import Any
 from unittest import mock
 
@@ -92,35 +91,21 @@ class CreateNodegroupParams(TypedDict):
     nodegroup_role_arn: str
 
 
-class TestEksCreateClusterOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksCreateClusterOperator:
+    def setup_method(self) -> None:
         # Parameters which are needed to create a cluster.
-        self.create_cluster_params: ClusterParams = dict(  # type: ignore
+        self.create_cluster_params = ClusterParams(
             cluster_name=CLUSTER_NAME,
             cluster_role_arn=ROLE_ARN[1],
             resources_vpc_config=RESOURCES_VPC_CONFIG[1],
         )
+        self.nodegroup_setup()
+        self.fargate_profile_setup()
 
-        self.create_cluster_operator_without_kwargs = EksCreateClusterOperator(
-            task_id=TASK_ID,
-            **self.create_cluster_params,
-            compute=None,
-        )
-
-        self.create_cluster_operator_with_kwargs = EksCreateClusterOperator(
-            task_id=TASK_ID,
-            create_cluster_kwargs=CREATE_CLUSTER_KWARGS,
-            **self.create_cluster_params,
-            compute=None,
-        )
-
-        self.nodegroup_setUp()
-        self.fargate_profile_setUp()
-
-    def nodegroup_setUp(self) -> None:
+    def nodegroup_setup(self) -> None:
         # Parameters which are added to the cluster parameters
         # when creating both the cluster and nodegroup together.
-        self.base_nodegroup_params: NodeGroupParams = dict(  # type: ignore
+        self.base_nodegroup_params = NodeGroupParams(
             nodegroup_name=NODEGROUP_NAME,
             nodegroup_role_arn=NODEROLE_ARN[1],
         )
@@ -138,10 +123,10 @@ class TestEksCreateClusterOperator(unittest.TestCase):
             **self.base_nodegroup_params,
         )
 
-    def fargate_profile_setUp(self) -> None:
+    def fargate_profile_setup(self) -> None:
         # Parameters which are added to the cluster parameters
         # when creating both the cluster and Fargate profile together.
-        self.base_fargate_profile_params: BaseFargateProfileParams = dict(  # type: ignore
+        self.base_fargate_profile_params = BaseFargateProfileParams(
             fargate_profile_name=FARGATE_PROFILE_NAME,
             fargate_pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
             fargate_selectors=SELECTORS[1],
@@ -160,23 +145,28 @@ class TestEksCreateClusterOperator(unittest.TestCase):
             compute="fargate",
         )
 
+    @pytest.mark.parametrize(
+        "create_cluster_kwargs",
+        [
+            pytest.param(None, id="without cluster kwargs"),
+            pytest.param(CREATE_CLUSTER_KWARGS, id="with cluster kwargs"),
+        ],
+    )
     @mock.patch.object(EksHook, "create_cluster")
     @mock.patch.object(EksHook, "create_nodegroup")
-    def test_execute_create_cluster(self, mock_create_nodegroup, mock_create_cluster):
-        operator_under_test = [
-            (self.create_cluster_operator_without_kwargs, self.create_cluster_params),
-            (
-                self.create_cluster_operator_with_kwargs,
-                {**self.create_cluster_params, **CREATE_CLUSTER_KWARGS},
-            ),
-        ]
+    def test_execute_create_cluster(self, mock_create_nodegroup, mock_create_cluster, create_cluster_kwargs):
+        op_kwargs = {**self.create_cluster_params, "compute": None}
+        if create_cluster_kwargs:
+            op_kwargs["create_cluster_kwargs"] = create_cluster_kwargs
+            parameters = {**self.create_cluster_params, **create_cluster_kwargs}
+        else:
+            assert "create_cluster_kwargs" not in op_kwargs
+            parameters = self.create_cluster_params
 
-        for (operator, parameters) in operator_under_test:
-            with self.subTest():
-                operator.execute({})
-
-            mock_create_cluster.assert_called_with(**convert_keys(parameters))
-            mock_create_nodegroup.assert_not_called()
+        operator = EksCreateClusterOperator(task_id=TASK_ID, **op_kwargs)
+        operator.execute({})
+        mock_create_cluster.assert_called_with(**convert_keys(parameters))
+        mock_create_nodegroup.assert_not_called()
 
     @mock.patch.object(EksHook, "get_cluster_state")
     @mock.patch.object(EksHook, "create_cluster")
@@ -243,80 +233,74 @@ class TestEksCreateClusterOperator(unittest.TestCase):
             missing_fargate_pod_execution_role_arn.execute({})
 
 
-class TestEksCreateFargateProfileOperator(unittest.TestCase):
-    def setUp(self) -> None:
-        self.create_fargate_profile_params: CreateFargateProfileParams = dict(  # type: ignore
+class TestEksCreateFargateProfileOperator:
+    def setup_method(self) -> None:
+        self.create_fargate_profile_params = CreateFargateProfileParams(  # type: ignore
             cluster_name=CLUSTER_NAME,
             pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
             selectors=SELECTORS[1],
             fargate_profile_name=FARGATE_PROFILE_NAME,
         )
 
-        self.create_fargate_profile_operator_without_kwargs = EksCreateFargateProfileOperator(
-            task_id=TASK_ID, **self.create_fargate_profile_params
-        )
-
-        self.create_fargate_profile_operator_with_kwargs = EksCreateFargateProfileOperator(
-            task_id=TASK_ID,
-            create_fargate_profile_kwargs=CREATE_FARGATE_PROFILE_KWARGS,
-            **self.create_fargate_profile_params,
-        )
-
+    @pytest.mark.parametrize(
+        "create_fargate_profile_kwargs",
+        [
+            pytest.param(None, id="without fargate profile kwargs"),
+            pytest.param(CREATE_FARGATE_PROFILE_KWARGS, id="with fargate profile kwargs"),
+        ],
+    )
     @mock.patch.object(EksHook, "create_fargate_profile")
-    def test_execute_when_fargate_profile_does_not_already_exist(self, mock_create_fargate_profile):
-        operator_under_test = [
-            (self.create_fargate_profile_operator_without_kwargs, self.create_fargate_profile_params),
-            (
-                self.create_fargate_profile_operator_with_kwargs,
-                {**self.create_fargate_profile_params, **CREATE_FARGATE_PROFILE_KWARGS},
-            ),
-        ]
+    def test_execute_when_fargate_profile_does_not_already_exist(
+        self, mock_create_fargate_profile, create_fargate_profile_kwargs
+    ):
+        op_kwargs = {**self.create_fargate_profile_params}
+        if create_fargate_profile_kwargs:
+            op_kwargs["create_fargate_profile_kwargs"] = create_fargate_profile_kwargs
+            parameters = {**self.create_fargate_profile_params, **create_fargate_profile_kwargs}
+        else:
+            assert "create_fargate_profile_kwargs" not in op_kwargs
+            parameters = self.create_fargate_profile_params
 
-        for (operator, parameters) in operator_under_test:
-            with self.subTest():
-                operator.execute({})
-
-                mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
+        operator = EksCreateFargateProfileOperator(task_id=TASK_ID, **op_kwargs)
+        operator.execute({})
+        mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
 
 
-class TestEksCreateNodegroupOperator(unittest.TestCase):
-    def setUp(self) -> None:
-        self.create_nodegroup_params: CreateNodegroupParams = dict(  # type: ignore
+class TestEksCreateNodegroupOperator:
+    def setup_method(self) -> None:
+        self.create_nodegroup_params = CreateNodegroupParams(
             cluster_name=CLUSTER_NAME,
             nodegroup_name=NODEGROUP_NAME,
             nodegroup_subnets=SUBNET_IDS,
             nodegroup_role_arn=NODEROLE_ARN[1],
         )
 
-        self.create_nodegroup_operator_without_kwargs = EksCreateNodegroupOperator(
-            task_id=TASK_ID, **self.create_nodegroup_params
-        )
-
-        self.create_nodegroup_operator_with_kwargs = EksCreateNodegroupOperator(
-            task_id=TASK_ID,
-            create_nodegroup_kwargs=CREATE_NODEGROUP_KWARGS,
-            **self.create_nodegroup_params,
-        )
-
+    @pytest.mark.parametrize(
+        "create_nodegroup_kwargs",
+        [
+            pytest.param(None, id="without nodegroup kwargs"),
+            pytest.param(CREATE_NODEGROUP_KWARGS, id="with nodegroup kwargs"),
+        ],
+    )
     @mock.patch.object(EksHook, "create_nodegroup")
-    def test_execute_when_nodegroup_does_not_already_exist(self, mock_create_nodegroup):
-        operator_under_test = [
-            (self.create_nodegroup_operator_without_kwargs, self.create_nodegroup_params),
-            (
-                self.create_nodegroup_operator_with_kwargs,
-                {**self.create_nodegroup_params, **CREATE_NODEGROUP_KWARGS},
-            ),
-        ]
+    def test_execute_when_nodegroup_does_not_already_exist(
+        self, mock_create_nodegroup, create_nodegroup_kwargs
+    ):
+        op_kwargs = {**self.create_nodegroup_params}
+        if create_nodegroup_kwargs:
+            op_kwargs["create_nodegroup_kwargs"] = create_nodegroup_kwargs
+            parameters = {**self.create_nodegroup_params, **create_nodegroup_kwargs}
+        else:
+            assert "create_nodegroup_params" not in op_kwargs
+            parameters = self.create_nodegroup_params
 
-        for (operator, parameters) in operator_under_test:
-            with self.subTest():
-                operator.execute({})
-
-                mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
+        operator = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs)
+        operator.execute({})
+        mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
 
 
-class TestEksDeleteClusterOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksDeleteClusterOperator:
+    def setup_method(self) -> None:
         self.cluster_name: str = CLUSTER_NAME
 
         self.delete_cluster_operator = EksDeleteClusterOperator(
@@ -327,15 +311,12 @@ class TestEksDeleteClusterOperator(unittest.TestCase):
     @mock.patch.object(EksHook, "delete_cluster")
     def test_existing_cluster_not_in_use(self, mock_delete_cluster, mock_list_nodegroups):
         mock_list_nodegroups.return_value = []
-
         self.delete_cluster_operator.execute({})
-
-        mock_list_nodegroups.assert_called_once
         mock_delete_cluster.assert_called_once_with(name=self.cluster_name)
 
 
-class TestEksDeleteNodegroupOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksDeleteNodegroupOperator:
+    def setup_method(self) -> None:
         self.cluster_name: str = CLUSTER_NAME
         self.nodegroup_name: str = NODEGROUP_NAME
 
@@ -352,8 +333,8 @@ class TestEksDeleteNodegroupOperator(unittest.TestCase):
         )
 
 
-class TestEksDeleteFargateProfileOperator(unittest.TestCase):
-    def setUp(self) -> None:
+class TestEksDeleteFargateProfileOperator:
+    def setup_method(self) -> None:
         self.cluster_name: str = CLUSTER_NAME
         self.fargate_profile_name: str = FARGATE_PROFILE_NAME
 
@@ -370,7 +351,7 @@ class TestEksDeleteFargateProfileOperator(unittest.TestCase):
         )
 
 
-class TestEksPodOperator(unittest.TestCase):
+class TestEksPodOperator:
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
@@ -396,5 +377,5 @@ class TestEksPodOperator(unittest.TestCase):
         mock_generate_config_file.assert_called_once_with(
             eks_cluster_name=CLUSTER_NAME, pod_namespace="default"
         )
-        self.assertEqual(mock_k8s_pod_operator_execute.return_value, op_return_value)
-        self.assertEqual(mock_generate_config_file.return_value.__enter__.return_value, op.config_file)
+        assert mock_k8s_pod_operator_execute.return_value == op_return_value
+        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file

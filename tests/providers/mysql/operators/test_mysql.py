@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import os
-import unittest
 from contextlib import closing
 from tempfile import NamedTemporaryFile
 
 import pytest
-from parameterized import parameterized
 
 from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -38,25 +36,20 @@ TEST_DAG_ID = "unit_test_dag"
 
 
 @pytest.mark.backend("mysql")
-class TestMySql(unittest.TestCase):
-    def setUp(self):
+class TestMySql:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    def tearDown(self):
+    def teardown_method(self):
         drop_tables = {"test_mysql_to_mysql", "test_airflow"}
         with closing(MySqlHook().get_conn()) as conn:
             with closing(conn.cursor()) as cursor:
                 for table in drop_tables:
                     cursor.execute(f"DROP TABLE IF EXISTS {table}")
 
-    @parameterized.expand(
-        [
-            ("mysqlclient",),
-            ("mysql-connector-python",),
-        ]
-    )
+    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     def test_mysql_operator_test(self, client):
         with MySqlContext(client):
             sql = """
@@ -67,12 +60,7 @@ class TestMySql(unittest.TestCase):
             op = MySqlOperator(task_id="basic_mysql", sql=sql, dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @parameterized.expand(
-        [
-            ("mysqlclient",),
-            ("mysql-connector-python",),
-        ]
-    )
+    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     def test_mysql_operator_test_multi(self, client):
         with MySqlContext(client):
             sql = [
@@ -87,12 +75,7 @@ class TestMySql(unittest.TestCase):
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @parameterized.expand(
-        [
-            ("mysqlclient",),
-            ("mysql-connector-python",),
-        ]
-    )
+    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     def test_overwrite_schema(self, client):
         """
         Verifies option to overwrite connection schema
