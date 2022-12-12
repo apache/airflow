@@ -85,31 +85,10 @@ def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     If ``secret`` is a dict or a iterable (excluding str) then it will be
     recursively walked and keys with sensitive names will be hidden.
     """
-    from airflow.configuration import conf
-
     # Filtering all log messages is not a free process, so we only do it when
     # running tasks
     if not secret:
         return
-
-    mask_adapter: Callable | None = None
-    try:
-        mask_adapter = conf.getimport("logging", "secret_mask_adapter")
-    except AirflowConfigException:
-        pass
-
-    if mask_adapter:
-        # This can return an iterable of secrets to mask OR a single secret as a string
-        secret_or_secrets = mask_adapter(secret)
-
-        if not isinstance(secret_or_secrets, str):
-            # if its not a string, it must be a iterable of secrets to mask
-            for s in secret_or_secrets:
-                if s:
-                    _secrets_masker().add_mask(s, name)
-        elif secret_or_secrets:
-            # if it is a string (with at least 1 char), then we can just add it to the masker
-            _secrets_masker().add_mask(secret_or_secrets, name)
 
     _secrets_masker().add_mask(secret, name)
 
@@ -262,8 +241,39 @@ class SecretsMasker(logging.Filter):
         """
         return self._redact(item, name, depth=0)
 
-    def add_mask(self, secret: str | dict | Iterable, name: str | None = None):
-        """Add a new secret to be masked to this filter instance."""
+    @cached_property
+    def _mask_adapter(self) -> None | Callable:
+        """Pulls the secret mask adapter from config.
+
+        This lives in a function here to be cached and only hit the config once.
+        """
+        from airflow.configuration import conf
+
+        mask_adapter: Callable | None = None
+        try:
+            mask_adapter = conf.getimport("logging", "secret_mask_adapter")
+        except AirflowConfigException:
+            pass
+        return mask_adapter
+
+    def _add_adaptations(self, secret: str | dict | Iterable, name: str | None = None):
+        """Adds any adaptations to the secret that should be masked."""
+        if self._mask_adapter:
+            # This can return an iterable of secrets to mask OR a single secret as a string
+            secret_or_secrets = self._mask_adapter(secret)
+
+            if not isinstance(secret_or_secrets, str):
+                # if its not a string, it must be an iterable
+                for secret in secret_or_secrets:
+                    self.add_mask(secret, name, add_adaptations=False)
+            else:
+                self.add_mask(secret_or_secrets, name, add_adaptations=False)
+
+    def add_mask(self, secret: str | dict | Iterable, name: str | None = None, add_adaptations: bool = True):
+        """Add a new secret to be masked to this filter instance.
+
+        If add_adaptations is True, the secret mask adapter will be used to add adaptations for the secret as well.
+        """
         from airflow.configuration import conf
 
         test_mode: bool = conf.getboolean("core", "unit_test_mode")
@@ -273,6 +283,8 @@ class SecretsMasker(logging.Filter):
         elif isinstance(secret, str):
             if not secret or (test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
                 return
+            if add_adaptations:
+                self._add_adaptations(secret, name)
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                 self.patterns.add(pattern)
