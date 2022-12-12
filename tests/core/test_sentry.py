@@ -22,7 +22,7 @@ import importlib
 from unittest import mock
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 from sentry_sdk import configure_scope
 
 from airflow.operators.python import PythonOperator
@@ -129,7 +129,7 @@ class TestSentryHook:
             for key, value in scope._tags.items():
                 assert TEST_SCOPE[key] == value
 
-    @freeze_time(CRUMB_DATE.isoformat())
+    @time_machine.travel(CRUMB_DATE)
     def test_add_breadcrumbs(self, sentry, task_instance):
         """
         Test adding breadcrumbs.
