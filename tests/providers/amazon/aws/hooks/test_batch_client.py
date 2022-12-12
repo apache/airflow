@@ -308,14 +308,7 @@ class TestBatchClient(unittest.TestCase):
             "jobs": [
                 {
                     "jobId": JOB_ID,
-                    "attempts": [
-                        {
-                            "container": {
-                                "exitCode": 0,
-                                "logStreamName": LOG_STREAM_NAME
-                            }
-                        }
-                    ],
+                    "attempts": [{"container": {"exitCode": 0, "logStreamName": LOG_STREAM_NAME}}],
                     "nodeProperties": {
                         "mainNode": 0,
                         "nodeRangeProperties": [
@@ -326,13 +319,13 @@ class TestBatchClient(unittest.TestCase):
                                         "logDriver": "awslogs",
                                         "options": {
                                             "awslogs-group": "/test/batch/job",
-                                            "awslogs-region": AWS_REGION
+                                            "awslogs-region": AWS_REGION,
                                         },
                                     }
-                                }
+                                },
                             }
-                        ]
-                    }
+                        ],
+                    },
                 }
             ]
         }
@@ -340,6 +333,7 @@ class TestBatchClient(unittest.TestCase):
         assert awslogs["awslogs_stream_name"] == LOG_STREAM_NAME
         assert awslogs["awslogs_group"] == "/test/batch/job"
         assert awslogs["awslogs_region"] == AWS_REGION
+
 
 class TestBatchClientDelays(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)

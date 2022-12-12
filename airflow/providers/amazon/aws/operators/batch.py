@@ -198,13 +198,12 @@ class BatchOperator(BaseOperator):
             self.job_queue,
         )
 
-        if (self.container_overrides):
+        if self.container_overrides:
             self.log.info("AWS Batch job - container overrides: %s", self.container_overrides)
-        if (self.array_properties):
+        if self.array_properties:
             self.log.info("AWS Batch job - array properties: %s", self.array_properties)
-        if (self.node_overrides):
+        if self.node_overrides:
             self.log.info("AWS Batch job - node properties: %s", self.node_overrides)
-
 
         args = {
             "jobName": self.job_name,

@@ -424,7 +424,9 @@ class BatchClientHook(AwsBaseHook):
                     "AWS Batch job (%s) has more than one node group. Only returning logs from first group.",
                     job_id,
                 )
-                log_configuration = job_node_range_properties[0].get("container", {}).get("logConfiguration", {})
+                log_configuration = (
+                    job_node_range_properties[0].get("container", {}).get("logConfiguration", {})
+                )
                 # "logStreamName" value is not available in the "container" object for multinode jobs --
                 # it is available in the "attempts" object
                 job_attempts = job_desc.get("attempts", [])
@@ -442,7 +444,9 @@ class BatchClientHook(AwsBaseHook):
             log_configuration = job_container_desc.get("logConfiguration", {})
             awslogs_stream_name = job_container_desc.get("logStreamName")
         else:
-            self.log.warning("AWS Batch job (%s) is neither a container nor multinode job. Log info not found.")
+            self.log.warning(
+                "AWS Batch job (%s) is neither a container nor multinode job. Log info not found."
+            )
             return None
 
         # In case if user select other "logDriver" rather than "awslogs"

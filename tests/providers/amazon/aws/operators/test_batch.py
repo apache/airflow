@@ -189,11 +189,15 @@ class TestBatchOperator(unittest.TestCase):
         self.batch.on_kill()
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
 
+
 class TestBatchOperatorTrimmedArgs:
     """test class that does not inherit from unittest.TestCase"""
+
     @pytest.mark.parametrize("override", ["overrides", "node_overrides"])
-    @patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
-           new_callable=mock.PropertyMock)
+    @patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
+        new_callable=mock.PropertyMock,
+    )
     def test_override_not_sent_if_not_set(self, client_mock, override):
         """
         check that when setting container override or node override, the other key is not sent
@@ -206,7 +210,6 @@ class TestBatchOperatorTrimmedArgs:
             job_queue="queue",
             job_definition="hello-world",
             **override_arg,
-
             # setting those to bypass code that is not relevant here
             do_xcom_push=False,
             wait_for_completion=False,
