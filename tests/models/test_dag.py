@@ -41,7 +41,7 @@ from sqlalchemy import inspect
 import airflow
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, any_of
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import (
     AirflowException,
@@ -2528,11 +2528,7 @@ class TestDagModel:
 
         ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
 
-        with dag_maker(
-            dag_id="datasets-consumer-multiple",
-            schedule=[dataset1, dataset2],
-            run_on_any_dataset_changed=True,
-        ) as dag:
+        with dag_maker(dag_id="datasets-consumer-multiple", schedule=any_of(dataset1, dataset2)) as dag:
             pass
 
         session.flush()
@@ -3125,11 +3121,7 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
         pass
     dag3 = dag_maker.dag
 
-    with dag_maker(
-        dag_id="datasets-4",
-        schedule=[dataset1, dataset2, dataset3],
-        run_on_any_dataset_changed=True
-    ):
+    with dag_maker(dag_id="datasets-4", schedule=any_of(dataset1, dataset2, dataset3)):
         pass
     dag4 = dag_maker.dag
 

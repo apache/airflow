@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import UserList
 from typing import Any, ClassVar
 from urllib.parse import urlsplit
 
@@ -42,3 +43,13 @@ class Dataset:
         parsed = urlsplit(uri)
         if parsed.scheme and parsed.scheme.lower() == "airflow":
             raise ValueError(f"{attr.name!r} scheme `airflow` is reserved")
+
+
+class any_of(UserList):
+    """
+    Custom collection to represent a list of Datasets that will trigger a
+    DAG run when any of them is updated.
+    """
+
+    def __init__(self, *datasets: Dataset):
+        super().__init__([*datasets])

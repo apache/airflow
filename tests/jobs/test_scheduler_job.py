@@ -39,7 +39,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackR
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, any_of
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
@@ -3249,11 +3249,7 @@ class TestSchedulerJob:
         with dag_maker(dag_id="datasets-consumer-single", schedule=[dataset1]):
             pass
         dag3 = dag_maker.dag
-        with dag_maker(
-            dag_id="datasets-consumer-multiple-any",
-            schedule=[dataset1, dataset2],
-            run_on_any_dataset_changed=True,
-        ):
+        with dag_maker(dag_id="datasets-consumer-multiple-any", schedule=any_of(dataset1, dataset2)):
             pass
         dag4 = dag_maker.dag
 

@@ -64,6 +64,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
+from airflow.datasets import any_of
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
@@ -123,7 +124,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"], any_of]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -413,7 +414,6 @@ class DAG(LoggingMixin):
         tags: list[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
-        run_on_any_dataset_changed: bool = False,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -517,7 +517,7 @@ class DAG(LoggingMixin):
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Collection[Dataset] = []
-        self.run_on_any_dataset_changed = run_on_any_dataset_changed
+        self.run_on_any_dataset_changed = isinstance(schedule, any_of)
 
         if isinstance(schedule, Collection) and not isinstance(schedule, str):
             from airflow.datasets import Dataset
@@ -525,6 +525,7 @@ class DAG(LoggingMixin):
             if not all(isinstance(x, Dataset) for x in schedule):
                 raise ValueError("All elements in 'schedule' should be datasets")
             self.dataset_triggers = list(schedule)
+
         elif isinstance(schedule, Timetable):
             timetable = schedule
         elif schedule is not NOTSET:
@@ -3482,7 +3483,6 @@ def dag(
     tags: list[str] | None = None,
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
-    run_on_any_dataset_changed: bool = False,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3536,7 +3536,6 @@ def dag(
                 schedule=schedule,
                 owner_links=owner_links,
                 auto_register=auto_register,
-                run_on_any_dataset_changed=run_on_any_dataset_changed,
             ) as dag_obj:
                 # Set DAG documentation from function documentation.
                 if f.__doc__:
