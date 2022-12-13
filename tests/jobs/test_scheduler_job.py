@@ -3249,12 +3249,20 @@ class TestSchedulerJob:
         with dag_maker(dag_id="datasets-consumer-single", schedule=[dataset1]):
             pass
         dag3 = dag_maker.dag
+        with dag_maker(
+            dag_id="datasets-consumer-multiple-any",
+            schedule=[dataset1, dataset2],
+            run_on_any_dataset_changed=True,
+        ):
+            pass
+        dag4 = dag_maker.dag
 
         session = dag_maker.session
         session.add_all(
             [
                 DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
                 DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag4.dag_id),
             ]
         )
         session.flush()
@@ -3287,6 +3295,8 @@ class TestSchedulerJob:
         assert session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
         # dag3 DDRQ record should be deleted since the dag run was triggered
         assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
+        # dag4 DDRQ record should be deleted since the dag run was triggered
+        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag4.dag_id).one_or_none() is None
 
         assert dag3.get_last_dagrun().creating_job_id == self.scheduler_job.id
 
