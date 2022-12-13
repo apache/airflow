@@ -36,7 +36,19 @@ class TestCliConfigList:
     @mock.patch("airflow.cli.commands.config_command.conf")
     def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio):
         config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
-        mock_conf.write.assert_called_once_with(mock_stringio.return_value.__enter__.return_value)
+        mock_conf.write.assert_called_once_with(
+            mock_stringio.return_value.__enter__.return_value, section=None
+        )
+
+    @mock.patch("airflow.cli.commands.config_command.io.StringIO")
+    @mock.patch("airflow.cli.commands.config_command.conf")
+    def test_cli_show_config_should_write_data_specific_section(self, mock_conf, mock_stringio):
+        config_command.show_config(
+            self.parser.parse_args(["config", "list", "--section", "core", "--color", "off"])
+        )
+        mock_conf.write.assert_called_once_with(
+            mock_stringio.return_value.__enter__.return_value, section="core"
+        )
 
     @conf_vars({("core", "testkey"): "test_value"})
     def test_cli_show_config_should_display_key(self):
