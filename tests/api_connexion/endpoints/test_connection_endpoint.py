@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import pytest
-from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
@@ -252,7 +251,8 @@ class TestGetConnections(TestConnectionEndpoint):
 
 
 class TestGetConnectionsPagination(TestConnectionEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_conn_ids",
         [
             ("/api/v1/connections?limit=1", ["TEST_CONN_ID1"]),
             ("/api/v1/connections?limit=2", ["TEST_CONN_ID1", "TEST_CONN_ID2"]),
@@ -287,7 +287,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
                 "/api/v1/connections?limit=2&offset=2",
                 ["TEST_CONN_ID3", "TEST_CONN_ID4"],
             ),
-        ]
+        ],
     )
     @provide_session
     def test_handle_limit_offset(self, url, expected_conn_ids, session):
@@ -354,11 +354,12 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
 
 
 class TestPatchConnection(TestConnectionEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload",
         [
-            ({"connection_id": "test-connection-id", "conn_type": "test_type", "extra": "{'key': 'var'}"},),
-            ({"extra": "{'key': 'var'}"},),
-        ]
+            {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": "{'key': 'var'}"},
+            {"extra": "{'key': 'var'}"},
+        ],
     )
     @provide_session
     def test_patch_should_respond_200(self, payload, session):
@@ -399,7 +400,8 @@ class TestPatchConnection(TestConnectionEndpoint):
             "host": None,
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, update_mask, error_message",
         [
             (
                 {
@@ -443,7 +445,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                 "",  # not necessary
                 "The connection_id cannot be updated.",
             ),
-        ]
+        ],
     )
     @provide_session
     def test_patch_should_respond_400_for_invalid_fields_in_update_mask(
@@ -458,7 +460,8 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.status_code == 400
         assert response.json["detail"] == error_message
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, error_message",
         [
             (
                 {
@@ -485,7 +488,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                 },
                 "_password",
             ),
-        ]
+        ],
     )
     @provide_session
     def test_patch_should_respond_400_for_invalid_update(self, payload, error_message, session):

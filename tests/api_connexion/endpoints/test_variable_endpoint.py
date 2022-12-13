@@ -19,7 +19,6 @@ from __future__ import annotations
 import urllib
 
 import pytest
-from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
@@ -142,7 +141,8 @@ class TestGetVariable(TestVariableEndpoint):
 
 
 class TestGetVariables(TestVariableEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query, expected",
         [
             (
                 "/api/v1/variables?limit=2&offset=0",
@@ -173,7 +173,7 @@ class TestGetVariables(TestVariableEndpoint):
                     "total_entries": 3,
                 },
             ),
-        ]
+        ],
     )
     def test_should_get_list_variables(self, query, expected):
         Variable.set("var1", 1, "I am a variable")
