@@ -20,17 +20,14 @@ from __future__ import annotations
 from random import randrange
 from unittest import mock
 
-import pendulum
 import pytest
 from paramiko.client import SSHClient
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagModel, DagRun, TaskInstance
+from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils.session import create_session
 from airflow.utils.timezone import datetime
-from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = "unit_tests_ssh_test_op"
@@ -42,37 +39,6 @@ TIMEOUT = 12
 DEFAULT_DATE = datetime(2017, 1, 1)
 COMMAND = "echo -n airflow"
 COMMAND_WITH_SUDO = "sudo " + COMMAND
-
-
-def create_context(task, persist_to_db=False, map_index=None):
-    if task.has_dag():
-        dag = task.dag
-    else:
-        dag = DAG(dag_id="dag", start_date=pendulum.now())
-        dag.add_task(task)
-    dag_run = DagRun(
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
-        run_type=DagRunType.MANUAL,
-        dag_id=dag.dag_id,
-    )
-    task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
-    task_instance.dag_run = dag_run
-    if map_index is not None:
-        task_instance.map_index = map_index
-    if persist_to_db:
-        with create_session() as session:
-            session.add(DagModel(dag_id=dag.dag_id))
-            session.add(dag_run)
-            session.add(task_instance)
-            session.commit()
-    return {
-        "dag": dag,
-        "ts": DEFAULT_DATE.isoformat(),
-        "task": task,
-        "ti": task_instance,
-        "task_instance": task_instance,
-        "run_id": "test",
-    }
 
 
 class SSHClientSideEffect:
@@ -235,19 +201,16 @@ class TestSSHOperator:
         with pytest.raises(AirflowException, match="SSH operator error: exit status = 1"):
             task.execute(None)
 
-    def test_push_ssh_exit_to_xcom(self, context=None):
+    def test_push_ssh_exit_to_xcom(self, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same
         command = "not_a_real_command"
         ssh_exit_code = randrange(0, 100)
-        task_push = SSHOperator(task_id="test_push", ssh_hook=self.hook, command=command)
-        task_context = create_context(task_push, persist_to_db=True)
         self.exec_ssh_client_command.return_value = (ssh_exit_code, b"", b"ssh output")
-        try:
-            task_push.execute(context=task_context)
-        except AirflowException:
-            pass
-        finally:
-            assert (
-                task_push.xcom_pull(key="ssh_exit", context=task_context, task_ids=["test_push"])[0]
-                == ssh_exit_code
-            )
+
+        with dag_maker(dag_id=f"dag_{request.node.name}"):
+            task = SSHOperator(task_id="push_xcom", ssh_hook=self.hook, command=command)
+        dr = dag_maker.create_dagrun(run_id="push_xcom")
+        ti = TaskInstance(task=task, run_id=dr.run_id)
+        with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
+            ti.run()
+        assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code
