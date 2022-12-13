@@ -214,7 +214,7 @@ svn update --set-depth=infinity asf-dist/dev/airflow
 cd asf-dist/dev/airflow/providers
 
 # Remove previously released providers
-rm -rf *
+svn rm *
 
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
