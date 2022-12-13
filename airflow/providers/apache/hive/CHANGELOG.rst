@@ -40,7 +40,6 @@ Features
 
 * ``Improve filtering for invalid schemas in Hive hook (#27808)``
 
-.. Review and move the new changes to one of the sections above:
 
 4.1.1
 .....
