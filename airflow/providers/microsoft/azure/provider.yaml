@@ -259,8 +259,6 @@ connection-types:
     connection-type: azure_container_registry
   - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
     connection-type: azure_service_bus
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.adls.AzureDataLakeStorageV2
-    connection-type: adls_v2
   - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook
     connection-type: azure_synapse
 

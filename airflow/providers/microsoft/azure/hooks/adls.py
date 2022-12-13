@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.storage.filedatalake import (
@@ -28,52 +29,10 @@ from azure.storage.filedatalake import (
     FileSystemClient,
 )
 
-from airflow.hooks.base import BaseHook
 
+class AzureDataLakeStorageGen2(WasbHook):
 
-class AzureDataLakeStorageV2(BaseHook):
-
-    conn_name_attr = "adls_v2_conn_id"
-    default_conn_name = "adls_v2_default"
-    conn_type = "adls_v2"
-    hook_name = "Azure Date Lake Storage"
-
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
-        from flask_babel import lazy_gettext
-        from wtforms import PasswordField, StringField
-
-        return {
-            "extra__adls_v2__connection_string": PasswordField(
-                lazy_gettext("Blob Storage Connection String (optional)"), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__adls_v2__tenant_id": StringField(
-                lazy_gettext("Tenant Id (Active Directory Auth)"), widget=BS3TextFieldWidget()
-            ),
-        }
-
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
-        return {
-            "hidden_fields": ["schema", "port"],
-            "relabeling": {
-                "login": "Blob Storage Login (optional)",
-                "password": "Blob Storage Key (optional)",
-                "host": "Account Name (Active Directory Auth)",
-            },
-            "placeholders": {
-                "login": "account name",
-                "password": "secret",
-                "host": "account url",
-                "extra__adls_v2__connection_string": "connection string auth",
-                "extra__adls_v2__tenant_id": "tenant",
-            },
-        }
-
-    def __init__(self, adls_v2_conn_id: str = default_conn_name, public_read: bool = False) -> None:
+    def __init__(self, adls_v2_conn_id: str, public_read: bool = False) -> None:
         super().__init__()
         self.conn_id = adls_v2_conn_id
         self.public_read = public_read
@@ -118,7 +77,6 @@ class AzureDataLakeStorageV2(BaseHook):
         """
         try:
             file_system_client = self.service_client.create_file_system(file_system=file_system_name)
-            print("file_system_client ", file_system_client.file_system_name)
             self.log.info("Created file system: %s", file_system_client.file_system_name)
         except ResourceExistsError:
             self.log.info("Attempted to create file system %r but it already exists.", file_system_name)
@@ -136,18 +94,13 @@ class AzureDataLakeStorageV2(BaseHook):
             self.log.info("Error while attempting to get file system %r: %s", file_system_name, e)
             raise
 
-    def create_directory(self, file_system_name: str, directory_name: str) -> None:
-        try:
-            file_system = self.get_file_system(file_system_name)
-            file_system.create_directory(directory_name)
-        except Exception as e:
-            self.log.info(e)
-            raise
+    def create_directory(self, file_system_name: str, directory_name: str) -> DataLakeDirectoryClient:
+        result = self.get_file_system(file_system_name).create_directory(directory_name)
+        return result
 
     def get_directory_client(self, file_system_name: str, directory_name: str) -> DataLakeDirectoryClient:
         try:
-            file_system_client = self.get_file_system(file_system_name)
-            directory_client = file_system_client.get_directory_client(directory_name)
+            directory_client = self.get_file_system(file_system_name).get_directory_client(directory_name)
             return directory_client
         except ResourceNotFoundError:
             self.log.info(
@@ -158,13 +111,8 @@ class AzureDataLakeStorageV2(BaseHook):
             raise
 
     def create_file(self, file_system_name: str, file_name: str) -> DataLakeFileClient:
-        try:
-            file_system = self.get_file_system(file_system_name)
-            file_client = file_system.create_file(file_name)
-            return file_client
-        except Exception as e:
-            self.log.info(e)
-            raise
+        file_client = self.get_file_system(file_system_name).create_file(file_name)
+        return file_client
 
     def upload_file(self,
                     file_system_name: str,
@@ -182,21 +130,27 @@ class AzureDataLakeStorageV2(BaseHook):
         file_name: str,
         file_path: str,
         overwrite: bool = False,
+        **kwargs: any,
     ) -> None:
+        """
+        Create a new file and return the file client to be interacted with and then
+        upload data to a file
+        """
         directory_client = self.get_directory_client(file_system_name, directory_name=directory_name)
-        file_client = directory_client.create_file(file_name)
+        file_client = directory_client.create_file(file_name, kwargs=kwargs)
         with open(file_path, "rb") as data:
-            file_client.upload_data(data, overwrite=overwrite)
+            file_client.upload_data(data, overwrite=overwrite, kwargs=kwargs)
 
-    def list_directory(self, file_system_name: str, directory_name: str) -> list[str]:
-        file_system_client = self.get_file_system(file_system_name=file_system_name)
-        paths = file_system_client.get_paths(directory_name)
+    def list_files_directory(self, file_system_name: str, directory_name: str) -> list[str]:
+        """Get the list of files or directories under the specified file system"""
+        paths = self.get_file_system(file_system_name=file_system_name).get_paths(directory_name)
         directory_lists = []
         for path in paths:
             directory_lists.append(path.name)
         return directory_lists
 
     def list_file_system(self, prefix: str | None = None, include_metadata: bool = False) -> list[str]:
+        """Get the list the file systems under the specified account."""
         file_system = self.service_client.list_file_systems(
             name_starts_with=prefix, include_metadata=include_metadata
         )
@@ -206,7 +160,7 @@ class AzureDataLakeStorageV2(BaseHook):
         return file_system_list
 
     def delete_file_system(self, file_system_name: str) -> None:
-        """Delete file system"""
+        """Deletes the file system"""
         try:
             self.service_client.delete_file_system(file_system_name)
             self.log.info("Deleted file system: %s", file_system_name)
@@ -217,5 +171,6 @@ class AzureDataLakeStorageV2(BaseHook):
             raise
 
     def delete_directory(self, file_system_name: str, directory_name: str) -> None:
+        """Deletes specified directory in file system"""
         directory_client = self.get_directory_client(file_system_name, directory_name)
         directory_client.delete_directory()
