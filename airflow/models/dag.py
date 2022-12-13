@@ -411,6 +411,7 @@ class DAG(LoggingMixin):
         tags: list[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
+        run_on_any_dataset_changed: bool = False,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -514,6 +515,7 @@ class DAG(LoggingMixin):
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Collection[Dataset] = []
+        self.run_on_any_dataset_changed = run_on_any_dataset_changed
 
         if isinstance(schedule, Collection) and not isinstance(schedule, str):
             from airflow.datasets import Dataset
@@ -2744,6 +2746,7 @@ class DAG(LoggingMixin):
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.processor_subdir = processor_subdir
+            orm_dag.run_on_any_dataset_changed = dag.run_on_any_dataset_changed
 
             run: DagRun | None = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -3170,6 +3173,7 @@ class DagModel(Base):
     parent_dag = relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
+    run_on_any_dataset_changed = Column(Boolean, default=False)
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
         cascade="all, delete, delete-orphan",
@@ -3344,9 +3348,15 @@ class DagModel(Base):
                 func.max(DDRQ.created_at).label("last_queued_time"),
                 func.min(DDRQ.created_at).label("first_queued_time"),
             )
+            .join(DagModel, DagModel.dag_id == DagScheduleDatasetReference.dag_id)
             .join(DagScheduleDatasetReference.queue_records, isouter=True)
             .group_by(DagScheduleDatasetReference.dag_id)
-            .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
+            .having(
+                func.count()
+                == func.sum(
+                    case((DDRQ.target_dag_id.is_not(None), 1), else_=DagModel.run_on_any_dataset_changed)
+                )
+            )
             .all()
         }
         dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
@@ -3470,6 +3480,7 @@ def dag(
     tags: list[str] | None = None,
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
+    run_on_any_dataset_changed: bool = False,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3523,6 +3534,7 @@ def dag(
                 schedule=schedule,
                 owner_links=owner_links,
                 auto_register=auto_register,
+                run_on_any_dataset_changed=run_on_any_dataset_changed,
             ) as dag_obj:
                 # Set DAG documentation from function documentation.
                 if f.__doc__:

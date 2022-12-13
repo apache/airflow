@@ -2517,6 +2517,32 @@ class TestDagModel:
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
+    @pytest.mark.need_serialized_dag
+    def test_dags_needing_dagruns__triggers_dag_for_any_dataset_changed(self, session, dag_maker):
+        dataset1 = Dataset(uri="ds1")
+        dataset2 = Dataset(uri="ds2")
+
+        with dag_maker(dag_id="datasets-1", start_date=timezone.utcnow(), session=session):
+            EmptyOperator(task_id="task", outlets=[dataset1])
+        dag_maker.create_dagrun()
+
+        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+
+        with dag_maker(
+            dag_id="datasets-consumer-multiple",
+            schedule=[dataset1, dataset2],
+            run_on_any_dataset_changed=True,
+        ) as dag:
+            pass
+
+        session.flush()
+        session.add(DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE))
+        session.flush()
+
+        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        assert 1 == len(dataset_triggered_dag_info)
+        assert dag.dag_id in dataset_triggered_dag_info
+
 
 class TestQueries:
     def setup_method(self) -> None:
