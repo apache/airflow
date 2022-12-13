@@ -21,6 +21,7 @@ import logging
 import logging.config
 import os
 import re
+from unittest.mock import mock_open, patch
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
@@ -215,6 +216,28 @@ class TestFileTaskLogHandler:
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
+
+    def test_read_from_location(self, create_task_instance):
+
+        local_log_file_read = create_task_instance(
+            dag_id="dag_for_testing_local_log_read",
+            task_id="task_for_testing_local_log_read",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+        with patch("os.path.exists", return_value=True):
+            opener = mock_open(read_data="dummy test log data")
+            with patch("airflow.utils.log.file_task_handler.open", opener):
+                fth = FileTaskHandler("")
+                log = fth._read(ti=local_log_file_read, try_number=1)
+                print(log)
+                assert "dummy test log data" in log
+
+    def test__get_task_log_from_worker(self):
+        pass
+
+    def test__read_from_executor(self):
+        pass
 
 
 class TestFilenameRendering:
