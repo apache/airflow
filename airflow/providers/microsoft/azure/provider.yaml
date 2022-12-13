@@ -124,10 +124,8 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-azure/operators/azure_synapse.rst
     tags: [azure]
-  - integration-name: Microsoft Azure Data Lake Storage gen2
-    how-to-guide:
-      - /docs/apache-airflow-providers-microsoft-azure/operators/adls.rst
-    external-doc-url: https://azure.microsoft.com/en-us/services/storage/data-lake-storage/
+  - integration-name: Microsoft Azure Data Lake Storage Client Gen2
+    external-doc-url: https://azure.microsoft.com/en-us/products/storage/data-lake-storage/
     logo: /integration-logos/azure/Data Lake Storage.svg
     tags: [azure]
 
@@ -204,9 +202,9 @@ hooks:
   - integration-name: Microsoft Azure Service Bus
     python-modules:
       - airflow.providers.microsoft.azure.hooks.asb
-  - integration-name: Microsoft Azure Data Lake Storage Gen2
+  - integration-name: Microsoft Azure Data Lake Storage Client Gen2
     python-modules:
-      - airflow.providers.microsoft.azure.hooks.adls
+      - airflow.providers.microsoft.azure.hooks.data_lake
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
@@ -261,6 +259,8 @@ connection-types:
     connection-type: azure_service_bus
   - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook
     connection-type: azure_synapse
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
+    connection-type: adls
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
