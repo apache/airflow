@@ -223,6 +223,7 @@ def get_dataset_triggered_next_run_info(
             func.count().label("total"),
             func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
         )
+        .join(DagModel, DagModel.dag_id == DagScheduleDatasetReference.dag_id)
         .join(
             DDRQ,
             and_(
@@ -239,6 +240,7 @@ def get_dataset_triggered_next_run_info(
             DagScheduleDatasetReference.dag_id,
         )
         .filter(DagScheduleDatasetReference.dag_id.in_(dag_ids))
+        .filter(not_(DagModel.run_on_any_dataset_changed))
         .all()
     }
 

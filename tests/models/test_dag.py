@@ -3125,12 +3125,21 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
         pass
     dag3 = dag_maker.dag
 
+    with dag_maker(
+        dag_id="datasets-4",
+        schedule=[dataset1, dataset2, dataset3],
+        run_on_any_dataset_changed=True
+    ):
+        pass
+    dag4 = dag_maker.dag
+
     session = dag_maker.session
     ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
     session.bulk_save_objects(
         [
             DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
             DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag4.dag_id),
         ]
     )
     session.flush()
@@ -3156,6 +3165,10 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
         "total": 3,
         "uri": "",
     }
+
+    # This time, response is empty as dag4 runs for any dataset change
+    info = get_dataset_triggered_next_run_info([dag4.dag_id], session=session)
+    assert info == {}
 
 
 def test_dag_uses_timetable_for_run_id(session):
