@@ -21,7 +21,7 @@ import collections
 import logging
 import re
 import sys
-from typing import Any, Callable, Dict, Iterable, List, TextIO, Tuple, TypeVar, Union, Generator
+from typing import Any, Callable, Dict, Generator, Iterable, List, TextIO, Tuple, TypeVar, Union
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
