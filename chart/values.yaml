@@ -329,6 +329,21 @@ extraEnvFrom: ~
 #   - configMapRef:
 #       name: '{{ .Release.Name }}-airflow-variables'
 
+# Karpenter provisioner parameters
+karpenter:
+  enabled: false
+  taints: []
+  requirements:
+    instanceTypes: []
+    regions: []
+    arch: []
+    capacityTypes: []
+  limits:
+    cpu:
+    memory:
+  provider: 
+    subnetSelector: {}
+    securityGroupSelector: {}
 # Airflow database & redis config
 data:
   # If secret names are provided, use those secrets

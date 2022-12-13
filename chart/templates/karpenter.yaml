@@ -1,0 +1,44 @@
+{{- if .Values.karpenter.enabled -}}
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: {{ .Release.Name }}-karpenter
+  labels:
+    tier: karpenter-airflow
+    app_name: {{ .Chart.Name }}
+    app_version: {{ .Chart.Version | toString }}
+    release: {{ .Release.Name }}
+    provisioned: karpenter
+spec:
+  ttlSecondsUntilExpired: 2592000 # 30 Days=60*60*24*30 Seconds;
+  ttlSecondsAfterEmpty: 30
+  taints: {{ .Values.karpenter.taints | toJson }}
+  labels:
+    tier: karpenter-airflow
+    app_name: {{ .Chart.Name }}
+    app_version: {{ .Chart.Version | toString }}
+    release: {{ .Release.Name }}
+    provisioned: karpenter
+  requirements:
+    - key: "node.kubernetes.io/instance-type"
+      operator: In
+      values: {{ .Values.karpenter.requirements.instanceTypes | toJson }}
+    - key: "topology.kubernetes.io/zone"
+      operator: In
+      values: {{ .Values.karpenter.requirements.zones | toJson }}
+    - key: "kubernetes.io/arch"
+      operator: In
+      values: {{ .Values.karpenter.requirements.arch | toJson }}
+    - key: "karpenter.sh/capacity-type" 
+      operator: In
+      values: {{ .Values.karpenter.requirements.capacityTypes | toJson }}
+  limits:
+    resources:
+      cpu: {{ .Values.karpenter.limits.cpu }}
+      memory: {{ .Values.karpenter.limits.memory }} 
+  provider:
+    subnetSelector: {{ .Values.karpenter.provider.subnetSelector | toYaml | nindent 6  }}
+    securityGroupSelector: {{ .Values.karpenter.provider.securityGroupSelector | toYaml | nindent 6 }}
+    tags:
+        provisioned: karpenter
+{{- end }}
