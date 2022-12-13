@@ -3352,9 +3352,9 @@ class DagModel(Base):
             .join(DagScheduleDatasetReference.queue_records, isouter=True)
             .group_by(DagScheduleDatasetReference.dag_id)
             .having(
-                func.count()
-                == func.sum(
-                    case((DDRQ.target_dag_id.is_not(None), 1), else_=DagModel.run_on_any_dataset_changed)
+                or_(
+                    func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)),
+                    DagModel.run_on_any_dataset_changed,
                 )
             )
             .all()
