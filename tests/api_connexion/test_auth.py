@@ -20,7 +20,6 @@ from base64 import b64encode
 
 import pytest
 from flask_login import current_user
-from parameterized import parameterized
 
 from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
@@ -86,17 +85,18 @@ class TestBasicAuth(BaseTestAuth):
             "total_entries": 1,
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "token",
         [
-            ("basic",),
-            ("basic ",),
-            ("bearer",),
-            ("test:test",),
-            (b64encode(b"test:test").decode(),),
-            ("bearer ",),
-            ("basic: ",),
-            ("basic 123",),
-        ]
+            "basic",
+            "basic ",
+            "bearer",
+            "test:test",
+            b64encode(b"test:test").decode(),
+            "bearer ",
+            "basic: ",
+            "basic 123",
+        ],
     )
     def test_malformed_headers(self, token):
         with self.app.test_client() as test_client:
@@ -106,13 +106,14 @@ class TestBasicAuth(BaseTestAuth):
             assert response.headers["WWW-Authenticate"] == "Basic"
             assert_401(response)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "token",
         [
-            ("basic " + b64encode(b"test").decode(),),
-            ("basic " + b64encode(b"test:").decode(),),
-            ("basic " + b64encode(b"test:123").decode(),),
-            ("basic " + b64encode(b"test test").decode(),),
-        ]
+            "basic " + b64encode(b"test").decode(),
+            "basic " + b64encode(b"test:").decode(),
+            "basic " + b64encode(b"test:123").decode(),
+            "basic " + b64encode(b"test test").decode(),
+        ],
     )
     def test_invalid_auth_header(self, token):
         with self.app.test_client() as test_client:
