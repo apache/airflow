@@ -249,12 +249,7 @@ class SecretsMasker(logging.Filter):
         """
         from airflow.configuration import conf
 
-        mask_adapter: Callable | None = None
-        try:
-            mask_adapter = conf.getimport("logging", "secret_mask_adapter")
-        except AirflowConfigException:
-            pass
-        return mask_adapter
+        return conf.getimport("logging", "secret_mask_adapter", fallback=None)
 
     @cached_property
     def _test_mode(self) -> bool:
