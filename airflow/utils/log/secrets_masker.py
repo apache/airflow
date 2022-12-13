@@ -25,7 +25,6 @@ from typing import Any, Callable, Dict, Generator, Iterable, List, TextIO, Tuple
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
-from airflow.exceptions import AirflowConfigException
 
 Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
@@ -261,7 +260,7 @@ class SecretsMasker(logging.Filter):
 
         return conf.getboolean("core", "unit_test_mode")
 
-    def _adaptations(self, secret: str) -> Generator[str]:
+    def _adaptations(self, secret: str) -> Generator[str, None, None]:
         """Yields the secret along with any adaptations to the secret that should be masked."""
         yield secret
 
