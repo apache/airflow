@@ -736,17 +736,13 @@ class TaskInstance(Base, LoggingMixin):
         we use and looking up the state becomes part of the session, otherwise
         a new session is used.
 
+        sqlalchemy.inspect is used here to get the primary keys ensuring that if they change
+        it will not regress
+
         :param session: SQLAlchemy ORM Session
         """
-        return (
-            session.query(TaskInstance.state)
-            .filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.run_id == self.run_id,
-            )
-            .scalar()
-        )
+        filters = (col == getattr(self, col.name) for col in inspect(TaskInstance).primary_key)
+        return session.query(TaskInstance.state).filter(*filters).scalar()
 
     @provide_session
     def error(self, session: Session = NEW_SESSION) -> None:
@@ -1116,6 +1112,8 @@ class TaskInstance(Base, LoggingMixin):
         Get datetime of the next retry if the task instance fails. For exponential
         backoff, retry_delay is used as base and will be converted to seconds.
         """
+        from airflow.models.abstractoperator import MAX_RETRY_DELAY
+
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
             # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
@@ -1143,8 +1141,8 @@ class TaskInstance(Base, LoggingMixin):
             # here means this value can be exceeded after a certain number
             # of tries (around 50 if the initial delay is 1s, even fewer if
             # the delay is larger). Cap the value here before creating a
-            # timedelta object so the operation doesn't fail.
-            delay_backoff_in_seconds = min(modded_hash, timedelta.max.total_seconds() - 1)
+            # timedelta object so the operation doesn't fail with "OverflowError".
+            delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
             delay = timedelta(seconds=delay_backoff_in_seconds)
             if self.task.max_retry_delay:
                 delay = min(self.task.max_retry_delay, delay)

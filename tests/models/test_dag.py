@@ -23,6 +23,7 @@ import logging
 import os
 import pickle
 import re
+import sys
 from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
@@ -33,8 +34,8 @@ from unittest.mock import patch
 import jinja2
 import pendulum
 import pytest
+import time_machine
 from dateutil.relativedelta import relativedelta
-from freezegun import freeze_time
 from sqlalchemy import inspect
 
 import airflow
@@ -42,7 +43,12 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
+from airflow.exceptions import (
+    AirflowException,
+    DuplicateTaskIdFound,
+    ParamValidationError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
@@ -2026,7 +2032,7 @@ my_postgres_conn:
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
-    @freeze_time(timezone.datetime(2020, 1, 5))
+    @time_machine.travel(timezone.datetime(2020, 1, 5), tick=False)
     def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self):
         """
         Test that the dag file processor does not create multiple dagruns
@@ -2046,7 +2052,7 @@ my_postgres_conn:
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 5)
 
-    @freeze_time(timezone.datetime(2020, 5, 4))
+    @time_machine.travel(timezone.datetime(2020, 5, 4))
     def test_next_dagrun_info_timedelta_schedule_and_catchup_true(self):
         """
         Test that the dag file processor creates multiple dagruns
@@ -2769,6 +2775,20 @@ class TestDagDecorator:
 
         dag = xcom_pass_to_op()
         assert dag.params["value"] == value
+
+    def test_warning_location(self):
+        # NOTE: This only works as long as there is some warning we can emit from `DAG()`
+        @dag_decorator(schedule_interval=None)
+        def mydag():
+            ...
+
+        with pytest.warns(RemovedInAirflow3Warning) as warnings:
+            line = sys._getframe().f_lineno + 1
+            mydag()
+
+        w = warnings.pop(RemovedInAirflow3Warning)
+        assert w.filename == __file__
+        assert w.lineno == line
 
 
 @pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])

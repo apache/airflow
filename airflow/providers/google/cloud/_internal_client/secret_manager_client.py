@@ -75,7 +75,7 @@ class _SecretManagerClient(LoggingMixin):
             value = response.payload.data.decode("UTF-8")
             return value
         except NotFound:
-            self.log.error("Google Cloud API Call Error (NotFound): Secret ID %s not found.", secret_id)
+            self.log.debug("Google Cloud API Call Error (NotFound): Secret ID %s not found.", secret_id)
             return None
         except PermissionDenied:
             self.log.error(

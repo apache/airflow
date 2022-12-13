@@ -19,20 +19,19 @@ from __future__ import annotations
 
 import datetime
 import os
-import unittest
 
 import boto3
+import pytest
 from moto import mock_s3
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemToS3Operator
 
+CONFIG = {"verify": False, "replace": False, "encrypt": False, "gzip": False}
 
-class TestFileToS3Operator(unittest.TestCase):
 
-    _config = {"verify": False, "replace": False, "encrypt": False, "gzip": False}
-
-    def setUp(self):
+class TestFileToS3Operator:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
         self.dest_key = "test/test1.csv"
@@ -41,7 +40,7 @@ class TestFileToS3Operator(unittest.TestCase):
         with open(self.testfile1, "wb") as f:
             f.write(b"x" * 393216)
 
-    def tearDown(self):
+    def teardown_method(self):
         os.remove(self.testfile1)
 
     def test_init(self):
@@ -51,15 +50,15 @@ class TestFileToS3Operator(unittest.TestCase):
             filename=self.testfile1,
             dest_key=self.dest_key,
             dest_bucket=self.dest_bucket,
-            **self._config,
+            **CONFIG,
         )
         assert operator.filename == self.testfile1
         assert operator.dest_key == self.dest_key
         assert operator.dest_bucket == self.dest_bucket
-        assert operator.verify == self._config["verify"]
-        assert operator.replace == self._config["replace"]
-        assert operator.encrypt == self._config["encrypt"]
-        assert operator.gzip == self._config["gzip"]
+        assert operator.verify == CONFIG["verify"]
+        assert operator.replace == CONFIG["replace"]
+        assert operator.encrypt == CONFIG["encrypt"]
+        assert operator.gzip == CONFIG["gzip"]
 
     def test_execute_exception(self):
         operator = LocalFilesystemToS3Operator(
@@ -68,9 +67,9 @@ class TestFileToS3Operator(unittest.TestCase):
             filename=self.testfile1,
             dest_key=f"s3://dummy/{self.dest_key}",
             dest_bucket=self.dest_bucket,
-            **self._config,
+            **CONFIG,
         )
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             operator.execute(None)
 
     @mock_s3
@@ -83,7 +82,7 @@ class TestFileToS3Operator(unittest.TestCase):
             filename=self.testfile1,
             dest_key=self.dest_key,
             dest_bucket=self.dest_bucket,
-            **self._config,
+            **CONFIG,
         )
         operator.execute(None)
 
@@ -102,7 +101,7 @@ class TestFileToS3Operator(unittest.TestCase):
             dag=self.dag,
             filename=self.testfile1,
             dest_key=f"s3://dummy/{self.dest_key}",
-            **self._config,
+            **CONFIG,
         )
         operator.execute(None)
 
