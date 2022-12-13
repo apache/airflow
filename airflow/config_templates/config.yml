@@ -19,8 +19,6 @@
 
 - name: core
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: dags_folder
       description: |
@@ -443,8 +441,6 @@
       example: 'http://localhost:8080'
 - name: database
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: sql_alchemy_conn
       description: |
@@ -573,8 +569,6 @@
 
 - name: logging
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: base_log_folder
       description: |
@@ -786,8 +780,6 @@
 - name: metrics
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: statsd_on
       description: |
@@ -859,8 +851,6 @@
       default: ~
 - name: secrets
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: backend
       description: |
@@ -881,8 +871,6 @@
       default: ""
 - name: cli
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: api_client
       description: |
@@ -904,8 +892,6 @@
       default: "http://localhost:8080"
 - name: debug
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: fail_fast
       description: |
@@ -917,8 +903,6 @@
       default: "False"
 - name: api
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: enable_experimental_api
       description: |
@@ -1007,8 +991,6 @@
       default: ""
 - name: lineage
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: backend
       description: |
@@ -1019,8 +1001,6 @@
       default: ""
 - name: atlas
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: sasl_enabled
       description: ~
@@ -1055,8 +1035,6 @@
       default: ""
 - name: operators
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: default_owner
       description: |
@@ -1107,8 +1085,6 @@
       default: "False"
 - name: hive
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: default_hive_mapred_queue
       description: |
@@ -1127,8 +1103,6 @@
       default: ~
 - name: webserver
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: base_url
       description: |
@@ -1540,8 +1514,6 @@
   description: |
     Configuration email backend and whether to
     send email alerts on retry or failure
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: email_backend
       description: Email backend to use
@@ -1601,8 +1573,6 @@
     If you want airflow to send emails on retries, failure, and you want to use
     the airflow.utils.email.send_email_smtp function, you have to configure an
     smtp server here
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: smtp_host
       description: ~
@@ -1666,8 +1636,6 @@
     https://docs.sentry.io/error-reporting/configuration/?platform=python.
     Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
     ``ignore_errors``, ``before_breadcrumb``, ``transport``.
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: sentry_on
       description: Enable error reporting to Sentry
@@ -1691,8 +1659,6 @@
   description: |
     This section only applies if you are using the ``LocalKubernetesExecutor`` in
     ``[core]`` section above
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: kubernetes_queue
       description: |
@@ -1708,8 +1674,6 @@
   description: |
     This section only applies if you are using the ``CeleryKubernetesExecutor`` in
     ``[core]`` section above
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: kubernetes_queue
       description: |
@@ -1725,8 +1689,6 @@
   description: |
     This section only applies if you are using the CeleryExecutor in
     ``[core]`` section above
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: celery_app_name
       description: |
@@ -1939,8 +1901,6 @@
     This section is for specifying options which can be passed to the
     underlying celery broker transport. See:
     http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_transport_options
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: visibility_timeout
       description: |
@@ -1959,8 +1919,6 @@
   description: |
     This section only applies if you are using the DaskExecutor in
     [core] section above
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: cluster_address
       description: |
@@ -1990,8 +1948,6 @@
       default: ""
 - name: scheduler
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: job_heartbeat_sec
       description: |
@@ -2263,8 +2219,6 @@
       default: "15"
 - name: triggerer
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: default_capacity
       description: |
@@ -2275,8 +2229,6 @@
       default: "1000"
 - name: kerberos
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: ccache
       description: ~
@@ -2325,8 +2277,6 @@
       default: "True"
 - name: elasticsearch
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: host
       description: |
@@ -2403,8 +2353,6 @@
       default: "_all"
 - name: elasticsearch_configs
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: use_ssl
       description: ~
@@ -2420,8 +2368,9 @@
       default: "True"
 - name: kubernetes_executor
   description: ~
-  previous_name: kubernetes
-  version_renamed: 2.5.0
+  renamed:
+    previous_name: kubernetes
+    version: 2.5.0
   options:
     - name: pod_template_file
       description: |
@@ -2615,8 +2564,6 @@
       default: "100"
 - name: sensors
   description: ~
-  previous_name: ~
-  version_renamed: ~
   options:
     - name: default_timeout
       description: |
