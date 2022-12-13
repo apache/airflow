@@ -16,53 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from random import randrange
 from unittest import mock
 
 import oracledb
-import pendulum
 import pytest
 
-from airflow.models import DAG, DagModel, DagRun, TaskInstance
+from airflow.models import TaskInstance
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.oracle.operators.oracle import OracleOperator, OracleStoredProcedureOperator
-from airflow.utils.session import create_session
-from airflow.utils.timezone import datetime
-from airflow.utils.types import DagRunType
-
-DEFAULT_DATE = datetime(2017, 1, 1)
-
-
-def create_context(task, persist_to_db=False, map_index=None):
-    if task.has_dag():
-        dag = task.dag
-    else:
-        dag = DAG(dag_id="dag", start_date=pendulum.now())
-        dag.add_task(task)
-    dag_run = DagRun(
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
-        run_type=DagRunType.MANUAL,
-        dag_id=dag.dag_id,
-    )
-    task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
-    task_instance.dag_run = dag_run
-    if map_index is not None:
-        task_instance.map_index = map_index
-    if persist_to_db:
-        with create_session() as session:
-            session.add(DagModel(dag_id=dag.dag_id))
-            session.add(dag_run)
-            session.add(task_instance)
-            session.commit()
-    return {
-        "dag": dag,
-        "ts": DEFAULT_DATE.isoformat(),
-        "task": task,
-        "ti": task_instance,
-        "task_instance": task_instance,
-        "run_id": "test",
-    }
 
 
 class TestOracleOperator:
@@ -120,21 +84,22 @@ class TestOracleStoredProcedureOperator:
         )
 
     @mock.patch.object(OracleHook, "callproc", autospec=OracleHook.callproc)
-    def test_push_oracle_exit_to_xcom(self, mock_callproc):
+    def test_push_oracle_exit_to_xcom(self, mock_callproc, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same
         procedure = "test_push"
         oracle_conn_id = "oracle_default"
         parameters = {"parameter": "value"}
         task_id = "test_push"
         ora_exit_code = "%05d" % randrange(10**5)
-        task = OracleStoredProcedureOperator(
-            procedure=procedure, oracle_conn_id=oracle_conn_id, parameters=parameters, task_id=task_id
-        )
-        context = create_context(task, persist_to_db=True)
-        mock_callproc.side_effect = oracledb.DatabaseError(
-            "ORA-" + ora_exit_code + ": This is a five-digit ORA error code"
-        )
-        try:
-            task.execute(context=context)
-        except oracledb.DatabaseError:
-            assert task.xcom_pull(key="ORA", context=context, task_ids=[task_id])[0] == ora_exit_code
+        error = f"ORA-{ora_exit_code}: This is a five-digit ORA error code"
+        mock_callproc.side_effect = oracledb.DatabaseError(error)
+
+        with dag_maker(dag_id=f"dag_{request.node.name}"):
+            task = OracleStoredProcedureOperator(
+                procedure=procedure, oracle_conn_id=oracle_conn_id, parameters=parameters, task_id=task_id
+            )
+        dr = dag_maker.create_dagrun(run_id=task_id)
+        ti = TaskInstance(task=task, run_id=dr.run_id)
+        with pytest.raises(oracledb.DatabaseError, match=re.escape(error)):
+            ti.run()
+        assert ti.xcom_pull(task_ids=task.task_id, key="ORA") == ora_exit_code
