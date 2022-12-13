@@ -14,22 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from tests.test_utils.system_tests_class import SystemTest
+import boto3
+from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
 
 
-class Terraform(SystemTest):
-    TERRAFORM_DIR: str
+class BaseBotoWaiter:
+    """
+    Used to create custom Boto3 Waiters.
 
-    def setup_method(self) -> None:
-        self.execute_cmd(["terraform", "init", "-input=false", self.TERRAFORM_DIR])
-        self.execute_cmd(["terraform", "plan", "-input=false", self.TERRAFORM_DIR])
-        self.execute_cmd(["terraform", "apply", "-input=false", "-auto-approve", self.TERRAFORM_DIR])
+    For more details, see airflow/providers/amazon/aws/waiters/README.md
+    """
 
-    def get_tf_output(self, name):
-        return self.check_output(["terraform", "output", name]).decode("utf-8").replace("\r\n", "")
+    def __init__(self, client: boto3.client, model_config: dict) -> None:
+        self.model = WaiterModel(model_config)
+        self.client = client
 
-    def teardown_method(self) -> None:
-        self.execute_cmd(["terraform", "plan", "-destroy", "-input=false", self.TERRAFORM_DIR])
-        self.execute_cmd(["terraform", "destroy", "-input=false", "-auto-approve", self.TERRAFORM_DIR])
+    def waiter(self, waiter_name: str) -> Waiter:
+        return create_waiter_with_client(waiter_name=waiter_name, waiter_model=self.model, client=self.client)

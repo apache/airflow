@@ -21,7 +21,6 @@ from unittest import mock
 
 import pendulum
 import pytest
-from parameterized import parameterized
 from sqlalchemy.orm import contains_eager
 
 from airflow.jobs.triggerer_job import TriggererJob
@@ -176,7 +175,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def teardown_method(self):
         clear_db_runs()
 
-    @parameterized.expand(["test", "test_dag_read_only", "test_task_read_only"])
+    @pytest.mark.parametrize("username", ["test", "test_dag_read_only", "test_task_read_only"])
     @provide_session
     def test_should_respond_200(self, username, session):
         self.create_task_instances(session)
@@ -790,22 +789,23 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert expected_ti_count == response.json["total_entries"]
         assert expected_ti_count == len(response.json["task_instances"])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "task_instances, payload, expected_ti_count",
         [
-            (
-                "task_instance properties",
+            pytest.param(
                 [
                     {"task": "test_1"},
                     {"task": "test_2"},
                 ],
                 {"dag_ids": ["latest_only"]},
                 2,
+                id="task_instance properties",
             ),
         ],
     )
     @provide_session
     def test_should_respond_200_when_task_instance_properties_are_none(
-        self, _, task_instances, payload, expected_ti_count, session
+        self, task_instances, payload, expected_ti_count, session
     ):
         self.ti_extras.update(
             {
@@ -828,18 +828,19 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert expected_ti_count == response.json["total_entries"]
         assert expected_ti_count == len(response.json["task_instances"])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, expected_ti, total_ti",
         [
-            (
-                "with dag filter",
+            pytest.param(
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
                 19,
                 19,
+                id="with dag filter",
             ),
         ],
     )
     @provide_session
-    def test_should_respond_200_dag_ids_filter(self, _, payload, expected_ti, total_ti, session):
+    def test_should_respond_200_dag_ids_filter(self, payload, expected_ti, total_ti, session):
         self.create_task_instances(session)
         self.create_task_instances(session, dag_id="example_skip_dag")
         response = self.client.post(
@@ -866,7 +867,8 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 403
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, expected",
         [
             ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
             ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
@@ -874,7 +876,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             ({"start_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
             ({"execution_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
             ({"execution_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-        ]
+        ],
     )
     @provide_session
     def test_should_raise_400_for_naive_and_bad_datetime(self, payload, expected, session):
@@ -889,10 +891,10 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "main_dag, task_instances, request_dag, payload, expected_ti",
         [
-            (
-                "clear start date filter",
+            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -912,9 +914,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     "only_failed": True,
                 },
                 2,
+                id="clear start date filter",
             ),
-            (
-                "clear end date filter",
+            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -934,9 +936,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     "only_failed": True,
                 },
                 2,
+                id="clear end date filter",
             ),
-            (
-                "clear only running",
+            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
@@ -952,9 +954,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "example_python_operator",
                 {"dry_run": True, "only_running": True, "only_failed": False},
                 2,
+                id="clear only running",
             ),
-            (
-                "clear only failed",
+            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -973,9 +975,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     "only_failed": True,
                 },
                 2,
+                id="clear only failed",
             ),
-            (
-                "clear by task ids",
+            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -998,9 +1000,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     "task_ids": ["print_the_context", "sleep_for_1"],
                 },
                 2,
+                id="clear by task ids",
             ),
-            (
-                "include parent dag",
+            pytest.param(
                 "example_subdag_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -1024,9 +1026,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "example_subdag_operator.section-1",
                 {"dry_run": True, "include_parentdag": True},
                 4,
+                id="include parent dag",
             ),
-            (
-                "include sub dag",
+            pytest.param(
                 "example_subdag_operator.section-1",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -1049,9 +1051,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     "include_subdags": True,
                 },
                 4,
+                id="include sub dag",
             ),
-            (
-                "dry_run default",
+            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -1069,13 +1071,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     "only_failed": True,
                 },
                 2,
+                id="dry_run default",
             ),
-        ]
+        ],
     )
     @provide_session
-    def test_should_respond_200(
-        self, _, main_dag, task_instances, request_dag, payload, expected_ti, session
-    ):
+    def test_should_respond_200(self, main_dag, task_instances, request_dag, payload, expected_ti, session):
         self.create_task_instances(
             session,
             dag_id=main_dag,
@@ -1232,7 +1233,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert_401(response)
 
-    @parameterized.expand(["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
+    @pytest.mark.parametrize("username", ["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
     def test_should_raise_403_forbidden(self, username: str):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
@@ -1247,13 +1248,14 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 403
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, expected",
         [
             ({"end_date": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
             ({"end_date": "2020-11-10T12:4po"}, "{'end_date': ['Not a valid datetime.']}"),
             ({"start_date": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
             ({"start_date": "2020-11-10T12:4po"}, "{'start_date': ['Not a valid datetime.']}"),
-        ]
+        ],
     )
     @provide_session
     def test_should_raise_400_for_naive_and_bad_datetime(self, payload, expected, session):
@@ -1467,7 +1469,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert_401(response)
 
-    @parameterized.expand(["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
+    @pytest.mark.parametrize("username", ["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
     def test_should_raise_403_forbidden(self, username):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
@@ -1543,7 +1545,8 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, expected",
         [
             (
                 {
@@ -1571,7 +1574,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 },
                 "{'execution_date': ['Not a valid datetime.']}",
             ),
-        ]
+        ],
     )
     @provide_session
     def test_should_raise_400_for_naive_and_bad_datetime(self, payload, expected, session):
@@ -1740,7 +1743,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert_401(response)
 
-    @parameterized.expand(["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
+    @pytest.mark.parametrize("username", ["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
     def test_should_raise_403_forbidden(self, username):
         response = self.client.patch(
             self.ENDPOINT_URL,
