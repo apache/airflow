@@ -21,6 +21,7 @@ name: Microsoft Azure
 description: |
     `Microsoft Azure <https://azure.microsoft.com/>`__
 versions:
+  - 5.0.1
   - 5.0.0
   - 4.3.0
   - 4.2.0

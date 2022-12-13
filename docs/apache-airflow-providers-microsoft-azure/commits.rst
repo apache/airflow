@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.1
+.....
+
+Latest change: 2022-12-09
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`7e776db254 <https://github.com/apache/airflow/commit/7e776db254953076e932ed2183e1ed49a5ca20a6>`_  2022-12-09   ``Make arguments 'offset' and 'length' not required (#28234)``
+=================================================================================================  ===========  ==============================================================
+
 5.0.0
 .....
 
-Latest change: 2022-11-10
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `547e6e80f3 <https://github.com/apache/airflow/commit/547e6e80f342ee6ed454732477700a85cfa4df8b>`_  2022-11-10   ``Fix Azure Batch errors revealed by added typing to azure batch lib (#27601)``
 `a50195d617 <https://github.com/apache/airflow/commit/a50195d617ca7c85d56b1c138f46451bc7599618>`_  2022-11-07   ``Add azure, google, authentication library limits to eaager upgrade (#27535)``
 `5cd78cf425 <https://github.com/apache/airflow/commit/5cd78cf425f6fedc380662ec9a9e37be51403ccb>`_  2022-11-06   ``Upgrade dependencies in order to avoid backtracking (#27531)``
