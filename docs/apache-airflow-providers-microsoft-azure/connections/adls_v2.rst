@@ -15,19 +15,17 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _howto/connection:adls:
 
+Microsoft Azure Data Lake Storage Gen2 Connection
+==================================================
 
-.. _howto/connection:adls_v2:
+The Microsoft Azure Data Lake Storage Gen2 connection type enables the ADLS gen2 Integrations.
 
-Microsoft Azure Data Lake Storage Connection Gen2
-=================================================
+Authenticating to Azure Data Lake Storage Gen2
+----------------------------------------------
 
-The Microsoft Azure Data Lake Storage connection type enables the Azure Data Storage Integrations.
-
-Authenticating to Azure Data Lake Storage
------------------------------------------
-
-There are four ways to connect to Azure Data Lake Storage using Airflow.
+Currently, there are two ways to connect to Azure Data Lake Storage Gen2 using Airflow.
 
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
@@ -42,16 +40,16 @@ configure multiple connections.
 Default Connection IDs
 ----------------------
 
-All hooks and operators related to Microsoft Azure Data Lake Storage use ``adls_v2_default`` by default.
+All hooks and operators related to Microsoft Azure Blob Storage use ``azure_data_lake_default`` by default.
 
 Configuring the Connection
 --------------------------
 
 Login (optional)
-    Specify the login used for azure storage.
+    Specify the login used for azure blob storage. For use with Shared Key Credential and SAS Token authentication.
 
 Password (optional)
-    Specify the password used for azure storage. For use with
+    Specify the password used for azure blob storage. For use with
     Active Directory (token credential) and shared key authentication.
 
 Host (optional)
@@ -64,3 +62,7 @@ Extra (optional)
     * ``tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication.
     * ``connection_string``: Connection string for use with connection string authentication.
 
+When specifying the connection in environment variable you should specify
+it using URI syntax.
+
+Note that all components of the URI should be URL-encoded.
