@@ -21,7 +21,6 @@ import random
 import re
 import string
 import sys
-import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -92,13 +91,17 @@ class TestAirflowKubernetesScheduler:
         regex = r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$"
         return len(value) <= 63 and re.match(regex, value)
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
             pod_name = PodGenerator.make_unique_pod_id(create_pod_id(dag_id, task_id))
             assert self._is_valid_pod_id(pod_name)
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.kubernetes.pod_generator.PodGenerator")
     @mock.patch("airflow.executors.kubernetes_executor.KubeConfig")
     def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator):
@@ -148,7 +151,9 @@ class TestAirflowKubernetesScheduler:
 
         assert datetime_obj == new_datetime_obj
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     @mock.patch("airflow.executors.kubernetes_executor.client")
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
@@ -168,7 +173,9 @@ class TestAirflowKubernetesScheduler:
         finally:
             kube_executor.end()
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     @mock.patch("airflow.executors.kubernetes_executor.client")
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
@@ -189,7 +196,9 @@ class TestAirflowKubernetesScheduler:
             kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
             mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     @mock.patch("airflow.executors.kubernetes_executor.client")
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
