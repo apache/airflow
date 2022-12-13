@@ -59,7 +59,7 @@ DELETE_QUERY = "DROP TABLE public.test_table;"
 @pytest.mark.backend("postgres")
 @pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_GCS_KEY)
-class PostgresToGCSSystemTest(GoogleSystemTest):
+class TestPostgresToGCSSystem(GoogleSystemTest):
     @staticmethod
     def init_db():
         try:
@@ -75,8 +75,7 @@ class PostgresToGCSSystemTest(GoogleSystemTest):
         hook.run(DELETE_QUERY)
 
     @provide_gcp_context(GCP_GCS_KEY)
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         self.create_gcs_bucket(GCS_BUCKET)
         self.init_db()
 
@@ -85,7 +84,6 @@ class PostgresToGCSSystemTest(GoogleSystemTest):
         self.run_dag("example_postgres_to_gcs", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_KEY)
-    def tearDown(self):
+    def teardown_method(self):
         self.delete_gcs_bucket(GCS_BUCKET)
         self.drop_db()
-        super().tearDown()

@@ -41,13 +41,12 @@ from tests.test_utils.gcp_system_helpers import (
 
 @pytest.mark.system("google")
 @pytest.mark.credential_file(GCP_STACKDRIVER)
-class TestStackdriverLoggingHandlerSystemTest(GoogleSystemTest):
-    def setUp(self) -> None:
-        super().setUp()
+class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
+    def setup_method(self) -> None:
         clear_db_runs()
         self.log_name = "stackdriver-tests-".join(random.sample(string.ascii_lowercase, 16))
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         from airflow.config_templates import airflow_local_settings
 
         importlib.reload(airflow_local_settings)
