@@ -33,7 +33,7 @@ from urllib3 import HTTPResponse
 
 from airflow import AirflowException
 from airflow.exceptions import PodReconciliationError
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
@@ -1108,6 +1108,30 @@ class TestKubernetesExecutor:
         ti1.refresh_from_db()
         assert ti0.state == State.SCHEDULED
         assert ti1.state == State.QUEUED
+
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_get_task_log(self, mock_get_kube_client, create_task_instance):
+        """fetch task log from pod"""
+        mock_kube_client = mock_get_kube_client.return_value
+
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_", b"b_", b"c_"]
+        ti = mock.Mock(spec=TaskInstance)
+        ti.return_value.hostname = "test_hostname"
+        executor = KubernetesExecutor()
+        log = executor.get_task_log(ti=ti, log="test_init_log")
+        mock_kube_client.read_namespaced_pod_log.assert_called_once()
+
+        assert "test_init_log" in log
+        assert "Trying to get logs (last 100 lines) from worker pod" in log
+        assert "a_b_c" in log
+
+        mock_kube_client.reset_mock()
+        mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
+
+        log = executor.get_task_log(ti=ti, log="test_init_log")
+        assert len(log) == 2
+        assert "error_fetching_pod_log" in log[0]
+        assert log[1]["end_of_log"]
 
 
 class TestKubernetesJobWatcher:

@@ -226,7 +226,7 @@ class FileTaskHandler(logging.Handler):
             task_log = None
 
             if hasattr(executor, "get_task_log"):
-                task_log = executor.get_task_log(ti, log)
+                task_log = executor.get_task_log(ti=ti, log=log)
                 if isinstance(task_log, tuple):
                     return task_log
 

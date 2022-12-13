@@ -757,7 +757,6 @@ class KubernetesExecutor(BaseExecutor):
 
     def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
         try:
-            from airflow.kubernetes.kube_client import get_kube_client
 
             kube_client = get_kube_client()
 
