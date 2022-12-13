@@ -1243,7 +1243,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ".build/.k8s-env"
-          key: "k8s-env"
+          key: "\
+            k8s-env-${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
+            'setup.py','pyproject.toml','generated/provider_dependencies.json') }}"
       - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos}}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade
         env:

@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
@@ -72,7 +72,7 @@ class TestLocalClient:
             run_after=pendulum.instance(EXECDATE_NOFRACTIONS)
         )
 
-        with freeze_time(EXECDATE):
+        with time_machine.travel(EXECDATE, tick=False):
             # no execution date, execution date should be set automatically
 
             self.client.trigger_dag(dag_id=test_dag_id)
