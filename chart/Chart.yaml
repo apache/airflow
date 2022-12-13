@@ -32,10 +32,10 @@ keywords:
   - airflow
   - workflow
   - scheduler
-dependencies:
-  - name: postgresql
-    version: 10.5.3
-    condition: postgresql.enabled
+# dependencies:
+#   - name: postgresql
+#     version: 10.5.3
+#     condition: postgresql.enabled
 maintainers:
   - email: dev@airflow.apache.org
     name: Apache Airflow PMC
