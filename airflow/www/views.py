@@ -392,16 +392,17 @@ def dag_to_grid(dag, dag_runs, session):
             }
 
         def get_mapped_group_summaries(run_ids, children):
-            child_ids = [child["id"] for child in children]
-            mappedGroupQuery = session.query(
-                TaskInstance.task_id, TaskInstance.state, TaskInstance.run_id, TaskInstance.map_index
-            ).filter(
-                TaskInstance.dag_id == dag.dag_id,
-                TaskInstance.task_id.in_(child_ids),
-                TaskInstance.run_id.in_(run_ids),
+            mapped_instances = (
+                session.query(
+                    TaskInstance.task_id, TaskInstance.state, TaskInstance.run_id, TaskInstance.map_index
+                )
+                .filter(
+                    TaskInstance.dag_id == dag.dag_id,
+                    TaskInstance.task_id.in_(child["id"] for child in children),
+                    TaskInstance.run_id.in_(run_ids),
+                )
+                .all()
             )
-
-            mapped_instances = list(mappedGroupQuery)
 
             def get_mapped_group_summary(run_id, mapped_instances):
                 map_length = max(mi.map_index for mi in mapped_instances) + 1
