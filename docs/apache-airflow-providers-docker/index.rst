@@ -28,7 +28,7 @@ Content
 
     Connection types <connections/docker>
     Python API <_api/airflow/providers/docker/index>
-
+    Docker Task Decorator <decorators/docker>
 .. toctree::
     :hidden:
     :caption: System tests
