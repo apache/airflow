@@ -194,7 +194,10 @@ class TestEmrHook:
     @mock_emr
     def test_send_cancel_steps_first_invocation(self):
         """
-        Test that we can resolve cluster id by cluster name.
+        Test if a step with unique name is getting added for first time
+        Expectation is of it getting adding as existing behaviour of operator
+        with  `send_cancel_steps` function provide with None
+        indicating there are no steps to be marked for cancellation
         """
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
 
@@ -216,10 +219,10 @@ class TestEmrHook:
         ]
 
         did_not_execute_response = hook.send_cancel_steps(
-            steps_states=["PENDING", "RUNNING"],
+            valid_cancel_step_states=["PENDING", "RUNNING"],
             emr_cluster_id=job_flow_id,
             cancellation_option="SEND_INTERRUPT",
-            steps=step,
+            steps_to_add=step,
         )
 
         assert did_not_execute_response is None
@@ -228,7 +231,11 @@ class TestEmrHook:
     @pytest.mark.parametrize("num_steps", [1, 2, 3, 4])
     def test_send_cancel_steps_on_pre_existing_step_name(self, num_steps):
         """
-        Test that we can resolve cluster id by cluster name.
+        Add steps which are already existing in cluster with same step name.
+
+        Expectation is the existing steps in PENDING/RUNNING steps are marked for Cancel
+        And new steps are added for execution having different stepId
+
         """
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
 
@@ -272,12 +279,15 @@ class TestEmrHook:
 
         assert len(cancel_steps) == num_steps
 
+        # Currently moto does not have an `cancel_steps` implementation for emr
+        # More details:
+        # `https://github.com/spulec/moto/blob/860d8bf4b7d5223e2ac32a328122f3b48b86c103/moto/emr/responses.py#L102`
         with pytest.raises(NotImplementedError):
             response = hook.send_cancel_steps(
-                steps_states=["PENDING", "RUNNING"],
+                valid_cancel_step_states=["PENDING", "RUNNING"],
                 emr_cluster_id=job_flow_id,
                 cancellation_option="SEND_INTERRUPT",
-                steps=steps + retry_step,
+                steps_to_add=steps + retry_step,
             )
 
             assert response

@@ -202,71 +202,78 @@ class EmrHook(AwsBaseHook):
             },
         }
 
-    def is_cluster_available(self, emr_cluster_id, cluster_states):
-        response = self.get_conn().list_clusters(ClusterStates=cluster_states)
-        matching_clusters = list(
-            filter(lambda cluster: cluster["Id"] == emr_cluster_id, response["Clusters"])
-        )
-
-        if len(matching_clusters) == 1:
-            emr_cluster_name = matching_clusters[0]["Name"]
-            self.log.info("Found cluster name = %s id = %s", emr_cluster_name, emr_cluster_id)
-            return True
-        elif len(matching_clusters) > 1:
-            raise AirflowException(f"More than one cluster found for Id {emr_cluster_id}")
-        else:
-            self.log.info("No cluster found for Id %s", emr_cluster_id)
-            return False
-
     def _get_list_of_steps_already_triggered(
         self, cluster_id: str, step_states: list[str]
     ) -> list[tuple[str, str]]:
-
+        """
+        Method to get the list of steps already triggered on cluster_id and filter with specified states
+        It returns a tuple of step_name and step_id
+        """
         response = self.get_conn().list_steps(
             ClusterId=cluster_id,
             StepStates=step_states,
         )
         steps_name_id = [(step["Name"], step["Id"]) for step in response["Steps"]]
-        print(steps_name_id)
         return steps_name_id
 
     def _cancel_list_of_steps_already_triggered(
         self, steps: list[dict], cluster_id: str, step_states: list[str]
     ):
+        """
+        Method to get the list of steps on cluster_id eligible to be marked for cancellation
+        returns steps as tuple of step 'Name' and 'Id'
+        """
         names_list = self._get_list_of_steps_already_triggered(cluster_id, step_states)
 
-        self.log.info(steps)
-
+        # Filter the common stepnames between the existing steps and to be triggered steps
         steps_name_list = [step["Name"] for step in steps if "Name" in step]
         cancel_steps_id_name = [
             (step_name, step_id) for step_name, step_id in names_list if step_name in steps_name_list
         ]
 
-        self.log.info(steps_name_list)
-        self.log.info(cancel_steps_id_name)
-
         return cancel_steps_id_name
 
     def send_cancel_steps(
-        self, emr_cluster_id: str, steps, steps_states: list[str], cancellation_option: str
+        self, emr_cluster_id: str, steps_to_add, valid_cancel_step_states, cancellation_option: str
     ):
+        """
+        Based on the list of steps already triggered on emr,
+        get the step_ids which needs to be marked for cancellation
+
+        Here Step names are the identifiers used to find if it's already triggered on cluster and
+        corresponding step_id is used for cancelling
+
+        If a new step/steps are added which are not already running, this method will return None
+        If a new step/steps are added with same step names as already triggered on cluster and them
+        either in PENDING/RUNNING step status, then the existing ones will be marked for Cancellation
+        And the new steps will be added
+
+        :param emr_cluster_id: the job_flow_id of emr cluster
+        :param steps_to_add: list of single or multiple steps to be added to emr for execution
+        :param valid_cancel_step_states: For cancellation, steps with these states are eligible for cancel
+        By default, only PENDING and RUNNING are supported here.
+        :param cancellation_option: "SEND_INTERRUPT" and "TERMINATE_PROCESS" are supported values
+
+        More details :
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.cancel_steps
+        """
         steps_to_be_cancelled = self._cancel_list_of_steps_already_triggered(
-            steps, emr_cluster_id, steps_states
+            steps_to_add, emr_cluster_id, valid_cancel_step_states
         )
         steps_ids_to_be_cancelled = [step_id for step_name, step_id in steps_to_be_cancelled]
 
-        self.log.info(
-            f"steps_to_be_cancelled -> {steps_to_be_cancelled}, Size -> {len(steps_to_be_cancelled)}"
-        )
         if len(steps_to_be_cancelled) == 0:
-            self.log.info("No existing step found to be cancelled !! ")
+            self.log.info("No existing step found to be marked for cancel !! ")
             return None
+
+        self.log.info("Existing steps to be marked for cancellation %s -> ", steps_to_be_cancelled)
+        self.log.info("Total %s ->", len(steps_to_be_cancelled))
+
         response = self.get_conn().cancel_steps(
             ClusterId=emr_cluster_id,
             StepIds=steps_ids_to_be_cancelled,
             StepCancellationOption=cancellation_option,
         )
-        self.log.info(response)
 
         return response
 

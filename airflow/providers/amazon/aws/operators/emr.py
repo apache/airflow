@@ -52,15 +52,32 @@ class EmrAddStepsOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
-    :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
+    :param wait_for_completion: If True, the operator will wait for all the steps to be completed
+    :param cancel_existing_steps: If True, the operator will cancel existing steps running on cluster
+    which are in `cancel_step_states` and having same step name as the `steps` to be added with the
+    cancel option set in `cancellation_option`
+    :param cancel_step_states: Cancels the steps in these valid states PENDING and/or RUNNING
+    :param cancellation_option: If steps needs to be cancelled, two ways it gets handled internally,
+        "SEND_INTERRUPT" and "TERMINATE_PROCESS" are the valid options available. Default: "SEND_INTERRUPT"
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     """
 
-    template_fields: Sequence[str] = ("job_flow_id", "job_flow_name", "cluster_states", "steps")
+    template_fields: Sequence[str] = (
+        "job_flow_id",
+        "job_flow_name",
+        "cluster_states",
+        "steps",
+        "cancel_existing_steps",
+        "cancel_step_states",
+        "cancellation_option",
+    )
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"steps": "json"}
     ui_color = "#f9c915"
     operator_extra_links = (EmrClusterLink(),)
+
+    CANCEL_STEP_STATES: list[str] = ["PENDING", "RUNNING"]
+    CANCELLATION_OPTION: list[str] = ["SEND_INTERRUPT", "TERMINATE_PROCESS"]
 
     def __init__(
         self,
@@ -71,16 +88,20 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
-        cancel_existing_steps: bool = True,
-        steps_states: list[str],
-        cancellation_option: str = "SEND_INTERRUPT",
+        cancel_existing_steps: bool = False,
+        cancel_step_states: list[str] | None = None,
+        cancellation_option: str | None = None,
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
             raise AirflowException("Exactly one of job_flow_id or job_flow_name must be specified.")
+
         super().__init__(**kwargs)
         cluster_states = cluster_states or []
         steps = steps or []
+        cancel_step_states = cancel_step_states or []
+        cancellation_option = cancellation_option or ""
+
         self.aws_conn_id = aws_conn_id
         self.job_flow_id = job_flow_id
         self.job_flow_name = job_flow_name
@@ -88,8 +109,24 @@ class EmrAddStepsOperator(BaseOperator):
         self.steps = steps
         self.wait_for_completion = wait_for_completion
         self.cancel_existing_steps = cancel_existing_steps
-        self.steps_states = steps_states
+        self.cancel_step_states = cancel_step_states
         self.cancellation_option = cancellation_option
+
+    def _validate_cancel_input_params(self, cancel_existing_steps, cancel_step_states, cancellation_option):
+        if cancel_existing_steps:
+            if cancel_step_states and bool(
+                [state for state in cancel_step_states if state not in self.CANCEL_STEP_STATES]
+            ):
+                raise AirflowException("`cancel_step_states` only accepts PENDING and/or RUNNING states")
+
+            if cancellation_option and cancellation_option not in self.CANCELLATION_OPTION:
+                raise AirflowException(
+                    "`cancellation_option` accepts either of SEND_INTERRUPT, TERMINATE_PROCESS"
+                )
+
+            cancel_step_states = cancel_step_states or self.CANCEL_STEP_STATES
+            cancellation_option = cancellation_option or self.CANCELLATION_OPTION
+        return cancel_step_states, cancellation_option
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -100,6 +137,10 @@ class EmrAddStepsOperator(BaseOperator):
 
         if not job_flow_id:
             raise AirflowException(f"No cluster found for name: {self.job_flow_name}")
+
+        cancel_step_states, cancellation_option = self._validate_cancel_input_params(
+            self.cancel_existing_steps, self.cancel_step_states, self.cancellation_option
+        )
 
         if self.do_xcom_push:
             context["ti"].xcom_push(key="job_flow_id", value=job_flow_id)
@@ -122,15 +163,18 @@ class EmrAddStepsOperator(BaseOperator):
 
         self.log.info("List of steps to be added: %s ", steps)
 
+        # Handle steps to be added if any existing step with same step name is found
+        # Cancel if already existing step name
+        # Skipped if step with unique name is being added
         if self.cancel_existing_steps:
             response = emr_hook.send_cancel_steps(
                 emr_cluster_id=job_flow_id,
-                steps=list(steps),
-                steps_states=self.steps_states,
-                cancellation_option=self.cancellation_option,
+                steps_to_add=list(steps),
+                valid_cancel_step_states=cancel_step_states,
+                cancellation_option=cancellation_option,
             )
-
-            self.log.info("Response from cancellation : %s ", response)
+            if response is not None:
+                self.log.info("Response from cancellation : %s ", response)
 
         return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=True)
 
