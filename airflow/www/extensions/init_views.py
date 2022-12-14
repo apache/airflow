@@ -208,7 +208,7 @@ def init_api_connexion(app: Flask) -> None:
             return views.method_not_allowed(ex)
 
     spec_dir = path.join(ROOT_APP_DIR, "api_connexion", "openapi")
-    if not conf.getboolean("webserver", "enable_swagger_ui"):
+    if not conf.getboolean("webserver", "enable_swagger_ui", fallback=True):
         options = {"swagger_ui": False}
     else:
         options = {"swagger_ui": True}
@@ -231,7 +231,7 @@ def init_api_internal(app: Flask) -> None:
     base_path = "/internal_api/v1"
 
     spec_dir = path.join(ROOT_APP_DIR, "api_internal", "openapi")
-    if not conf.getboolean("webserver", "enable_swagger_ui"):
+    if not conf.getboolean("webserver", "enable_swagger_ui", fallback=True):
         options = {"swagger_ui": False}
     else:
         options = {"swagger_ui": True}
