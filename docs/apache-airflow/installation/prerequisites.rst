@@ -29,7 +29,7 @@ Starting with Airflow 2.3.0, Airflow is tested with:.
   * SQLite: 3.15.0+
   * MSSQL(Experimental): 2017, 2019
 
-* Kubernetes: 1.23, 1.24, 1.25
+* Kubernetes: 1.23, 1.24, 1.25, 1.26
 
 The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depends
 wildly on the deployment options you have
