@@ -49,7 +49,7 @@ that you run airflow components on is synchronized (for example using ntpd) othe
     {{ "=" * (section["name"]|length + 2) }}
 
     {% if 'renamed' in section %}
-    *{{"Renamed in version "+ section['renamed']['version']+", previous name was "+ section['renamed']['previous_name'] }}*
+    *Renamed in version {{ section['renamed']['version'] }}, previous name was {{ section['renamed']['previous_name'] }}*
     {% endif %}
 
     {% if section["description"] %}
