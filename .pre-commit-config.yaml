@@ -400,7 +400,7 @@ repos:
         name: Check and update common.sql API stubs
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
-        files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.py[i]$
+        files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
         additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.3.0']
         pass_filenames: false
         require_serial: true
@@ -831,7 +831,7 @@ repos:
         files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py

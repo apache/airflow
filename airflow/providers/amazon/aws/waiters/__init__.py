@@ -14,27 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "3.7"
-services:
-  rabbitmq:
-    image: rabbitmq:3.7
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - rabbitmq-db-volume:/var/lib/rabbitmq
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: "on-failure"
-
-  airflow:
-    environment:
-      - INTEGRATION_RABBITMQ=true
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-volumes:
-  rabbitmq-db-volume:

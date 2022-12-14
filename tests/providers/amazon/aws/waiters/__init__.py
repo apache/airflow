@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,34 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# create all users
-
-dn: uid=user1,dc=example,dc=com
-objectClass: account
-objectClass: simpleSecurityObject
-uid: user1
-userPassword: user1
-memberOf: cn=group1,dc=example,dc=com
-memberOf: cn=group3,dc=example,dc=com
-
-dn: uid=user2,dc=example,dc=com
-objectClass: account
-objectClass: simpleSecurityObject
-uid: user2
-userPassword: user2
-memberOf: cn=group2,dc=example,dc=com
-
-dn: uid=dataprofiler,dc=example,dc=com
-objectClass: account
-objectClass: simpleSecurityObject
-uid: dataprofiler
-userPassword: dataprofiler
-description: dataprofiler
-
-dn: uid=superuser,dc=example,dc=com
-objectClass: account
-objectClass: simpleSecurityObject
-uid: superuser
-userPassword: superuser
-description: superuser

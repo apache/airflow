@@ -39,7 +39,7 @@ def rand_str(num):
 
 
 def add_pod_suffix(*, pod_name, rand_len=8, max_len=80):
-    """Add random string to pod name while staying under max len"""
+    """Add random string to pod name while staying under max len."""
     suffix = "-" + rand_str(rand_len)
     return pod_name[: max_len - len(suffix)].strip("-.") + suffix
 
@@ -48,11 +48,16 @@ def create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
     *,
-    max_length: int = 80,
+    max_length: int = 63,  # must be 63 for now, see below
     unique: bool = True,
 ) -> str:
     """
     Generates unique pod ID given a dag_id and / or task_id.
+
+    Because of the way that the task log handler reads from running k8s executor pods,
+    we must keep pod name <= 63 characters.  The handler gets pod name from ti.hostname.
+    TI hostname is derived from the container hostname, which is truncated to 63 characters.
+    We could lift this limit by using label selectors instead of pod name to find the pod.
 
     :param dag_id: DAG ID
     :param task_id: Task ID
@@ -77,7 +82,7 @@ def create_pod_id(
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
-    """Build a TaskInstanceKey based on pod annotations"""
+    """Build a TaskInstanceKey based on pod annotations."""
     log.debug("Creating task key for annotations %s", annotations)
     dag_id = annotations["dag_id"]
     task_id = annotations["task_id"]

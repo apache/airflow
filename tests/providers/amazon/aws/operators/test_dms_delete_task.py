@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -33,7 +32,7 @@ TASK_DATA = {
 }
 
 
-class TestDmsDeleteTaskOperator(unittest.TestCase):
+class TestDmsDeleteTaskOperator:
     def test_init(self):
         dms_operator = DmsDeleteTaskOperator(task_id="delete_task", replication_task_arn=TASK_ARN)
 

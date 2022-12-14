@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,30 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# create all groups
-
-dn: ou=groups,dc=example,dc=com
-objectClass: organizationalunit
-ou: groups
-description: generic groups branch
-
-dn: cn=group1,ou=groups,dc=example,dc=com
-objectclass: groupofnames
-cn: group1
-description: Group 1 of users
-# add the group members all of which are
-# assumed to exist under example
-member: cn=user1,dc=example,dc=com
-
-dn: cn=group2,ou=groups,dc=example,dc=com
-objectclass: groupofnames
-cn: group2
-description: Group 2 of users
-member: cn=user2,dc=example,dc=com
-
-dn: cn=group3,ou=groups,dc=example,dc=com
-objectclass: groupofnames
-cn: group3
-description: Group 3 of users
-member: cn=user1,dc=example,dc=com

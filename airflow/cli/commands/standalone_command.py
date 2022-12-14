@@ -33,7 +33,6 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import db
-from airflow.www.app import cached_app
 
 
 class StandaloneCommand:
@@ -180,8 +179,10 @@ class StandaloneCommand:
         # server. Thus, we make a random password and store it in AIRFLOW_HOME,
         # with the reasoning that if you can read that directory, you can see
         # the database credentials anyway.
-        appbuilder = cached_app().appbuilder
-        user_exists = appbuilder.sm.find_user("admin")
+        from airflow.utils.cli_app_builder import get_application_builder
+
+        with get_application_builder() as appbuilder:
+            user_exists = appbuilder.sm.find_user("admin")
         password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
         we_know_password = os.path.isfile(password_path)
         # If the user does not exist, make a random password and make it

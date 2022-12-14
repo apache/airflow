@@ -137,8 +137,14 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
+{{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
@@ -204,8 +210,14 @@ spec:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
 {{- include "airflow_config_mount" . | nindent 12 }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{- end }}
 {{- if and $localOrDagProcessorDisabled (or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
 {{- include "airflow_dags_mount" . | nindent 12 }}
+{{- end }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
@@ -233,8 +245,14 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
+{{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
 {{- end }}
           {{- end }}
 {{- if .Values.scheduler.extraContainers }}
@@ -244,6 +262,11 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        - name: webserver-config
+          configMap:
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
+        {{- end }}
 {{- if $localOrDagProcessorDisabled }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
@@ -256,6 +279,9 @@ spec:
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end}}
+{{- end }}
+{{- if .Values.volumes }}
+{{- toYaml .Values.volumes | nindent 8 }}
 {{- end }}
 {{- if .Values.scheduler.extraVolumes }}
 {{ toYaml .Values.scheduler.extraVolumes | indent 8 }}

@@ -34,6 +34,9 @@ KNOWN_FALSE_DETECTIONS = {
     ("logging", "extra_logger_names", "2.2.0")
 }
 
+# Renamed sections: (new_section, old_section, version_before_renaming)
+RENAMED_SECTIONS = [("kubernetes_executor", "kubernetes", "2.4.3")]
+
 
 def fetch_pypi_versions() -> list[str]:
     r = requests.get("https://pypi.org/pypi/apache-airflow/json")
@@ -71,6 +74,14 @@ def read_local_config_options() -> set[tuple[str, str, str]]:
     return config_options
 
 
+computed_option_new_section = set()
+for new_section, old_section, version_before_renaming in RENAMED_SECTIONS:
+    options = fetch_config_options_for_version(version_before_renaming)
+    options = {
+        (new_section, option_name) for section_name, option_name in options if section_name == old_section
+    }
+    computed_option_new_section.update(options)
+
 # 1. Prepare versions to checks
 airflow_version = fetch_pypi_versions()
 airflow_version = sorted(airflow_version, key=semver.VersionInfo.parse)
@@ -83,6 +94,9 @@ for prev_version, curr_version in zip(to_check_versions[:-1], to_check_versions[
     options_1 = fetch_config_options_for_version(prev_version)
     options_2 = fetch_config_options_for_version(curr_version)
     new_options = options_2 - options_1
+    # Remove existing options in new section
+    new_options -= computed_option_new_section
+    # Update expected options with version added field
     expected_computed_options.update(
         {(section_name, option_name, curr_version) for section_name, option_name in new_options}
     )

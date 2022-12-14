@@ -47,18 +47,15 @@ ALL_INTEGRATIONS = [
     "cassandra",
     "kerberos",
     "mongo",
-    "openldap",
     "pinot",
-    "rabbitmq",
-    "redis",
-    "statsd",
+    "celery",
     "trino",
 ]
 ALLOWED_INTEGRATIONS = [
     *ALL_INTEGRATIONS,
     "all",
 ]
-ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
@@ -88,7 +85,6 @@ class SelectiveUnitTestTypes(Enum):
     CLI = "CLI"
     CORE = "Core"
     OTHER = "Other"
-    INTEGRATION = "Integration"
     PROVIDERS = "Providers"
     WWW = "WWW"
 
@@ -197,14 +193,11 @@ AVAILABLE_INTEGRATIONS = [
     "cassandra",
     "kerberos",
     "mongo",
-    "openldap",
     "pinot",
-    "rabbitmq",
-    "redis",
+    "celery",
     "statsd",
     "trino",
 ]
-ENABLED_INTEGRATIONS = ""
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [

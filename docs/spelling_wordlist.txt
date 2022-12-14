@@ -411,6 +411,7 @@ Deserialize
 deserialize
 Deserialized
 deserialized
+deserializer
 deserializing
 dest
 dev
@@ -1278,6 +1279,8 @@ serde
 serialise
 serializable
 SerializedDAG
+serializer
+serializers
 serverless
 ServiceAccount
 setattr

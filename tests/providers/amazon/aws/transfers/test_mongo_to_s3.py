@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.models import DAG, DagRun, TaskInstance
@@ -40,8 +39,8 @@ MOCK_MONGO_RETURN = [
 ]
 
 
-class TestMongoToS3Operator(unittest.TestCase):
-    def setUp(self):
+class TestMongoToS3Operator:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         self.dag = DAG("test_dag_id", default_args=args)

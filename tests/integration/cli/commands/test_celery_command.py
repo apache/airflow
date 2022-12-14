@@ -26,8 +26,7 @@ from airflow.cli.commands import celery_command
 from tests.test_utils.config import conf_vars
 
 
-@pytest.mark.integration("redis")
-@pytest.mark.integration("rabbitmq")
+@pytest.mark.integration("celery")
 @pytest.mark.backend("mysql", "postgres")
 class TestWorkerServeLogs:
     @classmethod
