@@ -232,7 +232,8 @@ class TestFileTaskLogHandler:
             with patch("airflow.utils.log.file_task_handler.open", opener):
                 fth = FileTaskHandler("")
                 log = fth._read(ti=local_log_file_read, try_number=1)
-                assert "dummy test log data" in log
+                assert len(log) == 2
+                assert "dummy test log data" in log[0]
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.get_task_log")
     def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance):
