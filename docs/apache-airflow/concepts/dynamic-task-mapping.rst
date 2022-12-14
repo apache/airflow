@@ -34,8 +34,6 @@ If you want to see a simple usage of Dynamic Task Mapping, you can look below:
 
 .. exampleinclude:: /../../airflow/example_dags/example_dynamic_task_mapping.py
     :language: python
-    :dedent: 4
-    :start-after: from airflow.decorators import task
 
 This will show ``Total was 9`` in the task logs when executed.
 
