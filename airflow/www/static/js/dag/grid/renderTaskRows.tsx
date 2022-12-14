@@ -44,6 +44,7 @@ interface RowProps {
   openGroupIds?: string[];
   onToggleGroups?: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  isParentMapped?: boolean;
 }
 
 const renderTaskRows = ({
@@ -114,6 +115,7 @@ const Row = (props: RowProps) => {
     openGroupIds = [],
     onToggleGroups = () => {},
     hoveredTaskState,
+    isParentMapped,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -168,7 +170,7 @@ const Row = (props: RowProps) => {
           <TaskName
             onToggle={memoizedToggle}
             isGroup={isGroup}
-            isMapped={task.isMapped}
+            isMapped={task.isMapped && !isParentMapped}
             label={task.label || task.id || ''}
             isOpen={isOpen}
             level={level}
@@ -191,7 +193,10 @@ const Row = (props: RowProps) => {
       </Tr>
       {isGroup && isOpen && (
         renderTaskRows({
-          ...props, level: level + 1, openParentCount: openParentCount + 1,
+          ...props,
+          level: level + 1,
+          openParentCount: openParentCount + 1,
+          isParentMapped: task.isMapped,
         })
       )}
     </>

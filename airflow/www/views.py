@@ -121,7 +121,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
-from airflow.utils.task_group import task_group_to_dict
+from airflow.utils.task_group import MappedTaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
@@ -281,7 +281,7 @@ def dag_to_grid(dag, dag_runs, session):
 
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
-    def task_group_to_grid(item, dag_runs, grouped_tis):
+    def task_group_to_grid(item, dag_runs, grouped_tis, is_parent_mapped=False):
         if isinstance(item, AbstractOperator):
 
             def _get_summary(task_instance):
@@ -341,7 +341,7 @@ def dag_to_grid(dag, dag_runs, session):
                     set_overall_state(record)
                     yield record
 
-            if isinstance(item, MappedOperator):
+            if isinstance(item, MappedOperator) or is_parent_mapped:
                 instances = list(_mapped_summary(grouped_tis.get(item.task_id, [])))
             else:
                 instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
@@ -351,16 +351,18 @@ def dag_to_grid(dag, dag_runs, session):
                 "instances": instances,
                 "label": item.label,
                 "extra_links": item.extra_links,
-                "is_mapped": isinstance(item, MappedOperator),
+                "is_mapped": isinstance(item, MappedOperator) or is_parent_mapped,
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
             }
 
         # Task Group
         task_group = item
+        group_is_mapped = isinstance(task_group, MappedTaskGroup)
 
         children = [
-            task_group_to_grid(child, dag_runs, grouped_tis) for child in task_group.topological_sort()
+            task_group_to_grid(child, dag_runs, grouped_tis, group_is_mapped)
+            for child in task_group.topological_sort()
         ]
 
         def get_summary(dag_run, children):
@@ -389,6 +391,66 @@ def dag_to_grid(dag, dag_runs, session):
                 "end_date": group_end_date,
             }
 
+        def get_mapped_group_summaries(run_ids, children):
+            mapped_instances = (
+                session.query(
+                    TaskInstance.task_id, TaskInstance.state, TaskInstance.run_id, TaskInstance.map_index
+                )
+                .filter(
+                    TaskInstance.dag_id == dag.dag_id,
+                    TaskInstance.task_id.in_(child["id"] for child in children),
+                    TaskInstance.run_id.in_(run_ids),
+                )
+                .all()
+            )
+
+            def get_mapped_group_summary(run_id, mapped_instances):
+                map_length = max(mi.map_index for mi in mapped_instances) + 1
+                child_instances = [child["instances"] for child in children if "instances" in child]
+                child_instances = [
+                    item for sublist in child_instances for item in sublist if item["run_id"] == run_id
+                ]
+
+                children_start_dates = (item["start_date"] for item in child_instances if item)
+                children_end_dates = (item["end_date"] for item in child_instances if item)
+                children_states = {item["state"] for item in child_instances if item}
+
+                mapped_states = {}
+                for i in range(0, map_length):
+                    child_states = [mi.state for mi in mapped_instances if mi.map_index == i]
+                    for state in wwwutils.priority:
+                        if state in child_states:
+                            value = state.value if state is not None else "no_status"
+                            if value in mapped_states:
+                                mapped_states[value] += 1
+                            else:
+                                mapped_states[value] = 1
+                            break
+
+                group_state = None
+                for state in wwwutils.priority:
+                    if state in children_states:
+                        group_state = state
+                        break
+                group_start_date = min(filter(None, children_start_dates), default=None)
+                group_end_date = max(filter(None, children_end_dates), default=None)
+
+                return {
+                    "task_id": task_group.group_id,
+                    "run_id": run_id,
+                    "state": group_state,
+                    "start_date": group_start_date,
+                    "end_date": group_end_date,
+                    "mapped_states": mapped_states,
+                }
+
+            return [
+                get_mapped_group_summary(
+                    run_id, mapped_instances=[mi for mi in mapped_instances if mi.run_id == run_id]
+                )
+                for run_id in run_ids
+            ]
+
         # We don't need to calculate summaries for the root
         if task_group.group_id is None:
             return {
@@ -396,6 +458,18 @@ def dag_to_grid(dag, dag_runs, session):
                 "label": task_group.label,
                 "children": children,
                 "instances": [],
+            }
+
+        if group_is_mapped:
+            mapped_group_summaries = get_mapped_group_summaries([dr.run_id for dr in dag_runs], children)
+
+            return {
+                "id": task_group.group_id,
+                "label": task_group.label,
+                "children": children,
+                "tooltip": task_group.tooltip,
+                "instances": mapped_group_summaries,
+                "is_mapped": group_is_mapped,
             }
 
         group_summaries = [get_summary(dr, children) for dr in dag_runs]

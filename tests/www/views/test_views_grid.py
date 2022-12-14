@@ -22,6 +22,7 @@ import pytest
 from dateutil.tz import UTC
 
 from airflow.datasets import Dataset
+from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
@@ -64,6 +65,12 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
 
         with dag_maker(dag_id=DAG_ID, serialized=True, session=session):
             EmptyOperator(task_id="task1")
+
+            @task_group
+            def mapped_task_group(arg1):
+                return MockOperator(task_id="subtask2", arg1=arg1)
+
+            mapped_task_group.expand(arg1=["a", "b", "c"])
             with TaskGroup(group_id="group"):
                 MockOperator.partial(task_id="mapped").expand(arg1=["a", "b", "c", "d"])
 
@@ -101,6 +108,24 @@ def test_no_runs(admin_client, dag_without_runs):
                     "is_mapped": False,
                     "label": "task1",
                     "operator": "EmptyOperator",
+                },
+                {
+                    "children": [
+                        {
+                            "extra_links": [],
+                            "has_outlet_datasets": False,
+                            "id": "mapped_task_group.subtask2",
+                            "instances": [],
+                            "is_mapped": True,
+                            "label": "subtask2",
+                            "operator": "MockOperator",
+                        }
+                    ],
+                    "is_mapped": True,
+                    "id": "mapped_task_group",
+                    "instances": [],
+                    "label": "mapped_task_group",
+                    "tooltip": "",
                 },
                 {
                     "children": [
@@ -236,6 +261,58 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                         {
                             "extra_links": [],
                             "has_outlet_datasets": False,
+                            "id": "mapped_task_group.subtask2",
+                            "instances": [
+                                {
+                                    "run_id": "run_1",
+                                    "mapped_states": {"success": 3},
+                                    "start_date": None,
+                                    "end_date": None,
+                                    "state": "success",
+                                    "task_id": "mapped_task_group.subtask2",
+                                },
+                                {
+                                    "run_id": "run_2",
+                                    "mapped_states": {"no_status": 3},
+                                    "start_date": None,
+                                    "end_date": None,
+                                    "state": None,
+                                    "task_id": "mapped_task_group.subtask2",
+                                },
+                            ],
+                            "is_mapped": True,
+                            "label": "subtask2",
+                            "operator": "MockOperator",
+                        }
+                    ],
+                    "is_mapped": True,
+                    "id": "mapped_task_group",
+                    "instances": [
+                        {
+                            "end_date": None,
+                            "run_id": "run_1",
+                            "mapped_states": {"success": 3},
+                            "start_date": None,
+                            "state": "success",
+                            "task_id": "mapped_task_group",
+                        },
+                        {
+                            "run_id": "run_2",
+                            "start_date": None,
+                            "end_date": None,
+                            "state": None,
+                            "mapped_states": {"no_status": 3},
+                            "task_id": "mapped_task_group",
+                        },
+                    ],
+                    "label": "mapped_task_group",
+                    "tooltip": "",
+                },
+                {
+                    "children": [
+                        {
+                            "extra_links": [],
+                            "has_outlet_datasets": False,
                             "id": "group.mapped",
                             "instances": [
                                 {
@@ -291,7 +368,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
 
 def test_query_count(dag_with_runs, session):
     run1, run2 = dag_with_runs
-    with assert_queries_count(1):
+    with assert_queries_count(2):
         dag_to_grid(run1.dag, (run1, run2), session)
 
 
