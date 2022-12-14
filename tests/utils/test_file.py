@@ -20,12 +20,23 @@ from __future__ import annotations
 import os
 import os.path
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 
-from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, open_maybe_zipped
+from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, mkdirs, open_maybe_zipped
 from tests.models import TEST_DAGS_FOLDER
+
+
+def test_mkdirs():
+    with TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, str(uuid4()), str(uuid4()))
+        mkdirs(path, 0o777)
+
+        mode = oct(os.stat(path).st_mode)[-3:]
+        assert mode == "777"
 
 
 class TestCorrectMaybeZipped:

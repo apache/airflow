@@ -143,14 +143,14 @@ def mkdirs(path, mode):
     :param path: The directory to create
     :param mode: The mode to give to the directory e.g. 0o755, ignores umask
     """
-    import warnings
-
-    warnings.warn(
-        f"This function is deprecated. Please use `pathlib.Path({path}).mkdir`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
+    try:
+        o_umask = os.umask(0)
+        os.makedirs(path, mode)
+    except OSError:
+        if not os.path.isdir(path):
+            raise
+    finally:
+        os.umask(o_umask)
 
 
 ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
