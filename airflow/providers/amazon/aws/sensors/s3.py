@@ -86,7 +86,7 @@ class S3KeySensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
-        self.bucket_key = [bucket_key] if isinstance(bucket_key, str) else bucket_key
+        self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
         self.check_fn = check_fn
         self.aws_conn_id = aws_conn_id
@@ -125,7 +125,10 @@ class S3KeySensor(BaseSensorOperator):
         return True
 
     def poke(self, context: Context):
-        return all(self._check_key(key) for key in self.bucket_key)
+        if isinstance(self.bucket_key, str):
+            return self._check_key(self.bucket_key)
+        else:
+            return all(self._check_key(key) for key in self.bucket_key)
 
     def get_hook(self) -> S3Hook:
         """Create and return an S3Hook"""
