@@ -16,14 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import os
+import re
 import shlex
 import sys
+import textwrap
 import time
 from copy import deepcopy
+from datetime import datetime
+from pathlib import Path
 from re import match
-from typing import IO
+from typing import IO, NamedTuple
 
 import click
+from rich.progress import Progress
+from rich.syntax import Syntax
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.global_constants import (
@@ -75,7 +83,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, cleanup_python_generated_files
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -692,3 +700,190 @@ def release_prod_images(
                 f"{dockerhub_repo}:{airflow_version}",
                 f"{dockerhub_repo}:latest",
             )
+
+
+def is_package_in_dist(dist_files: list[str], package: str) -> bool:
+    """Check if package has been prepared in dist folder."""
+    for file in dist_files:
+        if file.startswith(f'apache_airflow_providers_{package.replace(".","_")}') or file.startswith(
+            f'apache-airflow-providers-{package.replace(".","-")}'
+        ):
+            return True
+    return False
+
+
+def get_prs_for_package(package_id: str) -> list[int]:
+    import yaml
+
+    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
+    changelog_path = (
+        AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / package_id.replace(".", os.sep) / "CHANGELOG.rst"
+    )
+    # load yaml from file
+    provider_yaml_dict = yaml.safe_load(
+        (
+            AIRFLOW_SOURCES_ROOT
+            / "airflow"
+            / "providers"
+            / package_id.replace(r".", os.sep)
+            / "provider.yaml"
+        ).read_text()
+    )
+    current_release_version = provider_yaml_dict["versions"][0]
+    prs = []
+    with open(changelog_path) as changelog_file:
+        changelog_lines = changelog_file.readlines()
+        extract_prs = False
+        skip_line = False
+        for line in changelog_lines:
+            if skip_line:
+                # Skip first "....." header
+                skip_line = False
+                continue
+            if line.strip() == current_release_version:
+                extract_prs = True
+                skip_line = True
+                continue
+            if extract_prs:
+                if len(line) > 1 and all(c == "." for c in line.strip()):
+                    # Header for next version reached
+                    break
+                if line.startswith(".. Below changes are excluded from the changelog"):
+                    # The reminder of PRs is not important skipping it
+                    break
+                match_result = pr_matcher.match(line.strip())
+                if match_result:
+                    prs.append(int(match_result.group(1)))
+    return prs
+
+
+@release_management.command(
+    name="generate-issue-content", help="Generates content for issue to test the release."
+)
+@click.option(
+    "--github-token",
+    envvar="GITHUB_TOKEN",
+    help=textwrap.dedent(
+        """
+      GitHub token used to authenticate.
+      You can set omit it if you have GITHUB_TOKEN env variable set.
+      Can be generated with:
+      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
+    ),
+)
+@click.option("--suffix", default="rc1", help="Suffix to add to the version prepared")
+@click.option(
+    "--only-available-in-dist",
+    is_flag=True,
+    help="Only consider package ids with packages prepared in the dist folder",
+)
+@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@argument_packages
+def generate_issue_content(
+    packages: list[str],
+    github_token: str,
+    suffix: str,
+    only_available_in_dist: bool,
+    excluded_pr_list: str,
+):
+    import jinja2
+    import yaml
+    from github import Github, Issue, PullRequest, UnknownObjectException
+
+    class ProviderPRInfo(NamedTuple):
+        provider_package_id: str
+        pypi_package_name: str
+        version: str
+        pr_list: list[PullRequest.PullRequest | Issue.Issue]
+
+    provider_dependencies: dict[str, dict[str, list[str]]] = json.loads(
+        (AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text()
+    )
+    if not packages:
+        packages = list(provider_dependencies.keys())
+    with ci_group("Generates GitHub issue content with people who can test it"):
+        if excluded_pr_list:
+            excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
+        else:
+            excluded_prs = []
+        all_prs: set[int] = set()
+        provider_prs: dict[str, list[int]] = {}
+        if only_available_in_dist:
+            files_in_dist = os.listdir(str(APACHE_AIRFLOW_GITHUB_REPOSITORY / "dist"))
+        prepared_package_ids = []
+        for package_id in packages:
+            if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
+                get_console().print(f"Extracting PRs for provider {package_id}")
+                prepared_package_ids.append(package_id)
+            else:
+                get_console.print(
+                    f"Skipping extracting PRs for provider {package_id} as it is missing in dist"
+                )
+                continue
+            prs = get_prs_for_package(package_id)
+            provider_prs[package_id] = list(filter(lambda pr: pr not in excluded_prs, prs))
+            all_prs.update(provider_prs[package_id])
+        g = Github(github_token)
+        repo = g.get_repo("apache/airflow")
+        pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
+        with Progress(console=get_console()) as progress:
+            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
+            pr_list = list(all_prs)
+            for i in range(len(pr_list)):
+                pr_number = pr_list[i]
+                progress.console.print(
+                    f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
+                )
+                try:
+                    pull_requests[pr_number] = repo.get_pull(pr_number)
+                except UnknownObjectException:
+                    # Fallback to issue if PR not found
+                    try:
+                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
+                    except UnknownObjectException:
+                        get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                progress.advance(task)
+        providers: dict[str, ProviderPRInfo] = {}
+        for package_id in prepared_package_ids:
+            pull_request_list = [pull_requests[pr] for pr in provider_prs[package_id] if pr in pull_requests]
+            provider_yaml_dict = yaml.safe_load(
+                (
+                    AIRFLOW_SOURCES_ROOT
+                    / "airflow"
+                    / "providers"
+                    / package_id.replace(".", os.sep)
+                    / "provider.yaml"
+                ).read_text()
+            )
+            if pull_request_list:
+                providers[package_id] = ProviderPRInfo(
+                    version=provider_yaml_dict["versions"][0],
+                    provider_package_id=package_id,
+                    pypi_package_name=provider_yaml_dict["package-name"],
+                    pr_list=pull_request_list,
+                )
+        template = jinja2.Template(
+            (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
+        )
+        issue_content = template.render(providers=providers, date=datetime.now(), suffix=suffix)
+        get_console().print()
+        get_console().print(
+            "[green]Below you can find the issue content that you can use "
+            "to ask contributor to test providers![/]"
+        )
+        get_console().print()
+        get_console().print()
+        get_console().print(
+            "Issue title: [yellow]Status of testing Providers that were "
+            f"prepared on { datetime.now().strftime('%B %d, %Y') }[/]"
+        )
+        get_console().print()
+        syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
+        get_console().print(syntax)
+        get_console().print()
+        users: set[str] = set()
+        for provider_info in providers.values():
+            for pr in provider_info.pr_list:
+                users.add("@" + pr.user.login)
+        get_console().print("All users involved in the PRs:")
+        get_console().print(" ".join(users))

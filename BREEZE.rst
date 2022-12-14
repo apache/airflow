@@ -1589,6 +1589,15 @@ All the command parameters are here:
   :width: 100%
   :alt: Breeze verify-provider-packages
 
+Generating Provider Issue
+.........................
+
+You can use Breeze to generate a provider issue when you release new providers.
+
+.. image:: ./images/breeze/output_release-management_generate-issue-content.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-issue-content.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content
 
 Preparing airflow packages
 ..........................

@@ -41,15 +41,13 @@ from os.path import dirname, relpath
 from pathlib import Path
 from random import choice
 from shutil import copyfile
-from typing import Any, Generator, Iterable, NamedTuple, Union
+from typing import Any, Generator, Iterable, NamedTuple
 
 import jsonschema
 import rich_click as click
 import semver as semver
-from github import Github, Issue, PullRequest, UnknownObjectException
 from packaging.version import Version
 from rich.console import Console
-from rich.progress import Progress
 from rich.syntax import Syntax
 from yaml import safe_load
 
@@ -1868,166 +1866,6 @@ def update_changelogs(changelog_files: list[str], git_update: bool, base_branch:
     for changelog_file in changelog_files:
         package_id = get_package_from_changelog(changelog_file)
         _update_changelog(package_id=package_id, base_branch=base_branch, verbose=verbose)
-
-
-def get_prs_for_package(package_id: str) -> list[int]:
-    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
-    verify_provider_package(package_id)
-    changelog_path = verify_changelog_exists(package_id)
-    provider_details = get_provider_details(package_id)
-    current_release_version = provider_details.versions[0]
-    prs = []
-    with open(changelog_path) as changelog_file:
-        changelog_lines = changelog_file.readlines()
-        extract_prs = False
-        skip_line = False
-        for line in changelog_lines:
-            if skip_line:
-                # Skip first "....." header
-                skip_line = False
-                continue
-            if line.strip() == current_release_version:
-                extract_prs = True
-                skip_line = True
-                continue
-            if extract_prs:
-                if len(line) > 1 and all(c == "." for c in line.strip()):
-                    # Header for next version reached
-                    break
-                if line.startswith(".. Below changes are excluded from the changelog"):
-                    # The reminder of PRs is not important skipping it
-                    break
-                match_result = pr_matcher.match(line.strip())
-                if match_result:
-                    prs.append(int(match_result.group(1)))
-    return prs
-
-
-PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
-
-
-class ProviderPRInfo(NamedTuple):
-    provider_details: ProviderPackageDetails
-    pr_list: list[PullRequestOrIssue]
-
-
-def is_package_in_dist(dist_files: list[str], package: str) -> bool:
-    """Check if package has been prepared in dist folder."""
-    for file in dist_files:
-        if file.startswith(f'apache_airflow_providers_{package.replace(".","_")}') or file.startswith(
-            f'apache-airflow-providers-{package.replace(".","-")}'
-        ):
-            return True
-    return False
-
-
-@cli.command()
-@click.option(
-    "--github-token",
-    envvar="GITHUB_TOKEN",
-    help=textwrap.dedent(
-        """
-      GitHub token used to authenticate.
-      You can set omit it if you have GITHUB_TOKEN env variable set.
-      Can be generated with:
-      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
-    ),
-)
-@click.option("--suffix", default="rc1")
-@click.option(
-    "--only-available-in-dist",
-    is_flag=True,
-    help="Only consider package ids with packages prepared in the dist folder",
-)
-@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
-@argument_package_ids
-def generate_issue_content(
-    package_ids: list[str],
-    github_token: str,
-    suffix: str,
-    only_available_in_dist: bool,
-    excluded_pr_list: str,
-):
-    if not package_ids:
-        package_ids = get_all_providers()
-    """Generates content for issue to test the release."""
-    with with_group("Generates GitHub issue content with people who can test it"):
-        if excluded_pr_list:
-            excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
-        else:
-            excluded_prs = []
-        all_prs: set[int] = set()
-        provider_prs: dict[str, list[int]] = {}
-        if only_available_in_dist:
-            files_in_dist = os.listdir(str(DIST_PATH))
-        prepared_package_ids = []
-        for package_id in package_ids:
-            if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
-                console.print(f"Extracting PRs for provider {package_id}")
-                prepared_package_ids.append(package_id)
-            else:
-                console.print(f"Skipping extracting PRs for provider {package_id} as it is missing in dist")
-                continue
-            prs = get_prs_for_package(package_id)
-            provider_prs[package_id] = list(filter(lambda pr: pr not in excluded_prs, prs))
-            all_prs.update(provider_prs[package_id])
-        g = Github(github_token)
-        repo = g.get_repo("apache/airflow")
-        pull_requests: dict[int, PullRequestOrIssue] = {}
-        with Progress(console=console) as progress:
-            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
-            pr_list = list(all_prs)
-            for i in range(len(pr_list)):
-                pr_number = pr_list[i]
-                progress.console.print(
-                    f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
-                )
-                try:
-                    pull_requests[pr_number] = repo.get_pull(pr_number)
-                except UnknownObjectException:
-                    # Fallback to issue if PR not found
-                    try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
-                    except UnknownObjectException:
-                        console.print(f"[red]The PR #{pr_number} could not be found[/]")
-                progress.advance(task)
-        interesting_providers: dict[str, ProviderPRInfo] = {}
-        non_interesting_providers: dict[str, ProviderPRInfo] = {}
-        for package_id in prepared_package_ids:
-            pull_request_list = [pull_requests[pr] for pr in provider_prs[package_id] if pr in pull_requests]
-            provider_details = get_provider_details(package_id)
-            if pull_request_list:
-                interesting_providers[package_id] = ProviderPRInfo(provider_details, pull_request_list)
-            else:
-                non_interesting_providers[package_id] = ProviderPRInfo(provider_details, pull_request_list)
-        context = {
-            "interesting_providers": interesting_providers,
-            "date": datetime.now(),
-            "suffix": suffix,
-            "non_interesting_providers": non_interesting_providers,
-        }
-        issue_content = render_template(template_name="PROVIDER_ISSUE", context=context, extension=".md")
-        console.print()
-        console.print(
-            "[green]Below you can find the issue content that you can use "
-            "to ask contributor to test providers![/]"
-        )
-        console.print()
-        console.print()
-        console.print(
-            "Issue title: [yellow]Status of testing Providers that were "
-            f"prepared on { datetime.now().strftime('%B %d, %Y') }[/]"
-        )
-        console.print()
-        syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
-        console.print(syntax)
-        console.print()
-        users: set[str] = set()
-        for provider_info in interesting_providers.values():
-            for pr in provider_info.pr_list:
-                users.add("@" + pr.user.login)
-        console.print("All users involved in the PRs:")
-        console.print(" ".join(users))
 
 
 if __name__ == "__main__":
