@@ -889,8 +889,7 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
     :param package_group_desc: Description of the model package group, if it was to be created (optional).
     :param package_desc: Description of the model package (optional).
     :param model_approval: Approval status of the model package. Defaults to PendingManualApproval
-    :param aws_conn_id: The AWS connection ID to use.
-    :param config: Can contain extra parameters for the boto call to create_model_package, and/or overrides
+    :param extras: Can contain extra parameters for the boto call to create_model_package, and/or overrides
         for any parameter defined above. For a complete list of available parameters, see
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_model_package
 
@@ -915,6 +914,7 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
         package_group_desc: str = "",
         package_desc: str = "",
         model_approval: ApprovalStatus = ApprovalStatus.PENDING_MANUAL_APPROVAL,
+        extras: dict | None = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         config: dict | None = None,
         **kwargs,
@@ -926,6 +926,7 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
         self.package_group_desc = package_group_desc
         self.package_desc = package_desc
         self.model_approval = model_approval
+        self.extras = extras
 
     def execute(self, context: Context):
         # create a model package group if it does not exist
@@ -947,8 +948,8 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
             "ModelPackageDescription": self.package_desc,
             "ModelApprovalStatus": self.model_approval.value,
         }
-        if self.config:
-            input_dict.update(self.config)  # overrides config above if keys are redefined in config
+        if self.extras:
+            input_dict.update(self.extras)  # overrides config above if keys are redefined in extras
         try:
             res = self.hook.conn.create_model_package(**input_dict)
             return res["ModelPackageArn"]

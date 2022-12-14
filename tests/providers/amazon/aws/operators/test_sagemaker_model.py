@@ -129,14 +129,14 @@ class TestSageMakerRegisterModelVersionOperator:
 
     @patch.object(SageMakerHook, "create_model_package_group")
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
-    def test_can_override_parameters_using_config(self, conn_mock, _):
+    def test_can_override_parameters_using_extras(self, conn_mock, _):
         response_type = ["test/test"]
         op = SageMakerRegisterModelVersionOperator(
             task_id="test",
             image_uri="257758044811.dkr.ecr.us-east-2.amazonaws.com/sagemaker-xgboost:1.2-1",
             model_url="s3://your-bucket-name/model.tar.gz",
             package_group_name="group-name",
-            config={"InferenceSpecification": {"SupportedResponseMIMETypes": response_type}},
+            extras={"InferenceSpecification": {"SupportedResponseMIMETypes": response_type}},
         )
 
         op.execute(None)
