@@ -354,6 +354,9 @@ sensors:
       - airflow.providers.amazon.aws.sensors.glue
       - airflow.providers.amazon.aws.sensors.glue_crawler
       - airflow.providers.amazon.aws.sensors.glue_catalog_partition
+  - integration-name: AWS Lambda
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.lambda_function
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.sensors.rds
