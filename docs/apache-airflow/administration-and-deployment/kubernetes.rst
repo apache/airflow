@@ -32,13 +32,13 @@ We maintain :doc:`official Helm chart <helm-chart:index>` for Airflow that helps
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
-The :doc:`Kubernetes Executor </core_concepts/executor/kubernetes>` allows you to run all the Airflow tasks on
+The :doc:`Kubernetes Executor </core-concepts/executor/kubernetes>` allows you to run all the Airflow tasks on
 Kubernetes as separate Pods.
 
 KubernetesPodOperator
 ^^^^^^^^^^^^^^^^^^^^^
 
-The :ref:`KubernetesPodOperator </howto/operator:kubernetespodoperator>` allows you to create
+The :ref:`KubernetesPodOperator <howto/operator:kubernetespodoperator>` allows you to create
 Pods on Kubernetes.
 
 Pod Mutation Hook

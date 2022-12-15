@@ -123,7 +123,7 @@ it is therefore important to make sure this setting is equal on all Airflow node
     default_timezone = utc
 
 .. note::
-    For more information on setting the configuration, see :doc:`howto/set-config`
+    For more information on setting the configuration, see :doc:`/howto/set-config`
 
 .. _timezone_aware_dags:
 
