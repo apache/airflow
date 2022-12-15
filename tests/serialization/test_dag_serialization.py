@@ -30,6 +30,7 @@ from glob import glob
 from pathlib import Path
 from unittest import mock
 
+import attr
 import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
@@ -42,6 +43,7 @@ from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, Operator
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
@@ -534,32 +536,47 @@ class TestStringifiedDAGs:
         serialized_task,
         task,
     ):
-        """Verify non-airflow operators are casted to BaseOperator."""
-        assert isinstance(serialized_task, SerializedBaseOperator)
+        """Verify non-Airflow operators are casted to BaseOperator or MappedOperator."""
         assert not isinstance(task, SerializedBaseOperator)
-        assert isinstance(task, BaseOperator)
+        assert isinstance(task, (BaseOperator, MappedOperator))
 
         # Every task should have a task_group property -- even if it's the DAG's root task group
         assert serialized_task.task_group
 
-        fields_to_check = task.get_serialized_fields() - {
-            # Checked separately
-            "_task_type",
-            "_operator_name",
-            "subdag",
-            # Type is excluded, so don't check it
-            "_log",
-            # List vs tuple. Check separately
-            "template_ext",
-            "template_fields",
-            # We store the string, real dag has the actual code
-            "on_failure_callback",
-            "on_success_callback",
-            "on_retry_callback",
-            # Checked separately
-            "resources",
-            "params",
-        }
+        if isinstance(task, BaseOperator):
+            assert isinstance(serialized_task, SerializedBaseOperator)
+            fields_to_check = task.get_serialized_fields() - {
+                # Checked separately
+                "_task_type",
+                "_operator_name",
+                "subdag",
+                # Type is excluded, so don't check it
+                "_log",
+                # List vs tuple. Check separately
+                "template_ext",
+                "template_fields",
+                # We store the string, real dag has the actual code
+                "on_failure_callback",
+                "on_success_callback",
+                "on_retry_callback",
+                # Checked separately
+                "resources",
+            }
+        else:  # Promised to be mapped by the assert above.
+            assert isinstance(serialized_task, MappedOperator)
+            fields_to_check = {f.name for f in attr.fields(MappedOperator)}
+            fields_to_check -= {
+                # Matching logic in BaseOperator.get_serialized_fields().
+                "dag",
+                "task_group",
+                # List vs tuple. Check separately.
+                "operator_extra_links",
+                "template_ext",
+                "template_fields",
+                # Checked separately.
+                "operator_class",
+                "partial_kwargs",
+            }
 
         assert serialized_task.task_type == task.task_type
 
@@ -580,8 +597,24 @@ class TestStringifiedDAGs:
             assert serialized_task.resources == task.resources
 
         # Ugly hack as some operators override params var in their init
-        if isinstance(task.params, ParamsDict):
+        if isinstance(task.params, ParamsDict) and isinstance(serialized_task.params, ParamsDict):
             assert serialized_task.params.dump() == task.params.dump()
+
+        if isinstance(task, MappedOperator):
+            # MappedOperator.operator_class holds a backup of the serialized
+            # data; checking its entirety basically duplicates this validation
+            # function, so we just do some satiny checks.
+            serialized_task.operator_class["_task_type"] == type(task).__name__
+            serialized_task.operator_class["_operator_name"] == task._operator_name
+
+            # Serialization cleans up default values in partial_kwargs, this
+            # adds them back to both sides.
+            default_partial_kwargs = (
+                BaseOperator.partial(task_id="_")._expand(EXPAND_INPUT_EMPTY, strict=False).partial_kwargs
+            )
+            serialized_partial_kwargs = {**default_partial_kwargs, **serialized_task.partial_kwargs}
+            original_partial_kwargs = {**default_partial_kwargs, **task.partial_kwargs}
+            assert serialized_partial_kwargs == original_partial_kwargs
 
         # Check that for Deserialized task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object

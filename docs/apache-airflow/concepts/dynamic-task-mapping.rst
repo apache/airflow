@@ -30,27 +30,10 @@ Simple mapping
 
 In its simplest form you can map over a list defined directly in your DAG file using the ``expand()`` function instead of calling your task directly.
 
-.. code-block:: python
+If you want to see a simple usage of Dynamic Task Mapping, you can look below:
 
-    from datetime import datetime
-
-    from airflow import DAG
-    from airflow.decorators import task
-
-
-    with DAG(dag_id="simple_mapping", start_date=datetime(2022, 3, 4)) as dag:
-
-        @task
-        def add_one(x: int):
-            return x + 1
-
-        @task
-        def sum_it(values):
-            total = sum(values)
-            print(f"Total was {total}")
-
-        added_values = add_one.expand(x=[1, 2, 3])
-        sum_it(added_values)
+.. exampleinclude:: /../../airflow/example_dags/example_dynamic_task_mapping.py
+    :language: python
 
 This will show ``Total was 9`` in the task logs when executed.
 
