@@ -67,9 +67,18 @@ tutorial.rst tutorial/index.rst
 tutorial_taskflow_api.rst tutorial/taskflow.rst
 
 ## Docs Structure Refactor
-listeners.rst administration-and-deployment/listeners.rst
-executor/kubernetes.rst core-concepts/executor/kubernetes.rst
+# indexes
+security/index.rst administration-and-deployment/security/index.rst
+security/secrets/index.rst administration-and-deployment/security/secrets/index.rst
+security/secrets/secrets-backend/index.rst administration-and-deployment/security/secrets/secrets-backend/index.rst
+logging-monitoring/index.rst administration-and-deployment/logging-monitoring/index.rst
+concepts/index.rst core-concepts/index.rst
+executor/index.rst core-concepts/executor/index.rst
 upgrading-from-1-10/index.rst howto/upgrading-from-1-10/index.rst
+
+listeners.rst administration-and-deployment/listeners.rst
+kubernetes.rst administration-and-deployment/kubernetes.rst
+executor/kubernetes.rst core-concepts/executor/kubernetes.rst
 plugins.rst authoring-and-scheduling/plugins.rst
 modules_management.rst administration-and-deployment/modules_management.rst
 dag-serialization.rst administration-and-deployment/dag-serialization.rst
@@ -102,6 +111,7 @@ concepts/variables.rst core-concepts/variables.rst
 concepts/overview.rst core-concepts/overview.rst
 concepts/connections.rst authoring-and-scheduling/connections.rst
 concepts/tasks.rst core-concepts/tasks.rst
+concepts/timetable.rst authoring-and-scheduling/timetable.rst
 concepts/operators.rst core-concepts/operators.rst
 concepts/xcoms.rst core-concepts/xcoms.rst
 concepts/scheduler.rst administration-and-deployment/scheduler.rst
