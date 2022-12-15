@@ -30,6 +30,7 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
+from airflow.utils.helpers import exactly_one
 from airflow.utils.log.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
@@ -268,7 +269,7 @@ class SlackHook(BaseHook):
             - `Slack API files.upload method <https://api.slack.com/methods/files.upload>`_
             - `File types <https://api.slack.com/types/file#file_types>`_
         """
-        if not ((not file) ^ (not content)):
+        if not exactly_one(file, content):
             raise ValueError("Either `file` or `content` must be provided, not both.")
         elif file:
             file = Path(file)

@@ -29,7 +29,15 @@ from sqlalchemy.orm.session import Session
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import task, task_group
-from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models import (
+    DAG,
+    DagBag,
+    DagModel,
+    DagRun,
+    TaskInstance,
+    TaskInstance as TI,
+    clear_task_instances,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
@@ -1285,6 +1293,39 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     ]
 
 
+def test_mapped_literal_faulty_state_in_db(dag_maker, session):
+    """
+    This test tries to recreate a faulty state in the database and checks if we can recover from it.
+    The state that happens is that there exists mapped task instances and the unmapped task instance.
+    So we have instances with map_index [-1, 0, 1]. The -1 task instances should be removed in this case.
+    """
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_1():
+            return [1, 2]
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1")
+    ti.run()
+    decision = dr.task_instance_scheduling_decisions()
+    assert len(decision.schedulable_tis) == 2
+
+    # We insert a faulty record
+    session.add(TaskInstance(dag.get_task("task_2"), dr.execution_date, dr.run_id))
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions()
+    assert len(decision.schedulable_tis) == 2
+
+
 def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_integrity(dag_maker, session):
     """
     Test that when there's no change to mapped task indexes at runtime, the dagrun.verify_integrity
@@ -2146,3 +2187,38 @@ def test_mapping_against_empty_list(dag_maker, session):
     assert tis["add_one__1"] == TaskInstanceState.SKIPPED
     assert tis["add_one__2"] == TaskInstanceState.SKIPPED
     assert dr.state == State.SUCCESS
+
+
+def test_mapped_task_depends_on_past(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task(depends_on_past=True)
+        def print_value(value):
+            print(value)
+
+        print_value.expand_kwargs([{"value": i} for i in range(2)])
+
+    dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+    dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+
+    # print_value in dr2 is not ready yet since the task depends on past.
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 0
+
+    # Run print_value in dr1.
+    decision = dr1.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    # Now print_value in dr2 can run
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    # Both runs are finished now.
+    decision = dr1.task_instance_scheduling_decisions(session=session)
+    assert len(decision.unfinished_tis) == 0
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.unfinished_tis) == 0

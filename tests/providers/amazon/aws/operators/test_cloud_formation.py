@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-from unittest.mock import MagicMock, patch
+from unittest import mock
+from unittest.mock import MagicMock
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.cloud_formation import (
@@ -28,12 +28,11 @@ from airflow.providers.amazon.aws.operators.cloud_formation import (
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
+DEFAULT_ARGS = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
 
-class TestCloudFormationCreateStackOperator(unittest.TestCase):
-    def setUp(self):
-        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-
+class TestCloudFormationCreateStackOperator:
+    def setup_method(self):
         # Mock out the cloudformation_client (moto fails with an exception).
         self.cloudformation_client_mock = MagicMock()
 
@@ -53,10 +52,10 @@ class TestCloudFormationCreateStackOperator(unittest.TestCase):
             task_id="test_task",
             stack_name=stack_name,
             cloudformation_parameters={"TimeoutInMinutes": timeout, "TemplateBody": template_body},
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", default_args=DEFAULT_ARGS),
         )
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             operator.execute(self.mock_context)
 
         self.cloudformation_client_mock.create_stack.assert_any_call(
@@ -64,10 +63,8 @@ class TestCloudFormationCreateStackOperator(unittest.TestCase):
         )
 
 
-class TestCloudFormationDeleteStackOperator(unittest.TestCase):
-    def setUp(self):
-        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-
+class TestCloudFormationDeleteStackOperator:
+    def setup_method(self):
         # Mock out the cloudformation_client (moto fails with an exception).
         self.cloudformation_client_mock = MagicMock()
 
@@ -84,10 +81,10 @@ class TestCloudFormationDeleteStackOperator(unittest.TestCase):
         operator = CloudFormationDeleteStackOperator(
             task_id="test_task",
             stack_name=stack_name,
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", default_args=DEFAULT_ARGS),
         )
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock):
             operator.execute(self.mock_context)
 
         self.cloudformation_client_mock.delete_stack.assert_any_call(StackName=stack_name)

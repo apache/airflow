@@ -905,6 +905,10 @@ ARG_OPTION = Arg(
     ("option",),
     help="The option name",
 )
+ARG_OPTIONAL_SECTION = Arg(
+    ("--section",),
+    help="The section name",
+)
 
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
@@ -1823,7 +1827,7 @@ CONFIG_COMMANDS = (
         name="list",
         help="List options for the configuration",
         func=lazy_load_command("airflow.cli.commands.config_command.show_config"),
-        args=(ARG_COLOR, ARG_VERBOSE),
+        args=(ARG_OPTIONAL_SECTION, ARG_COLOR, ARG_VERBOSE),
     ),
 )
 

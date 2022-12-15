@@ -19,7 +19,6 @@ from __future__ import annotations
 import unittest.mock
 
 import pytest
-from parameterized import parameterized
 from sqlalchemy.sql.functions import count
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -231,7 +230,8 @@ class TestGetUsers(TestUserEndpoint):
 
 
 class TestGetUsersPagination(TestUserEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_usernames",
         [
             ("/api/v1/users?limit=1", ["test"]),
             ("/api/v1/users?limit=2", ["test", "test_no_permissions"]),
@@ -270,7 +270,7 @@ class TestGetUsersPagination(TestUserEndpoint):
                 "/api/v1/users?limit=2&offset=2",
                 ["TEST_USER1", "TEST_USER2"],
             ),
-        ]
+        ],
     )
     def test_handle_limit_offset(self, url, expected_usernames):
         users = self._create_users(10)
