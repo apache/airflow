@@ -494,19 +494,29 @@ function groupTooltip(node, tis) {
   let minStart;
   let maxEnd;
 
-  getChildrenIds(node).forEach((child) => {
-    if (child in tis) {
-      const ti = tis[child];
-      if (!minStart || moment(ti.start_date).isBefore(minStart)) {
-        minStart = moment(ti.start_date);
+  if (node.isMapped) {
+    const firstChildId = node.children[0].id;
+    const mappedLength = tis[firstChildId].mapped_states.length;
+    [...Array(mappedLength).keys()].forEach((mapIndex) => {
+      const groupStates = getChildrenIds(node).map((child) => tis[child].mapped_states[mapIndex]);
+      const overallState = priority.find((state) => groupStates.includes(state)) || 'no_status';
+      if (numMap.has(overallState)) numMap.set(overallState, numMap.get(overallState) + 1);
+    });
+  } else {
+    getChildrenIds(node).forEach((child) => {
+      if (child in tis) {
+        const ti = tis[child];
+        if (!minStart || moment(ti.start_date).isBefore(minStart)) {
+          minStart = moment(ti.start_date);
+        }
+        if (!maxEnd || moment(ti.end_date).isAfter(maxEnd)) {
+          maxEnd = moment(ti.end_date);
+        }
+        const stateKey = ti.state == null ? 'no_status' : ti.state;
+        if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
       }
-      if (!maxEnd || moment(ti.end_date).isAfter(maxEnd)) {
-        maxEnd = moment(ti.end_date);
-      }
-      const stateKey = ti.state == null ? 'no_status' : ti.state;
-      if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
-    }
-  });
+    });
+  }
 
   const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second'));
   const tooltipText = node.tooltip ? `<p>${node.tooltip}</p>` : '';
