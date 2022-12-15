@@ -391,12 +391,16 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             }
 
         def get_mapped_group_summaries(dag_runs: Sequence[DagRun], children: list):
-            mapped_ti_query = session.query(
-                TaskInstance.task_id, TaskInstance.state, TaskInstance.run_id, TaskInstance.map_index
-            ).filter(
-                TaskInstance.dag_id == dag.dag_id,
-                TaskInstance.task_id.in_(child["id"] for child in children),
-                TaskInstance.run_id.in_(r.run_id for r in dag_runs),
+            mapped_ti_query = (
+                session.query(
+                    TaskInstance.task_id, TaskInstance.state, TaskInstance.run_id, TaskInstance.map_index
+                )
+                .filter(
+                    TaskInstance.dag_id == dag.dag_id,
+                    TaskInstance.task_id.in_(child["id"] for child in children),
+                    TaskInstance.run_id.in_(r.run_id for r in dag_runs),
+                )
+                .order_by(TaskInstance.task_id, TaskInstance.run_id)
             )
             # Group tis by run_id, and then map_index.
             mapped_tis: Mapping[str, Mapping[int, list[TaskInstance]]] = collections.defaultdict(
