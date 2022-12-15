@@ -96,16 +96,20 @@ const InstanceTooltip = ({
         {state || 'no status'}
       </Text>
       {(isGroup || isMapped) && summary}
-      <Text>
-        Started:
-        {' '}
-        <Time dateTime={startDate} />
-      </Text>
-      <Text>
-        Duration:
-        {' '}
-        {formatDuration(getDuration(startDate, endDate))}
-      </Text>
+      {startDate && (
+        <>
+          <Text>
+            Started:
+            {' '}
+            <Time dateTime={startDate} />
+          </Text>
+          <Text>
+            Duration:
+            {' '}
+            {formatDuration(getDuration(startDate, endDate))}
+          </Text>
+        </>
+      )}
       {note && (
         <Text>Contains a note</Text>
       )}
