@@ -24,11 +24,12 @@ import logging.config
 import os
 import sys
 import textwrap
+from unittest.mock import patch
 
 import pytest
 
 from airflow import settings
-from airflow.utils.log.secrets_masker import RedactedIO, SecretsMasker, should_hide_value_for_key
+from airflow.utils.log.secrets_masker import RedactedIO, SecretsMasker, mask_secret, should_hide_value_for_key
 from tests.test_utils.config import conf_vars
 
 settings.MASK_SECRETS_IN_LOGS = True
@@ -325,6 +326,13 @@ def lineno():
 
 
 class TestRedactedIO:
+    @pytest.fixture(scope="class", autouse=True)
+    def reset_secrets_masker(self):
+        self.secrets_masker = SecretsMasker()
+        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
+            mask_secret(p)
+            yield
+
     def test_redacts_from_print(self, capsys):
         # Without redacting, password is printed.
         print(p)
@@ -352,3 +360,35 @@ class TestRedactedIO:
         monkeypatch.setattr(sys, "stdin", io.StringIO("a\n"))
         with contextlib.redirect_stdout(RedactedIO()):
             assert input() == "a"
+
+
+class TestMaskSecretAdapter:
+    @pytest.fixture(scope="function", autouse=True)
+    def reset_secrets_masker_and_skip_escape(self):
+        self.secrets_masker = SecretsMasker()
+        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
+            with patch("airflow.utils.log.secrets_masker.re.escape", lambda x: x):
+                yield
+
+    def test_calling_mask_secret_adds_adaptations_for_returned_str(self):
+        with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.quote"}):
+            mask_secret("secret<>&", None)
+
+        assert self.secrets_masker.patterns == {"secret%3C%3E%26", "secret<>&"}
+
+    def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self):
+        with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.urlparse"}):
+            mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", "password")
+
+        assert self.secrets_masker.patterns == {
+            "https",
+            "airflow.apache.org",
+            "/docs/apache-airflow/stable",
+            "https://airflow.apache.org/docs/apache-airflow/stable",
+        }
+
+    def test_calling_mask_secret_not_set(self):
+        with conf_vars({("logging", "secret_mask_adapter"): None}):
+            mask_secret("a secret")
+
+        assert self.secrets_masker.patterns == {"a secret"}
