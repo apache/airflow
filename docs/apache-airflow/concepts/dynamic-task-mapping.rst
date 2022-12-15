@@ -314,24 +314,34 @@ Similar to a TaskFlow task, you can also call either ``expand`` or ``expand_kwar
 
 In the above example, task ``convert_to_yaml`` is expanded into two task instances at runtime. The first expanded would receive ``"data1.json"`` as input, and the second ``"data2.json"``.
 
-.. note:: Arguments passed to a mapped task group is a proxy, not real values
+Value references in a task group function
+-----------------------------------------
 
-    Different from task functions (``@task``), a task group function is evaluated eagerly, and only once when the DAG is parsed. This means that parameters passed into the function is only a placeholder, and not a real value. For example, this will *not* work:
+One important distinction between a task function (``@task``) and a task *group* function (``@task_group``) is, since a task group does not have an associated worker, code in a task group function cannot resolve arguments passed into it; the real value and is only resolved when the reference is passed into a task.
+
+For example, this code will *not* work:
 
     .. code-block:: python
 
+        @task
+        def my_task(value):
+            print(value)
+
+
         @task_group
         def my_group(value):
-            if not value:
+            if not value:  # DOES NOT work as you'd expect!
                 task_a = EmptyOperator(...)
             else:
                 task_a = PythonOperator(...)
-            task_a << PythonOperator(...)
+            task_a << my_task(value)
 
 
         my_group.expand(value=[0, 1, 2])
 
-    Use Airflow's DAG-building constructs, such as ``@task.branch``, to achieve the intended effect instead.
+When code in ``my_group`` is executed, ``value`` would still only be a reference, not the real value, so the ``if not value`` branch will not work as you likely want. However, if you pass that reference into a task, it will become resolved when the task is executed, and the three ``my_task`` instances will therefore receive 1, 2, and 3, respectively.
+
+It is, therefore, important to remember that, if you intend to perform any logic to a value passed into a task group function, you must always use a task to run the logic, such as  ``@task.branch`` (or ``BranchPythonOperator``) for conditions, and task mapping methods for loops.
 
 .. note:: Task-mapping in a mapped task group is not permitted
 
