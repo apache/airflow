@@ -234,7 +234,7 @@ class EmrHook(AwsBaseHook):
         return cancel_steps_id_name
 
     def send_cancel_steps(
-        self, emr_cluster_id: str, steps_to_add, valid_cancel_step_states, cancellation_option: str
+        self, emr_cluster_id: str, steps_to_add, valid_cancel_step_states, cancellation_option
     ):
         """
         Based on the list of steps already triggered on emr,

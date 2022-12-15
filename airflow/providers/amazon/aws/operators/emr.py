@@ -114,14 +114,17 @@ class EmrAddStepsOperator(BaseOperator):
         self.cancellation_option = cancellation_option
 
     def _validate_cancel_input_params(self, cancel_step_states, cancellation_option):
-        if not cancel_step_states or not cancellation_option:
-            return self.CANCEL_STEP_STATES, self.DEFAULT_CANCELLATION_OPTION
+        if not cancel_step_states:
+            cancel_step_states = self.CANCEL_STEP_STATES
+        if not cancellation_option:
+            cancellation_option = self.DEFAULT_CANCELLATION_OPTION
 
         if cancel_step_states and bool(
             [state for state in cancel_step_states if state not in self.CANCEL_STEP_STATES]
         ):
             raise AirflowException(
-                "Invalid input provided: `cancel_step_states` accepts PENDING and/or RUNNING states")
+                "Invalid input provided: `cancel_step_states` accepts PENDING and/or RUNNING states"
+            )
 
         if cancellation_option and cancellation_option not in self.CANCELLATION_OPTIONS:
             raise AirflowException(
@@ -145,7 +148,8 @@ class EmrAddStepsOperator(BaseOperator):
                 self.cancel_step_states, self.cancellation_option
             )
         else:
-            self.cancel_step_states, self.cancellation_option = None, None
+            self.cancel_step_states = []
+            self.cancellation_option = None
 
         if self.do_xcom_push:
             context["ti"].xcom_push(key="job_flow_id", value=job_flow_id)

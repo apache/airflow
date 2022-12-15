@@ -250,7 +250,6 @@ class TestEmrHook:
                     "Jar": f"test_{i}.jar",
                 },
             }
-
             for i in range(5)
         ]
 
@@ -262,7 +261,7 @@ class TestEmrHook:
     def test_steps_cancel_when_same_step_name_added(self):
         """
         - Adding a set of steps with unique step names
-        - Adding another step with unique step name -> send_cancel_steps doesnot execute
+        - Adding another step with unique step name -> send_cancel_steps does not execute
         - Adding another step with duplicate step name -> send_cancel_steps returns with an existing stepid
          and marks it for cancellation if its in valid cancel_step_states
         """
@@ -281,9 +280,8 @@ class TestEmrHook:
                     "Args": [f"test args {i}"],
                     "Jar": f"test_{i}.jar",
                 },
-                "Name": "test_name"
+                "Name": "test_name",
             }
-
             for i in range(5)
         ]
 
@@ -291,30 +289,31 @@ class TestEmrHook:
             {
                 "ActionOnFailure": "test_step",
                 "HadoopJarStep": {
-                    "Args": [f"test args "],
-                    "Jar": f"test_new.jar",
+                    "Args": ["test args "],
+                    "Jar": "test_new.jar",
                 },
-                "Name": "New Step"
+                "Name": "New Step",
             }
         ]
 
         add_steps = hook.add_job_flow_steps(job_flow_id, steps, False)
 
-        valid_state_steps = hook._get_list_of_steps_already_triggered(job_flow_id, ['RUNNING', 'PENDING'])
+        valid_state_steps = hook._get_list_of_steps_already_triggered(job_flow_id, ["RUNNING", "PENDING"])
         assert len(add_steps) == len(valid_state_steps)
-        assert sorted(add_steps) == sorted([id for name, id in valid_state_steps])
+        assert sorted(add_steps) == sorted(id for name, id in valid_state_steps)
 
         # New added step has a unique step name so no step is cancelled
-        steps_cancelled = hook.send_cancel_steps(job_flow_id, new_step, ['RUNNING', 'PENDING'],
-                                                 cancellation_option="SEND_INTERRUPT")
-        assert steps_cancelled == None
+        steps_cancelled = hook.send_cancel_steps(
+            job_flow_id, new_step, ["RUNNING", "PENDING"], cancellation_option="SEND_INTERRUPT"
+        )
+        assert steps_cancelled is None
 
         # Along with `steps`, `new_step` is added, if we add try adding `new_step` again,
         # previous step_id will be marked for cancel
         added_step = hook.add_job_flow_steps(job_flow_id, new_step)
 
         steps_to_be_cancelled = hook._cancel_list_of_steps_already_triggered(
-            new_step, job_flow_id, ['RUNNING', 'PENDING']
+            new_step, job_flow_id, ["RUNNING", "PENDING"]
         )
         steps_ids_to_be_cancelled = [step_id for step_name, step_id in steps_to_be_cancelled]
         assert sorted(steps_ids_to_be_cancelled) == sorted(added_step)

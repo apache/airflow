@@ -36,17 +36,18 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 ADD_STEPS_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "StepIds": ["s-2LH3R5GW3A53T"]}
 
 CANCEL_STEPS_SUCCESS_RETURN = {
-    'CancelStepsInfoList': [{'StepId': 's-3LH3R5GW3A53T', 'Status': 'SUBMITTED'}],
-    'ResponseMetadata':
-        {
-            'RequestId': '39e6c02a-6c39-42db-a5ae-ffbb6740b96c',
-            'HTTPStatusCode': 200,
-            'HTTPHeaders': {
-                'x-amzn-requestid': '39e6c02a-6c39-42db-a5ae-66666666666',
-                'content-type': 'application/x-amz-json-1.1', 'content-length': '75',
-                'date': 'Thu, 15 Dec 2022 18:29:15 GMT'
-            }, 'RetryAttempts': 0
-        }
+    "CancelStepsInfoList": [{"StepId": "s-3LH3R5GW3A53T", "Status": "SUBMITTED"}],
+    "ResponseMetadata": {
+        "RequestId": "39e6c02a-6c39-42db-a5ae-ffbb6740b96c",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+            "x-amzn-requestid": "39e6c02a-6c39-42db-a5ae-66666666666",
+            "content-type": "application/x-amz-json-1.1",
+            "content-length": "75",
+            "date": "Thu, 15 Dec 2022 18:29:15 GMT",
+        },
+        "RetryAttempts": 0,
+    },
 }
 
 TEMPLATE_SEARCHPATH = os.path.join(
@@ -235,18 +236,19 @@ class TestEmrAddStepsOperator:
     @pytest.mark.parametrize(
         ("cancel_existing_steps", "cancel_step_states", "cancellation_option"),
         [
-            pytest.param(True, ['RUNNING'], "SENDING_INTERRUPT", id="with-cancel-state-param"),
+            pytest.param(True, ["RUNNING"], "SENDING_INTERRUPT", id="with-cancel-state-param"),
             pytest.param(True, None, "SENDING_INTERRUPT", id="without-cancel-state-param"),
         ],
     )
-    def test_check_cancel_for_invalid_cancellation_option(self,
-                                                          cancel_existing_steps, cancel_step_states,
-                                                          cancellation_option):
-        error_message = "Invalid input provided: `cancellation_option` either of SEND_INTERRUPT, " \
-                        "TERMINATE_PROCESS "
+    def test_check_cancel_for_invalid_cancellation_option(
+        self, cancel_existing_steps, cancel_step_states, cancellation_option
+    ):
+        error_message = (
+            "Invalid input provided: `cancellation_option` either of SEND_INTERRUPT, TERMINATE_PROCESS"
+        )
         with pytest.raises(AirflowException, match=error_message):
             operator = EmrAddStepsOperator(
-                task_id="test_check_cancel_for_invalid_cancellation_option",
+                task_id="cancel_for_invalid_cancellation_option",
                 job_flow_id="j-8989898989",
                 steps=self._config,
                 cancel_existing_steps=cancel_existing_steps,
@@ -259,19 +261,19 @@ class TestEmrAddStepsOperator:
     @pytest.mark.parametrize(
         ("cancel_existing_steps", "cancel_step_states", "cancellation_option"),
         [
-            pytest.param(True, ['RUNNING', 'PENDING', 'WAITING'], None, id="invalid-state-multiple-extra"),
-            pytest.param(True, ['RUNNING', 'WAITING'], None, id="invalid-state-multiple"),
-            pytest.param(True, ['WAITING'], None, id="invalid-state-single"),
+            pytest.param(True, ["RUNNING", "PENDING", "WAITING"], None, id="invalid-state-multiple-extra"),
+            pytest.param(True, ["RUNNING", "WAITING"], None, id="invalid-state-multiple"),
+            pytest.param(True, ["WAITING"], None, id="invalid-state-single"),
         ],
     )
-    def test_check_cancel_for_invalid_step_states(self,
-                                                  cancel_existing_steps, cancel_step_states,
-                                                  cancellation_option):
+    def test_check_cancel_for_invalid_step_states(
+        self, cancel_existing_steps, cancel_step_states, cancellation_option
+    ):
         error_message = "Invalid input provided: `cancel_step_states` accepts PENDING and/or RUNNING states"
 
         with pytest.raises(AirflowException, match=error_message):
             operator = EmrAddStepsOperator(
-                task_id="test_check_cancel_for_invalid_cancellation_option",
+                task_id="cancel_for_invalid_step_states",
                 job_flow_id="j-8989898989",
                 steps=self._config,
                 aws_conn_id="aws_default",
