@@ -1109,6 +1109,9 @@ class TestKubernetesExecutor:
         assert ti0.state == State.SCHEDULED
         assert ti1.state == State.QUEUED
 
+    def test_is_picklable_default_value(self):
+        assert KubernetesExecutor.is_picklable
+
 
 class TestKubernetesJobWatcher:
     test_namespace = "airflow"

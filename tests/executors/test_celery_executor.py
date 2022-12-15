@@ -35,6 +35,7 @@ from parameterized import parameterized
 
 from airflow.configuration import conf
 from airflow.executors import celery_executor
+from airflow.executors.celery_executor import CeleryExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -327,6 +328,10 @@ class TestCeleryExecutor:
 
 def test_operation_timeout_config():
     assert celery_executor.OPERATION_TIMEOUT == 1
+
+
+def test_is_picklable_default_value():
+    assert CeleryExecutor.is_picklable
 
 
 class MockTask:
