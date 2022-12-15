@@ -27,7 +27,6 @@ from time import monotonic, sleep
 from unittest import mock
 
 import requests
-
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
 from docker_tests.docker_tests_utils import docker_image
