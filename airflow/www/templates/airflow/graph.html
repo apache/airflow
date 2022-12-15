@@ -136,6 +136,7 @@
     const tasks = {{ tasks|tojson }};
     let taskInstances = {{ task_instances|tojson }};
     const autoRefreshInterval = {{ auto_refresh_interval }};
+    const priority = {{ state_priority|tojson }};
   </script>
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>

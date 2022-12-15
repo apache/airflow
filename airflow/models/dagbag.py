@@ -54,6 +54,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     import pathlib
@@ -92,16 +93,26 @@ class DagBag(LoggingMixin):
     def __init__(
         self,
         dag_folder: str | pathlib.Path | None = None,
-        include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
-        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+        include_examples: bool | ArgNotSet = NOTSET,
+        safe_mode: bool | ArgNotSet = NOTSET,
         read_dags_from_db: bool = False,
         store_serialized_dags: bool | None = None,
         load_op_links: bool = True,
+        collect_dags: bool = True,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
 
         super().__init__()
+
+        include_examples = (
+            include_examples
+            if isinstance(include_examples, bool)
+            else conf.getboolean("core", "LOAD_EXAMPLES")
+        )
+        safe_mode = (
+            safe_mode if isinstance(safe_mode, bool) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
+        )
 
         if store_serialized_dags:
             warnings.warn(
@@ -125,13 +136,14 @@ class DagBag(LoggingMixin):
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: dict[str, str] = {}
 
-        self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
-        self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
-        self.collect_dags(
-            dag_folder=dag_folder,
-            include_examples=include_examples,
-            safe_mode=safe_mode,
-        )
+        self.dagbag_import_error_tracebacks = conf.getboolean("core", "dagbag_import_error_tracebacks")
+        self.dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
+        if collect_dags:
+            self.collect_dags(
+                dag_folder=dag_folder,
+                include_examples=include_examples,
+                safe_mode=safe_mode,
+            )
         # Should the extra operator link be loaded via plugins?
         # This flag is set to False in Scheduler so that Extra Operator links are not loaded
         self.load_op_links = load_op_links
@@ -153,8 +165,9 @@ class DagBag(LoggingMixin):
     @property
     def dag_ids(self) -> list[str]:
         """
+        Get DAG ids.
+
         :return: a list of DAG IDs in this bag
-        :rtype: List[unicode]
         """
         return list(self.dags.keys())
 
@@ -309,8 +322,8 @@ class DagBag(LoggingMixin):
 
         self.log.debug("Importing %s", filepath)
         org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
-        path_hash = hashlib.sha1(filepath.encode('utf-8')).hexdigest()
-        mod_name = f'unusual_prefix_{path_hash}_{org_mod_name}'
+        path_hash = hashlib.sha1(filepath.encode("utf-8")).hexdigest()
+        mod_name = f"unusual_prefix_{path_hash}_{org_mod_name}"
 
         if mod_name in sys.modules:
             del sys.modules[mod_name]
@@ -340,7 +353,7 @@ class DagBag(LoggingMixin):
 
         if not isinstance(dagbag_import_timeout, (int, float)):
             raise TypeError(
-                f'Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float'
+                f"Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float"
             )
 
         if dagbag_import_timeout <= 0:  # no parsing timeout
@@ -368,7 +381,7 @@ class DagBag(LoggingMixin):
                 if head:
                     continue
 
-                if mod_name == '__init__':
+                if mod_name == "__init__":
                     self.log.warning("Found __init__.%s at root of %s", ext, filepath)
 
                 self.log.debug("Reading %s from %s", zip_info.filename, filepath)
@@ -487,10 +500,10 @@ class DagBag(LoggingMixin):
                     existing=self.dags[dag.dag_id].fileloc,
                 )
             self.dags[dag.dag_id] = dag
-            self.log.debug('Loaded DAG %s', dag)
+            self.log.debug("Loaded DAG %s", dag)
         except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
             # There was an error in bagging the dag. Remove it from the list of dags
-            self.log.exception('Exception bagging dag: %s', dag.dag_id)
+            self.log.exception("Exception bagging dag: %s", dag.dag_id)
             # Only necessary at the root level since DAG.subdags automatically
             # performs DFS to search through all subdags
             if recursive:
@@ -503,8 +516,8 @@ class DagBag(LoggingMixin):
         self,
         dag_folder: str | pathlib.Path | None = None,
         only_if_updated: bool = True,
-        include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
-        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+        include_examples: bool = conf.getboolean("core", "LOAD_EXAMPLES"),
+        safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
     ):
         """
         Given a file path or a folder, this method looks for python modules,
@@ -541,7 +554,7 @@ class DagBag(LoggingMixin):
                 file_parse_end_dttm = timezone.utcnow()
                 stats.append(
                     FileLoadStat(
-                        file=filepath.replace(settings.DAGS_FOLDER, ''),
+                        file=filepath.replace(settings.DAGS_FOLDER, ""),
                         duration=file_parse_end_dttm - file_parse_start_dttm,
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
@@ -557,7 +570,7 @@ class DagBag(LoggingMixin):
         """Collects DAGs from database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        with Stats.timer('collect_db_dags'):
+        with Stats.timer("collect_db_dags"):
             self.log.info("Filling up the DagBag from database")
 
             # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted

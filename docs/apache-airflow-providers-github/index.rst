@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-github/2.0.0/tests/system/providers/github>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-github/|version|/tests/system/providers/github>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-github/>
     Installing from sources <installing-providers-from-sources>
 
@@ -71,7 +71,7 @@ Package apache-airflow-providers-github
 `GitHub <https://www.github.com/>`__
 
 
-Release: 2.1.0
+Release: 2.2.0
 
 Provider package
 ----------------
@@ -92,7 +92,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``pygithub``
 ==================  ==================
 

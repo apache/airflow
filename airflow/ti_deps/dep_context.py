@@ -32,9 +32,11 @@ if TYPE_CHECKING:
 @attr.define
 class DepContext:
     """
-    A base class for contexts that specifies which dependencies should be evaluated in
-    the context for a task instance to satisfy the requirements of the context. Also
-    stores state related to the context that can be used by dependency classes.
+    A base class for dependency contexts.
+
+    Specifies which dependencies should be evaluated in the context for a task
+    instance to satisfy the requirements of the context. Also stores state
+    related to the context that can be used by dependency classes.
 
     For example there could be a SomeRunContext that subclasses this class which has
     dependencies for:
@@ -84,7 +86,6 @@ class DepContext:
 
         :param dag_run: The DagRun for which to find finished tasks
         :return: A list of all the finished tasks of this DAG and execution_date
-        :rtype: list[airflow.models.TaskInstance]
         """
         if self.finished_tis is None:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)

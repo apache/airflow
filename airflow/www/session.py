@@ -26,9 +26,9 @@ class SesssionExemptMixin:
 
     def save_session(self, *args, **kwargs):
         """Prevent creating session from REST API and health requests."""
-        if request.blueprint == '/api/v1':
+        if request.blueprint == "/api/v1":
             return None
-        if request.path == '/health':
+        if request.path == "/health":
             return None
         return super().save_session(*args, **kwargs)
 

@@ -59,10 +59,10 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'src',
-        'dst',
-        'bucket',
-        'impersonation_chain',
+        "src",
+        "dst",
+        "bucket",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -71,8 +71,8 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         src,
         dst,
         bucket,
-        gcp_conn_id='google_cloud_default',
-        mime_type='application/octet-stream',
+        gcp_conn_id="google_cloud_default",
+        mime_type="application/octet-stream",
         delegate_to=None,
         gzip=False,
         impersonation_chain: str | Sequence[str] | None = None,

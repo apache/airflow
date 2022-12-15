@@ -99,6 +99,17 @@
       type: string
       example: ~
       default: "16"
+    - name: mp_start_method
+      description: |
+        The name of the method used in order to start Python processes via the multiprocessing module.
+        This corresponds directly with the options available in the Python docs:
+        https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_start_method.
+        Must be one of the values returned by:
+        https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods.
+      version_added: "2.0.0"
+      type: string
+      default: ~
+      example: "fork"
     - name: load_examples
       description: |
         Whether to load the DAG examples that ship with Airflow. It's good to
@@ -210,6 +221,15 @@
       example: ~
       default: "False"
       see_also: "https://docs.python.org/3/library/pickle.html#comparison-with-json"
+    - name: allowed_deserialization_classes
+      description: |
+        What classes can be imported during deserialization. This is a multi line value.
+        The individual items will be parsed as regexp. Python built-in classes (like dict)
+        are always allowed
+      version_added: 2.5.0
+      type: string
+      default: 'airflow\..*'
+      example: ~
     - name: killed_task_cleanup_time
       description: |
         When a task is killed forcefully, this is the amount of time in seconds that
@@ -257,6 +277,14 @@
       type: integer
       example: ~
       default: "300"
+    - name: max_task_retry_delay
+      description: |
+        The maximum delay (in seconds) each task is going to wait by default between retries.
+        This is a global setting and cannot be overridden at task or DAG level.
+      version_added: 2.6.0
+      type: integer
+      default: "86400"
+      example: ~
     - name: default_task_weight_rule
       description: |
         The weighting method used for the effective total priority weight of the task
@@ -398,7 +426,19 @@
       type: string
       default: ~
       example: '{"some_param": "some_value"}'
-
+    - name: database_access_isolation
+      description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: internal_api_url
+      description: |
+        (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
+      version_added: 2.6.0
+      type: string
+      default: ~
+      example: 'http://localhost:8080'
 - name: database
   description: ~
   options:
@@ -680,6 +720,17 @@
       type: string
       example: ~
       default: "airflow.utils.log.timezone_aware.TimezoneAware"
+    - name: secret_mask_adapter
+      description: |
+        An import path to a function to add adaptations of each secret added with
+        `airflow.utils.log.secrets_masker.mask_secret` to be masked in log messages. The given function
+        is expected to require a single parameter: the secret to be adapted. It may return a
+        single adaptation of the secret or an iterable of adaptations to each be masked as secrets.
+        The original secret will be masked as well as any adaptations returned.
+      version_added: 2.6.0
+      type: string
+      default: ""
+      example: "urllib.parse.quote"
     - name: task_log_prefix_template
       description: |
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
@@ -1212,7 +1263,9 @@
       default: ""
     - name: expose_config
       description: |
-        Expose the configuration file in the web server
+        Expose the configuration file in the web server. Set to "non-sensitive-only" to show all values
+        except those that have security implications. "True" shows all values. "False" hides the
+        configuration completely.
       version_added: ~
       type: string
       example: ~
@@ -1230,7 +1283,7 @@
       version_added: 1.10.8
       type: string
       example: ~
-      default: "True"
+      default: "False"
     - name: dag_default_view
       description: |
         Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
@@ -1460,6 +1513,13 @@
       type: string
       example: "dagrun_cleared,failed"
       default: ~
+    - name: run_internal_api
+      description: |
+        Boolean for running Internal API in the webserver.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
 
 - name: email
   description: |
@@ -1944,11 +2004,12 @@
       type: string
       example: ~
       default: "30"
-    - name: deactivate_stale_dags_interval
+    - name: parsing_cleanup_interval
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
-        the expected files) which should be deactivated.
-      version_added: 2.2.5
+        the expected files) which should be deactivated, as well as datasets that are no longer
+        referenced and should be marked as orphaned.
+      version_added: 2.5.0
       type: integer
       example: ~
       default: "60"
@@ -2294,6 +2355,13 @@
       type: string
       example: ~
       default: "offset"
+    - name: index_patterns
+      description: |
+        Comma separated list of index patterns to use when searching for logs (default: `_all`).
+      version_added: 2.6.0
+      type: string
+      example: something-*
+      default: "_all"
 - name: elasticsearch_configs
   description: ~
   options:
@@ -2309,8 +2377,11 @@
       type: string
       example: ~
       default: "True"
-- name: kubernetes
+- name: kubernetes_executor
   description: ~
+  renamed:
+    previous_name: kubernetes
+    version: 2.5.0
   options:
     - name: pod_template_file
       description: |
@@ -2372,11 +2443,21 @@
     - name: multi_namespace_mode
       description: |
         Allows users to launch pods in multiple namespaces.
-        Will require creating a cluster-role for the scheduler
+        Will require creating a cluster-role for the scheduler,
+        or use multi_namespace_mode_namespace_list configuration.
       version_added: 1.10.12
       type: boolean
       example: ~
       default: "False"
+    - name: multi_namespace_mode_namespace_list
+      description: |
+        If multi_namespace_mode is True while scheduler does not have a cluster-role,
+        give the list of namespaces where the scheduler will schedule jobs
+        Scheduler needs to have the necessary permissions in these namespaces.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
     - name: in_cluster
       description: |
         Use the service account kubernetes gives to pods to connect to kubernetes cluster.

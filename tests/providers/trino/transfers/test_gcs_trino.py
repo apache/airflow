@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.trino.transfers.gcs_to_trino import GCSToTrinoOperator
@@ -33,8 +32,8 @@ SCHEMA_FIELDS = ["colA", "colB", "colC"]
 SCHEMA_JSON = "path/to/file.json"
 
 
-class TestGCSToTrinoOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.trino.transfers.gcs_to_trino.TrinoHook')
+class TestGCSToTrinoOperator:
+    @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.TrinoHook")
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.GCSHook")
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.NamedTemporaryFile")
     def test_execute_without_schema(self, mock_tempfile, mock_gcs_hook, mock_trino_hook):
@@ -70,7 +69,7 @@ class TestGCSToTrinoOperator(unittest.TestCase):
 
         mock_insert.assert_called_once()
 
-    @mock.patch('airflow.providers.trino.transfers.gcs_to_trino.TrinoHook')
+    @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.TrinoHook")
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.GCSHook")
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.NamedTemporaryFile")
     def test_execute_schema_fields(self, mock_tempfile, mock_gcs_hook, mock_trino_hook):
@@ -107,8 +106,8 @@ class TestGCSToTrinoOperator(unittest.TestCase):
 
         mock_insert.assert_called_once()
 
-    @mock.patch('airflow.providers.trino.transfers.gcs_to_trino.json.loads')
-    @mock.patch('airflow.providers.trino.transfers.gcs_to_trino.TrinoHook')
+    @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.json.loads")
+    @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.TrinoHook")
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.GCSHook")
     @mock.patch("airflow.providers.trino.transfers.gcs_to_trino.NamedTemporaryFile")
     def test_execute_schema_json(self, mock_tempfile, mock_gcs_hook, mock_trino_hook, mock_json_loader):

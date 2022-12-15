@@ -17,16 +17,15 @@
 from __future__ import annotations
 
 import base64
-import unittest
 from subprocess import CalledProcessError
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class ElasticsearchSecretTest(unittest.TestCase):
+class TestElasticsearchSecret:
     def test_should_not_generate_a_document_if_elasticsearch_disabled(self):
 
         docs = render_chart(
@@ -37,7 +36,7 @@ class ElasticsearchSecretTest(unittest.TestCase):
         assert 0 == len(docs)
 
     def test_should_raise_error_when_connection_not_provided(self):
-        with self.assertRaises(CalledProcessError) as ex_ctx:
+        with pytest.raises(CalledProcessError) as ex_ctx:
             render_chart(
                 values={
                     "elasticsearch": {
@@ -48,11 +47,11 @@ class ElasticsearchSecretTest(unittest.TestCase):
             )
         assert (
             "You must set one of the values elasticsearch.secretName or elasticsearch.connection "
-            "when using a Elasticsearch" in ex_ctx.exception.stderr.decode()
+            "when using a Elasticsearch" in ex_ctx.value.stderr.decode()
         )
 
     def test_should_raise_error_when_conflicting_options(self):
-        with self.assertRaises(CalledProcessError) as ex_ctx:
+        with pytest.raises(CalledProcessError) as ex_ctx:
             render_chart(
                 values={
                     "elasticsearch": {
@@ -69,7 +68,7 @@ class ElasticsearchSecretTest(unittest.TestCase):
             )
         assert (
             "You must not set both values elasticsearch.secretName and elasticsearch.connection"
-            in ex_ctx.exception.stderr.decode()
+            in ex_ctx.value.stderr.decode()
         )
 
     def _get_connection(self, values: dict) -> str:
@@ -116,7 +115,7 @@ class ElasticsearchSecretTest(unittest.TestCase):
 
         assert "http://username:password@elastichostname:2222" == connection
 
-    @parameterized.expand(["http", "https"])
+    @pytest.mark.parametrize("scheme", ["http", "https"])
     def test_should_generate_secret_with_specified_schemes(self, scheme):
         connection = self._get_connection(
             {
@@ -134,7 +133,8 @@ class ElasticsearchSecretTest(unittest.TestCase):
 
         assert f"{scheme}://username:password@elastichostname:9200" == connection
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "extra_conn_kwargs, expected_user_info",
         [
             # When both user and password are empty.
             ({}, ""),

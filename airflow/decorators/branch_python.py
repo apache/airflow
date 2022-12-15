@@ -39,12 +39,12 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
         Defaults to False.
     """
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ("op_args", "op_kwargs")
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
     custom_operator_name: str = "@task.branch"
 
@@ -70,7 +70,8 @@ def branch_task(
     python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs
 ) -> TaskDecorator:
     """
-    Wraps a python function into a BranchPythonOperator
+    Wraps a python function into a BranchPythonOperator.
+
     For more information on how to use this operator, take a look at the guide:
     :ref:`howto/operator:BranchPythonOperator`
 

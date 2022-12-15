@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class WebserverPdbTest(unittest.TestCase):
+class TestWebserverPdb:
     def test_should_pass_validation_with_just_pdb_enabled_v1(self):
         render_chart(
             values={"webserver": {"podDisruptionBudget": {"enabled": True}}},
@@ -34,7 +32,7 @@ class WebserverPdbTest(unittest.TestCase):
         render_chart(
             values={"webserver": {"podDisruptionBudget": {"enabled": True}}},
             show_only=["templates/webserver/webserver-poddisruptionbudget.yaml"],
-            kubernetes_version='1.16.0',
+            kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_add_component_specific_labels(self):

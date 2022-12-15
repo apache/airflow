@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 from copy import copy
+from decimal import Decimal
 from os.path import getsize
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
@@ -36,12 +37,22 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+class JSONEncoder(json.JSONEncoder):
+    """Custom json encoder implementation"""
+
+    def default(self, obj):
+        """Convert decimal objects in a json serializable format."""
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
+
 def _convert_item_to_json_bytes(item: dict[str, Any]) -> bytes:
-    return (json.dumps(item) + '\n').encode('utf-8')
+    return (json.dumps(item, cls=JSONEncoder) + "\n").encode("utf-8")
 
 
 def _upload_file_to_s3(
-    file_obj: IO, bucket_name: str, s3_key_prefix: str, aws_conn_id: str = 'aws_default'
+    file_obj: IO, bucket_name: str, s3_key_prefix: str, aws_conn_id: str = "aws_default"
 ) -> None:
     s3_client = S3Hook(aws_conn_id=aws_conn_id).get_conn()
     file_obj.seek(0)
@@ -80,8 +91,9 @@ class DynamoDBToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        's3_bucket_name',
-        'dynamodb_table_name',
+        "s3_bucket_name",
+        "s3_key_prefix",
+        "dynamodb_table_name",
     )
     template_fields_renderers = {
         "dynamodb_scan_kwargs": "json",
@@ -94,9 +106,9 @@ class DynamoDBToS3Operator(BaseOperator):
         s3_bucket_name: str,
         file_size: int,
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
-        s3_key_prefix: str = '',
+        s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -128,16 +140,16 @@ class DynamoDBToS3Operator(BaseOperator):
     def _scan_dynamodb_and_upload_to_s3(self, temp_file: IO, scan_kwargs: dict, table: Any) -> IO:
         while True:
             response = table.scan(**scan_kwargs)
-            items = response['Items']
+            items = response["Items"]
             for item in items:
                 temp_file.write(self.process_func(item))
 
-            if 'LastEvaluatedKey' not in response:
+            if "LastEvaluatedKey" not in response:
                 # no more items to scan
                 break
 
-            last_evaluated_key = response['LastEvaluatedKey']
-            scan_kwargs['ExclusiveStartKey'] = last_evaluated_key
+            last_evaluated_key = response["LastEvaluatedKey"]
+            scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
 
             # Upload the file to S3 if reach file size limit
             if getsize(temp_file.name) >= self.file_size:

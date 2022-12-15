@@ -17,16 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+import re
+import warnings
+from typing import TYPE_CHECKING, Sequence
+
+import oracledb
 
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class OracleOperator(BaseOperator):
+class OracleOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Oracle database.
 
@@ -42,33 +47,21 @@ class OracleOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'parameters',
-        'sql',
+        "parameters",
+        "sql",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#ededed'
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#ededed"
 
-    def __init__(
-        self,
-        *,
-        sql: str | Iterable[str],
-        oracle_conn_id: str = 'oracle_default',
-        parameters: Iterable | Mapping | None = None,
-        autocommit: bool = False,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.oracle_conn_id = oracle_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.parameters = parameters
-
-    def execute(self, context: Context) -> None:
-        self.log.info('Executing: %s', self.sql)
-        hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        if self.sql:
-            hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+    def __init__(self, *, oracle_conn_id: str = "oracle_default", **kwargs) -> None:
+        super().__init__(conn_id=oracle_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
 
 class OracleStoredProcedureOperator(BaseOperator):
@@ -79,19 +72,22 @@ class OracleStoredProcedureOperator(BaseOperator):
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         reference to a specific Oracle database.
     :param parameters: (optional, templated) the parameters provided in the call
+
+    If *do_xcom_push* is *True*, the numeric exit code emitted by
+    the database is pushed to XCom under key ``ORA`` in case of failure.
     """
 
     template_fields: Sequence[str] = (
-        'parameters',
-        'procedure',
+        "parameters",
+        "procedure",
     )
-    ui_color = '#ededed'
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
         procedure: str,
-        oracle_conn_id: str = 'oracle_default',
+        oracle_conn_id: str = "oracle_default",
         parameters: dict | list | None = None,
         **kwargs,
     ) -> None:
@@ -101,6 +97,15 @@ class OracleStoredProcedureOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context: Context):
-        self.log.info('Executing: %s', self.procedure)
+        self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
+        try:
+            return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
+        except oracledb.DatabaseError as e:
+            if not self.do_xcom_push or not context:
+                raise
+            ti = context["ti"]
+            code_match = re.search("^ORA-(\\d+):.+", str(e))
+            if code_match:
+                ti.xcom_push(key="ORA", value=code_match.group(1))
+            raise

@@ -25,10 +25,11 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
 
 .. toctree::
     :maxdepth: 2
-    
+
     plugins
     deferring
     dagfile-processing
+    serializers
     connections
     dynamic-task-mapping
 
@@ -37,7 +38,7 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
 
 .. toctree::
     :maxdepth: 2
-    
+
     timezone
     datasets
     timetable

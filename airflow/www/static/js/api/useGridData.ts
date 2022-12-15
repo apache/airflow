@@ -42,7 +42,7 @@ export interface GridData {
   ordering: RunOrdering;
 }
 
-const emptyGridData: GridData = {
+export const emptyGridData: GridData = {
   dagRuns: [],
   groups: {
     id: null,
@@ -57,7 +57,7 @@ const formatOrdering = (data: GridData) => ({
   ordering: data.ordering.map((o: string) => camelCase(o)) as RunOrdering,
 });
 
-export const areActiveRuns = (runs: DagRun[] = []) => runs.filter((run) => ['manual', 'scheduled', 'dataset_triggered'].includes(run.runType)).filter((run) => ['queued', 'running'].includes(run.state)).length > 0;
+export const areActiveRuns = (runs: DagRun[] = []) => runs.filter((run) => ['queued', 'running'].includes(run.state)).length > 0;
 
 const useGridData = () => {
   const { isRefreshOn, stopRefresh } = useAutoRefresh();

@@ -22,29 +22,29 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.plexus.operators.job import PlexusJobOperator
 
-HOME = '/home/acc'
-T3_PRERUN_SCRIPT = 'cp {home}/imdb/run_scripts/mlflow.sh {home}/ && chmod +x mlflow.sh'.format(home=HOME)
+HOME = "/home/acc"
+T3_PRERUN_SCRIPT = "cp {home}/imdb/run_scripts/mlflow.sh {home}/ && chmod +x mlflow.sh".format(home=HOME)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "test"
 
 with DAG(
     DAG_ID,
-    default_args={'owner': 'core scientific', 'retries': 1},
-    description='testing plexus operator',
+    default_args={"owner": "core scientific", "retries": 1},
+    description="testing plexus operator",
     start_date=datetime(2021, 1, 1),
-    schedule='@once',
+    schedule="@once",
     catchup=False,
 ) as dag:
     # [START plexus_job_op]
     t1 = PlexusJobOperator(
-        task_id='test',
+        task_id="test",
         job_params={
-            'name': 'test',
-            'app': 'MLFlow Pipeline 01',
-            'queue': 'DGX-2 (gpu:Tesla V100-SXM3-32GB)',
-            'num_nodes': 1,
-            'num_cores': 1,
-            'prerun_script': T3_PRERUN_SCRIPT,
+            "name": "test",
+            "app": "MLFlow Pipeline 01",
+            "queue": "DGX-2 (gpu:Tesla V100-SXM3-32GB)",
+            "num_nodes": 1,
+            "num_cores": 1,
+            "prerun_script": T3_PRERUN_SCRIPT,
         },
     )
     # [END plexus_job_op]

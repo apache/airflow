@@ -59,16 +59,16 @@ class MongoToS3Operator(BaseOperator):
     :param compression: type of compression to use for output file in S3. Currently only gzip is supported.
     """
 
-    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
-    ui_color = '#589636'
+    template_fields: Sequence[str] = ("s3_bucket", "s3_key", "mongo_query", "mongo_collection")
+    ui_color = "#589636"
     template_fields_renderers = {"mongo_query": "json"}
 
     def __init__(
         self,
         *,
         s3_conn_id: str | None = None,
-        mongo_conn_id: str = 'mongo_default',
-        aws_conn_id: str = 'aws_default',
+        mongo_conn_id: str = "mongo_default",
+        aws_conn_id: str = "aws_default",
         mongo_collection: str,
         mongo_query: list | dict,
         s3_bucket: str,
@@ -134,7 +134,7 @@ class MongoToS3Operator(BaseOperator):
         )
 
     @staticmethod
-    def _stringify(iterable: Iterable, joinable: str = '\n') -> str:
+    def _stringify(iterable: Iterable, joinable: str = "\n") -> str:
         """
         Takes an iterable (pymongo Cursor or Array) containing dictionaries and
         returns a stringified version using python join

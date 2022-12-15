@@ -62,7 +62,7 @@ with DAG(
         # You can then use it to access things or to get the job number
         # This url looks like : http://jenkins_url/job/job_name/job_number/
         url += "artifact/myartifact.xml"  # Or any other artifact name
-        request = Request(method='GET', url=url)
+        request = Request(method="GET", url=url)
         response = jenkins_server.jenkins_open(request)
         return response  # We store the artifact content in a xcom variable for later use
 

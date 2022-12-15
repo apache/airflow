@@ -46,7 +46,6 @@ class SqsHook(AwsBaseHook):
 
         :return: dict with the information about the queue
             For details of the returned value see :py:meth:`SQS.create_queue`
-        :rtype: dict
         """
         return self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})
 
@@ -71,15 +70,14 @@ class SqsHook(AwsBaseHook):
 
         :return: dict with the information about the message sent
             For details of the returned value see :py:meth:`botocore.client.SQS.send_message`
-        :rtype: dict
         """
         params = {
-            'QueueUrl': queue_url,
-            'MessageBody': message_body,
-            'DelaySeconds': delay_seconds,
-            'MessageAttributes': message_attributes or {},
+            "QueueUrl": queue_url,
+            "MessageBody": message_body,
+            "DelaySeconds": delay_seconds,
+            "MessageAttributes": message_attributes or {},
         }
         if message_group_id:
-            params['MessageGroupId'] = message_group_id
+            params["MessageGroupId"] = message_group_id
 
         return self.get_conn().send_message(**params)

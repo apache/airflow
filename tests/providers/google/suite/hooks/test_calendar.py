@@ -21,35 +21,34 @@ from __future__ import annotations
 Unit Tests for the Google Calendar Hook
 """
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.suite.hooks.calendar import GoogleCalendarHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-API_VERSION = 'api_version'
-GCP_CONN_ID = 'test'
-CALENDAR_ID = 'test12345'
+API_VERSION = "api_version"
+GCP_CONN_ID = "test"
+CALENDAR_ID = "test12345"
 EVENT = {
-    'summary': 'Calendar Test Event',
-    'description': 'A chance to test creating an event from airflow.',
-    'start': {
-        'dateTime': '2021-12-28T09:00:00-07:00',
-        'timeZone': 'America/Los_Angeles',
+    "summary": "Calendar Test Event",
+    "description": "A chance to test creating an event from airflow.",
+    "start": {
+        "dateTime": "2021-12-28T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles",
     },
-    'end': {
-        'dateTime': '2021-12-28T17:00:00-07:00',
-        'timeZone': 'America/Los_Angeles',
+    "end": {
+        "dateTime": "2021-12-28T17:00:00-07:00",
+        "timeZone": "America/Los_Angeles",
     },
 }
 NUM_RETRIES = 5
-API_RESPONSE = {'test': 'response'}
+API_RESPONSE = {"test": "response"}
 
 
-class TestGoogleCalendarHook(unittest.TestCase):
-    def setUp(self):
+class TestGoogleCalendarHook:
+    def setup_method(self):
         with mock.patch(
-            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GoogleCalendarHook(api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID)
@@ -60,7 +59,7 @@ class TestGoogleCalendarHook(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"kind": "calendar#events", "nextPageToken": None, "items": [EVENT]}
         result = self.hook.get_events(calendar_id=CALENDAR_ID)
-        self.assertEqual(result, [EVENT])
+        assert result == [EVENT]
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         get_method.assert_called_once_with(
             calendarId=CALENDAR_ID,
@@ -95,7 +94,7 @@ class TestGoogleCalendarHook(unittest.TestCase):
             conferenceDataVersion=0,
             maxAttendees=None,
             sendNotifications=False,
-            sendUpdates='false',
+            sendUpdates="false",
             supportsAttachments=False,
         )
         assert result == API_RESPONSE

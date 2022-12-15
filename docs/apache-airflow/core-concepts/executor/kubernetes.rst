@@ -59,7 +59,7 @@ pod_template_file
 ~~~~~~~~~~~~~~~~~
 
 To customize the pod used for k8s executor worker processes, you may create a pod template file. You must provide
-the path to the template file in the ``pod_template_file`` option in the ``kubernetes`` section of ``airflow.cfg``.
+the path to the template file in the ``pod_template_file`` option in the ``kubernetes_executor`` section of ``airflow.cfg``.
 
 Airflow has two strict requirements for pod template files: base image and pod name.
 
@@ -126,7 +126,7 @@ pod_override
 
 When using the KubernetesExecutor, Airflow offers the ability to override system defaults on a per-task basis.
 To utilize this functionality, create a Kubernetes V1pod object and fill in your desired overrides.
-Please note that the scheduler will override the ``metadata.name`` of the V1pod before launching it.
+Please note that the scheduler will override the ``metadata.name`` and ``containers[0].args`` of the V1pod before launching it.
 
 To overwrite the base container of the pod launched by the KubernetesExecutor,
 create a V1pod with a single container, and overwrite the fields as follows:

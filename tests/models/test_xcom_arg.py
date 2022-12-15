@@ -211,14 +211,14 @@ def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
 
     # Run "push_letters" and "push_numbers".
     decision = dr.task_instance_scheduling_decisions(session=session)
-    assert decision.schedulable_tis and all(ti.task_id.startswith("push_") for ti in decision.schedulable_tis)
+    assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["push_letters", "push_numbers"]
     for ti in decision.schedulable_tis:
         ti.run(session=session)
     session.commit()
 
     # Run "pull".
     decision = dr.task_instance_scheduling_decisions(session=session)
-    assert decision.schedulable_tis and all(ti.task_id == "pull" for ti in decision.schedulable_tis)
+    assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["pull"] * len(expected_results)
     for ti in decision.schedulable_tis:
         ti.run(session=session)
 

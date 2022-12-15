@@ -29,5 +29,6 @@ function handleCheck() {
   }
 }
 $(document).on('chartload', handleCheck);
+$(document).ready(handleCheck);
 
 $('#isCumulative').on('click', handleCheck);

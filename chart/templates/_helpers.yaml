@@ -443,6 +443,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{ (printf "%s/webserver_config.py" .Values.airflowHome) | quote }}
 {{- end }}
 
+{{ define "airflow_webserver_config_configmap_name" -}}
+{{ default (printf "%s-webserver-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+{{- end }}
+
+{{ define "airflow_webserver_config_mount" -}}
+- name: webserver-config
+  mountPath: {{ template "airflow_webserver_config_path" . }}
+  subPath: webserver_config.py
+  readOnly: True
+{{- end -}}
+
 {{ define "airflow_local_setting_path" -}}
 {{ (printf "%s/config/airflow_local_settings.py" .Values.airflowHome) | quote }}
 {{- end }}
@@ -450,6 +461,19 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{ define "airflow_config" -}}
 {{ (printf "%s-airflow-config" .Release.Name) }}
 {{- end }}
+
+{{ define "airflow_config_mount" -}}
+- name: config
+  mountPath: {{ template "airflow_config_path" . }}
+  subPath: airflow.cfg
+  readOnly: true
+  {{- if .Values.airflowLocalSettings }}
+- name: config
+  mountPath: {{ template "airflow_local_setting_path" . }}
+  subPath: airflow_local_settings.py
+  readOnly: true
+  {{- end }}
+{{- end -}}
 
 {{/*
 Create the name of the webserver service account to use
@@ -633,7 +657,13 @@ Create the name of the cleanup service account to use
 
 {{define "scheduler_liveness_check_command"}}
 
-  {{- if semverCompare ">=2.1.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --local
+  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
@@ -659,11 +689,19 @@ Create the name of the cleanup service account to use
 {{- end }}
 
 {{define "triggerer_liveness_check_command"}}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob --hostname $(hostname)
+    {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+    - sh
+    - -c
+    - |
+      CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+      airflow jobs check --job-type TriggererJob --local
+    {{- else }}
+    - sh
+    - -c
+    - |
+      CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+      airflow jobs check --job-type TriggererJob  --hostname $(hostname)
+    {{- end }}
 {{- end }}
 
 {{define "dag_processor_liveness_check_command"}}

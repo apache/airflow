@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
+
+import pytest
 
 from airflow.providers.trino.operators.trino import TrinoOperator
 
@@ -26,19 +27,25 @@ TRINO_CONN_ID = "test_trino"
 TASK_ID = "test_trino_task"
 
 
-class TestTrinoOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.trino.operators.trino.TrinoHook')
-    def test_execute(self, mock_trino_hook):
+class TestTrinoOperator:
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    def test_execute(self, mock_get_db_hook):
         """Asserts that the run method is called when a TrinoOperator task is executed"""
 
-        op = TrinoOperator(
-            task_id=TASK_ID,
-            sql="SELECT 1;",
-            trino_conn_id=TRINO_CONN_ID,
-            handler=list,
-        )
+        with pytest.warns(DeprecationWarning, match="This class is deprecated.*"):
+            op = TrinoOperator(
+                task_id=TASK_ID,
+                sql="SELECT 1;",
+                trino_conn_id=TRINO_CONN_ID,
+                handler=list,
+            )
         op.execute(None)
 
-        mock_trino_hook.assert_called_once_with(trino_conn_id=TRINO_CONN_ID)
-        mock_run = mock_trino_hook.return_value.run
-        mock_run.assert_called_once()
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=list,
+            parameters=None,
+            return_last=True,
+            split_statements=False,
+        )

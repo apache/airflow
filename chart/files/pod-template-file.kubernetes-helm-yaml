@@ -60,23 +60,14 @@ spec:
 {{- include "custom_airflow_environment" . | indent 6 }}
 {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
       image: {{ template "pod_template_image" . }}
-      imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+      imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
       name: base
       resources:
 {{ toYaml .Values.workers.resources | indent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
-        - name: config
-          mountPath: {{ template "airflow_config_path" . }}
-          subPath: airflow.cfg
-          readOnly: true
-{{- if .Values.airflowLocalSettings }}
-        - name: config
-          mountPath: {{ template "airflow_local_setting_path" . }}
-          subPath: airflow_local_settings.py
-          readOnly: true
-{{- end }}
+{{- include "airflow_config_mount" . | nindent 8 }}
 {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
         {{- include "airflow_dags_mount" . | nindent 8 }}
 {{- end }}
@@ -90,6 +81,10 @@ spec:
   imagePullSecrets:
     - name: {{ template "registry_secret" . }}
   {{- end }}
+{{- if .Values.workers.hostAliases }}
+  hostAliases:
+{{ toYaml .Values.workers.hostAliases | indent 4 }}
+{{- end }}
   restartPolicy: Never
   securityContext: {{ $securityContext | nindent 4 }}
   nodeSelector: {{ toYaml $nodeSelector | nindent 4 }}

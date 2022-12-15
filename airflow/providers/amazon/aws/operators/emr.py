@@ -26,6 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
+from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -50,13 +52,14 @@ class EmrAddStepsOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
+    :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     """
 
-    template_fields: Sequence[str] = ('job_flow_id', 'job_flow_name', 'cluster_states', 'steps')
-    template_ext: Sequence[str] = ('.json',)
+    template_fields: Sequence[str] = ("job_flow_id", "job_flow_name", "cluster_states", "steps")
+    template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"steps": "json"}
-    ui_color = '#f9c915'
+    ui_color = "#f9c915"
     operator_extra_links = (EmrClusterLink(),)
 
     def __init__(
@@ -65,12 +68,13 @@ class EmrAddStepsOperator(BaseOperator):
         job_flow_id: str | None = None,
         job_flow_name: str | None = None,
         cluster_states: list[str] | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
+        wait_for_completion: bool = False,
         **kwargs,
     ):
-        if not (job_flow_id is None) ^ (job_flow_name is None):
-            raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
+        if not exactly_one(job_flow_id is None, job_flow_name is None):
+            raise AirflowException("Exactly one of job_flow_id or job_flow_name must be specified.")
         super().__init__(**kwargs)
         cluster_states = cluster_states or []
         steps = steps or []
@@ -79,21 +83,20 @@ class EmrAddStepsOperator(BaseOperator):
         self.job_flow_name = job_flow_name
         self.cluster_states = cluster_states
         self.steps = steps
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-
-        emr = emr_hook.get_conn()
 
         job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
             str(self.job_flow_name), self.cluster_states
         )
 
         if not job_flow_id:
-            raise AirflowException(f'No cluster found for name: {self.job_flow_name}')
+            raise AirflowException(f"No cluster found for name: {self.job_flow_name}")
 
         if self.do_xcom_push:
-            context['ti'].xcom_push(key='job_flow_id', value=job_flow_id)
+            context["ti"].xcom_push(key="job_flow_id", value=job_flow_id)
 
         EmrClusterLink.persist(
             context=context,
@@ -103,7 +106,7 @@ class EmrAddStepsOperator(BaseOperator):
             job_flow_id=job_flow_id,
         )
 
-        self.log.info('Adding steps to %s', job_flow_id)
+        self.log.info("Adding steps to %s", job_flow_id)
 
         # steps may arrive as a string representing a list
         # e.g. if we used XCom or a file then: steps="[{ step1 }, { step2 }]"
@@ -111,13 +114,7 @@ class EmrAddStepsOperator(BaseOperator):
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
 
-        response = emr.add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
-
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException(f'Adding steps failed: {response}')
-        else:
-            self.log.info('Steps %s added to JobFlow', response['StepIds'])
-            return response['StepIds']
+        return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=True)
 
 
 class EmrEksCreateClusterOperator(BaseOperator):
@@ -150,7 +147,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         virtual_cluster_name: str,
         eks_cluster_name: str,
         eks_namespace: str,
-        virtual_cluster_id: str = '',
+        virtual_cluster_id: str = "",
         aws_conn_id: str = "aws_default",
         tags: dict | None = None,
         **kwargs: Any,
@@ -279,7 +276,9 @@ class EmrContainerOperator(BaseOperator):
         )
         if self.wait_for_completion:
             query_status = self.hook.poll_query_status(
-                self.job_id, self.max_polling_attempts, self.poll_interval
+                self.job_id,
+                max_polling_attempts=self.max_polling_attempts,
+                poll_interval=self.poll_interval,
             )
 
             if query_status in EmrContainerHook.FAILURE_STATES:
@@ -332,24 +331,27 @@ class EmrCreateJobFlowOperator(BaseOperator):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node)
-    :param emr_conn_id: emr connection to use for run_job_flow request body.
-        This will be overridden by the job_flow_overrides param
+    :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
+        Use to receive an initial Amazon EMR cluster configuration:
+        ``boto3.client('emr').run_job_flow`` request body.
+        If this is None or empty or the connection does not exist,
+        then an empty initial configuration is used.
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
-        (must be '.json') to override emr_connection extra. (templated)
+        (must be '.json') to override specific ``emr_conn_id`` extra parameters. (templated)
     :param region_name: Region named passed to EmrHook
     """
 
-    template_fields: Sequence[str] = ('job_flow_overrides',)
-    template_ext: Sequence[str] = ('.json',)
+    template_fields: Sequence[str] = ("job_flow_overrides",)
+    template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"job_flow_overrides": "json"}
-    ui_color = '#f9c915'
+    ui_color = "#f9c915"
     operator_extra_links = (EmrClusterLink(),)
 
     def __init__(
         self,
         *,
-        aws_conn_id: str = 'aws_default',
-        emr_conn_id: str = 'emr_default',
+        aws_conn_id: str = "aws_default",
+        emr_conn_id: str | None = "emr_default",
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
         **kwargs,
@@ -357,9 +359,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
-        if job_flow_overrides is None:
-            job_flow_overrides = {}
-        self.job_flow_overrides = job_flow_overrides
+        self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
 
     def execute(self, context: Context) -> str:
@@ -368,7 +368,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         )
 
         self.log.info(
-            'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s', self.aws_conn_id, self.emr_conn_id
+            "Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s", self.aws_conn_id, self.emr_conn_id
         )
         if isinstance(self.job_flow_overrides, str):
             job_flow_overrides: dict[str, Any] = ast.literal_eval(self.job_flow_overrides)
@@ -377,11 +377,11 @@ class EmrCreateJobFlowOperator(BaseOperator):
             job_flow_overrides = self.job_flow_overrides
         response = emr.create_job_flow(job_flow_overrides)
 
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException(f'JobFlow creation failed: {response}')
+        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+            raise AirflowException(f"JobFlow creation failed: {response}")
         else:
-            job_flow_id = response['JobFlowId']
-            self.log.info('JobFlow with id %s created', job_flow_id)
+            job_flow_id = response["JobFlowId"]
+            self.log.info("JobFlow with id %s created", job_flow_id)
             EmrClusterLink.persist(
                 context=context,
                 operator=self,
@@ -406,13 +406,13 @@ class EmrModifyClusterOperator(BaseOperator):
     :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
     """
 
-    template_fields: Sequence[str] = ('cluster_id', 'step_concurrency_level')
+    template_fields: Sequence[str] = ("cluster_id", "step_concurrency_level")
     template_ext: Sequence[str] = ()
-    ui_color = '#f9c915'
+    ui_color = "#f9c915"
     operator_extra_links = (EmrClusterLink(),)
 
     def __init__(
-        self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = 'aws_default', **kwargs
+        self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = "aws_default", **kwargs
     ):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
@@ -424,7 +424,7 @@ class EmrModifyClusterOperator(BaseOperator):
         emr = emr_hook.get_conn()
 
         if self.do_xcom_push:
-            context['ti'].xcom_push(key='cluster_id', value=self.cluster_id)
+            context["ti"].xcom_push(key="cluster_id", value=self.cluster_id)
 
         EmrClusterLink.persist(
             context=context,
@@ -434,16 +434,16 @@ class EmrModifyClusterOperator(BaseOperator):
             job_flow_id=self.cluster_id,
         )
 
-        self.log.info('Modifying cluster %s', self.cluster_id)
+        self.log.info("Modifying cluster %s", self.cluster_id)
         response = emr.modify_cluster(
             ClusterId=self.cluster_id, StepConcurrencyLevel=self.step_concurrency_level
         )
 
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'Modify cluster failed: {response}')
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Modify cluster failed: {response}")
         else:
-            self.log.info('Steps concurrency level %d', response['StepConcurrencyLevel'])
-            return response['StepConcurrencyLevel']
+            self.log.info("Steps concurrency level %d", response["StepConcurrencyLevel"])
+            return response["StepConcurrencyLevel"]
 
 
 class EmrTerminateJobFlowOperator(BaseOperator):
@@ -458,12 +458,12 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     """
 
-    template_fields: Sequence[str] = ('job_flow_id',)
+    template_fields: Sequence[str] = ("job_flow_id",)
     template_ext: Sequence[str] = ()
-    ui_color = '#f9c915'
+    ui_color = "#f9c915"
     operator_extra_links = (EmrClusterLink(),)
 
-    def __init__(self, *, job_flow_id: str, aws_conn_id: str = 'aws_default', **kwargs):
+    def __init__(self, *, job_flow_id: str, aws_conn_id: str = "aws_default", **kwargs):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
@@ -480,13 +480,13 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             job_flow_id=self.job_flow_id,
         )
 
-        self.log.info('Terminating JobFlow %s', self.job_flow_id)
+        self.log.info("Terminating JobFlow %s", self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
 
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException(f'JobFlow termination failed: {response}')
+        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+            raise AirflowException(f"JobFlow termination failed: {response}")
         else:
-            self.log.info('JobFlow with id %s terminated', self.job_flow_id)
+            self.log.info("JobFlow with id %s terminated", self.job_flow_id)
 
 
 class EmrServerlessCreateApplicationOperator(BaseOperator):
@@ -499,21 +499,29 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
     :param release_label: The EMR release version associated with the application.
     :param job_type: The type of application you want to start, such as Spark or Hive.
-    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
+    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True.
+        If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied when
+        waiting for the application to be in the ``CREATED`` state.
     :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
     :param aws_conn_id: AWS connection to use
+    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+        the application to start. Defaults to 25 minutes.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
+        Defaults to 60 seconds.
     """
 
     def __init__(
         self,
         release_label: str,
         job_type: str,
-        client_request_token: str = '',
+        client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
@@ -522,6 +530,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.kwargs = kwargs
         self.config = config or {}
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -538,37 +548,41 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             type=self.job_type,
             **self.config,
         )
-        application_id = response['applicationId']
+        application_id = response["applicationId"]
 
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'Application Creation failed: {response}')
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Application Creation failed: {response}")
 
-        self.log.info('EMR serverless application created: %s', application_id)
+        self.log.info("EMR serverless application created: %s", application_id)
 
         # This should be replaced with a boto waiter when available.
-        self.hook.waiter(
+        waiter(
             get_state_callable=self.hook.conn.get_application,
-            get_state_args={'applicationId': application_id},
-            parse_response=['application', 'state'],
-            desired_state={'CREATED'},
+            get_state_args={"applicationId": application_id},
+            parse_response=["application", "state"],
+            desired_state={"CREATED"},
             failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-            object_type='application',
-            action='created',
+            object_type="application",
+            action="created",
+            countdown=self.waiter_countdown,
+            check_interval_seconds=self.waiter_check_interval_seconds,
         )
 
-        self.log.info('Starting application %s', application_id)
+        self.log.info("Starting application %s", application_id)
         self.hook.conn.start_application(applicationId=application_id)
 
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            self.hook.waiter(
+            waiter(
                 get_state_callable=self.hook.conn.get_application,
-                get_state_args={'applicationId': application_id},
-                parse_response=['application', 'state'],
-                desired_state={'STARTED'},
+                get_state_args={"applicationId": application_id},
+                parse_response=["application", "state"],
+                desired_state={"STARTED"},
                 failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-                object_type='application',
-                action='started',
+                object_type="application",
+                action="started",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
             )
 
         return application_id
@@ -590,14 +604,21 @@ class EmrServerlessStartJobOperator(BaseOperator):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
-    :param aws_conn_id: AWS connection to use
+        If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied
+        when waiting for the application be to in the ``STARTED`` state.
+    :param aws_conn_id: AWS connection to use.
+    :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
+    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+        the job finish. Defaults to 25 minutes.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the job.
+        Defaults to 60 seconds.
     """
 
     template_fields: Sequence[str] = (
-        'application_id',
-        'execution_role_arn',
-        'job_driver',
-        'configuration_overrides',
+        "application_id",
+        "execution_role_arn",
+        "job_driver",
+        "configuration_overrides",
     )
 
     def __init__(
@@ -606,10 +627,13 @@ class EmrServerlessStartJobOperator(BaseOperator):
         execution_role_arn: str,
         job_driver: dict,
         configuration_overrides: dict | None,
-        client_request_token: str = '',
+        client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
+        name: str | None = None,
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
@@ -619,6 +643,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
+        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -629,20 +656,22 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context) -> dict:
-        self.log.info('Starting job on Application: %s', self.application_id)
+        self.log.info("Starting job on Application: %s", self.application_id)
 
-        app_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
+        app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.hook.conn.start_application(applicationId=self.application_id)
 
-            self.hook.waiter(
+            waiter(
                 get_state_callable=self.hook.conn.get_application,
-                get_state_args={'applicationId': self.application_id},
-                parse_response=['application', 'state'],
-                desired_state={'STARTED'},
-                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
-                object_type='application',
-                action='started',
+                get_state_args={"applicationId": self.application_id},
+                parse_response=["application", "state"],
+                desired_state={"STARTED"},
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
+                object_type="application",
+                action="started",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
             )
 
         response = self.hook.conn.start_job_run(
@@ -651,28 +680,31 @@ class EmrServerlessStartJobOperator(BaseOperator):
             executionRoleArn=self.execution_role_arn,
             jobDriver=self.job_driver,
             configurationOverrides=self.configuration_overrides,
+            name=self.name,
             **self.config,
         )
 
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'EMR serverless job failed to start: {response}')
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"EMR serverless job failed to start: {response}")
 
-        self.log.info('EMR serverless job started: %s', response['jobRunId'])
+        self.log.info("EMR serverless job started: %s", response["jobRunId"])
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            self.hook.waiter(
+            waiter(
                 get_state_callable=self.hook.conn.get_job_run,
                 get_state_args={
-                    'applicationId': self.application_id,
-                    'jobRunId': response['jobRunId'],
+                    "applicationId": self.application_id,
+                    "jobRunId": response["jobRunId"],
                 },
-                parse_response=['jobRun', 'state'],
+                parse_response=["jobRun", "state"],
                 desired_state=EmrServerlessHook.JOB_SUCCESS_STATES,
                 failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
-                object_type='job',
-                action='run',
+                object_type="job",
+                action="run",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
             )
-        return response['jobRunId']
+        return response["jobRunId"]
 
 
 class EmrServerlessDeleteApplicationOperator(BaseOperator):
@@ -686,20 +718,28 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
     :param application_id: ID of the EMR Serverless application to delete.
     :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
     :param aws_conn_id: AWS connection to use
+    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+        the application be deleted. Defaults to 25 minutes.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
+        Defaults to 60 seconds.
     """
 
-    template_fields: Sequence[str] = ('application_id',)
+    template_fields: Sequence[str] = ("application_id",)
 
     def __init__(
         self,
         application_id: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
         self.wait_for_completion = wait_for_completion
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
         super().__init__(**kwargs)
 
     @cached_property
@@ -708,38 +748,42 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context) -> None:
-        self.log.info('Stopping application: %s', self.application_id)
+        self.log.info("Stopping application: %s", self.application_id)
         self.hook.conn.stop_application(applicationId=self.application_id)
 
         # This should be replaced with a boto waiter when available.
-        self.hook.waiter(
+        waiter(
             get_state_callable=self.hook.conn.get_application,
             get_state_args={
-                'applicationId': self.application_id,
+                "applicationId": self.application_id,
             },
-            parse_response=['application', 'state'],
+            parse_response=["application", "state"],
             desired_state=EmrServerlessHook.APPLICATION_FAILURE_STATES,
             failure_states=set(),
-            object_type='application',
-            action='stopped',
+            object_type="application",
+            action="stopped",
+            countdown=self.waiter_countdown,
+            check_interval_seconds=self.waiter_check_interval_seconds,
         )
 
-        self.log.info('Deleting application: %s', self.application_id)
+        self.log.info("Deleting application: %s", self.application_id)
         response = self.hook.conn.delete_application(applicationId=self.application_id)
 
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'Application deletion failed: {response}')
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Application deletion failed: {response}")
 
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            self.hook.waiter(
+            waiter(
                 get_state_callable=self.hook.conn.get_application,
-                get_state_args={'applicationId': self.application_id},
-                parse_response=['application', 'state'],
-                desired_state={'TERMINATED'},
+                get_state_args={"applicationId": self.application_id},
+                parse_response=["application", "state"],
+                desired_state={"TERMINATED"},
                 failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-                object_type='application',
-                action='deleted',
+                object_type="application",
+                action="deleted",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
             )
 
-        self.log.info('EMR serverless application deleted')
+        self.log.info("EMR serverless application deleted")

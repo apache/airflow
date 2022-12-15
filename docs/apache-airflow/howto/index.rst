@@ -36,6 +36,7 @@ configuring an Airflow environment.
     set-up-database
     operator/index
     timetable
+    custom-view-plugin
     customize-ui
     custom-operator
     create-custom-decorator

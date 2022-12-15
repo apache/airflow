@@ -59,7 +59,7 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
 
     dag = generate_dag()
 
-DAGs are nothing without :doc:`tasks` to run, and those will usually either come in the form of either :doc:`operators`, :doc:`sensors` or :doc:`taskflow`.
+DAGs are nothing without :doc:`tasks` to run, and those will usually come in the form of either :doc:`operators`, :doc:`sensors` or :doc:`taskflow`.
 
 
 Task Dependencies
@@ -96,7 +96,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     # You can also do it dynamically
     chain(*[EmptyOperator(task_id='op' + i) for i in range(1, 6)])
 
-Chain can also do *pairwise* dependencies for lists the same size (this is different to the *cross dependencies* done by ``cross_downstream``!)::
+Chain can also do *pairwise* dependencies for lists the same size (this is different from the *cross dependencies* created by ``cross_downstream``!)::
 
     from airflow.models.baseoperator import chain
 
@@ -383,6 +383,7 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``all_skipped``: All upstream tasks are in a ``skipped`` state
 * ``one_failed``: At least one upstream task has failed (does not wait for all upstream tasks to be done)
 * ``one_success``: At least one upstream task has succeeded (does not wait for all upstream tasks to be done)
+* ``one_done``: At least one upstream task succeeded or failed
 * ``none_failed``: All upstream tasks have not ``failed`` or ``upstream_failed`` - that is, all upstream tasks have succeeded or been skipped
 * ``none_failed_min_one_success``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
 * ``none_skipped``: No upstream task is in a ``skipped`` state - that is, all upstream tasks are in a ``success``, ``failed``, or ``upstream_failed`` state
@@ -402,6 +403,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         # dags/branch_without_trigger.py
         import pendulum
 
+        from airflow.decorators import task
         from airflow.models import DAG
         from airflow.operators.empty import EmptyOperator
 
@@ -513,7 +515,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
     ):
         @task_group(default_args={'retries': 3}):
         def group1():
-            """This docstring will become the tooltip for the TaskGroup."
+            """This docstring will become the tooltip for the TaskGroup."""
             task1 = EmptyOperator(task_id='task1')
             task2 = BashOperator(task_id='task2', bash_command='echo Hello World!', retries=2)
             print(task1.retries) # 3
@@ -709,7 +711,7 @@ You can either do this all inside of the ``DAG_FOLDER``, with a standard filesys
 
 Note that packaged DAGs come with some caveats:
 
-* They cannot be used if you have picking enabled for serialization
+* They cannot be used if you have pickling enabled for serialization
 * They cannot contain compiled libraries (e.g. ``libz.so``), only pure Python
 * They will be inserted into Python's ``sys.path`` and importable by any other code in the Airflow process, so ensure the package names don't clash with other packages already installed on your system.
 

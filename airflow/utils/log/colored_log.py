@@ -34,8 +34,8 @@ DEFAULT_COLORS = {
     "CRITICAL": "red",
 }
 
-BOLD_ON = escape_codes['bold']
-BOLD_OFF = esc('22')
+BOLD_ON = escape_codes["bold"]
+BOLD_OFF = esc("22")
 
 
 class CustomTTYColoredFormatter(TTYColoredFormatter):
@@ -85,7 +85,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
 
             if record.exc_text:
                 record.exc_text = (
-                    self.color(self.log_colors, record.levelname) + record.exc_text + escape_codes['reset']
+                    self.color(self.log_colors, record.levelname) + record.exc_text + escape_codes["reset"]
                 )
 
         return record

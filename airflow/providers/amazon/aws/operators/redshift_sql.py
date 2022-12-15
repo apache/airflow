@@ -16,17 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+import warnings
+from typing import Sequence
 
-from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
-from airflow.www import utils as wwwutils
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
-class RedshiftSQLOperator(BaseOperator):
+class RedshiftSQLOperator(SQLExecuteQueryOperator):
     """
     Executes SQL Statements against an Amazon Redshift cluster
 
@@ -44,36 +40,18 @@ class RedshiftSQLOperator(BaseOperator):
         (default value: False)
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-    template_fields_renderers = {
-        "sql": "postgresql" if "postgresql" in wwwutils.get_attr_renderer() else "sql"
-    }
+    template_fields: Sequence[str] = (
+        "sql",
+        "conn_id",
+    )
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "postgresql"}
 
-    def __init__(
-        self,
-        *,
-        sql: str | Iterable[str],
-        redshift_conn_id: str = 'redshift_default',
-        parameters: Iterable | Mapping | None = None,
-        autocommit: bool = True,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.redshift_conn_id = redshift_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.parameters = parameters
-
-    def get_hook(self) -> RedshiftSQLHook:
-        """Create and return RedshiftSQLHook.
-        :return RedshiftSQLHook: A RedshiftSQLHook instance.
-        """
-        return RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
-
-    def execute(self, context: Context) -> None:
-        """Execute a statement against Amazon Redshift"""
-        self.log.info("Executing statement: %s", self.sql)
-        hook = self.get_hook()
-        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+    def __init__(self, *, redshift_conn_id: str = "redshift_default", **kwargs) -> None:
+        super().__init__(conn_id=redshift_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )

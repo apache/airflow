@@ -29,15 +29,12 @@ from tests.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_co
 # To prevent resource name collisions, key ring and key resources CANNOT be deleted, so
 # to avoid cluttering the project, we only create the key once during project initialization.
 # See: https://cloud.google.com/kms/docs/faq#cannot_delete
-GCP_KMS_KEYRING_NAME = os.environ.get('GCP_KMS_KEYRING_NAME', 'test-airflow-system-tests-keyring')
-GCP_KMS_KEY_NAME = os.environ.get('GCP_KMS_KEY_NAME', 'test-airflow-system-tests-key')
+GCP_KMS_KEYRING_NAME = os.environ.get("GCP_KMS_KEYRING_NAME", "test-airflow-system-tests-keyring")
+GCP_KMS_KEY_NAME = os.environ.get("GCP_KMS_KEY_NAME", "test-airflow-system-tests-key")
 
 
 @pytest.mark.credential_file(GCP_KMS_KEY)
-class TestKmsHook(GoogleSystemTest):
-    def setUp(self):
-        super().setUp()
-
+class TestKmsHookSystem(GoogleSystemTest):
     @provide_gcp_context(GCP_KMS_KEY)
     def test_encrypt(self):
         with TemporaryDirectory() as tmp_dir:
@@ -106,6 +103,3 @@ class TestKmsHook(GoogleSystemTest):
                 ciphertext=encrypted_secret,
             )
             assert content == b"TEST-SECRET"
-
-    def tearDown(self):
-        super().tearDown()

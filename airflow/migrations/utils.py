@@ -20,7 +20,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 
-def get_mssql_table_constraints(conn, table_name):
+def get_mssql_table_constraints(conn, table_name) -> dict[str, dict[str, list[str]]]:
     """
     This function return primary and unique constraint
     along with column name. Some tables like `task_instance`
@@ -30,7 +30,6 @@ def get_mssql_table_constraints(conn, table_name):
     :param conn: sql connection object
     :param table_name: table name
     :return: a dictionary of ((constraint name, constraint type), column name) of table
-    :rtype: defaultdict(list)
     """
     query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
@@ -48,7 +47,7 @@ def get_mssql_table_constraints(conn, table_name):
 
 @contextmanager
 def disable_sqlite_fkeys(op):
-    if op.get_bind().dialect.name == 'sqlite':
+    if op.get_bind().dialect.name == "sqlite":
         op.execute("PRAGMA foreign_keys=off")
         yield op
         op.execute("PRAGMA foreign_keys=on")

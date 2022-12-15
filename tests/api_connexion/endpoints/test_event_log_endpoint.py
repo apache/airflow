@@ -86,7 +86,7 @@ class TestEventLogEndpoint:
         self.client = self.app.test_client()  # type:ignore
         clear_db_logs()
         self.default_time = timezone.parse("2020-06-10T20:00:00+00:00")
-        self.default_time_2 = timezone.parse('2020-06-11T07:00:00+00:00')
+        self.default_time_2 = timezone.parse("2020-06-11T07:00:00+00:00")
 
     def teardown_method(self) -> None:
         clear_db_logs()
@@ -96,7 +96,7 @@ class TestGetEventLog(TestEventLogEndpoint):
     def test_should_respond_200(self, log_model):
         event_log_id = log_model.id
         response = self.client.get(
-            f"/api/v1/eventLogs/{event_log_id}", environ_overrides={'REMOTE_USER': "test"}
+            f"/api/v1/eventLogs/{event_log_id}", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
         assert response.json == {
@@ -105,19 +105,19 @@ class TestGetEventLog(TestEventLogEndpoint):
             "dag_id": "TEST_DAG_ID",
             "task_id": "TEST_TASK_ID",
             "execution_date": self.default_time.isoformat(),
-            "owner": 'airflow',
+            "owner": "airflow",
             "when": self.default_time.isoformat(),
             "extra": None,
         }
 
     def test_should_respond_404(self):
-        response = self.client.get("/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/eventLogs/1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert {
-            'detail': None,
-            'status': 404,
-            'title': 'Event Log not found',
-            'type': EXCEPTIONS_LINK_MAP[404],
+            "detail": None,
+            "status": 404,
+            "title": "Event Log not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json
 
     def test_should_raises_401_unauthenticated(self, log_model):
@@ -129,21 +129,21 @@ class TestGetEventLog(TestEventLogEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+            "/api/v1/eventLogs", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
 
 class TestGetEventLogs(TestEventLogEndpoint):
     def test_should_respond_200(self, session, create_log_model):
-        log_model_1 = create_log_model(event='TEST_EVENT_1', when=self.default_time)
-        log_model_2 = create_log_model(event='TEST_EVENT_2', when=self.default_time_2)
-        log_model_3 = Log(event="cli_scheduler", owner='root', extra='{"host_name": "e24b454f002a"}')
+        log_model_1 = create_log_model(event="TEST_EVENT_1", when=self.default_time)
+        log_model_2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2)
+        log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
         log_model_3.dttm = self.default_time_2
 
         session.add(log_model_3)
         session.flush()
-        response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/eventLogs", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
             "event_logs": [
@@ -153,7 +153,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "execution_date": self.default_time.isoformat(),
-                    "owner": 'airflow',
+                    "owner": "airflow",
                     "when": self.default_time.isoformat(),
                     "extra": None,
                 },
@@ -163,7 +163,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "execution_date": self.default_time.isoformat(),
-                    "owner": 'airflow',
+                    "owner": "airflow",
                     "when": self.default_time_2.isoformat(),
                     "extra": None,
                 },
@@ -173,7 +173,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": None,
                     "task_id": None,
                     "execution_date": None,
-                    "owner": 'root',
+                    "owner": "root",
                     "when": self.default_time_2.isoformat(),
                     "extra": '{"host_name": "e24b454f002a"}',
                 },
@@ -183,13 +183,13 @@ class TestGetEventLogs(TestEventLogEndpoint):
 
     def test_order_eventlogs_by_owner(self, create_log_model, session):
         log_model_1 = create_log_model(event="TEST_EVENT_1", when=self.default_time)
-        log_model_2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2, owner='zsh')
-        log_model_3 = Log(event="cli_scheduler", owner='root', extra='{"host_name": "e24b454f002a"}')
+        log_model_2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2, owner="zsh")
+        log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
         log_model_3.dttm = self.default_time_2
         session.add(log_model_3)
         session.flush()
         response = self.client.get(
-            "/api/v1/eventLogs?order_by=-owner", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/eventLogs?order_by=-owner", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
         assert response.json == {
@@ -200,7 +200,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "execution_date": self.default_time.isoformat(),
-                    "owner": 'zsh',  # Order by name, sort order is descending(-)
+                    "owner": "zsh",  # Order by name, sort order is descending(-)
                     "when": self.default_time_2.isoformat(),
                     "extra": None,
                 },
@@ -210,7 +210,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": None,
                     "task_id": None,
                     "execution_date": None,
-                    "owner": 'root',
+                    "owner": "root",
                     "when": self.default_time_2.isoformat(),
                     "extra": '{"host_name": "e24b454f002a"}',
                 },
@@ -220,7 +220,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "execution_date": self.default_time.isoformat(),
-                    "owner": 'airflow',
+                    "owner": "airflow",
                     "when": self.default_time.isoformat(),
                     "extra": None,
                 },
@@ -278,7 +278,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.commit()
 
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
         assert response.json["total_entries"] == 10
@@ -290,7 +290,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.flush()
 
-        response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/eventLogs", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
         assert response.json["total_entries"] == 200
@@ -302,11 +302,11 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.flush()
 
         response = self.client.get(
-            "/api/v1/eventLogs?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/eventLogs?order_by=invalid", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
-        assert response.json['detail'] == msg
+        assert response.json["detail"] == msg
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, task_instance, session):
@@ -314,9 +314,9 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.flush()
 
-        response = self.client.get("/api/v1/eventLogs?limit=180", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/eventLogs?limit=180", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json['event_logs']) == 150
+        assert len(response.json["event_logs"]) == 150
 
     def _create_event_logs(self, task_instance, count):
         return [Log(event="TEST_EVENT_" + str(i), task_instance=task_instance) for i in range(1, count + 1)]

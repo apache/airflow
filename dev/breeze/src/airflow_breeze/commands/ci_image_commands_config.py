@@ -36,6 +36,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--tag-as-latest",
                 "--docker-cache",
                 "--force-build",
+                "--github-repository",
             ],
         },
         {
@@ -43,8 +44,9 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--skip-cleanup",
                 "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
                 "--include-success-outputs",
             ],
         },
@@ -89,6 +91,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--verify",
                 "--wait-for-image",
                 "--tag-as-latest",
+                "--github-repository",
             ],
         },
         {
@@ -96,8 +99,9 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--skip-cleanup",
                 "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
                 "--include-success-outputs",
             ],
         },
@@ -110,6 +114,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--image-tag",
                 "--pull",
+                "--github-repository",
             ],
         }
     ],

@@ -28,30 +28,32 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStartJobOperator,
 )
 
-task_id = 'test_emr_serverless_task_id'
-application_id = 'test_application_id'
-release_label = 'test'
-job_type = 'test'
-client_request_token = 'eac427d0-1c6d-4dfb9a-32423412'
-config = {'name': 'test_application_emr_serverless'}
+task_id = "test_emr_serverless_task_id"
+application_id = "test_application_id"
+release_label = "test"
+job_type = "test"
+client_request_token = "eac427d0-1c6d-4dfb9a-32423412"
+config = {"name": "test_application_emr_serverless"}
 
-execution_role_arn = 'test_emr_serverless_role_arn'
-job_driver = {'test_key': 'test_value'}
-configuration_overrides = {'monitoringConfiguration': {'test_key': 'test_value'}}
-job_run_id = 'test_job_run_id'
+execution_role_arn = "test_emr_serverless_role_arn"
+job_driver = {"test_key": "test_value"}
+configuration_overrides = {"monitoringConfiguration": {"test_key": "test_value"}}
+job_run_id = "test_job_run_id"
 
-application_id_delete_operator = 'test_emr_serverless_delete_application_operator'
+application_id_delete_operator = "test_emr_serverless_delete_application_operator"
 
 
 class TestEmrServerlessCreateApplicationOperator:
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
-    def test_execute_successfully_with_wait_for_completion(self, mock_conn, mock_waiter):
-        mock_waiter.return_value = True
+    def test_execute_successfully_with_wait_for_completion(self, mock_conn):
         mock_conn.create_application.return_value = {
             "applicationId": application_id,
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
+        mock_conn.get_application.side_effect = [
+            {"application": {"state": "CREATED"}},
+            {"application": {"state": "STARTED"}},
+        ]
 
         operator = EmrServerlessCreateApplicationOperator(
             task_id=task_id,
@@ -70,11 +72,11 @@ class TestEmrServerlessCreateApplicationOperator:
             **config,
         )
         mock_conn.start_application.assert_called_once_with(applicationId=application_id)
-
-        assert mock_waiter.call_count == 2
         assert id == application_id
+        mock_conn.get_application.call_count == 2
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    # @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_execute_successfully_no_wait_for_completion(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -105,9 +107,9 @@ class TestEmrServerlessCreateApplicationOperator:
         mock_waiter.assert_called_once()
         assert id == application_id
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
-    def test_failed_create_application(self, mock_conn, mock_waiter):
+    def test_failed_create_application_request(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
         mock_conn.create_application.return_value = {
             "applicationId": application_id,
@@ -134,7 +136,68 @@ class TestEmrServerlessCreateApplicationOperator:
             **config,
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_failed_create_application(self, mock_conn):
+        mock_conn.create_application.return_value = {
+            "applicationId": application_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_conn.get_application.return_value = {"application": {"state": "TERMINATED"}}
+
+        operator = EmrServerlessCreateApplicationOperator(
+            task_id=task_id,
+            release_label=release_label,
+            job_type=job_type,
+            client_request_token=client_request_token,
+            config=config,
+        )
+
+        with pytest.raises(AirflowException) as ex_message:
+            operator.execute(None)
+
+        assert "Application reached failure state" in str(ex_message.value)
+
+        mock_conn.create_application.assert_called_once_with(
+            clientToken=client_request_token,
+            releaseLabel=release_label,
+            type=job_type,
+            **config,
+        )
+        mock_conn.get_application.assert_called_once_with(applicationId=application_id)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_failed_start_application(self, mock_conn):
+        mock_conn.create_application.return_value = {
+            "applicationId": application_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_conn.get_application.side_effect = [
+            {"application": {"state": "CREATED"}},
+            {"application": {"state": "TERMINATED"}},
+        ]
+
+        operator = EmrServerlessCreateApplicationOperator(
+            task_id=task_id,
+            release_label=release_label,
+            job_type=job_type,
+            client_request_token=client_request_token,
+            config=config,
+        )
+
+        with pytest.raises(AirflowException) as ex_message:
+            operator.execute(None)
+
+        assert "Application reached failure state" in str(ex_message.value)
+
+        mock_conn.create_application.assert_called_once_with(
+            clientToken=client_request_token,
+            releaseLabel=release_label,
+            type=job_type,
+            **config,
+        )
+        mock_conn.get_application.call_count == 2
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_no_client_request_token(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
@@ -187,15 +250,14 @@ class TestEmrServerlessCreateApplicationOperator:
 
 
 class TestEmrServerlessStartJobOperator:
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
-    def test_job_run_app_started(self, mock_conn, mock_waiter):
-        mock_waiter.return_value = True
+    def test_job_run_app_started(self, mock_conn):
         mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
         mock_conn.start_job_run.return_value = {
-            'jobRunId': job_run_id,
-            'ResponseMetadata': {'HTTPStatusCode': 200},
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
         }
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "SUCCESS"}}
 
         operator = EmrServerlessStartJobOperator(
             task_id=task_id,
@@ -205,12 +267,11 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-
+        default_name = operator.name
         id = operator.execute(None)
 
         assert operator.wait_for_completion is True
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
-        mock_waiter.assert_called_once()
         assert id == job_run_id
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
@@ -218,17 +279,19 @@ class TestEmrServerlessStartJobOperator:
             executionRoleArn=execution_role_arn,
             jobDriver=job_driver,
             configurationOverrides=configuration_overrides,
+            name=default_name,
         )
+        mock_conn.get_job_run.assert_called_once_with(applicationId=application_id, jobRunId=job_run_id)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_job_run_job_failed(self, mock_conn):
         mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
         mock_conn.start_job_run.return_value = {
-            'jobRunId': job_run_id,
-            'ResponseMetadata': {'HTTPStatusCode': 200},
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
         }
 
-        mock_conn.get_job_run.return_value = {'jobRun': {'state': 'FAILED'}}
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "FAILED"}}
 
         operator = EmrServerlessStartJobOperator(
             task_id=task_id,
@@ -238,6 +301,7 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
+        default_name = operator.name
         with pytest.raises(AirflowException) as ex_message:
             id = operator.execute(None)
             assert id == job_run_id
@@ -250,16 +314,17 @@ class TestEmrServerlessStartJobOperator:
             executionRoleArn=execution_role_arn,
             jobDriver=job_driver,
             configurationOverrides=configuration_overrides,
+            name=default_name,
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_job_run_app_not_started(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
         mock_conn.get_application.return_value = {"application": {"state": "CREATING"}}
         mock_conn.start_job_run.return_value = {
-            'jobRunId': job_run_id,
-            'ResponseMetadata': {'HTTPStatusCode': 200},
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
         }
 
         operator = EmrServerlessStartJobOperator(
@@ -270,6 +335,7 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
+        default_name = operator.name
 
         id = operator.execute(None)
 
@@ -283,80 +349,18 @@ class TestEmrServerlessStartJobOperator:
             executionRoleArn=execution_role_arn,
             jobDriver=job_driver,
             configurationOverrides=configuration_overrides,
+            name=default_name,
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
-    def test_job_run_app_not_started_no_wait_for_completion(self, mock_conn, mock_waiter):
-        mock_waiter.return_value = True
-        mock_conn.get_application.return_value = {"application": {"state": "CREATING"}}
+    def test_job_run_app_not_started_app_failed(self, mock_conn):
+        mock_conn.get_application.side_effect = [
+            {"application": {"state": "CREATING"}},
+            {"application": {"state": "TERMINATED"}},
+        ]
         mock_conn.start_job_run.return_value = {
-            'jobRunId': job_run_id,
-            'ResponseMetadata': {'HTTPStatusCode': 200},
-        }
-
-        operator = EmrServerlessStartJobOperator(
-            task_id=task_id,
-            client_request_token=client_request_token,
-            application_id=application_id,
-            execution_role_arn=execution_role_arn,
-            job_driver=job_driver,
-            configuration_overrides=configuration_overrides,
-            wait_for_completion=False,
-        )
-
-        id = operator.execute(None)
-
-        mock_conn.get_application.assert_called_once_with(applicationId=application_id)
-        mock_waiter.assert_called_once()
-        assert id == job_run_id
-        mock_conn.start_job_run.assert_called_once_with(
-            clientToken=client_request_token,
-            applicationId=application_id,
-            executionRoleArn=execution_role_arn,
-            jobDriver=job_driver,
-            configurationOverrides=configuration_overrides,
-        )
-
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
-    def test_job_run_app_started_no_wait_for_completion(self, mock_conn, mock_waiter):
-        mock_waiter.return_value = True
-        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
-        mock_conn.start_job_run.return_value = {
-            'jobRunId': job_run_id,
-            'ResponseMetadata': {'HTTPStatusCode': 200},
-        }
-
-        operator = EmrServerlessStartJobOperator(
-            task_id=task_id,
-            client_request_token=client_request_token,
-            application_id=application_id,
-            execution_role_arn=execution_role_arn,
-            job_driver=job_driver,
-            configuration_overrides=configuration_overrides,
-            wait_for_completion=False,
-        )
-
-        id = operator.execute(None)
-        assert id == job_run_id
-        mock_conn.start_job_run.assert_called_once_with(
-            clientToken=client_request_token,
-            applicationId=application_id,
-            executionRoleArn=execution_role_arn,
-            jobDriver=job_driver,
-            configurationOverrides=configuration_overrides,
-        )
-        assert not mock_waiter.called
-
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
-    def test_failed_start_job_run(self, mock_conn, mock_waiter):
-        mock_waiter.return_value = True
-        mock_conn.get_application.return_value = {"application": {"state": "CREATING"}}
-        mock_conn.start_job_run.return_value = {
-            'jobRunId': job_run_id,
-            'ResponseMetadata': {'HTTPStatusCode': 404},
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
         }
 
         operator = EmrServerlessStartJobOperator(
@@ -369,6 +373,98 @@ class TestEmrServerlessStartJobOperator:
         )
         with pytest.raises(AirflowException) as ex_message:
             operator.execute(None)
+        assert "Application reached failure state" in str(ex_message.value)
+        assert operator.wait_for_completion is True
+        mock_conn.get_application.call_count == 2
+        mock_conn.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_job_run_app_not_started_no_wait_for_completion(self, mock_conn, mock_waiter):
+        mock_waiter.return_value = True
+        mock_conn.get_application.return_value = {"application": {"state": "CREATING"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            wait_for_completion=False,
+        )
+        default_name = operator.name
+        id = operator.execute(None)
+
+        mock_conn.get_application.assert_called_once_with(applicationId=application_id)
+        mock_waiter.assert_called_once()
+        assert id == job_run_id
+        mock_conn.start_job_run.assert_called_once_with(
+            clientToken=client_request_token,
+            applicationId=application_id,
+            executionRoleArn=execution_role_arn,
+            jobDriver=job_driver,
+            configurationOverrides=configuration_overrides,
+            name=default_name,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_job_run_app_started_no_wait_for_completion(self, mock_conn, mock_waiter):
+        mock_waiter.return_value = True
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            wait_for_completion=False,
+        )
+        default_name = operator.name
+        id = operator.execute(None)
+        assert id == job_run_id
+        mock_conn.start_job_run.assert_called_once_with(
+            clientToken=client_request_token,
+            applicationId=application_id,
+            executionRoleArn=execution_role_arn,
+            jobDriver=job_driver,
+            configurationOverrides=configuration_overrides,
+            name=default_name,
+        )
+        assert not mock_waiter.called
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_failed_start_job_run(self, mock_conn, mock_waiter):
+        mock_waiter.return_value = True
+        mock_conn.get_application.return_value = {"application": {"state": "CREATING"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 404},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+        )
+        default_name = operator.name
+        with pytest.raises(AirflowException) as ex_message:
+            operator.execute(None)
 
         assert "EMR serverless job failed to start:" in str(ex_message.value)
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
@@ -379,16 +475,110 @@ class TestEmrServerlessStartJobOperator:
             executionRoleArn=execution_role_arn,
             jobDriver=job_driver,
             configurationOverrides=configuration_overrides,
+            name=default_name,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_start_job_run_fail_on_wait_for_completion(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "CREATED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "FAILED"}}
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+        )
+        default_name = operator.name
+        with pytest.raises(AirflowException) as ex_message:
+            operator.execute(None)
+
+        assert "Job reached failure state" in str(ex_message.value)
+        mock_conn.get_application.call_count == 2
+        mock_conn.start_job_run.assert_called_once_with(
+            clientToken=client_request_token,
+            applicationId=application_id,
+            executionRoleArn=execution_role_arn,
+            jobDriver=job_driver,
+            configurationOverrides=configuration_overrides,
+            name=default_name,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_start_job_default_name(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "SUCCESS"}}
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+        )
+        operator.execute(None)
+        default_name = operator.name
+        generated_name_uuid = default_name.split("_")[-1]
+        assert default_name.startswith("emr_serverless_job_airflow")
+
+        mock_conn.start_job_run.assert_called_once_with(
+            clientToken=client_request_token,
+            applicationId=application_id,
+            executionRoleArn=execution_role_arn,
+            jobDriver=job_driver,
+            configurationOverrides=configuration_overrides,
+            name=f"emr_serverless_job_airflow_{str(UUID(generated_name_uuid, version=4))}",
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_start_job_custom_name(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        custom_name = "test_name"
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "SUCCESS"}}
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            name=custom_name,
+        )
+        operator.execute(None)
+
+        mock_conn.start_job_run.assert_called_once_with(
+            clientToken=client_request_token,
+            applicationId=application_id,
+            executionRoleArn=execution_role_arn,
+            jobDriver=job_driver,
+            configurationOverrides=configuration_overrides,
+            name=custom_name,
         )
 
 
 class TestEmrServerlessDeleteOperator:
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_delete_application_with_wait_for_completion_successfully(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
         mock_conn.stop_application.return_value = {}
-        mock_conn.delete_application.return_value = {'ResponseMetadata': {'HTTPStatusCode': 200}}
+        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id, application_id=application_id_delete_operator
@@ -401,12 +591,12 @@ class TestEmrServerlessDeleteOperator:
         mock_conn.stop_application.assert_called_once()
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_delete_application_without_wait_for_completion_successfully(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
         mock_conn.stop_application.return_value = {}
-        mock_conn.delete_application.return_value = {'ResponseMetadata': {'HTTPStatusCode': 200}}
+        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id,
@@ -421,12 +611,12 @@ class TestEmrServerlessDeleteOperator:
         mock_conn.stop_application.assert_called_once()
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_delete_application_failed_deleteion(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
         mock_conn.stop_application.return_value = {}
-        mock_conn.delete_application.return_value = {'ResponseMetadata': {'HTTPStatusCode': 400}}
+        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 400}}
 
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id, application_id=application_id_delete_operator

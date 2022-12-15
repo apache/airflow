@@ -93,7 +93,7 @@ class ShortCircuitExecutorMixin:
                 self.scheduler_job.processor_agent._done = True
                 return
         self.log.warning(
-            "WAITING ON %d RUNS", sum(map(attrgetter('waiting_for'), self.dags_to_watch.values()))
+            "WAITING ON %d RUNS", sum(map(attrgetter("waiting_for"), self.dags_to_watch.values()))
         )
 
 
@@ -134,7 +134,7 @@ def reset_dag(dag, session):
     TF = airflow.models.TaskFail
     dag_id = dag.dag_id
 
-    session.query(DM).filter(DM.dag_id == dag_id).update({'is_paused': False})
+    session.query(DM).filter(DM.dag_id == dag_id).update({"is_paused": False})
     session.query(DR).filter(DR.dag_id == dag_id).delete()
     session.query(TI).filter(TI.dag_id == dag_id).delete()
     session.query(TF).filter(TF.dag_id == dag_id).delete()
@@ -146,7 +146,7 @@ def pause_all_dags(session):
     """
     from airflow.models.dag import DagModel
 
-    session.query(DagModel).update({'is_paused': True})
+    session.query(DagModel).update({"is_paused": True})
 
 
 def create_dag_runs(dag, num_runs, session):
@@ -159,7 +159,7 @@ def create_dag_runs(dag, num_runs, session):
     try:
         from airflow.utils.types import DagRunType
 
-        id_prefix = f'{DagRunType.SCHEDULED.value}__'
+        id_prefix = f"{DagRunType.SCHEDULED.value}__"
     except ImportError:
         from airflow.models.dagrun import DagRun
 
@@ -181,28 +181,28 @@ def create_dag_runs(dag, num_runs, session):
 
 
 @click.command()
-@click.option('--num-runs', default=1, help='number of DagRun, to run for each DAG')
-@click.option('--repeat', default=3, help='number of times to run test, to reduce variance')
+@click.option("--num-runs", default=1, help="number of DagRun, to run for each DAG")
+@click.option("--repeat", default=3, help="number of times to run test, to reduce variance")
 @click.option(
-    '--pre-create-dag-runs',
+    "--pre-create-dag-runs",
     is_flag=True,
     default=False,
-    help='''Pre-create the dag runs and stop the scheduler creating more.
+    help="""Pre-create the dag runs and stop the scheduler creating more.
 
         Warning: this makes the scheduler do (slightly) less work so may skew your numbers. Use sparingly!
-        ''',
+        """,
 )
 @click.option(
-    '--executor-class',
-    default='MockExecutor',
+    "--executor-class",
+    default="MockExecutor",
     help=textwrap.dedent(
-        '''
+        """
           Dotted path Executor class to test, for example
           'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExecutor which doesn't run tasks.
-      '''
+      """
     ),
 )
-@click.argument('dag_ids', required=True, nargs=-1)
+@click.argument("dag_ids", required=True, nargs=-1)
 def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     """
     This script can be used to measure the total "scheduler overhead" of Airflow.
@@ -229,16 +229,16 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     # Turn on unit test mode so that we don't do any sleep() in the scheduler
     # loop - not needed on main, but this script can run against older
     # releases too!
-    os.environ['AIRFLOW__CORE__UNIT_TEST_MODE'] = 'True'
+    os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 
-    os.environ['AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG'] = '500'
+    os.environ["AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG"] = "500"
 
     # Set this so that dags can dynamically configure their end_date
-    os.environ['AIRFLOW_BENCHMARK_MAX_DAG_RUNS'] = str(num_runs)
-    os.environ['PERF_MAX_RUNS'] = str(num_runs)
+    os.environ["AIRFLOW_BENCHMARK_MAX_DAG_RUNS"] = str(num_runs)
+    os.environ["PERF_MAX_RUNS"] = str(num_runs)
 
     if pre_create_dag_runs:
-        os.environ['AIRFLOW__SCHEDULER__USE_JOB_SCHEDULE'] = 'False'
+        os.environ["AIRFLOW__SCHEDULER__USE_JOB_SCHEDULE"] = "False"
 
     from airflow.jobs.scheduler_job import SchedulerJob
     from airflow.models.dagbag import DagBag
@@ -261,7 +261,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
             for _ in range(num_runs - 1):
                 next_info = dag.next_dagrun_info(next_info.data_interval)
 
-            end_date = dag.end_date or dag.default_args.get('end_date')
+            end_date = dag.end_date or dag.default_args.get("end_date")
             if end_date != next_info.logical_date:
                 message = (
                     f"DAG {dag_id} has incorrect end_date ({end_date}) for number of runs! "
@@ -281,10 +281,10 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     total_tasks = sum(len(dag.tasks) for dag in dags)
 
-    if 'PYSPY' in os.environ:
+    if "PYSPY" in os.environ:
         pid = str(os.getpid())
-        filename = os.environ.get('PYSPY_O', 'flame-' + pid + '.html')
-        os.spawnlp(os.P_NOWAIT, 'sudo', 'sudo', 'py-spy', 'record', '-o', filename, '-p', pid, '--idle')
+        filename = os.environ.get("PYSPY_O", "flame-" + pid + ".html")
+        os.spawnlp(os.P_NOWAIT, "sudo", "sudo", "py-spy", "record", "-o", filename, "-p", pid, "--idle")
 
     times = []
 

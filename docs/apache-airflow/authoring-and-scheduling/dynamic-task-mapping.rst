@@ -30,27 +30,10 @@ Simple mapping
 
 In its simplest form you can map over a list defined directly in your DAG file using the ``expand()`` function instead of calling your task directly.
 
-.. code-block:: python
+If you want to see a simple usage of Dynamic Task Mapping, you can look below:
 
-    from datetime import datetime
-
-    from airflow import DAG
-    from airflow.decorators import task
-
-
-    with DAG(dag_id="simple_mapping", start_date=datetime(2022, 3, 4)) as dag:
-
-        @task
-        def add_one(x: int):
-            return x + 1
-
-        @task
-        def sum_it(values):
-            total = sum(values)
-            print(f"Total was {total}")
-
-        added_values = add_one.expand(x=[1, 2, 3])
-        sum_it(added_values)
+.. exampleinclude:: /../../airflow/example_dags/example_dynamic_task_mapping.py
+    :language: python
 
 This will show ``Total was 9`` in the task logs when executed.
 
@@ -68,9 +51,32 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
 
-        _LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
+        LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
 
-    You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but please be aware of the potential performance implications if the list is large.
+    You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but since this would eagerly load values from *all* of the referenced upstream mapped tasks, you must be aware of the potential performance implications if the mapped number is large.
+
+    Note that the same also applies to when you push this proxy object into XCom. Airflow tries to be smart and coerce the value automatically, but will emit a warning for this so you are aware of this. For example:
+
+    .. code-block:: python
+
+        @task
+        def forward_values(values):
+            return values  # This is a lazy proxy!
+
+    will emit a warning like this:
+
+    .. code-block:: text
+
+        Coercing mapped lazy proxy return value from task forward_values to list, which may degrade
+        performance. Review resource requirements for this operation, and call list() explicitly to suppress this message. See Dynamic Task Mapping documentation for more information about lazy proxy objects.
+
+    The message can be suppressed by modifying the task like this:
+
+    .. code-block:: python
+
+        @task
+        def forward_values(values):
+            return list(values)
 
 .. note:: A reduce task is not required.
 
@@ -305,7 +311,7 @@ Since it is common to want to transform the output data format for task mapping,
 
     from airflow.exceptions import AirflowSkipException
 
-    filenames = S3ListOperator(...)  # Unchanged.
+    list_filenames = S3ListOperator(...)  # Unchanged.
 
 
     def create_copy_kwargs(filename):

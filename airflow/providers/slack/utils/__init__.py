@@ -16,21 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+import warnings
+from typing import Any, Sequence
 
-try:
-    from airflow.utils.types import NOTSET
-except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
-
-    class ArgNotSet:
-        """Sentinel type for annotations, useful when None is not viable."""
-
-    NOTSET = ArgNotSet()  # type: ignore[assignment]
-
-
-def prefixed_extra_field(field: str, conn_type: str) -> str:
-    """Get prefixed extra field name."""
-    return f"extra__{conn_type}__{field}"
+from airflow.utils.types import NOTSET
 
 
 class ConnectionExtraConfig:
@@ -53,15 +42,27 @@ class ConnectionExtraConfig:
         :param field: Connection extra field name.
         :param default: If specified then use as default value if field not present in Connection Extra.
         """
-        prefixed_field = prefixed_extra_field(field, self.conn_type)
-        if prefixed_field in self.extra:
-            return self.extra[prefixed_field]
-        elif field in self.extra:
+        backcompat_key = f"extra__{self.conn_type}__{field}"
+        if self.extra.get(field) not in (None, ""):
+            if self.extra.get(backcompat_key) not in (None, ""):
+                warnings.warn(
+                    f"Conflicting params `{field}` and `{backcompat_key}` found in extras for conn "
+                    f"{self.conn_id}. Using value for `{field}`.  Please ensure this is the correct value "
+                    f"and remove the backcompat key `{backcompat_key}`."
+                )
             return self.extra[field]
+        elif backcompat_key in self.extra and self.extra[backcompat_key] not in (None, ""):
+            # Addition validation with non-empty required for connection which created in the UI
+            # in Airflow 2.2. In these connections always present key-value pair for all prefixed extras
+            # even if user do not fill this fields.
+            # In additional fields from `wtforms.IntegerField` might contain None value.
+            # E.g.: `{'extra__slackwebhook__proxy': '', 'extra__slackwebhook__timeout': None}`
+            # From Airflow 2.3, using the prefix is no longer required.
+            return self.extra[backcompat_key]
         else:
             if default is NOTSET:
                 raise KeyError(
-                    f"Couldn't find {prefixed_field!r} or {field!r} "
+                    f"Couldn't find {backcompat_key!r} or {field!r} "
                     f"in Connection ({self.conn_id!r}) Extra and no default value specified."
                 )
             return default
@@ -76,3 +77,41 @@ class ConnectionExtraConfig:
         if value != default:
             value = int(value)
         return value
+
+
+def parse_filename(
+    filename: str, supported_file_formats: Sequence[str], fallback: str | None = None
+) -> tuple[str, str | None]:
+    """
+    Parse filetype and compression from given filename.
+    :param filename: filename to parse.
+    :param supported_file_formats: list of supported file extensions.
+    :param fallback: fallback to given file format.
+    :returns: filetype and compression (if specified)
+    """
+    if not filename:
+        raise ValueError("Expected 'filename' parameter is missing.")
+    if fallback and fallback not in supported_file_formats:
+        raise ValueError(f"Invalid fallback value {fallback!r}, expected one of {supported_file_formats}.")
+
+    parts = filename.rsplit(".", 2)
+    try:
+        if len(parts) == 1:
+            raise ValueError(f"No file extension specified in filename {filename!r}.")
+        if parts[-1] in supported_file_formats:
+            return parts[-1], None
+        elif len(parts) == 2:
+            raise ValueError(
+                f"Unsupported file format {parts[-1]!r}, expected one of {supported_file_formats}."
+            )
+        else:
+            if parts[-2] not in supported_file_formats:
+                raise ValueError(
+                    f"Unsupported file format '{parts[-2]}.{parts[-1]}', "
+                    f"expected one of {supported_file_formats} with compression extension."
+                )
+            return parts[-2], parts[-1]
+    except ValueError as ex:
+        if fallback:
+            return fallback, None
+        raise ex from None

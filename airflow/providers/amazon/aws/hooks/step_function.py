@@ -50,21 +50,20 @@ class StepFunctionHook(AwsBaseHook):
         :param name: The name of the execution.
         :param state_machine_input: JSON data input to pass to the State Machine
         :return: Execution ARN
-        :rtype: str
         """
-        execution_args = {'stateMachineArn': state_machine_arn}
+        execution_args = {"stateMachineArn": state_machine_arn}
         if name is not None:
-            execution_args['name'] = name
+            execution_args["name"] = name
         if state_machine_input is not None:
             if isinstance(state_machine_input, str):
-                execution_args['input'] = state_machine_input
+                execution_args["input"] = state_machine_input
             elif isinstance(state_machine_input, dict):
-                execution_args['input'] = json.dumps(state_machine_input)
+                execution_args["input"] = json.dumps(state_machine_input)
 
-        self.log.info('Executing Step Function State Machine: %s', state_machine_arn)
+        self.log.info("Executing Step Function State Machine: %s", state_machine_arn)
 
         response = self.conn.start_execution(**execution_args)
-        return response.get('executionArn')
+        return response.get("executionArn")
 
     def describe_execution(self, execution_arn: str) -> dict:
         """
@@ -73,6 +72,5 @@ class StepFunctionHook(AwsBaseHook):
 
         :param execution_arn: ARN of the State Machine Execution
         :return: Dict with Execution details
-        :rtype: dict
         """
         return self.get_conn().describe_execution(executionArn=execution_arn)

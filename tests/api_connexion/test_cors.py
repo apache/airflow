@@ -48,14 +48,14 @@ class TestEmptyCors(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_empty_cors_headers(self):
         token = "Basic " + b64encode(b"test:test").decode()
@@ -64,9 +64,9 @@ class TestEmptyCors(BaseTestAuth):
         with self.app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 200
-            assert 'Access-Control-Allow-Headers' not in response.headers
-            assert 'Access-Control-Allow-Methods' not in response.headers
-            assert 'Access-Control-Allow-Origin' not in response.headers
+            assert "Access-Control-Allow-Headers" not in response.headers
+            assert "Access-Control-Allow-Methods" not in response.headers
+            assert "Access-Control-Allow-Origin" not in response.headers
 
 
 class TestCorsOrigin(BaseTestAuth):
@@ -74,7 +74,7 @@ class TestCorsOrigin(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars(
@@ -86,7 +86,7 @@ class TestCorsOrigin(BaseTestAuth):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_cors_origin_reflection(self):
         token = "Basic " + b64encode(b"test:test").decode()
@@ -95,19 +95,19 @@ class TestCorsOrigin(BaseTestAuth):
         with self.app.test_client() as test_client:
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 200
-            assert response.headers['Access-Control-Allow-Origin'] == 'http://apache.org'
+            assert response.headers["Access-Control-Allow-Origin"] == "http://apache.org"
 
             response = test_client.get(
                 "/api/v1/pools", headers={"Authorization": token, "Origin": "http://apache.org"}
             )
             assert response.status_code == 200
-            assert response.headers['Access-Control-Allow-Origin'] == 'http://apache.org'
+            assert response.headers["Access-Control-Allow-Origin"] == "http://apache.org"
 
             response = test_client.get(
                 "/api/v1/pools", headers={"Authorization": token, "Origin": "http://example.com"}
             )
             assert response.status_code == 200
-            assert response.headers['Access-Control-Allow-Origin'] == 'http://example.com'
+            assert response.headers["Access-Control-Allow-Origin"] == "http://example.com"
 
 
 class TestCorsWildcard(BaseTestAuth):
@@ -115,7 +115,7 @@ class TestCorsWildcard(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars(
@@ -127,7 +127,7 @@ class TestCorsWildcard(BaseTestAuth):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_cors_origin_reflection(self):
         token = "Basic " + b64encode(b"test:test").decode()
@@ -138,4 +138,4 @@ class TestCorsWildcard(BaseTestAuth):
                 "/api/v1/pools", headers={"Authorization": token, "Origin": "http://example.com"}
             )
             assert response.status_code == 200
-            assert response.headers['Access-Control-Allow-Origin'] == '*'
+            assert response.headers["Access-Control-Allow-Origin"] == "*"

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
@@ -26,17 +25,16 @@ from airflow.utils import db
 arangodb_client_mock = Mock(name="arangodb_client_for_test")
 
 
-class TestArangoDBHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestArangoDBHook:
+    def setup_method(self):
         db.merge_conn(
             Connection(
-                conn_id='arangodb_default',
-                conn_type='arangodb',
-                host='http://127.0.0.1:8529',
-                login='root',
-                password='password',
-                schema='_system',
+                conn_id="arangodb_default",
+                conn_type="arangodb",
+                host="http://127.0.0.1:8529",
+                login="root",
+                password="password",
+                schema="_system",
             )
         )
 
@@ -48,10 +46,10 @@ class TestArangoDBHook(unittest.TestCase):
     def test_get_conn(self, arango_mock):
         arangodb_hook = ArangoDBHook()
 
-        assert arangodb_hook.hosts == ['http://127.0.0.1:8529']
-        assert arangodb_hook.username == 'root'
-        assert arangodb_hook.password == 'password'
-        assert arangodb_hook.database == '_system'
+        assert arangodb_hook.hosts == ["http://127.0.0.1:8529"]
+        assert arangodb_hook.username == "root"
+        assert arangodb_hook.password == "password"
+        assert arangodb_hook.database == "_system"
         assert arangodb_hook.client is not None
         assert arango_mock.called
         assert isinstance(arangodb_hook.client, Mock)

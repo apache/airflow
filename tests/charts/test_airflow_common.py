@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -32,7 +31,8 @@ class TestAirflowCommon:
     as it requires extra test setup.
     """
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_values, expected_mount",
         [
             (
                 {"gitSync": {"enabled": True}},
@@ -70,7 +70,7 @@ class TestAirflowCommon:
                     "readOnly": False,
                 },
             ),
-        ]
+        ],
     )
     def test_dags_mount(self, dag_values, expected_mount):
         docs = render_chart(
@@ -88,6 +88,42 @@ class TestAirflowCommon:
         assert 3 == len(docs)
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+
+    def test_webserver_config_configmap_name_volume_mounts(self):
+        configmap_name = "my-configmap"
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "webserverConfigConfigMapName": configmap_name,
+                },
+                "workers": {"kerberosSidecar": {"enabled": True}},
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+        for index in range(len(docs)):
+            print(docs[index])
+            assert "webserver-config" in [
+                c["name"]
+                for r in jmespath.search(
+                    "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].volumeMounts",
+                    docs[index],
+                )
+                for c in r
+            ]
+            for container in jmespath.search("spec.template.spec.containers", docs[index]):
+                assert "webserver-config" in [c["name"] for c in jmespath.search("volumeMounts", container)]
+            assert "webserver-config" in [
+                c["name"] for c in jmespath.search("spec.template.spec.volumes", docs[index])
+            ]
+            assert configmap_name == jmespath.search(
+                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", docs[index]
+            )
 
     def test_annotations(self):
         """
@@ -117,7 +153,7 @@ class TestAirflowCommon:
         assert 7 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
-            if k8s_object['kind'] == 'CronJob':
+            if k8s_object["kind"] == "CronJob":
                 annotations = k8s_object["spec"]["jobTemplate"]["spec"]["template"]["metadata"]["annotations"]
             else:
                 annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
@@ -243,7 +279,6 @@ class TestAirflowCommon:
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
-                    "AIRFLOW__CELERY__RESULT_BACKEND": False,
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
                 },
             },
@@ -256,15 +291,14 @@ class TestAirflowCommon:
             ],
         )
         expected_vars = [
-            'AIRFLOW__CORE__FERNET_KEY',
-            'AIRFLOW_CONN_AIRFLOW_DB',
-            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
-            'AIRFLOW__CELERY__BROKER_URL',
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            component = doc["metadata"]["labels"]["component"]
+            variables = expected_vars_in_worker if component == "worker" else expected_vars
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
@@ -281,19 +315,17 @@ class TestAirflowCommon:
             ],
         )
         expected_vars = [
-            'AIRFLOW__CORE__FERNET_KEY',
-            'AIRFLOW__CORE__SQL_ALCHEMY_CONN',
-            'AIRFLOW__DATABASE__SQL_ALCHEMY_CONN',
-            'AIRFLOW_CONN_AIRFLOW_DB',
-            'AIRFLOW__WEBSERVER__SECRET_KEY',
-            'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
-            'AIRFLOW__CELERY__RESULT_BACKEND',
-            'AIRFLOW__CELERY__BROKER_URL',
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__WEBSERVER__SECRET_KEY",
+            "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ['DUMB_INIT_SETSID'] + expected_vars
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            variables = expected_vars_in_worker if component == 'worker' else expected_vars
+            component = doc["metadata"]["labels"]["component"]
+            variables = expected_vars_in_worker if component == "worker" else expected_vars
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
@@ -347,7 +379,7 @@ class TestAirflowCommon:
 
         assert 7 == len(docs)
         for doc in docs:
-            component = doc['metadata']['labels']['component']
-            priority = doc['spec']['template']['spec']['priorityClassName']
+            component = doc["metadata"]["labels"]["component"]
+            priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"

@@ -38,7 +38,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
 @provide_session
 def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Get a Dataset"""
+    """Get a Dataset."""
     dataset = (
         session.query(DatasetModel)
         .filter(DatasetModel.uri == uri)
@@ -54,7 +54,7 @@ def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def get_datasets(
     *,
@@ -64,8 +64,8 @@ def get_datasets(
     order_by: str = "id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get datasets"""
-    allowed_attrs = ['id', 'uri', 'created_at', 'updated_at']
+    """Get datasets."""
+    allowed_attrs = ["id", "uri", "created_at", "updated_at"]
 
     total_entries = session.query(func.count(DatasetModel.id)).scalar()
     query = session.query(DatasetModel)
@@ -83,7 +83,7 @@ def get_datasets(
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
 @provide_session
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 def get_dataset_events(
     *,
     limit: int,
@@ -96,8 +96,8 @@ def get_dataset_events(
     source_map_index: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get dataset events"""
-    allowed_attrs = ['source_dag_id', 'source_task_id', 'source_run_id', 'source_map_index', 'timestamp']
+    """Get dataset events."""
+    allowed_attrs = ["source_dag_id", "source_task_id", "source_run_id", "source_map_index", "timestamp"]
 
     query = session.query(DatasetEvent)
 

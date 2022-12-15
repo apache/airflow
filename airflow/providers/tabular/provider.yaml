@@ -22,11 +22,12 @@ description: |
     `Tabular <https://tabular.io/>`__
 
 versions:
+  - 1.1.0
   - 1.0.1
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.3.0
 
 integrations:
   - integration-name: Tabular

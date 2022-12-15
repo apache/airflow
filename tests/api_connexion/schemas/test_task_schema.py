@@ -65,7 +65,7 @@ class TestTaskSchema:
 
 class TestTaskCollectionSchema:
     def test_serialize(self):
-        tasks = [EmptyOperator(task_id="task_id1", params={'foo': 'bar'})]
+        tasks = [EmptyOperator(task_id="task_id1", params={"foo": "bar"})]
         collection = TaskCollection(tasks, 1)
         result = task_collection_schema.dump(collection)
         expected = {
@@ -82,12 +82,12 @@ class TestTaskCollectionSchema:
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
                     "owner": "airflow",
-                    'params': {
-                        'foo': {
-                            '__class': 'airflow.models.param.Param',
-                            'value': 'bar',
-                            'description': None,
-                            'schema': {},
+                    "params": {
+                        "foo": {
+                            "__class": "airflow.models.param.Param",
+                            "value": "bar",
+                            "description": None,
+                            "schema": {},
                         }
                     },
                     "pool": "default_pool",

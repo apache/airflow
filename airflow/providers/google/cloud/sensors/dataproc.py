@@ -45,8 +45,8 @@ class DataprocJobSensor(BaseSensorOperator):
     :param wait_timeout: How many seconds wait for job to be ready.
     """
 
-    template_fields: Sequence[str] = ('project_id', 'region', 'dataproc_job_id')
-    ui_color = '#f0eee4'
+    template_fields: Sequence[str] = ("project_id", "region", "dataproc_job_id")
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -54,7 +54,7 @@ class DataprocJobSensor(BaseSensorOperator):
         dataproc_job_id: str,
         region: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         wait_timeout: int | None = None,
         **kwargs,
     ) -> None:
@@ -95,13 +95,13 @@ class DataprocJobSensor(BaseSensorOperator):
 
         state = job.status.state
         if state == JobStatus.State.ERROR:
-            raise AirflowException(f'Job failed:\n{job}')
+            raise AirflowException(f"Job failed:\n{job}")
         elif state in {
             JobStatus.State.CANCELLED,
             JobStatus.State.CANCEL_PENDING,
             JobStatus.State.CANCEL_STARTED,
         }:
-            raise AirflowException(f'Job was cancelled:\n{job}')
+            raise AirflowException(f"Job was cancelled:\n{job}")
         elif JobStatus.State.DONE == state:
             self.log.debug("Job %s completed successfully.", self.dataproc_job_id)
             return True

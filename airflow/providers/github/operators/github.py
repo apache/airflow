@@ -50,7 +50,7 @@ class GithubOperator(BaseOperator):
         self,
         *,
         github_method: str,
-        github_conn_id: str = 'github_default',
+        github_conn_id: str = "github_default",
         github_method_args: dict | None = None,
         result_processor: Callable | None = None,
         **kwargs,
@@ -76,4 +76,4 @@ class GithubOperator(BaseOperator):
         except GithubException as github_error:
             raise AirflowException(f"Failed to execute GithubOperator, error: {str(github_error)}")
         except Exception as e:
-            raise AirflowException(f'GitHub operator error: {str(e)}')
+            raise AirflowException(f"GitHub operator error: {str(e)}")

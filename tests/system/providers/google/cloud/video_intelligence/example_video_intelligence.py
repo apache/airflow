@@ -23,6 +23,7 @@ This DAG relies on the following OS environment variables:
 
 * BUCKET_NAME - Google Cloud Storage bucket where the file exists.
 """
+
 from __future__ import annotations
 
 import os
@@ -63,9 +64,10 @@ INPUT_URI = f"gs://{BUCKET_NAME_DST}/{FILE_NAME}"
 
 with models.DAG(
     DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME_DST)

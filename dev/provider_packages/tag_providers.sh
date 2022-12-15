@@ -20,7 +20,7 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
 
 # Check common named remotes for the upstream repo
 for remote in origin apache; do
-   git remote get-url --push "$remote" 2>/dev/null | grep -q git@github.com:apache/airflow && break
+   git remote get-url --push "$remote" 2>/dev/null | grep -q apache/airflow.git && break
    unset remote
 done
 
@@ -32,7 +32,7 @@ do
    if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
         provider="providers-${BASH_REMATCH[1]}"
         tag="${provider//_/-}/${BASH_REMATCH[2]}"
-        { git tag "${tag}" && tags+=("$tag") ; } || true
+    { git tag "${tag}" -m "Release $(date '+%Y-%m-%d') of providers" && tags+=("$tag") ; } || true
    fi
 done
 if [[ -n "${tags:-}" && "${#tags}" -gt 0 ]]; then

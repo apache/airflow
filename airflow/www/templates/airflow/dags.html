@@ -70,6 +70,7 @@
   <meta name="task_stats_url" content="{{ url_for('Airflow.task_stats') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
   <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
+  <meta name="next_run_datasets_summary_url" content="{{ url_for('Airflow.next_run_datasets_summary') }}">
   <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id='__DAG_ID__') }}">
 {% endblock %}
 
@@ -268,7 +269,7 @@
               {% endfor %}
             </td>
             <td style="padding:0; width:130px;">
-              {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
+              {{ loading_dots(classes='js-loading-dag-run-stats text-muted') }}
               <svg height="10" width="10" id="dag-run-{{ dag.safe_dag_id }}" style="display: block;"></svg>
             </td>
             <td>
@@ -297,20 +298,33 @@
             </td>
             <td class="text-nowrap {{ 'js-dataset-triggered' if dag.dag_id in dataset_triggered_next_run_info }}">
               {% if dag.dag_id in dataset_triggered_next_run_info %}
-                <span
-                  data-dag-id="{{ dag.dag_id }}"
-                  class="js-tooltip js-next-dataset-run-tooltip"
-                  title="Click to see dataset details."
-                  data-html="true"
-                >
-                  <div
-                    class="label label-default next-dataset-triggered"
+                {%- with ds_info = dataset_triggered_next_run_info[dag.dag_id] -%}
+                  <span
                     data-dag-id="{{ dag.dag_id }}"
-                    data-summary="{{ dataset_triggered_next_run_info[dag.dag_id] }}"
+                    class="js-tooltip js-next-dataset-run-tooltip"
+                    title="Click to see dataset details."
+                    data-html="true"
+                    data-uri="{{ ds_info.uri }}"
                   >
-                    {{ dataset_triggered_next_run_info[dag.dag_id] }}
-                  </div>
-                </span>
+                    <div
+                      class="label label-default next-dataset-triggered"
+                      data-dag-id="{{ dag.dag_id }}"
+                      data-uri="{{ ds_info.uri }}"
+                      data-summary="
+                      {%- if ds_info.total == 1 -%}
+                      On {{ ds_info.uri }}
+                      {%- else -%}
+                      {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                      {%- endif -%}"
+                    >
+                      {% if ds_info.total == 1 -%}
+                        On {{ ds_info.uri[0:40] + '…' if ds_info.uri and ds_info.uri|length > 40 else ds_info.uri|default('', true) }}
+                      {%- else -%}
+                        {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                      {%- endif %}
+                    </div>
+                  </span>
+                {%- endwith -%}
               {% endif %}
               {% if dag.next_dagrun is not none %}
                 <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
@@ -329,8 +343,8 @@
               {% endif %}
             </td>
             <td style="padding:0; width:323px; height:10px;">
-              {{ loading_dots(classes='js-loading-task-stats text-muted') }}
-              <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+              {{ loading_dots(classes='js-loading-task-instance-stats text-muted') }}
+              <svg height="10" width="10" id='task-instance-{{ dag.safe_dag_id }}' style="display: block;"></svg>
             </td>
             <td class="text-center">
               <div class="btn-group">

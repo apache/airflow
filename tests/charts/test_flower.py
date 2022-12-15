@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -46,7 +45,10 @@ class TestFlowerDeployment:
             assert "release-name-flower" == jmespath.search("metadata.name", docs[0])
             assert "flower" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
-    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    @pytest.mark.parametrize(
+        "revision_history_limit, global_revision_history_limit",
+        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
+    )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {
             "flower": {
@@ -54,9 +56,9 @@ class TestFlowerDeployment:
             }
         }
         if revision_history_limit:
-            values['flower']['revisionHistoryLimit'] = revision_history_limit
+            values["flower"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/flower/flower-deployment.yaml"],
@@ -134,10 +136,10 @@ class TestFlowerDeployment:
         assert "AIRFLOW__CELERY__FLOWER_BASIC_AUTH" == jmespath.search(
             "spec.template.spec.containers[0].env[0].name", docs[0]
         )
-        assert ['curl', '--user', '$AIRFLOW__CELERY__FLOWER_BASIC_AUTH', 'localhost:7777'] == jmespath.search(
+        assert ["curl", "--user", "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
-        assert ['curl', '--user', '$AIRFLOW__CELERY__FLOWER_BASIC_AUTH', 'localhost:7777'] == jmespath.search(
+        assert ["curl", "--user", "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
         )
 
@@ -153,10 +155,10 @@ class TestFlowerDeployment:
         assert "AIRFLOW__CORE__FERNET_KEY" == jmespath.search(
             "spec.template.spec.containers[0].env[0].name", docs[0]
         )
-        assert ['curl', 'localhost:7777'] == jmespath.search(
+        assert ["curl", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
-        assert ['curl', 'localhost:7777'] == jmespath.search(
+        assert ["curl", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
         )
 
@@ -211,8 +213,8 @@ class TestFlowerDeployment:
                 "flower": {
                     "enabled": True,
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     },
                 },
             },
@@ -266,6 +268,23 @@ class TestFlowerDeployment:
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                },
+                "volumes": [{"name": "myvolume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "myvolume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert {"name": "myvolume", "mountPath": "/opt/test"} in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -277,7 +296,7 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
 
@@ -294,6 +313,27 @@ class TestFlowerDeployment:
 
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"flower": {"enabled": True}, "airflowLocalSettings": None},
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"flower": {"enabled": True}, "airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        volume_mount = {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
 
 class TestFlowerService:

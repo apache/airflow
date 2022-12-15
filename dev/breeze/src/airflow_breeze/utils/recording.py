@@ -31,10 +31,10 @@ DEFAULT_COLUMNS = 129
 
 
 def generating_command_images() -> bool:
-    return "regenerate-command-images" in sys.argv
+    return "RECORD_BREEZE_TITLE" in os.environ or "regenerate-command-images" in sys.argv
 
 
-def enable_recording_of_help_output(path: str, title: str | None, width: str | None):
+def enable_recording_of_help_output(path: str, title: str | None, width: str | None, unique_id: str | None):
     import rich_click as click
 
     if not title:
@@ -46,7 +46,7 @@ def enable_recording_of_help_output(path: str, title: str | None, width: str | N
 
     def save_ouput_as_svg():
         if help_console:
-            help_console.save_svg(path=path, title=title)
+            help_console.save_svg(path=path, title=title, unique_id=unique_id)
 
     class RecordingConsole(rich.console.Console):
         def __init__(self, **kwargs):
@@ -64,14 +64,15 @@ def enable_recording_of_help_output(path: str, title: str | None, width: str | N
     click.rich_click.Console = RecordingConsole  # type: ignore[misc]
 
 
-output_file = os.environ.get('RECORD_BREEZE_OUTPUT_FILE')
+output_file = os.environ.get("RECORD_BREEZE_OUTPUT_FILE")
 
 
 if output_file and not in_autocomplete():
     enable_recording_of_help_output(
         path=output_file,
-        title=os.environ.get('RECORD_BREEZE_TITLE'),
-        width=os.environ.get('RECORD_BREEZE_WIDTH'),
+        title=os.environ.get("RECORD_BREEZE_TITLE"),
+        width=os.environ.get("RECORD_BREEZE_WIDTH"),
+        unique_id=os.environ.get("RECORD_BREEZE_UNIQUE_ID"),
     )
 else:
     try:

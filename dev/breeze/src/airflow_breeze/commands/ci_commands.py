@@ -26,7 +26,7 @@ import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, Iterable, NamedTuple
 
 import click
 
@@ -43,7 +43,6 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference,
     option_answer,
     option_dry_run,
-    option_github_repository,
     option_max_age,
     option_python,
     option_timezone,
@@ -60,11 +59,11 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.github_actions import get_ga_output
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_TMP_DIR_NAME
 from airflow_breeze.utils.run_utils import run_command
 
 
-@click.group(cls=BreezeGroup, name='ci', help='Tools that CI workflows use to cleanup/manage CI environment')
+@click.group(cls=BreezeGroup, name="ci", help="Tools that CI workflows use to cleanup/manage CI environment")
 def ci_group():
     pass
 
@@ -73,37 +72,36 @@ def ci_group():
 @option_verbose
 @option_dry_run
 @option_answer
-def free_space(verbose: bool, dry_run: bool, answer: str):
+def free_space():
     if user_confirm("Are you sure to run free-space and perform cleanup?") == Answer.YES:
-        run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
-        run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
+        run_command(["sudo", "swapoff", "-a"])
+        run_command(["sudo", "rm", "-f", "/swapfile"])
         for file in Path(tempfile.gettempdir()).iterdir():
             if file.name.startswith("parallel"):
                 run_command(
                     ["sudo", "rm", "-rvf", os.fspath(file)],
-                    verbose=verbose,
-                    dry_run=dry_run,
                     check=False,
                     title=f"rm -rvf {file}",
                 )
-        run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
+        run_command(["sudo", "apt-get", "clean"], check=False)
+        run_command(["docker", "system", "prune", "--all", "--force", "--volumes"])
+        run_command(["df", "-h"])
+        run_command(["docker", "logout", "ghcr.io"], check=False)
         run_command(
-            ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run
+            ["sudo", "rm", "-f", os.fspath(Path.home() / MSSQL_TMP_DIR_NAME)],
         )
-        run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
-        run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
 @option_verbose
 @option_dry_run
-def resource_check(verbose: bool, dry_run: bool):
-    perform_environment_checks(verbose=verbose)
-    shell_params = ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
+def resource_check():
+    perform_environment_checks()
+    shell_params = ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
+    check_docker_resources(shell_params.airflow_image_name)
 
 
-HOME_DIR = Path(os.path.expanduser('~')).resolve()
+HOME_DIR = Path(os.path.expanduser("~")).resolve()
 
 DIRECTORIES_TO_FIX = [
     AIRFLOW_SOURCES_ROOT,
@@ -111,66 +109,63 @@ DIRECTORIES_TO_FIX = [
     HOME_DIR / ".azure",
     HOME_DIR / ".config/gcloud",
     HOME_DIR / ".docker",
-    AIRFLOW_SOURCES_ROOT,
+    HOME_DIR / MSSQL_TMP_DIR_NAME,
 ]
 
 
-def fix_ownership_for_file(file: Path, dry_run: bool, verbose: bool):
+def fix_ownership_for_file(file: Path):
     get_console().print(f"[info]Fixing ownership of {file}")
     result = run_command(
         ["sudo", "chown", f"{os.getuid}:{os.getgid()}", str(file.resolve())],
         check=False,
         stderr=subprocess.STDOUT,
-        dry_run=dry_run,
-        verbose=verbose,
     )
     if result.returncode != 0:
         get_console().print(f"[warning]Could not fix ownership for {file}: {result.stdout}")
 
 
-def fix_ownership_for_path(path: Path, dry_run: bool, verbose: bool):
+def fix_ownership_for_path(path: Path):
     if path.is_dir():
-        for p in Path(path).rglob('*'):
-            if p.owner == 'root':
-                fix_ownership_for_file(p, dry_run=dry_run, verbose=verbose)
+        for p in Path(path).rglob("*"):
+            if p.owner == "root":
+                fix_ownership_for_file(p)
     else:
-        if path.owner == 'root':
-            fix_ownership_for_file(path, dry_run=dry_run, verbose=verbose)
+        if path.owner == "root":
+            fix_ownership_for_file(path)
 
 
-def fix_ownership_without_docker(dry_run: bool, verbose: bool):
+def fix_ownership_without_docker():
     for directory_to_fix in DIRECTORIES_TO_FIX:
-        fix_ownership_for_path(directory_to_fix, dry_run=dry_run, verbose=verbose)
+        fix_ownership_for_path(directory_to_fix)
 
 
 @ci_group.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
 @click.option(
-    '--use-sudo',
+    "--use-sudo",
     is_flag=True,
     help="Use sudo instead of docker image to fix the ownership. You need to be a `sudoer` to run it",
-    envvar='USE_SUDO',
+    envvar="USE_SUDO",
 )
-@option_github_repository
 @option_verbose
 @option_dry_run
-def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run: bool):
+def fix_ownership(use_sudo: bool):
     system = platform.system().lower()
-    if system != 'linux':
+    if system != "linux":
         get_console().print(
             f"[warning]You should only need to run fix-ownership on Linux and your system is {system}"
         )
         sys.exit(0)
     if use_sudo:
         get_console().print("[info]Fixing ownership using sudo.")
-        fix_ownership_without_docker(dry_run=dry_run, verbose=verbose)
+        fix_ownership_without_docker()
         sys.exit(0)
     get_console().print("[info]Fixing ownership using docker.")
-    fix_ownership_using_docker(dry_run=dry_run, verbose=verbose)
+    fix_ownership_using_docker()
     # Always succeed
     sys.exit(0)
 
 
-def get_changed_files(commit_ref: str | None, dry_run: bool, verbose: bool) -> tuple[str, ...]:
+def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     if commit_ref is None:
         return ()
     cmd = [
@@ -182,7 +177,7 @@ def get_changed_files(commit_ref: str | None, dry_run: bool, verbose: bool) -> t
         commit_ref + "^",
         commit_ref,
     ]
-    result = run_command(cmd, dry_run=dry_run, verbose=verbose, check=False, capture_output=True, text=True)
+    result = run_command(cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:
         get_console().print(
             f"[warning] Error when running diff-tree command [/]\n{result.stdout}\n{result.stderr}"
@@ -199,32 +194,32 @@ def get_changed_files(commit_ref: str | None, dry_run: bool, verbose: bool) -> t
     name="selective-check", help="Checks what kind of tests should be run for an incoming commit."
 )
 @click.option(
-    '--commit-ref',
+    "--commit-ref",
     help="Commit-ish reference to the commit that should be checked",
-    envvar='COMMIT_REF',
+    envvar="COMMIT_REF",
 )
 @click.option(
-    '--pr-labels',
+    "--pr-labels",
     help="Python array formatted PR labels assigned to the PR",
     default="",
     envvar="PR_LABELS",
 )
 @click.option(
-    '--default-branch',
+    "--default-branch",
     help="Branch against which the PR should be run",
     default="main",
     envvar="DEFAULT_BRANCH",
     show_default=True,
 )
 @click.option(
-    '--default-constraints-branch',
+    "--default-constraints-branch",
     help="Constraints Branch against which the PR should be run",
     default="constraints-main",
     envvar="DEFAULT_CONSTRAINTS_BRANCH",
     show_default=True,
 )
 @click.option(
-    '--github-event-name',
+    "--github-event-name",
     type=BetterChoice(github_events()),
     default=github_events()[0],
     help="Name of the GitHub event that triggered the check",
@@ -239,14 +234,12 @@ def selective_check(
     default_branch: str,
     default_constraints_branch: str,
     github_event_name: str,
-    verbose: bool,
-    dry_run: bool,
 ):
     from airflow_breeze.utils.selective_checks import SelectiveChecks
 
     github_event = GithubEvents(github_event_name)
     if commit_ref is not None:
-        changed_files = get_changed_files(commit_ref=commit_ref, dry_run=dry_run, verbose=verbose)
+        changed_files = get_changed_files(commit_ref=commit_ref)
     else:
         changed_files = ()
     sc = SelectiveChecks(
@@ -257,7 +250,7 @@ def selective_check(
         pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
         github_event=github_event,
     )
-    print(str(sc))
+    print(str(sc), file=sys.stderr)
 
 
 @ci_group.command(name="find-newer-dependencies", help="Finds which dependencies are being upgraded.")
@@ -290,17 +283,21 @@ class WorkflowInfo(NamedTuple):
     ref_name: str | None
     pr_number: int | None
 
-    def print_ga_outputs(self):
-        print(get_ga_output(name="pr_labels", value=str(self.pull_request_labels)))
-        print(get_ga_output(name="target_repo", value=self.target_repo))
-        print(get_ga_output(name="head_repo", value=self.head_repo))
-        print(get_ga_output(name="pr_number", value=str(self.pr_number) if self.pr_number else ""))
-        print(get_ga_output(name="event_name", value=str(self.event_name)))
-        print(get_ga_output(name="runs-on", value=self.get_runs_on()))
-        print(get_ga_output(name='in-workflow-build', value=self.in_workflow_build()))
-        print(get_ga_output(name="build-job-description", value=self.get_build_job_description()))
-        print(get_ga_output(name="canary-run", value=self.is_canary_run()))
-        print(get_ga_output(name="run-coverage", value=self.run_coverage()))
+    def get_all_ga_outputs(self) -> Iterable[str]:
+        yield get_ga_output(name="pr_labels", value=str(self.pull_request_labels))
+        yield get_ga_output(name="target_repo", value=self.target_repo)
+        yield get_ga_output(name="head_repo", value=self.head_repo)
+        yield get_ga_output(name="pr_number", value=str(self.pr_number) if self.pr_number else "")
+        yield get_ga_output(name="event_name", value=str(self.event_name))
+        yield get_ga_output(name="runs-on", value=self.get_runs_on())
+        yield get_ga_output(name="in-workflow-build", value=self.in_workflow_build())
+        yield get_ga_output(name="build-job-description", value=self.get_build_job_description())
+        yield get_ga_output(name="canary-run", value=self.is_canary_run())
+        yield get_ga_output(name="run-coverage", value=self.run_coverage())
+
+    def print_all_ga_outputs(self):
+        for output in self.get_all_ga_outputs():
+            print(output, file=sys.stderr)
 
     def get_runs_on(self) -> str:
         for label in self.pull_request_labels:
@@ -317,13 +314,13 @@ class WorkflowInfo(NamedTuple):
         return "false"
 
     def get_build_job_description(self) -> str:
-        if self.in_workflow_build() == 'true':
+        if self.in_workflow_build() == "true":
             return "Build"
         return "Skip Build (look in pull_request_target)"
 
     def is_canary_run(self) -> str:
         if (
-            self.event_name == 'push'
+            self.event_name == "push"
             and self.head_repo == "apache/airflow"
             and self.ref_name
             and (self.ref_name == "main" or TEST_BRANCH_MATCHER.match(self.ref_name))
@@ -332,7 +329,7 @@ class WorkflowInfo(NamedTuple):
         return "false"
 
     def run_coverage(self) -> str:
-        if self.event_name == 'push' and self.head_repo == "apache/airflow" and self.ref == "refs/head/main":
+        if self.event_name == "push" and self.head_repo == "apache/airflow" and self.ref == "refs/heads/main":
             return "true"
         return "false"
 
@@ -350,26 +347,26 @@ def workflow_info(context: str) -> WorkflowInfo:
     ref_name = ctx.get("ref_name")
     ref = ctx.get("ref")
     if event_name == "pull_request":
-        event = ctx.get('event')
+        event = ctx.get("event")
         if event:
-            pr = event.get('pull_request')
+            pr = event.get("pull_request")
             if pr:
-                labels = pr.get('labels')
+                labels = pr.get("labels")
                 if labels:
                     for label in labels:
-                        pull_request_labels.append(label['name'])
+                        pull_request_labels.append(label["name"])
                 target_repo = pr["base"]["repo"]["full_name"]
                 head_repo = pr["head"]["repo"]["full_name"]
                 pr_number = pr["number"]
-    elif event_name == 'push':
+    elif event_name == "push":
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
-    elif event_name == 'schedule':
+    elif event_name == "schedule":
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
-    elif event_name == 'pull_request_target':
+    elif event_name == "pull_request_target":
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
@@ -392,12 +389,12 @@ def workflow_info(context: str) -> WorkflowInfo:
     help="Retrieve information about current workflow in the CI"
     "and produce github actions output extracted from it.",
 )
-@click.option('--github-context', help="JSON-formatted github context", envvar='GITHUB_CONTEXT')
+@click.option("--github-context", help="JSON-formatted github context", envvar="GITHUB_CONTEXT")
 @click.option(
-    '--github-context-input',
+    "--github-context-input",
     help="file input (might be `-`) with JSON-formatted github context",
-    type=click.File('rt'),
-    envvar='GITHUB_CONTEXT_INPUT',
+    type=click.File("rt"),
+    envvar="GITHUB_CONTEXT_INPUT",
 )
 def get_workflow_info(github_context: str, github_context_input: StringIO):
     if github_context and github_context_input:
@@ -415,4 +412,4 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
         )
         sys.exit(1)
     wi = workflow_info(context=context)
-    wi.print_ga_outputs()
+    wi.print_all_ga_outputs()

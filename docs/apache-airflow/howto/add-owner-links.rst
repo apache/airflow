@@ -23,26 +23,27 @@ Add Owner Links to DAG
 
 .. versionadded:: 2.4.0
 
-You can pass the ``owner_link`` parameter for your DAG object, which will make the owner to become a clickable link
-in the main DAGs view page.
-You can use it to set a custom HTTP link (for example, the owner's Slack channel), or use a
-`maitlo <https://en.wikipedia.org/wiki/Mailto>`_ link to have an automated email message (up to 500 characters).
+You can set the ``owner_links`` argument on your DAG object, which will make the owner a clickable link in the
+main DAGs view page instead of a search filter.
 
-Example:
-In your DAG file, add a ``owners_link`` parameter to the DAG object that will hold a dictionary of an owner and it's link.
-After that, define a task that will use this owner, and the link in the DAGs view will become clickable
+Two options are supported:
+
+* An HTTP link (e.g. ``https://www.example.com``) which opens the webpage in your default internet client
+* A `mailto <https://en.wikipedia.org/wiki/Mailto>`_ link (e.g. ``mailto:example@airflow.com``) which opens your default email client to send an email to the specified address
+
+In your DAG, set the ``owner_links`` argument specifying a dictionary of an owner (key) and its link (value).
+Next define a task using this owner, and the owner in the DAGs view will link to the specified address.
 
 .. code-block:: python
+  :emphasize-lines: 5
 
-  dag = DAG(
+  with DAG(
       dag_id="example_dag_owners",
-      schedule="0 0 * * *",
       start_date=datetime(2022, 8, 5),
-      owner_links={"airflow": "https://airflow.apache.org/"},
-  )
-
-  with dag:
-      bash_task = BashOperator(task_id='task_using_linked_owner', bash_command='echo 1', owner='airflow')
+      schedule="0 0 * * *",
+      owner_links={"airflow": "https://airflow.apache.org"},
+  ):
+      BashOperator(task_id="task_using_linked_owner", bash_command="echo 1", owner="airflow")
 
 **Screenshot**:
 

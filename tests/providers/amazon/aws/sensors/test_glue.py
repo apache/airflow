@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import ANY
 
@@ -28,20 +27,20 @@ from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 
 
-class TestGlueJobSensor(unittest.TestCase):
-    def setUp(self):
+class TestGlueJobSensor:
+    def setup_method(self):
         conf.load_test_config()
 
-    @mock.patch.object(GlueJobHook, 'print_job_logs')
-    @mock.patch.object(GlueJobHook, 'get_conn')
-    @mock.patch.object(GlueJobHook, 'get_job_state')
+    @mock.patch.object(GlueJobHook, "print_job_logs")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_job_state")
     def test_poke(self, mock_get_job_state, mock_conn, mock_print_job_logs):
         mock_conn.return_value.get_job_run()
-        mock_get_job_state.return_value = 'SUCCEEDED'
+        mock_get_job_state.return_value = "SUCCEEDED"
         op = GlueJobSensor(
-            task_id='test_glue_job_sensor',
-            job_name='aws_test_glue_job',
-            run_id='5152fgsfsjhsh61661',
+            task_id="test_glue_job_sensor",
+            job_name="aws_test_glue_job",
+            run_id="5152fgsfsjhsh61661",
             poke_interval=1,
             timeout=5,
         )
@@ -49,16 +48,16 @@ class TestGlueJobSensor(unittest.TestCase):
         assert op.poke({})
         mock_print_job_logs.assert_not_called()
 
-    @mock.patch.object(GlueJobHook, 'print_job_logs')
-    @mock.patch.object(GlueJobHook, 'get_conn')
-    @mock.patch.object(GlueJobHook, 'get_job_state')
+    @mock.patch.object(GlueJobHook, "print_job_logs")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_job_state")
     def test_poke_with_verbose_logging(self, mock_get_job_state, mock_conn, mock_print_job_logs):
         mock_conn.return_value.get_job_run()
-        mock_get_job_state.return_value = 'SUCCEEDED'
-        job_name = 'job_name'
-        job_run_id = 'job_run_id'
+        mock_get_job_state.return_value = "SUCCEEDED"
+        job_name = "job_name"
+        job_run_id = "job_run_id"
         op = GlueJobSensor(
-            task_id='test_glue_job_sensor',
+            task_id="test_glue_job_sensor",
             job_name=job_name,
             run_id=job_run_id,
             poke_interval=1,
@@ -74,16 +73,16 @@ class TestGlueJobSensor(unittest.TestCase):
             next_token=ANY,
         )
 
-    @mock.patch.object(GlueJobHook, 'print_job_logs')
-    @mock.patch.object(GlueJobHook, 'get_conn')
-    @mock.patch.object(GlueJobHook, 'get_job_state')
+    @mock.patch.object(GlueJobHook, "print_job_logs")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_job_state")
     def test_poke_false(self, mock_get_job_state, mock_conn, mock_print_job_logs):
         mock_conn.return_value.get_job_run()
-        mock_get_job_state.return_value = 'RUNNING'
+        mock_get_job_state.return_value = "RUNNING"
         op = GlueJobSensor(
-            task_id='test_glue_job_sensor',
-            job_name='aws_test_glue_job',
-            run_id='5152fgsfsjhsh61661',
+            task_id="test_glue_job_sensor",
+            job_name="aws_test_glue_job",
+            run_id="5152fgsfsjhsh61661",
             poke_interval=1,
             timeout=5,
         )
@@ -91,16 +90,16 @@ class TestGlueJobSensor(unittest.TestCase):
         assert not op.poke({})
         mock_print_job_logs.assert_not_called()
 
-    @mock.patch.object(GlueJobHook, 'print_job_logs')
-    @mock.patch.object(GlueJobHook, 'get_conn')
-    @mock.patch.object(GlueJobHook, 'get_job_state')
+    @mock.patch.object(GlueJobHook, "print_job_logs")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_job_state")
     def test_poke_false_with_verbose_logging(self, mock_get_job_state, mock_conn, mock_print_job_logs):
         mock_conn.return_value.get_job_run()
-        mock_get_job_state.return_value = 'RUNNING'
-        job_name = 'job_name'
-        job_run_id = 'job_run_id'
+        mock_get_job_state.return_value = "RUNNING"
+        job_name = "job_name"
+        job_run_id = "job_run_id"
         op = GlueJobSensor(
-            task_id='test_glue_job_sensor',
+            task_id="test_glue_job_sensor",
             job_name=job_name,
             run_id=job_run_id,
             poke_interval=1,
@@ -116,16 +115,16 @@ class TestGlueJobSensor(unittest.TestCase):
             next_token=ANY,
         )
 
-    @mock.patch.object(GlueJobHook, 'print_job_logs')
-    @mock.patch.object(GlueJobHook, 'get_conn')
-    @mock.patch.object(GlueJobHook, 'get_job_state')
+    @mock.patch.object(GlueJobHook, "print_job_logs")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "get_job_state")
     def test_poke_failed_job_with_verbose_logging(self, mock_get_job_state, mock_conn, mock_print_job_logs):
         mock_conn.return_value.get_job_run()
-        mock_get_job_state.return_value = 'FAILED'
-        job_name = 'job_name'
-        job_run_id = 'job_run_id'
+        mock_get_job_state.return_value = "FAILED"
+        job_name = "job_name"
+        job_run_id = "job_run_id"
         op = GlueJobSensor(
-            task_id='test_glue_job_sensor',
+            task_id="test_glue_job_sensor",
             job_name=job_name,
             run_id=job_run_id,
             poke_interval=1,
@@ -138,11 +137,7 @@ class TestGlueJobSensor(unittest.TestCase):
             mock_print_job_logs.assert_called_once_with(
                 job_name=job_name,
                 run_id=job_run_id,
-                log_group_suffix='error',
-                filter_pattern='?ERROR ?Exception',
+                log_group_suffix="error",
+                filter_pattern="?ERROR ?Exception",
                 next_token=ANY,
             )
-
-
-if __name__ == '__main__':
-    unittest.main()

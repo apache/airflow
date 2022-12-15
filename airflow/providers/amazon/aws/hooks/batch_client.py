@@ -20,8 +20,8 @@ A client for AWS Batch services
 
 .. seealso::
 
-    - http://boto3.readthedocs.io/en/latest/guide/configuration.html
-    - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
+    - https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+    - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
 from __future__ import annotations
@@ -48,7 +48,7 @@ class BatchProtocol(Protocol):
     .. seealso::
 
         - https://mypy.readthedocs.io/en/latest/protocols.html
-        - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
+        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
     """
 
     def describe_jobs(self, jobs: list[str]) -> dict:
@@ -58,7 +58,6 @@ class BatchProtocol(Protocol):
         :param jobs: a list of JobId to describe
 
         :return: an API response to describe jobs
-        :rtype: Dict
         """
         ...
 
@@ -71,7 +70,6 @@ class BatchProtocol(Protocol):
             model file (typically this is CamelCasing).
 
         :return: a waiter object for the named AWS Batch service
-        :rtype: botocore.waiter.Waiter
 
         .. note::
             AWS Batch might not have any waiters (until botocore PR-1307 is released).
@@ -117,7 +115,6 @@ class BatchProtocol(Protocol):
         :param tags: the same parameter that boto3 will receive
 
         :return: an API response
-        :rtype: Dict
         """
         ...
 
@@ -130,7 +127,6 @@ class BatchProtocol(Protocol):
         :param reason: a reason to terminate job ID
 
         :return: an API response
-        :rtype: Dict
         """
         ...
 
@@ -181,28 +177,28 @@ class BatchClientHook(AwsBaseHook):
     DEFAULT_DELAY_MIN = 1
     DEFAULT_DELAY_MAX = 10
 
-    FAILURE_STATE = 'FAILED'
-    SUCCESS_STATE = 'SUCCEEDED'
-    RUNNING_STATE = 'RUNNING'
+    FAILURE_STATE = "FAILED"
+    SUCCESS_STATE = "SUCCEEDED"
+    RUNNING_STATE = "RUNNING"
     INTERMEDIATE_STATES = (
-        'SUBMITTED',
-        'PENDING',
-        'RUNNABLE',
-        'STARTING',
+        "SUBMITTED",
+        "PENDING",
+        "RUNNABLE",
+        "STARTING",
         RUNNING_STATE,
     )
 
-    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ('VALID', 'DELETED')
-    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ("VALID", "DELETED")
+    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ("CREATING", "UPDATING", "DELETING")
 
-    JOB_QUEUE_TERMINAL_STATUS = ('VALID', 'DELETED')
-    JOB_QUEUE_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+    JOB_QUEUE_TERMINAL_STATUS = ("VALID", "DELETED")
+    JOB_QUEUE_INTERMEDIATE_STATUS = ("CREATING", "UPDATING", "DELETING")
 
     def __init__(
         self, *args, max_retries: int | None = None, status_retries: int | None = None, **kwargs
     ) -> None:
         # https://github.com/python/mypy/issues/6799 hence type: ignore
-        super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
+        super().__init__(client_type="batch", *args, **kwargs)  # type: ignore
         self.max_retries = max_retries or self.MAX_RETRIES
         self.status_retries = status_retries or self.STATUS_RETRIES
 
@@ -212,7 +208,6 @@ class BatchClientHook(AwsBaseHook):
         An AWS API client for Batch services.
 
         :return: a boto3 'batch' client for the ``.region_name``
-        :rtype: Union[BatchProtocol, botocore.client.BaseClient]
         """
         return self.conn
 
@@ -225,7 +220,6 @@ class BatchClientHook(AwsBaseHook):
         :param reason: a reason to terminate job ID
 
         :return: an API response
-        :rtype: Dict
         """
         response = self.get_conn().terminate_job(jobId=job_id, reason=reason)
         self.log.info(response)
@@ -238,7 +232,6 @@ class BatchClientHook(AwsBaseHook):
 
         :param job_id: a Batch job ID
 
-        :rtype: bool
 
         :raises: AirflowException
         """
@@ -321,7 +314,6 @@ class BatchClientHook(AwsBaseHook):
         :param match_status: a list of job status to match; the Batch job status are:
             'SUBMITTED'|'PENDING'|'RUNNABLE'|'STARTING'|'RUNNING'|'SUCCEEDED'|'FAILED'
 
-        :rtype: bool
 
         :raises: AirflowException
         """
@@ -361,7 +353,6 @@ class BatchClientHook(AwsBaseHook):
         :param job_id: a Batch job ID
 
         :return: an API response for describe jobs
-        :rtype: Dict
 
         :raises: AirflowException
         """
@@ -372,11 +363,15 @@ class BatchClientHook(AwsBaseHook):
                 return self.parse_job_description(job_id, response)
 
             except botocore.exceptions.ClientError as err:
-                error = err.response.get("Error", {})
-                if error.get("Code") == "TooManyRequestsException":
-                    pass  # allow it to retry, if possible
-                else:
-                    raise AirflowException(f"AWS Batch job ({job_id}) description error: {err}")
+                # Allow it to retry in case of exceeded quota limit of requests to AWS API
+                if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":
+                    raise
+                self.log.warning(
+                    "Ignored TooManyRequestsException error, original message: %r. "
+                    "Please consider to setup retries mode in boto3, "
+                    "check Amazon Provider AWS Connection documentation for more details.",
+                    str(err),
+                )
 
             retries += 1
             if retries >= self.status_retries:
@@ -405,7 +400,6 @@ class BatchClientHook(AwsBaseHook):
         :param response: an API response for describe jobs
 
         :return: an API response to describe job_id
-        :rtype: Dict
 
         :raises: AirflowException
         """
@@ -475,7 +469,6 @@ class BatchClientHook(AwsBaseHook):
 
         :return: uniform(delay - width, delay + width) jitter
             and it is a non-negative number
-        :rtype: float
         """
         delay = abs(delay)
         width = abs(width)
@@ -513,7 +506,6 @@ class BatchClientHook(AwsBaseHook):
 
         :param tries: Number of tries
 
-        :rtype: float
 
         Examples of behavior:
 

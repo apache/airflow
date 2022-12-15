@@ -41,13 +41,13 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         the task reaches any of these states
     """
 
-    template_fields: Sequence[str] = ('replication_task_arn',)
+    template_fields: Sequence[str] = ("replication_task_arn",)
     template_ext: Sequence[str] = ()
 
     def __init__(
         self,
         replication_task_arn: str,
-        aws_conn_id='aws_default',
+        aws_conn_id="aws_default",
         target_statuses: Iterable[str] | None = None,
         termination_statuses: Iterable[str] | None = None,
         *args,
@@ -73,16 +73,16 @@ class DmsTaskBaseSensor(BaseSensorOperator):
 
         if not status:
             raise AirflowException(
-                f'Failed to read task status, task with ARN {self.replication_task_arn} not found'
+                f"Failed to read task status, task with ARN {self.replication_task_arn} not found"
             )
 
-        self.log.info('DMS Replication task (%s) has status: %s', self.replication_task_arn, status)
+        self.log.info("DMS Replication task (%s) has status: %s", self.replication_task_arn, status)
 
         if status in self.target_statuses:
             return True
 
         if status in self.termination_statuses:
-            raise AirflowException(f'Unexpected status: {status}')
+            raise AirflowException(f"Unexpected status: {status}")
 
         return False
 
@@ -98,19 +98,19 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
     :param replication_task_arn: AWS DMS replication task ARN
     """
 
-    template_fields: Sequence[str] = ('replication_task_arn',)
+    template_fields: Sequence[str] = ("replication_task_arn",)
     template_ext: Sequence[str] = ()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.target_statuses = ['stopped']
+        self.target_statuses = ["stopped"]
         self.termination_statuses = [
-            'creating',
-            'deleting',
-            'failed',
-            'failed-move',
-            'modifying',
-            'moving',
-            'ready',
-            'testing',
+            "creating",
+            "deleting",
+            "failed",
+            "failed-move",
+            "modifying",
+            "moving",
+            "ready",
+            "testing",
         ]

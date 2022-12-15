@@ -17,93 +17,101 @@
 # under the License.
 from __future__ import annotations
 
-import logging
+import json
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
-from flask.json import JSONEncoder
+from flask.json.provider import JSONProvider
 
+from airflow.serialization.serde import CLASSNAME, DATA, SCHEMA_ID, deserialize, serialize
 from airflow.utils.timezone import convert_to_utc, is_naive
 
-try:
-    import numpy as np
-except ImportError:
-    np = None  # type: ignore
 
-try:
-    from kubernetes.client import models as k8s
-except ImportError:
-    k8s = None
+class AirflowJsonProvider(JSONProvider):
+    """JSON Provider for Flask app to use WebEncoder."""
 
-# Dates and JSON encoding/decoding
+    ensure_ascii: bool = True
+    sort_keys: bool = True
 
-log = logging.getLogger(__name__)
+    def dumps(self, obj, **kwargs):
+        kwargs.setdefault("ensure_ascii", self.ensure_ascii)
+        kwargs.setdefault("sort_keys", self.sort_keys)
+        return json.dumps(obj, **kwargs, cls=WebEncoder)
+
+    def loads(self, s: str | bytes, **kwargs):
+        return json.loads(s, **kwargs)
 
 
-class AirflowJsonEncoder(JSONEncoder):
-    """Custom Airflow json encoder implementation."""
+class WebEncoder(json.JSONEncoder):
+    """This encodes values into a web understandable format. There is no deserializer"""
 
-    def __init__(self, *args, **kwargs):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, datetime):
+            if is_naive(o):
+                o = convert_to_utc(o)
+            return o.isoformat()
+
+        if isinstance(o, date):
+            return o.strftime("%Y-%m-%d")
+
+        if isinstance(o, Decimal):
+            data = serialize(o)
+            if isinstance(data, dict) and DATA in data:
+                return data[DATA]
+
+        try:
+            data = serialize(o)
+            if isinstance(data, dict) and CLASSNAME in data:
+                # this is here for backwards compatibility
+                if (
+                    data[CLASSNAME].startswith("numpy")
+                    or data[CLASSNAME] == "kubernetes.client.models.v1_pod.V1Pod"
+                ):
+                    return data[DATA]
+            return data
+        except TypeError:
+            raise
+
+
+class XComEncoder(json.JSONEncoder):
+    """This encoder serializes any object that has attr, dataclass or a custom serializer."""
+
+    def default(self, o: object) -> Any:
+        try:
+            return serialize(o)
+        except TypeError:
+            return super().default(o)
+
+    def encode(self, o: Any) -> str:
+        # checked here and in serialize
+        if isinstance(o, dict) and (CLASSNAME in o or SCHEMA_ID in o):
+            raise AttributeError(f"reserved key {CLASSNAME} found in dict to serialize")
+
+        return super().encode(o)
+
+
+class XComDecoder(json.JSONDecoder):
+    """
+    This decoder deserializes dicts to objects if they contain
+    the `__classname__` key otherwise it will return the dict
+    as is.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        if not kwargs.get("object_hook"):
+            kwargs["object_hook"] = self.object_hook
+
         super().__init__(*args, **kwargs)
-        self.default = self._default
+
+    def object_hook(self, dct: dict) -> object:
+        return deserialize(dct)
 
     @staticmethod
-    def _default(obj):
-        """Convert dates and numpy objects in a json serializable format."""
-        if isinstance(obj, datetime):
-            if is_naive(obj):
-                obj = convert_to_utc(obj)
-            return obj.isoformat()
-        elif isinstance(obj, date):
-            return obj.strftime('%Y-%m-%d')
-        elif isinstance(obj, Decimal):
-            _, _, exponent = obj.as_tuple()
-            if exponent >= 0:  # No digits after the decimal point.
-                return int(obj)
-            # Technically lossy due to floating point errors, but the best we
-            # can do without implementing a custom encode function.
-            return float(obj)
-        elif np is not None and isinstance(
-            obj,
-            (
-                np.int_,
-                np.intc,
-                np.intp,
-                np.int8,
-                np.int16,
-                np.int32,
-                np.int64,
-                np.uint8,
-                np.uint16,
-                np.uint32,
-                np.uint64,
-            ),
-        ):
-            return int(obj)
-        elif np is not None and isinstance(obj, np.bool_):
-            return bool(obj)
-        elif np is not None and isinstance(
-            obj, (np.float_, np.float16, np.float32, np.float64, np.complex_, np.complex64, np.complex128)
-        ):
-            return float(obj)
-        elif k8s is not None and isinstance(obj, (k8s.V1Pod, k8s.V1ResourceRequirements)):
-            from airflow.kubernetes.pod_generator import PodGenerator
+    def orm_object_hook(dct: dict) -> object:
+        """Creates a readable representation of a serialized object"""
+        return deserialize(dct, False)
 
-            def safe_get_name(pod):
-                """
-                We're running this in an except block, so we don't want it to
-                fail under any circumstances, e.g. by accessing an attribute that isn't there
-                """
-                try:
-                    return pod.metadata.name
-                except Exception:
-                    return None
 
-            try:
-                return PodGenerator.serialize_pod(obj)
-            except Exception:
-                log.warning("JSON encoding failed for pod %s", safe_get_name(obj))
-                log.debug("traceback for pod JSON encode error", exc_info=True)
-                return {}
-
-        raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")
+# backwards compatibility
+AirflowJsonEncoder = WebEncoder

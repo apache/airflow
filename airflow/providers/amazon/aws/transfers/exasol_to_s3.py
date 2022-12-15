@@ -50,10 +50,10 @@ class ExasolToS3Operator(BaseOperator):
         method of :class:`~pyexasol.connection.ExaConnection`.
     """
 
-    template_fields: Sequence[str] = ('query_or_table', 'key', 'bucket_name', 'query_params', 'export_params')
+    template_fields: Sequence[str] = ("query_or_table", "key", "bucket_name", "query_params", "export_params")
     template_fields_renderers = {"query_or_table": "sql", "query_params": "json", "export_params": "json"}
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#ededed'
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#ededed"
 
     def __init__(
         self,
@@ -67,8 +67,8 @@ class ExasolToS3Operator(BaseOperator):
         acl_policy: str | None = None,
         query_params: dict | None = None,
         export_params: dict | None = None,
-        exasol_conn_id: str = 'exasol_default',
-        aws_conn_id: str = 'aws_default',
+        exasol_conn_id: str = "exasol_default",
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

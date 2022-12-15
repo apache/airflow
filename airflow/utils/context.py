@@ -22,12 +22,25 @@ import contextlib
 import copy
 import functools
 import warnings
-from typing import Any, Container, ItemsView, Iterator, KeysView, Mapping, MutableMapping, ValuesView
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Container,
+    ItemsView,
+    Iterator,
+    KeysView,
+    Mapping,
+    MutableMapping,
+    ValuesView,
+)
 
 import lazy_object_proxy
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 # NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
 KNOWN_CONTEXT_KEYS = {
@@ -40,6 +53,7 @@ KNOWN_CONTEXT_KEYS = {
     "ds",
     "ds_nodash",
     "execution_date",
+    "expanded_ti_count",
     "exception",
     "inlets",
     "logical_date",
@@ -243,6 +257,21 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     :meta private:
     """
     context.update(*args, **kwargs)
+
+
+def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
+    """Update context after task unmapping.
+
+    Since ``get_template_context()`` is called before unmapping, the context
+    contains information about the mapped task. We need to do some in-place
+    updates to ensure the template context reflects the unmapped task instead.
+
+    :meta private:
+    """
+    from airflow.models.param import process_params
+
+    context["task"] = context["ti"].task = task
+    context["params"] = process_params(context["dag"], task, context["dag_run"], suppress_exception=False)
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:

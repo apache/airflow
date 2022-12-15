@@ -28,8 +28,8 @@ from airflow.providers.qubole.hooks.qubole import QuboleHook
 
 log = logging.getLogger(__name__)
 
-COL_DELIM = '\t'
-ROW_DELIM = '\r\n'
+COL_DELIM = "\t"
+ROW_DELIM = "\r\n"
 
 
 def isint(value) -> bool:
@@ -81,22 +81,22 @@ class QuboleCheckHook(QuboleHook, DbApiHook):
     def __init__(self, context, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.results_parser_callable = parse_first_row
-        if 'results_parser_callable' in kwargs and kwargs['results_parser_callable'] is not None:
-            if not callable(kwargs['results_parser_callable']):
-                raise AirflowException('`results_parser_callable` param must be callable')
-            self.results_parser_callable = kwargs['results_parser_callable']
+        if "results_parser_callable" in kwargs and kwargs["results_parser_callable"] is not None:
+            if not callable(kwargs["results_parser_callable"]):
+                raise AirflowException("`results_parser_callable` param must be callable")
+            self.results_parser_callable = kwargs["results_parser_callable"]
         self.context = context
 
     @staticmethod
     def handle_failure_retry(context) -> None:
-        ti = context['ti']
-        cmd_id = ti.xcom_pull(key='qbol_cmd_id', task_ids=ti.task_id)
+        ti = context["ti"]
+        cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=ti.task_id)
 
         if cmd_id is not None:
             cmd = Command.find(cmd_id)
             if cmd is not None:
-                if cmd.status == 'running':
-                    log.info('Cancelling the Qubole Command Id: %s', cmd_id)
+                if cmd.status == "running":
+                    log.info("Cancelling the Qubole Command Id: %s", cmd_id)
                     cmd.cancel()
 
     def get_first(self, sql):
@@ -113,7 +113,7 @@ class QuboleCheckHook(QuboleHook, DbApiHook):
             cmd_id = self.cmd.id
             self.log.info("command id: %d", cmd_id)
             query_result_buffer = StringIO()
-            self.cmd.get_results(fp=query_result_buffer, inline=True, delim=COL_DELIM, arguments=['true'])
+            self.cmd.get_results(fp=query_result_buffer, inline=True, delim=COL_DELIM, arguments=["true"])
             query_result = query_result_buffer.getvalue()
             query_result_buffer.close()
             return query_result

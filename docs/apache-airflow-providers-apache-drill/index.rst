@@ -44,7 +44,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-drill/2.0.0/tests/system/providers/apache/drill>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-drill/|version|/tests/system/providers/apache/drill>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-drill/>
     Installing from sources <installing-providers-from-sources>
 
@@ -64,7 +64,7 @@ Package apache-airflow-providers-apache-drill
 `Apache Drill <https://drill.apache.org/>`__.
 
 
-Release: 2.2.0
+Release: 2.3.1
 
 Provider package
 ----------------
@@ -85,8 +85,8 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.2.0``
-``apache-airflow-providers-common-sql``
+``apache-airflow``                       ``>=2.3.0``
+``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``sqlalchemy-drill``                     ``>=1.1.0``
 =======================================  ==================
 
@@ -115,7 +115,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-drill 2.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-drill-2.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-drill-2.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-drill-2.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-drill 2.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_drill-2.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_drill-2.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_drill-2.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-drill 2.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-drill-2.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-drill-2.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-drill-2.3.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-drill 2.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_drill-2.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_drill-2.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_drill-2.3.1-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/apache/drill/CHANGELOG.rst

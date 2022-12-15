@@ -66,6 +66,15 @@ Here is an example configuration with more than 200GB disk space for Docker:
              alt="Disk space MacOS">
     </div>
 
+
+- **Docker is not running** - even if it is running with Docker Desktop. This is an issue
+  specific to Docker Desktop 4.13.0 (released in late October 2022). Please upgrade Docker
+  Desktop to 4.13.1 or later to resolve the issue. For technical details, see also
+  `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
+
+Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
+/CONTRIBUTORS_QUICK_START.rst>`__
+
 Docker Compose
 --------------
 
@@ -232,7 +241,7 @@ Those are all available commands for Breeze and details about the commands are d
 
 Breeze installed this way is linked to your checked out sources of Airflow so Breeze will
 automatically use latest version of sources from ``./dev/breeze``. Sometimes, when dependencies are
-updated ``breeze`` commands with offer you to run self-upgrade (you just need to answer ``y`` when asked).
+updated ``breeze`` commands with offer you to run self-upgrade.
 
 You can always run such self-upgrade at any time:
 
@@ -678,19 +687,35 @@ on how to run them.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
-Running unit/integration tests in groups
-........................................
+Running unit tests
+..................
 
-Another option you have is that you can also run tests via built-in ``breeze testing`` command.
+Another option you have is that you can also run tests via built-in ``breeze testing tests`` command.
 The iterative ``pytest`` command allows to run test individually, or by class or in any other way
-pytest allows to test them and run them interactively, but ``breeze testing`` command allows to
+pytest allows to test them and run them interactively, but ``breeze testing tests`` command allows to
 run the tests in the same test "types" that are used to run the tests in CI: for example Core, Always
 API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
 replicate this behaviour.
 
 Another interesting use of the ``breeze testing tests`` command is that you can easily specify sub-set of the
-tests for Providers. ``breeze testing tests --test-type "Providers[airbyte,http]`` for example will only run
-tests for airbyte and http providers.
+tests for Providers.
+
+For example this will only run provider tests for airbyte and http providers:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[airbyte,http]"
+
+You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
+in parallel, but you can specify the test type that you want to run with space separated list of test
+types passed to ``--test-types`` flag.
+
+For example this will run API and WWW tests in parallel:
+
+.. code-block:: bash
+
+    breeze testing tests --test-types "API WWW" --run-in-parallel
+
 
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
@@ -698,6 +723,28 @@ Here is the detailed set of options for the ``breeze testing tests`` command.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_tests.svg
   :width: 100%
   :alt: Breeze testing tests
+
+Running integration tests
+.........................
+
+You can also run integration tests via built-in ``breeze testing integration-tests`` command. Some of our
+tests require additional integrations to be started in docker-compose. The integration tests command will
+run the expected integration and tests that need that integration.
+
+For example this will only run kerberos tests:
+
+.. code-block:: bash
+
+   breeze testing integration-tests --integration Kerberos
+
+
+Here is the detailed set of options for the ``breeze testing integration-tests`` command.
+
+.. image:: ./images/breeze/output_testing_integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_integration_tests.svg
+  :width: 100%
+  :alt: Breeze testing integration-tests
+
 
 Running Helm tests
 ..................
@@ -741,13 +788,16 @@ automatically to run the tests.
 You can:
 
 * Setup environment for k8s tests with ``breeze k8s setup-env``
-* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze k8s create-cluster``,
-  ``breeze k8s deploy-airflow``, ``breeze k8s status``, ``breeze k8s delete-cluster`` commands
+* Build airflow k8S images with ``breeze k8s build-k8s-image``
+* Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
+  ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
+  ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
+* Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
+  cluster, uploading the image, deploying airflow, running tests and deleting the cluster
 * Enter the interactive kubernetes test environment with ``breeze k8s shell`` and ``breeze k8s k9s`` command
 * Run multi-cluster-operations ``breeze k8s list-all-clusters`` and
   ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
-  via ``breeze k8s run-complete-tests`` and export logs from all clusters to a temp directory
   via ``breeze k8s dump-logs`` command
 
 This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.
@@ -923,6 +973,51 @@ output during test execution.
 .. code-block::bash
 
     breeze k8s tests -- kubernetes_tests/test_kubernetes_executor.py -s
+
+Running k8s complete tests
+..........................
+
+You can run ``breeze k8s run-complete-tests`` command to combine all previous steps in one command. That
+command will create cluster, deploy airflow and run tests and finally delete cluster. It is used in CI
+to run the whole chains in parallel.
+
+Run all tests:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests
+
+Run selected tests:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests kubernetes_tests/test_kubernetes_executor.py
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_run-complete-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_run-complete-tests.svg
+  :width: 100%
+  :alt: Breeze k8s tests
+
+You can also specify any pytest flags as extra parameters - they will be passed to the
+shell command directly. In case the shell parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
+you have:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests -- --help
+
+The options that are not overlapping with the ``tests`` command options can be passed directly and mixed
+with the specifications of tests you want to run. For example the command below will only run
+``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
+output during test execution.
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests -- kubernetes_tests/test_kubernetes_executor.py -s
+
 
 Entering k8s shell
 ..................
@@ -1344,7 +1439,10 @@ should be run on multiple combinations of Python, Kubernetes, Backend versions. 
 needed to run the CI Builds. You can also use the tool to test what tests will be run when you provide
 a specific commit that Breeze should run the tests on.
 
-More details about the algorithm used to pick the right tests can be
+The selective-check command will produce the set of ``name=value`` pairs of outputs derived
+from the context of the commit/PR to be merged via stderr output.
+
+More details about the algorithm used to pick the right tests and the available outputs can be
 found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 
 Those are all available flags of ``selective-check`` command:
@@ -1491,6 +1589,15 @@ All the command parameters are here:
   :width: 100%
   :alt: Breeze verify-provider-packages
 
+Generating Provider Issue
+.........................
+
+You can use Breeze to generate a provider issue when you release new providers.
+
+.. image:: ./images/breeze/output_release-management_generate-issue-content.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-issue-content.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content
 
 Preparing airflow packages
 ..........................
@@ -1717,10 +1824,12 @@ When you are in the CI container, the following directories are used:
   /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
   /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
       airflow.db - sqlite database in case sqlite is used;
-      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
       logs - logs from Airflow executions;
       unittest.cfg - unit test configuration generated when entering the environment;
       webserver_config.py - webserver configuration generated when running Airflow in the container.
+  /files - files mounted from "files" folder in your sources. You can edit them in the host as well
+      dags - this is the folder where Airflow DAGs are read from
+      airflow-breeze-config - this is where you can keep your own customization configuration of breeze
 
 Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
@@ -1734,10 +1843,11 @@ When you are in the production container, the following directories are used:
   /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
   /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
       airflow.db - sqlite database in case sqlite is used;
-      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
       logs - logs from Airflow executions;
       unittest.cfg - unit test configuration generated when entering the environment;
       webserver_config.py - webserver configuration generated when running Airflow in the container.
+  /files - files mounted from "files" folder in your sources. You can edit them in the host as well
+      dags - this is the folder where Airflow DAGs are read from
 
 Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
@@ -1777,6 +1887,11 @@ configure and run Docker. They will not be removed between Docker runs.
 By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
 the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
 from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
+
+The ``/files/airflow-breeze-config`` folder contains configuration files that might be used to
+customize your breeze instance. Those files will be kept across checking out a code from different
+branches and stopping/starting breeze so you can keep your configuration there and use it continuously while
+you switch to different source code versions.
 
 Port Forwarding
 ---------------

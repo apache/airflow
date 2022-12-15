@@ -24,6 +24,7 @@ from airflow.models import DAG, Connection
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
+    DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
 from airflow.utils import db, timezone
@@ -388,3 +389,27 @@ class TestDbtCloudGetJobRunArtifactOperator:
             account_id=account_id,
             step=2,
         )
+
+
+class TestDbtCloudListJobsOperator:
+    def setup_method(self):
+        self.dag = DAG("test_dbt_cloud_list_jobs_op", start_date=DEFAULT_DATE)
+        self.mock_ti = MagicMock()
+        self.mock_context = {"ti": self.mock_ti}
+
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.list_jobs")
+    @pytest.mark.parametrize(
+        "conn_id, account_id",
+        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+    )
+    def test_execute_list_jobs(self, mock_list_jobs, conn_id, account_id):
+        operator = DbtCloudListJobsOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=conn_id,
+            account_id=account_id,
+            project_id=PROJECT_ID,
+        )
+
+        mock_list_jobs.return_value.json.return_value = {}
+        operator.execute(context=self.mock_context)
+        mock_list_jobs.assert_called_once_with(account_id=account_id, order_by=None, project_id=PROJECT_ID)

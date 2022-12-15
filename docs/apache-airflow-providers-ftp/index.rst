@@ -31,8 +31,15 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Operators
+
+    Operators <operators/index>
+
+.. toctree::
+    :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/|version|/tests/system/providers/ftp/example_ftp.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ftp/>
     Installing from sources <installing-providers-from-sources>
 
@@ -45,6 +52,11 @@ Content
 
     Detailed list of commits <commits>
 
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/ftp/index>
 
 Package apache-airflow-providers-ftp
 ------------------------------------------------------
@@ -52,7 +64,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 3.1.0
+Release: 3.2.0
 
 Provider package
 ----------------

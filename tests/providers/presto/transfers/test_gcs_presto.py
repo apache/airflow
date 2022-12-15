@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.presto.transfers.gcs_to_presto import GCSToPrestoOperator
@@ -33,8 +32,8 @@ SCHEMA_FIELDS = ["colA", "colB", "colC"]
 SCHEMA_JSON = "path/to/file.json"
 
 
-class TestGCSToPrestoOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.presto.transfers.gcs_to_presto.PrestoHook')
+class TestGCSToPrestoOperator:
+    @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.PrestoHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.GCSHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.NamedTemporaryFile")
     def test_execute_without_schema(self, mock_tempfile, mock_gcs_hook, mock_presto_hook):
@@ -70,7 +69,7 @@ class TestGCSToPrestoOperator(unittest.TestCase):
 
         mock_insert.assert_called_once()
 
-    @mock.patch('airflow.providers.presto.transfers.gcs_to_presto.PrestoHook')
+    @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.PrestoHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.GCSHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.NamedTemporaryFile")
     def test_execute_schema_fields(self, mock_tempfile, mock_gcs_hook, mock_presto_hook):
@@ -107,8 +106,8 @@ class TestGCSToPrestoOperator(unittest.TestCase):
 
         mock_insert.assert_called_once()
 
-    @mock.patch('airflow.providers.presto.transfers.gcs_to_presto.json.loads')
-    @mock.patch('airflow.providers.presto.transfers.gcs_to_presto.PrestoHook')
+    @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.json.loads")
+    @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.PrestoHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.GCSHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.NamedTemporaryFile")
     def test_execute_schema_json(self, mock_tempfile, mock_gcs_hook, mock_presto_hook, mock_json_loader):

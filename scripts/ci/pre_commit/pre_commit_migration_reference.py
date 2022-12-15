@@ -28,19 +28,17 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
-GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
-# allow "False", "false", "True", "true", "f", "F", "t", "T" and the like
-VERBOSE = os.environ.get('VERBOSE', "false")[0].lower() == "t"
-DRY_RUN = os.environ.get('DRY_RUN', "false")[0].lower() == "t"
-os.environ['SKIP_GROUP_OUTPUT'] = "true"
+GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
+os.environ["SKIP_GROUP_OUTPUT"] = "true"
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
     from airflow_breeze.global_constants import MOUNT_SELECTED
+    from airflow_breeze.utils.console import get_console
     from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
     from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
 
-    airflow_image = get_ci_image_for_pre_commits(verbose=VERBOSE, dry_run=DRY_RUN)
+    airflow_image = get_ci_image_for_pre_commits()
     cmd_result = run_command(
         [
             "docker",
@@ -49,8 +47,6 @@ if __name__ == '__main__':
             *get_extra_docker_flags(MOUNT_SELECTED),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "-e",
-            "PRINT_INFO_FROM_SCRIPTS=false",
             "--pull",
             "never",
             airflow_image,
@@ -58,7 +54,10 @@ if __name__ == '__main__':
             "python3 /opt/airflow/scripts/in_container/run_migration_reference.py",
         ],
         check=False,
-        verbose=VERBOSE,
-        dry_run=DRY_RUN,
     )
+    if cmd_result.returncode != 0:
+        get_console().print(
+            "[warning]If you see strange stacktraces above, "
+            "run `breeze ci-image build --python 3.7` and try again."
+        )
     sys.exit(cmd_result.returncode)

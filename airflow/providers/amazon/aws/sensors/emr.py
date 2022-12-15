@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -43,9 +43,9 @@ class EmrBaseSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use
     """
 
-    ui_color = '#66c3ff'
+    ui_color = "#66c3ff"
 
-    def __init__(self, *, aws_conn_id: str = 'aws_default', **kwargs):
+    def __init__(self, *, aws_conn_id: str = "aws_default", **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.target_states: Iterable[str] = []  # will be set in subclasses
@@ -63,21 +63,21 @@ class EmrBaseSensor(BaseSensorOperator):
     def poke(self, context: Context):
         response = self.get_emr_response()
 
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            self.log.info('Bad HTTP response: %s', response)
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            self.log.info("Bad HTTP response: %s", response)
             return False
 
         state = self.state_from_response(response)
-        self.log.info('Job flow currently %s', state)
+        self.log.info("Job flow currently %s", state)
 
         if state in self.target_states:
             return True
 
         if state in self.failed_states:
-            final_message = 'EMR job failed'
+            final_message = "EMR job failed"
             failure_message = self.failure_message_from_response(response)
             if failure_message:
-                final_message += ' ' + failure_message
+                final_message += " " + failure_message
             raise AirflowException(final_message)
 
         return False
@@ -87,9 +87,8 @@ class EmrBaseSensor(BaseSensorOperator):
         Make an API call with boto3 and get response.
 
         :return: response
-        :rtype: dict[str, Any]
         """
-        raise NotImplementedError('Please implement get_emr_response() in subclass')
+        raise NotImplementedError("Please implement get_emr_response() in subclass")
 
     @staticmethod
     def state_from_response(response: dict[str, Any]) -> str:
@@ -98,9 +97,8 @@ class EmrBaseSensor(BaseSensorOperator):
 
         :param response: response from AWS API
         :return: state
-        :rtype: str
         """
-        raise NotImplementedError('Please implement state_from_response() in subclass')
+        raise NotImplementedError("Please implement state_from_response() in subclass")
 
     @staticmethod
     def failure_message_from_response(response: dict[str, Any]) -> str | None:
@@ -109,9 +107,8 @@ class EmrBaseSensor(BaseSensorOperator):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
-        raise NotImplementedError('Please implement failure_message_from_response() in subclass')
+        raise NotImplementedError("Please implement failure_message_from_response() in subclass")
 
 
 class EmrServerlessJobSensor(BaseSensorOperator):
@@ -130,8 +127,8 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'application_id',
-        'job_run_id',
+        "application_id",
+        "job_run_id",
     )
 
     def __init__(
@@ -140,7 +137,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         application_id: str,
         job_run_id: str,
         target_states: set | frozenset = frozenset(EmrServerlessHook.JOB_SUCCESS_STATES),
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
@@ -152,7 +149,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
 
-        state = response['jobRun']['state']
+        state = response["jobRun"]["state"]
 
         if state in EmrServerlessHook.JOB_FAILURE_STATES:
             failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
@@ -172,9 +169,8 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
-        return response['jobRun']['stateDetails']
+        return response["jobRun"]["stateDetails"]
 
 
 class EmrServerlessApplicationSensor(BaseSensorOperator):
@@ -191,14 +187,14 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """
 
-    template_fields: Sequence[str] = ('application_id',)
+    template_fields: Sequence[str] = ("application_id",)
 
     def __init__(
         self,
         *,
         application_id: str,
         target_states: set | frozenset = frozenset(EmrServerlessHook.APPLICATION_SUCCESS_STATES),
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
@@ -209,7 +205,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         response = self.hook.conn.get_application(applicationId=self.application_id)
 
-        state = response['application']['state']
+        state = response["application"]["state"]
 
         if state in EmrServerlessHook.APPLICATION_FAILURE_STATES:
             failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
@@ -229,9 +225,8 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
-        return response['application']['stateDetails']
+        return response["application"]["stateDetails"]
 
 
 class EmrContainerSensor(BaseSensorOperator):
@@ -263,9 +258,9 @@ class EmrContainerSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ("COMPLETED",)
 
-    template_fields: Sequence[str] = ('virtual_cluster_id', 'job_id')
+    template_fields: Sequence[str] = ("virtual_cluster_id", "job_id")
     template_ext: Sequence[str] = ()
-    ui_color = '#66c3ff'
+    ui_color = "#66c3ff"
 
     def __init__(
         self,
@@ -273,7 +268,7 @@ class EmrContainerSensor(BaseSensorOperator):
         virtual_cluster_id: str,
         job_id: str,
         max_retries: int | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         poll_interval: int = 10,
         **kwargs: Any,
     ) -> None:
@@ -285,10 +280,14 @@ class EmrContainerSensor(BaseSensorOperator):
         self.max_retries = max_retries
 
     def poke(self, context: Context) -> bool:
-        state = self.hook.poll_query_status(self.job_id, self.max_retries, self.poll_interval)
+        state = self.hook.poll_query_status(
+            self.job_id,
+            max_polling_attempts=self.max_retries,
+            poll_interval=self.poll_interval,
+        )
 
         if state in self.FAILURE_STATES:
-            raise AirflowException('EMR Containers sensor failed')
+            raise AirflowException("EMR Containers sensor failed")
 
         if state in self.INTERMEDIATE_STATES:
             return False
@@ -321,7 +320,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         job flow reaches any of these states
     """
 
-    template_fields: Sequence[str] = ('job_flow_id', 'target_states', 'failed_states')
+    template_fields: Sequence[str] = ("job_flow_id", "target_states", "failed_states")
     template_ext: Sequence[str] = ()
 
     def __init__(
@@ -334,8 +333,8 @@ class EmrJobFlowSensor(EmrBaseSensor):
     ):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
-        self.target_states = target_states or ['TERMINATED']
-        self.failed_states = failed_states or ['TERMINATED_WITH_ERRORS']
+        self.target_states = target_states or ["TERMINATED"]
+        self.failed_states = failed_states or ["TERMINATED_WITH_ERRORS"]
 
     def get_emr_response(self) -> dict[str, Any]:
         """
@@ -345,11 +344,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.describe_cluster
 
         :return: response
-        :rtype: dict[str, Any]
         """
         emr_client = self.get_hook().get_conn()
 
-        self.log.info('Poking cluster %s', self.job_flow_id)
+        self.log.info("Poking cluster %s", self.job_flow_id)
         return emr_client.describe_cluster(ClusterId=self.job_flow_id)
 
     @staticmethod
@@ -359,9 +357,8 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
         :param response: response from AWS API
         :return: current state of the cluster
-        :rtype: str
         """
-        return response['Cluster']['Status']['State']
+        return response["Cluster"]["Status"]["State"]
 
     @staticmethod
     def failure_message_from_response(response: dict[str, Any]) -> str | None:
@@ -370,10 +367,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
-        cluster_status = response['Cluster']['Status']
-        state_change_reason = cluster_status.get('StateChangeReason')
+        cluster_status = response["Cluster"]["Status"]
+        state_change_reason = cluster_status.get("StateChangeReason")
         if state_change_reason:
             return (
                 f"for code: {state_change_reason.get('Code', 'No code')} "
@@ -382,6 +378,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         return None
 
 
+@poke_mode_only
 class EmrStepSensor(EmrBaseSensor):
     """
     Asks for the state of the step until it reaches any of the target states.
@@ -401,7 +398,7 @@ class EmrStepSensor(EmrBaseSensor):
         step reaches any of these states
     """
 
-    template_fields: Sequence[str] = ('job_flow_id', 'step_id', 'target_states', 'failed_states')
+    template_fields: Sequence[str] = ("job_flow_id", "step_id", "target_states", "failed_states")
     template_ext: Sequence[str] = ()
 
     def __init__(
@@ -416,8 +413,8 @@ class EmrStepSensor(EmrBaseSensor):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
-        self.target_states = target_states or ['COMPLETED']
-        self.failed_states = failed_states or ['CANCELLED', 'FAILED', 'INTERRUPTED']
+        self.target_states = target_states or ["COMPLETED"]
+        self.failed_states = failed_states or ["CANCELLED", "FAILED", "INTERRUPTED"]
 
     def get_emr_response(self) -> dict[str, Any]:
         """
@@ -427,11 +424,10 @@ class EmrStepSensor(EmrBaseSensor):
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.describe_step
 
         :return: response
-        :rtype: dict[str, Any]
         """
         emr_client = self.get_hook().get_conn()
 
-        self.log.info('Poking step %s on cluster %s', self.step_id, self.job_flow_id)
+        self.log.info("Poking step %s on cluster %s", self.step_id, self.job_flow_id)
         return emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
 
     @staticmethod
@@ -441,9 +437,8 @@ class EmrStepSensor(EmrBaseSensor):
 
         :param response: response from AWS API
         :return: execution state of the cluster step
-        :rtype: str
         """
-        return response['Step']['Status']['State']
+        return response["Step"]["Status"]["State"]
 
     @staticmethod
     def failure_message_from_response(response: dict[str, Any]) -> str | None:
@@ -452,9 +447,8 @@ class EmrStepSensor(EmrBaseSensor):
 
         :param response: response from AWS API
         :return: failure message
-        :rtype: Optional[str]
         """
-        fail_details = response['Step']['Status'].get('FailureDetails')
+        fail_details = response["Step"]["Status"].get("FailureDetails")
         if fail_details:
             return (
                 f"for reason {fail_details.get('Reason')} "

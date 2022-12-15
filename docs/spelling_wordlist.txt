@@ -44,6 +44,7 @@ analyzeSyntax
 AnalyzeSyntaxResponse
 Aneesh
 AnnotateTextResponse
+ans
 Ansible
 apache
 api
@@ -157,6 +158,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+Bitnami
 Bitshift
 bitshift
 bitwise
@@ -228,6 +230,8 @@ cli
 clientId
 Cloudant
 cloudant
+cloudbuild
+CloudBuildClient
 cloudml
 cloudsqldatabehook
 CloudTasksClient
@@ -253,6 +257,8 @@ colours
 CommandType
 comparator
 compat
+Compute
+compute
 Computenodes
 ComputeNodeState
 concat
@@ -275,6 +281,8 @@ conn
 connectTimeoutMS
 connexion
 containerConfiguration
+ContainerGroup
+containerinstance
 ContainerPort
 contentUrl
 contextmgr
@@ -372,6 +380,7 @@ dbs
 dbt
 dbtapquerycmd
 dbutils
+ddl
 de
 Debounce
 declaratively
@@ -402,11 +411,13 @@ Deserialize
 deserialize
 Deserialized
 deserialized
+deserializer
 deserializing
 dest
 dev
 devel
 DevOps
+devtools
 df
 dicts
 dimensionX
@@ -417,6 +428,7 @@ DirectRunner
 dirs
 discoverability
 discoverable
+diskTypes
 displayName
 distcp
 distro
@@ -468,6 +480,7 @@ editorconfig
 Eg
 eg
 eks
+eksctl
 eladkal
 elasticsearch
 emailer
@@ -607,6 +620,8 @@ globstring
 glyphicon
 Gmail
 golang
+googleads
+GoogleAdsRow
 googleapiclient
 gpu
 gpus
@@ -651,6 +666,8 @@ hoc
 homebrew
 honoured
 hookable
+hookimpl
+hookspec
 HostAliases
 Hostname
 hostname
@@ -674,6 +691,7 @@ httpx
 hvac
 hyperparameter
 hyperparameters
+IaC
 iam
 idempotence
 idempotency
@@ -725,6 +743,7 @@ Investorise
 io
 ip
 iPython
+IRSA
 isfile
 ish
 isn
@@ -850,6 +869,7 @@ Lowin
 lshift
 lxml
 Lyft
+machineTypes
 macOS
 macosx
 mailto
@@ -879,6 +899,7 @@ metarouter
 Metastore
 metastore
 mget
+mgmt
 microservice
 microservices
 microsoft
@@ -924,6 +945,7 @@ namespace
 namespaced
 namespaces
 NaN
+nat
 natively
 navbar
 nd
@@ -955,6 +977,7 @@ nosasl
 NotFound
 notificationChannels
 npm
+ns
 ntlm
 ntpd
 Nullable
@@ -1036,6 +1059,7 @@ pkill
 plaintext
 platformVersion
 pluggable
+pluggy
 plyvel
 png
 podName
@@ -1247,6 +1271,7 @@ securityManager
 seealso
 Seedlist
 seedlist
+seekable
 segmentGranularity
 Sendgrid
 sendgrid
@@ -1254,6 +1279,8 @@ serde
 serialise
 serializable
 SerializedDAG
+serializer
+serializers
 serverless
 ServiceAccount
 setattr
@@ -1360,6 +1387,7 @@ submodules
 subnet
 subnets
 subnetwork
+subnetworks
 subpackage
 Subpackages
 subpackages
@@ -1461,6 +1489,8 @@ tooltips
 traceback
 tracebacks
 travis
+triage
+triaging
 triggerer
 triggerers
 trino
@@ -1565,6 +1595,7 @@ WebClient
 webhdfs
 Webhook
 webhook
+WebhookClient
 webhooks
 webpage
 webProperty

@@ -42,9 +42,9 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         :ref:`Azure Data Explorer connection<howto/connection:adx>`.
     """
 
-    ui_color = '#00a1f2'
-    template_fields: Sequence[str] = ('query', 'database')
-    template_ext: Sequence[str] = ('.kql',)
+    ui_color = "#00a1f2"
+    template_fields: Sequence[str] = ("query", "database")
+    template_ext: Sequence[str] = (".kql",)
 
     def __init__(
         self,
@@ -52,7 +52,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         query: str,
         database: str,
         options: dict | None = None,
-        azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
+        azure_data_explorer_conn_id: str = "azure_data_explorer_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,7 +73,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """
         hook = self.get_hook()
         response = hook.run_query(self.query, self.database, self.options)
-        if conf.getboolean('core', 'enable_xcom_pickling'):
+        if conf.getboolean("core", "enable_xcom_pickling"):
             return response.primary_results[0]
         else:
             return str(response.primary_results[0])

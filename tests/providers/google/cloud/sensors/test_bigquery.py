@@ -29,10 +29,10 @@ from airflow.providers.google.cloud.sensors.bigquery import (
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryTableExistenceTrigger
 
 TEST_PROJECT_ID = "test_project"
-TEST_DATASET_ID = 'test_dataset'
-TEST_TABLE_ID = 'test_table'
+TEST_DATASET_ID = "test_dataset"
+TEST_TABLE_ID = "test_table"
 TEST_DELEGATE_TO = "test_delegate_to"
-TEST_GCP_CONN_ID = 'test_gcp_conn_id'
+TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_PARTITION_ID = "20200101"
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
@@ -41,7 +41,7 @@ class TestBigqueryTableExistenceSensor(TestCase):
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_passing_arguments_to_hook(self, mock_hook):
         task = BigQueryTableExistenceSensor(
-            task_id='task-id',
+            task_id="task-id",
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
             table_id=TEST_TABLE_ID,
@@ -68,7 +68,7 @@ class TestBigqueryTablePartitionExistenceSensor(TestCase):
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_passing_arguments_to_hook(self, mock_hook):
         task = BigQueryTablePartitionExistenceSensor(
-            task_id='task-id',
+            task_id="task-id",
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
             table_id=TEST_TABLE_ID,

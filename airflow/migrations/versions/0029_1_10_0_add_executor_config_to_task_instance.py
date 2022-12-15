@@ -28,11 +28,11 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '27c6a30d7c24'
-down_revision = '33ae817a1ff4'
+revision = "27c6a30d7c24"
+down_revision = "33ae817a1ff4"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.0'
+airflow_version = "1.10.0"
 
 TASK_INSTANCE_TABLE = "task_instance"
 NEW_COLUMN = "executor_config"

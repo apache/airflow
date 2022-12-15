@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useRef } from 'react';
+import React, { PropsWithChildren, useRef } from 'react';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -32,21 +32,22 @@ import {
 
 import { useContainerRef } from 'src/context/containerRef';
 
-interface Props {
+interface Props extends PropsWithChildren {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
   description: string;
-  body?: string[] | string;
+  affectedTasks: string[];
   onConfirm: () => void;
   isLoading?: boolean;
 }
 
 const ConfirmDialog = ({
-  isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm, isLoading = false,
+  isOpen, onClose, title = 'Wait a minute', description, affectedTasks, onConfirm, isLoading = false, children,
 }: Props) => {
   const initialFocusRef = useRef<HTMLButtonElement>(null);
   const containerRef = useContainerRef();
+
   return (
     <AlertDialog
       isOpen={isOpen}
@@ -58,14 +59,20 @@ const ConfirmDialog = ({
       blockScrollOnMount={false}
     >
       <AlertDialogOverlay>
-        <AlertDialogContent>
+        <AlertDialogContent maxHeight="90vh">
           <AlertDialogHeader fontSize="4xl" fontWeight="bold">
             {title}
           </AlertDialogHeader>
 
-          <AlertDialogBody>
+          <AlertDialogBody overflowY="auto">
+            {children}
             <Text mb={2}>{description}</Text>
-            {Array.isArray(body) && body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>))}
+            {affectedTasks.map((ti) => (
+              <Code width="100%" key={ti} fontSize="lg">{ti}</Code>
+            ))}
+            {!affectedTasks.length && (
+              <Text>No task instances to change.</Text>
+            )}
           </AlertDialogBody>
 
           <AlertDialogFooter>

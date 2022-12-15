@@ -24,6 +24,7 @@ from pathlib import Path
 
 from airflow import settings
 from airflow.utils.helpers import parse_template_string
+from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 
@@ -64,6 +65,8 @@ class FileProcessorHandler(logging.Handler):
             self._symlink_latest_log_directory()
             self._cur_date = datetime.today()
 
+        return DISABLE_PROPOGATE
+
     def emit(self, record):
         if self.handler is not None:
             self.handler.emit(record)
@@ -91,12 +94,12 @@ class FileProcessorHandler(logging.Handler):
             filename = os.path.join("native_dags", os.path.relpath(filename, airflow_directory))
         else:
             filename = os.path.relpath(filename, self.dag_dir)
-        ctx = {'filename': filename}
+        ctx = {"filename": filename}
 
         if self.filename_jinja_template:
             return self.filename_jinja_template.render(**ctx)
 
-        return self.filename_template.format(filename=ctx['filename'])
+        return self.filename_template.format(filename=ctx["filename"])
 
     def _get_log_directory(self):
         now = datetime.utcnow()

@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:AWSHook:
+.. _howto/connection:aws:
 
 Amazon Web Services Connection
 ==============================
@@ -118,7 +118,9 @@ If you are configuring the connection via a URI, ensure that all components of t
 Examples
 --------
 
-**Snippet for create Connection as URI**:
+Snippet to create Connection and convert to URI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
   .. code-block:: python
 
     import os
@@ -146,14 +148,31 @@ Examples
     os.environ[env_key] = conn_uri
     print(conn.test_connection())
 
-**Using instance profile**:
+Using instance profile
+^^^^^^^^^^^^^^^^^^^^^^
+
+  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files,
+  and instance profile when running inside AWS)
+
+  **URI format example**
+
   .. code-block:: bash
 
     export AIRFLOW_CONN_AWS_DEFAULT=aws://
 
-  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files, and instance profile when running inside AWS)
 
-**With a AWS IAM key pair**:
+  **JSON format example**
+
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT='{"conn_type": "aws"}'
+
+
+With a AWS IAM key pair
+^^^^^^^^^^^^^^^^^^^^^^^
+
+  **URI format example**
+
   .. code-block:: bash
 
     export AIRFLOW_CONN_AWS_DEFAULT=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@
@@ -161,6 +180,15 @@ Examples
   Note here, that the secret access key has been URL-encoded (changing ``/`` to ``%2F``), and also the
   trailing ``@`` (without which, it is treated as ``<host>:<port>`` and will not work)
 
+  **JSON format example**
+
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT='{
+      "conn_type": "aws",
+      "login": "AKIAIOSFODNN7EXAMPLE",
+      "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    }'
 
 Examples for the **Extra** field
 --------------------------------
@@ -373,13 +401,13 @@ Example
         def federated(self):
             return "federation" in self.extra_config
 
-        def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        def _create_basic_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
             if self.federated:
                 return self._create_federated_session(session_kwargs)
             else:
                 return super()._create_basic_session(session_kwargs)
 
-        def _create_federated_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        def _create_federated_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
             username = self.extra_config["federation"]["username"]
             region_name = self._get_region_name()
             self.log.debug(
@@ -396,7 +424,7 @@ Example
             session.set_config_variable("region", region_name)
             return boto3.session.Session(botocore_session=session, **session_kwargs)
 
-        def _refresh_federated_credentials(self) -> Dict[str, str]:
+        def _refresh_federated_credentials(self) -> dict[str, str]:
             self.log.debug("Refreshing federated AWS credentials")
             credentials = get_federated_aws_credentials(**self.extra_config["federation"])
             access_key_id = credentials["AccessKeyId"]
@@ -639,7 +667,9 @@ You can configure connection, also using environmental variable :envvar:`AIRFLOW
 Using IAM Roles for Service Accounts (IRSA) on EKS
 ----------------------------------------------------------------
 
-If you are running Airflow on Amazon EKS, you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service by granting the IAM role to it's service account.  To activate this, the following steps must be followed:
+If you are running Airflow on `Amazon EKS <https://aws.amazon.com/eks/>`_, you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service by granting the IAM role to it's service account. IRSA provides fine-grained permission management for apps(e.g., pods) that run on EKS and use other AWS services. These could be apps that use S3, any other AWS services like Secrets Manager, CloudWatch, DynamoDB etc.
+
+To activate this, the following steps must be followed:
 
 1. Create an IAM OIDC Provider on EKS cluster.
 2. Create an IAM Role and Policy to attach to the Airflow service account with web identity provider created at 1.
@@ -649,5 +679,52 @@ If you are running Airflow on Amazon EKS, you can grant AWS related permission (
     https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
 
 Then you can find ``AWS_ROLE_ARN`` and ``AWS_WEB_IDENTITY_TOKEN_FILE`` in environment variables of appropriate pods that `Amazon EKS Pod Identity Web Hook <https://github.com/aws/amazon-eks-pod-identity-webhook>`__ added. Then `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials>`__ will configure credentials using those variables.
-
 In order to use IRSA in Airflow, you have to create an aws connection with all fields empty. If a field such as ``role-arn`` is set, Airflow does not follow the boto3 default flow because it manually create a session using connection fields. If you did not change the default connection ID, an empty AWS connection named ``aws_default`` would be enough.
+
+Create IAM Role for Service Account(IRSA) using eksctl
+------------------------------------------------------
+`eksctl <https://eksctl.io/>`_ is a simple CLI tool for creating and managing clusters on EKS. Follow the steps to create IRSA for Airflow.
+
+1. `Install eksctl <https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html>`_ in your local machine.
+2. Setup AWS credentials in your terminal to run ``eksctl`` commands.
+3. The IAM OIDC Provider is not enabled by default, you can use the following command to enable.
+
+.. code-block:: bash
+
+    eksctl utils associate-iam-oidc-provider --cluster="<EKS_CLUSTER_ID>" --approve
+
+4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the the following command. This command will use an existing EKS Cluster ID and create an IAM role, service account and namespace.
+
+.. code-block:: bash
+
+    eksctl create iamserviceaccount --cluster="<EKS_CLUSTER_ID>" --name="<SERVICE_ACCOUNT_NAME>" --namespace="<NAMESPACE>" --attach-policy-arn="<IAM_POLICY_ARN>" --approve``
+
+This is an example command with values. This example is using managed policy with full S3 permissions attached to the IAM role. We highly recommend you to create a restricted IAM policy with necessary permissions to S3, Secrets Manager, CloudWatch etc. and use it with ``--attach-policy-arn``.
+
+.. code-block:: bash
+
+    eksctl create iamserviceaccount --cluster=airflow-eks-cluster --name=airflow-sa --namespace=airflow --attach-policy-arn=arn:aws:iam::aws:policy/AmazonS3FullAccess --approve
+
+5. Use the service account name in Airflow Helm chart deployment or with Kubernetes Pod Operator.
+
+Create IAM Role for Service Account(IRSA) using Terraform
+---------------------------------------------------------
+
+For Terraform users, IRSA roles can be created using `Amazon EKS Blueprints for Terraform <https://github.com/aws-ia/terraform-aws-eks-blueprints>`_ module.
+
+This module creates a new IAM Role, service account and namespace. This will associate IAM role with the service account and adds the annotation to the service account.
+You need to create an IAM policy with the required permissions that you would like the containers in your pods to have. Replace ``IAM_POLICY_ARN`` with your IAM policy ARN, other required inputs as shown below and run ``terraform apply``.
+
+.. code-block:: terraform
+
+    module "airflow_irsa" {
+      source = "github.com/aws-ia/terraform-aws-eks-blueprints//modules/irsa"
+
+      eks_cluster_id             = "<EKS_CLUSTER_ID>"
+      eks_oidc_provider_arn      = "<EKS_CLUSTER_OIDC_PROVIDER_ARN>"
+      irsa_iam_policies          = ["<IAM_POLICY_ARN>"]
+      kubernetes_namespace       = "<NAMESPACE>"
+      kubernetes_service_account = "<SERVICE_ACCOUNT_NAME>"
+    }
+
+Once the Terraform module is applied then you can use the service account in your Airflow deployments or with Kubernetes Pod Operator.

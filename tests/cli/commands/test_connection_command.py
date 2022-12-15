@@ -34,7 +34,7 @@ from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def clear_connections():
     yield
     clear_db_connections(add_default_connections_back=False)
@@ -62,19 +62,19 @@ class TestCliGetConnection:
 class TestCliListConnections:
     parser = cli_parser.get_parser()
     EXPECTED_CONS = [
-        ('airflow_db', 'mysql'),
-        ('google_cloud_default', 'google_cloud_platform'),
-        ('http_default', 'http'),
-        ('local_mysql', 'mysql'),
-        ('mongo_default', 'mongo'),
-        ('mssql_default', 'mssql'),
-        ('mysql_default', 'mysql'),
-        ('pinot_broker_default', 'pinot'),
-        ('postgres_default', 'postgres'),
-        ('presto_default', 'presto'),
-        ('sqlite_default', 'sqlite'),
-        ('trino_default', 'trino'),
-        ('vertica_default', 'vertica'),
+        ("airflow_db", "mysql"),
+        ("google_cloud_default", "google_cloud_platform"),
+        ("http_default", "http"),
+        ("local_mysql", "mysql"),
+        ("mongo_default", "mongo"),
+        ("mssql_default", "mssql"),
+        ("mysql_default", "mysql"),
+        ("pinot_broker_default", "pinot"),
+        ("postgres_default", "postgres"),
+        ("presto_default", "presto"),
+        ("sqlite_default", "sqlite"),
+        ("trino_default", "trino"),
+        ("vertica_default", "vertica"),
     ]
 
     def setup_method(self):
@@ -93,7 +93,7 @@ class TestCliListConnections:
 
     def test_cli_connections_filter_conn_id(self):
         args = self.parser.parse_args(
-            ["connections", "list", "--output", "json", '--conn-id', 'http_default']
+            ["connections", "list", "--output", "json", "--conn-id", "http_default"]
         )
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_list(args)
@@ -137,16 +137,16 @@ class TestCliExportConnections:
             self.parser.parse_args(["connections", "export", "--format", "invalid", "/path/to/file"])
 
     def test_cli_connections_export_should_return_error_for_invalid_export_format(self, tmp_path):
-        output_filepath = tmp_path / 'connections.invalid'
+        output_filepath = tmp_path / "connections.invalid"
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         with pytest.raises(SystemExit, match=r"Unsupported file format"):
             connection_command.connections_export(args)
 
-    @mock.patch.object(connection_command, 'create_session')
+    @mock.patch.object(connection_command, "create_session")
     def test_cli_connections_export_should_raise_error_if_create_session_fails(
         self, mock_create_session, tmp_path
     ):
-        output_filepath = tmp_path / 'connections.json'
+        output_filepath = tmp_path / "connections.json"
 
         def my_side_effect():
             raise Exception("dummy exception")
@@ -156,11 +156,11 @@ class TestCliExportConnections:
         with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
 
-    @mock.patch.object(connection_command, 'create_session')
+    @mock.patch.object(connection_command, "create_session")
     def test_cli_connections_export_should_raise_error_if_fetching_connections_fails(
         self, mock_session, tmp_path
     ):
-        output_filepath = tmp_path / 'connections.json'
+        output_filepath = tmp_path / "connections.json"
 
         def my_side_effect(_):
             raise Exception("dummy exception")
@@ -172,18 +172,18 @@ class TestCliExportConnections:
         with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
 
-    @mock.patch.object(connection_command, 'create_session')
+    @mock.patch.object(connection_command, "create_session")
     def test_cli_connections_export_should_not_raise_error_if_connections_is_empty(
         self, mock_session, tmp_path
     ):
-        output_filepath = tmp_path / 'connections.json'
+        output_filepath = tmp_path / "connections.json"
         mock_session.return_value.__enter__.return_value.query.return_value.all.return_value = []
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         connection_command.connections_export(args)
-        assert output_filepath.read_text() == '{}'
+        assert output_filepath.read_text() == "{}"
 
     def test_cli_connections_export_should_export_as_json(self, tmp_path):
-        output_filepath = tmp_path / 'connections.json'
+        output_filepath = tmp_path / "connections.json"
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         connection_command.connections_export(args)
         expected_connections = {
@@ -205,13 +205,13 @@ class TestCliExportConnections:
                 "password": None,
                 "schema": None,
                 "port": 8082,
-                "extra": "{\"endpoint\": \"druid/v2/sql\"}",
+                "extra": '{"endpoint": "druid/v2/sql"}',
             },
         }
         assert json.loads(output_filepath.read_text()) == expected_connections
 
     def test_cli_connections_export_should_export_as_yaml(self, tmp_path):
-        output_filepath = tmp_path / 'connections.yaml'
+        output_filepath = tmp_path / "connections.yaml"
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         connection_command.connections_export(args)
         expected_connections = (
@@ -227,7 +227,7 @@ class TestCliExportConnections:
             "druid_broker_default:\n"
             "  conn_type: druid\n"
             "  description: druid-broker conn description\n"
-            "  extra: \'{\"endpoint\": \"druid/v2/sql\"}\'\n"
+            '  extra: \'{"endpoint": "druid/v2/sql"}\'\n'
             "  host: druid-broker\n"
             "  login: null\n"
             "  password: null\n"
@@ -237,10 +237,10 @@ class TestCliExportConnections:
         assert output_filepath.read_text() == expected_connections
 
     @pytest.mark.parametrize(
-        'serialization_format, expected',
+        "serialization_format, expected",
         [
             (
-                'uri',
+                "uri",
                 [
                     "airflow_db=mysql://root:plainpassword@mysql/airflow",
                     "druid_broker_default=druid://druid-broker:8082/?endpoint=druid%2Fv2%2Fsql",
@@ -254,7 +254,7 @@ class TestCliExportConnections:
                 ],
             ),
             (
-                'json',
+                "json",
                 [
                     'airflow_db={"conn_type": "mysql", "description": "mysql conn description", '
                     '"login": "root", "password": "plainpassword", "host": "mysql", "port": null, '
@@ -270,20 +270,20 @@ class TestCliExportConnections:
         """
         When exporting with env file format, we should
         """
-        output_filepath = tmp_path / 'connections.env'
+        output_filepath = tmp_path / "connections.env"
         args_input = [
             "connections",
             "export",
             output_filepath.as_posix(),
         ]
         if serialization_format:
-            args_input = [*args_input, '--serialization-format', serialization_format]
+            args_input = [*args_input, "--serialization-format", serialization_format]
         args = self.parser.parse_args(args_input)
         connection_command.connections_export(args)
         assert output_filepath.read_text().splitlines() == expected
 
     def test_cli_connections_export_should_export_as_env_for_uppercase_file_extension(self, tmp_path):
-        output_filepath = tmp_path / 'connections.ENV'
+        output_filepath = tmp_path / "connections.ENV"
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         connection_command.connections_export(args)
         expected_connections = [
@@ -294,7 +294,7 @@ class TestCliExportConnections:
         assert output_filepath.read_text().splitlines() == expected_connections
 
     def test_cli_connections_export_should_force_export_as_specified_format(self, tmp_path):
-        output_filepath = tmp_path / 'connections.yaml'
+        output_filepath = tmp_path / "connections.yaml"
         args = self.parser.parse_args(
             [
                 "connections",
@@ -324,7 +324,7 @@ class TestCliExportConnections:
                 "password": None,
                 "schema": None,
                 "port": 8082,
-                "extra": "{\"endpoint\": \"druid/v2/sql\"}",
+                "extra": '{"endpoint": "druid/v2/sql"}',
             },
         }
         assert json.loads(output_filepath.read_text()) == expected_connections
@@ -351,7 +351,7 @@ class TestCliAddConnections:
         clear_db_connections(add_default_connections_back=False)
 
     @pytest.mark.parametrize(
-        'cmd, expected_output, expected_conn',
+        "cmd, expected_output, expected_conn",
         [
             (
                 [
@@ -633,15 +633,15 @@ class TestCliImportConnections:
     def setup_method(self):
         clear_db_connections(add_default_connections_back=False)
 
-    @mock.patch('os.path.exists')
+    @mock.patch("os.path.exists")
     def test_cli_connections_import_should_return_error_if_file_does_not_exist(self, mock_exists):
         mock_exists.return_value = False
-        filepath = '/does/not/exist.json'
+        filepath = "/does/not/exist.json"
         with pytest.raises(SystemExit, match=r"Missing connections file."):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 
-    @pytest.mark.parametrize('filepath', ["sample.jso", "sample.environ"])
-    @mock.patch('os.path.exists')
+    @pytest.mark.parametrize("filepath", ["sample.jso", "sample.environ"])
+    @mock.patch("os.path.exists")
     def test_cli_connections_import_should_return_error_if_file_format_is_invalid(
         self, mock_exists, filepath
     ):
@@ -655,8 +655,8 @@ class TestCliImportConnections:
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 
-    @mock.patch('airflow.secrets.local_filesystem._parse_secret_file')
-    @mock.patch('os.path.exists')
+    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @mock.patch("os.path.exists")
     def test_cli_connections_import_should_load_connections(self, mock_exists, mock_parse_secret_file):
         mock_exists.return_value = True
 
@@ -688,7 +688,7 @@ class TestCliImportConnections:
         mock_parse_secret_file.return_value = expected_connections
 
         connection_command.connections_import(
-            self.parser.parse_args(["connections", "import", 'sample.json'])
+            self.parser.parse_args(["connections", "import", "sample.json"])
         )
 
         # Verify that the imported connections match the expected, sample connections
@@ -714,8 +714,8 @@ class TestCliImportConnections:
             assert expected_connections == current_conns_as_dicts
 
     @provide_session
-    @mock.patch('airflow.secrets.local_filesystem._parse_secret_file')
-    @mock.patch('os.path.exists')
+    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @mock.patch("os.path.exists")
     def test_cli_connections_import_should_not_overwrite_existing_connections(
         self, mock_exists, mock_parse_secret_file, session=None
     ):
@@ -764,10 +764,10 @@ class TestCliImportConnections:
 
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_import(
-                self.parser.parse_args(["connections", "import", 'sample.json'])
+                self.parser.parse_args(["connections", "import", "sample.json"])
             )
 
-            assert 'Could not import connection new3: connection already exists.' in stdout.getvalue()
+            assert "Could not import connection new3: connection already exists." in stdout.getvalue()
 
         # Verify that the imported connections match the expected, sample connections
         current_conns = session.query(Connection).all()
@@ -788,7 +788,7 @@ class TestCliImportConnections:
             current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
             for current_conn in current_conns
         }
-        assert current_conns_as_dicts['new2'] == expected_connections['new2']
+        assert current_conns_as_dicts["new2"] == expected_connections["new2"]
 
         # The existing connection's description should not have changed
-        assert current_conns_as_dicts['new3']['description'] == 'original description'
+        assert current_conns_as_dicts["new3"]["description"] == "original description"

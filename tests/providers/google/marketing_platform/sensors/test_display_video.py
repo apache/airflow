@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
@@ -28,7 +28,7 @@ API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
 
 
-class TestGoogleDisplayVideo360ReportSensor(TestCase):
+class TestGoogleDisplayVideo360ReportSensor:
     @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360Hook")
     @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.BaseSensorOperator")
     def test_poke(self, mock_base_op, hook_mock):
@@ -46,7 +46,7 @@ class TestGoogleDisplayVideo360ReportSensor(TestCase):
         hook_mock.return_value.get_query.assert_called_once_with(query_id=report_id)
 
 
-class TestGoogleDisplayVideo360Sensor(TestCase):
+class TestGoogleDisplayVideo360Sensor:
     @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360Hook")
     @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.BaseSensorOperator")
     def test_poke(self, mock_base_op, hook_mock):

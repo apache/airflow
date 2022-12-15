@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from copy import copy
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -48,7 +48,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
@@ -91,7 +91,6 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         Retrieves connection to Google Bigquery.
 
         :return: Google Bigquery API client
-        :rtype: google.cloud.bigquery_datatransfer_v1.DataTransferServiceClient
         """
         if not self._conn:
             self._conn = DataTransferServiceClient(
@@ -133,9 +132,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         return client.create_transfer_config(
             request={
-                'parent': parent,
-                'transfer_config': self._disable_auto_scheduling(transfer_config),
-                'authorization_code': authorization_code,
+                "parent": parent,
+                "transfer_config": self._disable_auto_scheduling(transfer_config),
+                "authorization_code": authorization_code,
             },
             retry=retry,
             timeout=timeout,
@@ -169,11 +168,11 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         client = self.get_conn()
         project = f"projects/{project_id}"
         if self.location:
-            project = f"/{project}/locations/{self.location}"
+            project = f"{project}/locations/{self.location}"
 
         name = f"{project}/transferConfigs/{transfer_config_id}"
         return client.delete_transfer_config(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -220,9 +219,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         parent = f"{project}/transferConfigs/{transfer_config_id}"
         return client.start_manual_transfer_runs(
             request={
-                'parent': parent,
-                'requested_time_range': requested_time_range,
-                'requested_run_time': requested_run_time,
+                "parent": parent,
+                "requested_time_range": requested_time_range,
+                "requested_run_time": requested_run_time,
             },
             retry=retry,
             timeout=timeout,
@@ -262,5 +261,5 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         name = f"{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
         return client.get_transfer_run(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )

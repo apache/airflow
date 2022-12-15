@@ -151,6 +151,16 @@ are updated, run it in non-interactive mode:
 breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
 
+NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
+specify the base branch via `--base-branch` parameter.
+For example if you try to build a `cncf.kubernetes` provider that is build from `provider-cncf-kubernetes/v4-4`
+branch should be prepared like this:
+
+```shell script
+breeze release-management prepare-provider-documentation \
+ --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
+```
+
 ## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
@@ -196,17 +206,15 @@ popd
 
 ```shell script
 # First clone the repo if you do not have it
-svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
-
-# update the repo in case you have it already
-cd airflow-dev
-svn update
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Create a new folder for the release.
-cd providers
+cd asf-dist/dev/airflow/providers
 
 # Remove previously released providers
-rm -rf *
+svn rm *
 
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
@@ -221,10 +229,16 @@ cd ${AIRFLOW_REPO_ROOT}
 Verify that the files are available at
 [providers](https://dist.apache.org/repos/dist/dev/airflow/providers/)
 
-## Publish the Regular convenience package to PyPI
+You should see only providers that you are about to release.
+If you are seeing others there is an issue.
+You can remove the redundant provider files manually with:
 
-In case of pre-release versions you build the same packages for both PyPI and SVN so you can simply use
-packages generated in the previous step, and you can skip the "prepare" step below.
+```shell script
+svn rm file_name  // repeate that for every file
+svn commit -m "delete old providers"
+```
+
+## Publish the Regular convenience package to PyPI
 
 In order to publish release candidate to PyPI you just need to build and release packages.
 The packages should however contain the rcN suffix in the version file name but not internally in the package,
@@ -258,6 +272,15 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*
 ```shell script
 twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
 ```
+
+If you see
+> WARNING  Error during upload. Retry with the --verbose option for more details.
+ERROR   HTTPError: 403 Forbidden from https://test.pypi.org/legacy/
+     The user [user_name] isn't allowed to upload to project [provider_name]
+
+It means that you don't have permission to upload providers.
+Please ask one of the Admins to grant you permissions on the packages you wish to release.
+
 
 * Verify that the test packages look good by downloading it and installing them into a virtual environment.
 Twine prints the package links as output - separately for each package.
@@ -337,6 +360,11 @@ If you have providers as list of provider ids because you just released them, yo
 ./docs/start_doc_server.sh
 ```
 
+You should navigate the providers and make sure the docs render properly.
+Note: if you used ``--for-production`` then default of url paths goes to ``latest``
+thus viewing the pages will result in 404 file not found error.
+You will need to change it manually to see the docs
+
 - Copy the documentation to the ``airflow-site`` repository
 
 **NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
@@ -384,7 +412,7 @@ set as your environment variable.
 You can also pass the token as `--github-token` option in the script.
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist
+breeze release-management generate-issue-content --only-available-in-dist
 ```
 
 You can also generate the token by following
@@ -393,7 +421,7 @@ You can also generate the token by following
 If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist --suffix rc2
+breeze release-management generate-issue-content --only-available-in-dist --suffix rc2
 ```
 
 
@@ -730,15 +758,26 @@ again, and gives a clearer history in the svn commit logs.
 We also need to archive older releases before copying the new ones
 [Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
 
-```shell script
+```bash
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT="$(pwd)"
+cd ..
 
-# Go to the directory where you have checked out the dev svn release
-# And go to the sub-folder with RC candidates
-cd "<ROOT_OF_YOUR_DEV_REPO>/providers/"
-export SOURCE_DIR=$(pwd)
+# Go the folder where you have checked out the release repo
+cd "<ROOT_OF_YOUR_RELEASE_REPO>"
+# or clone it if it's not done yet
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+# Update to latest version
+svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
+
+SOURCE_DIR="${PWD}/asf-dist/dev/airflow/providers"
+
+# Create providers folder if it does not exist
+# All latest releases are kept in this one folder without version sub-folder
+cd asf-dist/release/airflow
+mkdir -pv providers
+cd providers
 
 # If some packages have been excluded, remove them now
 # Check the packages
@@ -746,37 +785,21 @@ ls *<provider>*
 # Remove them
 svn rm *<provider>*
 
-# Go the folder where you have checked out the release repo
-cd "<ROOT_OF_YOUR_RELEASE_REPO>"
-# or clone it if it's not done yet
-svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
-cd airflow-release
-
-# Update to latest version
-svn update
-
-# Create providers folder if it does not exist
-# All latest releases are kept in this one folder without version sub-folder
-mkdir -pv providers
-cd providers
-
 # Copy your providers with the target name to dist directory and to SVN
-rm ${AIRFLOW_REPO_ROOT}/dist/*
+rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
 
-for file in ${SOURCE_DIR}/*
+for file in "${SOURCE_DIR}"/*
 do
  base_file=$(basename ${file})
  cp -v "${file}" "${AIRFLOW_REPO_ROOT}/dist/${base_file//rc[0-9]/}"
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need python 3.7+)
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
-    --directory .
+# Check which old packages will be removed (you need Python 3.7+ and dev/requirements.txt installed)
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory .
 
 # Remove those packages
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
-    --directory . --execute
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory . --execute
 
 
 # Commit to SVN

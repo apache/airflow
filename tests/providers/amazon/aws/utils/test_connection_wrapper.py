@@ -23,7 +23,7 @@ import pytest
 from botocore.config import Config
 
 from airflow.models import Connection
-from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper, _ConnectionMetadata
 
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
@@ -36,6 +36,35 @@ def mock_connection_factory(
     return Connection(conn_id=conn_id, conn_type=conn_type, **kwargs)
 
 
+class TestsConnectionMetadata:
+    @pytest.mark.parametrize("extra", [{"foo": "bar", "spam": "egg"}, '{"foo": "bar", "spam": "egg"}', None])
+    def test_compat_with_connection(self, extra):
+        """Simple compatibility test with `airflow.models.connection.Connection`."""
+        conn_kwargs = {
+            "conn_id": MOCK_AWS_CONN_ID,
+            "conn_type": "aws",
+            "login": "mock-login",
+            "password": "mock-password",
+            "extra": extra,
+            # AwsBaseHook never use this attributes from airflow.models.Connection
+            "host": "mock-host",
+            "schema": "mock-schema",
+            "port": 42,
+        }
+        conn = Connection(**conn_kwargs)
+        conn_meta = _ConnectionMetadata(**conn_kwargs)
+
+        assert conn.conn_id == conn_meta.conn_id
+        assert conn.conn_type == conn_meta.conn_type
+        assert conn.login == conn_meta.login
+        assert conn.password == conn_meta.password
+        assert conn.host == conn_meta.host
+        assert conn.schema == conn_meta.schema
+        assert conn.port == conn_meta.port
+
+        assert conn.extra_dejson == conn_meta.extra_dejson
+
+
 class TestAwsConnectionWrapper:
     @pytest.mark.parametrize("extra", [{"foo": "bar", "spam": "egg"}, '{"foo": "bar", "spam": "egg"}', None])
     def test_values_from_connection(self, extra):
@@ -44,7 +73,7 @@ class TestAwsConnectionWrapper:
             password="mock-password",
             extra=extra,
             # AwsBaseHook never use this attributes from airflow.models.Connection
-            host="mock-host",
+            host=None,
             schema="mock-schema",
             port=42,
         )
@@ -77,10 +106,20 @@ class TestAwsConnectionWrapper:
         wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
         assert wrap_conn.conn_type == "aws"
 
-    @pytest.mark.parametrize("conn_type", ["AWS", "boto3", "s3", "emr", "google", "google-cloud-platform"])
+    @pytest.mark.parametrize("conn_type", ["AWS", "boto3", "emr", "google", "google-cloud-platform"])
     def test_unexpected_aws_connection_type(self, conn_type):
         warning_message = f"expected connection type 'aws', got '{conn_type}'"
         with pytest.warns(UserWarning, match=warning_message):
+            wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
+            assert wrap_conn.conn_type == conn_type
+
+    @pytest.mark.parametrize("conn_type", ["s3", "S3"])
+    def test_deprecated_s3_connection_type(self, conn_type):
+        warning_message = (
+            r".* has connection type 's3', which has been replaced by connection type 'aws'\. "
+            r"Please update your connection to have `conn_type='aws'`."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
             assert wrap_conn.conn_type == conn_type
 
@@ -131,7 +170,8 @@ class TestAwsConnectionWrapper:
         }
         mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
 
-        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        with pytest.warns(DeprecationWarning, match=r"'session_kwargs' in extra config is deprecated"):
+            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert wrap_conn.aws_access_key_id == aws_access_key_id
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
@@ -155,7 +195,7 @@ class TestAwsConnectionWrapper:
         mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
 
         wrap_conn = AwsConnectionWrapper(conn=mock_conn)
-        mock_parse_s3_config.assert_called_once_with('aws-credentials', 'aws', 'test')
+        mock_parse_s3_config.assert_called_once_with("aws-credentials", "aws", "test")
         assert wrap_conn.aws_access_key_id == aws_access_key_id
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
@@ -347,7 +387,7 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.assume_role_kwargs == {}
 
     @pytest.mark.parametrize(
-        "assume_role_method", ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
+        "assume_role_method", ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
     )
     def test_get_assume_role_method(self, assume_role_method):
         mock_conn = mock_connection_factory(

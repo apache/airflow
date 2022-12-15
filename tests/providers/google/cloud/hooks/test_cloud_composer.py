@@ -59,9 +59,7 @@ def mock_init(*args, **kwargs):
 
 
 class TestCloudComposerHook(unittest.TestCase):
-    def setUp(
-        self,
-    ) -> None:
+    def setUp(self) -> None:
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerHook(gcp_conn_id="test")
 
@@ -78,8 +76,8 @@ class TestCloudComposerHook(unittest.TestCase):
         mock_client.assert_called_once()
         mock_client.return_value.create_environment.assert_called_once_with(
             request={
-                'parent': self.hook.get_parent(TEST_GCP_PROJECT, TEST_GCP_REGION),
-                'environment': TEST_ENVIRONMENT,
+                "parent": self.hook.get_parent(TEST_GCP_PROJECT, TEST_GCP_REGION),
+                "environment": TEST_ENVIRONMENT,
             },
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -119,7 +117,7 @@ class TestCloudComposerHook(unittest.TestCase):
         mock_client.assert_called_once()
         mock_client.return_value.get_environment.assert_called_once_with(
             request={
-                'name': self.hook.get_environment_name(TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID)
+                "name": self.hook.get_environment_name(TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID)
             },
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -185,7 +183,7 @@ class TestCloudComposerHook(unittest.TestCase):
         mock_client.assert_called_once()
         mock_client.return_value.list_image_versions.assert_called_once_with(
             request={
-                'parent': self.hook.get_parent(TEST_GCP_PROJECT, TEST_GCP_REGION),
+                "parent": self.hook.get_parent(TEST_GCP_PROJECT, TEST_GCP_REGION),
                 "page_size": None,
                 "page_token": None,
                 "include_past_releases": False,
@@ -197,9 +195,7 @@ class TestCloudComposerHook(unittest.TestCase):
 
 
 class TestCloudComposerAsyncHook(unittest.TestCase):
-    def setUp(
-        self,
-    ) -> None:
+    def setUp(self) -> None:
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
 
@@ -217,8 +213,8 @@ class TestCloudComposerAsyncHook(unittest.TestCase):
         mock_client.assert_called_once()
         mock_client.return_value.create_environment.assert_called_once_with(
             request={
-                'parent': self.hook.get_parent(TEST_GCP_PROJECT, TEST_GCP_REGION),
-                'environment': TEST_ENVIRONMENT,
+                "parent": self.hook.get_parent(TEST_GCP_PROJECT, TEST_GCP_REGION),
+                "environment": TEST_ENVIRONMENT,
             },
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,

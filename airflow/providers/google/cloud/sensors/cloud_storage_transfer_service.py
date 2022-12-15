@@ -26,6 +26,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     NAME,
     CloudDataTransferServiceHook,
 )
+from airflow.providers.google.cloud.links.cloud_storage_transfer import CloudStorageTransferJobLink
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -61,10 +62,11 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
 
     # [START gcp_transfer_job_sensor_template_fields]
     template_fields: Sequence[str] = (
-        'job_name',
-        'impersonation_chain',
+        "job_name",
+        "impersonation_chain",
     )
     # [END gcp_transfer_job_sensor_template_fields]
+    operator_extra_links = (CloudStorageTransferJobLink(),)
 
     def __init__(
         self,
@@ -72,7 +74,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         job_name: str,
         expected_statuses: set[str] | str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -91,7 +93,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         operations = hook.list_transfer_operations(
-            request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}
+            request_filter={"project_id": self.project_id, "job_names": [self.job_name]}
         )
 
         for operation in operations:
@@ -102,5 +104,14 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         )
         if check:
             self.xcom_push(key="sensed_operations", value=operations, context=context)
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudStorageTransferJobLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.job_name,
+            )
 
         return check

@@ -19,15 +19,21 @@ from __future__ import annotations
 import contextlib
 import copy
 import json
+import logging
 import warnings
-from typing import TYPE_CHECKING, Any, ItemsView, MutableMapping, ValuesView
+from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMapping, ValuesView
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils.context import Context
+from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.dagrun import DagRun
+    from airflow.models.operator import Operator
+
+logger = logging.getLogger(__name__)
 
 
 class Param:
@@ -41,14 +47,16 @@ class Param:
         default & description will form the schema
     """
 
-    CLASS_IDENTIFIER = '__class'
+    __version__: ClassVar[int] = 1
+
+    CLASS_IDENTIFIER = "__class"
 
     def __init__(self, default: Any = NOTSET, description: str | None = None, **kwargs):
         if default is not NOTSET:
             self._warn_if_not_json(default)
         self.value = default
         self.description = description
-        self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
+        self.schema = kwargs.pop("schema") if "schema" in kwargs else kwargs
 
     def __copy__(self) -> Param:
         return Param(self.value, self.description, schema=self.schema)
@@ -98,13 +106,23 @@ class Param:
 
     def dump(self) -> dict:
         """Dump the Param as a dictionary"""
-        out_dict = {self.CLASS_IDENTIFIER: f'{self.__module__}.{self.__class__.__name__}'}
+        out_dict = {self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"}
         out_dict.update(self.__dict__)
         return out_dict
 
     @property
     def has_value(self) -> bool:
         return self.value is not NOTSET
+
+    def serialize(self) -> dict:
+        return {"value": self.value, "description": self.description, "schema": self.schema}
+
+    @staticmethod
+    def deserialize(data: dict[str, Any], version: int) -> Param:
+        if version > Param.__version__:
+            raise TypeError("serialized version > class version")
+
+        return Param(default=data["value"], description=data["description"], schema=data["schema"])
 
 
 class ParamsDict(MutableMapping[str, Any]):
@@ -114,7 +132,8 @@ class ParamsDict(MutableMapping[str, Any]):
     dictionary implicitly and ideally not needed to be used directly.
     """
 
-    __slots__ = ['__dict', 'suppress_exception']
+    __version__: ClassVar[int] = 1
+    __slots__ = ["__dict", "suppress_exception"]
 
     def __init__(self, dict_obj: dict | None = None, suppress_exception: bool = False):
         """
@@ -130,6 +149,16 @@ class ParamsDict(MutableMapping[str, Any]):
                 params_dict[k] = v
         self.__dict = params_dict
         self.suppress_exception = suppress_exception
+
+    def __bool__(self) -> bool:
+        return bool(self.__dict)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, ParamsDict):
+            return self.dump() == other.dump()
+        if isinstance(other, dict):
+            return self.dump() == other
+        return NotImplemented
 
     def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)
@@ -168,7 +197,7 @@ class ParamsDict(MutableMapping[str, Any]):
             try:
                 param.resolve(value=value, suppress_exception=self.suppress_exception)
             except ParamValidationError as ve:
-                raise ParamValidationError(f'Invalid input for param {key}: {ve}') from None
+                raise ParamValidationError(f"Invalid input for param {key}: {ve}") from None
         else:
             # if the key isn't there already and if the value isn't of Param type create a new Param object
             param = Param(value)
@@ -211,21 +240,33 @@ class ParamsDict(MutableMapping[str, Any]):
             for k, v in self.items():
                 resolved_dict[k] = v.resolve(suppress_exception=self.suppress_exception)
         except ParamValidationError as ve:
-            raise ParamValidationError(f'Invalid input for param {k}: {ve}') from None
+            raise ParamValidationError(f"Invalid input for param {k}: {ve}") from None
 
         return resolved_dict
 
+    def serialize(self) -> dict[str, Any]:
+        return self.dump()
 
-class DagParam:
-    """
-    Class that represents a DAG run parameter & binds a simple Param object to a name within a DAG instance,
-    so that it can be resolved during the run time via ``{{ context }}`` dictionary. The ideal use case of
-    this class is to implicitly convert args passed to a method which is being decorated by ``@dag`` keyword.
+    @staticmethod
+    def deserialize(data: dict, version: int) -> ParamsDict:
+        if version > ParamsDict.__version__:
+            raise TypeError("serialized version > class version")
 
-    It can be used to parameterize your dags. You can overwrite its value by setting it on conf
-    when you trigger your DagRun.
+        return ParamsDict(data)
 
-    This can also be used in templates by accessing ``{{context.params}}`` dictionary.
+
+class DagParam(ResolveMixin):
+    """DAG run parameter reference.
+
+    This binds a simple Param object to a name within a DAG instance, so that it
+    can be resolved during the runtime via the ``{{ context }}`` dictionary. The
+    ideal use case of this class is to implicitly convert args passed to a
+    method decorated by ``@dag``.
+
+    It can be used to parameterize a DAG. You can overwrite its value by setting
+    it on conf when you trigger your DagRun.
+
+    This can also be used in templates by accessing ``{{ context.params }}``.
 
     **Example**:
 
@@ -243,12 +284,36 @@ class DagParam:
         self._name = name
         self._default = default
 
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return ()
+
     def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         with contextlib.suppress(KeyError):
-            return context['dag_run'].conf[self._name]
+            return context["dag_run"].conf[self._name]
         if self._default is not NOTSET:
             return self._default
         with contextlib.suppress(KeyError):
-            return context['params'][self._name]
-        raise AirflowException(f'No value could be resolved for parameter {self._name}')
+            return context["params"][self._name]
+        raise AirflowException(f"No value could be resolved for parameter {self._name}")
+
+
+def process_params(
+    dag: DAG,
+    task: Operator,
+    dag_run: DagRun | None,
+    *,
+    suppress_exception: bool,
+) -> dict[str, Any]:
+    """Merge, validate params, and convert them into a simple dict."""
+    from airflow.configuration import conf
+
+    params = ParamsDict(suppress_exception=suppress_exception)
+    with contextlib.suppress(AttributeError):
+        params.update(dag.params)
+    if task.params:
+        params.update(task.params)
+    if conf.getboolean("core", "dag_run_conf_overrides_params") and dag_run and dag_run.conf:
+        logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
+        params.update(dag_run.conf)
+    return params.validate()

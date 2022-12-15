@@ -17,18 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+from random import randrange
 from unittest import mock
 
 import pytest
 from paramiko.client import SSHClient
 
 from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
-TEST_DAG_ID = 'unit_tests_ssh_test_op'
+TEST_DAG_ID = "unit_tests_ssh_test_op"
 TEST_CONN_ID = "conn_id_for_testing"
 DEFAULT_TIMEOUT = 10
 CONN_TIMEOUT = 5
@@ -47,7 +49,7 @@ class SSHClientSideEffect:
 class TestSSHOperator:
     def setup_method(self):
 
-        hook = SSHHook(ssh_conn_id='ssh_default')
+        hook = SSHHook(ssh_conn_id="ssh_default")
         hook.no_host_key_check = True
 
         ssh_client = mock.create_autospec(SSHClient)
@@ -59,9 +61,9 @@ class TestSSHOperator:
     # Make sure nothing in this test actually connects to SSH -- that's for hook tests.
     @pytest.fixture(autouse=True)
     def _patch_exec_ssh_client(self):
-        with mock.patch.object(self.hook, 'exec_ssh_client_command') as exec_ssh_client_command:
+        with mock.patch.object(self.hook, "exec_ssh_client_command") as exec_ssh_client_command:
             self.exec_ssh_client_command = exec_ssh_client_command
-            exec_ssh_client_command.return_value = (0, b'airflow', '')
+            exec_ssh_client_command.return_value = (0, b"airflow", "")
             yield exec_ssh_client_command
 
     def test_hook_created_correctly(self):
@@ -80,28 +82,28 @@ class TestSSHOperator:
 
     @pytest.mark.parametrize(
         ("enable_xcom_pickling", "output", "expected"),
-        [(False, b"airflow", "YWlyZmxvdw=="), (True, b"airflow", b"airflow"), (True, b'', b'')],
+        [(False, b"airflow", "YWlyZmxvdw=="), (True, b"airflow", b"airflow"), (True, b"", b"")],
     )
     def test_return_value(self, enable_xcom_pickling, output, expected):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
             command=COMMAND,
-            environment={'TEST': 'value'},
+            environment={"TEST": "value"},
         )
-        with conf_vars({('core', 'enable_xcom_pickling'): str(enable_xcom_pickling)}):
-            self.exec_ssh_client_command.return_value = (0, output, b'')
+        with conf_vars({("core", "enable_xcom_pickling"): str(enable_xcom_pickling)}):
+            self.exec_ssh_client_command.return_value = (0, output, b"")
             result = task.execute(None)
             assert result == expected
             self.exec_ssh_client_command.assert_called_with(
-                mock.ANY, COMMAND, timeout=None, environment={'TEST': 'value'}, get_pty=False
+                mock.ANY, COMMAND, timeout=10, environment={"TEST": "value"}, get_pty=False
             )
 
-    @mock.patch('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
-    @mock.patch.object(SSHOperator, 'run_ssh_client_command')
-    @mock.patch.object(SSHHook, 'get_conn')
+    @mock.patch("os.environ", {"AIRFLOW_CONN_" + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
+    @mock.patch.object(SSHOperator, "run_ssh_client_command")
+    @mock.patch.object(SSHHook, "get_conn")
     def test_arg_checking(self, get_conn, run_ssh_client_command):
-        run_ssh_client_command.return_value = b''
+        run_ssh_client_command.return_value = b""
 
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided.
         task_0 = SSHOperator(task_id="test", command=COMMAND)
@@ -141,11 +143,11 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
-            remote_host='operator_remote_host',
+            remote_host="operator_remote_host",
         )
         task_4.execute(None)
         assert task_4.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
-        assert task_4.ssh_hook.remote_host == 'operator_remote_host'
+        assert task_4.ssh_hook.remote_host == "operator_remote_host"
 
         with pytest.raises(
             AirflowException, match="SSH operator error: SSH command not specified. Aborting."
@@ -195,6 +197,20 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             command=command,
         )
-        self.exec_ssh_client_command.return_value = (1, b'', b'Error here')
+        self.exec_ssh_client_command.return_value = (1, b"", b"Error here")
         with pytest.raises(AirflowException, match="SSH operator error: exit status = 1"):
             task.execute(None)
+
+    def test_push_ssh_exit_to_xcom(self, request, dag_maker):
+        # Test pulls the value previously pushed to xcom and checks if it's the same
+        command = "not_a_real_command"
+        ssh_exit_code = randrange(0, 100)
+        self.exec_ssh_client_command.return_value = (ssh_exit_code, b"", b"ssh output")
+
+        with dag_maker(dag_id=f"dag_{request.node.name}"):
+            task = SSHOperator(task_id="push_xcom", ssh_hook=self.hook, command=command)
+        dr = dag_maker.create_dagrun(run_id="push_xcom")
+        ti = TaskInstance(task=task, run_id=dr.run_id)
+        with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
+            ti.run()
+        assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code

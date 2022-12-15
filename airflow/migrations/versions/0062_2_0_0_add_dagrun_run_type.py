@@ -27,10 +27,9 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, inspect
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.compat.sqlalchemy import inspect
 from airflow.utils.types import DagRunType
 
 # revision identifiers, used by Alembic.
@@ -38,7 +37,7 @@ revision = "3c20cacc0044"
 down_revision = "b25a55525161"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 Base = declarative_base()
 
@@ -59,7 +58,7 @@ def upgrade():
 
     conn = op.get_bind()
     inspector = inspect(conn)
-    dag_run_columns = [col.get('name') for col in inspector.get_columns("dag_run")]
+    dag_run_columns = [col.get("name") for col in inspector.get_columns("dag_run")]
 
     if "run_type" not in dag_run_columns:
 

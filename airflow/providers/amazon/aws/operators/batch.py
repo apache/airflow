@@ -19,14 +19,14 @@ An Airflow operator for AWS Batch services
 
 .. seealso::
 
-    - http://boto3.readthedocs.io/en/latest/guide/configuration.html
-    - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
+    - https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+    - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.amazon.aws.utils import trim_none_values
 
@@ -100,13 +100,18 @@ class BatchOperator(BaseOperator):
     """
 
     ui_color = "#c3dae0"
-    arn = None  # type: Optional[str]
+    arn: str | None = None
     template_fields: Sequence[str] = (
+        "job_id",
         "job_name",
-        "job_queue",
         "job_definition",
+        "job_queue",
         "overrides",
+        "array_properties",
         "parameters",
+        "waiters",
+        "tags",
+        "wait_for_completion",
     )
     template_fields_renderers = {"overrides": "json", "parameters": "json"}
 
@@ -227,7 +232,7 @@ class BatchOperator(BaseOperator):
         :raises: AirflowException
         """
         if not self.job_id:
-            raise AirflowException('AWS Batch job - job_id was not found')
+            raise AirflowException("AWS Batch job - job_id was not found")
 
         try:
             job_desc = self.hook.get_job_description(self.job_id)
@@ -365,14 +370,14 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
     def execute(self, context: Context):
         """Create an AWS batch compute environment"""
         kwargs: dict[str, Any] = {
-            'computeEnvironmentName': self.compute_environment_name,
-            'type': self.environment_type,
-            'state': self.state,
-            'unmanagedvCpus': self.unmanaged_v_cpus,
-            'computeResources': self.compute_resources,
-            'serviceRole': self.service_role,
-            'tags': self.tags,
+            "computeEnvironmentName": self.compute_environment_name,
+            "type": self.environment_type,
+            "state": self.state,
+            "unmanagedvCpus": self.unmanaged_v_cpus,
+            "computeResources": self.compute_resources,
+            "serviceRole": self.service_role,
+            "tags": self.tags,
         }
         self.hook.client.create_compute_environment(**trim_none_values(kwargs))
 
-        self.log.info('AWS Batch compute environment created successfully')
+        self.log.info("AWS Batch compute environment created successfully")

@@ -18,15 +18,49 @@ from __future__ import annotations
 
 TESTING_COMMANDS: dict[str, str | list[str]] = {
     "name": "Testing",
-    "commands": ["tests", "helm-tests", "docker-compose-tests"],
+    "commands": ["tests", "integration-tests", "helm-tests", "docker-compose-tests"],
 }
 TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze testing tests": [
         {
             "name": "Basic flag for tests command",
             "options": [
-                "--integration",
                 "--test-type",
+                "--test-timeout",
+                "--db-reset",
+                "--backend",
+                "--python",
+                "--postgres-version",
+                "--mysql-version",
+                "--mssql-version",
+                "--integration",
+            ],
+        },
+        {
+            "name": "Options for parallel test commands",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--test-types",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+                "--full-tests-needed",
+            ],
+        },
+        {
+            "name": "Advanced flag for tests command",
+            "options": [
+                "--image-tag",
+                "--mount-sources",
+            ],
+        },
+    ],
+    "breeze testing integration-tests": [
+        {
+            "name": "Basic flag for integration tests command",
+            "options": [
+                "--integration",
                 "--test-timeout",
                 "--db-reset",
                 "--backend",
@@ -37,9 +71,8 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Advanced flag for tests command",
+            "name": "Advanced flag for integration tests command",
             "options": [
-                "--limit-progress-output",
                 "--image-tag",
                 "--mount-sources",
             ],
@@ -51,6 +84,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--github-repository",
             ],
         },
     ],
@@ -61,6 +95,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--image-tag",
                 "--python",
+                "--github-repository",
             ],
         }
     ],

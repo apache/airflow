@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import warnings
 from copy import deepcopy
 from dataclasses import MISSING, InitVar, dataclass, field, fields
@@ -28,18 +29,47 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
-
-try:
-    from airflow.utils.types import NOTSET, ArgNotSet
-except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
-
-    class ArgNotSet:  # type: ignore[no-redef]
-        """Sentinel type for annotations, useful when None is not viable."""
-
-    NOTSET = ArgNotSet()
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    from airflow.models.connection import Connection  # Avoid circular imports.
+
+
+@dataclass
+class _ConnectionMetadata:
+    """Connection metadata data-class.
+
+    This class implements main :ref:`~airflow.models.connection.Connection` attributes
+    and use in AwsConnectionWrapper for avoid circular imports.
+
+    Only for internal usage, this class might change or removed in the future.
+    """
+
+    conn_id: str | None = None
+    conn_type: str | None = None
+    description: str | None = None
+    host: str | None = None
+    login: str | None = None
+    password: str | None = None
+    schema: str | None = None
+    port: int | None = None
+    extra: str | dict | None = None
+
+    @property
+    def extra_dejson(self):
+        if not self.extra:
+            return {}
+        extra = deepcopy(self.extra)
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except json.JSONDecodeError as err:
+                raise AirflowException(
+                    f"'extra' expected valid JSON-Object string. Original error:\n * {err}"
+                ) from None
+        if not isinstance(extra, dict):
+            raise TypeError(f"Expected JSON-Object or dict, got {type(extra).__name__}.")
+        return extra
 
 
 @dataclass
@@ -61,7 +91,7 @@ class AwsConnectionWrapper(LoggingMixin):
         3. The wrapper's default value
     """
 
-    conn: InitVar[Connection | AwsConnectionWrapper | None]
+    conn: InitVar[Connection | AwsConnectionWrapper | _ConnectionMetadata | None]
     region_name: str | None = field(default=None)
     # boto3 client/resource configs
     botocore_config: Config | None = field(default=None)
@@ -128,9 +158,19 @@ class AwsConnectionWrapper(LoggingMixin):
         self.password = conn.password
         self.extra_config = deepcopy(conn.extra_dejson)
 
-        if self.conn_type != "aws":
+        if self.conn_type.lower() == "s3":
             warnings.warn(
-                f"{self.conn_repr} expected connection type 'aws', got {self.conn_type!r}.",
+                f"{self.conn_repr} has connection type 's3', "
+                "which has been replaced by connection type 'aws'. "
+                "Please update your connection to have `conn_type='aws'`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        elif self.conn_type != "aws":
+            warnings.warn(
+                f"{self.conn_repr} expected connection type 'aws', got {self.conn_type!r}. "
+                "This connection might not work correctly. "
+                "Please use Amazon Web Services Connection type.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -232,11 +272,10 @@ class AwsConnectionWrapper(LoggingMixin):
         :param password: AWS Secret Access Key.
         :param extra: Connection Extra metadata.
         """
-        from airflow.models.connection import Connection
-
-        return cls(
-            conn=Connection(conn_id=conn_id, conn_type="aws", login=login, password=password, extra=extra)
+        conn_meta = _ConnectionMetadata(
+            conn_id=conn_id, conn_type="aws", login=login, password=password, extra=extra
         )
+        return cls(conn=conn_meta)
 
     @property
     def extra_dejson(self):
@@ -355,11 +394,11 @@ class AwsConnectionWrapper(LoggingMixin):
             # There is no reason obtain `assume_role_method` and `assume_role_kwargs` if `role_arn` not set.
             return None, None, {}
 
-        supported_methods = ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
+        supported_methods = ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
         if assume_role_method not in supported_methods:
             raise NotImplementedError(
-                f'Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra.'
-                f' Currently {supported_methods} are supported.'
+                f"Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra."
+                f" Currently {supported_methods} are supported."
                 ' (Exclude this setting will default to "assume_role").'
             )
         self.log.debug("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)

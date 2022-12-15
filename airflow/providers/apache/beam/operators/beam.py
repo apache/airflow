@@ -249,7 +249,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         "default_pipeline_options",
         "dataflow_config",
     )
-    template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
+    template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
@@ -345,7 +345,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
-            self.log.info('Dataflow job with id: `%s` was requested to be cancelled.', self.dataflow_job_id)
+            self.log.info("Dataflow job with id: `%s` was requested to be cancelled.", self.dataflow_job_id)
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
                 project_id=self.dataflow_config.project_id,
@@ -388,7 +388,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         "default_pipeline_options",
         "dataflow_config",
     )
-    template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
+    template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     ui_color = "#0273d4"
 
     operator_extra_links = (DataflowJobLink(),)
@@ -497,7 +497,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
-            self.log.info('Dataflow job with id: `%s` was requested to be cancelled.', self.dataflow_job_id)
+            self.log.info("Dataflow job with id: `%s` was requested to be cancelled.", self.dataflow_job_id)
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
                 project_id=self.dataflow_config.project_id,
@@ -531,7 +531,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         "default_pipeline_options",
         "dataflow_config",
     ]
-    template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
+    template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
@@ -627,7 +627,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
-            self.log.info('Dataflow job with id: `%s` was requested to be cancelled.', self.dataflow_job_id)
+            self.log.info("Dataflow job with id: `%s` was requested to be cancelled.", self.dataflow_job_id)
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
                 project_id=self.dataflow_config.project_id,

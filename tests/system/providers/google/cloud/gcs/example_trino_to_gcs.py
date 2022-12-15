@@ -37,7 +37,7 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_trino_to_gcs"
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCS_BUCKET = f"bucket_{DAG_ID}_{ENV_ID}"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 
@@ -54,7 +54,7 @@ def safe_name(s: str) -> str:
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "gcs"],

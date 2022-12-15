@@ -156,7 +156,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         try:
             self.log.info("Fetching instance: %s", instance_name)
             instance = client.get_instance(
-                request={'name': instance_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+                request={"name": instance_name}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
             self.log.info("Instance exists. Skipping creation.")
             return instance
@@ -166,7 +166,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self._append_label(instance, "airflow-version", "v" + version.version)
 
         result = client.create_instance(
-            request={'parent': parent, 'instance_id': instance_id, 'instance': instance},
+            request={"parent": parent, "instance_id": instance_id, "instance": instance},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -174,7 +174,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         result.result()
         self.log.info("Instance created.")
         return client.get_instance(
-            request={'name': instance_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": instance_name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -204,7 +204,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
         self.log.info("Fetching Instance: %s", name)
         instance = client.get_instance(
-            request={'name': name},
+            request={"name": name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -215,7 +215,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
 
         self.log.info("Deleting Instance: %s", name)
         result = client.delete_instance(
-            request={'name': name},
+            request={"name": name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -257,7 +257,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
         self.log.info("Exporting Instance: %s", name)
         result = client.export_instance(
-            request={'name': name, 'output_config': output_config},
+            request={"name": name, "output_config": output_config},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -300,7 +300,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self.log.info("Failovering Instance: %s", name)
 
         result = client.failover_instance(
-            request={'name': name, 'data_protection_mode': data_protection_mode},
+            request={"name": name, "data_protection_mode": data_protection_mode},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -334,7 +334,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
         result = client.get_instance(
-            request={'name': name},
+            request={"name": name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -377,7 +377,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
         self.log.info("Importing Instance: %s", name)
         result = client.import_instance(
-            request={'name': name, 'input_config': input_config},
+            request={"name": name, "input_config": input_config},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -416,7 +416,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         result = client.list_instances(
-            request={'parent': parent, 'page_size': page_size},
+            request={"parent": parent, "page_size": page_size},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -476,7 +476,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
 
         self.log.info("Updating instances: %s", instance.name)
         result = client.update_instance(
-            request={'update_mask': update_mask, 'instance': instance},
+            request={"update_mask": update_mask, "instance": instance},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -520,9 +520,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         )
         self._client: CloudMemcacheClient | None = None
 
-    def get_conn(
-        self,
-    ):
+    def get_conn(self):
         """Retrieves client library object that allow access to Cloud Memorystore Memcached service."""
         if not self._client:
             self._client = CloudMemcacheClient(credentials=self.get_credentials())
@@ -805,7 +803,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.protobuf.field_mask_pb2.FieldMask`)
-            Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
+            Union[dict, google.protobuf.field_mask_pb2.FieldMask]
         :param instance: Required. Update description. Only fields specified in ``update_mask`` are updated.
 
             If a dict is provided, it must be of the same form as the protobuf message
@@ -861,7 +859,6 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :param update_mask: Required. Mask of fields to update.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.protobuf.field_mask_pb2.FieldMask`
-            Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
         :param parameters: The parameters to apply to the instance.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters`

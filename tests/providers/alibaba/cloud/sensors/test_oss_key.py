@@ -17,13 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
 from airflow.providers.alibaba.cloud.sensors.oss_key import OSSKeySensor
 
-OSS_SENSOR_STRING = 'airflow.providers.alibaba.cloud.sensors.oss_key.{}'
+OSS_SENSOR_STRING = "airflow.providers.alibaba.cloud.sensors.oss_key.{}"
 MOCK_TASK_ID = "test-oss-operator"
 MOCK_REGION = "mock_region"
 MOCK_BUCKET = "mock_bucket_name"
@@ -33,8 +32,8 @@ MOCK_KEYS = ["mock_key1", "mock_key_2", "mock_key3"]
 MOCK_CONTENT = "mock_content"
 
 
-class TestOSSKeySensor(unittest.TestCase):
-    def setUp(self):
+class TestOSSKeySensor:
+    def setup_method(self):
         self.sensor = OSSKeySensor(
             bucket_key=MOCK_KEY,
             oss_conn_id=MOCK_OSS_CONN_ID,

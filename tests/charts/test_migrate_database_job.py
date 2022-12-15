@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -220,7 +219,24 @@ class TestMigrateDatabaseJob:
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
-    @parameterized.expand(
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "myvolume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+        assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
+        )
+
+    @pytest.mark.parametrize(
+        "airflow_version, expected_arg",
         [
             ("1.10.14", "airflow upgradedb"),
             ("2.0.2", "airflow db upgrade"),
@@ -241,14 +257,8 @@ class TestMigrateDatabaseJob:
             f"exec \\\n{expected_arg}",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"migrateDatabaseJob": {"command": command, "args": args}},
@@ -268,3 +278,22 @@ class TestMigrateDatabaseJob:
 
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": None}, show_only=["templates/jobs/migrate-database-job.yaml"]
+        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])

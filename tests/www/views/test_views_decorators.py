@@ -22,14 +22,14 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DagBag, DagRun, Log, TaskInstance
+from airflow.models import DagBag, DagRun, TaskInstance, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www import app
 from airflow.www.views import action_has_dag_edit_access
-from tests.test_utils.db import clear_db_runs
-from tests.test_utils.www import check_content_in_response
+from tests.test_utils.db import clear_db_runs, clear_db_variables
+from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
 
 EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -42,17 +42,17 @@ def dagbag():
 
 @pytest.fixture(scope="module")
 def bash_dag(dagbag):
-    return dagbag.get_dag('example_bash_operator')
+    return dagbag.get_dag("example_bash_operator")
 
 
 @pytest.fixture(scope="module")
 def sub_dag(dagbag):
-    return dagbag.get_dag('example_subdag_operator')
+    return dagbag.get_dag("example_subdag_operator")
 
 
 @pytest.fixture(scope="module")
 def xcom_dag(dagbag):
-    return dagbag.get_dag('example_xcom')
+    return dagbag.get_dag("example_xcom")
 
 
 @pytest.fixture(autouse=True)
@@ -86,41 +86,25 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
     clear_db_runs()
 
 
+@pytest.fixture(autouse=True)
+def clean_db():
+    clear_db_variables()
+    yield
+    clear_db_variables()
+
+
 @action_has_dag_edit_access
 def some_view_action_which_requires_dag_edit_access(*args) -> bool:
     return True
 
 
-def _check_last_log(session, dag_id, event, execution_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.execution_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.execution_date == execution_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    assert logs[0].extra
-
-
 def test_action_logging_get(session, admin_client):
     url = (
-        f'dags/example_bash_operator/graph?'
-        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
+        f"dags/example_bash_operator/graph?"
+        f"execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}"
     )
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response('runme_1', resp)
+    check_content_in_response("runme_1", resp)
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
@@ -134,11 +118,11 @@ def test_action_logging_get(session, admin_client):
 
 def test_action_logging_get_legacy_view(session, admin_client):
     url = (
-        f'graph?dag_id=example_bash_operator&'
-        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
+        f"graph?dag_id=example_bash_operator&"
+        f"execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}"
     )
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response('runme_1', resp)
+    check_content_in_response("runme_1", resp)
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
@@ -162,7 +146,7 @@ def test_action_logging_post(session, admin_client):
         only_failed="false",
     )
     resp = admin_client.post("clear", data=form)
-    check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
+    check_content_in_response(["example_bash_operator", "Wait a minute"], resp)
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
     _check_last_log(
@@ -173,14 +157,33 @@ def test_action_logging_post(session, admin_client):
     )
 
 
+def delete_variable(session, key):
+    session.query(Variable).filter(Variable.key == key).delete()
+    session.commit()
+
+
+def test_action_logging_variables_post(session, admin_client):
+    form = dict(key="random", val="random")
+    admin_client.post("/variable/add", data=form)
+    session.commit()
+    _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
+
+
+def test_action_logging_variables_masked_secrets(session, admin_client):
+    form = dict(key="x_secret", val="randomval")
+    admin_client.post("/variable/add", data=form)
+    session.commit()
+    _check_last_log_masked_variable(session, dag_id=None, event="variable.create", execution_date=None)
+
+
 def test_calendar(admin_client, dagruns):
-    url = 'calendar?dag_id=example_bash_operator'
+    url = "calendar?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
 
     bash_dagrun, _, _ = dagruns
 
     datestr = bash_dagrun.execution_date.date().isoformat()
-    expected = rf'{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}'
+    expected = rf"{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}"
     check_content_in_response(expected, resp)
 
 

@@ -133,7 +133,13 @@
         "catchup": { "type": "boolean" },
         "is_subdag": { "type": "boolean" },
         "fileloc": { "type" : "string"},
-        "orientation": { "type" : "string"},
+        "_processor_dags_folder": {
+            "anyOf": [
+                { "type": "null" },
+                {"type": "string"}
+            ]
+        },
+         "orientation": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},
@@ -274,6 +280,7 @@
       ],
       "properties": {
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "is_mapped": { "type": "boolean" },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },

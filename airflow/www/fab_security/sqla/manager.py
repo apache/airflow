@@ -22,11 +22,10 @@ import uuid
 from flask_appbuilder import const as c
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
-from sqlalchemy import and_, func, literal
+from sqlalchemy import and_, func, inspect, literal
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
-from airflow.compat import sqlalchemy as sqla_compat
 from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.fab_security.sqla.models import (
     Action,
@@ -99,7 +98,7 @@ class SecurityManager(BaseSecurityManager):
     def create_db(self):
         try:
             engine = self.get_session.get_bind(mapper=None, clause=None)
-            inspector = sqla_compat.inspect(engine)
+            inspector = inspect(engine)
             if "ab_user" not in inspector.get_table_names():
                 log.info(c.LOGMSG_INF_SEC_NO_DB)
                 Base.metadata.create_all(engine)
@@ -169,7 +168,7 @@ class SecurityManager(BaseSecurityManager):
                 else:
                     return (
                         self.get_session.query(self.user_model)
-                        .filter(self.user_model.username == username)
+                        .filter(func.lower(self.user_model.username) == func.lower(username))
                         .one_or_none()
                     )
             except MultipleResultsFound:
@@ -278,7 +277,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param name: name
         :return: Action record, if it exists
-        :rtype: Action
         """
         return self.get_session.query(self.action_model).filter_by(name=name).one_or_none()
 
@@ -358,7 +356,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param name: Name of action to delete (e.g. can_read).
         :return: Whether or not delete was successful.
-        :rtype: bool
         """
         action = self.get_action(name)
         if not action:
@@ -387,7 +384,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param name: Name of resource
         :return: Resource record
-        :rtype: Resource
         """
         return self.get_session.query(self.resource_model).filter_by(name=name).one_or_none()
 
@@ -396,7 +392,6 @@ class SecurityManager(BaseSecurityManager):
         Gets all existing resource records.
 
         :return: List of all resources
-        :rtype: List[Resource]
         """
         return self.get_session.query(self.resource_model).all()
 
@@ -406,7 +401,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param name: The name of the resource to create created.
         :return: The FAB resource created.
-        :rtype: Resource
         """
         resource = self.get_resource(name)
         if resource is None:
@@ -455,14 +449,17 @@ class SecurityManager(BaseSecurityManager):
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str) -> Permission | None:
+    def get_permission(
+        self,
+        action_name: str,
+        resource_name: str,
+    ) -> Permission | None:
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
         :param action_name: Name of action
         :param resource_name: Name of resource
         :return: The existing permission
-        :rtype: Permission
         """
         action = self.get_action(action_name)
         resource = self.get_resource(resource_name)
@@ -480,7 +477,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param resource: Object representing a single resource.
         :return: Action objects representing resource->action pair
-        :rtype: Permission
         """
         return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
@@ -520,7 +516,6 @@ class SecurityManager(BaseSecurityManager):
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource
         :return: None
-        :rtype: None
         """
         if not (action_name and resource_name):
             return
@@ -558,7 +553,6 @@ class SecurityManager(BaseSecurityManager):
         :param role: The role about to get a new permission.
         :param permission: The permission pair to add to a role.
         :return: None
-        :rtype: None
         """
         if permission and permission not in role.permissions:
             try:

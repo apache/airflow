@@ -47,7 +47,7 @@ def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
         @wraps(func)
         def decorated(*args, **kwargs):
             check_authentication()
-            if appbuilder.sm.check_authorization(permissions, kwargs.get('dag_id')):
+            if appbuilder.sm.check_authorization(permissions, kwargs.get("dag_id")):
                 return func(*args, **kwargs)
             raise PermissionDenied()
 

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -28,10 +27,12 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BranchSQLOperator,
     SQLCheckOperator,
     SQLColumnCheckOperator,
+    SQLExecuteQueryOperator,
     SQLIntervalCheckOperator,
     SQLTableCheckOperator,
     SQLThresholdCheckOperator,
@@ -41,19 +42,55 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.providers.apache.hive import TestHiveEnvironment
 
 
 class MockHook:
-    def get_first(self):
-        return
-
     def get_records(self):
         return
 
 
 def _get_mock_db_hook():
     return MockHook()
+
+
+class TestSQLExecuteQueryOperator:
+    def _construct_operator(self, sql, **kwargs):
+        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        return SQLExecuteQueryOperator(
+            task_id="test_task",
+            conn_id="default_conn",
+            sql=sql,
+            **kwargs,
+            dag=dag,
+        )
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_do_xcom_push(self, mock_get_db_hook):
+        operator = self._construct_operator("SELECT 1;", do_xcom_push=True)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=fetch_all_handler,
+            parameters=None,
+            return_last=True,
+            split_statements=False,
+        )
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_dont_xcom_push(self, mock_get_db_hook):
+        operator = self._construct_operator("SELECT 1;", do_xcom_push=False)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            parameters=None,
+            split_statements=False,
+            handler=None,
+            return_last=True,
+        )
 
 
 class TestColumnCheckOperator:
@@ -68,61 +105,286 @@ class TestColumnCheckOperator:
         }
     }
 
+    short_valid_column_mapping = {
+        "X": {
+            "null_check": {"equal_to": 0},
+            "distinct_check": {"equal_to": 10, "tolerance": 0.1},
+        }
+    }
+
     invalid_column_mapping = {"Y": {"invalid_check_name": {"expectation": 5}}}
 
-    def _construct_operator(self, monkeypatch, column_mapping, return_vals):
-        def get_first_return(*arg):
-            return return_vals
+    correct_generate_sql_query_no_partitions = """
+        SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
+        FROM (SELECT SUM(CASE WHEN X IS NULL THEN 1 ELSE 0 END) AS X_null_check FROM test_table ) AS sq
+    UNION ALL
+        SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
+        FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table ) AS sq
+    """
+
+    correct_generate_sql_query_with_partition = """
+        SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
+        FROM (SELECT SUM(CASE WHEN X IS NULL THEN 1 ELSE 0 END) AS X_null_check FROM test_table WHERE Y > 1) AS sq
+    UNION ALL
+        SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
+        FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table WHERE Y > 1) AS sq
+    """  # noqa 501
+
+    correct_generate_sql_query_with_partition_and_where = """
+        SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
+        FROM (SELECT SUM(CASE WHEN X IS NULL THEN 1 ELSE 0 END) AS X_null_check FROM test_table WHERE Y > 1 AND Z < 100) AS sq
+    UNION ALL
+        SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
+        FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table WHERE Y > 1) AS sq
+    """  # noqa 501
+
+    correct_generate_sql_query_with_where = """
+        SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
+        FROM (SELECT SUM(CASE WHEN X IS NULL THEN 1 ELSE 0 END) AS X_null_check FROM test_table ) AS sq
+    UNION ALL
+        SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
+        FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table WHERE Z < 100) AS sq
+    """  # 501
+
+    def _construct_operator(self, monkeypatch, column_mapping, records):
+        def get_records(*arg):
+            return records
 
         operator = SQLColumnCheckOperator(
             task_id="test_task", table="test_table", column_mapping=column_mapping
         )
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
-        monkeypatch.setattr(MockHook, "get_first", get_first_return)
+        monkeypatch.setattr(MockHook, "get_records", get_records)
         return operator
+
+    def _full_check_sql(self, sql: str) -> str:
+        """
+        Wraps the check fragment in the outer parts of the sql query
+        """
+        return f"SELECT col_name, check_type, check_result FROM ({sql}) AS check_columns"
 
     def test_check_not_in_column_checks(self, monkeypatch):
         with pytest.raises(AirflowException, match="Invalid column check: invalid_check_name."):
             self._construct_operator(monkeypatch, self.invalid_column_mapping, ())
 
     def test_pass_all_checks_exact_check(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 19))
+        records = [
+            ("X", "null_check", 0),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 19),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
+        assert [
+            operator.column_mapping["X"][check]["success"] is True
+            for check in [*operator.column_mapping["X"]]
+        ]
 
     def test_max_less_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 21))
+            records = [
+                ("X", "null_check", 1),
+                ("X", "distinct_check", 10),
+                ("X", "unique_check", 10),
+                ("X", "min", 1),
+                ("X", "max", 21),
+            ]
+            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
             operator.execute(context=MagicMock())
             assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_max_greater_than_fails_check(self, monkeypatch):
         with pytest.raises(AirflowException):
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 9))
+            records = [
+                ("X", "null_check", 1),
+                ("X", "distinct_check", 10),
+                ("X", "unique_check", 10),
+                ("X", "min", 1),
+                ("X", "max", 9),
+            ]
+            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
             operator.execute(context=MagicMock())
             assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_pass_all_checks_inexact_check(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 9, 12, 0, 15))
+        records = [
+            ("X", "null_check", 0),
+            ("X", "distinct_check", 9),
+            ("X", "unique_check", 12),
+            ("X", "min", 0),
+            ("X", "max", 15),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         operator.execute(context=MagicMock())
+        assert [
+            operator.column_mapping["X"][check]["success"] is True
+            for check in [*operator.column_mapping["X"]]
+        ]
 
     def test_fail_all_checks_check(self, monkeypatch):
-        operator = operator = self._construct_operator(
-            monkeypatch, self.valid_column_mapping, (1, 12, 11, -1, 20)
-        )
+        records = [
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 12),
+            ("X", "unique_check", 11),
+            ("X", "min", -1),
+            ("X", "max", 20),
+        ]
+        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
+
+    def test_generate_sql_query_no_partitions(self, monkeypatch):
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_no_partitions.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions(self, monkeypatch):
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator.partition_clause = "Y > 1"
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_with_partition.lstrip()
+        )
+
+    def test_generate_sql_query_with_templated_partitions(self, monkeypatch):
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator.partition_clause = "{{ params.col }} > 1"
+        operator.render_template_fields({"params": {"col": "Y"}})
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_with_partition.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
+        self.short_valid_column_mapping["X"]["null_check"]["partition_clause"] = "Z < 100"
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator.partition_clause = "Y > 1"
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_with_partition_and_where.lstrip()
+        )
+        del self.short_valid_column_mapping["X"]["null_check"]["partition_clause"]
+
+    def test_generate_sql_query_with_check_partition(self, monkeypatch):
+        self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"] = "Z < 100"
+        checks = self.short_valid_column_mapping["X"]
+        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        assert (
+            operator._generate_sql_query("X", checks).lstrip()
+            == self.correct_generate_sql_query_with_where.lstrip()
+        )
+        del self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"]
+
+    @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
+    def test_generated_sql_respects_templated_partitions(self, mock_get_db_hook):
+        records = [
+            ("X", "null_check", 0),
+            ("X", "distinct_check", 10),
+        ]
+
+        mock_hook = mock.Mock()
+        mock_hook.get_records.return_value = records
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = SQLColumnCheckOperator(
+            task_id="test_task",
+            table="test_table",
+            column_mapping=self.short_valid_column_mapping,
+            partition_clause="{{ params.col }} > 1",
+        )
+        operator.render_template_fields({"params": {"col": "Y"}})
+
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.get_records.assert_called_once_with(
+            self._full_check_sql(self.correct_generate_sql_query_with_partition),
+        )
+
+    @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
+    def test_generated_sql_respects_templated_table(self, mock_get_db_hook):
+        records = [
+            ("X", "null_check", 0),
+            ("X", "distinct_check", 10),
+        ]
+
+        mock_hook = mock.Mock()
+        mock_hook.get_records.return_value = records
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = SQLColumnCheckOperator(
+            task_id="test_task",
+            table="{{ params.table }}",
+            column_mapping=self.short_valid_column_mapping,
+        )
+        operator.render_template_fields({"params": {"table": "test_table"}})
+
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.get_records.assert_called_once_with(
+            self._full_check_sql(self.correct_generate_sql_query_no_partitions),
+        )
 
 
 class TestTableCheckOperator:
 
+    count_check = "COUNT(*) == 1000"
+    sum_check = "col_a + col_b < col_c"
     checks = {
-        "row_count_check": {"check_statement": "COUNT(*) == 1000"},
-        "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
+        "row_count_check": {"check_statement": f"{count_check}"},
+        "column_sum_check": {"check_statement": f"{sum_check}"},
     }
 
-    def _construct_operator(self, monkeypatch, checks, return_df):
+    correct_generate_sql_query_no_partitions = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table ) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
+          FROM test_table ) AS sq
+    """
+
+    correct_generate_sql_query_with_partition = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table WHERE col_a > 10) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
+          FROM test_table WHERE col_a > 10) AS sq
+    """
+
+    correct_generate_sql_query_with_partition_and_where = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table WHERE col_a > 10 AND id = 100) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
+          FROM test_table WHERE col_a > 10) AS sq
+    """
+
+    correct_generate_sql_query_with_where = f"""
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table ) AS sq
+    UNION ALL
+    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
+    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
+          FROM test_table WHERE id = 100) AS sq
+    """
+
+    def _construct_operator(self, monkeypatch, checks, records):
         def get_records(*arg):
-            return return_df
+            return records
 
         operator = SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
@@ -130,10 +392,10 @@ class TestTableCheckOperator:
         return operator
 
     @pytest.mark.parametrize(
-        ['conn_id'],
+        ["conn_id"],
         [
-            pytest.param('postgres_default', marks=[pytest.mark.backend('postgres')]),
-            pytest.param('mysql_default', marks=[pytest.mark.backend('mysql')]),
+            pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
+            pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
         ],
     )
     def test_sql_check(self, conn_id):
@@ -166,16 +428,104 @@ class TestTableCheckOperator:
         finally:
             hook.run(["DROP TABLE employees"])
 
+    @pytest.mark.parametrize(
+        ["conn_id"],
+        [
+            pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
+            pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
+        ],
+    )
+    def test_sql_check_partition_clause_templating(self, conn_id):
+        """
+        Checks that the generated sql respects a templated partition clause
+        """
+        operator = SQLTableCheckOperator(
+            task_id="test_task",
+            table="employees",
+            checks={"row_count_check": {"check_statement": "COUNT(*) = 5"}},
+            conn_id=conn_id,
+            partition_clause="employment_year = {{ params.year }}",
+        )
+
+        hook = operator.get_db_hook()
+        hook.run(
+            [
+                """
+                CREATE TABLE IF NOT EXISTS employees (
+                    employee_name VARCHAR(50) NOT NULL,
+                    employment_year INT NOT NULL
+                );
+                """,
+                "INSERT INTO employees VALUES ('Adam', 2021)",
+                "INSERT INTO employees VALUES ('Chris', 2021)",
+                "INSERT INTO employees VALUES ('Frank', 2021)",
+                "INSERT INTO employees VALUES ('Fritz', 2021)",
+                "INSERT INTO employees VALUES ('Magda', 2022)",
+                "INSERT INTO employees VALUES ('Phil', 2021)",
+            ]
+        )
+        try:
+            operator.render_template_fields({"params": {"year": 2021}})
+            operator.execute({})
+        finally:
+            hook.run(["DROP TABLE employees"])
+
     def test_pass_all_checks_check(self, monkeypatch):
-        records = [('row_count_check', 1), ('column_sum_check', 'y')]
+        records = [("row_count_check", 1), ("column_sum_check", "y")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
+        assert [operator.checks[check]["success"] is True for check in operator.checks.keys()]
 
     def test_fail_all_checks_check(self, monkeypatch):
-        records = [('row_count_check', 0), ('column_sum_check', 'n')]
+        records = [("row_count_check", 0), ("column_sum_check", "n")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
+
+    def test_generate_sql_query_no_partitions(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        assert (
+            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_no_partitions.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        operator.partition_clause = "col_a > 10"
+        assert (
+            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
+        )
+
+    def test_generate_sql_query_with_templated_partitions(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        operator.partition_clause = "{{ params.col }} > 10"
+        operator.render_template_fields({"params": {"col": "col_a"}})
+        assert (
+            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
+        )
+
+    def test_generate_sql_query_with_templated_table(self, monkeypatch):
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        operator.table = "{{ params.table }}"
+        operator.render_template_fields({"params": {"table": "test_table"}})
+        assert (
+            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_no_partitions.lstrip()
+        )
+
+    def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
+        self.checks["row_count_check"]["partition_clause"] = "id = 100"
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        operator.partition_clause = "col_a > 10"
+        assert (
+            operator._generate_sql_query().lstrip()
+            == self.correct_generate_sql_query_with_partition_and_where.lstrip()
+        )
+        del self.checks["row_count_check"]["partition_clause"]
+
+    def test_generate_sql_query_with_check_partition(self, monkeypatch):
+        self.checks["column_sum_check"]["partition_clause"] = "id = 100"
+        operator = self._construct_operator(monkeypatch, self.checks, ())
+        assert operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_where.lstrip()
+        del self.checks["column_sum_check"]["partition_clause"]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -207,8 +557,8 @@ SUPPORTED_FALSE_VALUES = [
 
 
 @mock.patch(
-    'airflow.providers.common.sql.operators.sql.BaseHook.get_connection',
-    return_value=Connection(conn_id='sql_default', conn_type='postgres'),
+    "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
+    return_value=Connection(conn_id="sql_default", conn_type="postgres"),
 )
 class TestSQLCheckOperatorDbHook:
     def setup_method(self):
@@ -216,54 +566,53 @@ class TestSQLCheckOperatorDbHook:
         self.conn_id = "sql_default"
         self._operator = SQLCheckOperator(task_id=self.task_id, conn_id=self.conn_id, sql="sql")
 
-    @pytest.mark.parametrize('database', [None, 'test-db'])
+    @pytest.mark.parametrize("database", [None, "test-db"])
     def test_get_hook(self, mock_get_conn, database):
         if database:
             self._operator.database = database
         assert isinstance(self._operator._hook, PostgresHook)
-        assert self._operator._hook.schema == database
         mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self, mock_get_conn):
-        mock_get_conn.return_value = Connection(conn_id='sql_default', conn_type='s3')
+        mock_get_conn.return_value = Connection(conn_id="sql_default", conn_type="airbyte")
         with pytest.raises(AirflowException, match=r"You are trying to use `common-sql`"):
             self._operator._hook
 
     def test_sql_operator_hook_params_snowflake(self, mock_get_conn):
-        mock_get_conn.return_value = Connection(conn_id='snowflake_default', conn_type='snowflake')
+        mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
         self._operator.hook_params = {
-            'warehouse': 'warehouse',
-            'database': 'database',
-            'role': 'role',
-            'schema': 'schema',
-            'log_sql': False,
+            "warehouse": "warehouse",
+            "database": "database",
+            "role": "role",
+            "schema": "schema",
+            "log_sql": False,
         }
-        assert self._operator._hook.conn_type == 'snowflake'
-        assert self._operator._hook.warehouse == 'warehouse'
-        assert self._operator._hook.database == 'database'
-        assert self._operator._hook.role == 'role'
-        assert self._operator._hook.schema == 'schema'
+        assert self._operator._hook.conn_type == "snowflake"
+        assert self._operator._hook.warehouse == "warehouse"
+        assert self._operator._hook.database == "database"
+        assert self._operator._hook.role == "role"
+        assert self._operator._hook.schema == "schema"
         assert not self._operator._hook.log_sql
 
     def test_sql_operator_hook_params_biguery(self, mock_get_conn):
         mock_get_conn.return_value = Connection(
-            conn_id='google_cloud_bigquery_default', conn_type='gcpbigquery'
+            conn_id="google_cloud_bigquery_default", conn_type="gcpbigquery"
         )
-        self._operator.hook_params = {'use_legacy_sql': True, 'location': 'us-east1'}
-        assert self._operator._hook.conn_type == 'gcpbigquery'
+        self._operator.hook_params = {"use_legacy_sql": True, "location": "us-east1"}
+        assert self._operator._hook.conn_type == "gcpbigquery"
         assert self._operator._hook.use_legacy_sql
-        assert self._operator._hook.location == 'us-east1'
+        assert self._operator._hook.location == "us-east1"
 
 
-class TestCheckOperator(unittest.TestCase):
-    def setUp(self):
-        self._operator = SQLCheckOperator(task_id="test_task", sql="sql")
+class TestCheckOperator:
+    def setup_method(self):
+        self._operator = SQLCheckOperator(task_id="test_task", sql="sql", parameters="parameters")
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_execute_no_records(self, mock_get_db_hook):
         mock_get_db_hook.return_value.get_first.return_value = []
 
-        with pytest.raises(AirflowException, match=r"The query returned None"):
+        with pytest.raises(AirflowException, match=r"The following query returned zero rows: sql"):
             self._operator.execute({})
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
@@ -273,9 +622,14 @@ class TestCheckOperator(unittest.TestCase):
         with pytest.raises(AirflowException, match=r"Test failed."):
             self._operator.execute({})
 
+    @mock.patch.object(SQLCheckOperator, "get_db_hook")
+    def test_sqlcheckoperator_parameters(self, mock_get_db_hook):
+        self._operator.execute({})
+        mock_get_db_hook.return_value.get_first.assert_called_once_with("sql", "parameters")
 
-class TestValueCheckOperator(unittest.TestCase):
-    def setUp(self):
+
+class TestValueCheckOperator:
+    def setup_method(self):
         self.task_id = "test_task"
         self.conn_id = "default_conn"
 
@@ -333,7 +687,7 @@ class TestValueCheckOperator(unittest.TestCase):
             operator.execute(context=MagicMock())
 
 
-class TestIntervalCheckOperator(unittest.TestCase):
+class TestIntervalCheckOperator:
     def _construct_operator(self, table, metric_thresholds, ratio_formula, ignore_zero):
         return SQLIntervalCheckOperator(
             task_id="test_task",
@@ -450,7 +804,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
             operator.execute(context=MagicMock())
 
 
-class TestThresholdCheckOperator(unittest.TestCase):
+class TestThresholdCheckOperator:
     def _construct_operator(self, sql, min_threshold, max_threshold):
         dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
 
@@ -471,6 +825,17 @@ class TestThresholdCheckOperator(unittest.TestCase):
         operator = self._construct_operator("Select avg(val) from table1 limit 1", 1, 100)
 
         operator.execute(context=MagicMock())
+
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
+    def test_pass_min_value_max_value_templated(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = (10,)
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator("Select avg(val) from table1 limit 1", "{{ params.min }}", 100)
+        operator.render_template_fields({"params": {"min": 1}})
+        operator.execute(context=MagicMock())
+        mock_hook.get_first.assert_called_once_with("Select avg(val) from table1 limit 1")
 
     @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
     def test_fail_min_value_max_value(self, mock_get_db_hook):
@@ -526,22 +891,19 @@ class TestThresholdCheckOperator(unittest.TestCase):
             operator.execute(context=MagicMock())
 
 
-class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
+class TestSqlBranch:
     """
     Test for SQL Branch Operator
     """
 
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
+    def setup_class(cls):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
             session.query(XCom).delete()
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         self.dag = DAG(
             "sql_branch_operator_test",
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -551,9 +913,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
 
-    def tearDown(self):
-        super().tearDown()
-
+    def teardown_method(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()

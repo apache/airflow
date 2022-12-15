@@ -18,9 +18,11 @@ from __future__ import annotations
 
 from unittest import mock
 
+import boto3
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftCreateClusterSnapshotOperator,
@@ -67,7 +69,7 @@ class TestRedshiftCreateClusterOperator:
             "Port": 5439,
         }
         mock_get_conn.return_value.create_cluster.assert_called_once_with(
-            ClusterIdentifier='test-cluster',
+            ClusterIdentifier="test-cluster",
             NodeType="dc2.large",
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
@@ -97,7 +99,7 @@ class TestRedshiftCreateClusterOperator:
             "Port": 5439,
         }
         mock_get_conn.return_value.create_cluster.assert_called_once_with(
-            ClusterIdentifier='test-cluster',
+            ClusterIdentifier="test-cluster",
             NodeType="dc2.large",
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
@@ -120,7 +122,7 @@ class TestRedshiftCreateClusterSnapshotOperator:
         )
         create_snapshot.execute(None)
         mock_get_conn.return_value.create_cluster_snapshot.assert_called_once_with(
-            ClusterIdentifier='test_cluster',
+            ClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
             ManualSnapshotRetentionPeriod=1,
         )
@@ -149,7 +151,6 @@ class TestRedshiftCreateClusterSnapshotOperator:
         create_snapshot.execute(None)
         mock_get_conn.return_value.get_waiter.return_value.wait.assert_called_once_with(
             ClusterIdentifier="test_cluster",
-            SnapshotIdentifier="test_snapshot",
             WaiterConfig={"Delay": 15, "MaxAttempts": 20},
         )
 
@@ -168,12 +169,11 @@ class TestRedshiftDeleteClusterSnapshotOperator:
         )
         delete_snapshot.execute(None)
         mock_get_conn.return_value.delete_cluster_snapshot.assert_called_once_with(
-            SnapshotClusterIdentifier='test_cluster',
+            SnapshotClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
         )
 
         mock_get_cluster_snapshot_status.assert_called_once_with(
-            cluster_identifier="test_cluster",
             snapshot_identifier="test_snapshot",
         )
 
@@ -190,7 +190,7 @@ class TestRedshiftDeleteClusterSnapshotOperator:
         )
         delete_snapshot.execute(None)
         mock_get_conn.return_value.delete_cluster_snapshot.assert_called_once_with(
-            SnapshotClusterIdentifier='test_cluster',
+            SnapshotClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
         )
 
@@ -206,25 +206,47 @@ class TestResumeClusterOperator:
         assert redshift_operator.cluster_identifier == "test_cluster"
         assert redshift_operator.aws_conn_id == "aws_conn_test"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
-    def test_resume_cluster_is_called_when_cluster_is_paused(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'paused'
+    def test_resume_cluster_is_called_when_cluster_is_paused(self, mock_get_conn):
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_get_conn.return_value.resume_cluster.assert_called_once_with(ClusterIdentifier='test_cluster')
+        mock_get_conn.return_value.resume_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
-    def test_resume_cluster_not_called_when_cluster_is_not_paused(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'available'
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_resume_cluster_multiple_attempts(self, mock_sleep, mock_conn):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_conn.resume_cluster.side_effect = [exception, exception, True]
         redshift_operator = RedshiftResumeClusterOperator(
-            task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
         )
         redshift_operator.execute(None)
-        mock_get_conn.return_value.resume_cluster.assert_not_called()
+        assert mock_conn.resume_cluster.call_count == 3
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_resume_cluster_multiple_attempts_fail(self, mock_sleep, mock_conn):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_conn.resume_cluster.side_effect = exception
+
+        redshift_operator = RedshiftResumeClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+        )
+        with pytest.raises(returned_exception):
+            redshift_operator.execute(None)
+        assert mock_conn.resume_cluster.call_count == 10
 
 
 class TestPauseClusterOperator:
@@ -236,40 +258,64 @@ class TestPauseClusterOperator:
         assert redshift_operator.cluster_identifier == "test_cluster"
         assert redshift_operator.aws_conn_id == "aws_conn_test"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
-    def test_pause_cluster_is_called_when_cluster_is_available(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'available'
+    def test_pause_cluster_is_called_when_cluster_is_available(self, mock_get_conn):
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_get_conn.return_value.pause_cluster.assert_called_once_with(ClusterIdentifier='test_cluster')
+        mock_get_conn.return_value.pause_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
-    def test_pause_cluster_not_called_when_cluster_is_not_available(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'paused'
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_pause_cluster_multiple_attempts(self, mock_sleep, mock_conn):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_conn.pause_cluster.side_effect = [exception, exception, True]
+
         redshift_operator = RedshiftPauseClusterOperator(
-            task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
         )
+
         redshift_operator.execute(None)
-        mock_get_conn.return_value.pause_cluster.assert_not_called()
+        assert mock_conn.pause_cluster.call_count == 3
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_pause_cluster_multiple_attempts_fail(self, mock_sleep, mock_conn):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_conn.pause_cluster.side_effect = exception
+
+        redshift_operator = RedshiftPauseClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+        )
+        with pytest.raises(returned_exception):
+            redshift_operator.execute(None)
+        assert mock_conn.pause_cluster.call_count == 10
 
 
 class TestDeleteClusterOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_delete_cluster_with_wait_for_completion(self, mock_get_conn, mock_cluster_status):
-        mock_cluster_status.return_value = 'cluster_not_found'
+        mock_cluster_status.return_value = "cluster_not_found"
         redshift_operator = RedshiftDeleteClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
         mock_get_conn.return_value.delete_cluster.assert_called_once_with(
-            ClusterIdentifier='test_cluster',
+            ClusterIdentifier="test_cluster",
             SkipFinalClusterSnapshot=True,
-            FinalClusterSnapshotIdentifier='',
+            FinalClusterSnapshotIdentifier="",
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
@@ -282,9 +328,48 @@ class TestDeleteClusterOperator:
         )
         redshift_operator.execute(None)
         mock_get_conn.return_value.delete_cluster.assert_called_once_with(
-            ClusterIdentifier='test_cluster',
+            ClusterIdentifier="test_cluster",
             SkipFinalClusterSnapshot=True,
-            FinalClusterSnapshotIdentifier='',
+            FinalClusterSnapshotIdentifier="",
         )
 
         mock_get_conn.return_value.cluster_status.assert_not_called()
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_delete_cluster_multiple_attempts(self, _, mock_conn, mock_delete_cluster):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_delete_cluster.side_effect = [exception, exception, True]
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+        )
+        redshift_operator.execute(None)
+
+        assert mock_delete_cluster.call_count == 3
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_delete_cluster_multiple_attempts_fail(self, _, mock_conn, mock_delete_cluster):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_delete_cluster.side_effect = exception
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+        )
+        with pytest.raises(returned_exception):
+            redshift_operator.execute(None)
+
+        assert mock_delete_cluster.call_count == 10

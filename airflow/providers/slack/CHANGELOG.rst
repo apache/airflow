@@ -24,6 +24,81 @@
 Changelog
 ---------
 
+7.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implements SqlToSlackApiFileOperator (#26374)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
+7.0.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* In SlackHook and SlackWebhookHook, if both ``extra__<conn type>__foo`` and ``foo`` existed
+  in connection extra dict, the prefixed version would be used; now, the non-prefixed version
+  will be preferred.  You'll see a warning if there is such a collision.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Allow and prefer non-prefixed extra fields for slack hooks (#27070)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Replace urlparse with urlsplit (#27389)``
+
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* The hook class  ``SlackWebhookHook`` does not inherit from ``HttpHook`` anymore. In practice the
+  only impact on user-defined classes based on **SlackWebhookHook** and you use attributes
+  from **HttpHook**.
+* Drop support deprecated ``webhook_token`` parameter in ``slack-incoming-webhook`` extra.
+
+* ``Refactor 'SlackWebhookOperator': Get rid of mandatory http-provider dependency (#26648)``
+* ``Refactor SlackWebhookHook in order to use 'slack_sdk' instead of HttpHook methods (#26452)``
+
+Features
+~~~~~~~~
+
+* ``Move send_file method into SlackHook (#26118)``
+* ``Refactor Slack API Hook and add Connection (#25852)``
+* ``Remove unsafe imports in Slack API Connection (#26459)``
+* ``Add common-sql lower bound for common-sql (#25789)``
+* ``Fix Slack Connections created in the UI (#26845)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+   * ``Replace SQL with Common SQL in pre commit (#26058)``
+   * ``Prepare docs for new providers release (August 2022) (#25618)``
+   * ``AIP-47 - Migrate Slack DAG to new design (#25137)``
+   * ``Fix errors in CHANGELOGS for slack and amazon (#26746)``
+   * ``Update docs for September Provider's release (#26731)``
+
 5.1.0
 .....
 

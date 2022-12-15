@@ -24,7 +24,7 @@ from airflow.utils.types import DagRunType
 
 
 class DagRunNotBackfillDep(BaseTIDep):
-    """Dep for valid DagRun run_id to schedule from scheduler"""
+    """Dep for valid DagRun run_id to schedule from scheduler."""
 
     NAME = "DagRun is not backfill job"
     IGNORABLE = True

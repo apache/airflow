@@ -22,6 +22,9 @@ description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 
 versions:
+  - 4.0.1
+  - 4.0.0
+  - 3.2.1
   - 3.2.0
   - 3.1.0
   - 3.0.0
@@ -34,11 +37,9 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.1.0
-  # pinotdb v0.1.1 may still work with older versions of Apache Pinot, but we've confirmed that it
-  # causes a problem with newer versions.
-  - pinotdb>0.1.2
+  - apache-airflow>=2.3.0
+  - apache-airflow-providers-common-sql>=1.3.1
+  - pinotdb>0.4.7
 
 integrations:
   - integration-name: Apache Pinot

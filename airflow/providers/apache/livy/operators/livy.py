@@ -33,22 +33,22 @@ class LivyOperator(BaseOperator):
     This operator wraps the Apache Livy batch REST API, allowing to submit a Spark
     application to the underlying cluster.
 
-    :param file: path of the file containing the application to execute (required).
-    :param class_name: name of the application Java/Spark main class.
-    :param args: application command line arguments.
-    :param jars: jars to be used in this sessions.
-    :param py_files: python files to be used in this session.
-    :param files: files to be used in this session.
-    :param driver_memory: amount of memory to use for the driver process.
-    :param driver_cores: number of cores to use for the driver process.
-    :param executor_memory: amount of memory to use per executor process.
-    :param executor_cores: number of cores to use for each executor.
-    :param num_executors: number of executors to launch for this session.
-    :param archives: archives to be used in this session.
-    :param queue: name of the YARN queue to which the application is submitted.
-    :param name: name of this session.
-    :param conf: Spark configuration properties.
-    :param proxy_user: user to impersonate when running the job.
+    :param file: path of the file containing the application to execute (required). (templated)
+    :param class_name: name of the application Java/Spark main class. (templated)
+    :param args: application command line arguments. (templated)
+    :param jars: jars to be used in this sessions. (templated)
+    :param py_files: python files to be used in this session. (templated)
+    :param files: files to be used in this session. (templated)
+    :param driver_memory: amount of memory to use for the driver process. (templated)
+    :param driver_cores: number of cores to use for the driver process. (templated)
+    :param executor_memory: amount of memory to use per executor process. (templated)
+    :param executor_cores: number of cores to use for each executor. (templated)
+    :param num_executors: number of executors to launch for this session. (templated)
+    :param archives: archives to be used in this session. (templated)
+    :param queue: name of the YARN queue to which the application is submitted. (templated)
+    :param name: name of this session. (templated)
+    :param conf: Spark configuration properties. (templated)
+    :param proxy_user: user to impersonate when running the job. (templated)
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :param livy_conn_auth_type: The auth type for the Livy Connection.
     :param polling_interval: time in seconds between polling for job completion. Don't poll for values >=0
@@ -59,7 +59,8 @@ class LivyOperator(BaseOperator):
             See Tenacity documentation at https://github.com/jd/tenacity
     """
 
-    template_fields: Sequence[str] = ('spark_params',)
+    template_fields: Sequence[str] = ("spark_params",)
+    template_fields_renderers = {"spark_params": "json"}
 
     def __init__(
         self,
@@ -80,7 +81,7 @@ class LivyOperator(BaseOperator):
         queue: str | None = None,
         name: str | None = None,
         proxy_user: str | None = None,
-        livy_conn_id: str = 'livy_default',
+        livy_conn_id: str = "livy_default",
         livy_conn_auth_type: Any | None = None,
         polling_interval: int = 0,
         extra_options: dict[str, Any] | None = None,
@@ -92,22 +93,22 @@ class LivyOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.spark_params = {
-            'file': file,
-            'class_name': class_name,
-            'args': args,
-            'jars': jars,
-            'py_files': py_files,
-            'files': files,
-            'driver_memory': driver_memory,
-            'driver_cores': driver_cores,
-            'executor_memory': executor_memory,
-            'executor_cores': executor_cores,
-            'num_executors': num_executors,
-            'archives': archives,
-            'queue': queue,
-            'name': name,
-            'conf': conf,
-            'proxy_user': proxy_user,
+            "file": file,
+            "class_name": class_name,
+            "args": args,
+            "jars": jars,
+            "py_files": py_files,
+            "files": files,
+            "driver_memory": driver_memory,
+            "driver_cores": driver_cores,
+            "executor_memory": executor_memory,
+            "executor_cores": executor_cores,
+            "num_executors": num_executors,
+            "archives": archives,
+            "queue": queue,
+            "name": name,
+            "conf": conf,
+            "proxy_user": proxy_user,
         }
 
         self._livy_conn_id = livy_conn_id
@@ -125,7 +126,6 @@ class LivyOperator(BaseOperator):
         Get valid hook.
 
         :return: hook
-        :rtype: LivyHook
         """
         if self._livy_hook is None or not isinstance(self._livy_hook, LivyHook):
             self._livy_hook = LivyHook(
@@ -142,6 +142,8 @@ class LivyOperator(BaseOperator):
         if self._polling_interval > 0:
             self.poll_for_termination(self._batch_id)
 
+        context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(self._batch_id)["appId"])
+
         return self._batch_id
 
     def poll_for_termination(self, batch_id: int | str) -> None:
@@ -153,7 +155,7 @@ class LivyOperator(BaseOperator):
         hook = self.get_hook()
         state = hook.get_batch_state(batch_id, retry_args=self.retry_args)
         while state not in hook.TERMINAL_STATES:
-            self.log.debug('Batch with id %s is in state: %s', batch_id, state.value)
+            self.log.debug("Batch with id %s is in state: %s", batch_id, state.value)
             sleep(self._polling_interval)
             state = hook.get_batch_state(batch_id, retry_args=self.retry_args)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)

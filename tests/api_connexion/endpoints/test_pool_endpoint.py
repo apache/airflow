@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import pytest
-from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.pool import Pool
@@ -69,7 +68,7 @@ class TestGetPools(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
-        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
             "pools": [
@@ -103,7 +102,7 @@ class TestGetPools(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
-        response = self.client.get("/api/v1/pools?order_by=slots", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools?order_by=slots", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
             "pools": [
@@ -137,12 +136,13 @@ class TestGetPools(TestBasePoolEndpoints):
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test_no_permissions"})
         assert response.status_code == 403
 
 
 class TestGetPoolsPagination(TestBasePoolEndpoints):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_pool_ids",
         [
             # Offset test data
             ("/api/v1/pools?offset=1", [f"test_pool{i}" for i in range(1, 101)]),
@@ -160,7 +160,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
                 "/api/v1/pools?limit=3&offset=2",
                 ["test_pool2", "test_pool3", "test_pool4"],
             ),
-        ]
+        ],
     )
     @provide_session
     def test_limit_and_offset(self, url, expected_pool_ids, session):
@@ -169,7 +169,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).count()
         assert result == 121  # accounts for default pool as well
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         pool_ids = [pool["name"] for pool in response.json["pools"]]
         assert pool_ids == expected_pool_ids
@@ -180,9 +180,9 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).count()
         assert result == 121
-        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json['pools']) == 100
+        assert len(response.json["pools"]) == 100
 
     def test_should_raise_400_for_invalid_orderby(self, session):
         pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
@@ -191,11 +191,11 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         result = session.query(Pool).count()
         assert result == 121
         response = self.client.get(
-            "/api/v1/pools?order_by=open_slots", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/pools?order_by=open_slots", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         msg = "Ordering with 'open_slots' is disallowed or the attribute does not exist on the model"
-        assert response.json['detail'] == msg
+        assert response.json["detail"] == msg
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -204,9 +204,9 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).count()
         assert result == 200
-        response = self.client.get("/api/v1/pools?limit=180", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools?limit=180", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json['pools']) == 150
+        assert len(response.json["pools"]) == 150
 
 
 class TestGetPool(TestBasePoolEndpoints):
@@ -214,7 +214,7 @@ class TestGetPool(TestBasePoolEndpoints):
         pool_model = Pool(pool="test_pool_a", slots=3)
         session.add(pool_model)
         session.commit()
-        response = self.client.get("/api/v1/pools/test_pool_a", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools/test_pool_a", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
             "name": "test_pool_a",
@@ -228,7 +228,7 @@ class TestGetPool(TestBasePoolEndpoints):
         } == response.json
 
     def test_response_404(self):
-        response = self.client.get("/api/v1/pools/invalid_pool", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools/invalid_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert {
             "detail": "Pool with name:'invalid_pool' not found",
@@ -250,14 +250,14 @@ class TestDeletePool(TestBasePoolEndpoints):
         session.add(pool_instance)
         session.commit()
 
-        response = self.client.delete(f"api/v1/pools/{pool_name}", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.delete(f"api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 204
         # Check if the pool is deleted from the db
-        response = self.client.get(f"api/v1/pools/{pool_name}", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(f"api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
 
     def test_response_404(self):
-        response = self.client.delete("api/v1/pools/invalid_pool", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.delete("api/v1/pools/invalid_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert {
             "detail": "Pool with name:'invalid_pool' not found",
@@ -277,7 +277,7 @@ class TestDeletePool(TestBasePoolEndpoints):
         assert_401(response)
 
         # Should still exists
-        response = self.client.get(f"/api/v1/pools/{pool_name}", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(f"/api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
 
@@ -286,7 +286,7 @@ class TestPostPool(TestBasePoolEndpoints):
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3, "description": "test pool"},
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert {
@@ -308,7 +308,7 @@ class TestPostPool(TestBasePoolEndpoints):
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3},
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 409
         assert {
@@ -318,34 +318,34 @@ class TestPostPool(TestBasePoolEndpoints):
             "type": EXCEPTIONS_LINK_MAP[409],
         } == response.json
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "request_json, error_detail",
         [
-            (
-                "for missing pool name",
+            pytest.param(
                 {"slots": 3},
                 "Missing required property(ies): ['name']",
+                id="for missing pool name",
             ),
-            (
-                "for missing slots",
+            pytest.param(
                 {"name": "invalid_pool"},
                 "Missing required property(ies): ['slots']",
+                id="for missing slots",
             ),
-            (
-                "for missing pool name AND slots",
+            pytest.param(
                 {},
                 "Missing required property(ies): ['name', 'slots']",
+                id="for missing pool name AND slots",
             ),
-            (
-                "for extra fields",
+            pytest.param(
                 {"name": "invalid_pool", "slots": 3, "extra_field_1": "extra"},
                 "{'extra_field_1': ['Unknown field.']}",
+                id="for extra fields",
             ),
-        ]
+        ],
     )
-    def test_response_400(self, name, request_json, error_detail):
-        del name
+    def test_response_400(self, request_json, error_detail):
         response = self.client.post(
-            "api/v1/pools", json=request_json, environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/pools", json=request_json, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         assert {
@@ -369,7 +369,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         response = self.client.patch(
             "api/v1/pools/test_pool",
             json={"name": "test_pool_a", "slots": 3},
-            environ_overrides={'REMOTE_USER': "test"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert {
@@ -383,7 +383,8 @@ class TestPatchPool(TestBasePoolEndpoints):
             "description": None,
         } == response.json
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "error_detail, request_json",
         [
             # Missing properties
             ("Missing required property(ies): ['name']", {"slots": 3}),
@@ -394,7 +395,7 @@ class TestPatchPool(TestBasePoolEndpoints):
                 "{'extra_field': ['Unknown field.']}",
                 {"name": "test_pool_a", "slots": 3, "extra_field": "extra"},
             ),
-        ]
+        ],
     )
     @provide_session
     def test_response_400(self, error_detail, request_json, session):
@@ -402,7 +403,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         session.add(pool)
         session.commit()
         response = self.client.patch(
-            "api/v1/pools/test_pool", json=request_json, environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/pools/test_pool", json=request_json, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         assert {
@@ -427,7 +428,7 @@ class TestPatchPool(TestBasePoolEndpoints):
 
 class TestModifyDefaultPool(TestBasePoolEndpoints):
     def test_delete_400(self):
-        response = self.client.delete("api/v1/pools/default_pool", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.delete("api/v1/pools/default_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert {
             "detail": "Default Pool can't be deleted",
@@ -436,10 +437,10 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
             "type": EXCEPTIONS_LINK_MAP[400],
         } == response.json
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "status_code, url, json, expected_response",
         [
-            (
-                "400 No update mask",
+            pytest.param(
                 400,
                 "api/v1/pools/default_pool",
                 {"name": "test_pool_a", "slots": 3},
@@ -449,9 +450,9 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "title": "Bad Request",
                     "type": EXCEPTIONS_LINK_MAP[400],
                 },
+                id="400 No update mask",
             ),
-            (
-                "400 Update mask with both fields",
+            pytest.param(
                 400,
                 "api/v1/pools/default_pool?update_mask=name, slots",
                 {"name": "test_pool_a", "slots": 3},
@@ -461,9 +462,9 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "title": "Bad Request",
                     "type": EXCEPTIONS_LINK_MAP[400],
                 },
+                id="400 Update mask with both fields",
             ),
-            (
-                "200 Update mask with slots",
+            pytest.param(
                 200,
                 "api/v1/pools/default_pool?update_mask=slots",
                 {"name": "test_pool_a", "slots": 3},
@@ -477,9 +478,9 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "slots": 3,
                     "description": "Default pool",
                 },
+                id="200 Update mask with slots",
             ),
-            (
-                "200 Update mask with slots and name",
+            pytest.param(
                 200,
                 "api/v1/pools/default_pool?update_mask=name,slots",
                 {"name": "default_pool", "slots": 3},
@@ -493,9 +494,9 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "slots": 3,
                     "description": "Default pool",
                 },
+                id="200 Update mask with slots and name",
             ),
-            (
-                "200 no update mask",
+            pytest.param(
                 200,
                 "api/v1/pools/default_pool",
                 {
@@ -512,18 +513,19 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "slots": 3,
                     "description": "Default pool",
                 },
+                id="200 no update mask",
             ),
-        ]
+        ],
     )
-    def test_patch(self, name, status_code, url, json, expected_response):
-        del name
-        response = self.client.patch(url, json=json, environ_overrides={'REMOTE_USER': "test"})
+    def test_patch(self, status_code, url, json, expected_response):
+        response = self.client.patch(url, json=json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == status_code
         assert response.json == expected_response
 
 
 class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, patch_json, expected_name, expected_slots",
         [
             (
                 "api/v1/pools/test_pool?update_mask=name, slots",
@@ -549,14 +551,14 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
                 "test_pool",
                 2,
             ),
-        ]
+        ],
     )
     @provide_session
     def test_response_200(self, url, patch_json, expected_name, expected_slots, session):
         pool = Pool(pool="test_pool", slots=3)
         session.add(pool)
         session.commit()
-        response = self.client.patch(url, json=patch_json, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.patch(url, json=patch_json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
             "name": expected_name,
@@ -569,41 +571,41 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
             "description": None,
         } == response.json
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "error_detail, url, patch_json",
         [
-            (
-                "Patching read only field",
+            pytest.param(
                 "Property is read-only - 'occupied_slots'",
                 "api/v1/pools/test_pool?update_mask=slots, name, occupied_slots",
                 {"name": "test_pool_a", "slots": 2, "occupied_slots": 1},
+                id="Patching read only field",
             ),
-            (
-                "Patching read only field",
+            pytest.param(
                 "Property is read-only - 'queued_slots'",
                 "api/v1/pools/test_pool?update_mask=slots, name, queued_slots",
                 {"name": "test_pool_a", "slots": 2, "queued_slots": 1},
+                id="Patching read only field",
             ),
-            (
-                "Invalid update mask",
+            pytest.param(
                 "Invalid field: names in update mask",
                 "api/v1/pools/test_pool?update_mask=slots, names,",
                 {"name": "test_pool_a", "slots": 2},
+                id="Invalid update mask",
             ),
-            (
-                "Invalid update mask",
+            pytest.param(
                 "Invalid field: slot in update mask",
                 "api/v1/pools/test_pool?update_mask=slot, name,",
                 {"name": "test_pool_a", "slots": 2},
+                id="Invalid update mask",
             ),
-        ]
+        ],
     )
     @provide_session
-    def test_response_400(self, name, error_detail, url, patch_json, session):
-        del name
+    def test_response_400(self, error_detail, url, patch_json, session):
         pool = Pool(pool="test_pool", slots=3)
         session.add(pool)
         session.commit()
-        response = self.client.patch(url, json=patch_json, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.patch(url, json=patch_json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert {
             "detail": error_detail,

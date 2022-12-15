@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-salesforce/4.0.0/tests/system/providers/salesforce>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-salesforce/|version|/tests/system/providers/salesforce>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-salesforce/>
     Installing from sources <installing-providers-from-sources>
 
@@ -65,7 +65,7 @@ Package apache-airflow-providers-salesforce
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.1.0
+Release: 5.2.0
 
 Provider package
 ----------------
@@ -86,7 +86,7 @@ Requirements
 =====================  ==================
 PIP package            Version required
 =====================  ==================
-``apache-airflow``     ``>=2.2.0``
+``apache-airflow``     ``>=2.3.0``
 ``simple-salesforce``  ``>=1.0.0``
 ``pandas``             ``>=0.17.1``
 =====================  ==================

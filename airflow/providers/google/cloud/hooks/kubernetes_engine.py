@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 import time
 import warnings
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -67,7 +67,7 @@ class GKEHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[ClusterManagerClient]
+        self._client: ClusterManagerClient | None = None
         self.location = location
 
     def get_cluster_manager_client(self) -> ClusterManagerClient:
@@ -124,8 +124,8 @@ class GKEHook(GoogleBaseHook):
         """
         return self.get_cluster_manager_client().get_operation(
             name=(
-                f'projects/{project_id or self.project_id}'
-                f'/locations/{self.location}/operations/{operation_name}'
+                f"projects/{project_id or self.project_id}"
+                f"/locations/{self.location}/operations/{operation_name}"
             )
         )
 
@@ -143,7 +143,7 @@ class GKEHook(GoogleBaseHook):
         :param val:
         :return: The cluster proto updated with new label
         """
-        val = val.replace('.', '-').replace('+', '-')
+        val = val.replace(".", "-").replace("+", "-")
         cluster_proto.resource_labels.update({key: val})
         return cluster_proto
 
@@ -176,15 +176,15 @@ class GKEHook(GoogleBaseHook):
 
         try:
             resource = self.get_cluster_manager_client().delete_cluster(
-                name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
+                name=f"projects/{project_id}/locations/{self.location}/clusters/{name}",
                 retry=retry,
                 timeout=timeout,
             )
-            resource = self.wait_for_operation(resource)
+            resource = self.wait_for_operation(resource, project_id)
             # Returns server-defined url for the resource
             return resource.self_link
         except NotFound as error:
-            self.log.info('Assuming Success: %s', error.message)
+            self.log.info("Assuming Success: %s", error.message)
             return None
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -219,7 +219,7 @@ class GKEHook(GoogleBaseHook):
         elif not isinstance(cluster, Cluster):
             raise AirflowException("cluster is not instance of Cluster proto or python dict")
 
-        self._append_label(cluster, 'airflow-version', 'v' + version.version)  # type: ignore
+        self._append_label(cluster, "airflow-version", "v" + version.version)  # type: ignore
 
         self.log.info(
             "Creating (project_id=%s, location=%s, cluster_name=%s)",
@@ -229,16 +229,16 @@ class GKEHook(GoogleBaseHook):
         )
         try:
             resource = self.get_cluster_manager_client().create_cluster(
-                parent=f'projects/{project_id}/locations/{self.location}',
+                parent=f"projects/{project_id}/locations/{self.location}",
                 cluster=cluster,  # type: ignore
                 retry=retry,
                 timeout=timeout,
             )
-            resource = self.wait_for_operation(resource)
+            resource = self.wait_for_operation(resource, project_id)
 
             return resource.target_link
         except AlreadyExists as error:
-            self.log.info('Assuming Success: %s', error.message)
+            self.log.info("Assuming Success: %s", error.message)
             return self.get_cluster(name=cluster.name, project_id=project_id)  # type: ignore
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -271,7 +271,7 @@ class GKEHook(GoogleBaseHook):
         return (
             self.get_cluster_manager_client()
             .get_cluster(
-                name=f'projects/{project_id}/locations/{self.location}/clusters/{name}',
+                name=f"projects/{project_id}/locations/{self.location}/clusters/{name}",
                 retry=retry,
                 timeout=timeout,
             )

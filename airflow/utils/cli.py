@@ -29,6 +29,7 @@ import traceback
 import warnings
 from argparse import Namespace
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow import settings
@@ -42,6 +43,8 @@ T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+
+logger = logging.getLogger(__name__)
 
 
 def _check_cli_args(args):
@@ -89,6 +92,12 @@ def action_cli(func=None, check_db=True):
             _check_cli_args(args)
             metrics = _build_metrics(f.__name__, args[0])
             cli_action_loggers.on_pre_execution(**metrics)
+            verbose = getattr(args[0], "verbose", False)
+            root_logger = logging.getLogger()
+            if verbose:
+                root_logger.setLevel(logging.DEBUG)
+                for handler in root_logger.handlers:
+                    handler.setLevel(logging.DEBUG)
             try:
                 # Check and run migrations if necessary
                 if check_db:
@@ -98,10 +107,10 @@ def action_cli(func=None, check_db=True):
                     synchronize_log_template()
                 return f(*args, **kwargs)
             except Exception as e:
-                metrics['error'] = e
+                metrics["error"] = e
                 raise
             finally:
-                metrics['end_datetime'] = datetime.utcnow()
+                metrics["end_datetime"] = datetime.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
 
         return cast(T, wrapper)
@@ -122,8 +131,8 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-    sub_commands_to_check = {'users', 'connections'}
-    sensitive_fields = {'-p', '--password', '--conn-password'}
+    sub_commands_to_check = {"users", "connections"}
+    sensitive_fields = {"-p", "--password", "--conn-password"}
     full_command = list(sys.argv)
     sub_command = full_command[1] if len(full_command) > 1 else None
     if sub_command in sub_commands_to_check:
@@ -134,14 +143,14 @@ def _build_metrics(func_name, namespace):
             else:
                 # For cases when password is passed as "--password=xyz" (with '=' between key and value)
                 for sensitive_field in sensitive_fields:
-                    if command.startswith(f'{sensitive_field}='):
+                    if command.startswith(f"{sensitive_field}="):
                         full_command[idx] = f'{sensitive_field}={"*" * 8}'
 
     metrics = {
-        'sub_command': func_name,
-        'start_datetime': datetime.utcnow(),
-        'full_command': f'{full_command}',
-        'user': getuser(),
+        "sub_command": func_name,
+        "start_datetime": datetime.utcnow(),
+        "full_command": f"{full_command}",
+        "user": getuser(),
     }
 
     if not isinstance(namespace, Namespace):
@@ -149,10 +158,10 @@ def _build_metrics(func_name, namespace):
             f"namespace argument should be argparse.Namespace instance, but is {type(namespace)}"
         )
     tmp_dic = vars(namespace)
-    metrics['dag_id'] = tmp_dic.get('dag_id')
-    metrics['task_id'] = tmp_dic.get('task_id')
-    metrics['execution_date'] = tmp_dic.get('execution_date')
-    metrics['host_name'] = socket.gethostname()
+    metrics["dag_id"] = tmp_dic.get("dag_id")
+    metrics["task_id"] = tmp_dic.get("task_id")
+    metrics["execution_date"] = tmp_dic.get("execution_date")
+    metrics["host_name"] = socket.gethostname()
 
     return metrics
 
@@ -162,7 +171,7 @@ def process_subdir(subdir: str | None):
     if subdir:
         if not settings.DAGS_FOLDER:
             raise ValueError("DAGS_FOLDER variable in settings should be filled.")
-        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
+        subdir = subdir.replace("DAGS_FOLDER", settings.DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
     return subdir
 
@@ -181,26 +190,48 @@ def get_dag_by_file_location(dag_id: str):
     return dagbag.dags[dag_id]
 
 
+def _search_for_dag_file(val: str | None) -> str | None:
+    """
+    Search for the file referenced at fileloc.
+
+    By the time we get to this function, we've already run this `val` through `process_subdir`
+    and loaded the DagBag there and came up empty.  So here, if `val` is a file path, we make
+    a last ditch effort to try and find a dag file with the same name in our dags folder. (This
+    avoids the unnecessary dag parsing that would occur if we just parsed the dags folder).
+
+    If `val` is a path to a file, this likely means that the serializing process had a dags_folder
+    equal to only the dag file in question. This prevents us from determining the relative location.
+    And if the paths are different between worker and dag processor / scheduler, then we won't find
+    the dag at the given location.
+    """
+    if val and Path(val).suffix in (".zip", ".py"):
+        matches = list(Path(settings.DAGS_FOLDER).rglob(Path(val).name))
+        if len(matches) == 1:
+            return matches[0].as_posix()
+    return None
+
+
 def get_dag(subdir: str | None, dag_id: str) -> DAG:
-    """Returns DAG of a given dag_id"""
+    """
+    Returns DAG of a given dag_id
+
+    First it we'll try to use the given subdir.  If that doesn't work, we'll try to
+    find the correct path (assuming it's a file) and failing that, use the configured
+    dags folder.
+    """
     from airflow.models import DagBag
 
-    dagbag = DagBag(process_subdir(subdir))
+    first_path = process_subdir(subdir)
+    dagbag = DagBag(first_path)
     if dag_id not in dagbag.dags:
-        raise AirflowException(
-            f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
-        )
+        fallback_path = _search_for_dag_file(subdir) or settings.DAGS_FOLDER
+        logger.warning("Dag %r not found in path %s; trying path %s", dag_id, first_path, fallback_path)
+        dagbag = DagBag(dag_folder=fallback_path)
+        if dag_id not in dagbag.dags:
+            raise AirflowException(
+                f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
+            )
     return dagbag.dags[dag_id]
-
-
-def get_dag_by_deserialization(dag_id: str) -> DAG:
-    from airflow.models.serialized_dag import SerializedDagModel
-
-    dag_model = SerializedDagModel.get(dag_id)
-    if dag_model is None:
-        raise AirflowException(f"Serialized DAG: {dag_id} could not be found")
-
-    return dag_model.dag
 
 
 def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
@@ -213,8 +244,8 @@ def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
-            f'dag_id could not be found with regex: {dag_id}. Either the dag did not exist or '
-            f'it failed to parse.'
+            f"dag_id could not be found with regex: {dag_id}. Either the dag did not exist or "
+            f"it failed to parse."
         )
     return matched_dags
 
@@ -234,14 +265,14 @@ def get_dag_by_pickle(pickle_id, session=None):
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     """Creates logging paths"""
     if not stderr:
-        stderr = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.err')
+        stderr = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.err")
     if not stdout:
-        stdout = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.out')
+        stdout = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.out")
     if not log:
-        log = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.log')
+        log = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.log")
 
     if not pid:
-        pid = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.pid')
+        pid = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.pid")
     else:
         pid = os.path.abspath(pid)
 

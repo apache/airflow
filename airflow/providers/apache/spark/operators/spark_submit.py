@@ -30,8 +30,7 @@ if TYPE_CHECKING:
 class SparkSubmitOperator(BaseOperator):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH or the spark-home is set
-    in the extra on the connection.
+    It requires that the "spark-submit" binary is in the PATH.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -74,29 +73,29 @@ class SparkSubmitOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        '_application',
-        '_conf',
-        '_files',
-        '_py_files',
-        '_jars',
-        '_driver_class_path',
-        '_packages',
-        '_exclude_packages',
-        '_keytab',
-        '_principal',
-        '_proxy_user',
-        '_name',
-        '_application_args',
-        '_env_vars',
+        "_application",
+        "_conf",
+        "_files",
+        "_py_files",
+        "_jars",
+        "_driver_class_path",
+        "_packages",
+        "_exclude_packages",
+        "_keytab",
+        "_principal",
+        "_proxy_user",
+        "_name",
+        "_application_args",
+        "_env_vars",
     )
-    ui_color = WEB_COLORS['LIGHTORANGE']
+    ui_color = WEB_COLORS["LIGHTORANGE"]
 
     def __init__(
         self,
         *,
-        application: str = '',
+        application: str = "",
         conf: dict[str, Any] | None = None,
-        conn_id: str = 'spark_default',
+        conn_id: str = "spark_default",
         files: str | None = None,
         py_files: str | None = None,
         archives: str | None = None,
@@ -113,7 +112,7 @@ class SparkSubmitOperator(BaseOperator):
         keytab: str | None = None,
         principal: str | None = None,
         proxy_user: str | None = None,
-        name: str = 'arrow-spark',
+        name: str = "arrow-spark",
         num_executors: int | None = None,
         status_poll_interval: int = 1,
         application_args: list[Any] | None = None,

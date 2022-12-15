@@ -44,7 +44,10 @@ repos:
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
-        exclude: ^\.github/.*$|^airflow/_vendor/
+        exclude: |
+          (?x)
+          ^\.github/|
+          ^airflow/_vendor/
         args:
           - --comment-style
           - "/*||*/"
@@ -143,14 +146,14 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  # Keep version of black in sync wit blackend-docs and pre-commit-hook-names
+  # Keep version of black in sync wit blacken-docs, pre-commit-hook-names, update-common-sql-api-stubs
   - repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
       - id: black
-        name: Run Black (the uncompromising Python code formatter)
+        name: Run black (python formatter)
         args: [--config=./pyproject.toml]
-        exclude: ^airflow/_vendor/|^airflow/contrib
+        exclude: ^airflow/_vendor/|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
@@ -162,7 +165,6 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-          - --skip-string-normalization
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -341,10 +343,9 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich>=12.4.4']
-        # This check might be removed when min-airflow-version in providers is 2.2
-      - id: check-airflow-2-2-compatibility
-        name: Check that providers are 2.2 compatible.
-        entry: ./scripts/ci/pre_commit/pre_commit_check_2_2_compatibility.py
+      - id: check-airflow-provider-compatibility
+        name: Check compatibility of Providers with Airflow
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_airflow_compatibility.py
         language: python
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
@@ -356,15 +357,9 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
-      - id: update-setup-cfg-file
-        name: Update setup.cfg file with all licenses
-        entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.py
-        language: python
-        files: ^setup\.cfg$
-        pass_filenames: false
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
-        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
+        entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
         language: python
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^airflow/providers/.*/provider.yaml$
         pass_filenames: false
@@ -401,12 +396,33 @@ repos:
         language: python
         files: ^docs
         pass_filenames: false
+      - id: update-common-sql-api-stubs
+        name: Check and update common.sql API stubs
+        entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
+        language: python
+        files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
+        additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.3.0']
+        pass_filenames: false
+        require_serial: true
       - id: check-pydevd-left-in-code
         language: pygrep
         name: Check for pydevd debug statements accidentally left
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: check-links-to-example-dags-do-not-use-hardcoded-versions
+        name: Check that example dags do not use hard-coded version numbers
+        description: The links to example dags should use |version| as version specification
+        language: pygrep
+        entry: >
+          (?i)
+          .*https://github.*[0-9]/tests/system/providers|
+          .*https://github.*/main/tests/system/providers|
+          .*https://github.*/master/tests/system/providers|
+          .*https://github.*/main/airflow/providers/.*/example_dags/|
+          .*https://github.*/master/airflow/providers/.*/example_dags/
+        pass_filenames: true
+        files: ^docs/apache-airflow-providers-.*\.rst
       - id: check-safe-filter-usage-in-html
         language: pygrep
         name: Don't use safe in templates
@@ -451,6 +467,7 @@ repos:
           ^airflow/www/static/|
           ^airflow/providers/|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^tests/integration/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^tests/system/providers/apache/spark/example_spark_dag.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
@@ -471,12 +488,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_base_operator_partial_arguments.py
         pass_filenames: false
         files: ^airflow/models/(?:base|mapped)operator\.py$
-      - id: check-dag-init-decorator-arguments
-        name: Check DAG and @dag arguments
+      - id: check-init-decorator-arguments
+        name: Check model __init__ and decorator arguments are in sync
         language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_sync_dag_init_decorator.py
+        entry: ./scripts/ci/pre_commit/pre_commit_sync_init_decorator.py
         pass_filenames: false
-        files: ^airflow/models/dag\.py$
+        files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group.py$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator[Link] core imports
@@ -659,7 +676,7 @@ repos:
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
-        files: ^dev/breeze/setup.*$|^dev/breeze/pyproject.toml$|^dev/breeze/README.md$
+        files: dev/breeze/setup.py|dev/breeze/setup.cfg|dev/breeze/pyproject.toml|dev/breeze/README.md
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
@@ -804,16 +821,17 @@ repos:
         files: newsfragments/.*\.rst
         entry: ./scripts/ci/pre_commit/pre_commit_newsfragments.py
         pass_filenames: true
+        # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
+        # This is fast, so not too much downside
+        always_run: true
       - id: update-breeze-cmd-output
         name: Update output of breeze commands in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
         files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
+        require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
-        # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
-        # This is fast, so not too much downside
-        always_run: true
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py

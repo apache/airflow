@@ -41,7 +41,7 @@ with models.DAG(
     start_date=START_DATE,
     schedule="@once",
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_start_go_dataflow_runner_pipeline_async_gcs_file]
     start_go_job_dataflow_runner_async = BeamRunGoPipelineOperator(
@@ -49,13 +49,13 @@ with models.DAG(
         runner="DataflowRunner",
         go_file=GCS_GO_DATAFLOW_ASYNC,
         pipeline_options={
-            'tempLocation': GCS_TMP,
-            'stagingLocation': GCS_STAGING,
-            'output': GCS_OUTPUT,
-            'WorkerHarnessContainerImage': "apache/beam_go_sdk:latest",
+            "tempLocation": GCS_TMP,
+            "stagingLocation": GCS_STAGING,
+            "output": GCS_OUTPUT,
+            "WorkerHarnessContainerImage": "apache/beam_go_sdk:latest",
         },
         dataflow_config=DataflowConfiguration(
-            job_name='{{task.task_id}}',
+            job_name="{{task.task_id}}",
             project_id=GCP_PROJECT_ID,
             location="us-central1",
             wait_until_finished=False,
@@ -67,7 +67,7 @@ with models.DAG(
         job_id="{{task_instance.xcom_pull('start_go_job_dataflow_runner_async')['dataflow_job_id']}}",
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         project_id=GCP_PROJECT_ID,
-        location='us-central1',
+        location="us-central1",
     )
 
     start_go_job_dataflow_runner_async >> wait_for_go_job_dataflow_runner_async_done

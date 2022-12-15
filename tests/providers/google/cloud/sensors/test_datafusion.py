@@ -100,5 +100,5 @@ class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
             AirflowException,
             match=f"Pipeline with id '{PIPELINE_ID}' state is: FAILED. Terminating sensor...",
         ):
-            mock_hook.return_value.get_pipeline_workflow.return_value = {"status": 'FAILED'}
+            mock_hook.return_value.get_pipeline_workflow.return_value = {"status": "FAILED"}
             task.poke(mock.MagicMock())

@@ -16,21 +16,33 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
+import yaml
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class StatsdTest(unittest.TestCase):
+class TestStatsd:
     def test_should_create_statsd_default(self):
         docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
 
         assert "release-name-statsd" == jmespath.search("metadata.name", docs[0])
 
         assert "statsd" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+
+        assert {"name": "config", "configMap": {"name": "release-name-statsd"}} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
+
+        assert {
+            "name": "config",
+            "mountPath": "/etc/statsd-exporter/mappings.yml",
+            "subPath": "mappings.yml",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+        default_args = ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+        assert default_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
         extra_mapping = {
@@ -53,13 +65,37 @@ class StatsdTest(unittest.TestCase):
             "subPath": "mappings.yml",
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_should_add_volume_and_volume_mount_when_exist_override_mappings(self):
+        override_mapping = {
+            "match": "airflow.pool.queued_slots.*",
+            "name": "airflow_pool_queued_slots",
+            "labels": {"pool": "$1"},
+        }
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "overrideMappings": [override_mapping]}},
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+
+        assert {"name": "config", "configMap": {"name": "release-name-statsd"}} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
+
+        assert {
+            "name": "config",
+            "mountPath": "/etc/statsd-exporter/mappings.yml",
+            "subPath": "mappings.yml",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @pytest.mark.parametrize(
+        "revision_history_limit, global_revision_history_limit",
+        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
+    )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {"statsd": {"enabled": True}}
         if revision_history_limit:
-            values['statsd']['revisionHistoryLimit'] = revision_history_limit
+            values["statsd"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/statsd/statsd-deployment.yaml"],
@@ -116,8 +152,8 @@ class StatsdTest(unittest.TestCase):
             values={
                 "statsd": {
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     }
                 },
             },
@@ -134,3 +170,55 @@ class StatsdTest(unittest.TestCase):
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+    def test_statsd_configmap_by_default(self):
+        docs = render_chart(show_only=["templates/configmaps/statsd-configmap.yaml"])
+
+        mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
+        mappings_yml_obj = yaml.safe_load(mappings_yml)
+
+        assert "airflow_dagrun_dependency_check" == mappings_yml_obj["mappings"][0]["name"]
+        assert "airflow_pool_starving_tasks" == mappings_yml_obj["mappings"][-1]["name"]
+
+    def test_statsd_configmap_when_exist_extra_mappings(self):
+        extra_mapping = {
+            "match": "airflow.pool.queued_slots.*",
+            "name": "airflow_pool_queued_slots",
+            "labels": {"pool": "$1"},
+        }
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "extraMappings": [extra_mapping]}},
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )
+
+        mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
+        mappings_yml_obj = yaml.safe_load(mappings_yml)
+
+        assert "airflow_dagrun_dependency_check" == mappings_yml_obj["mappings"][0]["name"]
+        assert "airflow_pool_queued_slots" == mappings_yml_obj["mappings"][-1]["name"]
+
+    def test_statsd_configmap_when_exist_override_mappings(self):
+        override_mapping = {
+            "match": "airflow.pool.queued_slots.*",
+            "name": "airflow_pool_queued_slots",
+            "labels": {"pool": "$1"},
+        }
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "overrideMappings": [override_mapping]}},
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )
+
+        mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
+        mappings_yml_obj = yaml.safe_load(mappings_yml)
+
+        assert 1 == len(mappings_yml_obj["mappings"])
+        assert "airflow_pool_queued_slots" == mappings_yml_obj["mappings"][0]["name"]
+
+    def test_statsd_args_can_be_overridden(self):
+        args = ["--some-arg=foo"]
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "args": args}},
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == args

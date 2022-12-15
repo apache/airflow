@@ -21,8 +21,7 @@ from __future__ import annotations
 import enum
 import json
 import warnings
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
 from google.api_core.exceptions import Conflict
@@ -34,8 +33,11 @@ from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
+    SQLColumnCheckOperator,
     SQLIntervalCheckOperator,
+    SQLTableCheckOperator,
     SQLValueCheckOperator,
+    _parse_boolean,
 )
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -68,25 +70,16 @@ class BigQueryUIColors(enum.Enum):
 class BigQueryConsoleLink(BaseOperatorLink):
     """Helper class for constructing BigQuery link."""
 
-    name = 'BigQuery Console'
+    name = "BigQuery Console"
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ):
-        if ti_key is not None:
-            job_id = XCom.get_value(key='job_id', ti_key=ti_key)
-        else:
-            assert dttm is not None
-            job_id = XCom.get_one(
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-                key='job_id',
-            )
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
+        job_id = XCom.get_value(key="job_id", ti_key=ti_key)
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
 
 
 @attr.s(auto_attribs=True)
@@ -97,21 +90,15 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
     @property
     def name(self) -> str:
-        return f'BigQuery Console #{self.index + 1}'
+        return f"BigQuery Console #{self.index + 1}"
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ):
-        if ti_key is not None:
-            job_ids = XCom.get_value(key='job_id', ti_key=ti_key)
-        else:
-            assert dttm is not None
-            job_ids = XCom.get_one(
-                key='job_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-            )
+        job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
         if not job_ids:
             return None
         if len(job_ids) < self.index:
@@ -179,26 +166,28 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
-        'sql',
-        'gcp_conn_id',
-        'impersonation_chain',
-        'labels',
+        "sql",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "labels",
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
 
     def __init__(
         self,
         *,
         sql: str,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, **kwargs)
@@ -208,6 +197,59 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
+        self.deferrable = deferrable
+
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        job_id: str,
+    ) -> BigQueryJob:
+        """Submit a new job and get the job id for polling the status using Trigger."""
+        configuration = {"query": {"query": self.sql}}
+
+        return hook.insert_job(
+            configuration=configuration,
+            project_id=hook.project_id,
+            location=self.location,
+            job_id=job_id,
+            nowait=True,
+        )
+
+    def execute(self, context: Context):
+        if not self.deferrable:
+            super().execute(context=context)
+        else:
+            hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+            )
+            job = self._submit_job(hook, job_id="")
+            context["ti"].xcom_push(key="job_id", value=job.job_id)
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=BigQueryCheckTrigger(
+                    conn_id=self.gcp_conn_id,
+                    job_id=job.job_id,
+                    project_id=hook.project_id,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+
+        records = event["records"]
+        if not records:
+            raise AirflowException("The query returned empty results")
+        elif not all(bool(r) for r in records):
+            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+        self.log.info("Record: %s", event["records"])
+        self.log.info("Success.")
 
 
 class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
@@ -233,16 +275,17 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
-        'sql',
-        'gcp_conn_id',
-        'pass_value',
-        'impersonation_chain',
-        'labels',
+        "sql",
+        "gcp_conn_id",
+        "pass_value",
+        "impersonation_chain",
+        "labels",
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
 
     def __init__(
@@ -251,11 +294,12 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
@@ -264,6 +308,65 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         self.use_legacy_sql = use_legacy_sql
         self.impersonation_chain = impersonation_chain
         self.labels = labels
+        self.deferrable = deferrable
+
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        job_id: str,
+    ) -> BigQueryJob:
+        """Submit a new job and get the job id for polling the status using Triggerer."""
+        configuration = {
+            "query": {
+                "query": self.sql,
+                "useLegacySql": False,
+            }
+        }
+        if self.use_legacy_sql:
+            configuration["query"]["useLegacySql"] = self.use_legacy_sql
+
+        return hook.insert_job(
+            configuration=configuration,
+            project_id=hook.project_id,
+            location=self.location,
+            job_id=job_id,
+            nowait=True,
+        )
+
+    def execute(self, context: Context) -> None:  # type: ignore[override]
+        if not self.deferrable:
+            super().execute(context=context)
+        else:
+            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+
+            job = self._submit_job(hook, job_id="")
+            context["ti"].xcom_push(key="job_id", value=job.job_id)
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=BigQueryValueCheckTrigger(
+                    conn_id=self.gcp_conn_id,
+                    job_id=job.job_id,
+                    project_id=hook.project_id,
+                    sql=self.sql,
+                    pass_value=self.pass_value,
+                    tolerance=self.tol,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info(
+            "%s completed with response %s ",
+            self.task_id,
+            event["message"],
+        )
 
 
 class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperator):
@@ -300,15 +403,16 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
-        'table',
-        'gcp_conn_id',
-        'sql1',
-        'sql2',
-        'impersonation_chain',
-        'labels',
+        "table",
+        "gcp_conn_id",
+        "sql1",
+        "sql2",
+        "impersonation_chain",
+        "labels",
     )
     ui_color = BigQueryUIColors.CHECK.value
 
@@ -317,13 +421,14 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         *,
         table: str,
         metrics_thresholds: dict,
-        date_filter_column: str = 'ds',
+        date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         use_legacy_sql: bool = True,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -339,6 +444,292 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
+        self.deferrable = deferrable
+
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        sql: str,
+        job_id: str,
+    ) -> BigQueryJob:
+        """Submit a new job and get the job id for polling the status using Triggerer."""
+        configuration = {"query": {"query": sql}}
+        return hook.insert_job(
+            configuration=configuration,
+            project_id=hook.project_id,
+            location=self.location,
+            job_id=job_id,
+            nowait=True,
+        )
+
+    def execute(self, context: Context):
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+            self.log.info("Using ratio formula: %s", self.ratio_formula)
+
+            self.log.info("Executing SQL check: %s", self.sql1)
+            job_1 = self._submit_job(hook, sql=self.sql1, job_id="")
+            context["ti"].xcom_push(key="job_id", value=job_1.job_id)
+
+            self.log.info("Executing SQL check: %s", self.sql2)
+            job_2 = self._submit_job(hook, sql=self.sql2, job_id="")
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=BigQueryIntervalCheckTrigger(
+                    conn_id=self.gcp_conn_id,
+                    first_job_id=job_1.job_id,
+                    second_job_id=job_2.job_id,
+                    project_id=hook.project_id,
+                    table=self.table,
+                    metrics_thresholds=self.metrics_thresholds,
+                    date_filter_column=self.date_filter_column,
+                    days_back=self.days_back,
+                    ratio_formula=self.ratio_formula,
+                    ignore_zero=self.ignore_zero,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info(
+            "%s completed with response %s ",
+            self.task_id,
+            event["message"],
+        )
+
+
+class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
+    """
+    BigQueryColumnCheckOperator subclasses the SQLColumnCheckOperator
+    in order to provide a job id for OpenLineage to parse. See base class
+    docstring for usage.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryColumnCheckOperator`
+
+    :param table: the table name
+    :param column_mapping: a dictionary relating columns to their checks
+    :param partition_clause: a string SQL statement added to a WHERE clause
+        to partition data
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param use_legacy_sql: Whether to use legacy SQL (true)
+        or standard SQL (false).
+    :param location: The geographic location of the job. See details at:
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param labels: a dictionary containing labels for the table, passed to BigQuery
+    """
+
+    def __init__(
+        self,
+        *,
+        table: str,
+        column_mapping: dict,
+        partition_clause: str | None = None,
+        database: str | None = None,
+        accept_none: bool = True,
+        gcp_conn_id: str = "google_cloud_default",
+        use_legacy_sql: bool = True,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        labels: dict | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            table=table,
+            column_mapping=column_mapping,
+            partition_clause=partition_clause,
+            database=database,
+            accept_none=accept_none,
+            **kwargs,
+        )
+        self.table = table
+        self.column_mapping = column_mapping
+        self.partition_clause = partition_clause
+        self.database = database
+        self.accept_none = accept_none
+        self.gcp_conn_id = gcp_conn_id
+        self.use_legacy_sql = use_legacy_sql
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.labels = labels
+
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        job_id: str,
+    ) -> BigQueryJob:
+        """Submit a new job and get the job id for polling the status using Trigger."""
+        configuration = {"query": {"query": self.sql}}
+
+        return hook.insert_job(
+            configuration=configuration,
+            project_id=hook.project_id,
+            location=self.location,
+            job_id=job_id,
+            nowait=False,
+        )
+
+    def execute(self, context=None):
+        """Perform checks on the given columns."""
+        hook = self.get_db_hook()
+        failed_tests = []
+
+        job = self._submit_job(hook, job_id="")
+        context["ti"].xcom_push(key="job_id", value=job.job_id)
+        records = job.result().to_dataframe()
+
+        if records.empty:
+            raise AirflowException(f"The following query returned zero rows: {self.sql}")
+
+        records.columns = records.columns.str.lower()
+        self.log.info("Record: %s", records)
+
+        for row in records.iterrows():
+            column = row[1].get("col_name")
+            check = row[1].get("check_type")
+            result = row[1].get("check_result")
+            tolerance = self.column_mapping[column][check].get("tolerance")
+
+            self.column_mapping[column][check]["result"] = result
+            self.column_mapping[column][check]["success"] = self._get_match(
+                self.column_mapping[column][check], result, tolerance
+            )
+
+        failed_tests(
+            f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for col, checks in self.column_mapping.items()
+            for check, check_values in checks.items()
+            if not check_values["success"]
+        )
+        if failed_tests:
+            exception_string = (
+                f"Test failed.\nResults:\n{records!s}\n"
+                f"The following tests have failed:"
+                f"\n{''.join(failed_tests)}"
+            )
+            self._raise_exception(exception_string)
+
+        self.log.info("All tests have passed")
+
+
+class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
+    """
+    BigQueryTableCheckOperator subclasses the SQLTableCheckOperator
+    in order to provide a job id for OpenLineage to parse. See base class
+    for usage.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryTableCheckOperator`
+
+    :param table: the table name
+    :param checks: a dictionary of check names and boolean SQL statements
+    :param partition_clause: a string SQL statement added to a WHERE clause
+        to partition data
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param use_legacy_sql: Whether to use legacy SQL (true)
+        or standard SQL (false).
+    :param location: The geographic location of the job. See details at:
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param labels: a dictionary containing labels for the table, passed to BigQuery
+    """
+
+    def __init__(
+        self,
+        *,
+        table: str,
+        checks: dict,
+        partition_clause: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        use_legacy_sql: bool = True,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        labels: dict | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(table=table, checks=checks, partition_clause=partition_clause, **kwargs)
+        self.table = table
+        self.checks = checks
+        self.partition_clause = partition_clause
+        self.gcp_conn_id = gcp_conn_id
+        self.use_legacy_sql = use_legacy_sql
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.labels = labels
+
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        job_id: str,
+    ) -> BigQueryJob:
+        """Submit a new job and get the job id for polling the status using Trigger."""
+        configuration = {"query": {"query": self.sql}}
+
+        return hook.insert_job(
+            configuration=configuration,
+            project_id=hook.project_id,
+            location=self.location,
+            job_id=job_id,
+            nowait=False,
+        )
+
+    def execute(self, context=None):
+        """Execute the given checks on the table."""
+        hook = self.get_db_hook()
+        job = self._submit_job(hook, job_id="")
+        context["ti"].xcom_push(key="job_id", value=job.job_id)
+        records = job.result().to_dataframe()
+
+        if records.empty:
+            raise AirflowException(f"The following query returned zero rows: {self.sql}")
+
+        records.columns = records.columns.str.lower()
+        self.log.info("Record:\n%s", records)
+
+        for row in records.iterrows():
+            check = row[1].get("check_name")
+            result = row[1].get("check_result")
+            self.checks[check]["success"] = _parse_boolean(str(result))
+
+        failed_tests = [
+            f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
+            for check, check_values in self.checks.items()
+            if not check_values["success"]
+        ]
+        if failed_tests:
+            exception_string = (
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
+                f"The following tests have failed:\n{', '.join(failed_tests)}"
+            )
+            self._raise_exception(exception_string)
+
+        self.log.info("All tests have passed")
 
 
 class BigQueryGetDataOperator(BaseOperator):
@@ -395,15 +786,16 @@ class BigQueryGetDataOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'table_id',
-        'project_id',
-        'max_results',
-        'selected_fields',
-        'impersonation_chain',
+        "dataset_id",
+        "table_id",
+        "project_id",
+        "max_results",
+        "selected_fields",
+        "impersonation_chain",
     )
     ui_color = BigQueryUIColors.QUERY.value
 
@@ -415,10 +807,11 @@ class BigQueryGetDataOperator(BaseOperator):
         project_id: str | None = None,
         max_results: int = 100,
         selected_fields: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -432,39 +825,97 @@ class BigQueryGetDataOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.project_id = project_id
+        self.deferrable = deferrable
 
-    def execute(self, context: Context) -> list:
-        self.log.info(
-            'Fetching Data from %s.%s max results: %s', self.dataset_id, self.table_id, self.max_results
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        job_id: str,
+    ) -> BigQueryJob:
+        get_query = self.generate_query()
+        configuration = {"query": {"query": get_query}}
+        """Submit a new job and get the job id for polling the status using Triggerer."""
+        return hook.insert_job(
+            configuration=configuration,
+            location=self.location,
+            project_id=hook.project_id,
+            job_id=job_id,
+            nowait=True,
         )
 
+    def generate_query(self) -> str:
+        """
+        Generate a select query if selected fields are given or with *
+        for the given dataset and table id
+        """
+        query = "select "
+        if self.selected_fields:
+            query += self.selected_fields
+        else:
+            query += "*"
+        query += f" from {self.dataset_id}.{self.table_id} limit {self.max_results}"
+        return query
+
+    def execute(self, context: Context):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
+        self.hook = hook
 
-        if not self.selected_fields:
-            schema: dict[str, list] = hook.get_schema(
+        if not self.deferrable:
+            self.log.info(
+                "Fetching Data from %s.%s max results: %s", self.dataset_id, self.table_id, self.max_results
+            )
+            if not self.selected_fields:
+                schema: dict[str, list] = hook.get_schema(
+                    dataset_id=self.dataset_id,
+                    table_id=self.table_id,
+                )
+                if "fields" in schema:
+                    self.selected_fields = ",".join([field["name"] for field in schema["fields"]])
+
+            rows = hook.list_rows(
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
+                max_results=self.max_results,
+                selected_fields=self.selected_fields,
+                location=self.location,
+                project_id=self.project_id,
             )
-            if "fields" in schema:
-                self.selected_fields = ','.join([field["name"] for field in schema["fields"]])
 
-        rows = hook.list_rows(
-            dataset_id=self.dataset_id,
-            table_id=self.table_id,
-            max_results=self.max_results,
-            selected_fields=self.selected_fields,
-            location=self.location,
-            project_id=self.project_id,
+            self.log.info("Total extracted rows: %s", len(rows))
+
+            table_data = [row.values() for row in rows]
+            return table_data
+
+        job = self._submit_job(hook, job_id="")
+        self.job_id = job.job_id
+        context["ti"].xcom_push(key="job_id", value=self.job_id)
+        self.defer(
+            timeout=self.execution_timeout,
+            trigger=BigQueryGetDataTrigger(
+                conn_id=self.gcp_conn_id,
+                job_id=self.job_id,
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                project_id=hook.project_id,
+            ),
+            method_name="execute_complete",
         )
 
-        self.log.info('Total extracted rows: %s', len(rows))
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
 
-        table_data = [row.values() for row in rows]
-        return table_data
+        self.log.info("Total extracted rows: %s", len(event["records"]))
+        return event["records"]
 
 
 class BigQueryExecuteQueryOperator(BaseOperator):
@@ -548,14 +999,14 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'sql',
-        'destination_dataset_table',
-        'labels',
-        'query_params',
-        'impersonation_chain',
+        "sql",
+        "destination_dataset_table",
+        "labels",
+        "query_params",
+        "impersonation_chain",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
 
     @property
@@ -570,20 +1021,20 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         *,
         sql: str | Iterable[str],
         destination_dataset_table: str | None = None,
-        write_disposition: str = 'WRITE_EMPTY',
+        write_disposition: str = "WRITE_EMPTY",
         allow_large_results: bool = False,
         flatten_results: bool | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         udf_config: list | None = None,
         use_legacy_sql: bool = True,
         maximum_billing_tier: int | None = None,
         maximum_bytes_billed: float | None = None,
-        create_disposition: str = 'CREATE_IF_NEEDED',
+        create_disposition: str = "CREATE_IF_NEEDED",
         schema_update_options: list | tuple | set | None = None,
         query_params: list | None = None,
         labels: dict | None = None,
-        priority: str = 'INTERACTIVE',
+        priority: str = "INTERACTIVE",
         time_partitioning: dict | None = None,
         api_resource_configs: dict | None = None,
         cluster_fields: list[str] | None = None,
@@ -620,12 +1071,12 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         self.cluster_fields = cluster_fields
         self.location = location
         self.encryption_configuration = encryption_configuration
-        self.hook = None  # type: Optional[BigQueryHook]
+        self.hook: BigQueryHook | None = None
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         if self.hook is None:
-            self.log.info('Executing: %s', self.sql)
+            self.log.info("Executing: %s", self.sql)
             self.hook = BigQueryHook(
                 gcp_conn_id=self.gcp_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
@@ -678,13 +1129,13 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             ]
         else:
             raise AirflowException(f"argument 'sql' of type {type(str)} is neither a string nor an iterable")
-        context['task_instance'].xcom_push(key='job_id', value=job_id)
+        context["task_instance"].xcom_push(key="job_id", value=job_id)
 
     def on_kill(self) -> None:
         super().on_kill()
         if self.hook is not None:
-            self.log.info('Cancelling running query')
-            self.hook.cancel_query()
+            self.log.info("Cancelling running query")
+            self.hook.cancel_job(self.hook.running_job_id)
 
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):
@@ -803,14 +1254,14 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'table_id',
-        'project_id',
-        'gcs_schema_object',
-        'labels',
-        'view',
-        'materialized_view',
-        'impersonation_chain',
+        "dataset_id",
+        "table_id",
+        "project_id",
+        "gcs_schema_object",
+        "labels",
+        "view",
+        "materialized_view",
+        "impersonation_chain",
     )
     template_fields_renderers = {"table_resource": "json", "materialized_view": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -826,9 +1277,9 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         schema_fields: list | None = None,
         gcs_schema_object: str | None = None,
         time_partitioning: dict | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         bigquery_conn_id: str | None = None,
-        google_cloud_storage_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         labels: dict | None = None,
         view: dict | None = None,
@@ -890,7 +1341,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
             schema_fields = self.schema_fields
 
         try:
-            self.log.info('Creating table')
+            self.log.info("Creating table")
             table = bq_hook.create_empty_table(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
@@ -913,10 +1364,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 table_id=table.to_api_repr()["tableReference"]["tableId"],
             )
             self.log.info(
-                'Table %s.%s.%s created successfully', table.project, table.dataset_id, table.table_id
+                "Table %s.%s.%s created successfully", table.project, table.dataset_id, table.table_id
             )
         except Conflict:
-            self.log.info('Table %s.%s already exists.', self.dataset_id, self.table_id)
+            self.log.info("Table %s.%s already exists.", self.dataset_id, self.table_id)
 
 
 class BigQueryCreateExternalTableOperator(BaseOperator):
@@ -1000,13 +1451,13 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'source_objects',
-        'schema_object',
-        'destination_project_dataset_table',
-        'labels',
-        'table_resource',
-        'impersonation_chain',
+        "bucket",
+        "source_objects",
+        "schema_object",
+        "destination_project_dataset_table",
+        "labels",
+        "table_resource",
+        "impersonation_chain",
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -1030,9 +1481,9 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         quote_character: str | None = None,
         allow_quoted_newlines: bool = False,
         allow_jagged_rows: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         bigquery_conn_id: str | None = None,
-        google_cloud_storage_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         src_fmt_configs: dict | None = None,
         labels: dict | None = None,
@@ -1083,9 +1534,9 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             if not source_objects:
                 raise ValueError("`source_objects` is required when not using `table_resource`.")
             if not source_format:
-                source_format = 'CSV'
+                source_format = "CSV"
             if not compression:
-                compression = 'NONE'
+                compression = "NONE"
             if not skip_leading_rows:
                 skip_leading_rows = 0
             if not field_delimiter:
@@ -1149,7 +1600,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             )
             return
 
-        if not self.schema_fields and self.schema_object and self.source_format != 'DATASTORE_BACKUP':
+        if not self.schema_fields and self.schema_object and self.source_format != "DATASTORE_BACKUP":
             gcs_hook = GCSHook(
                 gcp_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to,
@@ -1163,7 +1614,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
         project_id, dataset_id, table_id = bq_hook.split_tablename(
             table_input=self.destination_project_dataset_table,
-            default_project_id=bq_hook.project_id or '',
+            default_project_id=bq_hook.project_id or "",
         )
 
         table_resource = {
@@ -1245,9 +1696,9 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'project_id',
-        'impersonation_chain',
+        "dataset_id",
+        "project_id",
+        "impersonation_chain",
     )
     ui_color = BigQueryUIColors.DATASET.value
 
@@ -1257,7 +1708,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         dataset_id: str,
         project_id: str | None = None,
         delete_contents: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1272,7 +1723,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
-        self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
+        self.log.info("Dataset id: %s Project id: %s", self.dataset_id, self.project_id)
 
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1325,10 +1776,10 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'project_id',
-        'dataset_reference',
-        'impersonation_chain',
+        "dataset_id",
+        "project_id",
+        "dataset_reference",
+        "impersonation_chain",
     )
     template_fields_renderers = {"dataset_reference": "json"}
     ui_color = BigQueryUIColors.DATASET.value
@@ -1341,7 +1792,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         project_id: str | None = None,
         dataset_reference: dict | None = None,
         location: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         exists_ok: bool = False,
@@ -1383,7 +1834,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
             )
         except Conflict:
             dataset_id = self.dataset_reference.get("datasetReference", {}).get("datasetId", self.dataset_id)
-            self.log.info('Dataset %s already exists.', dataset_id)
+            self.log.info("Dataset %s already exists.", dataset_id)
 
 
 class BigQueryGetDatasetOperator(BaseOperator):
@@ -1410,15 +1861,12 @@ class BigQueryGetDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
-    :rtype: dataset
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'project_id',
-        'impersonation_chain',
+        "dataset_id",
+        "project_id",
+        "impersonation_chain",
     )
     ui_color = BigQueryUIColors.DATASET.value
     operator_extra_links = (BigQueryDatasetLink(),)
@@ -1428,7 +1876,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
         *,
         dataset_id: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1447,7 +1895,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info('Start getting dataset: %s:%s', self.project_id, self.dataset_id)
+        self.log.info("Start getting dataset: %s:%s", self.project_id, self.dataset_id)
 
         dataset = bq_hook.get_dataset(dataset_id=self.dataset_id, project_id=self.project_id)
         dataset = dataset.to_api_repr()
@@ -1487,9 +1935,9 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'project_id',
-        'impersonation_chain',
+        "dataset_id",
+        "project_id",
+        "impersonation_chain",
     )
     ui_color = BigQueryUIColors.DATASET.value
 
@@ -1499,7 +1947,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         dataset_id: str,
         project_id: str | None = None,
         max_results: int | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1552,15 +2000,12 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
-    :rtype: dataset
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'project_id',
-        'impersonation_chain',
+        "dataset_id",
+        "project_id",
+        "impersonation_chain",
     )
     template_fields_renderers = {"dataset_resource": "json"}
     ui_color = BigQueryUIColors.DATASET.value
@@ -1571,7 +2016,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         dataset_id: str,
         dataset_resource: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1635,16 +2080,13 @@ class BigQueryUpdateTableOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
-    :rtype: table
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'table_id',
-        'project_id',
-        'impersonation_chain',
+        "dataset_id",
+        "table_id",
+        "project_id",
+        "impersonation_chain",
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -1658,7 +2100,7 @@ class BigQueryUpdateTableOperator(BaseOperator):
         dataset_id: str | None = None,
         table_id: str | None = None,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1730,15 +2172,12 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
-    :rtype: dataset
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'project_id',
-        'impersonation_chain',
+        "dataset_id",
+        "project_id",
+        "impersonation_chain",
     )
     template_fields_renderers = {"dataset_resource": "json"}
     ui_color = BigQueryUIColors.DATASET.value
@@ -1751,7 +2190,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         fields: list[str] | None = None,
         dataset_id: str | None = None,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1819,8 +2258,8 @@ class BigQueryDeleteTableOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'deletion_dataset_table',
-        'impersonation_chain',
+        "deletion_dataset_table",
+        "impersonation_chain",
     )
     ui_color = BigQueryUIColors.TABLE.value
 
@@ -1828,7 +2267,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
         self,
         *,
         deletion_dataset_table: str,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         ignore_if_missing: bool = False,
         location: str | None = None,
@@ -1845,7 +2284,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
-        self.log.info('Deleting: %s', self.deletion_dataset_table)
+        self.log.info("Deleting: %s", self.deletion_dataset_table)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1886,10 +2325,10 @@ class BigQueryUpsertTableOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'dataset_id',
-        'table_resource',
-        'impersonation_chain',
-        'project_id',
+        "dataset_id",
+        "table_resource",
+        "impersonation_chain",
+        "project_id",
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -1901,7 +2340,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         dataset_id: str,
         table_resource: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1918,7 +2357,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
-        self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
+        self.log.info("Upserting Dataset: %s with table_resource: %s", self.dataset_id, self.table_resource)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1990,11 +2429,11 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'schema_fields_updates',
-        'dataset_id',
-        'table_id',
-        'project_id',
-        'impersonation_chain',
+        "schema_fields_updates",
+        "dataset_id",
+        "table_id",
+        "project_id",
+        "impersonation_chain",
     )
     template_fields_renderers = {"schema_fields_updates": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -2008,7 +2447,7 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         table_id: str,
         include_policy_tags: bool = False,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -2072,7 +2511,7 @@ class BigQueryInsertJobOperator(BaseOperator):
 
 
     :param configuration: The configuration parameter maps directly to BigQuery's
-        configuration field in the job  object. For more details see
+        configuration field in the job object. For more details see
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
     :param job_id: The ID of the job. It will be suffixed with hash of job configuration
         unless ``force_rerun`` is True.
@@ -2099,6 +2538,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :param result_retry: How to retry the `result` call that retrieves rows
     :param result_timeout: The number of seconds to wait for `result` method before using `result_retry`
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
@@ -2123,12 +2563,13 @@ class BigQueryInsertJobOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         cancel_on_kill: bool = True,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2145,10 +2586,11 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.result_retry = result_retry
         self.result_timeout = result_timeout
         self.hook: BigQueryHook | None = None
+        self.deferrable = deferrable
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
-        if isinstance(self.configuration, str) and self.configuration.endswith('.json'):
+        if isinstance(self.configuration, str) and self.configuration.endswith(".json"):
             with open(self.configuration) as file:
                 self.configuration = json.loads(file.read())
 
@@ -2200,7 +2642,11 @@ class BigQueryInsertJobOperator(BaseOperator):
                 location=self.location,
                 job_id=job_id,
             )
-            if job.state not in self.reattach_states:
+            if job.state in self.reattach_states:
+                # We are reattaching to a job
+                job._begin()
+                self._handle_job_error(job)
+            else:
                 # Same job configuration so we need force_rerun
                 raise AirflowException(
                     f"Job with id: {job_id} already exists and is in {job.state} state. If you "
@@ -2235,114 +2681,13 @@ class BigQueryInsertJobOperator(BaseOperator):
                             BigQueryTableLink.persist(**persist_kwargs)
 
         self.job_id = job.job_id
-        # Wait for the job to complete
-        job.result(timeout=self.result_timeout, retry=self.result_retry)
-        self._handle_job_error(job)
-
-        return self.job_id
-
-    def on_kill(self) -> None:
-        if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(  # type: ignore[union-attr]
-                job_id=self.job_id, project_id=self.project_id, location=self.location
-            )
-        else:
-            self.log.info('Skipping to cancel job: %s:%s.%s', self.project_id, self.location, self.job_id)
-
-
-class BigQueryInsertJobAsyncOperator(BigQueryInsertJobOperator, BaseOperator):
-    """
-    Starts a BigQuery job asynchronously, and returns job id.
-    This operator works in the following way:
-
-    - it calculates a unique hash of the job using job's configuration or uuid if ``force_rerun`` is True
-    - creates ``job_id`` in form of
-        ``[provided_job_id | airflow_{dag_id}_{task_id}_{exec_date}]_{uniqueness_suffix}``
-    - submits a BigQuery job using the ``job_id``
-    - if job with given id already exists then it tries to reattach to the job if its not done and its
-        state is in ``reattach_states``. If the job is done the operator will raise ``AirflowException``.
-
-    Using ``force_rerun`` will submit a new job every time without attaching to already existing ones.
-
-    For job definition see here:
-
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
-
-    :param configuration: The configuration parameter maps directly to BigQuery's
-        configuration field in the job  object. For more details see
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
-    :param job_id: The ID of the job. It will be suffixed with hash of job configuration
-        unless ``force_rerun`` is True.
-        The ID must contain only letters (a-z, A-Z), numbers (0-9), underscores (_), or
-        dashes (-). The maximum length is 1,024 characters. If not provided then uuid will
-        be generated.
-    :param force_rerun: If True then operator will use hash of uuid as job id suffix
-    :param reattach_states: Set of BigQuery job's states in case of which we should reattach
-        to the job. Should be other than final states.
-    :param project_id: Google Cloud Project where the job is running
-    :param location: location the job is running
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
-    """
-
-    def _submit_job(self, hook: BigQueryHook, job_id: str) -> BigQueryJob:  # type: ignore[override]
-        """Submit a new job and get the job id for polling the status using Triggerer."""
-        return hook.insert_job(
-            configuration=self.configuration,
-            project_id=self.project_id,
-            location=self.location,
-            job_id=job_id,
-            nowait=True,
-        )
-
-    def execute(self, context: Any) -> None:
-        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
-
-        self.hook = hook
-        job_id = self.hook.generate_job_id(
-            job_id=self.job_id,
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            logical_date=context["logical_date"],
-            configuration=self.configuration,
-            force_rerun=self.force_rerun,
-        )
-
-        try:
-            job = self._submit_job(hook, job_id)
-            self._handle_job_error(job)
-        except Conflict:
-            # If the job already exists retrieve it
-            job = hook.get_job(
-                project_id=self.project_id,
-                location=self.location,
-                job_id=job_id,
-            )
-            if job.state in self.reattach_states:
-                # We are reattaching to a job
-                job._begin()
-                self._handle_job_error(job)
-            else:
-                # Same job configuration so we need force_rerun
-                raise AirflowException(
-                    f"Job with id: {job_id} already exists and is in {job.state} state. If you "
-                    f"want to force rerun it consider setting `force_rerun=True`."
-                    f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
-                )
-
-        self.job_id = job.job_id
         context["ti"].xcom_push(key="job_id", value=self.job_id)
+        # Wait for the job to complete
+        if not self.deferrable:
+            job.result(timeout=self.result_timeout, retry=self.result_retry)
+            self._handle_job_error(job)
+
+            return self.job_id
         self.defer(
             timeout=self.execution_timeout,
             trigger=BigQueryInsertJobTrigger(
@@ -2353,7 +2698,7 @@ class BigQueryInsertJobAsyncOperator(BigQueryInsertJobOperator, BaseOperator):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context: Any, event: dict[str, Any]) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Callback for when the trigger fires - returns immediately.
         Relies on trigger to throw an exception, otherwise it assumes execution was
@@ -2366,342 +2711,12 @@ class BigQueryInsertJobAsyncOperator(BigQueryInsertJobOperator, BaseOperator):
             self.task_id,
             event["message"],
         )
+        return self.job_id
 
-
-class BigQueryCheckAsyncOperator(BigQueryCheckOperator):
-    """
-    BigQueryCheckAsyncOperator is asynchronous operator, submit the job and check
-    for the status in async mode by using the job id
-    """
-
-    def _submit_job(
-        self,
-        hook: BigQueryHook,
-        job_id: str,
-    ) -> BigQueryJob:
-        """Submit a new job and get the job id for polling the status using Trigger."""
-        configuration = {"query": {"query": self.sql}}
-
-        return hook.insert_job(
-            configuration=configuration,
-            project_id=hook.project_id,
-            location=self.location,
-            job_id=job_id,
-            nowait=True,
-        )
-
-    def execute(self, context: Any) -> None:
-        hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-        )
-        job = self._submit_job(hook, job_id="")
-        context["ti"].xcom_push(key="job_id", value=job.job_id)
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=BigQueryCheckTrigger(
-                conn_id=self.gcp_conn_id,
-                job_id=job.job_id,
-                project_id=hook.project_id,
-            ),
-            method_name="execute_complete",
-        )
-
-    def execute_complete(self, context: Any, event: dict[str, Any]) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-
-        records = event["records"]
-        if not records:
-            raise AirflowException("The query returned None")
-        elif not all(bool(r) for r in records):
-            raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
-        self.log.info("Record: %s", event["records"])
-        self.log.info("Success.")
-
-
-class BigQueryGetDataAsyncOperator(BigQueryGetDataOperator):
-    """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
-    and returns data in a python list. The number of elements in the returned list will
-    be equal to the number of rows fetched. Each element in the list will again be a list
-    where element would represent the columns values for that row.
-
-    **Example Result**: ``[['Tony', '10'], ['Mike', '20'], ['Steve', '15']]``
-
-    .. note::
-        If you pass fields to ``selected_fields`` which are in different order than the
-        order of columns already in
-        BQ table, the data will still be in the order of BQ table.
-        For example if the BQ table has 3 columns as
-        ``[A,B,C]`` and you pass 'B,A' in the ``selected_fields``
-        the data would still be of the form ``'A,B'``.
-
-    **Example**: ::
-
-        get_data = BigQueryGetDataOperator(
-            task_id='get_data_from_bq',
-            dataset_id='test_dataset',
-            table_id='Transaction_partitions',
-            max_results=100,
-            selected_fields='DATE',
-            gcp_conn_id='airflow-conn-id'
-        )
-
-    :param dataset_id: The dataset ID of the requested table. (templated)
-    :param table_id: The table ID of the requested table. (templated)
-    :param max_results: The maximum number of records (rows) to be fetched from the table. (templated)
-    :param selected_fields: List of fields to return (comma-separated). If
-        unspecified, all fields are returned.
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :param location: The location used for the operation.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    def _submit_job(
-        self,
-        hook: BigQueryHook,
-        job_id: str,
-        configuration: dict[str, Any],
-    ) -> BigQueryJob:
-        """Submit a new job and get the job id for polling the status using Triggerer."""
-        return hook.insert_job(
-            configuration=configuration,
-            location=self.location,
-            project_id=hook.project_id,
-            job_id=job_id,
-            nowait=True,
-        )
-
-    def generate_query(self) -> str:
-        """
-        Generate a select query if selected fields are given or with *
-        for the given dataset and table id
-        """
-        selected_fields = self.selected_fields if self.selected_fields else "*"
-        return f"select {selected_fields} from {self.dataset_id}.{self.table_id} limit {self.max_results}"
-
-    def execute(self, context: Any) -> None:  # type: ignore[override]
-        get_query = self.generate_query()
-        configuration = {"query": {"query": get_query}}
-
-        hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-        self.hook = hook
-        job = self._submit_job(hook, job_id="", configuration=configuration)
-        self.job_id = job.job_id
-        context["ti"].xcom_push(key="job_id", value=self.job_id)
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=BigQueryGetDataTrigger(
-                conn_id=self.gcp_conn_id,
-                job_id=self.job_id,
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                project_id=hook.project_id,
-            ),
-            method_name="execute_complete",
-        )
-
-    def execute_complete(self, context: Any, event: dict[str, Any]) -> Any:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-
-        self.log.info("Total extracted rows: %s", len(event["records"]))
-        return event["records"]
-
-
-class BigQueryIntervalCheckAsyncOperator(BigQueryIntervalCheckOperator):
-    """
-    Checks asynchronously that the values of metrics given as SQL expressions are within
-    a certain tolerance of the ones from days_back before.
-
-    This method constructs a query like so ::
-        SELECT {metrics_threshold_dict_key} FROM {table}
-        WHERE {date_filter_column}=<date>
-
-    :param table: the table name
-    :param days_back: number of days between ds and the ds we want to check
-        against. Defaults to 7 days
-    :param metrics_thresholds: a dictionary of ratios indexed by metrics, for
-        example 'COUNT(*)': 1.5 would require a 50 percent or less difference
-        between the current day, and the prior days_back.
-    :param use_legacy_sql: Whether to use legacy SQL (true)
-        or standard SQL (false).
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param location: The geographic location of the job. See details at:
-        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    :param labels: a dictionary containing labels for the table, passed to BigQuery
-    """
-
-    def _submit_job(
-        self,
-        hook: BigQueryHook,
-        sql: str,
-        job_id: str,
-    ) -> BigQueryJob:
-        """Submit a new job and get the job id for polling the status using Triggerer."""
-        configuration = {"query": {"query": sql}}
-        return hook.insert_job(
-            configuration=configuration,
-            project_id=hook.project_id,
-            location=self.location,
-            job_id=job_id,
-            nowait=True,
-        )
-
-    def execute(self, context: Any) -> None:
-        """Execute the job in sync mode and defers the trigger with job id to poll for the status"""
-        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
-        self.log.info("Using ratio formula: %s", self.ratio_formula)
-
-        self.log.info("Executing SQL check: %s", self.sql1)
-        job_1 = self._submit_job(hook, sql=self.sql1, job_id="")
-        context["ti"].xcom_push(key="job_id", value=job_1.job_id)
-
-        self.log.info("Executing SQL check: %s", self.sql2)
-        job_2 = self._submit_job(hook, sql=self.sql2, job_id="")
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=BigQueryIntervalCheckTrigger(
-                conn_id=self.gcp_conn_id,
-                first_job_id=job_1.job_id,
-                second_job_id=job_2.job_id,
-                project_id=hook.project_id,
-                table=self.table,
-                metrics_thresholds=self.metrics_thresholds,
-                date_filter_column=self.date_filter_column,
-                days_back=self.days_back,
-                ratio_formula=self.ratio_formula,
-                ignore_zero=self.ignore_zero,
-            ),
-            method_name="execute_complete",
-        )
-
-    def execute_complete(self, context: Any, event: dict[str, Any]) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-
-        self.log.info(
-            "%s completed with response %s ",
-            self.task_id,
-            event["status"],
-        )
-
-
-class BigQueryValueCheckAsyncOperator(BigQueryValueCheckOperator):
-    """
-    Performs a simple value check using sql code.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryValueCheckOperator`
-
-    :param sql: the sql to be executed
-    :param use_legacy_sql: Whether to use legacy SQL (true)
-        or standard SQL (false).
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param location: The geographic location of the job. See details at:
-        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    :param labels: a dictionary containing labels for the table, passed to BigQuery
-    """
-
-    def _submit_job(
-        self,
-        hook: BigQueryHook,
-        job_id: str,
-    ) -> BigQueryJob:
-        """Submit a new job and get the job id for polling the status using Triggerer."""
-        configuration = {
-            "query": {
-                "query": self.sql,
-                "useLegacySql": False,
-            }
-        }
-        if self.use_legacy_sql:
-            configuration["query"]["useLegacySql"] = self.use_legacy_sql
-
-        return hook.insert_job(
-            configuration=configuration,
-            project_id=hook.project_id,
-            location=self.location,
-            job_id=job_id,
-            nowait=True,
-        )
-
-    def execute(self, context: Any) -> None:
-        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
-
-        job = self._submit_job(hook, job_id="")
-        context["ti"].xcom_push(key="job_id", value=job.job_id)
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=BigQueryValueCheckTrigger(
-                conn_id=self.gcp_conn_id,
-                job_id=job.job_id,
-                project_id=hook.project_id,
-                sql=self.sql,
-                pass_value=self.pass_value,
-                tolerance=self.tol,
-            ),
-            method_name="execute_complete",
-        )
-
-    def execute_complete(self, context: Any, event: dict[str, Any]) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        self.log.info(
-            "%s completed with response %s ",
-            self.task_id,
-            event["message"],
-        )
+    def on_kill(self) -> None:
+        if self.job_id and self.cancel_on_kill:
+            self.hook.cancel_job(  # type: ignore[union-attr]
+                job_id=self.job_id, project_id=self.project_id, location=self.location
+            )
+        else:
+            self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)

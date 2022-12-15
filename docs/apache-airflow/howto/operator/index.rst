@@ -33,6 +33,8 @@ determine what actually executes when your DAG runs.
 
     bash
     datetime
+    file
     python
+    time
     weekday
     external_task_sensor

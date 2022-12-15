@@ -125,13 +125,13 @@ class BashOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ('bash_command', 'env')
-    template_fields_renderers = {'bash_command': 'bash', 'env': 'json'}
+    template_fields: Sequence[str] = ("bash_command", "env")
+    template_fields_renderers = {"bash_command": "bash", "env": "json"}
     template_ext: Sequence[str] = (
-        '.sh',
-        '.bash',
+        ".sh",
+        ".bash",
     )
-    ui_color = '#f0ede4'
+    ui_color = "#f0ede4"
 
     def __init__(
         self,
@@ -139,7 +139,7 @@ class BashOperator(BaseOperator):
         bash_command: str,
         env: dict[str, str] | None = None,
         append_env: bool = False,
-        output_encoding: str = 'utf-8',
+        output_encoding: str = "utf-8",
         skip_exit_code: int = 99,
         cwd: str | None = None,
         **kwargs,
@@ -154,11 +154,11 @@ class BashOperator(BaseOperator):
 
     @cached_property
     def subprocess_hook(self):
-        """Returns hook for running the bash command"""
+        """Returns hook for running the bash command."""
         return SubprocessHook()
 
     def get_env(self, context):
-        """Builds the set of environment variables to be exposed for the bash command"""
+        """Builds the set of environment variables to be exposed for the bash command."""
         system_env = os.environ.copy()
         env = self.env
         if env is None:
@@ -170,8 +170,8 @@ class BashOperator(BaseOperator):
 
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.debug(
-            'Exporting the following env vars:\n%s',
-            '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
+            "Exporting the following env vars:\n%s",
+            "\n".join(f"{k}={v}" for k, v in airflow_context_vars.items()),
         )
         env.update(airflow_context_vars)
         return env
@@ -185,7 +185,7 @@ class BashOperator(BaseOperator):
                 raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
         result = self.subprocess_hook.run_command(
-            command=[bash_path, '-c', self.bash_command],
+            command=[bash_path, "-c", self.bash_command],
             env=env,
             output_encoding=self.output_encoding,
             cwd=self.cwd,
@@ -194,7 +194,7 @@ class BashOperator(BaseOperator):
             raise AirflowSkipException(f"Bash command returned exit code {self.skip_exit_code}. Skipping.")
         elif result.exit_code != 0:
             raise AirflowException(
-                f'Bash command failed. The command returned a non-zero exit code {result.exit_code}.'
+                f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
             )
         return result.output
 

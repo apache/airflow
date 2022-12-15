@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -40,7 +39,7 @@ RESPONSE_WITHOUT_FAILURES = {
 }
 
 
-class TestBatchOperator(unittest.TestCase):
+class TestBatchOperator:
 
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
@@ -49,7 +48,7 @@ class TestBatchOperator(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def setUp(self, get_client_type_mock):
+    def setup_method(self, method, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch = BatchOperator(
             task_id="task",
@@ -61,11 +60,14 @@ class TestBatchOperator(unittest.TestCase):
             parameters=None,
             overrides={},
             array_properties=None,
-            aws_conn_id='airflow_test',
+            aws_conn_id="airflow_test",
             region_name="eu-west-1",
             tags={},
         )
         self.client_mock = self.get_client_type_mock.return_value
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.batch.hook.get_connection = lambda _: None
         assert self.batch.hook.client == self.client_mock  # setup client property
 
         # don't pause in unit tests
@@ -101,11 +103,16 @@ class TestBatchOperator(unittest.TestCase):
 
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (
+            "job_id",
             "job_name",
-            "job_queue",
             "job_definition",
+            "job_queue",
             "overrides",
+            "array_properties",
             "parameters",
+            "waiters",
+            "tags",
+            "wait_for_completion",
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -180,16 +187,16 @@ class TestBatchOperator(unittest.TestCase):
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
 
 
-class TestBatchCreateComputeEnvironmentOperator(unittest.TestCase):
-    @mock.patch.object(BatchClientHook, 'client')
+class TestBatchCreateComputeEnvironmentOperator:
+    @mock.patch.object(BatchClientHook, "client")
     def test_execute(self, mock_conn):
-        environment_name = 'environment_name'
-        environment_type = 'environment_type'
-        environment_state = 'environment_state'
+        environment_name = "environment_name"
+        environment_type = "environment_type"
+        environment_state = "environment_state"
         compute_resources = {}
         tags = {}
         operator = BatchCreateComputeEnvironmentOperator(
-            task_id='task',
+            task_id="task",
             compute_environment_name=environment_name,
             environment_type=environment_type,
             state=environment_state,

@@ -51,7 +51,7 @@ option_github_token = click.option(
         Can be generated with:
         https://github.com/settings/tokens/new?description=Read%20issues&scopes=repo:status"""
     ),
-    envvar='GITHUB_TOKEN',
+    envvar="GITHUB_TOKEN",
 )
 
 
@@ -71,32 +71,44 @@ class PrStat:
         self.len_issue_comments = 0
         self.num_issue_comments = 0
         self.num_issue_reactions = 0
+        self.protm_score = 0
 
     @property
     def label_score(self) -> float:
         """assigns label score"""
-        for label in self.pull_request.labels:
+        labels = self.pull_request.labels
+        for label in labels:
             if "provider" in label.name:
                 return PrStat.PROVIDER_SCORE
         return PrStat.REGULAR_SCORE
 
     @cached_property
     def num_comments(self):
-        """counts reviewer comments"""
-        comments = 0
+        """counts reviewer comments & checks for #protm tag"""
+        num_comments = 0
+        num_protm = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
-            comments += 1
-        return comments
+            lowercase_body = comment.body.lower()
+            if "protm" in lowercase_body:
+                num_protm += 1
+            num_comments += 1
+        self.protm_score = num_protm
+        return num_comments
 
     @cached_property
     def num_conv_comments(self) -> int:
-        """counts conversational comments"""
-        conv_comments = 0
+        """counts conversational comments & checks for #protm tag"""
+        num_conv_comments = 0
+        num_protm = 0
         for conv_comment in self.pull_request.get_issue_comments():
             self._users.add(conv_comment.user.login)
-            conv_comments += 1
-        return conv_comments
+            lowercase_body = conv_comment.body.lower()
+            if "protm" in lowercase_body:
+                num_protm += 1
+            num_conv_comments += 1
+        self.protm_score = num_protm
+        return num_conv_comments
 
     @cached_property
     def num_reactions(self) -> int:
@@ -121,17 +133,17 @@ class PrStat:
     @cached_property
     def num_reviews(self) -> int:
         """counts reviews"""
-        reviews = 0
+        num_reviews = 0
         for review in self.pull_request.get_reviews():
             self._users.add(review.user.login)
-            reviews += 1
-        return reviews
+            num_reviews += 1
+        return num_reviews
 
     @cached_property
     def issues(self):
         """finds issues in PR"""
         if self.pull_request.body is not None:
-            regex = r'(?<=closes: #|elated: #)\d{5}'
+            regex = r"(?<=closes: #|elated: #)\d{5}"
             issue_strs = re.findall(regex, self.pull_request.body)
             issue_ints = [eval(s) for s in issue_strs]
             self.issue_nums = issue_ints
@@ -155,14 +167,14 @@ class PrStat:
     @cached_property
     def issue_comments(self) -> int:
         """counts issue comments and calculates comment length"""
-        issues = self.issues
-        if issues:
+        if self.issue_nums:
             repo = self.g.get_repo("apache/airflow")
             issue_comments = 0
             len_issue_comments = 0
-            for num in issues:
+            for num in self.issue_nums:
                 issue = repo.get_issue(number=num)
-                for issue_comment in issue.get_comments():
+                issues = issue.get_comments()
+                for issue_comment in issues:
                     issue_comments += 1
                     self._users.add(issue_comment.user.login)
                     if issue_comment.body is not None:
@@ -267,9 +279,13 @@ class PrStat:
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
+        # Weight PRs with protm tags more heavily:
+        # If there is at least one protm tag, multiply the interaction score by the number of tags, up to 3.
+        interaction_score = self.interaction_score
+        interaction_score *= min(self.protm_score + 1, 3)
         return round(
             1.0
-            * self.interaction_score
+            * interaction_score
             * self.label_score
             * self.length_score
             * self.change_score
@@ -278,41 +294,51 @@ class PrStat:
         )
 
     def __str__(self) -> str:
-        return (
-            f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
-            f"\"{self.pull_request.title}\". "
-            f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
-        )
+        if self.protm_score > 0:
+            return (
+                "[magenta]##Tagged PR## [/]"
+                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
+                f'"{self.pull_request.title}". '
+                f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+            )
+        else:
+            return (
+                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
+                f'"{self.pull_request.title}". '
+                f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+            )
 
     def verboseStr(self) -> str:
+        if self.protm_score > 0:
+            console.print("********************* Tagged with '#protm' *********************", style="magenta")
         return (
-            f'-- Created at [bright_blue]{self.pull_request.created_at}[/], '
-            f'merged at [bright_blue]{self.pull_request.merged_at}[/]\n'
-            f'-- Label score: [green]{self.label_score}[/]\n'
-            f'-- Length score: [green]{self.length_score}[/] '
-            f'(body length: {self.body_length}, '
-            f'comment length: {self.comment_length})\n'
-            f'-- Interaction score: [green]{self.interaction_score}[/] '
-            f'(users interacting: {self.num_interacting_users}, '
-            f'reviews: {self.num_reviews}, '
-            f'review comments: {self.num_comments}, '
-            f'review reactions: {self.num_reactions}, '
-            f'non-review comments: {self.num_conv_comments}, '
-            f'non-review reactions: {self.num_conv_reactions}, '
-            f'issue comments: {self.num_issue_comments}, '
-            f'issue reactions: {self.num_issue_reactions})\n'
-            f'-- Change score: [green]{self.change_score}[/] '
-            f'(changed files: {self.num_changed_files}, '
-            f'additions: {self.num_additions}, '
-            f'deletions: {self.num_deletions})\n'
-            f'-- Overall score: [red]{self.score:.2f}[/]\n'
+            f"-- Created at [bright_blue]{self.pull_request.created_at}[/], "
+            f"merged at [bright_blue]{self.pull_request.merged_at}[/]\n"
+            f"-- Label score: [green]{self.label_score}[/]\n"
+            f"-- Length score: [green]{self.length_score}[/] "
+            f"(body length: {self.body_length}, "
+            f"comment length: {self.comment_length})\n"
+            f"-- Interaction score: [green]{self.interaction_score}[/] "
+            f"(users interacting: {self.num_interacting_users}, "
+            f"reviews: {self.num_reviews}, "
+            f"review comments: {self.num_comments}, "
+            f"review reactions: {self.num_reactions}, "
+            f"non-review comments: {self.num_conv_comments}, "
+            f"non-review reactions: {self.num_conv_reactions}, "
+            f"issue comments: {self.num_issue_comments}, "
+            f"issue reactions: {self.num_issue_reactions})\n"
+            f"-- Change score: [green]{self.change_score}[/] "
+            f"(changed files: {self.num_changed_files}, "
+            f"additions: {self.num_additions}, "
+            f"deletions: {self.num_deletions})\n"
+            f"-- Overall score: [red]{self.score:.2f}[/]\n"
         )
 
 
 DAYS_BACK = 5
 # Current (or previous during first few days of the next month)
-DEFAULT_BEGINNING_OF_MONTH = pendulum.now().subtract(days=DAYS_BACK).start_of('month')
-DEFAULT_END_OF_MONTH = DEFAULT_BEGINNING_OF_MONTH.end_of('month').add(days=1)
+DEFAULT_BEGINNING_OF_MONTH = pendulum.now().subtract(days=DAYS_BACK).start_of("month")
+DEFAULT_END_OF_MONTH = DEFAULT_BEGINNING_OF_MONTH.end_of("month").add(days=1)
 
 MAX_PR_CANDIDATES = 500
 DEFAULT_TOP_PRS = 10
@@ -321,15 +347,15 @@ DEFAULT_TOP_PRS = 10
 @click.command()
 @option_github_token  # TODO: this should only be required if --load isn't provided
 @click.option(
-    '--date-start', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_BEGINNING_OF_MONTH.date())
+    "--date-start", type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_BEGINNING_OF_MONTH.date())
 )
 @click.option(
-    '--date-end', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_END_OF_MONTH.date())
+    "--date-end", type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_END_OF_MONTH.date())
 )
-@click.option('--top-number', type=int, default=DEFAULT_TOP_PRS, help="The number of PRs to select")
-@click.option('--save', type=click.File("wb"), help="Save PR data to a pickle file")
-@click.option('--load', type=click.File("rb"), help="Load PR data from a file and recalcuate scores")
-@click.option('--verbose', is_flag="True", help="Print scoring details")
+@click.option("--top-number", type=int, default=DEFAULT_TOP_PRS, help="The number of PRs to select")
+@click.option("--save", type=click.File("wb"), help="Save PR data to a pickle file")
+@click.option("--load", type=click.File("rb"), help="Load PR data from a file and recalcuate scores")
+@click.option("--verbose", is_flag="True", help="Print scoring details")
 def main(
     github_token: str,
     date_start: datetime,
@@ -342,7 +368,7 @@ def main(
     selected_prs: list[PrStat] = []
     if load:
         console.print("Loading PRs from cache and recalculating scores.")
-        selected_prs = pickle.load(load, encoding='bytes')
+        selected_prs = pickle.load(load, encoding="bytes")
         issue_num = 0
         for pr_stat in selected_prs:
             issue_num += 1
@@ -359,7 +385,7 @@ def main(
         console.print(f"Finding best candidate PRs between {date_start} and {date_end}.")
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
-        pulls = repo.get_pulls(state="closed", sort="created", direction='desc')
+        pulls = repo.get_pulls(state="closed", sort="created", direction="desc")
         issue_num = 0
         for pr in pulls:
             if not pr.merged:
@@ -372,7 +398,7 @@ def main(
                 )
                 continue
 
-            if pr.created_at < date_start:
+            if pr.merged_at < date_start:
                 console.print("[bright_blue]Completed selecting candidates")
                 break
 
@@ -389,7 +415,7 @@ def main(
 
             selected_prs.append(pr_stat)
             if issue_num == MAX_PR_CANDIDATES:
-                console.print(f'[red]Reached {MAX_PR_CANDIDATES}. Stopping')
+                console.print(f"[red]Reached {MAX_PR_CANDIDATES}. Stopping")
                 break
 
     console.print(f"Top {top_number} out of {issue_num} PRs:")
