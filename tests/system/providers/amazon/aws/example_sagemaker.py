@@ -328,9 +328,8 @@ def set_up(env_id, role_arn):
                 "Type": "Maximize",
             },
             "ResourceLimits": {
-                # You would bump these up in production as appropriate.
-                "MaxNumberOfTrainingJobs": 2,
-                "MaxParallelTrainingJobs": 2,
+                "MaxNumberOfTrainingJobs": 10,
+                "MaxParallelTrainingJobs": 10,
             },
             "ParameterRanges": {
                 "CategoricalParameterRanges": [],
