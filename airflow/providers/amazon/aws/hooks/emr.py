@@ -207,7 +207,7 @@ class EmrHook(AwsBaseHook):
     ) -> list[tuple[str, str]]:
         """
         Method to get the list of steps already triggered on cluster_id and filter with specified states
-        It returns a tuple of step_name and step_id
+        It returns step_name and corresponding step_id for all such occurrences
         """
         response = self.get_conn().list_steps(
             ClusterId=cluster_id,
@@ -266,8 +266,8 @@ class EmrHook(AwsBaseHook):
             self.log.info("No existing step found to be marked for cancel !! ")
             return None
 
-        self.log.info("Existing steps to be marked for cancellation %s -> ", steps_to_be_cancelled)
-        self.log.info("Total %s ->", len(steps_to_be_cancelled))
+        self.log.info("Existing steps to be marked for cancellation -> %s ", steps_to_be_cancelled)
+        self.log.info("Total -> %s", len(steps_to_be_cancelled))
 
         response = self.get_conn().cancel_steps(
             ClusterId=emr_cluster_id,

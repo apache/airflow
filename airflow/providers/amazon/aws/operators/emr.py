@@ -54,10 +54,10 @@ class EmrAddStepsOperator(BaseOperator):
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed
     :param cancel_existing_steps: If True, the operator will cancel existing steps running on cluster
-    which are in `cancel_step_states` and having same step name as the `steps` to be added with the
-    cancel option set in `cancellation_option`
-    :param cancel_step_states: Cancels the steps in these valid states PENDING and/or RUNNING
-    :param cancellation_option: If steps needs to be cancelled, two ways it gets handled internally,
+        which are in `cancel_step_states` and having same step name. These will be cancelled based on
+        option set in `cancellation_option`
+    :param cancel_step_states: Cancels the steps in these valid states PENDING and/or RUNNING on emr
+    :param cancellation_option: If steps needs to be cancelled, it gets handled internally in two ways,
         "SEND_INTERRUPT" and "TERMINATE_PROCESS" are the valid options available. Default: "SEND_INTERRUPT"
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     """
@@ -77,7 +77,8 @@ class EmrAddStepsOperator(BaseOperator):
     operator_extra_links = (EmrClusterLink(),)
 
     CANCEL_STEP_STATES: list[str] = ["PENDING", "RUNNING"]
-    CANCELLATION_OPTION: list[str] = ["SEND_INTERRUPT", "TERMINATE_PROCESS"]
+    CANCELLATION_OPTIONS: list[str] = ["SEND_INTERRUPT", "TERMINATE_PROCESS"]
+    DEFAULT_CANCELLATION_OPTION: str = "SEND_INTERRUPT"
 
     def __init__(
         self,
@@ -100,7 +101,7 @@ class EmrAddStepsOperator(BaseOperator):
         cluster_states = cluster_states or []
         steps = steps or []
         cancel_step_states = cancel_step_states or []
-        cancellation_option = cancellation_option or ""
+        cancellation_option = cancellation_option
 
         self.aws_conn_id = aws_conn_id
         self.job_flow_id = job_flow_id
@@ -112,20 +113,21 @@ class EmrAddStepsOperator(BaseOperator):
         self.cancel_step_states = cancel_step_states
         self.cancellation_option = cancellation_option
 
-    def _validate_cancel_input_params(self, cancel_existing_steps, cancel_step_states, cancellation_option):
-        if cancel_existing_steps:
-            if cancel_step_states and bool(
-                [state for state in cancel_step_states if state not in self.CANCEL_STEP_STATES]
-            ):
-                raise AirflowException("`cancel_step_states` only accepts PENDING and/or RUNNING states")
+    def _validate_cancel_input_params(self, cancel_step_states, cancellation_option):
+        if not cancel_step_states or not cancellation_option:
+            return self.CANCEL_STEP_STATES, self.DEFAULT_CANCELLATION_OPTION
 
-            if cancellation_option and cancellation_option not in self.CANCELLATION_OPTION:
-                raise AirflowException(
-                    "`cancellation_option` accepts either of SEND_INTERRUPT, TERMINATE_PROCESS"
-                )
+        if cancel_step_states and bool(
+            [state for state in cancel_step_states if state not in self.CANCEL_STEP_STATES]
+        ):
+            raise AirflowException(
+                "Invalid input provided: `cancel_step_states` accepts PENDING and/or RUNNING states")
 
-            cancel_step_states = cancel_step_states or self.CANCEL_STEP_STATES
-            cancellation_option = cancellation_option or self.CANCELLATION_OPTION
+        if cancellation_option and cancellation_option not in self.CANCELLATION_OPTIONS:
+            raise AirflowException(
+                "Invalid input provided: `cancellation_option` either of SEND_INTERRUPT, TERMINATE_PROCESS"
+            )
+
         return cancel_step_states, cancellation_option
 
     def execute(self, context: Context) -> list[str]:
@@ -138,9 +140,12 @@ class EmrAddStepsOperator(BaseOperator):
         if not job_flow_id:
             raise AirflowException(f"No cluster found for name: {self.job_flow_name}")
 
-        cancel_step_states, cancellation_option = self._validate_cancel_input_params(
-            self.cancel_existing_steps, self.cancel_step_states, self.cancellation_option
-        )
+        if self.cancel_existing_steps:
+            self.cancel_step_states, self.cancellation_option = self._validate_cancel_input_params(
+                self.cancel_step_states, self.cancellation_option
+            )
+        else:
+            self.cancel_step_states, self.cancellation_option = None, None
 
         if self.do_xcom_push:
             context["ti"].xcom_push(key="job_flow_id", value=job_flow_id)
@@ -161,20 +166,20 @@ class EmrAddStepsOperator(BaseOperator):
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
 
-        self.log.info("List of steps to be added: %s ", steps)
-
-        # Handle steps to be added if any existing step with same step name is found
-        # Cancel if already existing step name
-        # Skipped if step with unique name is being added
         if self.cancel_existing_steps:
+            # Handle steps to be added if any existing step with same step name is found
+            # Cancel if already existing step name is found in `cancel_step_states`
+            # Skipped if step with unique name is being added
             response = emr_hook.send_cancel_steps(
                 emr_cluster_id=job_flow_id,
                 steps_to_add=list(steps),
-                valid_cancel_step_states=cancel_step_states,
-                cancellation_option=cancellation_option,
+                valid_cancel_step_states=self.cancel_step_states,
+                cancellation_option=self.cancellation_option,
             )
             if response is not None:
-                self.log.info("Response from cancellation : %s ", response)
+                self.log.info("Response from steps cancellation : %s ", response)
+
+        self.log.info("List of steps to be added: %s ", steps)
 
         return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=True)
 

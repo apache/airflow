@@ -22,6 +22,7 @@ from unittest import mock
 
 import boto3
 import pytest
+from botocore.exceptions import ParamValidationError
 from moto import mock_emr
 
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
@@ -228,6 +229,97 @@ class TestEmrHook:
         assert did_not_execute_response is None
 
     @mock_emr
+    def test_add_steps_without_step_name(self):
+        """
+        Test if an emr step can be added without a step name
+        Boto3 raises an exception since its mandatory param
+        """
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
+
+        job_flow = hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
+        )
+
+        job_flow_id = job_flow["JobFlowId"]
+
+        steps = [
+            {
+                "ActionOnFailure": "test_step",
+                "HadoopJarStep": {
+                    "Args": [f"test args {i}"],
+                    "Jar": f"test_{i}.jar",
+                },
+            }
+
+            for i in range(5)
+        ]
+
+        error_message = "Parameter validation failed"
+        with pytest.raises(ParamValidationError, match=error_message):
+            hook.add_job_flow_steps(job_flow_id, steps, True)
+
+    @mock_emr
+    def test_steps_cancel_when_same_step_name_added(self):
+        """
+        - Adding a set of steps with unique step names
+        - Adding another step with unique step name -> send_cancel_steps doesnot execute
+        - Adding another step with duplicate step name -> send_cancel_steps returns with an existing stepid
+         and marks it for cancellation if its in valid cancel_step_states
+        """
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
+
+        job_flow = hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
+        )
+
+        job_flow_id = job_flow["JobFlowId"]
+
+        steps = [
+            {
+                "ActionOnFailure": "test_step",
+                "HadoopJarStep": {
+                    "Args": [f"test args {i}"],
+                    "Jar": f"test_{i}.jar",
+                },
+                "Name": "test_name"
+            }
+
+            for i in range(5)
+        ]
+
+        new_step = [
+            {
+                "ActionOnFailure": "test_step",
+                "HadoopJarStep": {
+                    "Args": [f"test args "],
+                    "Jar": f"test_new.jar",
+                },
+                "Name": "New Step"
+            }
+        ]
+
+        add_steps = hook.add_job_flow_steps(job_flow_id, steps, False)
+
+        valid_state_steps = hook._get_list_of_steps_already_triggered(job_flow_id, ['RUNNING', 'PENDING'])
+        assert len(add_steps) == len(valid_state_steps)
+        assert sorted(add_steps) == sorted([id for name, id in valid_state_steps])
+
+        # New added step has a unique step name so no step is cancelled
+        steps_cancelled = hook.send_cancel_steps(job_flow_id, new_step, ['RUNNING', 'PENDING'],
+                                                 cancellation_option="SEND_INTERRUPT")
+        assert steps_cancelled == None
+
+        # Along with `steps`, `new_step` is added, if we add try adding `new_step` again,
+        # previous step_id will be marked for cancel
+        added_step = hook.add_job_flow_steps(job_flow_id, new_step)
+
+        steps_to_be_cancelled = hook._cancel_list_of_steps_already_triggered(
+            new_step, job_flow_id, ['RUNNING', 'PENDING']
+        )
+        steps_ids_to_be_cancelled = [step_id for step_name, step_id in steps_to_be_cancelled]
+        assert sorted(steps_ids_to_be_cancelled) == sorted(added_step)
+
+    @mock_emr
     @pytest.mark.parametrize("num_steps", [1, 2, 3, 4])
     def test_send_cancel_steps_on_pre_existing_step_name(self, num_steps):
         """
@@ -283,17 +375,9 @@ class TestEmrHook:
         # More details:
         # `https://github.com/spulec/moto/blob/860d8bf4b7d5223e2ac32a328122f3b48b86c103/moto/emr/responses.py#L102`
         with pytest.raises(NotImplementedError):
-            response = hook.send_cancel_steps(
+            hook.send_cancel_steps(
                 valid_cancel_step_states=["PENDING", "RUNNING"],
                 emr_cluster_id=job_flow_id,
                 cancellation_option="SEND_INTERRUPT",
                 steps_to_add=steps + retry_step,
             )
-
-            assert response
-
-        # assert set([status['Status'] for status in response['CancelStepsInfoList'][0]]) \
-        #        == {'SUBMITTED'} or None
-        #
-        # assert [step['StepId'] for step in response['CancelStepsInfoList'][0] if
-        #         step['Status'] in ['SUBMITTED']] == [step_id for step_name, step_id in cancel_steps]
