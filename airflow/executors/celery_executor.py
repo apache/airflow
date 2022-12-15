@@ -227,6 +227,7 @@ class CeleryExecutor(BaseExecutor):
     required to maintain such a system.
     """
 
+    is_picklable: bool = True
     supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):

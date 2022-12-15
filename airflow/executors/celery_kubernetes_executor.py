@@ -38,6 +38,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
     otherwise, CeleryExecutor is used.
     """
 
+    is_picklable: bool = True
     supports_ad_hoc_ti_run: bool = True
     callback_sink: BaseCallbackSink | None = None
 
