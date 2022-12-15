@@ -844,7 +844,7 @@ class BackfillJob(BaseJob):
 
         executor_class, _ = ExecutorLoader.import_executor_cls(self.executor_class)
 
-        if not self.donot_pickle and not executor_class.is_picklable:
+        if not self.donot_pickle and executor_class.is_picklable:
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()
