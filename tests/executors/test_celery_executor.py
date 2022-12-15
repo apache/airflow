@@ -334,6 +334,10 @@ def test_is_picklable_default_value():
     assert CeleryExecutor.is_picklable
 
 
+def test_supports_sentry_default_value():
+    assert CeleryExecutor.supports_sentry
+
+
 class MockTask:
     """
     A picklable object used to mock tasks sent to Celery. Can't use the mock library
