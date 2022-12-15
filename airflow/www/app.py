@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import warnings
 from datetime import timedelta
 from tempfile import gettempdir
@@ -134,7 +135,29 @@ def create_app(config=None, testing=False):
 
     init_robots(flask_app)
 
+    # Configure caching
+    webserver_caching_hash_method = conf.get(section="webserver", key="CACHING_HASH_METHOD", fallback=None)
     cache_config = {"CACHE_TYPE": "flask_caching.backends.filesystem", "CACHE_DIR": gettempdir()}
+
+    if (
+        webserver_caching_hash_method is not None
+        and webserver_caching_hash_method.casefold() != "md5".casefold()
+    ):
+        if webserver_caching_hash_method.casefold() == "sha512".casefold():
+            cache_config["CACHE_OPTIONS"] = {"hash_method": hashlib.sha512}
+        elif webserver_caching_hash_method.casefold() == "sha384".casefold():
+            cache_config["CACHE_OPTIONS"] = {"hash_method": hashlib.sha384}
+        elif webserver_caching_hash_method.casefold() == "sha256".casefold():
+            cache_config["CACHE_OPTIONS"] = {"hash_method": hashlib.sha256}
+        elif webserver_caching_hash_method.casefold() == "sha224".casefold():
+            cache_config["CACHE_OPTIONS"] = {"hash_method": hashlib.sha224}
+        elif webserver_caching_hash_method.casefold() == "sha1".casefold():
+            cache_config["CACHE_OPTIONS"] = {"hash_method": hashlib.sha1}
+        else:
+            raise AirflowConfigException(
+                f"Unsupported webserver caching hash method: `{webserver_caching_hash_method}`."
+            )
+
     Cache(app=flask_app, config=cache_config)
 
     init_flash_views(flask_app)

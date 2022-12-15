@@ -102,7 +102,7 @@ class SerializedDagModel(Base):
         dag_data = SerializedDAG.to_dict(dag)
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
 
-        self.dag_hash = hashlib.md5(dag_data_json).hexdigest()
+        self.dag_hash = hashlib.new("md5", data=dag_data_json, usedforsecurity=False).hexdigest()
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None

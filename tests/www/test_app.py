@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import runpy
 import sys
 from datetime import timedelta
@@ -27,6 +28,7 @@ from werkzeug.routing import Rule
 from werkzeug.test import create_environ
 from werkzeug.wrappers import Response
 
+from airflow.exceptions import AirflowConfigException
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -227,6 +229,29 @@ class TestApp:
         with pytest.deprecated_call():
             app = application.cached_app(testing=True)
         assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+
+    @pytest.mark.parametrize(
+        "hash_method, result, exception",
+        [
+            ("sha512", hashlib.sha512, None),
+            ("sha384", hashlib.sha384, None),
+            ("sha256", hashlib.sha256, None),
+            ("sha224", hashlib.sha224, None),
+            ("sha1", hashlib.sha1, None),
+            ("md5", hashlib.md5, None),
+            (None, hashlib.md5, None),
+            ("invalid", None, AirflowConfigException),
+        ],
+    )
+    @dont_initialize_flask_app_submodules
+    def test_should_respect_caching_hash_method(self, hash_method, result, exception):
+        with conf_vars({("webserver", "caching_hash_method"): hash_method}):
+            if exception:
+                with pytest.raises(expected_exception=exception):
+                    app = application.cached_app(testing=True)
+            else:
+                app = application.cached_app(testing=True)
+                assert next(iter(app.extensions["cache"])).cache._hash_method == result
 
 
 class TestFlaskCli:
