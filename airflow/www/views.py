@@ -365,7 +365,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             for child in task_group.topological_sort()
         ]
 
-        def get_summary(dag_run: DagRun, children):
+        def get_summary(dag_run: DagRun):
             child_instances = [
                 item
                 for sublist in (child["instances"] for child in children if "instances" in child)
@@ -390,7 +390,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "end_date": group_end_date,
             }
 
-        def get_mapped_group_summaries(dag_runs: Sequence[DagRun], children: list):
+        def get_mapped_group_summaries():
             mapped_ti_query = (
                 session.query(
                     TaskInstance.task_id, TaskInstance.state, TaskInstance.run_id, TaskInstance.map_index
@@ -456,7 +456,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             }
 
         if group_is_mapped:
-            mapped_group_summaries = get_mapped_group_summaries(dag_runs, children)
+            mapped_group_summaries = get_mapped_group_summaries()
 
             return {
                 "id": task_group.group_id,
@@ -467,7 +467,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "is_mapped": group_is_mapped,
             }
 
-        group_summaries = [get_summary(dr, children) for dr in dag_runs]
+        group_summaries = [get_summary(dr) for dr in dag_runs]
 
         return {
             "id": task_group.group_id,
