@@ -112,10 +112,12 @@ def main(argv: list[str]) -> int:
     paths = (pathlib.Path(filename) for filename in argv[1:])
     errors = [(path, error) for path in paths for error in _iter_incorrect_new_session_usages(path)]
     if errors:
-        print("Incorrect NEW_SESSION usages:", end="\n\n")
+        print("Incorrect @provide_session and NEW_SESSION usages:", end="\n\n")
         for path, error in errors:
             print(f"{path}:{error.lineno}")
             print(f"\tdef {error.name}(...", end="\n\n")
+        print("Only function decorated with @provide_session should use 'session: Session = NEW_SESSION'.")
+        print("See: https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#database-session-handling")
     return len(errors)
 
 

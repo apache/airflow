@@ -938,13 +938,16 @@ To make this easier, there is the ``create_session`` helper:
     from airflow.utils.session import create_session
 
 
-    def my_call(*args, session: Session):
+    def my_call(x, y, *, session: Session):
         ...
         # You MUST not commit the session here.
 
 
     with create_session() as session:
-        my_call(*args, session=session)
+        my_call(x, y, session=session)
+
+.. warning::
+  **DO NOT** add a default to the ``session`` argument **unless** ``@provide_session`` is used.
 
 If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
 
