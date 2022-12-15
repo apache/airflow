@@ -47,6 +47,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerTuningOperator,
 )
 from airflow.providers.amazon.aws.sensors.sagemaker import (
+    SageMakerAutoMLSensor,
     SageMakerPipelineSensor,
     SageMakerTrainingSensor,
     SageMakerTransformSensor,
@@ -501,7 +502,7 @@ with DAG(
     )
 
     # [START howto_operator_sagemaker_auto_ml]
-    auto_ml = SageMakerAutoMLOperator(
+    automl = SageMakerAutoMLOperator(
         task_id="auto_ML",
         job_name=test_setup["auto_ml_job_name"],
         s3_input=test_setup["input_data_uri"],
@@ -511,6 +512,11 @@ with DAG(
         time_limit=30,  # will stop the job before it can do anything, but it's not the point here
     )
     # [END howto_operator_sagemaker_auto_ml]
+    automl.wait_for_completion = False  # just to be able to test the sensor next
+
+    # [START howto_sensor_sagemaker_auto_ml]
+    await_automl = SageMakerAutoMLSensor(job_name=test_setup["auto_ml_job_name"], task_id="await_auto_ML")
+    # [END howto_sensor_sagemaker_auto_ml]
 
     # [START howto_operator_sagemaker_start_pipeline]
     start_pipeline1 = SageMakerStartPipelineOperator(
@@ -634,7 +640,8 @@ with DAG(
         create_bucket,
         upload_dataset,
         # TEST BODY
-        auto_ml,
+        automl,
+        await_automl,
         start_pipeline1,
         start_pipeline2,
         stop_pipeline1,

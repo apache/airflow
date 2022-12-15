@@ -1164,6 +1164,11 @@ class SageMakerHook(AwsBaseHook):
                 self.log.error("Error when trying to create Model Package Group: %s", e)
                 raise
 
+    def _describe_auto_ml_job(self, job_name: str):
+        res = self.conn.describe_auto_ml_job(AutoMLJobName=job_name)
+        self.log.info("%s's current step: %s", job_name, res["AutoMLJobSecondaryStatus"])
+        return res
+
     def create_auto_ml_job(
         self,
         job_name: str,
@@ -1233,7 +1238,7 @@ class SageMakerHook(AwsBaseHook):
                 job_name,
                 "AutoMLJobStatus",
                 # cannot pass the function directly because the parameter needs to be named
-                lambda n: self.conn.describe_auto_ml_job(AutoMLJobName=n),
+                self.describe_auto_ml_job,
                 check_interval,
             )
             if "BestCandidate" in res:
