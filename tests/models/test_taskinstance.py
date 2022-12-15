@@ -21,6 +21,7 @@ import datetime
 import operator
 import os
 import pathlib
+import pickle
 import signal
 import sys
 import urllib
@@ -3589,6 +3590,20 @@ class TestMappedTaskInstanceReceiveValue:
         with out.open() as f:
             out_lines = [line.strip() for line in f]
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
+
+
+def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="t")
+
+    run: DagRun = dag_maker.create_dagrun()
+    run.get_task_instance("t", session=session).xcom_push("xxx", 123, session=session)
+
+    original = LazyXComAccess.build_from_xcom_query(session.query(XCom))
+    processed = pickle.loads(pickle.dumps(original))
+
+    assert len(processed) == 1
+    assert list(processed) == [123]
 
 
 @mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)
