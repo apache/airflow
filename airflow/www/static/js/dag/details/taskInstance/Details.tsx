@@ -200,13 +200,15 @@ const Details = ({ instance, group, dagId }: Props) => {
               <Td>{operator}</Td>
             </Tr>
           )}
-          <Tr>
-            <Td>
-              {isOverall}
-              Duration
-            </Td>
-            <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
-          </Tr>
+          {startDate && (
+            <Tr>
+              <Td>
+                {isOverall}
+                Duration
+              </Td>
+              <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
+            </Tr>
+          )}
           {startDate && (
             <Tr>
               <Td>Started</Td>

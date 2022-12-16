@@ -48,6 +48,7 @@ describe('Test Task InstanceTooltip', () => {
 
     expect(getByText('Status: success')).toBeDefined();
     expect(queryByText('Contains a note')).toBeNull();
+    expect(getByText('Duration: 00:00:00')).toBeDefined();
   });
 
   test('Displays a mapped task with overall status', () => {
@@ -110,5 +111,18 @@ describe('Test Task InstanceTooltip', () => {
     );
 
     expect(getByText('Contains a note')).toBeInTheDocument();
+  });
+
+  test('Hides duration if there is no start date', () => {
+    const { queryByText, getByText } = render(
+      <InstanceTooltip
+        group={{ id: 'task', label: 'task', instances: [] }}
+        instance={{ ...instance, startDate: null }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(getByText('Status: success')).toBeDefined();
+    expect(queryByText('Duration: 00:00:00')).toBeNull();
   });
 });
