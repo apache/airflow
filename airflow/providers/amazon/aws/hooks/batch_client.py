@@ -428,22 +428,22 @@ class BatchClientHook(AwsBaseHook):
                     "AWS Batch job (%s) has more than one node group. Only returning logs from first group.",
                     job_id,
                 )
-                log_configuration = (
-                    job_node_range_properties[0].get("container", {}).get("logConfiguration", {})
-                )
-                # "logStreamName" value is not available in the "container" object for multinode jobs --
-                # it is available in the "attempts" object
-                job_attempts = job_desc.get("attempts", [])
-                if len(job_attempts):
-                    if len(job_attempts) > 1:
-                        self.log.warning(
-                            "AWS Batch job (%s) has had more than one attempt. \
-                                Only returning logs from the most recent attempt.",
-                            job_id,
-                        )
-                    awslogs_stream_name = job_attempts[-1].get("container", {}).get("logStreamName")
-                else:
-                    awslogs_stream_name = None
+            log_configuration = (
+                job_node_range_properties[0].get("container", {}).get("logConfiguration", {})
+            )
+            # "logStreamName" value is not available in the "container" object for multinode jobs --
+            # it is available in the "attempts" object
+            job_attempts = job_desc.get("attempts", [])
+            if len(job_attempts):
+                if len(job_attempts) > 1:
+                    self.log.warning(
+                        "AWS Batch job (%s) has had more than one attempt. \
+                            Only returning logs from the most recent attempt.",
+                        job_id,
+                    )
+                awslogs_stream_name = job_attempts[-1].get("container", {}).get("logStreamName")
+            else:
+                awslogs_stream_name = None
 
         elif job_container_desc:
             log_configuration = job_container_desc.get("logConfiguration", {})
