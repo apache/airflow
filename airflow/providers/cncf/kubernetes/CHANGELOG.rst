@@ -374,7 +374,7 @@ Notes on changes KubernetesPodOperator and PodLauncher
 Overview
 ''''''''
 
-Generally speaking if you did not subclass ``KubernetesPodOperator`` and you didn't use the ``PodLauncher`` class directly,
+Generally speaking if you did not subclass ``KubernetesPodOperator`` and you did not use the ``PodLauncher`` class directly,
 then you don't need to worry about this change.  If however you have subclassed ``KubernetesPodOperator``, what
 follows are some notes on the changes in this release.
 

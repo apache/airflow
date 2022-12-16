@@ -273,7 +273,7 @@ Naming conventions for the images:
 
 * The "latest" image is always the latest released stable version available.
 
-.. spelling::
+.. spelling:word-list::
 
      pythonN
 

@@ -429,14 +429,14 @@ If you have the producer and consumer in different files you do not need to use 
 Datasets represent the abstract concept of a dataset, and (for now) do not have any direct read or write
 capability - in this release we are adding the foundational feature that we will build upon.
 
-For more info on Datasets please see :doc:`/concepts/datasets`.
+For more info on Datasets please see :doc:`/authoring-and-scheduling/datasets`.
 
 Expanded dynamic task mapping support
 """""""""""""""""""""""""""""""""""""
 
 Dynamic task mapping now includes support for ``expand_kwargs``, ``zip`` and ``map``.
 
-For more info on dynamic task mapping please see :doc:`/concepts/dynamic-task-mapping`.
+For more info on dynamic task mapping please see :doc:`/authoring-and-scheduling/dynamic-task-mapping`.
 
 DAGS used in a context manager no longer need to be assigned to a module variable (#23592)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

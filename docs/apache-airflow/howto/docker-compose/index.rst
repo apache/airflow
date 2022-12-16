@@ -20,7 +20,7 @@
 Running Airflow in Docker
 #########################
 
-This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </executor/celery>` in Docker.
+This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </core-concepts/executor/celery>` in Docker.
 
 .. caution::
     This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
@@ -64,7 +64,7 @@ Fetching ``docker-compose.yaml``
 
 This file contains several service definitions:
 
-- ``airflow-scheduler`` - The :doc:`scheduler </concepts/scheduler>` monitors all tasks and DAGs, then triggers the
+- ``airflow-scheduler`` - The :doc:`scheduler </administration-and-deployment/scheduler>` monitors all tasks and DAGs, then triggers the
   task instances once their dependencies are complete.
 - ``airflow-webserver`` - The webserver is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
@@ -76,13 +76,13 @@ Optionally, you can enable flower by adding ``--profile flower`` option, e.g. ``
 
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
 
-All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see :doc:`/concepts/overview`.
+All these services allow you to run Airflow with :doc:`CeleryExecutor </core-concepts/executor/celery>`. For more information, see :doc:`/core-concepts/overview`.
 
 Some directories in the container are mounted, which means that their contents are synchronized between your computer and the container.
 
 - ``./dags`` - you can put your DAG files here.
 - ``./logs`` - contains logs from task execution and scheduler.
-- ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
+- ``./plugins`` - you can put your :doc:`custom plugins </authoring-and-scheduling/plugins>` here.
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
 If you need to install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
@@ -180,14 +180,14 @@ Accessing the environment
 
 After starting Airflow, you can interact with it in 3 ways:
 
-* by running :doc:`CLI commands </usage-cli>`.
+* by running :doc:`CLI commands </howto/usage-cli>`.
 * via a browser using :doc:`the web interface </ui>`.
 * using :doc:`the REST API </stable-rest-api-ref>`.
 
 Running the CLI commands
 ------------------------
 
-You can also run :doc:`CLI commands </usage-cli>`, but you have to do it in one of the defined ``airflow-*`` services. For example, to run ``airflow info``, run the following command:
+You can also run :doc:`CLI commands <../usage-cli>`, but you have to do it in one of the defined ``airflow-*`` services. For example, to run ``airflow info``, run the following command:
 
 .. code-block:: bash
 

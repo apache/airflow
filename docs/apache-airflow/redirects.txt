@@ -16,8 +16,8 @@
 # under the License.
 
 # Security
-howto/use-alternative-secrets-backend.rst security/secrets/secrets-backend/index.rst
-security.rst security/index.rst
+howto/use-alternative-secrets-backend.rst administration-and-deployment/security/secrets/secrets-backend/index.rst
+security.rst administration-and-deployment/security/index.rst
 
 # Operators guides
 howto/operator/external.rst howto/operator/external_task_sensor.rst
@@ -27,17 +27,17 @@ howto/customize-dag-ui-page-instance-name.rst howto/customize-ui.rst#customizing
 howto/customize-state-colors-ui.rst howto/customize-ui.rst#customizing-state-colours
 
 # Web UI
-howto/add-new-role.rst security/access-control.rst
+howto/add-new-role.rst administration-and-deployment/security/access-control.rst
 
 # Set up a database
 howto/initialize-database.rst howto/set-up-database.rst
 
 # Logging & Monitoring
-howto/check-health.rst logging-monitoring/check-health.rst
-errors.rst logging-monitoring/errors.rst
-howto/write-logs.rst logging-monitoring/logging-tasks.rst
-metrics.rst logging-monitoring/metrics.rst
-howto/tracking-user-activity.rst logging-monitoring/tracking-user-activity.rst
+howto/check-health.rst administration-and-deployment/logging-monitoring/check-health.rst
+errors.rst administration-and-deployment/logging-monitoring/errors.rst
+howto/write-logs.rst administration-and-deployment/logging-monitoring/logging-tasks.rst
+metrics.rst administration-and-deployment/logging-monitoring/metrics.rst
+howto/tracking-user-activity.rst administration-and-deployment/logging-monitoring/tracking-user-activity.rst
 
 # Quick start
 start/docker.rst howto/docker-compose/index.rst
@@ -51,13 +51,13 @@ rest-api-ref.rst deprecated-rest-api-ref.rst
 macros-ref.rst templates-ref.rst
 
 # Concepts
-concepts.rst concepts/index.rst
-scheduler.rst concepts/scheduler.rst
+concepts.rst core-concepts/index.rst
+scheduler.rst administration-and-deployment/scheduler.rst
 
 # Installation
 installation.rst installation/index.rst
 upgrade-check.rst installation/upgrade-check.rst
-upgrading-to-2.rst upgrading-from-1-10/index.rst
+upgrading-to-2.rst howto/upgrading-from-1-10/index.rst
 
 # Release Notes
 changelog.rst release_notes.rst
@@ -65,3 +65,68 @@ changelog.rst release_notes.rst
 # Tutorials
 tutorial.rst tutorial/index.rst
 tutorial_taskflow_api.rst tutorial/taskflow.rst
+
+## Docs Structure Refactor
+# indexes
+security/index.rst administration-and-deployment/security/index.rst
+security/secrets/index.rst administration-and-deployment/security/secrets/index.rst
+security/secrets/secrets-backend/index.rst administration-and-deployment/security/secrets/secrets-backend/index.rst
+logging-monitoring/index.rst administration-and-deployment/logging-monitoring/index.rst
+concepts/index.rst core-concepts/index.rst
+executor/index.rst core-concepts/executor/index.rst
+upgrading-from-1-10/index.rst howto/upgrading-from-1-10/index.rst
+
+listeners.rst administration-and-deployment/listeners.rst
+kubernetes.rst administration-and-deployment/kubernetes.rst
+executor/kubernetes.rst core-concepts/executor/kubernetes.rst
+plugins.rst authoring-and-scheduling/plugins.rst
+modules_management.rst administration-and-deployment/modules_management.rst
+dag-serialization.rst administration-and-deployment/dag-serialization.rst
+timezone.rst authoring-and-scheduling/timezone.rst
+production-deployment.rst administration-and-deployment/production-deployment.rst
+usage-cli.rst howto/usage-cli.rst
+lineage.rst administration-and-deployment/lineage.rst
+dag-run.rst core-concepts/dag-run.rst
+concepts/taskflow.rst core-concepts/taskflow.rst
+security/kerberos.rst administration-and-deployment/security/kerberos.rst
+security/workload.rst administration-and-deployment/security/workload.rst
+security/flower.rst administration-and-deployment/security/flower.rst
+security/webserver.rst administration-and-deployment/security/webserver.rst
+security/api.rst administration-and-deployment/security/api.rst
+security/access-control.rst administration-and-deployment/security/access-control.rst
+security/secrets/fernet.rst administration-and-deployment/security/secrets/fernet.rst
+security/secrets/mask-sensitive-values.rst administration-and-deployment/security/secrets/mask-sensitive-values.rst
+security/secrets/secrets-backend/local-filesystem-secrets-backend.rst administration-and-deployment/security/secrets/secrets-backend/local-filesystem-secrets-backend.rst
+logging-monitoring/tracking-user-activity.rst administration-and-deployment/logging-monitoring/tracking-user-activity.rst
+logging-monitoring/errors.rst administration-and-deployment/logging-monitoring/errors.rst
+logging-monitoring/logging-architecture.rst administration-and-deployment/logging-monitoring/logging-architecture.rst
+logging-monitoring/callbacks.rst administration-and-deployment/logging-monitoring/callbacks.rst
+logging-monitoring/logging-tasks.rst administration-and-deployment/logging-monitoring/logging-tasks.rst
+logging-monitoring/check-health.rst administration-and-deployment/logging-monitoring/check-health.rst
+logging-monitoring/metrics.rst administration-and-deployment/logging-monitoring/metrics.rst
+concepts/params.rst core-concepts/params.rst
+concepts/dynamic-task-mapping.rst authoring-and-scheduling/dynamic-task-mapping.rst
+concepts/sensors.rst core-concepts/sensors.rst
+concepts/variables.rst core-concepts/variables.rst
+concepts/overview.rst core-concepts/overview.rst
+concepts/connections.rst authoring-and-scheduling/connections.rst
+concepts/tasks.rst core-concepts/tasks.rst
+concepts/timetable.rst authoring-and-scheduling/timetable.rst
+concepts/operators.rst core-concepts/operators.rst
+concepts/xcoms.rst core-concepts/xcoms.rst
+concepts/scheduler.rst administration-and-deployment/scheduler.rst
+concepts/pools.rst administration-and-deployment/pools.rst
+concepts/priority-weight.rst administration-and-deployment/priority-weight.rst
+concepts/dagfile-processing.rst authoring-and-scheduling/dagfile-processing.rst
+concepts/deferring.rst authoring-and-scheduling/deferring.rst
+concepts/datasets.rst authoring-and-scheduling/datasets.rst
+concepts/cluster-policies.rst administration-and-deployment/cluster-policies.rst
+concepts/dags.rst core-concepts/dags.rst
+executor/local_kubernetes.rst core-concepts/executor/local_kubernetes.rst
+executor/celery_kubernetes.rst core-concepts/executor/celery_kubernetes.rst
+executor/dask.rst core-concepts/executor/dask.rst
+executor/debug.rst core-concepts/executor/debug.rst
+executor/celery.rst core-concepts/executor/celery.rst
+executor/local.rst core-concepts/executor/local.rst
+executor/sequential.rst core-concepts/executor/sequential.rst
+upgrading-from-1-10/upgrade-check.rst howto/upgrading-from-1-10/upgrade-check.rst

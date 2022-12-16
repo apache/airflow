@@ -81,7 +81,7 @@ command line utilities.
 
 As you grow and deploy Airflow to production, you will also want to move away
 from the ``standalone`` command we use here to running the components
-separately. You can read more in :doc:`/production-deployment`.
+separately. You can read more in :doc:`/administration-and-deployment/production-deployment`.
 
 Here are a few commands that will trigger a few task instances. You should
 be able to see the status of the jobs change in the ``example_bash_operator`` DAG as you
