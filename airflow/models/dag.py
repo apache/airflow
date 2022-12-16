@@ -462,8 +462,10 @@ class DAG(LoggingMixin):
         # set timezone from start_date
         tz = None
         if start_date and start_date.tzinfo:
-            tzinfo = None if start_date.tzinfo else settings.TIMEZONE
-            tz = pendulum.instance(start_date, tz=tzinfo).timezone
+            if start_date.tzinfo is None:
+                tz = pendulum.instance(start_date, tz=settings.TIMEZONE).timezone
+            else:
+                tz = pendulum.instance(start_date).timezone
         elif "start_date" in self.default_args and self.default_args["start_date"]:
             date = self.default_args["start_date"]
             if not isinstance(date, datetime):
