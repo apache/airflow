@@ -120,8 +120,19 @@ class LocalTaskJob(BaseJob):
             self.handle_task_exit(128 + signum)
             raise AirflowException("Segmentation Fault detected.")
 
+        def sigusr2_debug_handler(signum, frame):
+            import sys
+            import threading
+            import traceback
+
+            id2name = {th.ident: th.name for th in threading.enumerate()}
+            for threadId, stack in sys._current_frames().items():
+                print(id2name[threadId])
+                traceback.print_stack(f=stack)
+
         signal.signal(signal.SIGSEGV, segfault_signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGUSR2, sigusr2_debug_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
             mark_success=self.mark_success,

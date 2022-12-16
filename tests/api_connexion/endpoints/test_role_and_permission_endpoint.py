@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import pytest
-from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
@@ -128,7 +127,8 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
 
 
 class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_roles",
         [
             ("/api/v1/roles?limit=1", ["Admin"]),
             ("/api/v1/roles?limit=2", ["Admin", "Op"]),
@@ -146,7 +146,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
                 "/api/v1/roles?limit=2&offset=2",
                 ["Public", "Test"],
             ),
-        ]
+        ],
     )
     def test_can_handle_limit_and_offset(self, url, expected_roles):
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
@@ -190,7 +190,8 @@ class TestPostRole(TestRoleEndpoint):
         role = self.app.appbuilder.sm.find_role("Test2")
         assert role is not None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, error_message",
         [
             (
                 {
@@ -252,7 +253,7 @@ class TestPostRole(TestRoleEndpoint):
                 },
                 "The specified action: 'can_amend' was not found",
             ),
-        ]
+        ],
     )
     def test_post_should_respond_400_for_invalid_payload(self, payload, error_message):
         response = self.client.post("/api/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"})
@@ -334,7 +335,8 @@ class TestDeleteRole(TestRoleEndpoint):
 
 
 class TestPatchRole(TestRoleEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, expected_name, expected_actions",
         [
             ({"name": "mytest"}, "mytest", []),
             (
@@ -345,7 +347,7 @@ class TestPatchRole(TestRoleEndpoint):
                 "mytest2",
                 [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
             ),
-        ]
+        ],
     )
     def test_patch_should_respond_200(self, payload, expected_name, expected_actions):
         role = create_role(self.app, "mytestrole")
@@ -377,7 +379,8 @@ class TestPatchRole(TestRoleEndpoint):
 
         assert len(self.app.appbuilder.sm.find_role("already_exists").permissions) == 0
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "update_mask, payload, expected_name, expected_actions",
         [
             (
                 "?update_mask=name",
@@ -397,7 +400,7 @@ class TestPatchRole(TestRoleEndpoint):
                 "mytest2",
                 [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
             ),
-        ]
+        ],
     )
     def test_patch_should_respond_200_with_update_mask(
         self, update_mask, payload, expected_name, expected_actions
@@ -424,7 +427,8 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.status_code == 400
         assert response.json["detail"] == "'invalid_name' in update_mask is unknown"
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, expected_error",
         [
             (
                 {
@@ -471,7 +475,7 @@ class TestPatchRole(TestRoleEndpoint):
                 },
                 "The specified action: 'can_invalid' was not found",
             ),
-        ]
+        ],
     )
     def test_patch_should_respond_400_for_invalid_update(self, payload, expected_error):
         role = create_role(self.app, "mytestrole")

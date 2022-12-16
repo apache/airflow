@@ -20,13 +20,56 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+from unittest import mock
 
 import pytest
 from moto import mock_iam, mock_lambda, mock_sts
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
-from airflow.providers.amazon.aws.operators.lambda_function import AwsLambdaInvokeFunctionOperator
+from airflow.providers.amazon.aws.operators.lambda_function import (
+    AwsLambdaInvokeFunctionOperator,
+    LambdaCreateFunctionOperator,
+)
+
+FUNCTION_NAME = "function_name"
+ROLE_ARN = "role_arn"
+IMAGE_URI = "image_uri"
+
+
+class TestLambdaCreateFunctionOperator:
+    @mock.patch.object(LambdaHook, "create_lambda")
+    @mock.patch.object(LambdaHook, "conn")
+    def test_create_lambda_without_wait_for_completion(self, mock_hook_conn, mock_hook_create_lambda):
+        operator = LambdaCreateFunctionOperator(
+            task_id="task_test",
+            function_name=FUNCTION_NAME,
+            role=ROLE_ARN,
+            code={
+                "ImageUri": IMAGE_URI,
+            },
+        )
+        operator.execute(None)
+
+        mock_hook_create_lambda.assert_called_once()
+        mock_hook_conn.get_waiter.assert_not_called()
+
+    @mock.patch.object(LambdaHook, "create_lambda")
+    @mock.patch.object(LambdaHook, "conn")
+    def test_create_lambda_with_wait_for_completion(self, mock_hook_conn, mock_hook_create_lambda):
+        operator = LambdaCreateFunctionOperator(
+            task_id="task_test",
+            function_name=FUNCTION_NAME,
+            role=ROLE_ARN,
+            code={
+                "ImageUri": IMAGE_URI,
+            },
+            wait_for_completion=True,
+        )
+        operator.execute(None)
+
+        mock_hook_create_lambda.assert_called_once()
+        mock_hook_conn.get_waiter.assert_called_once_with("function_active_v2")
 
 
 @mock_lambda

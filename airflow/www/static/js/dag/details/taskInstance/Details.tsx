@@ -74,7 +74,7 @@ const Details = ({ instance, group, dagId }: Props) => {
 
   const numMap = finalStatesMap();
   let numMapped = 0;
-  if (isGroup) {
+  if (isGroup && !isMapped) {
     group.children?.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
@@ -167,7 +167,8 @@ const Details = ({ instance, group, dagId }: Props) => {
               <Td colSpan={2}>
                 {numMapped}
                 {' '}
-                {numMapped === 1 ? 'Task ' : 'Tasks '}
+                {isGroup ? 'Task Group' : 'Task'}
+                {numMapped === 1 ? ' ' : 's '}
                 Mapped
               </Td>
             </Tr>
