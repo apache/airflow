@@ -49,7 +49,7 @@ Their specification is defined as ``hookspec`` in ``airflow/listeners/spec`` dir
 Your implementation needs to accept the same named parameters as defined in hookspec, or Pluggy will complain about your plugin.
 On the other hand, you don't need to implement every method - it's perfectly fine to have a listener that implements just one method, or any subset of methods.
 
-To include listener in your Airflow installation, include it as a part of an :doc:`Airflow Plugin </plugins>`
+To include listener in your Airflow installation, include it as a part of an :doc:`Airflow Plugin </authoring-and-scheduling/plugins>`
 
 Listener API is meant to be called across all dags, and all operators - in contrast to methods like
 ``on_success_callback``, ``pre_execute`` and related family which are meant to provide callbacks

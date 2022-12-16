@@ -260,7 +260,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 
 
-.. spelling::
+.. spelling:word-list::
 
      hba
 

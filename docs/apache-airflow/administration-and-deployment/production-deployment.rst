@@ -154,7 +154,7 @@ the side-car container and read by the worker container.
 This concept is implemented in :doc:`the Helm Chart for Apache Airflow <helm-chart:index>`.
 
 
-.. spelling::
+.. spelling:word-list::
 
    pypirc
    dockerignore
@@ -222,7 +222,7 @@ you can exchange the Google Cloud Platform identity to the Amazon Web Service id
 which effectively means access to Amazon Web Service platform.
 For more information, see: :ref:`howto/connection:aws:gcp-federation`
 
-.. spelling::
+.. spelling:word-list::
 
     nsswitch
     cryptographic
