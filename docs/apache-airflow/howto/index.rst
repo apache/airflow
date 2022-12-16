@@ -51,4 +51,3 @@ configuring an Airflow environment.
     dynamic-dag-generation
     docker-compose/index
     upgrading-from-1-10/index
-
