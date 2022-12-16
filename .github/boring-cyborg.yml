@@ -67,8 +67,8 @@ labelPRBasedOnFilePath:
     - airflow/kubernetes_executor_templates/**/*
     - airflow/executors/kubernetes_executor.py
     - airflow/executors/celery_kubernetes_executor.py
-    - docs/apache-airflow/executor/kubernetes.rst
-    - docs/apache-airflow/executor/celery_kubernetes.rst
+    - docs/apache-airflow/core-concepts/executor/kubernetes.rst
+    - docs/apache-airflow/core-concepts/executor/celery_kubernetes.rst
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
     - kubernetes_tests/**/*
 
@@ -136,17 +136,17 @@ labelPRBasedOnFilePath:
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
     - docs/apache-airflow/cli-and-env-variables-ref.rst
-    - docs/apache-airflow/usage-cli.rst
+    - docs/apache-airflow/howto/usage-cli.rst
 
   area:Lineage:
     - airflow/lineage/**/*
     - tests/lineage/**/*
-    - docs/apache-airflow/lineage.rst
+    - docs/apache-airflow/administration-and-deployment/lineage.rst
 
   area:Logging:
     - airflow/providers/**/log/*
     - airflow/utils/log/**/*
-    - docs/apache-airflow/logging-monitoring/logging-*.rst
+    - docs/apache-airflow/administration-and-deployment/logging-monitoring/logging-*.rst
     - tests/providers/**/log/*
     - tests/utils/log/**/*
 
@@ -155,15 +155,15 @@ labelPRBasedOnFilePath:
     - airflow/plugins_manager.py
     - tests/cli/commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/apache-airflow/plugins.rst
+    - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
   area:Scheduler/Executor:
     - airflow/executors/**/*
     - airflow/jobs/**/*
     - airflow/task/task_runner/**/*
     - airflow/dag_processing/**/*
-    - docs/apache-airflow/executor/**/*
-    - docs/apache-airflow/concepts/scheduler.rst
+    - docs/apache-airflow/core-concepts/executor/**/*
+    - docs/apache-airflow/administration-and-deployment/scheduler.rst
     - tests/executors/**/*
     - tests/jobs/**/*
 
@@ -172,14 +172,14 @@ labelPRBasedOnFilePath:
     - airflow/providers/**/secrets/*
     - tests/secrets/**/*
     - tests/providers/**/secrets/*
-    - docs/apache-airflow/security/secrets/**/*
+    - docs/apache-airflow/administration-and-deployment/security/secrets/**/*
 
   area:Serialization:
     - airflow/serialization/**/*
     - airflow/models/serialized_dag.py
     - tests/serialization/**/*
     - tests/models/test_serialized_dag.py
-    - docs/apache-airflow/dag-serialization.rst
+    - docs/apache-airflow/administration-and-deployment/dag-serialization.rst
 
   area:core-operators:
     - airflow/operators/**/*
