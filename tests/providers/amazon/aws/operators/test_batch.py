@@ -92,8 +92,9 @@ class TestBatchOperator:
         assert self.batch.hook.max_retries == self.MAX_RETRIES
         assert self.batch.hook.status_retries == self.STATUS_RETRIES
         assert self.batch.parameters == {}
-        assert self.batch.overrides == {}
-        assert self.batch.array_properties == {}
+        assert self.batch.container_overrides == {}
+        assert self.batch.array_properties == None
+        assert self.batch.node_overrides == None
         assert self.batch.hook.region_name == "eu-west-1"
         assert self.batch.hook.aws_conn_id == "airflow_test"
         assert self.batch.hook.client == self.client_mock
@@ -109,8 +110,8 @@ class TestBatchOperator:
             "job_definition",
             "job_queue",
             "overrides",
-            "node_overrides",
             "array_properties",
+            "node_overrides",
             "parameters",
             "waiters",
             "tags",
@@ -133,7 +134,6 @@ class TestBatchOperator:
             jobName=JOB_NAME,
             containerOverrides={},
             jobDefinition="hello-world",
-            arrayProperties={},
             parameters={},
             tags={},
         )
@@ -157,7 +157,6 @@ class TestBatchOperator:
             jobName=JOB_NAME,
             containerOverrides={},
             jobDefinition="hello-world",
-            arrayProperties={},
             parameters={},
             tags={},
         )
@@ -220,7 +219,6 @@ class TestBatchOperatorTrimmedArgs:
             "jobQueue": "queue",
             "jobName": JOB_NAME,
             "jobDefinition": "hello-world",
-            "arrayProperties": {},
             "parameters": {},
             "tags": {},
         }
