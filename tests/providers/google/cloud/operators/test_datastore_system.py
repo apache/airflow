@@ -29,16 +29,14 @@ BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_DATASTORE_KEY)
-class GcpDatastoreSystemTest(GoogleSystemTest):
+class TestGcpDatastoreSystem(GoogleSystemTest):
     @provide_gcp_context(GCP_DATASTORE_KEY)
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         self.create_gcs_bucket(BUCKET, location="europe-central2")
 
     @provide_gcp_context(GCP_DATASTORE_KEY)
-    def tearDown(self):
+    def teardown_method(self):
         self.delete_gcs_bucket(BUCKET)
-        super().tearDown()
 
     @provide_gcp_context(GCP_DATASTORE_KEY)
     def test_run_example_dag(self):

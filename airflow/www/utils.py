@@ -82,7 +82,7 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-priority = [
+priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,
     TaskInstanceState.UPSTREAM_FAILED,
     TaskInstanceState.UP_FOR_RETRY,

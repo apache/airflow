@@ -27,9 +27,9 @@ from unittest import mock
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
+import time_machine
 from celery import Celery
 from celery.result import AsyncResult
-from freezegun import freeze_time
 from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
@@ -162,7 +162,7 @@ class TestCeleryExecutor:
         assert executor.try_adopt_task_instances(tis) == tis
 
     @pytest.mark.backend("mysql", "postgres")
-    @freeze_time("2020-01-01")
+    @time_machine.travel("2020-01-01", tick=False)
     def test_try_adopt_task_instances(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -270,7 +270,7 @@ class TestCeleryExecutor:
         assert ti.external_executor_id is None
 
     @pytest.mark.backend("mysql", "postgres")
-    @freeze_time("2020-01-01")
+    @time_machine.travel("2020-01-01", tick=False)
     def test_pending_tasks_timeout_with_appropriate_config_setting(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -364,7 +364,7 @@ def register_signals():
     signal.signal(signal.SIGUSR2, orig_sigusr2)
 
 
-@pytest.mark.quarantined
+@pytest.mark.execution_timeout(200)
 def test_send_tasks_to_celery_hang(register_signals):
     """
     Test that celery_executor does not hang after many runs.
@@ -374,7 +374,7 @@ def test_send_tasks_to_celery_hang(register_signals):
     task = MockTask()
     task_tuples_to_send = [(None, None, None, task) for _ in range(26)]
 
-    for _ in range(500):
+    for _ in range(250):
         # This loop can hang on Linux if celery_executor does something wrong with
         # multiprocessing.
         results = executor._send_tasks_to_celery(task_tuples_to_send)

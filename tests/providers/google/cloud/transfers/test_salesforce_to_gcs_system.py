@@ -35,13 +35,7 @@ SALESFORCE_CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, SALESFORCE_KEY)
 @pytest.mark.system("google.cloud")
 @pytest.mark.system("salesforce")
 class TestSalesforceIntoGCSExample(GoogleSystemTest):
-    def setUp(self):
-        super().setUp()
-
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     @provide_salesforce_connection(SALESFORCE_CREDENTIALS_PATH)
     def test_run_example_dag_salesforce_to_gcs_operator(self):
         self.run_dag("example_salesforce_to_gcs", CLOUD_DAG_FOLDER)
-
-    def tearDown(self):
-        super().tearDown()
