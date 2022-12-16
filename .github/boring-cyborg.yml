@@ -155,7 +155,7 @@ labelPRBasedOnFilePath:
     - airflow/plugins_manager.py
     - tests/cli/commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/apache-airflow/authoring-and-scheudling/plugins.rst
+    - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
   area:Scheduler/Executor:
     - airflow/executors/**/*
