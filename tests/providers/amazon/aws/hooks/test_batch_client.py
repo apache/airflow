@@ -274,13 +274,16 @@ class TestBatchClient:
         assert awslogs["awslogs_stream_name"] == LOG_STREAM_NAME
         assert awslogs["awslogs_group"] == "/test/batch/job"
         assert awslogs["awslogs_region"] == "ap-southeast-2"
+    
 
     def test_job_no_awslogs_stream(self, caplog):
         self.client_mock.describe_jobs.return_value = {
             "jobs": [
                 {
                     "jobId": JOB_ID,
-                    "container": {},
+                    "container": {
+                        "logConfiguration": {}
+                    },
                 }
             ]
         }
@@ -289,6 +292,20 @@ class TestBatchClient:
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(caplog.records) == 1
             assert "doesn't create AWS CloudWatch Stream" in caplog.messages[0]
+
+    def test_job_not_recognized_job(self, caplog):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID
+                }
+            ]
+        }
+
+        with caplog.at_level(level=logging.WARNING):
+            assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
+            assert len(caplog.records) == 1
+            assert "neither a container nor multinode job." in caplog.messages[0]
 
     def test_job_splunk_logs(self, caplog):
         self.client_mock.describe_jobs.return_value = {
