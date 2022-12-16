@@ -784,7 +784,7 @@ repos:
           - airflow/config_templates/config.yml.schema.json
         language: python
         pass_filenames: true
-        files: ^airflow/config_templates/config\.yml$
+        files: ^airflow/config_templates/config\.yml$|^airflow/config_templates/config.yml.schema.json$
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: check-persist-credentials-disabled-in-github-workflows
