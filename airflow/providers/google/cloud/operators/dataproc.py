@@ -18,6 +18,7 @@
 """This module contains Google Dataproc operators."""
 from __future__ import annotations
 
+import enum
 import inspect
 import ntpath
 import os
@@ -51,10 +52,18 @@ from airflow.providers.google.cloud.links.dataproc import (
     DataprocListLink,
 )
 from airflow.providers.google.cloud.triggers.dataproc import DataprocBaseTrigger
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+class PREEMPTIBILITY(enum.Enum):
+    """Possible VM type for preemptible workers."""
+
+    PREEMPTIBLE = enum.auto()
+    SPOT = enum.auto()
 
 
 class ClusterGenerator:
@@ -159,6 +168,7 @@ class ClusterGenerator:
         worker_disk_type: str = "pd-standard",
         worker_disk_size: int = 1024,
         num_preemptible_workers: int = 0,
+        preemptibility: Literal["preemptible", "spot"] = "preemptible",
         service_account: str | None = None,
         service_account_scopes: list[str] | None = None,
         idle_delete_ttl: int | None = None,
@@ -173,6 +183,7 @@ class ClusterGenerator:
         self.num_masters = num_masters
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
+        self.preemptibility = PREEMPTIBILITY[preemptibility.upper()]
         self.storage_bucket = storage_bucket
         self.init_actions_uris = init_actions_uris
         self.init_action_timeout = init_action_timeout
@@ -320,6 +331,7 @@ class ClusterGenerator:
                     "boot_disk_size_gb": self.worker_disk_size,
                 },
                 "is_preemptible": True,
+                "preemptibility": self.preemptibility,
             }
 
         if self.storage_bucket:
