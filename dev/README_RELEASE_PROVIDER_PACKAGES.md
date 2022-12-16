@@ -214,7 +214,7 @@ svn update --set-depth=infinity asf-dist/dev/airflow
 cd asf-dist/dev/airflow/providers
 
 # Remove previously released providers
-rm -rf *
+svn rm *
 
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
@@ -229,10 +229,16 @@ cd ${AIRFLOW_REPO_ROOT}
 Verify that the files are available at
 [providers](https://dist.apache.org/repos/dist/dev/airflow/providers/)
 
-## Publish the Regular convenience package to PyPI
+You should see only providers that you are about to release.
+If you are seeing others there is an issue.
+You can remove the redundant provider files manually with:
 
-In case of pre-release versions you build the same packages for both PyPI and SVN so you can simply use
-packages generated in the previous step, and you can skip the "prepare" step below.
+```shell script
+svn rm file_name  // repeate that for every file
+svn commit -m "delete old providers"
+```
+
+## Publish the Regular convenience package to PyPI
 
 In order to publish release candidate to PyPI you just need to build and release packages.
 The packages should however contain the rcN suffix in the version file name but not internally in the package,
@@ -266,6 +272,15 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*
 ```shell script
 twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
 ```
+
+If you see
+> WARNING  Error during upload. Retry with the --verbose option for more details.
+ERROR   HTTPError: 403 Forbidden from https://test.pypi.org/legacy/
+     The user [user_name] isn't allowed to upload to project [provider_name]
+
+It means that you don't have permission to upload providers.
+Please ask one of the Admins to grant you permissions on the packages you wish to release.
+
 
 * Verify that the test packages look good by downloading it and installing them into a virtual environment.
 Twine prints the package links as output - separately for each package.
@@ -325,6 +340,7 @@ If we want to just release some providers you can release them in this way:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs --clean-build --for-production \
+  --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
   ...
@@ -343,6 +359,11 @@ If you have providers as list of provider ids because you just released them, yo
 ```shell script
 ./docs/start_doc_server.sh
 ```
+
+You should navigate the providers and make sure the docs render properly.
+Note: if you used ``--for-production`` then default of url paths goes to ``latest``
+thus viewing the pages will result in 404 file not found error.
+You will need to change it manually to see the docs
 
 - Copy the documentation to the ``airflow-site`` repository
 
@@ -391,7 +412,7 @@ set as your environment variable.
 You can also pass the token as `--github-token` option in the script.
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist
+breeze release-management generate-issue-content --only-available-in-dist
 ```
 
 You can also generate the token by following
@@ -400,7 +421,7 @@ You can also generate the token by following
 If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist --suffix rc2
+breeze release-management generate-issue-content --only-available-in-dist --suffix rc2
 ```
 
 
