@@ -23,7 +23,9 @@ from typing import NamedTuple
 from rich.console import Console
 
 from airflow.utils.code_utils import prepare_code_snippet
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH
+
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH  # isort:skip (needed to workaround isort bug)
+
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))

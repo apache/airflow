@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 
+# isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
 from docker_tests.docker_tests_utils import (
@@ -32,6 +33,8 @@ from docker_tests.docker_tests_utils import (
     run_bash_in_docker,
     run_python_in_docker,
 )
+
+# isort:on (needed to workaround isort bug)
 from setup import PREINSTALLED_PROVIDERS
 
 INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt"
