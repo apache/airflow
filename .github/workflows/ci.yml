@@ -816,8 +816,10 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/migration_tests
-      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}} (w/Kerberos)"
+      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
+      - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_arm_pytest_collection.py"
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -941,6 +943,8 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
+      - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_arm_pytest_collection.py"
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
