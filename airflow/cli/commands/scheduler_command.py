@@ -25,6 +25,7 @@ import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -34,6 +35,8 @@ from airflow.utils.scheduler_health import serve_health_check
 
 
 def _run_scheduler_job(args):
+    InternalApiConfig.force_database_direct_access()
+
     job = SchedulerJob(
         subdir=process_subdir(args.subdir),
         num_runs=args.num_runs,
