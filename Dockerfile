@@ -1265,8 +1265,21 @@ RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
 # the requirements.txt contains only dependencies with == version specification
-RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
-        pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
+#
+# Supporting dependencies in requirements.txt __without__ baking into the image
+# https://github.com/moby/buildkit/blob/master/frontend/dockerfile/docs/reference.md#run---mounttypesecret
+# - Not sure if secret id can be split up by hyphen or something for readability?
+# TODO: Prettier syntax?
+# TODO: How to test this?
+# TODO: bash dummy check...url_file won't remain in image because no ``export``, ...right?
+#   - Spin up some sort of ephemeral private repo in a container?
+RUN --mount=type=secret=id=pipextraindexurl,uid=$AIRFLOW_USER \
+    if [[ -f /run/secrets/pipextraindexurl ]]; then \
+      url_file=/run/secrets/pipextraindexurl \
+    fi \
+    if [[ -f /docker-context-files/requirements.txt ]]; then \
+        PIP_EXTRA_INDEX_URL="$(cat "${url_file:-/dev/null}")" pip install \
+          --no-cache-dir --user -r /docker-context-files/requirements.txt; \
     fi
 
 ##############################################################################################

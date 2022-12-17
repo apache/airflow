@@ -564,14 +564,26 @@ You can use ``docker-context-files`` for the following purposes:
     :end-before: [END build]
 
 * you can place ``pip.conf`` (and legacy ``.piprc``) in the ``docker-context-files`` folder and they
-  will be used for all ``pip`` commands (for example you can configure your own sources
-  or authentication mechanisms)
+  will be used for all ``pip`` commands (for example you can configure your own sources.)
+
+.. warning::
+
+  You may wish to avoid including credentials to an ``extra-index-url`` in a file that
+  will be retained in the built image.  To prevent this, you can use build secrets, as shown
+  in the example after this
 
 .. exampleinclude:: docker-examples/customizing/custom-pip.sh
     :language: bash
     :start-after: [START build]
     :end-before: [END build]
 
+* you can install packages from a password-protected ``--extra-index-url``
+  without leaking the credentials in your built image like this
+
+.. exampleinclude:: docker-examples/customizing/using-private-index.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
 
 * you can place ``.whl`` packages that you downloaded and install them with
   ``INSTALL_PACKAGES_FROM_CONTEXT`` set to ``true`` . It's useful if you build the image in
@@ -739,6 +751,8 @@ of the ``airflow`` user.
 Note, that those customizations are only available in the ``build`` segment of the Airflow image and they
 are not present in the ``final`` image. If you wish to extend the final image and add custom ``.piprc`` and
 ``pip.conf``, you should add them in your own Dockerfile used to extend the Airflow image.
+
+.. todo:: ...but are they available in build layers?  Check w/ original author...
 
 Such customizations are independent of the way how airflow is installed.
 
