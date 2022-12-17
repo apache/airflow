@@ -96,6 +96,10 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/ec2.rst
     tags: [aws]
+  - integration-name: Amazon Elastic Container Registry (ECR)
+    external-doc-url: https://aws.amazon.com/ecr/
+    logo: /integration-logos/aws/Amazon-Elastic-Container-Registry_light-bg@4x.png
+    tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
     logo: /integration-logos/aws/Amazon-Elastic-Container-Service_light-bg@4x.png
@@ -405,6 +409,9 @@ hooks:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.hooks.ec2
+  - integration-name: Amazon Elastic Container Registry (ECR)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.ecr
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.hooks.ecs
