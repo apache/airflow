@@ -447,7 +447,6 @@ class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
     supports_ad_hoc_ti_run: bool = True
-    is_picklable: bool = True
 
     def __init__(self):
         self.kube_config = KubeConfig()

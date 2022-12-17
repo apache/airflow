@@ -29,12 +29,12 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 
 
-def test_supports_sentry_default_value():
+def test_supports_sentry():
     assert not BaseExecutor.supports_sentry
 
 
-def test_is_picklable_default_value():
-    assert not BaseExecutor.is_picklable
+def test_supports_pickling():
+    assert BaseExecutor.supports_pickling
 
 
 def test_is_local_default_value():

@@ -99,6 +99,12 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
+    def test_supports_pickling(self):
+        assert CeleryExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert CeleryExecutor.supports_sentry
+
     @pytest.mark.quarantined
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self):
@@ -328,14 +334,6 @@ class TestCeleryExecutor:
 
 def test_operation_timeout_config():
     assert celery_executor.OPERATION_TIMEOUT == 1
-
-
-def test_is_picklable_default_value():
-    assert CeleryExecutor.is_picklable
-
-
-def test_supports_sentry_default_value():
-    assert CeleryExecutor.supports_sentry
 
 
 class MockTask:

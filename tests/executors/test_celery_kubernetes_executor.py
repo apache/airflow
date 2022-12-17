@@ -31,11 +31,14 @@ KUBERNETES_QUEUE = CeleryKubernetesExecutor.KUBERNETES_QUEUE
 
 
 class TestCeleryKubernetesExecutor:
+    def test_supports_pickling(self):
+        assert CeleryKubernetesExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert not CeleryKubernetesExecutor.supports_sentry
+
     def test_is_local_default_value(self):
         assert not CeleryKubernetesExecutor.is_local
-
-    def test_is_picklable_default_value(self):
-        assert CeleryKubernetesExecutor.is_picklable
 
     def test_queued_tasks(self):
         celery_executor_mock = mock.MagicMock()

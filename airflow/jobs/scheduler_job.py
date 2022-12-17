@@ -720,10 +720,10 @@ class SchedulerJob(BaseJob):
 
         self.log.info("Starting the scheduler")
 
-        executor_class, _ = ExecutorLoader.import_executor_cls(self.executor_class)
+        executor_class, _ = ExecutorLoader.import_default_executor_cls()
 
         # DAGs can be pickled for easier remote execution by some executors
-        pickle_dags = self.do_pickle and executor_class.is_picklable
+        pickle_dags = self.do_pickle and executor_class.supports_pickling
 
         self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 

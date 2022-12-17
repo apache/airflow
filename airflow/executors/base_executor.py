@@ -65,13 +65,13 @@ class BaseExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = False
+    supports_pickling: bool = True
     supports_sentry: bool = False
 
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None
 
     is_local: bool = False
-    is_picklable: bool = False
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()

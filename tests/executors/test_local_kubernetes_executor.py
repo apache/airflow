@@ -26,8 +26,11 @@ from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
 
 
 class TestLocalKubernetesExecutor:
-    def test_is_picklable_default_value(self):
-        assert LocalKubernetesExecutor.is_picklable
+    def test_supports_pickling(self):
+        assert not LocalKubernetesExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert not LocalKubernetesExecutor.supports_sentry
 
     def test_queued_tasks(self):
         local_executor_mock = mock.MagicMock()
