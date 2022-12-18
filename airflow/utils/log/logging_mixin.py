@@ -171,6 +171,7 @@ class RedirectStdHandler(StreamHandler):
     """
 
     def __init__(self, stream):
+        self.respect_redirection = True
         if not isinstance(stream, str):
             raise Exception(
                 "Cannot use file like objects. Use 'stdout' or 'stderr' as a str and without 'ext://'."
@@ -179,13 +180,17 @@ class RedirectStdHandler(StreamHandler):
         self._use_stderr = True
         if "stdout" in stream:
             self._use_stderr = False
-
+            self._orig_stream = sys.stdout
+        else:
+            self._orig_stream = sys.stderr
         # StreamHandler tries to set self.stream
         Handler.__init__(self)
 
     @property
     def stream(self):
         """Returns current stream."""
+        if self.respect_redirection is False:
+            return self._orig_stream
         if self._use_stderr:
             return sys.stderr
 

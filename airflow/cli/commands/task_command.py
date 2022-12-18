@@ -56,7 +56,7 @@ from airflow.utils.cli import (
     suppress_logs_and_warning,
 )
 from airflow.utils.dates import timezone
-from airflow.utils.log.logging_mixin import StreamLogWriter
+from airflow.utils.log.logging_mixin import RedirectStdHandler, StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -295,26 +295,44 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
 
     """
     modify = not settings.DONOT_MODIFY_HANDLERS
+    is_k8s_executor_pod = os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD")
     if modify:
-        root_logger, task_logger = logging.getLogger(), logging.getLogger("airflow.task")
-
-        orig_level = root_logger.level
+        root_logger = logging.getLogger()
+        root_level = root_logger.level
+        task_logger = ti.log
+        task_propagate = task_logger.propagate
+        task_handlers = task_logger.handlers.copy()
+        # these are already copied to root logger, so remove and propagate
+        # (this ensures they are not handled more than they need to be)
+        # we'll add them back later
+        for h in task_logger.handlers[:]:
+            task_logger.removeHandler(h)
+        task_logger.propagate = True
         root_logger.setLevel(task_logger.level)
-        orig_handlers = root_logger.handlers.copy()
-        root_logger.handlers[:] = task_logger.handlers
-
+        root_handlers = root_logger.handlers.copy()
+        root_logger.handlers[:] = task_handlers
+        # task log handler reads from k8s pod logs when pod still running
+        # so we need to keep the console handler
+        if is_k8s_executor_pod:
+            for h in root_handlers:
+                if isinstance(h, RedirectStdHandler):
+                    root_logger.addHandler(h)
+                    h.respect_redirection = False
     try:
         info_writer = StreamLogWriter(ti.log, logging.INFO)
         warning_writer = StreamLogWriter(ti.log, logging.WARNING)
-
         with redirect_stdout(info_writer), redirect_stderr(warning_writer):
             yield
-
     finally:
         if modify:
-            # Restore the root logger to its original state.
-            root_logger.setLevel(orig_level)
-            root_logger.handlers[:] = orig_handlers
+            task_logger.propagate = task_propagate
+            root_logger.setLevel(root_level)
+            root_logger.handlers[:] = root_handlers
+            task_logger.handlers[:] = task_handlers
+            if is_k8s_executor_pod:
+                for h in root_handlers:
+                    if isinstance(h, RedirectStdHandler):
+                        h.respect_redirection = True
 
 
 class TaskCommandMarker:
