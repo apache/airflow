@@ -317,7 +317,7 @@ we publish an Apache Airflow release. Those images contain:
 * Base OS with necessary packages to install Airflow (stable Debian OS)
 * Base Python installation in versions supported at the time of release for the MINOR version of
   Airflow released (so there could be different versions for 2.3 and 2.2 line for example)
-* Libraries required to connect to suppoerted Databases (again the set of databases supported depends
+* Libraries required to connect to supported Databases (again the set of databases supported depends
   on the MINOR version of Airflow.
 * Predefined set of popular providers (for details see the [Dockerfile](https://raw.githubusercontent.com/apache/airflow/main/Dockerfile)).
 * Possibility of building your own, custom image where the user can choose their own set of providers
