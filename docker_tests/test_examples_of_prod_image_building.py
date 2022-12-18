@@ -25,8 +25,11 @@ from pathlib import Path
 import pytest
 import requests
 
+# isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
+
+# isort:on (needed to workaround isort bug)
 
 DOCKER_EXAMPLES_DIR = SOURCE_ROOT / "docs" / "docker-stack" / "docker-examples"
 

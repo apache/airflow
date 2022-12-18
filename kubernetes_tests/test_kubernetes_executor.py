@@ -20,7 +20,7 @@ import time
 
 import pytest
 
-from kubernetes_tests.test_base import EXECUTOR, TestBase
+from kubernetes_tests.test_base import EXECUTOR, TestBase  # isort:skip (needed to workaround isort bug)
 
 
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")

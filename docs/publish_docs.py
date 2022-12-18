@@ -21,9 +21,12 @@ from __future__ import annotations
 import argparse
 import os
 
+# isort:off (needed to workaround isort bug)
 from exts.docs_build.docs_builder import AirflowDocsBuilder
 from exts.docs_build.package_filter import process_package_filters
 from exts.provider_yaml_utils import load_package_data
+
+# isort:on (needed to workaround isort bug)
 
 AIRFLOW_SITE_DIR = os.environ.get("AIRFLOW_SITE_DIRECTORY")
 
