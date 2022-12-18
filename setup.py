@@ -304,7 +304,7 @@ ldap = [
     "ldap3>=2.5.1",
     "python-ldap",
 ]
-leveldb = ['plyvel; platform_machine != "aarch64"']
+leveldb = ["plyvel"]
 pandas = [
     "pandas>=0.17.1",
 ]
