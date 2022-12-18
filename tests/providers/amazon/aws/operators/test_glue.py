@@ -16,61 +16,46 @@
 # under the License.
 from __future__ import annotations
 
-import copy
 from unittest import mock
 
 import pytest
 
 from airflow.configuration import conf
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
-from airflow.utils import timezone
 
 TASK_ID = "test_glue_operator"
 DAG_ID = "test_dag_id"
 JOB_NAME = "test_job_name"
-DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-
-BASE_LOCATION = "some-bucket/{{ task_instance_key_str }}"
-SCRIPT_LOCATION = f"s3://{BASE_LOCATION}/script-location.py"
-CREATE_JOB_KWARGS = {
-    "GlueVersion": "4.0",
-    "Command": {
-        "Name": "glueetl",
-        "ScriptLocation": SCRIPT_LOCATION,
-    },
-    "WorkerType": "G.1X",
-    "NumberOfWorkers": 2,
-}
-EXPECTED_BASE_LOCATION = f"some-bucket/{DAG_ID}__{TASK_ID}__20170101"
 
 
 class TestGlueJobOperator:
+    @pytest.fixture(autouse=True)
     def setup_method(self):
         conf.load_test_config()
 
-    def test_render_template(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-
-        dag = DAG(DAG_ID, default_args=args)
-        mock_operator = GlueJobOperator(
-            task_id=TASK_ID, dag=dag, create_job_kwargs=CREATE_JOB_KWARGS, s3_bucket=BASE_LOCATION
+    def test_render_template(self, create_task_instance_of_operator):
+        ti: TaskInstance = create_task_instance_of_operator(
+            GlueJobOperator,
+            dag_id=DAG_ID,
+            task_id=TASK_ID,
+            script_location="{{ dag.dag_id }}",
+            script_args="{{ dag.dag_id }}",
+            create_job_kwargs="{{ dag.dag_id }}",
+            iam_role_name="{{ dag.dag_id }}",
+            s3_bucket="{{ dag.dag_id }}",
+            job_name="{{ dag.dag_id }}",
         )
+        rendered_template: GlueJobOperator = ti.render_templates()
 
-        dag_run = DagRun(dag_id=mock_operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
-        ti = TaskInstance(task=mock_operator)
-        ti.dag_run = dag_run
-        ti.render_templates()
-
-        expected_rendered_template = copy.deepcopy(CREATE_JOB_KWARGS)
-        expected_rendered_template["Command"][
-            "ScriptLocation"
-        ] = f"s3://{EXPECTED_BASE_LOCATION}/script-location.py"
-
-        assert expected_rendered_template == getattr(mock_operator, "create_job_kwargs")
-        assert EXPECTED_BASE_LOCATION == getattr(mock_operator, "s3_bucket")
+        assert DAG_ID == rendered_template.script_location
+        assert DAG_ID == rendered_template.script_args
+        assert DAG_ID == rendered_template.create_job_kwargs
+        assert DAG_ID == rendered_template.iam_role_name
+        assert DAG_ID == rendered_template.s3_bucket
+        assert DAG_ID == rendered_template.job_name
 
     @pytest.mark.parametrize(
         "script_location",
