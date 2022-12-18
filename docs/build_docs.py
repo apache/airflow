@@ -15,6 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Builds documentation and runs spell checking
+
+# isort:skip_file (needed to workaround isort bug)
+"""
 from __future__ import annotations
 
 import argparse
@@ -33,6 +38,7 @@ from docs.exts.docs_build.fetch_inventories import fetch_inventories
 from docs.exts.docs_build.github_action_utils import with_group
 from docs.exts.docs_build.package_filter import process_package_filters
 from docs.exts.docs_build.spelling_checks import SpellingError, display_spelling_error_summary
+
 from rich.console import Console
 from tabulate import tabulate
 
