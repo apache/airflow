@@ -21,9 +21,14 @@ import datetime
 import unittest
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 
-from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
+try:
+    from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
+except ImportError:
+    pytest.skip("MSSQL not available", allow_module_level=True)
+
 
 TASK_ID = "test-mssql-to-gcs"
 MSSQL_CONN_ID = "mssql_conn_test"
@@ -49,6 +54,7 @@ SCHEMA_JSON = [
 ]
 
 
+@pytest.mark.backend("mssql")
 class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
     @parameterized.expand(
         [

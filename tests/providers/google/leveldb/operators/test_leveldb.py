@@ -35,8 +35,15 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
-from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
+import pytest
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
+    from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
+except AirflowOptionalProviderFeatureException:
+    pytest.skip("LevelDB not available", allow_module_level=True)
 
 
 class TestLevelDBOperator:

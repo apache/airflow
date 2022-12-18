@@ -23,7 +23,11 @@ from urllib.parse import quote_plus
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+
+try:
+    from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+except ImportError:
+    pytest.skip("MSSQL not available", allow_module_level=True)
 
 PYMSSQL_CONN = Connection(
     conn_type="mssql", host="ip", schema="share", login="username", password="password", port=8081

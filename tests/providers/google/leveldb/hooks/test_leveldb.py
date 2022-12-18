@@ -21,7 +21,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBHookException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBHookException
+except AirflowOptionalProviderFeatureException:
+    pytest.skip("LevelDB not available", allow_module_level=True)
 
 
 class TestLevelDBHook:

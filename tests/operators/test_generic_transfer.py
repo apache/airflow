@@ -26,10 +26,8 @@ from parameterized import parameterized
 
 from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
-from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
-from tests.providers.mysql.hooks.test_mysql import MySqlContext
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -45,6 +43,8 @@ class TestMySql(unittest.TestCase):
         self.dag = dag
 
     def tearDown(self):
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
+
         drop_tables = {"test_mysql_to_mysql", "test_airflow"}
         with closing(MySqlHook().get_conn()) as conn:
             for table in drop_tables:
@@ -59,6 +59,8 @@ class TestMySql(unittest.TestCase):
         ]
     )
     def test_mysql_to_mysql(self, client):
+        from tests.providers.mysql.hooks.test_mysql import MySqlContext
+
         with MySqlContext(client):
             sql = "SELECT * FROM connection;"
             op = GenericTransfer(
