@@ -83,8 +83,6 @@ TEST_BUILD_INSTANCE = dict(
     warnings=[],
 )
 
-pytest.hook = CloudBuildAsyncHook(gcp_conn_id="google_cloud_default")
-
 
 @pytest.fixture
 def hook():
