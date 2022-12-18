@@ -58,6 +58,7 @@ class GlueJobOperator(BaseOperator):
         "job_name",
         "script_location",
         "script_args",
+        "create_job_kwargs",
         "s3_bucket",
         "iam_role_name",
     )
