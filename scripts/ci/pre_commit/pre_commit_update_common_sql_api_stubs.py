@@ -21,6 +21,8 @@ import difflib
 import os
 import shutil
 import subprocess
+
+import jinja2
 import sys
 import textwrap
 from functools import lru_cache
@@ -139,18 +141,22 @@ def post_process_historically_publicised_methods(stub_file_path: Path, line: str
         new_lines.append(line)
 
 
-def post_process_generated_stub_file(stub_file_path: Path, lines: list[str], patch_historical_methods=False):
+def post_process_generated_stub_file(
+    module_name: str, stub_file_path: Path, lines: list[str], patch_historical_methods=False
+):
     """
     Post process the stub file - add the preamble and optionally patch historical methods.
     Adding preamble always, makes sure that we can update the preamble and have it automatically updated
     in generated files even if no API specification changes.
 
+    :param module_name: name of the module of the file
     :param stub_file_path: path of the stub fil
     :param lines: lines that were read from the file (with stripped comments)
     :param patch_historical_methods:  whether we should patch historical methods
     :return: resulting lines of the file after post-processing
     """
-    new_lines = PREAMBLE.splitlines()
+    template = jinja2.Template(PREAMBLE)
+    new_lines = template.render(module_name=module_name).splitlines()
     for line in lines:
         if patch_historical_methods:
             post_process_historically_publicised_methods(stub_file_path, line, new_lines)
@@ -159,28 +165,39 @@ def post_process_generated_stub_file(stub_file_path: Path, lines: list[str], pat
     return new_lines
 
 
-def read_pyi_file_content(pyi_file_path: Path, patch_historical_methods=False) -> list[str] | None:
+def read_pyi_file_content(
+    module_name: str, pyi_file_path: Path, patch_historical_methods=False
+) -> list[str] | None:
     """
     Reads stub file content with post-processing and optionally patching historical methods. The comments
-    are stripped and preamble is always added. It makes sure that we can update the preamble
-    and have it automatically updated in generated files even if no API specification changes.
+    and initial javadoc are stripped and preamble is always added. It makes sure that we can update
+    the preamble and have it automatically updated in generated files even if no API specification changes.
 
     If None is returned, the file should be deleted.
 
-    :param pyi_file_path:
-    :param patch_historical_methods:
+    :param module_name: name of the module in question
+    :param pyi_file_path: the path of the file to read
+    :param patch_historical_methods: whether the historical methods should be patched
     :return: list of lines of post-processed content or None if the file should be deleted.
     """
-    lines = [
+    lines_no_comments = [
         line
         for line in pyi_file_path.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.strip().startswith("#")
     ]
+    remove_docstring = False
+    lines = []
+    for line in lines_no_comments:
+        if line.strip().startswith('"""'):
+            remove_docstring = not remove_docstring
+            continue
+        if not remove_docstring:
+            lines.append(line)
     if (pyi_file_path.name == "__init__.pyi") and lines == []:
         console.print(f"[yellow]Skip {pyi_file_path} as it is an empty stub for __init__.py file")
         return None
     return post_process_generated_stub_file(
-        pyi_file_path, lines, patch_historical_methods=patch_historical_methods
+        module_name, pyi_file_path, lines, patch_historical_methods=patch_historical_methods
     )
 
 
@@ -194,7 +211,10 @@ def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple
     _removals, _additions = 0, 0
     rel_path = generated_stub_path.relative_to(OUT_DIR)
     target_path = PROVIDERS_ROOT / rel_path
-    generated_pyi_content = read_pyi_file_content(generated_stub_path, patch_historical_methods=True)
+    module_name = "airflow.providers." + os.fspath(rel_path.with_suffix("")).replace(os.path.sep, ".")
+    generated_pyi_content = read_pyi_file_content(
+        module_name, generated_stub_path, patch_historical_methods=True
+    )
     if generated_pyi_content is None:
         os.unlink(generated_stub_path)
         if target_path.exists():
@@ -217,7 +237,7 @@ def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple
         console.print(f"[yellow]New file {target_path} has been missing. Treated as addition.")
         target_path.write_text("\n".join(generated_pyi_content), encoding="utf-8")
         return 0, 1
-    target_pyi_content = read_pyi_file_content(target_path, patch_historical_methods=False)
+    target_pyi_content = read_pyi_file_content(module_name, target_path, patch_historical_methods=False)
     if target_pyi_content is None:
         target_pyi_content = []
     if generated_pyi_content != target_pyi_content:
@@ -288,6 +308,10 @@ PREAMBLE = """# Licensed to the Apache Software Foundation (ASF) under one
 #
 # You can read more in the README_API.md file
 #
+\"\"\"
+Definition of the public interface for {{ module_name }}
+isort:skip_file
+\"\"\"
 """
 
 
