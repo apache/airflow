@@ -377,7 +377,10 @@ devel_only = [
     "flaky",
     "gitpython",
     "ipdb",
-    "isort",
+    # make sure that we are using stable sorting order from 5.* version (some changes were introduced
+    # in 5.11.3. Black is not compatible yet, so we need to limit isort
+    # we can remove the limit when black and isort agree on the order
+    "isort==5.11.2",
     "jira",
     "jsondiff",
     "mongomock",
