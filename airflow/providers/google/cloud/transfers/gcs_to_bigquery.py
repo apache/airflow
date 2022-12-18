@@ -320,8 +320,10 @@ class GCSToBigQueryOperator(BaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
             if self.schema_object and self.source_format != "DATASTORE_BACKUP":
-                schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
-                self.log.info("Autodetected fields from schema object: %s", schema_fields)
+                self.schema_fields = json.loads(
+                    gcs_hook.download(self.schema_object_bucket, self.schema_object).decode("utf-8")
+                )
+                self.log.info("Autodetected fields from schema object: %s", self.schema_fields)
 
         if self.external_table:
             self.log.info("Creating a new BigQuery table for storing data...")
