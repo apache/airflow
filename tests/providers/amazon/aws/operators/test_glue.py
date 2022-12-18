@@ -21,14 +21,41 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
+from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
 
+TASK_ID = "test_glue_operator"
+DAG_ID = "test_dag_id"
+JOB_NAME = "test_job_name"
+
 
 class TestGlueJobOperator:
+    @pytest.fixture(autouse=True)
     def setup_method(self):
         conf.load_test_config()
+
+    def test_render_template(self, create_task_instance_of_operator):
+        ti: TaskInstance = create_task_instance_of_operator(
+            GlueJobOperator,
+            dag_id=DAG_ID,
+            task_id=TASK_ID,
+            script_location="{{ dag.dag_id }}",
+            script_args="{{ dag.dag_id }}",
+            create_job_kwargs="{{ dag.dag_id }}",
+            iam_role_name="{{ dag.dag_id }}",
+            s3_bucket="{{ dag.dag_id }}",
+            job_name="{{ dag.dag_id }}",
+        )
+        rendered_template: GlueJobOperator = ti.render_templates()
+
+        assert DAG_ID == rendered_template.script_location
+        assert DAG_ID == rendered_template.script_args
+        assert DAG_ID == rendered_template.create_job_kwargs
+        assert DAG_ID == rendered_template.iam_role_name
+        assert DAG_ID == rendered_template.s3_bucket
+        assert DAG_ID == rendered_template.job_name
 
     @pytest.mark.parametrize(
         "script_location",
@@ -52,8 +79,8 @@ class TestGlueJobOperator:
         script_location,
     ):
         glue = GlueJobOperator(
-            task_id="test_glue_operator",
-            job_name="my_test_job",
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
             script_location=script_location,
             aws_conn_id="aws_default",
             region_name="us-west-2",
@@ -67,7 +94,7 @@ class TestGlueJobOperator:
 
         mock_initialize_job.assert_called_once_with({}, {})
         mock_print_job_logs.assert_not_called()
-        assert glue.job_name == "my_test_job"
+        assert glue.job_name == JOB_NAME
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_job_state")
@@ -77,11 +104,10 @@ class TestGlueJobOperator:
     def test_execute_with_verbose_logging(
         self, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_print_job_logs
     ):
-        job_name = "test_job_name"
         job_run_id = "11111"
         glue = GlueJobOperator(
-            task_id="test_glue_operator",
-            job_name=job_name,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
             script_location="s3_uri",
             s3_bucket="bucket_name",
             iam_role_name="role_arn",
@@ -94,12 +120,12 @@ class TestGlueJobOperator:
 
         mock_initialize_job.assert_called_once_with({}, {})
         mock_print_job_logs.assert_called_once_with(
-            job_name=job_name,
+            job_name=JOB_NAME,
             run_id=job_run_id,
             job_failed=False,
             next_token=None,
         )
-        assert glue.job_name == job_name
+        assert glue.job_name == JOB_NAME
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "job_completion")
@@ -110,8 +136,8 @@ class TestGlueJobOperator:
         self, mock_load_file, mock_get_conn, mock_initialize_job, mock_job_completion, mock_print_job_logs
     ):
         glue = GlueJobOperator(
-            task_id="test_glue_operator",
-            job_name="my_test_job",
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
             script_location="s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
             aws_conn_id="aws_default",
             region_name="us-west-2",
@@ -126,5 +152,5 @@ class TestGlueJobOperator:
         mock_initialize_job.assert_called_once_with({}, {})
         mock_job_completion.assert_not_called()
         mock_print_job_logs.assert_not_called()
-        assert glue.job_name == "my_test_job"
+        assert glue.job_name == JOB_NAME
         assert job_run_id == "11111"
