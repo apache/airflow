@@ -19,12 +19,7 @@
 ## Airflow Webserver Ingress
 #################################
 {{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
-{{- $apiIsStable := semverCompare ">= 1.19.x" (include "kubeVersion" .) -}}
-{{- if $apiIsStable }}
 apiVersion: networking.k8s.io/v1
-{{- else }}
-apiVersion: networking.k8s.io/v1beta1
-{{- end }}
 kind: Ingress
 metadata:
   name: {{ .Release.Name }}-airflow-ingress
@@ -75,51 +70,30 @@ spec:
         paths:
           {{- range $.Values.ingress.web.precedingPaths }}
           - path: {{ .path }}
-            {{- if $apiIsStable }}
             pathType: {{ .pathType }}
-            {{- end }}
             backend:
-              {{- if $apiIsStable }}
               service:
                 name: {{ .serviceName }}
                 port:
                   name: {{ .servicePort }}
-              {{- else }}
-              serviceName: {{ .serviceName }}
-              servicePort: {{ .servicePort }}
-              {{- end }}
           {{- end }}
           - backend:
-              {{- if $apiIsStable }}
               service:
                 name: {{ $.Release.Name }}-webserver
                 port:
                   name: airflow-ui
-              {{- else }}
-              serviceName: {{ $.Release.Name }}-webserver
-              servicePort: airflow-ui
-              {{- end }}
             {{- if $.Values.ingress.web.path }}
             path: {{ $.Values.ingress.web.path }}
-            {{- if $apiIsStable }}
             pathType: {{ $.Values.ingress.web.pathType }}
-            {{- end }}
             {{- end }}
           {{- range $.Values.ingress.web.succeedingPaths }}
           - path: {{ .path }}
-            {{- if $apiIsStable }}
             pathType: {{ .pathType }}
-            {{- end }}
             backend:
-              {{- if $apiIsStable }}
               service:
                 name: {{ .serviceName }}
                 port:
                   name: {{ .servicePort }}
-              {{- else }}
-              serviceName: {{ .serviceName }}
-              servicePort: {{ .servicePort }}
-              {{- end }}
           {{- end }}
       {{- $hostname := . -}}
       {{- if . | kindIs "string" | not }}
@@ -129,7 +103,7 @@ spec:
       host: {{ $hostname | quote }}
       {{- end }}
     {{- end }}
-  {{- if and .Values.ingress.web.ingressClassName $apiIsStable }}
+  {{- if .Values.ingress.web.ingressClassName }}
   ingressClassName: {{ .Values.ingress.web.ingressClassName }}
   {{- end }}
 {{- end }}
