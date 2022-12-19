@@ -207,3 +207,21 @@ class TestEmrAddStepsOperator:
             with pytest.raises(AirflowException) as ctx:
                 operator.execute(self.mock_context)
             assert str(ctx.value) == f"No cluster found for name: {cluster_name}"
+
+    @patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps")
+    def test_wait_for_completion(self, mock_add_job_flow_steps):
+        job_flow_id = "j-8989898989"
+        operator = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_id=job_flow_id,
+            aws_conn_id="aws_default",
+            dag=DAG("test_dag_id", default_args=self.args),
+            wait_for_completion=False,
+        )
+        operator.execute(self.mock_context)
+
+        mock_add_job_flow_steps.assert_called_once_with(
+            job_flow_id=job_flow_id,
+            steps=[],
+            wait_for_completion=False,
+        )
