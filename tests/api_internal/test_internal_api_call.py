@@ -61,7 +61,7 @@ def fake_method() -> str:
 
 
 @internal_api_call
-def fake_method_with_params(dag_id: str, task_id: int) -> str:
+def fake_method_with_params(dag_id: str, task_id: int, session, log) -> str:
     return f"local-call-with-params-{dag_id}-{task_id}"
 
 
@@ -124,7 +124,7 @@ class TestInternalApiCall:
 
         mock_requests.post.return_value = response
 
-        result = fake_method_with_params("fake-dag", task_id=123)
+        result = fake_method_with_params("fake-dag", task_id=123, session="session", log="log")
         assert result == "remote-call"
         expected_data = json.dumps(
             {

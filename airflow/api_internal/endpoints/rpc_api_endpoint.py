@@ -23,6 +23,7 @@ import logging
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
+from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.dag_processing.processor import DagFileProcessor
 from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -36,6 +37,7 @@ def _build_methods_map(list) -> dict:
 METHODS_MAP = _build_methods_map(
     [
         DagFileProcessor.update_import_errors,
+        DagFileProcessorManager.deactivate_stale_dags,
     ]
 )
 
@@ -68,7 +70,10 @@ def internal_airflow_api(
 
     log.debug("Calling method %.", {method_name})
     try:
-        output = handler(**params)
+        output = handler(
+            **params,
+            log=logging.getLogger(f"airflow.internal_api.{method_name}"),
+        )
         output_json = BaseSerialization.serialize(output)
         log.debug("Returning response")
         return Response(

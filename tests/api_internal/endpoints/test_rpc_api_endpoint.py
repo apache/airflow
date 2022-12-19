@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from unittest import mock
+from unittest.mock import ANY
 
 import pytest
 from flask import Flask
@@ -87,10 +88,7 @@ class TestRpcApiEndpoint:
         if method_result:
             response_data = BaseSerialization.deserialize(json.loads(response.data))
             assert response_data == method_result
-        if method_params:
-            mock_test_method.assert_called_once_with(**method_params)
-        else:
-            mock_test_method.assert_called_once()
+        mock_test_method.assert_called_once_with(**(method_params or {}), log=ANY)
 
     def test_method_with_exception(self):
         mock_test_method.side_effect = ValueError("Error!!!")
