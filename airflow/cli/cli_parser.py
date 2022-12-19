@@ -711,11 +711,11 @@ ARG_INTERNAL_API_HOSTNAME = Arg(
 )
 ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
-    help="The logfile to store the webserver access log. Use '-' to print to stdout",
+    help="The logfile to store the access log. Use '-' to print to stdout",
 )
 ARG_INTERNAL_API_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
-    help="The logfile to store the webserver error log. Use '-' to print to stderr",
+    help="The logfile to store the error log. Use '-' to print to stderr",
 )
 ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),

@@ -153,12 +153,10 @@ def internal_api(args):
             GunicornMonitor(
                 gunicorn_master_pid=gunicorn_master_pid,
                 num_workers_expected=num_workers,
-                master_timeout=conf.getint("webserver", "web_server_master_timeout"),
-                worker_refresh_interval=conf.getint("webserver", "worker_refresh_interval", fallback=30),
-                worker_refresh_batch_size=conf.getint("webserver", "worker_refresh_batch_size", fallback=1),
-                reload_on_plugin_change=conf.getboolean(
-                    "webserver", "reload_on_plugin_change", fallback=False
-                ),
+                master_timeout=120,
+                worker_refresh_interval=30,
+                worker_refresh_batch_size=1,
+                reload_on_plugin_change=False,
             ).start()
 
         if args.daemon:
@@ -219,7 +217,6 @@ def create_app(config=None, testing=False):
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
-    flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("webserver", "COOKIE_SECURE")
     flask_app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     if config:
@@ -260,9 +257,3 @@ def cached_app(config=None, testing=False):
     if not app:
         app = create_app(config=config, testing=testing)
     return app
-
-
-def purge_cached_app():
-    """Removes the cached version of the app in global state."""
-    global app
-    app = None
