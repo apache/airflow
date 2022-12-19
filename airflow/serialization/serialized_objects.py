@@ -1230,7 +1230,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls.deserialize(v)
             elif k == "dataset_trigger_rules":
                 v = deserialize(v)
-                
+
             # else use v as it is
 
             setattr(dag, k, v)
