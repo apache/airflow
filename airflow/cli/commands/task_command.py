@@ -23,8 +23,10 @@ import importlib
 import json
 import logging
 import os
+import sys
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
+from io import TextIOWrapper
 from typing import Generator, Union
 
 from pendulum.parsing.exceptions import ParserError
@@ -282,6 +284,11 @@ def _extract_external_executor_id(args) -> str | None:
     return os.environ.get("external_executor_id", None)
 
 
+def _not_redirected(stream):
+    """Check if sys.stdout has been replaced with something else."""
+    return isinstance(stream, TextIOWrapper) and stream.name == "<stdout>"
+
+
 @contextmanager
 def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
     """
@@ -295,6 +302,7 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
 
     """
     modify = not settings.DONOT_MODIFY_HANDLERS
+    did_modify = False
     is_k8s_executor_pod = os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD")
     if modify:
         root_logger = logging.getLogger()
@@ -302,29 +310,39 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
         task_logger = ti.log
         task_propagate = task_logger.propagate
         task_handlers = task_logger.handlers.copy()
-        # these are already copied to root logger, so remove and propagate
-        # (this ensures they are not handled more than they need to be)
-        # we'll add them back later
-        for h in task_logger.handlers[:]:
-            task_logger.removeHandler(h)
-        task_logger.propagate = True
-        root_logger.setLevel(task_logger.level)
-        root_handlers = root_logger.handlers.copy()
-        root_logger.handlers[:] = task_handlers
-        # task log handler reads from k8s pod logs when pod still running
-        # so we need to keep the console handler
-        if is_k8s_executor_pod:
-            for h in root_handlers:
-                if isinstance(h, RedirectStdHandler):
-                    root_logger.addHandler(h)
-                    h.respect_redirection = False
+
+        # if there are no task handlers, then we should not do anything
+        # because either the handlers were already moved by the LocalTaskJob
+        # invocation of task_run (which wraps the --raw invocation), or
+        # user is doing something custom / unexpected
+        if task_handlers:
+            did_modify = True
+            # these are already copied to root logger, so remove and propagate
+            # (this ensures they are not handled more than they need to be)
+            # we'll add them back later
+            for h in task_logger.handlers[:]:
+                task_logger.removeHandler(h)
+            task_logger.propagate = True
+            root_logger.setLevel(task_logger.level)
+            root_handlers = root_logger.handlers.copy()
+            root_logger.handlers[:] = task_handlers
+            # task log handler reads from k8s pod logs when pod still running
+            # so we need to keep the console handler
+            if is_k8s_executor_pod:
+                for h in root_handlers:
+                    if isinstance(h, RedirectStdHandler):
+                        root_logger.addHandler(h)
+                        h.respect_redirection = False
     try:
-        info_writer = StreamLogWriter(ti.log, logging.INFO)
-        warning_writer = StreamLogWriter(ti.log, logging.WARNING)
-        with redirect_stdout(info_writer), redirect_stderr(warning_writer):
+        if _not_redirected(sys.stdout):
+            info_writer = StreamLogWriter(ti.log, logging.INFO)
+            warning_writer = StreamLogWriter(ti.log, logging.WARNING)
+            with redirect_stdout(info_writer), redirect_stderr(warning_writer):
+                yield
+        else:
             yield
     finally:
-        if modify:
+        if did_modify:
             task_logger.propagate = task_propagate
             root_logger.setLevel(root_level)
             root_logger.handlers[:] = root_handlers
@@ -411,11 +429,9 @@ def task_run(args, dag=None):
     try:
         if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
-        elif not args.raw:
+        else:
             with _capture_task_logs(ti):
                 _run_task_by_selected_method(args, dag, ti)
-        else:
-            _run_task_by_selected_method(args, dag, ti)
     finally:
         try:
             get_listener_manager().hook.before_stopping(component=TaskCommandMarker())
