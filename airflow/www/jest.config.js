@@ -28,6 +28,35 @@ const config = {
   moduleNameMapper: { // Listing all aliases
     '^src/(.*)$': '<rootDir>/static/js/$1',
   },
+  transformIgnorePatterns: [
+    `node_modules/(?!${
+      [ // specify modules that needs to be transformed for jest. (esm modules)
+        'react-markdown',
+        'vfile',
+        'vfile-message',
+        'unist',
+        'unified',
+        'bail',
+        'is-plain-obj',
+        'trough',
+        'remark-parse',
+        'mdast',
+        'micromark',
+        'decode-named-character-reference',
+        'character-entities',
+        'remark-rehype',
+        'trim-lines',
+        'property-information',
+        'hast',
+        'space-separated-tokens',
+        'comma-separated-tokens',
+        'remark-gfm',
+        'ccount',
+        'escape-string-regexp',
+        'markdown-table',
+      ].join('|')
+    })`,
+  ],
 };
 
 module.exports = config;

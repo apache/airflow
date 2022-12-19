@@ -36,6 +36,7 @@ import ResizeTextarea from 'react-textarea-autosize';
 import { getMetaValue } from 'src/utils';
 import { useSetDagRunNote, useSetTaskInstanceNote } from 'src/api';
 import { MdEdit } from 'react-icons/md';
+import ReactMarkdown from 'src/components/ReactMarkdown';
 
 interface Props {
   dagId: string;
@@ -95,6 +96,7 @@ const NotesAccordion = ({
             {editMode ? (
               <form onSubmit={handleSubmit}>
                 <Box>
+
                   <Textarea
                     autoFocus
                     minH="unset"
@@ -109,7 +111,7 @@ const NotesAccordion = ({
                     data-testid="notes-input"
                   />
                 </Box>
-                <Flex mt={3}>
+                <Flex mt={3} justify="right">
                   <Button type="submit" isLoading={isLoading} colorScheme="blue">
                     Save Note
                   </Button>
@@ -123,20 +125,24 @@ const NotesAccordion = ({
                 </Flex>
               </form>
             ) : (
-              <>
-                <Text whiteSpace="pre-line">{note}</Text>
-                <Button
-                  onClick={() => setEditMode(true)}
-                  isDisabled={!canEdit}
-                  isLoading={isLoading}
-                  title={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
-                  aria-label={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
-                  mt={2}
-                  leftIcon={<MdEdit />}
-                >
-                  {!note ? 'Add Note' : 'Edit Note'}
-                </Button>
-              </>
+              <Flex direction="column">
+                <Flex direction="column" style={{ fontSize: '12px' }}>
+                  <ReactMarkdown>{note}</ReactMarkdown>
+                </Flex>
+                <Flex justify="right">
+                  <Button
+                    onClick={() => setEditMode(true)}
+                    isDisabled={!canEdit}
+                    isLoading={isLoading}
+                    title={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                    aria-label={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                    mt={2}
+                    leftIcon={<MdEdit />}
+                  >
+                    {!note ? 'Add Note' : 'Edit Note'}
+                  </Button>
+                </Flex>
+              </Flex>
             )}
           </AccordionPanel>
         </AccordionItem>
