@@ -30,6 +30,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
+from airflow.datasets import DatasetRule
+
 revision = "7afd6d4021a9"
 down_revision = "290244fb8b83"
 branch_labels = None
@@ -38,7 +40,7 @@ airflow_version = "2.6.0"
 
 
 def upgrade():
-    op.add_column("dag", sa.Column("dataset_trigger_mode", sa.String(64), nullable=False, default="all_of"))
+    op.add_column("dag", sa.Column("dataset_trigger_mode", sa.String(64), nullable=False, default=DatasetRule.ALL_OF))
 
 
 def downgrade():

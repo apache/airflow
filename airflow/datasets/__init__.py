@@ -53,3 +53,8 @@ class any_of(UserList):
 
     def __init__(self, *datasets: Dataset):
         super().__init__([*datasets])
+
+
+class DatasetRule:
+    ANY_OF = "any_of"
+    ALL_OF = "all_of"

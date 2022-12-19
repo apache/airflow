@@ -64,7 +64,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
-from airflow.datasets import any_of
+from airflow.datasets import any_of, DatasetRule
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
@@ -241,7 +241,7 @@ def get_dataset_triggered_next_run_info(
             DagScheduleDatasetReference.dag_id,
         )
         .filter(DagScheduleDatasetReference.dag_id.in_(dag_ids))
-        .filter(DagModel.dataset_trigger_mode == "all_of")
+        .filter(DagModel.dataset_trigger_mode == DatasetRule.ALL_OF)
         .all()
     }
 
@@ -517,7 +517,7 @@ class DAG(LoggingMixin):
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Collection[Dataset] = []
-        self.dataset_trigger_mode = "any_of" if isinstance(schedule, any_of) else "all_of"
+        self.dataset_trigger_mode = DatasetRule.ANY_OF if isinstance(schedule, any_of) else DatasetRule.ALL_OF
 
         if isinstance(schedule, Collection) and not isinstance(schedule, str):
             from airflow.datasets import Dataset
@@ -3176,7 +3176,7 @@ class DagModel(Base):
     parent_dag = relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
-    dataset_trigger_mode = Column(String(64), default="all_of", nullable=False)
+    dataset_trigger_mode = Column(String(64), default=DatasetRule.ALL_OF, nullable=False)
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
         cascade="all, delete, delete-orphan",
@@ -3357,7 +3357,7 @@ class DagModel(Base):
             .having(
                 or_(
                     func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)),
-                    DagModel.dataset_trigger_mode == "any_of",
+                    DagModel.dataset_trigger_mode == DatasetRule.ANY_OF,
                 )
             )
             .all()
