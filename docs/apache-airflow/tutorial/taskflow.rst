@@ -455,7 +455,7 @@ To retrieve an XCom result for a key other than ``return_value``, you can use:
     listed as a ``template_field``.
 
 In the code example below, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
-is captured via :doc:`XComs </concepts/xcoms>`. This XCom result, which is the task output, is then passed
+is captured via :doc:`XComs </core-concepts/xcoms>`. This XCom result, which is the task output, is then passed
 to a TaskFlow function which parses the response as JSON.
 
 .. code-block:: python
@@ -584,5 +584,5 @@ You have seen how simple it is to write DAGs using the TaskFlow API paradigm wit
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/pipeline`
-    - Read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
-    - View the section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.
+    - Read the :doc:`Concepts section </core-concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - View the section on the :doc:`TaskFlow API </core-concepts/taskflow>` and the ``@task`` decorator.

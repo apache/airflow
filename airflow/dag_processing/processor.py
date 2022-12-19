@@ -427,7 +427,7 @@ class DagFileProcessor(LoggingMixin):
                 if next_info is None:
                     break
                 if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
-                    break
+                    continue
                 if next_info.logical_date + task.sla < ts:
 
                     sla_miss = SlaMiss(

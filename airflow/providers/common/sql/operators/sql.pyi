@@ -27,6 +27,10 @@
 #
 # You can read more in the README_API.md file
 #
+"""
+Definition of the public interface for airflow.providers.common.sql.operators.sql
+isort:skip_file
+"""
 from _typeshed import Incomplete
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -80,6 +84,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
 class SQLColumnCheckOperator(BaseSQLOperator):
     template_fields: Incomplete
+    template_fields_renderers: Incomplete
     sql_check_template: str
     column_checks: Incomplete
     table: Incomplete
@@ -102,6 +107,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
 class SQLTableCheckOperator(BaseSQLOperator):
     template_fields: Incomplete
+    template_fields_renderers: Incomplete
     sql_check_template: str
     table: Incomplete
     checks: Incomplete

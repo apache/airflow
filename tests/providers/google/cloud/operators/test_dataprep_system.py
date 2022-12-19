@@ -32,14 +32,13 @@ EXTRA = {"token": TOKEN}
 
 
 @pytest.mark.skipif(TOKEN is None, reason="Dataprep token not present")
-class DataprepExampleDagsTest(GoogleSystemTest):
+class TestDataprepExampleDagsSystem(GoogleSystemTest):
     """
     System tests for Dataprep operators.
     It uses a real service and requires real data for test.
     """
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         with create_session() as session:
             dataprep_conn_id = Connection(
                 conn_id="dataprep_default",
@@ -48,9 +47,8 @@ class DataprepExampleDagsTest(GoogleSystemTest):
             )
             session.add(dataprep_conn_id)
 
-    def tearDown(self):
+    def teardown_method(self):
         clear_db_connections()
-        super().tearDown()
 
     def test_run_example_dag(self):
         self.run_dag(dag_id="example_dataprep", dag_folder=CLOUD_DAG_FOLDER)

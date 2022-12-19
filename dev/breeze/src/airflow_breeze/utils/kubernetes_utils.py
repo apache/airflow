@@ -309,14 +309,10 @@ def _install_packages_in_k8s_virtualenv(with_constraints: bool):
                 f"constraints-{sys.version_info.major}.{sys.version_info.minor}.txt",
             ]
         )
-    install_packages_result = run_command(
-        install_command,
-        check=False,
-        capture_output=True,
-    )
+    install_packages_result = run_command(install_command, check=False, capture_output=True, text=True)
     if install_packages_result.returncode != 0:
         get_console().print(
-            f"[error]Error when updating pip to {PIP_VERSION}:[/]\n"
+            f"[error]Error when installing packages from : {K8S_REQUIREMENTS.resolve()}[/]\n"
             f"{install_packages_result.stdout}\n{install_packages_result.stderr}"
         )
     return install_packages_result
