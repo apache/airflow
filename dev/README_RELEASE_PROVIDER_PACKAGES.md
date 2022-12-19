@@ -876,8 +876,8 @@ set tags for the providers in the repo.
 
 ## Notify developers of release
 
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
-the artifacts have been published:
+Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
+the artifacts have been published.
 
 Subject:
 
@@ -909,6 +909,13 @@ Cheers,
 <your name>
 EOF
 ```
+
+Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+Note If you choose sending it with your email client make sure the email is set to plain text mode.
+Trying to send HTML content will result in failure.
 
 ## Add release data to Apache Committee Report Helper
 
