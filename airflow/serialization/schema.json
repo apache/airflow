@@ -118,7 +118,7 @@
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
-        "run_on_any_dataset_changed": { "type": "boolean" },
+        "dataset_trigger_mode": { "type": "string" },
         "dataset_triggers": {
             "type": "array",
             "items": { "$ref": "#/definitions/typed_dataset" }

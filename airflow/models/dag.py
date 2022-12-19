@@ -241,7 +241,7 @@ def get_dataset_triggered_next_run_info(
             DagScheduleDatasetReference.dag_id,
         )
         .filter(DagScheduleDatasetReference.dag_id.in_(dag_ids))
-        .filter(not_(DagModel.run_on_any_dataset_changed))
+        .filter(DagModel.dataset_trigger_mode == "all_of")
         .all()
     }
 
@@ -517,7 +517,7 @@ class DAG(LoggingMixin):
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Collection[Dataset] = []
-        self.run_on_any_dataset_changed = isinstance(schedule, any_of)
+        self.dataset_trigger_mode = "any_of" if isinstance(schedule, any_of) else "all_of"
 
         if isinstance(schedule, Collection) and not isinstance(schedule, str):
             from airflow.datasets import Dataset
@@ -2749,7 +2749,7 @@ class DAG(LoggingMixin):
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.processor_subdir = processor_subdir
-            orm_dag.run_on_any_dataset_changed = dag.run_on_any_dataset_changed
+            orm_dag.dataset_trigger_mode = dag.dataset_trigger_mode
 
             run: DagRun | None = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -3176,7 +3176,7 @@ class DagModel(Base):
     parent_dag = relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
-    run_on_any_dataset_changed = Column(Boolean, default=False)
+    dataset_trigger_mode = Column(String(64), default="all_of", nullable=False)
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
         cascade="all, delete, delete-orphan",
@@ -3357,7 +3357,7 @@ class DagModel(Base):
             .having(
                 or_(
                     func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)),
-                    DagModel.run_on_any_dataset_changed,
+                    DagModel.dataset_trigger_mode == "any_of",
                 )
             )
             .all()

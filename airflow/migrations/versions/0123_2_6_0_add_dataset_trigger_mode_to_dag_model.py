@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add dataset schedule mode to DAG model
+"""add dataset_trigger_mode to DAG model
 
 Revision ID: 7afd6d4021a9
 Revises: 290244fb8b83
@@ -38,8 +38,8 @@ airflow_version = "2.6.0"
 
 
 def upgrade():
-    op.add_column("dag", sa.Column("run_on_any_dataset_changed", sa.Boolean(), nullable=False, default=False))
+    op.add_column("dag", sa.Column("dataset_trigger_mode", sa.String(64), nullable=False, default="all_of"))
 
 
 def downgrade():
-    op.drop_column("dag", "run_on_any_dataset_changed")
+    op.drop_column("dag", "dataset_trigger_mode")
