@@ -41,15 +41,6 @@ TaskInstance State Change Events
 TaskInstance state change events occur when a ``TaskInstance`` changes state.
 You can use these events to react to ``LocalTaskJob`` state changes.
 
-DagRun State Change Events
---------------------------
-
-- ``on_dag_run_running``
-- ``on_dag_run_success``
-- ``on_dag_run_failed``
-
-DagRun state change events occur when a  ``DagRun`` changes state.
-You can use these events to react to ``SchedulerJob`` or ``BackfillJob`` state changes.
 
 Usage
 -----
