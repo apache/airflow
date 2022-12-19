@@ -411,9 +411,11 @@ def task_run(args, dag=None):
     try:
         if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
-        else:
+        elif not args.raw:
             with _capture_task_logs(ti):
                 _run_task_by_selected_method(args, dag, ti)
+        else:
+            _run_task_by_selected_method(args, dag, ti)
     finally:
         try:
             get_listener_manager().hook.before_stopping(component=TaskCommandMarker())
