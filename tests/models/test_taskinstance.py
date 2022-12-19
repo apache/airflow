@@ -2328,21 +2328,23 @@ class TestTaskInstance:
             called = True
             assert context["dag_run"].dag_id == "test_dagrun_execute_callback"
 
-        ti = create_task_instance(
-            dag_id="test_execute_callback",
-            on_execute_callback=on_execute_callable,
-            state=State.RUNNING,
-        )
+        for i, callback_input in enumerate([[on_execute_callable], on_execute_callable]):
 
-        session = settings.Session()
+            ti = create_task_instance(
+                dag_id=f"test_execute_callback_{i}",
+                on_execute_callback=callback_input,
+                state=State.RUNNING,
+            )
 
-        session.merge(ti)
-        session.commit()
+            session = settings.Session()
 
-        ti._run_raw_task()
-        assert called
-        ti.refresh_from_db()
-        assert ti.state == State.SUCCESS
+            session.merge(ti)
+            session.commit()
+
+            ti._run_raw_task()
+            assert called
+            ti.refresh_from_db()
+            assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
         "finished_state, callback_type",
@@ -2363,20 +2365,23 @@ class TestTaskInstance:
             raise KeyError
             completed = True
 
-        ti = create_task_instance(
-            end_date=timezone.utcnow() + datetime.timedelta(days=10),
-            on_success_callback=on_finish_callable,
-            on_retry_callback=on_finish_callable,
-            on_failure_callback=on_finish_callable,
-            state=finished_state,
-        )
-        ti._log = mock.Mock()
-        ti._run_finished_callback(on_finish_callable, {}, callback_type)
+        for i, callback_input in enumerate([[on_finish_callable], on_finish_callable]):
 
-        assert called
-        assert not completed
-        expected_message = f"Error when executing {callback_type} callback"
-        ti.log.exception.assert_called_once_with(expected_message)
+            ti = create_task_instance(
+                dag_id=f"test_finish_callback_{i}",
+                end_date=timezone.utcnow() + datetime.timedelta(days=10),
+                on_success_callback=callback_input,
+                on_retry_callback=callback_input,
+                on_failure_callback=callback_input,
+                state=finished_state,
+            )
+            ti._log = mock.Mock()
+            ti._run_finished_callback(callback_input, {}, callback_type)
+
+            assert called
+            assert not completed
+            expected_message = f"Error when executing {callback_type} callback"
+            ti.log.exception.assert_called_once_with(expected_message)
 
     @provide_session
     def test_handle_failure(self, create_dummy_dag, session=None):
