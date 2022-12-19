@@ -54,8 +54,8 @@ SCHEMA_FIELDS_INT = [
 ]
 SCHEMA_BUCKET = "test-schema-bucket"
 SCHEMA_OBJECT = "test/schema/schema.json"
-TEST_SOURCE_OBJECTS = ["test/objects/test.csv"]
-TEST_SOURCE_OBJECTS_AS_STRING = "test/objects/test.csv"
+TEST_SOURCE_OBJECTS_LIST = ["test/objects/test.csv"]
+TEST_SOURCE_OBJECTS = "test/objects/test.csv"
 TEST_SOURCE_OBJECTS_JSON = "test/objects/test.json"
 LABELS = {"k1": "v1"}
 DESCRIPTION = "Test Description"
@@ -101,7 +101,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                 "externalDataConfiguration": {
                     "autodetect": True,
                     "sourceFormat": "CSV",
-                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                     "compression": "NONE",
                     "ignoreUnknownValues": False,
                     "csvOptions": {
@@ -159,7 +159,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                         "createDisposition": "CREATE_IF_NEEDED",
                         "destinationTable": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                         "sourceFormat": "CSV",
-                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                         "writeDisposition": WRITE_DISPOSITION,
                         "ignoreUnknownValues": False,
                         "schema": {"fields": SCHEMA_FIELDS},
@@ -220,7 +220,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                         "createDisposition": "CREATE_IF_NEEDED",
                         "destinationTable": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                         "sourceFormat": "CSV",
-                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                         "writeDisposition": "WRITE_TRUNCATE",
                         "ignoreUnknownValues": False,
                         "schema": {"fields": SCHEMA_FIELDS},
@@ -283,7 +283,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                 "externalDataConfiguration": {
                     "autodetect": True,
                     "sourceFormat": "CSV",
-                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                     "compression": "NONE",
                     "ignoreUnknownValues": False,
                     "csvOptions": {
@@ -328,7 +328,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                         "createDisposition": "CREATE_IF_NEEDED",
                         "destinationTable": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                         "sourceFormat": "CSV",
-                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                         "writeDisposition": "WRITE_TRUNCATE",
                         "ignoreUnknownValues": False,
                         "schema": {"fields": SCHEMA_FIELDS},
@@ -382,7 +382,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                 "externalDataConfiguration": {
                     "autodetect": True,
                     "sourceFormat": "CSV",
-                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                     "compression": "NONE",
                     "ignoreUnknownValues": False,
                     "csvOptions": {
@@ -432,7 +432,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                         },
                         sourceFormat="CSV",
                         skipLeadingRows=None,
-                        sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                        sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                         writeDisposition=WRITE_DISPOSITION,
                         ignoreUnknownValues=False,
                         allowQuotedNewlines=False,
@@ -483,7 +483,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                     "autodetect": True,
                     "sourceFormat": "CSV",
                     "sourceUris": [
-                        f"gs://{TEST_BUCKET}/{source_object}" for source_object in TEST_SOURCE_OBJECTS
+                        f"gs://{TEST_BUCKET}/{source_object}" for source_object in TEST_SOURCE_OBJECTS_LIST
                     ],
                     "compression": "NONE",
                     "ignoreUnknownValues": False,
@@ -584,7 +584,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                 "externalDataConfiguration": {
                     "autodetect": True,
                     "sourceFormat": "CSV",
-                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                     "compression": "NONE",
                     "ignoreUnknownValues": False,
                     "csvOptions": {
@@ -627,12 +627,12 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                         "autodetect": True,
                         "createDisposition": "CREATE_IF_NEEDED",
                         "destinationTable": {
-                            "projectId": "test-project",
-                            "datasetId": "dataset",
+                            "projectId": PROJECT_ID,
+                            "datasetId": DATASET,
                             "tableId": "table",
                         },
                         "sourceFormat": "CSV",
-                        "sourceUris": ["gs://test-bucket/test/objects/test.csv"],
+                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                         "writeDisposition": "WRITE_TRUNCATE",
                         "ignoreUnknownValues": False,
                         "schema": {"fields": SCHEMA_FIELDS},
@@ -654,8 +654,8 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
 
         hook.return_value.insert_job.assert_has_calls(calls)
 
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
+    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_schema_obj_external_table_should_execute_successfully(self, bq_hook, gcs_hook):
         bq_hook.return_value.insert_job.side_effect = [
             MagicMock(job_id=pytest.real_job_id, error_result=False),
@@ -678,33 +678,34 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         operator.execute(context=MagicMock())
 
         bq_hook.return_value.create_empty_table.assert_called_once_with(
+            exists_ok=True,
+            location=None,
+            project_id=PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
-                "labels": None,
-                "description": None,
+                "labels": {},
                 "externalDataConfiguration": {
-                    "source_uris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
-                    "source_format": "CSV",
-                    "maxBadRecords": 0,
                     "autodetect": True,
+                    "sourceFormat": "CSV",
+                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                     "compression": "NONE",
+                    "ignoreUnknownValues": False,
                     "csvOptions": {
-                        "fieldDelimeter": ",",
                         "skipLeadingRows": None,
+                        "fieldDelimiter": ",",
                         "quote": None,
                         "allowQuotedNewlines": False,
                         "allowJaggedRows": False,
+                        "encoding": "UTF-8",
                     },
+                    "schema": {"fields": SCHEMA_FIELDS},
                 },
-                "location": None,
-                "encryptionConfiguration": None,
-                "schema": {"fields": SCHEMA_FIELDS},
-            }
+            },
         )
         gcs_hook.return_value.download.assert_called_once_with(SCHEMA_BUCKET, SCHEMA_OBJECT)
 
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
+    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_schema_obj_without_external_table_should_execute_successfully(self, bq_hook, gcs_hook):
         bq_hook.return_value.insert_job.side_effect = [
             MagicMock(job_id=pytest.real_job_id, error_result=False),
@@ -730,28 +731,21 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         calls = [
             call(
                 configuration={
-                    "load": dict(
-                        autodetect=True,
-                        createDisposition="CREATE_IF_NEEDED",
-                        destinationTable={"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
-                        destinationTableProperties={
-                            "description": None,
-                            "labels": None,
-                        },
-                        sourceFormat="CSV",
-                        skipLeadingRows=None,
-                        sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
-                        writeDisposition=WRITE_DISPOSITION,
-                        ignoreUnknownValues=False,
-                        allowQuotedNewlines=False,
-                        encoding="UTF-8",
-                        schema={"fields": SCHEMA_FIELDS},
-                        allowJaggedRows=False,
-                        fieldDelimiter=",",
-                        maxBadRecords=0,
-                        quote=None,
-                        schemaUpdateOptions=(),
-                    ),
+                    "load": {
+                        "autodetect": True,
+                        "createDisposition": "CREATE_IF_NEEDED",
+                        "destinationTable": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
+                        "sourceFormat": "CSV",
+                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
+                        "writeDisposition": "WRITE_TRUNCATE",
+                        "ignoreUnknownValues": False,
+                        "schema": {"fields": SCHEMA_FIELDS},
+                        "skipLeadingRows": None,
+                        "fieldDelimiter": ",",
+                        "quote": None,
+                        "allowQuotedNewlines": False,
+                        "encoding": "UTF-8",
+                    }
                 },
                 project_id=bq_hook.return_value.project_id,
                 location=None,
@@ -759,194 +753,11 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                 timeout=None,
                 retry=DEFAULT_RETRY,
                 nowait=True,
-            ),
+            )
         ]
 
         bq_hook.return_value.insert_job.assert_has_calls(calls)
         gcs_hook.return_value.download.assert_called_once_with(SCHEMA_BUCKET, SCHEMA_OBJECT)
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
-    def test_all_fields_should_be_present(self, hook):
-        hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS,
-            schema_fields=SCHEMA_FIELDS,
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=False,
-            field_delimiter=";",
-            max_bad_records=13,
-            quote_character="|",
-            schema_update_options={"foo": "bar"},
-            allow_jagged_rows=True,
-            encryption_configuration={"bar": "baz"},
-            cluster_fields=["field_1", "field_2"],
-        )
-
-        operator.execute(context=MagicMock())
-
-        calls = [
-            call(
-                configuration={
-                    "load": dict(
-                        autodetect=True,
-                        createDisposition="CREATE_IF_NEEDED",
-                        destinationTable={"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
-                        destinationTableProperties={
-                            "description": None,
-                            "labels": None,
-                        },
-                        sourceFormat="CSV",
-                        skipLeadingRows=None,
-                        sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
-                        writeDisposition=WRITE_DISPOSITION,
-                        ignoreUnknownValues=False,
-                        allowQuotedNewlines=False,
-                        encoding="UTF-8",
-                        schema={"fields": SCHEMA_FIELDS},
-                        allowJaggedRows=True,
-                        fieldDelimiter=";",
-                        maxBadRecords=13,
-                        quote="|",
-                        schemaUpdateOptions={"foo": "bar"},
-                        destinationEncryptionConfiguration={"bar": "baz"},
-                        clustering={"fields": ["field_1", "field_2"]},
-                    ),
-                },
-                project_id=hook.return_value.project_id,
-                location=None,
-                job_id=pytest.real_job_id,
-                timeout=None,
-                retry=DEFAULT_RETRY,
-                nowait=True,
-            ),
-        ]
-
-        hook.return_value.insert_job.assert_has_calls(calls)
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
-    def test_date_partitioned_explicit_setting_should_be_found(self, hook):
-        hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS,
-            schema_fields=SCHEMA_FIELDS,
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=False,
-            time_partitioning={"type": "DAY"},
-        )
-
-        operator.execute(context=MagicMock())
-
-        calls = [
-            call(
-                configuration={
-                    "load": dict(
-                        autodetect=True,
-                        createDisposition="CREATE_IF_NEEDED",
-                        destinationTable={"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
-                        destinationTableProperties={
-                            "description": None,
-                            "labels": None,
-                        },
-                        sourceFormat="CSV",
-                        skipLeadingRows=None,
-                        sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
-                        writeDisposition=WRITE_DISPOSITION,
-                        ignoreUnknownValues=False,
-                        allowQuotedNewlines=False,
-                        encoding="UTF-8",
-                        schema={"fields": SCHEMA_FIELDS},
-                        allowJaggedRows=False,
-                        fieldDelimiter=",",
-                        maxBadRecords=0,
-                        quote=None,
-                        schemaUpdateOptions=(),
-                        timePartitioning={"type": "DAY"},
-                    ),
-                },
-                project_id=hook.return_value.project_id,
-                location=None,
-                job_id=pytest.real_job_id,
-                timeout=None,
-                retry=DEFAULT_RETRY,
-                nowait=True,
-            ),
-        ]
-
-        hook.return_value.insert_job.assert_has_calls(calls)
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook")
-    def test_date_partitioned_implied_in_table_name_should_be_found(self, hook):
-        hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS,
-            schema_fields=SCHEMA_FIELDS,
-            destination_project_dataset_table=TEST_EXPLICIT_DEST + "$20221123",
-            write_disposition=WRITE_DISPOSITION,
-            external_table=False,
-        )
-
-        operator.execute(context=MagicMock())
-
-        calls = [
-            call(
-                configuration={
-                    "load": dict(
-                        autodetect=True,
-                        createDisposition="CREATE_IF_NEEDED",
-                        destinationTable={"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
-                        destinationTableProperties={
-                            "description": None,
-                            "labels": None,
-                        },
-                        sourceFormat="CSV",
-                        skipLeadingRows=None,
-                        sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
-                        writeDisposition=WRITE_DISPOSITION,
-                        ignoreUnknownValues=False,
-                        allowQuotedNewlines=False,
-                        encoding="UTF-8",
-                        schema={"fields": SCHEMA_FIELDS},
-                        allowJaggedRows=False,
-                        fieldDelimiter=",",
-                        maxBadRecords=0,
-                        quote=None,
-                        schemaUpdateOptions=(),
-                        timePartitioning={"type": "DAY"},
-                    ),
-                },
-                project_id=hook.return_value.project_id,
-                location=None,
-                job_id=pytest.real_job_id,
-                timeout=None,
-                retry=DEFAULT_RETRY,
-                nowait=True,
-            ),
-        ]
-
-        hook.return_value.insert_job.assert_has_calls(calls)
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_should_throw_ex_when_no_bucket_specified(self, hook):
@@ -1010,144 +821,8 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
             )
             operator.execute(context=MagicMock())
 
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator._check_schema_fields"))
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_schema_fields_scanner_external_table_should_execute_successfully(
-        self, bq_hook, gcs_hook, mocked_check_fileds
-    ):
-        """
-        Check detection of schema fields if schema_fields parameter is not
-        specified and fields are read from source objects correctly by the operator
-        if all fields are characters. In this case operator searches for fields in source object
-        and update configuration with constructed schema_fields.
-        """
-        bq_hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        bq_hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        bq_hook.return_value.get_job.return_value.result.return_value = ("1",)
-
-        gcs_hook.return_value.download.return_value = b"id,name\r\none,Anna"
-
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS,
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=True,
-            autodetect=True,
-        )
-
-        operator.execute(context=MagicMock())
-        mocked_check_fileds.assert_called_once()
-
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator._check_schema_fields"))
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
-    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_schema_fields_scanner_should_not_called_on_json_ex_should_execute_successfully(
-        self, bq_hook, gcs_hook, mocked_check_fileds
-    ):
-        """
-        Check not calling check_schema_fields method in case if input file is of JSON type on external table
-        """
-        bq_hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        bq_hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        bq_hook.return_value.get_job.return_value.result.return_value = ("1",)
-
-        gcs_hook.return_value.download.return_value = b"id,name\r\none,Anna"
-
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS_JSON,
-            source_format="NEWLINE_DELIMITED_JSON",
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=True,
-            autodetect=True,
-        )
-
-        operator.execute(context=MagicMock())
-        mocked_check_fileds.assert_not_called()
-
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator._check_schema_fields"))
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
-    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_schema_fields_scanner_should_not_called_on_json_should_execute_successfully(
-        self, bq_hook, gcs_hook, mocked_check_fileds
-    ):
-        """
-        Check not calling check_schema_fields method in case if input file is of JSON type
-        """
-        bq_hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        bq_hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        bq_hook.return_value.get_job.return_value.result.return_value = ("1",)
-
-        gcs_hook.return_value.download.return_value = b"id,name\r\none,Anna"
-
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS_JSON,
-            source_format="NEWLINE_DELIMITED_JSON",
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=False,
-            autodetect=True,
-        )
-
-        operator.execute(context=MagicMock())
-        mocked_check_fileds.assert_not_called()
-
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator._check_schema_fields"))
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
-    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_schema_fields_scanner_without_external_table_should_execute_successfully(
-        self, bq_hook, gcs_hook, mocked_check_fileds
-    ):
-        """
-        Check detection of schema fields if schema_fields parameter is not
-        specified and fields are read from source objects correctly by the operator
-        if all fields are characters. In this case operator searches for fields in source object
-        and update configuration with constructed schema_fields.
-        """
-        bq_hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        bq_hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        bq_hook.return_value.get_job.return_value.result.return_value = ("1",)
-
-        gcs_hook.return_value.download.return_value = b"id,name\r\none,Anna"
-
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS,
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=False,
-            autodetect=True,
-        )
-
-        operator.execute(context=MagicMock())
-        mocked_check_fileds.assert_called_once()
-
-    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_schema_fields_scanner_external_table_should_throw_ex_when_autodetect_not_specified(
+    def test_source_format_check_should_throw_ex_when_incorrect_source_type(
         self,
         hook,
     ):
@@ -1160,37 +835,8 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         hook.return_value.get_job.return_value.result.return_value = ("1",)
 
         with pytest.raises(
-            AirflowException,
-            match=r"Table schema was not found. Neither schema object nor schema fields were specified",
-        ):
-            operator = GCSToBigQueryOperator(
-                task_id=TASK_ID,
-                bucket=TEST_BUCKET,
-                source_objects=TEST_SOURCE_OBJECTS,
-                destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                max_id_key=MAX_ID_KEY,
-                write_disposition=WRITE_DISPOSITION,
-                external_table=True,
-                autodetect=False,
-            )
-            operator.execute(context=MagicMock())
-
-    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_schema_fields_scanner_without_external_table_should_throw_ex_when_autodetect_not_specified(
-        self,
-        hook,
-    ):
-        hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        hook.return_value.get_job.return_value.result.return_value = ("1",)
-
-        with pytest.raises(
-            AirflowException,
-            match=r"Table schema was not found. Neither schema object nor schema fields were specified",
+            ValueError,
+            match=r"is not a valid source format.",
         ):
             operator = GCSToBigQueryOperator(
                 task_id=TASK_ID,
@@ -1201,6 +847,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                 write_disposition=WRITE_DISPOSITION,
                 external_table=False,
                 autodetect=False,
+                source_format="incorrect",
             )
             operator.execute(context=MagicMock())
 
@@ -1247,7 +894,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                 "externalDataConfiguration": {
                     "autodetect": True,
                     "sourceFormat": "CSV",
-                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                     "compression": "NONE",
                     "ignoreUnknownValues": False,
                     "csvOptions": {
@@ -1313,7 +960,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                         "createDisposition": "CREATE_IF_NEEDED",
                         "destinationTable": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                         "sourceFormat": "CSV",
-                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                         "writeDisposition": WRITE_DISPOSITION,
                         "ignoreUnknownValues": False,
                         "skipLeadingRows": None,
@@ -1374,7 +1021,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                         "createDisposition": "CREATE_IF_NEEDED",
                         "destinationTable": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                         "sourceFormat": "CSV",
-                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                         "writeDisposition": WRITE_DISPOSITION,
                         "ignoreUnknownValues": False,
                         "schema": {"fields": SCHEMA_FIELDS_INT},
@@ -1428,7 +1075,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
                 "externalDataConfiguration": {
                     "autodetect": True,
                     "sourceFormat": "CSV",
-                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                     "compression": "NONE",
                     "ignoreUnknownValues": False,
                     "csvOptions": {
@@ -1688,7 +1335,7 @@ class TestAsyncGCSToBigQueryOperator(unittest.TestCase):
                             },
                             sourceFormat="CSV",
                             skipLeadingRows=None,
-                            sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                            sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                             writeDisposition=WRITE_DISPOSITION,
                             ignoreUnknownValues=False,
                             allowQuotedNewlines=False,
@@ -1764,7 +1411,7 @@ class TestAsyncGCSToBigQueryOperator(unittest.TestCase):
                             },
                             sourceFormat="CSV",
                             skipLeadingRows=None,
-                            sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS_AS_STRING}"],
+                            sourceUris=[f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
                             writeDisposition=WRITE_DISPOSITION,
                             ignoreUnknownValues=False,
                             allowQuotedNewlines=False,
@@ -1791,109 +1438,6 @@ class TestAsyncGCSToBigQueryOperator(unittest.TestCase):
             ]
 
             bq_hook.return_value.insert_job.assert_has_calls(calls)
-
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator._check_schema_fields"))
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
-    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_async_schema_fields_scanner_external_table_should_execute_successfully(
-        self, bq_hook, gcs_hook, mocked_check_fileds
-    ):
-        """
-        Check detection of schema fields if schema_fields parameter is not
-        specified and fields are read from source objects correctly by the operator
-        if all fields are characters. In this case operator searches for fields in source object
-        and update configuration with constructed schema_fields.
-        """
-        bq_hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        bq_hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        bq_hook.return_value.get_job.return_value.result.return_value = ("1",)
-
-        gcs_hook.return_value.download.return_value = b"id,name\r\none,Anna"
-
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS,
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=False,
-            autodetect=True,
-            deferrable=True,
-        )
-        with pytest.raises(TaskDeferred):
-            operator.execute(context=MagicMock())
-        mocked_check_fileds.assert_called_once()
-
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator._check_schema_fields"))
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
-    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_schema_fields_scanner_should_not_called_on_json_ex_should_execute_successfully(
-        self, bq_hook, gcs_hook, mocked_check_fileds
-    ):
-        """
-        Check not calling check_schema_fields method in case if input file is of JSON type on external table
-        """
-        bq_hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        bq_hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        bq_hook.return_value.get_job.return_value.result.return_value = ("1",)
-
-        gcs_hook.return_value.download.return_value = b"id,name\r\none,Anna"
-
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS_JSON,
-            source_format="NEWLINE_DELIMITED_JSON",
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=True,
-            autodetect=True,
-            deferrable=True,
-        )
-        operator.execute(context=MagicMock())
-        mocked_check_fileds.assert_not_called()
-
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator._check_schema_fields"))
-    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
-    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_schema_fields_scanner_should_not_called_on_json_should_execute_successfully(
-        self, bq_hook, gcs_hook, mocked_check_fileds
-    ):
-        """
-        Check not calling check_schema_fields method in case if input file is of JSON type
-        """
-        bq_hook.return_value.insert_job.side_effect = [
-            MagicMock(job_id=pytest.real_job_id, error_result=False),
-            pytest.real_job_id,
-        ]
-        bq_hook.return_value.generate_job_id.return_value = pytest.real_job_id
-        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        bq_hook.return_value.get_job.return_value.result.return_value = ("1",)
-
-        gcs_hook.return_value.download.return_value = b"id,name\r\none,Anna"
-
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS_JSON,
-            source_format="NEWLINE_DELIMITED_JSON",
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=False,
-            autodetect=True,
-            deferrable=True,
-        )
-        with pytest.raises(TaskDeferred):
-            operator.execute(context=MagicMock())
-        mocked_check_fileds.assert_not_called()
 
     def create_context(self, task):
         dag = DAG(dag_id="dag")
