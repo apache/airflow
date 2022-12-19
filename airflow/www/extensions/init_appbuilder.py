@@ -100,9 +100,9 @@ class AirflowAppBuilder:
     # Babel Manager Class
     bm = None
     # dict with addon name has key and intantiated class has value
-    addon_managers = None
+    addon_managers: dict
     # temporary list that hold addon_managers config key
-    _addon_managers = None
+    _addon_managers: list
 
     menu = None
     indexview = None
@@ -115,7 +115,7 @@ class AirflowAppBuilder:
     def __init__(
         self,
         app=None,
-        session=None,
+        session: Session | None = None,
         menu=None,
         indexview=None,
         base_template="airflow/main.html",

@@ -22,7 +22,7 @@ from typing import Sequence
 
 from flask import g
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
@@ -724,7 +724,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 class ApplessAirflowSecurityManager(AirflowSecurityManager):
     """Security Manager that doesn't need the whole flask app"""
 
-    def __init__(self, session=None):
+    def __init__(self, session: Session | None = None):
         self.session = session
 
     @property

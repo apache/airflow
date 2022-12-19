@@ -447,6 +447,12 @@ repos:
         pass_filenames: true
         files: \.py$
         exclude: ^tests/|^airflow/_vendor/|^docs/
+      - id: check-only-new-session-with-provide-session
+        name: Check NEW_SESSION is only used with @provide_session
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_new_session_in_provide_session.py
+        pass_filenames: true
+        files: ^airflow/.+\.py$
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community

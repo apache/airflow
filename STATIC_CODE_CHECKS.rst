@@ -191,6 +191,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-relative-imports                                 | No relative imports                                              |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-only-new-session-with-provide-session               | Check NEW_SESSION is only used with @provide_session             |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-persist-credentials-disabled-in-github-workflows    | Check that workflow files have persist-credentials disabled      |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-pre-commit-information-consistent                   | Update information re pre-commit hooks and verify ids and names  |         |

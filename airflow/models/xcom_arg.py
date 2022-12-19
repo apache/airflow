@@ -189,6 +189,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
+    @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
         """Pull XCom value.
 

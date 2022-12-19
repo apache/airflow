@@ -245,7 +245,7 @@ def _cleanup_table(
     dry_run=True,
     verbose=False,
     skip_archive=False,
-    session=None,
+    session,
     **kwargs,
 ):
     print()
