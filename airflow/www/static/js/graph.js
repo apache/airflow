@@ -89,11 +89,19 @@ const updateNodeLabels = (node, instances) => {
   let haveLabelsChanged = false;
   let { label } = node.value;
   // Check if there is a count of mapped instances
-  if (tasks[node.id] && tasks[node.id].is_mapped) {
-    const count = instances[node.id]
-      && instances[node.id].mapped_states
-      ? instances[node.id].mapped_states.length
-      : ' ';
+  if ((tasks[node.id] && tasks[node.id].is_mapped) || node.value.isMapped) {
+    const firstChildId = node.children[0].id;
+
+    let count = ' ';
+
+    // get count from mapped_states or the first child's mapped_states
+    // TODO: update this count for when we can nest mapped tasks inside of mapped task groups
+    if (instances[node.id] && instances[node.id].mapped_states) {
+      count = instances[node.id].mapped_states.length;
+    } else if (firstChildId && instances[firstChildId]) {
+      count = instances[firstChildId].mapped_states.length;
+    }
+
     if (!label.includes(`[${count}]`)) {
       label = `${label} [${count}]`;
     }
@@ -184,8 +192,7 @@ function draw() {
       // A task node
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
-      let mappedStates = [];
-      if (task.is_mapped) mappedStates = taskInstances[nodeId].mapped_states;
+      const mappedStates = taskInstances[nodeId].mapped_states || [];
 
       callModal({
         taskId: nodeId,
@@ -195,7 +202,7 @@ function draw() {
         isSubDag: task.task_type === 'SubDagOperator',
         dagRunId,
         mapIndex: task.map_index,
-        isMapped: task.is_mapped,
+        isMapped: task.is_mapped || !!taskInstances[nodeId].mapped_states,
         mappedStates,
       });
     }
@@ -487,19 +494,29 @@ function groupTooltip(node, tis) {
   let minStart;
   let maxEnd;
 
-  getChildrenIds(node).forEach((child) => {
-    if (child in tis) {
-      const ti = tis[child];
-      if (!minStart || moment(ti.start_date).isBefore(minStart)) {
-        minStart = moment(ti.start_date);
+  if (node.isMapped) {
+    const firstChildId = node.children[0].id;
+    const mappedLength = tis[firstChildId].mapped_states.length;
+    [...Array(mappedLength).keys()].forEach((mapIndex) => {
+      const groupStates = getChildrenIds(node).map((child) => tis[child].mapped_states[mapIndex]);
+      const overallState = priority.find((state) => groupStates.includes(state)) || 'no_status';
+      if (numMap.has(overallState)) numMap.set(overallState, numMap.get(overallState) + 1);
+    });
+  } else {
+    getChildrenIds(node).forEach((child) => {
+      if (child in tis) {
+        const ti = tis[child];
+        if (!minStart || moment(ti.start_date).isBefore(minStart)) {
+          minStart = moment(ti.start_date);
+        }
+        if (!maxEnd || moment(ti.end_date).isAfter(maxEnd)) {
+          maxEnd = moment(ti.end_date);
+        }
+        const stateKey = ti.state == null ? 'no_status' : ti.state;
+        if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
       }
-      if (!maxEnd || moment(ti.end_date).isAfter(maxEnd)) {
-        maxEnd = moment(ti.end_date);
-      }
-      const stateKey = ti.state == null ? 'no_status' : ti.state;
-      if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
-    }
-  });
+    });
+  }
 
   const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second'));
   const tooltipText = node.tooltip ? `<p>${node.tooltip}</p>` : '';

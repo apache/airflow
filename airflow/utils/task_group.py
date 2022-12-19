@@ -617,6 +617,7 @@ def task_group_to_dict(task_item_or_group):
             },
         }
     task_group = task_item_or_group
+    is_mapped = isinstance(task_group, MappedTaskGroup)
     children = [
         task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
     ]
@@ -658,6 +659,7 @@ def task_group_to_dict(task_item_or_group):
             "ry": 5,
             "clusterLabelPos": "top",
             "tooltip": task_group.tooltip,
+            "isMapped": is_mapped,
         },
         "children": children,
     }
