@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock, call
 
-import json
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
