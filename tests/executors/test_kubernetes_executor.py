@@ -1249,12 +1249,13 @@ class TestKubernetesJobWatcher:
             try:
                 # self.watcher._run() is mocked and return "500" as last resource_version
                 self.watcher.run()
+                assert False, "Should have raised Exception"
             except Exception as e:
                 assert e.args == ("sentinel",)
 
             # both resource_version should be 0 after _run raises an exception
             assert self.watcher.resource_version == "0"
-            assert ResourceVersion().resource_version == {self.test_namespace: "0"}
+            assert ResourceVersion().resource_version[self.test_namespace] == "0"
 
             # check that in the next run, _run is invoked with resource_version = 0
             mock_underscore_run.reset_mock()

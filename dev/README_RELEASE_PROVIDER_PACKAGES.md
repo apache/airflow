@@ -762,28 +762,32 @@ We also need to archive older releases before copying the new ones
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT="$(pwd)"
-cd ..
 
-# Go the folder where you have checked out the release repo
-cd "<ROOT_OF_YOUR_RELEASE_REPO>"
+# Go the folder where you have checked out the release repo from SVN
+# Make sure this is direct directory and a symbolic link
+# Otherwise 'svn mv' errors out if it is with "E200033: Another process is blocking the working copy database
+cd "<ROOT_WHERE_YOUR_ASF_DIST_IS_CREATED>"
+
+export ASF_DIST_PARENT="$(pwd)"
+
 # or clone it if it's not done yet
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 # Update to latest version
 svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
 
-SOURCE_DIR="${PWD}/asf-dist/dev/airflow/providers"
+SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/providers"
+
+# If some packages have been excluded, remove them now
+# Check the packages are there (replace <provider> with the name of the provider that you remove
+ls ${SOURCE_DIR}/*<provider>*
+# Remove them
+svn rm ${SOURCE_DIR}/*<provider>*
 
 # Create providers folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
 cd asf-dist/release/airflow
 mkdir -pv providers
 cd providers
-
-# If some packages have been excluded, remove them now
-# Check the packages
-ls *<provider>*
-# Remove them
-svn rm *<provider>*
 
 # Copy your providers with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
@@ -801,7 +805,8 @@ python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --direc
 # Remove those packages
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory . --execute
 
-
+# You need to do go to the asf-dist directory in order to commit both dev and release together
+cd ${ASF_DIST_PARENT}/asf-dist
 # Commit to SVN
 svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n")"
 ```
