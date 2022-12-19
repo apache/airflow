@@ -71,6 +71,8 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
+        waiter_delay: int = 5,
+        waiter_max_attempts: int = 100,
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -84,6 +86,8 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -112,11 +116,17 @@ class EmrAddStepsOperator(BaseOperator):
         # e.g. if we used XCom or a file then: steps="[{ step1 }, { step2 }]"
         steps = self.steps
         wait_for_completion = self.wait_for_completion
+        waiter_delay = self.waiter_delay 
+        waiter_max_attempts = self.waiter_max_attempts
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
 
         return emr_hook.add_job_flow_steps(
-            job_flow_id=job_flow_id, steps=steps, wait_for_completion=wait_for_completion
+            job_flow_id=job_flow_id,
+            steps=steps,
+            wait_for_completion=wait_for_completion,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
         )
 
 
