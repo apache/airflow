@@ -51,6 +51,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
+from airflow.serialization.serde import serialize, deserialize
 from airflow.settings import DAGS_FOLDER, json
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
@@ -1182,6 +1183,9 @@ class SerializedDAG(DAG, BaseSerialization):
             serialized_dag["edge_info"] = dag.edge_info
             serialized_dag["params"] = cls._serialize_params_dict(dag.params)
 
+            # serialize dataset trigger rules with new serializer
+            serialized_dag["dataset_trigger_rules"] = serialize(dag.dataset_trigger_rules)
+
             # has_on_*_callback are only stored if the value is True, as the default is False
             if dag.has_on_success_callback:
                 serialized_dag["has_on_success_callback"] = True
@@ -1224,6 +1228,9 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize_params_dict(v)
             elif k == "dataset_triggers":
                 v = cls.deserialize(v)
+            elif k == "dataset_trigger_rules":
+                v = deserialize(v)
+                
             # else use v as it is
 
             setattr(dag, k, v)

@@ -21,6 +21,7 @@ import collections
 import copy
 import functools
 import itertools
+import json
 import logging
 import os
 import pathlib
@@ -51,6 +52,7 @@ from urllib.parse import urlsplit
 
 import jinja2
 import pendulum
+import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
@@ -3176,7 +3178,7 @@ class DagModel(Base):
     next_dagrun_create_after = Column(UtcDateTime)
 
     # Dataset trigger rules
-    dataset_trigger_rules = Column(TriggerRule)
+    dataset_trigger_rules = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     __table_args__ = (
         Index("idx_root_dag_id", root_dag_id, unique=False),

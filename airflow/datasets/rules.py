@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Collection
+from typing import Collection, ClassVar
 
 import attr
 from sqlalchemy import func, case
@@ -27,6 +27,8 @@ from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQue
 
 @attr.define
 class Rule:
+    __version__: ClassVar[int] = 1
+
     datasets: Collection[Dataset]
 
     def __init__(self, datasets: Collection[Dataset]):
