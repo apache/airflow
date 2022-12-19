@@ -191,16 +191,20 @@ class FileTaskHandler(logging.Handler):
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
         elif self._should_check_k8s(ti.queue):
+            pod_override = ti.executor_config.get("pod_override")
+            if pod_override and pod_override.metadata and pod_override.metadata.namespace:
+                namespace = pod_override.metadata.namespace
+            else:
+                namespace = conf.get("kubernetes_executor", "namespace")
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
                 kube_client = get_kube_client()
 
                 log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
-
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
-                    namespace=conf.get("kubernetes_executor", "namespace"),
+                    namespace=namespace,
                     container="base",
                     follow=False,
                     tail_lines=100,
