@@ -40,8 +40,6 @@ from airflow.serialization.enums import Encoding
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
 
-PRIMITIVE_TYPES = (float, bool, bytes, str, int)
-
 log = logging.getLogger(__name__)
 
 utc = pendulum.tz.timezone("UTC")
@@ -185,7 +183,7 @@ def sanitize_for_serialization(obj: V1Pod):
     """
     if obj is None:
         return None
-    elif isinstance(obj, PRIMITIVE_TYPES):
+    elif isinstance(obj, (float, bool, bytes, str, int)):
         return obj
     elif isinstance(obj, list):
         return [sanitize_for_serialization(sub_obj) for sub_obj in obj]
