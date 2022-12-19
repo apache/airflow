@@ -131,7 +131,7 @@ class EmrHook(AwsBaseHook):
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
         waiter_delay: int = 5,
-        waiter_max_attempts: int = 100,        
+        waiter_max_attempts: int = 100,
     ) -> list[str]:
         """
         Add new steps to a running cluster.

@@ -116,7 +116,7 @@ class EmrAddStepsOperator(BaseOperator):
         # e.g. if we used XCom or a file then: steps="[{ step1 }, { step2 }]"
         steps = self.steps
         wait_for_completion = self.wait_for_completion
-        waiter_delay = self.waiter_delay 
+        waiter_delay = self.waiter_delay
         waiter_max_attempts = self.waiter_max_attempts
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)

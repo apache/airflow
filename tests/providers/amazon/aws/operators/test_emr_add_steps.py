@@ -224,4 +224,6 @@ class TestEmrAddStepsOperator:
             job_flow_id=job_flow_id,
             steps=[],
             wait_for_completion=False,
+            waiter_delay=5,
+            waiter_max_attempts=100,
         )
