@@ -55,6 +55,14 @@ except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
 
+@pytest.fixture(autouse=True)
+def reset_resource_version():
+    """Reset ``ResourceVersion`` dictionary to empty before and after run each test."""
+    # ResourceVersion().resource_version = {}
+    yield
+    # ResourceVersion().resource_version = {}
+
+
 class TestAirflowKubernetesScheduler:
     @staticmethod
     def _gen_random_string(seed, str_len):
