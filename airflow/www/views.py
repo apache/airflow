@@ -1992,7 +1992,9 @@ class Airflow(AirflowBaseView):
             else:
                 try:
                     default_conf = json.dumps(
-                        {str(k): v.resolve(suppress_exception=True) for k, v in dag.params.items()}, indent=4
+                        {str(k): v.resolve(suppress_exception=True) for k, v in dag.params.items()},
+                        indent=4,
+                        ensure_ascii=False,
                     )
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
@@ -2108,7 +2110,7 @@ class Airflow(AirflowBaseView):
         recursive: bool = False,
         confirmed: bool = False,
         only_failed: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session,
     ):
         if confirmed:
             count = dag.clear(

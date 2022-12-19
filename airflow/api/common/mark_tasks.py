@@ -350,7 +350,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     return run_ids
 
 
-def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION):
+def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession):
     """
     Set dag run state in the DB.
 
@@ -500,7 +500,7 @@ def __set_dag_run_state_to_running_or_queued(
     execution_date: datetime | None = None,
     run_id: str | None = None,
     commit: bool = False,
-    session: SASession = NEW_SESSION,
+    session: SASession,
 ) -> list[TaskInstance]:
     """
     Set the dag run for a specific execution date to running.
