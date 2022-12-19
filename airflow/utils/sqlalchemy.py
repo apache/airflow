@@ -35,7 +35,9 @@ from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.datasets.rules import Rule
 from airflow.serialization.enums import Encoding
+from airflow.serialization.serde import serialize, deserialize
 
 log = logging.getLogger(__name__)
 
@@ -258,6 +260,25 @@ class Interval(TypeDecorator):
             type_map = {key.__name__: key for key in self.attr_keys}
             return type_map[data["type"]](**data["attrs"])
         return data
+
+
+class TriggerRule(TypeDecorator):
+
+    impl = Text
+
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if isinstance(value, Rule):
+            data = json.dumps(serialize(value))
+
+        return data
+
+    def process_result_value(self, value, dialect):
+        if not value:
+            return value
+
+        return deserialize(json.loads(value))
 
 
 def skip_locked(session: Session) -> dict[str, Any]:

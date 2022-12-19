@@ -64,6 +64,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
+from airflow.datasets.rules import Rule, AllOf
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
@@ -95,7 +96,8 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, tuple_in_condition, with_row_locks, \
+    TriggerRule
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
@@ -123,7 +125,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"], Collection["Rule"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -514,13 +516,23 @@ class DAG(LoggingMixin):
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Collection[Dataset] = []
+        self.dataset_trigger_rules: Collection[Rule] = []
 
         if isinstance(schedule, Collection) and not isinstance(schedule, str):
             from airflow.datasets import Dataset
 
-            if not all(isinstance(x, Dataset) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be datasets")
-            self.dataset_triggers = list(schedule)
+            if all(isinstance(x, Dataset) for x in schedule):
+                self.dataset_triggers = list(schedule)
+                self.dataset_trigger_rules = [AllOf(schedule)]
+            else:
+                for x in schedule:
+                    if isinstance(x, Dataset):
+                        self.dataset_triggers.append(x)
+                    elif isinstance(x, Rule):
+                        self.dataset_triggers.extend(x.datasets)
+                    else:
+                        raise ValueError("Elements in 'schedule' should be datasets or dataset trigger rules")
+
         elif isinstance(schedule, Timetable):
             timetable = schedule
         elif schedule is not NOTSET:
@@ -2744,6 +2756,7 @@ class DAG(LoggingMixin):
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.processor_subdir = processor_subdir
+            orm_dag.dataset_trigger_rules = dag.dataset_trigger_rules
 
             run: DagRun | None = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -3161,6 +3174,9 @@ class DagModel(Base):
 
     # Earliest time at which this ``next_dagrun`` can be created.
     next_dagrun_create_after = Column(UtcDateTime)
+
+    # Dataset trigger rules
+    dataset_trigger_rules = Column(TriggerRule)
 
     __table_args__ = (
         Index("idx_root_dag_id", root_dag_id, unique=False),
