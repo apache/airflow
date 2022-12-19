@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.links.emr_logs import EmrLogsLink
+from airflow.providers.amazon.aws.links.emr import EmrLogsLink
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
@@ -331,7 +331,7 @@ class EmrNotebookExecutionSensor(EmrBaseSensor):
         self.target_states = target_states or self.COMPLETED_STATES
         self.failed_states = failed_states or self.FAILURE_STATES
 
-    def get_emr_response(self) -> dict[str, Any]:
+    def get_emr_response(self, context: Context) -> dict[str, Any]:
         emr_client = self.get_hook().get_conn()
         self.log.info("Poking notebook %s", self.notebook_execution_id)
 
