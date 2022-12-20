@@ -14,14 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-providers_google:
-  description: Options for google provider
-  options:
-    verbose_logging:
-      description: |
-        Sets verbose logging for google provider
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class ApprovalStatus(Enum):
+    """Approval statuses for a Sagemaker Model Package."""
+
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+    PENDING_MANUAL_APPROVAL = "PendingManualApproval"

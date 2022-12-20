@@ -1130,3 +1130,36 @@ class SageMakerHook(AwsBaseHook):
             )
 
         return res["PipelineExecutionStatus"]
+
+    def create_model_package_group(self, package_group_name: str, package_group_desc: str = "") -> bool:
+        """
+        Creates a Model Package Group if it does not already exist
+
+        :param package_group_name: Name of the model package group to create if not already present.
+        :param package_group_desc: Description of the model package group, if it was to be created (optional).
+
+        :return: True if the model package group was created, False if it already existed.
+        """
+        try:
+            res = self.conn.create_model_package_group(
+                ModelPackageGroupName=package_group_name,
+                ModelPackageGroupDescription=package_group_desc,
+            )
+            self.log.info(
+                "Created new Model Package Group with name %s (ARN: %s)",
+                package_group_name,
+                res["ModelPackageGroupArn"],
+            )
+            return True
+        except ClientError as e:
+            # ValidationException can also happen if the package group name contains invalid char,
+            # so we have to look at the error message too
+            if e.response["Error"]["Code"] == "ValidationException" and e.response["Error"][
+                "Message"
+            ].startswith("Model Package Group already exists"):
+                # log msg only so it doesn't look like an error
+                self.log.info("%s", e.response["Error"]["Message"])
+                return False
+            else:
+                self.log.error("Error when trying to create Model Package Group: %s", e)
+                raise
