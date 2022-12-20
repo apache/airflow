@@ -6,3 +6,4 @@ format = ${cyan}%(path)s${reset}:${yellow_bold}%(row)d${reset}:${green_bold}%(co
 per-file-ignores =
     airflow/models/__init__.py:F401
     airflow/models/sqla_models.py:F401
+    airflow/config_templates/built_in_defaults:E501

@@ -25,10 +25,12 @@ import subprocess
 import jinja2
 import sys
 import textwrap
-from functools import lru_cache
 from pathlib import Path
 
 from rich.console import Console
+
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import black_format, AIRFLOW_SOURCES_ROOT  # noqa: E402
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
@@ -36,7 +38,6 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 COMMON_SQL_ROOT = PROVIDERS_ROOT / "common" / "sql"
 OUT_DIR = AIRFLOW_SOURCES_ROOT / "out"
@@ -44,33 +45,6 @@ OUT_DIR = AIRFLOW_SOURCES_ROOT / "out"
 COMMON_SQL_PACKAGE_PREFIX = "airflow.providers.common.sql."
 
 console = Console(width=400, color_system="standard")
-
-
-@lru_cache(maxsize=None)
-def black_mode():
-    from black import Mode, parse_pyproject_toml, target_version_option_callback
-
-    config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT, "pyproject.toml"))
-
-    target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
-    )
-
-    return Mode(
-        target_versions=target_versions,
-        line_length=config.get("line_length", Mode.line_length),
-        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
-        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
-        experimental_string_processing=bool(
-            config.get("experimental_string_processing", Mode.experimental_string_processing)
-        ),
-    )
-
-
-def black_format(content) -> str:
-    from black import format_str
-
-    return format_str(content, mode=black_mode())
 
 
 class ConsoleDiff(difflib.Differ):

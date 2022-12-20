@@ -583,7 +583,7 @@ repos:
         files: config\.yml$|default_airflow\.cfg$|default\.cfg$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'rich']
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
@@ -894,14 +894,14 @@ repos:
         files: \.py$
         exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev|^tests/system/providers|^tests/providers
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'jinja2']
       - id: run-mypy
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: ^airflow/providers/.*\.py$|^tests/system/providers/\*.py|^tests/providers/\*.py
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'jinja2']
       - id: run-mypy
         name: Run mypy for /docs/ folder
         language: python
@@ -909,7 +909,7 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'jinja2']
       - id: run-flake8
         name: Run flake8
         language: python
@@ -917,7 +917,7 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'jinja2']
       - id: update-migration-references
         name: Update migration ref doc
         language: python

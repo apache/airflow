@@ -42,6 +42,7 @@ from urllib.parse import urlsplit
 from typing_extensions import overload
 
 from airflow.compat.functools import cached_property
+from airflow.config_templates.built_in_defaults import built_in_defaults
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
@@ -309,27 +310,20 @@ class AirflowConfigParser(ConfigParser):
     def optionxform(self, optionstr: str) -> str:
         return optionstr
 
-    def __init__(self, default_config: str | None = None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.upgraded_values = {}
-
-        self.airflow_defaults = ConfigParser(*args, **kwargs)
-        if default_config is not None:
-            self.airflow_defaults.read_string(default_config)
-            # Set the upgrade value based on the current loaded default
-            default = self.airflow_defaults.get("logging", "log_filename_template", fallback=None)
-            if default:
-                replacement = self.deprecated_values["logging"]["log_filename_template"]
-                self.deprecated_values["logging"]["log_filename_template"] = (
-                    replacement[0],
-                    default,
-                    replacement[2],
-                )
-            else:
-                # In case of tests it might not exist
-                with suppress(KeyError):
-                    del self.deprecated_values["logging"]["log_filename_template"]
+        # Set the upgrade value based on the built-in defaults
+        default_template = built_in_defaults.get("logging").get("log_filename_template")
+        if default_template:
+            replacement = self.deprecated_values["logging"]["log_filename_template"]
+            self.deprecated_values["logging"]["log_filename_template"] = (
+                replacement[0],
+                default_template,
+                replacement[2],
+            )
         else:
+            # In case of tests it might not exist
             with suppress(KeyError):
                 del self.deprecated_values["logging"]["log_filename_template"]
 
@@ -343,7 +337,7 @@ class AirflowConfigParser(ConfigParser):
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
                 old, new, version = info
-                current_value = self.get(section, name, fallback="")
+                current_value = self.get(section, name)
                 if self._using_old_value(old, current_value):
                     self.upgraded_values[(section, name)] = current_value
                     new_value = old.sub(new, current_value)
@@ -629,12 +623,14 @@ class AirflowConfigParser(ConfigParser):
         if option is not None:
             return option
 
-        # ...then the default config
-        if self.airflow_defaults.has_option(section, key) or "fallback" in kwargs:
-            return expand_env_var(self.airflow_defaults.get(section, key, **kwargs))
+        # ... then built in defaults
+        section_dict = built_in_defaults.get(section)
+        if section_dict is not None:
+            val = section_dict.get(key)
+            if val is not None:
+                return expand_env_var(val)
 
         log.warning("section/key [%s/%s] not found in config", section, key)
-
         raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
 
     def _get_option_from_secrets(
@@ -882,8 +878,8 @@ class AirflowConfigParser(ConfigParser):
         if super().has_option(section, option):
             super().remove_option(section, option)
 
-        if self.airflow_defaults.has_option(section, option) and remove_default:
-            self.airflow_defaults.remove_option(section, option)
+        if built_in_defaults.get(section) and built_in_defaults.get(section).get(option) and remove_default:
+            del built_in_defaults.get(section)[option]
 
     def getsection(self, section: str) -> ConfigOptionsDictType | None:
         """
@@ -893,15 +889,14 @@ class AirflowConfigParser(ConfigParser):
 
         :param section: section from the config
         """
-        if not self.has_section(section) and not self.airflow_defaults.has_section(section):
+        if not self.has_section(section) and not built_in_defaults.get(section):
             return None
-        if self.airflow_defaults.has_section(section):
-            _section: ConfigOptionsDictType = OrderedDict(self.airflow_defaults.items(section))
-        else:
-            _section = OrderedDict()
+        _section: dict = {}
+        if built_in_defaults.get(section):
+            _section.update(built_in_defaults.get(section))
 
         if self.has_section(section):
-            _section.update(OrderedDict(self.items(section)))
+            _section.update(self.items(section))
 
         section_prefix = self._env_var_name(section, "")
         for env_var in sorted(os.environ.keys()):
@@ -940,10 +935,6 @@ class AirflowConfigParser(ConfigParser):
             delimiter = f" {self._delimiters[0]} "  # type: ignore[attr-defined]
         else:
             delimiter = self._delimiters[0]  # type: ignore[attr-defined]
-        if self._defaults:  # type: ignore
-            self._write_section(  # type: ignore[attr-defined]
-                fp, self.default_section, self._defaults.items(), delimiter  # type: ignore[attr-defined]
-            )
         sections = (
             {section: dict(self.getsection(section))}  # type: ignore[arg-type]
             if section
@@ -1004,7 +995,7 @@ class AirflowConfigParser(ConfigParser):
 
         config_sources: ConfigSourcesType = {}
         configs = [
-            ("default", self.airflow_defaults),
+            ("default", built_in_defaults),
             ("airflow.cfg", self),
         ]
 
@@ -1171,7 +1162,7 @@ class AirflowConfigParser(ConfigParser):
             if not getter_opt:
                 continue
             # Check to see that there is a default value
-            if not self.airflow_defaults.has_option(section, key):
+            if not built_in_defaults.get(section) and built_in_defaults.get(section).get(key):
                 continue
             # Check to see if bare setting is the same as defaults
             if display_source:
@@ -1179,7 +1170,7 @@ class AirflowConfigParser(ConfigParser):
                 opt, source = config_sources[section][key]  # type: ignore
             else:
                 opt = config_sources[section][key]
-            if opt == self.airflow_defaults.get(section, key):
+            if opt == built_in_defaults.get(section).get(key):
                 del config_sources[section][key]
 
     @staticmethod
@@ -1371,7 +1362,6 @@ class AirflowConfigParser(ConfigParser):
             for name in [
                 "_sections",
                 "is_validated",
-                "airflow_defaults",
             ]
         }
 
@@ -1441,7 +1431,7 @@ def initialize_config() -> AirflowConfigParser:
 
     default_config = _parameterized_config_from_template("default_airflow.cfg")
 
-    local_conf = AirflowConfigParser(default_config=default_config)
+    local_conf = AirflowConfigParser()
 
     if local_conf.getboolean("core", "unit_test_mode"):
         # Load test config only

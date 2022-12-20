@@ -33,6 +33,7 @@ import pytest
 from pytest import param
 
 from airflow import configuration
+from airflow.config_templates.built_in_defaults import built_in_defaults
 from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
@@ -744,13 +745,13 @@ notacommand = OK
         assert "sql_alchemy_conn" in conf_materialize_cmds["database"]
         assert "sql_alchemy_conn_cmd" not in conf_materialize_cmds["database"]
 
-        if conf_conn == test_conf.airflow_defaults["database"]["sql_alchemy_conn"]:
+        if conf_conn == built_in_defaults["database"]["sql_alchemy_conn"]:
             assert conf_materialize_cmds["database"]["sql_alchemy_conn"] == "my-super-secret-conn"
 
         assert "sql_alchemy_conn_cmd" in conf_maintain_cmds["database"]
         assert conf_maintain_cmds["database"]["sql_alchemy_conn_cmd"] == "echo -n my-super-secret-conn"
 
-        if conf_conn == test_conf.airflow_defaults["database"]["sql_alchemy_conn"]:
+        if conf_conn == built_in_defaults["database"]["sql_alchemy_conn"]:
             assert "sql_alchemy_conn" not in conf_maintain_cmds["database"]
         else:
             assert "sql_alchemy_conn" in conf_maintain_cmds["database"]

@@ -33,6 +33,7 @@ from sqlalchemy.orm.session import Session
 
 import airflow
 from airflow import settings
+from airflow.config_templates.built_in_defaults import built_in_defaults
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
@@ -875,8 +876,8 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     # we will seed the table with the values from pre 2.3.0, so old logs will
     # still be retrievable.
     if not session.query(LogTemplate.id).first():
-        is_default_log_id = elasticsearch_id == conf.airflow_defaults.get("elasticsearch", "log_id_template")
-        is_default_filename = filename == conf.airflow_defaults.get("logging", "log_filename_template")
+        is_default_log_id = elasticsearch_id == built_in_defaults.get("elasticsearch").get("log_id_template")
+        is_default_filename = filename == built_in_defaults.get("logging").get("log_filename_template")
         if is_default_log_id and is_default_filename:
             session.add(
                 LogTemplate(
