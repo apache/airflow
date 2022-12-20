@@ -26,7 +26,6 @@ import os
 import sys
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from io import TextIOWrapper
 from typing import Generator, Union
 
 from pendulum.parsing.exceptions import ParserError
@@ -284,22 +283,14 @@ def _extract_external_executor_id(args) -> str | None:
     return os.environ.get("external_executor_id", None)
 
 
-def _not_redirected(stream):
-    """Check if sys.stdout has been replaced with something else."""
-    return isinstance(stream, TextIOWrapper) and stream.name == "<stdout>"
-
-
 @contextmanager
-def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
+def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]:
     """
-    Manage logging context for a task run.
+    Move handlers for task logging to root logger.
 
-    - Replace the root logger configuration with the airflow.task configuration
-      so we can capture logs from any custom loggers used in the task.
-
-    - Redirect stdout and stderr to the task instance log, as INFO and WARNING
-      level messages, respectively.
-
+    We want anything logged during task run to be propagated to task log handlers.
+    If running in a k8s executor pod, also keep the stream handler on root logger
+    so that logs are still emitted to stdout.
     """
     modify = not settings.DONOT_MODIFY_HANDLERS
     did_modify = False
@@ -333,24 +324,38 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
                     if isinstance(h, RedirectStdHandler):
                         root_logger.addHandler(h)
                         h.respect_redirection = False
-    try:
-        if _not_redirected(sys.stdout):
-            info_writer = StreamLogWriter(ti.log, logging.INFO)
-            warning_writer = StreamLogWriter(ti.log, logging.WARNING)
-            with redirect_stdout(info_writer), redirect_stderr(warning_writer):
-                yield
-        else:
+    yield
+    if did_modify:
+        task_logger.propagate = task_propagate
+        root_logger.setLevel(root_level)
+        root_logger.handlers[:] = root_handlers
+        task_logger.handlers[:] = task_handlers
+        if is_k8s_executor_pod:
+            for h in root_handlers:
+                if isinstance(h, RedirectStdHandler):
+                    h.respect_redirection = True
+
+
+@contextmanager
+def _redirect_stdout_to_ti_log(ti: TaskInstance) -> Generator[None, None, None]:
+    """
+    Redirect stdout to ti logger.
+
+    Redirect stdout and stderr to the task instance log as INFO and WARNING
+    level messages, respectively.
+
+    If stdout already redirected (possible when task running with option
+    `--local`), don't redirect again.
+    """
+    # if sys.stdout is StreamLogWriter, it means we already redirected
+    # likely before forking in LocalTaskJob
+    if not isinstance(sys.stdout, StreamLogWriter):
+        info_writer = StreamLogWriter(ti.log, logging.INFO)
+        warning_writer = StreamLogWriter(ti.log, logging.WARNING)
+        with redirect_stdout(info_writer), redirect_stderr(warning_writer):
             yield
-    finally:
-        if did_modify:
-            task_logger.propagate = task_propagate
-            root_logger.setLevel(root_level)
-            root_logger.handlers[:] = root_handlers
-            task_logger.handlers[:] = task_handlers
-            if is_k8s_executor_pod:
-                for h in root_handlers:
-                    if isinstance(h, RedirectStdHandler):
-                        h.respect_redirection = True
+    else:
+        yield
 
 
 class TaskCommandMarker:
@@ -430,7 +435,7 @@ def task_run(args, dag=None):
         if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
         else:
-            with _capture_task_logs(ti):
+            with _move_task_handlers_to_root(ti), _redirect_stdout_to_ti_log(ti):
                 _run_task_by_selected_method(args, dag, ti)
     finally:
         try:
