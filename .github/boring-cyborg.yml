@@ -83,7 +83,6 @@ labelPRBasedOnFilePath:
     - tests/www/api/**/*
 
   area:dev-tools:
-    - airflow/mypy/**/*
     - scripts/**/*
     - dev/**/*
     - .github/**/*
