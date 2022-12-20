@@ -70,10 +70,7 @@ def internal_airflow_api(
 
     log.debug("Calling method %.", {method_name})
     try:
-        output = handler(
-            **params,
-            log=logging.getLogger(f"airflow.internal_api.{method_name}"),
-        )
+        output = handler(**params)
         output_json = BaseSerialization.serialize(output)
         log.debug("Returning response")
         return Response(
