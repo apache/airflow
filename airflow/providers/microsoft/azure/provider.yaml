@@ -132,6 +132,11 @@ integrations:
       - /docs/apache-airflow-providers-microsoft-azure/operators/azure_synapse.rst
     tags: [azure]
   - integration-name: Microsoft Azure Functions
+    external-doc-url: https://azure.microsoft.com/en-us/products/functions/
+    logo: /integration-logos/azure/Function-Apps.svg
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/azure_functions.rst
+    tags: [azure]
     external-doc-url: https://azure.microsoft.com/en-in/products/functions/
     logo: /integration-logos/azure/Service-Bus.svg
   - integration-name: Microsoft Azure Data Lake Storage Client Gen2
@@ -167,6 +172,9 @@ operators:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.operators.synapse
+  - integration-name: Microsoft Azure Functions
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.azure_functions
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -272,6 +280,8 @@ connection-types:
     connection-type: azure_service_bus
   - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook
     connection-type: azure_synapse
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.azure_functions.AzureFunctionsHook
+    connection-type: azure_functions
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
 
