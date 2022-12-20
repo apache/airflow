@@ -470,7 +470,7 @@ def set_dag_run_state_to_failed(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.task_id.in_(task_ids),
-        TaskInstance.state.in_(State.running),
+        TaskInstance.state.in_(State.pending),
     )
     task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
 
@@ -486,7 +486,7 @@ def set_dag_run_state_to_failed(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.state.not_in(State.finished),
-        TaskInstance.state.not_in(State.running),
+        TaskInstance.state.not_in(State.pending),
     )
 
     tis = [ti for ti in tis]

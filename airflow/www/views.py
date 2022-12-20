@@ -1590,7 +1590,7 @@ class Airflow(AirflowBaseView):
 
         num_logs = 0
         if ti is not None:
-            num_logs = wwwutils.get_try_count(ti.next_try_number - 1, ti.state)
+            num_logs = wwwutils.get_try_count(ti._try_number, ti.state)
         logs = [""] * num_logs
         root = request.args.get("root", "")
         return self.render_template(

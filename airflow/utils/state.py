@@ -144,9 +144,14 @@ class State:
     A list of states indicating that a task is sensing or deferred
     """
 
-    running: frozenset[TaskInstanceState] = frozenset(
+    pending: frozenset[TaskInstanceState] = frozenset(
         [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE]
     )
+    """
+    Running tasks + sensing tasks (task reschedules makes up_for_reschedule act a little differently)
+    """
+
+    running: frozenset[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
     """
     A list of states indicating that a task is being executed.
     """
