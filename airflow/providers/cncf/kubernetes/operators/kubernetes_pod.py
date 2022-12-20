@@ -91,6 +91,7 @@ def _add_pod_suffix(*, pod_name, rand_len=8, max_len=253):
 def _create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
+    prefix: str | None = None,
     *,
     max_length: int = 63,
     unique: bool = True,
@@ -102,6 +103,7 @@ def _create_pod_id(
 
     :param dag_id: DAG ID
     :param task_id: Task ID
+    :param prefix: Prefix to the pod name
     :param max_length: max number of characters
     :param unique: whether a random string suffix should be added
     :return: A valid identifier for a kubernetes pod name
@@ -109,6 +111,8 @@ def _create_pod_id(
     if not (dag_id or task_id):
         raise ValueError("Must supply either dag_id or task_id.")
     name = ""
+    if prefix:
+        name += prefix + "-"
     if dag_id:
         name += dag_id
     if task_id:

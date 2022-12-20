@@ -66,18 +66,19 @@ class TestAirflowKubernetesScheduler:
 
     def _cases(self):
         cases = [
-            ("my_dag_id", "my-task-id"),
-            ("my.dag.id", "my.task.id"),
-            ("MYDAGID", "MYTASKID"),
-            ("my_dag_id", "my_task_id"),
-            ("mydagid" * 200, "my_task_id" * 200),
-            ("my_dág_id", "my_tásk_id"),
-            ("Компьютер", "niedołężność"),
-            ("影師嗎", "中華民國;$"),
+            ("my_dag_id", "my-task-id", ""),
+            ("my_dag_id", "my-task-id", "prefix"),
+            ("my.dag.id", "my.task.id", "pre.fix"),
+            ("MYDAGID", "MYTASKID", "PREFIX"),
+            ("my_dag_id", "my_task_id", "pre_fix"),
+            ("mydagid" * 200, "my_task_id" * 200, ""),
+            ("my_dág_id", "my_tásk_id", ""),
+            ("Компьютер", "niedołężność", ""),
+            ("影師嗎", "中華民國;$", ""),
         ]
 
         cases.extend(
-            [(self._gen_random_string(seed, 200), self._gen_random_string(seed, 200)) for seed in range(100)]
+            [(self._gen_random_string(seed, 200), self._gen_random_string(seed, 200), "") for seed in range(100)]
         )
 
         return cases
@@ -94,8 +95,8 @@ class TestAirflowKubernetesScheduler:
 
     @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
     def test_create_pod_id(self):
-        for dag_id, task_id in self._cases():
-            pod_name = PodGenerator.make_unique_pod_id(create_pod_id(dag_id, task_id))
+        for dag_id, task_id, name_prefix in self._cases():
+            pod_name = PodGenerator.make_unique_pod_id(create_pod_id(dag_id, task_id, name_prefix))
             assert self._is_valid_pod_id(pod_name)
 
     @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
@@ -131,7 +132,7 @@ class TestAirflowKubernetesScheduler:
         assert mock_generator.mock_calls[3][1][0] == expected_pod_dict
 
     def test_make_safe_label_value(self):
-        for dag_id, task_id in self._cases():
+        for dag_id, task_id, _ in self._cases():
             safe_dag_id = pod_generator.make_safe_label_value(dag_id)
             assert self._is_safe_label_value(safe_dag_id)
             safe_task_id = pod_generator.make_safe_label_value(task_id)

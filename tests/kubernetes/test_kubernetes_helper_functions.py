@@ -42,7 +42,7 @@ class TestCreatePodId:
             ("task_id", "task-id"),  # underscores
             ("---task.id---", "task-id"),  # dots
             (".task.id", "task-id"),  # leading dot invalid
-            ("**task.id", "task-id"),  # leading dot invalid
+            ("**task.id", "task-id"),  # leading asterisk invalid
             ("-90Abc*&", "90abc"),  # invalid ends
             ("90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a"),  # weird unicode
         ],
@@ -59,7 +59,7 @@ class TestCreatePodId:
             ("dag_id", "dag-id"),  # underscores
             ("---dag.id---", "dag-id"),  # dots
             (".dag.id", "dag-id"),  # leading dot invalid
-            ("**dag.id", "dag-id"),  # leading dot invalid
+            ("**dag.id", "dag-id"),  # leading asterisk invalid
             ("-90Abc*&", "90abc"),  # invalid ends
             ("90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a"),  # weird unicode
         ],
@@ -76,13 +76,30 @@ class TestCreatePodId:
             ("dag_id", "task_id", "dag-id-task-id"),  # underscores
             ("dag.id", "task.id", "dag-id-task-id"),  # dots
             (".dag.id", ".---task.id", "dag-id-task-id"),  # leading dot invalid
-            ("**dag.id", "**task.id", "dag-id-task-id"),  # leading dot invalid
+            ("**dag.id", "**task.id", "dag-id-task-id"),  # leading asterisk invalid
             ("-90Abc*&", "-90Abc*&", "90abc-90abc"),  # invalid ends
             ("90AçLbˆˆç˙ßß˜˜˙c*a", "90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a-90aclb-c-ssss-c-a"),  # ugly
         ],
     )
     def test_create_pod_id_dag_and_task(self, dag_id, task_id, expected, create_pod_id):
         actual = create_pod_id(dag_id=dag_id, task_id=task_id, unique=False)
+        assert actual == expected
+        assert re.match(pod_name_regex, actual)
+
+    @pytest.mark.parametrize(
+        "dag_id, task_id, prefix, expected",
+        [
+            ("dag-id", "task-id", "pre-fix", "pre-fix-dag-id-task-id"),  # no problem
+            ("dag_id", "task_id", "pre_fix", "pre-fix-dag-id-task-id"),  # underscores
+            ("dag.id", "task.id", "pre.fix", "pre-fix-dag-id-task-id"),  # dots
+            (".dag.id", ".---task.id", ".pre.fix", "pre-fix-dag-id-task-id"),  # leading dot invalid
+            ("**dag.id", "**task.id", "**pre.fix", "pre-fix-dag-id-task-id"),  # leading asterisk invalid
+            ("-90Abc*&", "-90Abc*&", "prefix*&", "prefix-90abc-90abc"),  # invalid ends
+            ("90AçLbˆˆç˙ßß˜˜˙c*a", "90AçLbˆˆç˙ßß˜˜˙c*a", "prefix90AçLbˆˆç˙ßß˜˜˙c*a", "prefix90aclb-c-ssss-c-a-90aclb-c-ssss-c-a-90aclb-c-ssss-c-a"),  # ugly
+        ],
+    )
+    def test_create_pod_id_dag_task_and_prefix(self, dag_id, task_id, prefix, expected, create_pod_id):
+        actual = create_pod_id(dag_id=dag_id, task_id=task_id, prefix=prefix, unique=False)
         assert actual == expected
         assert re.match(pod_name_regex, actual)
 

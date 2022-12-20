@@ -26,7 +26,6 @@ class KubeConfig:
 
     core_section = "core"
     kubernetes_section = "kubernetes_executor"
-    logging_section = "logging"
 
     def __init__(self):
         configuration_dict = conf.as_dict(display_sensitive=True)
@@ -71,6 +70,7 @@ class KubeConfig:
         # interact with cluster components.
         self.executor_namespace = conf.get(self.kubernetes_section, "namespace")
 
+        self.worker_pods_name_prefix = conf.get(self.kubernetes_section, "worker_pods_name_prefix")
         self.worker_pods_pending_timeout = conf.getint(self.kubernetes_section, "worker_pods_pending_timeout")
         self.worker_pods_pending_timeout_check_interval = conf.getint(
             self.kubernetes_section, "worker_pods_pending_timeout_check_interval"
