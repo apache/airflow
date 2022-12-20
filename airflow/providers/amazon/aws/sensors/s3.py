@@ -35,8 +35,8 @@ from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 class S3KeySensor(BaseSensorOperator):
     """
     Waits for one or multiple keys (a file-like instance on S3) to be present in a S3 bucket.
-    S3 being a key/value it does not support folders. The path is just a key
-    a resource.
+    The path is just a key/value pointer to a resource for the given S3 path.
+    Note: S3 does not support folders directly, and only provides key/value pairs.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -86,7 +86,7 @@ class S3KeySensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
-        self.bucket_key = [bucket_key] if isinstance(bucket_key, str) else bucket_key
+        self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
         self.check_fn = check_fn
         self.aws_conn_id = aws_conn_id
@@ -125,7 +125,10 @@ class S3KeySensor(BaseSensorOperator):
         return True
 
     def poke(self, context: Context):
-        return all(self._check_key(key) for key in self.bucket_key)
+        if isinstance(self.bucket_key, str):
+            return self._check_key(self.bucket_key)
+        else:
+            return all(self._check_key(key) for key in self.bucket_key)
 
     def get_hook(self) -> S3Hook:
         """Create and return an S3Hook"""

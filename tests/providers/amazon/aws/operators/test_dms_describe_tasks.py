@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 from airflow.models import DAG, DagRun, TaskInstance
@@ -52,8 +51,8 @@ MOCK_RESPONSE = [
 ]
 
 
-class TestDmsDescribeTasksOperator(unittest.TestCase):
-    def setUp(self):
+class TestDmsDescribeTasksOperator:
+    def setup_method(self):
         args = {
             "owner": "airflow",
             "start_date": DEFAULT_DATE,

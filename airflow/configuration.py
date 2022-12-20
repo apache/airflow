@@ -33,7 +33,7 @@ from collections import OrderedDict
 
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from json.decoder import JSONDecodeError
 from re import Pattern
 from typing import IO, Any, Dict, Iterable, Tuple, Union
@@ -41,6 +41,7 @@ from urllib.parse import urlsplit
 
 from typing_extensions import overload
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
@@ -135,7 +136,7 @@ def _default_config_file_path(file_name: str) -> str:
     return os.path.join(templates_dir, file_name)
 
 
-def default_config_yaml() -> list[dict[str, Any]]:
+def default_config_yaml() -> dict[str, Any]:
     """
     Read Airflow configs from YAML file.
 
@@ -228,34 +229,23 @@ class AirflowConfigParser(ConfigParser):
         ("database", "sql_alchemy_connect_args"): ("core", "sql_alchemy_connect_args", "2.3.0"),
         ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
         ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
-        **{
-            ("kubernetes_executor", x): ("kubernetes", x, "2.4.2")
-            for x in (
-                "pod_template_file",
-                "worker_container_repository",
-                "worker_container_tag",
-                "namespace",
-                "delete_worker_pods",
-                "delete_worker_pods_on_failure",
-                "worker_pods_creation_batch_size",
-                "multi_namespace_mode",
-                "in_cluster",
-                "cluster_context",
-                "config_file",
-                "kube_client_request_args",
-                "delete_option_kwargs",
-                "enable_tcp_keepalive",
-                "tcp_keep_idle",
-                "tcp_keep_intvl",
-                "tcp_keep_cnt",
-                "verify_ssl",
-                "worker_pods_pending_timeout",
-                "worker_pods_pending_timeout_check_interval",
-                "worker_pods_queued_check_interval",
-                "worker_pods_pending_timeout_batch_size",
-            )
-        },
+        ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
     }
+
+    # A mapping of new section -> (old section, since_version).
+    deprecated_sections: dict[str, tuple[str, str]] = {"kubernetes_executor": ("kubernetes", "2.5.0")}
+
+    # Now build the inverse so we can go from old_section/old_key to new_section/new_key
+    # if someone tries to retrieve it based on old_section/old_key
+    @cached_property
+    def inversed_deprecated_options(self):
+        return {(sec, name): key for key, (sec, name, ver) in self.deprecated_options.items()}
+
+    @cached_property
+    def inversed_deprecated_sections(self):
+        return {
+            old_section: new_section for new_section, (old_section, ver) in self.deprecated_sections.items()
+        }
 
     # A mapping of old default values that we want to change and warn the user
     # about. Mapping of section -> setting -> { old, replace, by_version }
@@ -344,6 +334,7 @@ class AirflowConfigParser(ConfigParser):
                 del self.deprecated_values["logging"]["log_filename_template"]
 
         self.is_validated = False
+        self._suppress_future_warnings = False
 
     def validate(self):
         self._validate_config_dependencies()
@@ -570,64 +561,119 @@ class AirflowConfigParser(ConfigParser):
     def get(self, section: str, key: str, **kwargs) -> str | None:  # type: ignore[override, misc]
         section = str(section).lower()
         key = str(key).lower()
+        warning_emitted = False
+        deprecated_section: str | None
+        deprecated_key: str | None
 
-        deprecated_section, deprecated_key, _ = self.deprecated_options.get(
-            (section, key), (None, None, None)
+        # For when we rename whole sections
+        if section in self.inversed_deprecated_sections:
+            deprecated_section, deprecated_key = (section, key)
+            section = self.inversed_deprecated_sections[section]
+            if not self._suppress_future_warnings:
+                warnings.warn(
+                    f"The config section [{deprecated_section}] has been renamed to "
+                    f"[{section}]. Please update your `conf.get*` call to use the new name",
+                    FutureWarning,
+                    stacklevel=2,
+                )
+            # Don't warn about individual rename if the whole section is renamed
+            warning_emitted = True
+        elif (section, key) in self.inversed_deprecated_options:
+            # Handle using deprecated section/key instead of the new section/key
+            new_section, new_key = self.inversed_deprecated_options[(section, key)]
+            if not self._suppress_future_warnings and not warning_emitted:
+                warnings.warn(
+                    f"section/key [{section}/{key}] has been deprecated, you should use"
+                    f"[{new_section}/{new_key}] instead. Please update your `conf.get*` call to use the "
+                    "new name",
+                    FutureWarning,
+                    stacklevel=2,
+                )
+                warning_emitted = True
+            deprecated_section, deprecated_key = section, key
+            section, key = (new_section, new_key)
+        elif section in self.deprecated_sections:
+            # When accessing the new section name, make sure we check under the old config name
+            deprecated_key = key
+            deprecated_section = self.deprecated_sections[section][0]
+        else:
+            deprecated_section, deprecated_key, _ = self.deprecated_options.get(
+                (section, key), (None, None, None)
+            )
+
+        # first check environment variables
+        option = self._get_environment_variables(
+            deprecated_key, deprecated_section, key, section, issue_warning=not warning_emitted
         )
-
-        option = self._get_environment_variables(deprecated_key, deprecated_section, key, section)
         if option is not None:
             return option
 
-        option = self._get_option_from_config_file(deprecated_key, deprecated_section, key, kwargs, section)
+        # ...then the config file
+        option = self._get_option_from_config_file(
+            deprecated_key, deprecated_section, key, kwargs, section, issue_warning=not warning_emitted
+        )
         if option is not None:
             return option
 
-        option = self._get_option_from_commands(deprecated_key, deprecated_section, key, section)
+        # ...then commands
+        option = self._get_option_from_commands(
+            deprecated_key, deprecated_section, key, section, issue_warning=not warning_emitted
+        )
         if option is not None:
             return option
 
-        option = self._get_option_from_secrets(deprecated_key, deprecated_section, key, section)
+        # ...then from secret backends
+        option = self._get_option_from_secrets(
+            deprecated_key, deprecated_section, key, section, issue_warning=not warning_emitted
+        )
         if option is not None:
             return option
 
-        return self._get_option_from_default_config(section, key, **kwargs)
-
-    def _get_option_from_default_config(self, section: str, key: str, **kwargs) -> str | None:
         # ...then the default config
         if self.airflow_defaults.has_option(section, key) or "fallback" in kwargs:
             return expand_env_var(self.airflow_defaults.get(section, key, **kwargs))
 
-        else:
-            log.warning("section/key [%s/%s] not found in config", section, key)
+        log.warning("section/key [%s/%s] not found in config", section, key)
 
-            raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
+        raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
 
     def _get_option_from_secrets(
-        self, deprecated_key: str | None, deprecated_section: str | None, key: str, section: str
+        self,
+        deprecated_key: str | None,
+        deprecated_section: str | None,
+        key: str,
+        section: str,
+        issue_warning: bool = True,
     ) -> str | None:
-        # ...then from secret backends
         option = self._get_secret_option(section, key)
         if option:
             return option
         if deprecated_section and deprecated_key:
-            option = self._get_secret_option(deprecated_section, deprecated_key)
+            with self.suppress_future_warnings():
+                option = self._get_secret_option(deprecated_section, deprecated_key)
             if option:
-                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                if issue_warning:
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key)
                 return option
         return None
 
     def _get_option_from_commands(
-        self, deprecated_key: str | None, deprecated_section: str | None, key: str, section: str
+        self,
+        deprecated_key: str | None,
+        deprecated_section: str | None,
+        key: str,
+        section: str,
+        issue_warning: bool = True,
     ) -> str | None:
-        # ...then commands
         option = self._get_cmd_option(section, key)
         if option:
             return option
         if deprecated_section and deprecated_key:
-            option = self._get_cmd_option(deprecated_section, deprecated_key)
+            with self.suppress_future_warnings():
+                option = self._get_cmd_option(deprecated_section, deprecated_key)
             if option:
-                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                if issue_warning:
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key)
                 return option
         return None
 
@@ -638,29 +684,37 @@ class AirflowConfigParser(ConfigParser):
         key: str,
         kwargs: dict[str, Any],
         section: str,
+        issue_warning: bool = True,
     ) -> str | None:
-        # ...then the config file
         if super().has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
             # separate the config from default config.
             return expand_env_var(super().get(section, key, **kwargs))
         if deprecated_section and deprecated_key:
             if super().has_option(deprecated_section, deprecated_key):
-                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
-                return expand_env_var(super().get(deprecated_section, deprecated_key, **kwargs))
+                if issue_warning:
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                with self.suppress_future_warnings():
+                    return expand_env_var(super().get(deprecated_section, deprecated_key, **kwargs))
         return None
 
     def _get_environment_variables(
-        self, deprecated_key: str | None, deprecated_section: str | None, key: str, section: str
+        self,
+        deprecated_key: str | None,
+        deprecated_section: str | None,
+        key: str,
+        section: str,
+        issue_warning: bool = True,
     ) -> str | None:
-        # first check environment variables
         option = self._get_env_var_option(section, key)
         if option is not None:
             return option
         if deprecated_section and deprecated_key:
-            option = self._get_env_var_option(deprecated_section, deprecated_key)
+            with self.suppress_future_warnings():
+                option = self._get_env_var_option(deprecated_section, deprecated_key)
             if option is not None:
-                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                if issue_warning:
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key)
                 return option
         return None
 
@@ -876,7 +930,9 @@ class AirflowConfigParser(ConfigParser):
                         _section[key] = False
         return _section
 
-    def write(self, fp: IO, space_around_delimiters: bool = True):  # type: ignore[override]
+    def write(  # type: ignore[override]
+        self, fp: IO, space_around_delimiters: bool = True, section: str | None = None
+    ) -> None:
         # This is based on the configparser.RawConfigParser.write method code to add support for
         # reading options from environment variables.
         # Various type ignores below deal with less-than-perfect RawConfigParser superclass typing
@@ -888,9 +944,14 @@ class AirflowConfigParser(ConfigParser):
             self._write_section(  # type: ignore[attr-defined]
                 fp, self.default_section, self._defaults.items(), delimiter  # type: ignore[attr-defined]
             )
-        for section in self._sections:  # type: ignore[attr-defined]
-            item_section: ConfigOptionsDictType = self.getsection(section)  # type: ignore[assignment]
-            self._write_section(fp, section, item_section.items(), delimiter)  # type: ignore[attr-defined]
+        sections = (
+            {section: dict(self.getsection(section))}  # type: ignore[arg-type]
+            if section
+            else self._sections  # type: ignore[attr-defined]
+        )
+        for sect in sections:
+            item_section: ConfigOptionsDictType = self.getsection(sect)  # type: ignore[assignment]
+            self._write_section(fp, sect, item_section.items(), delimiter)  # type: ignore[attr-defined]
 
     def as_dict(
         self,
@@ -1203,6 +1264,13 @@ class AirflowConfigParser(ConfigParser):
             is not None
         )
 
+    @contextmanager
+    def suppress_future_warnings(self):
+        suppress_future_warnings = self._suppress_future_warnings
+        self._suppress_future_warnings = True
+        yield self
+        self._suppress_future_warnings = suppress_future_warnings
+
     @staticmethod
     def _replace_section_config_with_display_sources(
         config: ConfigParser,
@@ -1218,7 +1286,12 @@ class AirflowConfigParser(ConfigParser):
         include_secret: bool,
     ):
         sect = config_sources.setdefault(section, OrderedDict())
-        for (k, val) in config.items(section=section, raw=raw):
+        if isinstance(config, AirflowConfigParser):
+            with config.suppress_future_warnings():
+                items = config.items(section=section, raw=raw)
+        else:
+            items = config.items(section=section, raw=raw)
+        for k, val in items:
             deprecated_section, deprecated_key, _ = deprecated_options.get((section, k), (None, None, None))
             if deprecated_section and deprecated_key:
                 if source_name == "default":
@@ -1282,14 +1355,14 @@ class AirflowConfigParser(ConfigParser):
                 f"The {deprecated_name} option in [{section}] has been renamed to {key} - "
                 f"the old setting has been used, but please update your config.",
                 DeprecationWarning,
-                stacklevel=3,
+                stacklevel=4,
             )
         else:
             warnings.warn(
                 f"The {deprecated_name} option in [{deprecated_section}] has been moved to the {key} option "
                 f"in [{section}] - the old setting has been used, but please update your config.",
                 DeprecationWarning,
-                stacklevel=3,
+                stacklevel=4,
             )
 
     def __getstate__(self):

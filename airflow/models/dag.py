@@ -77,7 +77,6 @@ from airflow.models.base import Base, StringID
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
@@ -91,6 +90,7 @@ from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
+from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -207,6 +207,8 @@ def get_dataset_triggered_next_run_info(
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated"
     """
+    from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ, DatasetModel
+
     return {
         x.dag_id: {
             "uri": x.uri,
@@ -1949,7 +1951,7 @@ class DAG(LoggingMixin):
     @provide_session
     def clear(
         self,
-        task_ids: Collection[str] | Collection[tuple[str, int]] | None = None,
+        task_ids: Collection[str | tuple[str, int]] | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         only_failed: bool = False,
@@ -2551,7 +2553,6 @@ class DAG(LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
-        notes: str | None = None,
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
@@ -2568,7 +2569,6 @@ class DAG(LoggingMixin):
         :param session: database session
         :param dag_hash: Hash of Serialized DAG
         :param data_interval: Data interval of the DagRun
-        :param notes: A custom note for the DAGRun.
         """
         logical_date = timezone.coerce_datetime(execution_date)
 
@@ -2627,7 +2627,6 @@ class DAG(LoggingMixin):
             dag_hash=dag_hash,
             creating_job_id=creating_job_id,
             data_interval=data_interval,
-            notes=notes,
         )
         session.add(run)
         session.flush()
@@ -2827,6 +2826,10 @@ class DAG(LoggingMixin):
         for dataset in all_datasets:
             stored_dataset = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).first()
             if stored_dataset:
+                # Some datasets may have been previously unreferenced, and therefore orphaned by the
+                # scheduler. But if we're here, then we have found that dataset again in our DAGs, which
+                # means that it is no longer an orphan, so set is_orphaned to False.
+                stored_dataset.is_orphaned = expression.false()
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
                 session.add(dataset)
@@ -3230,15 +3233,6 @@ class DagModel(Base):
     def get_current(cls, dag_id, session=NEW_SESSION):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
 
-    @staticmethod
-    @provide_session
-    def get_all_paused_dag_ids(session: Session = NEW_SESSION) -> set[str]:
-        """Get a set of paused DAG ids"""
-        paused_dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_paused == expression.true()).all()
-
-        paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
-        return paused_dag_ids
-
     @provide_session
     def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
         return get_last_dagrun(
@@ -3340,6 +3334,8 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
+        from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
+
         # these dag ids are triggered by datasets, and they are ready to go.
         dataset_triggered_dag_info = {
             x.dag_id: (x.first_queued_time, x.last_queued_time)
@@ -3548,6 +3544,8 @@ def dag(
             # Return dag object such that it's accessible in Globals.
             return dag_obj
 
+        # Ensure that warnings from inside DAG() are emitted from the caller, not here
+        fixup_decorator_warning_stack(factory)
         return factory
 
     return wrapper

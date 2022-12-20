@@ -17,31 +17,117 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest import mock
+from unittest.mock import MagicMock
 
-from moto import mock_lambda
+import pytest
 
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 
+FUNCTION_NAME = "test_function"
+PAYLOAD = '{"hello": "airflow"}'
+RUNTIME = "python3.9"
+ROLE = "role"
+HANDLER = "handler"
+CODE = {}
 
-@mock_lambda
+
+class LambdaHookForTests(LambdaHook):
+    conn = MagicMock(name="conn")
+
+
+@pytest.fixture
+def hook():
+    return LambdaHookForTests()
+
+
 class TestLambdaHook:
-    def test_get_conn_returns_a_boto3_connection(self):
-        hook = LambdaHook(aws_conn_id="aws_default")
+    def test_get_conn_returns_a_boto3_connection(self, hook):
         assert hook.conn is not None
 
-    def test_invoke_lambda_function(self):
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn", new_callable=mock.PropertyMock
+    )
+    def test_invoke_lambda(self, mock_conn):
+        hook = LambdaHook()
+        hook.invoke_lambda(function_name=FUNCTION_NAME, payload=PAYLOAD)
 
-        hook = LambdaHook(aws_conn_id="aws_default")
-
-        with patch.object(hook.conn, "invoke") as mock_invoke:
-            payload = '{"hello": "airflow"}'
-            hook.invoke_lambda(function_name="test_function", payload=payload)
-
-        mock_invoke.asset_called_once_with(
-            FunctionName="test_function",
-            InvocationType="RequestResponse",
-            LogType="None",
-            Payload=payload,
-            Qualifier="$LATEST",
+        mock_conn().invoke.assert_called_once_with(
+            FunctionName=FUNCTION_NAME,
+            Payload=PAYLOAD,
         )
+
+    @pytest.mark.parametrize(
+        "hook_params, boto3_params",
+        [
+            pytest.param(
+                {
+                    "function_name": FUNCTION_NAME,
+                    "runtime": RUNTIME,
+                    "role": ROLE,
+                    "handler": HANDLER,
+                    "code": CODE,
+                    "package_type": "Zip",
+                },
+                {
+                    "FunctionName": FUNCTION_NAME,
+                    "Runtime": RUNTIME,
+                    "Role": ROLE,
+                    "Handler": HANDLER,
+                    "Code": CODE,
+                    "PackageType": "Zip",
+                },
+                id="'Zip' as 'package_type'",
+            ),
+            pytest.param(
+                {
+                    "function_name": FUNCTION_NAME,
+                    "role": ROLE,
+                    "code": CODE,
+                    "package_type": "Image",
+                },
+                {
+                    "FunctionName": FUNCTION_NAME,
+                    "Role": ROLE,
+                    "Code": CODE,
+                    "PackageType": "Image",
+                },
+                id="'Image' as 'package_type'",
+            ),
+        ],
+    )
+    def test_create_lambda(self, hook_params, boto3_params, hook):
+        hook.conn.create_function.reset_mock()
+        hook.conn.create_function.return_value = {}
+        hook.create_lambda(**hook_params)
+
+        hook.conn.create_function.assert_called_once_with(**boto3_params)
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            pytest.param(
+                {
+                    "handler": HANDLER,
+                },
+                id="'runtime' not provided",
+            ),
+            pytest.param(
+                {
+                    "runtime": RUNTIME,
+                },
+                id="'handler' not provided",
+            ),
+        ],
+    )
+    def test_create_lambda_with_zip_package_type_and_missing_args(self, params, hook):
+        hook.conn.create_function.return_value = {}
+
+        with pytest.raises(TypeError):
+            hook.create_lambda(
+                function_name=FUNCTION_NAME,
+                role=ROLE,
+                code=CODE,
+                package_type="Zip",
+                **params,
+            )

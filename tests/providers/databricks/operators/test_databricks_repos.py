@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -33,7 +32,7 @@ TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
 
 
-class TestDatabricksReposUpdateOperator(unittest.TestCase):
+class TestDatabricksReposUpdateOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks_repos.DatabricksHook")
     def test_update_with_id(self, db_mock_class):
         """
@@ -98,7 +97,7 @@ class TestDatabricksReposUpdateOperator(unittest.TestCase):
             DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="123")
 
 
-class TestDatabricksReposDeleteOperator(unittest.TestCase):
+class TestDatabricksReposDeleteOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks_repos.DatabricksHook")
     def test_delete_with_id(self, db_mock_class):
         """
@@ -153,7 +152,7 @@ class TestDatabricksReposDeleteOperator(unittest.TestCase):
             DatabricksReposDeleteOperator(task_id=TASK_ID)
 
 
-class TestDatabricksReposCreateOperator(unittest.TestCase):
+class TestDatabricksReposCreateOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks_repos.DatabricksHook")
     def test_create_plus_checkout(self, db_mock_class):
         """

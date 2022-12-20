@@ -57,7 +57,7 @@ DAG_ID = "example_gcp_cloud_build"
 
 BUCKET_NAME_SRC = f"bucket-src-{DAG_ID}-{ENV_ID}"
 
-GCP_SOURCE_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", f"gs://{BUCKET_NAME_SRC}/file.tar.gz")
+GCP_SOURCE_ARCHIVE_URL = f"gs://{BUCKET_NAME_SRC}/file.tar.gz"
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
 GCP_SOURCE_ARCHIVE_URL_PARTS = urlsplit(GCP_SOURCE_ARCHIVE_URL)
@@ -100,7 +100,9 @@ with models.DAG(
 
     # [START howto_operator_create_build_from_storage]
     create_build_from_storage = CloudBuildCreateBuildOperator(
-        task_id="create_build_from_storage", project_id=PROJECT_ID, build=create_build_from_storage_body
+        task_id="create_build_from_storage",
+        project_id=PROJECT_ID,
+        build=create_build_from_storage_body,
     )
     # [END howto_operator_create_build_from_storage]
 
@@ -113,7 +115,9 @@ with models.DAG(
 
     # [START howto_operator_create_build_from_repo]
     create_build_from_repo = CloudBuildCreateBuildOperator(
-        task_id="create_build_from_repo", project_id=PROJECT_ID, build=create_build_from_repo_body
+        task_id="create_build_from_repo",
+        project_id=PROJECT_ID,
+        build=create_build_from_repo_body,
     )
     # [END howto_operator_create_build_from_repo]
 
@@ -126,7 +130,9 @@ with models.DAG(
 
     # [START howto_operator_list_builds]
     list_builds = CloudBuildListBuildsOperator(
-        task_id="list_builds", project_id=PROJECT_ID, location="global"
+        task_id="list_builds",
+        project_id=PROJECT_ID,
+        location="global",
     )
     # [END howto_operator_list_builds]
 
@@ -173,7 +179,9 @@ with models.DAG(
     # [END howto_operator_gcp_create_build_from_yaml_body]
 
     delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_src",
+        bucket_name=BUCKET_NAME_SRC,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

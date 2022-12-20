@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
@@ -36,7 +36,7 @@ def clean_db(session):
     session.query(TaskInstance).delete()
 
 
-@freeze_time("2016-11-01")
+@time_machine.travel("2016-11-01")
 @pytest.mark.parametrize(
     "allow_trigger_in_future,schedule_interval,execution_date,is_met",
     [
@@ -74,7 +74,7 @@ def test_exec_date_dep(
         assert RunnableExecDateDep().is_met(ti=ti) == is_met
 
 
-@freeze_time("2016-01-01")
+@time_machine.travel("2016-01-01")
 def test_exec_date_after_end_date(session, dag_maker, create_dummy_dag):
     """
     If the dag's execution date is in the future this dep should fail

@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr import EmrBaseSensor
+from airflow.utils.context import Context
 
 TARGET_STATE = "TARGET_STATE"
 FAILED_STATE = "FAILED_STATE"
@@ -42,7 +41,7 @@ class EmrBaseSensorSubclass(EmrBaseSensor):
         self.failed_states = [FAILED_STATE]
         self.response = {}  # will be set in tests
 
-    def get_emr_response(self):
+    def get_emr_response(self, context: Context):
         return self.response
 
     @staticmethod
@@ -60,7 +59,7 @@ class EmrBaseSensorSubclass(EmrBaseSensor):
         return None
 
 
-class TestEmrBaseSensor(unittest.TestCase):
+class TestEmrBaseSensor:
     def test_poke_returns_true_when_state_is_in_target_states(self):
         operator = EmrBaseSensorSubclass(
             task_id="test_task",

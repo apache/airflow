@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -51,8 +50,8 @@ EXPECTED_ADDITIONAL_OPTIONS = {
 TEST_IMPERSONATION_ACCOUNT = "test@impersonation.com"
 
 
-class TestBeamRunPythonPipelineOperator(unittest.TestCase):
-    def setUp(self):
+class TestBeamRunPythonPipelineOperator:
+    def setup_method(self):
         self.operator = BeamRunPythonPipelineOperator(
             task_id=TASK_ID,
             py_file=PY_FILE,
@@ -63,13 +62,13 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
 
     def test_init(self):
         """Test BeamRunPythonPipelineOperator instance is properly initialized."""
-        self.assertEqual(self.operator.task_id, TASK_ID)
-        self.assertEqual(self.operator.py_file, PY_FILE)
-        self.assertEqual(self.operator.runner, DEFAULT_RUNNER)
-        self.assertEqual(self.operator.py_options, PY_OPTIONS)
-        self.assertEqual(self.operator.py_interpreter, PY_INTERPRETER)
-        self.assertEqual(self.operator.default_pipeline_options, DEFAULT_OPTIONS_PYTHON)
-        self.assertEqual(self.operator.pipeline_options, EXPECTED_ADDITIONAL_OPTIONS)
+        assert self.operator.task_id == TASK_ID
+        assert self.operator.py_file == PY_FILE
+        assert self.operator.runner == DEFAULT_RUNNER
+        assert self.operator.py_options == PY_OPTIONS
+        assert self.operator.py_interpreter == PY_INTERPRETER
+        assert self.operator.default_pipeline_options == DEFAULT_OPTIONS_PYTHON
+        assert self.operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
 
     @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
     @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
@@ -180,8 +179,8 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
         dataflow_cancel_job.assert_not_called()
 
 
-class TestBeamRunJavaPipelineOperator(unittest.TestCase):
-    def setUp(self):
+class TestBeamRunJavaPipelineOperator:
+    def setup_method(self):
         self.operator = BeamRunJavaPipelineOperator(
             task_id=TASK_ID,
             jar=JAR_FILE,
@@ -192,12 +191,12 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
 
     def test_init(self):
         """Test BeamRunJavaPipelineOperator instance is properly initialized."""
-        self.assertEqual(self.operator.task_id, TASK_ID)
-        self.assertEqual(self.operator.runner, DEFAULT_RUNNER)
-        self.assertEqual(self.operator.default_pipeline_options, DEFAULT_OPTIONS_JAVA)
-        self.assertEqual(self.operator.job_class, JOB_CLASS)
-        self.assertEqual(self.operator.jar, JAR_FILE)
-        self.assertEqual(self.operator.pipeline_options, ADDITIONAL_OPTIONS)
+        assert self.operator.task_id == TASK_ID
+        assert self.operator.runner == DEFAULT_RUNNER
+        assert self.operator.default_pipeline_options == DEFAULT_OPTIONS_JAVA
+        assert self.operator.job_class == JOB_CLASS
+        assert self.operator.jar == JAR_FILE
+        assert self.operator.pipeline_options == ADDITIONAL_OPTIONS
 
     @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
     @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
@@ -299,8 +298,8 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
         dataflow_cancel_job.assert_not_called()
 
 
-class TestBeamRunGoPipelineOperator(unittest.TestCase):
-    def setUp(self):
+class TestBeamRunGoPipelineOperator:
+    def setup_method(self):
         self.operator = BeamRunGoPipelineOperator(
             task_id=TASK_ID,
             go_file=GO_FILE,
@@ -310,11 +309,11 @@ class TestBeamRunGoPipelineOperator(unittest.TestCase):
 
     def test_init(self):
         """Test BeamRunGoPipelineOperator instance is properly initialized."""
-        self.assertEqual(self.operator.task_id, TASK_ID)
-        self.assertEqual(self.operator.go_file, GO_FILE)
-        self.assertEqual(self.operator.runner, DEFAULT_RUNNER)
-        self.assertEqual(self.operator.default_pipeline_options, DEFAULT_OPTIONS_PYTHON)
-        self.assertEqual(self.operator.pipeline_options, EXPECTED_ADDITIONAL_OPTIONS)
+        assert self.operator.task_id == TASK_ID
+        assert self.operator.go_file == GO_FILE
+        assert self.operator.runner == DEFAULT_RUNNER
+        assert self.operator.default_pipeline_options == DEFAULT_OPTIONS_PYTHON
+        assert self.operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
 
     @mock.patch(
         "tempfile.TemporaryDirectory",

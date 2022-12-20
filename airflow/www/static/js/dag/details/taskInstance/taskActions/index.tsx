@@ -37,38 +37,51 @@ type Props = {
 } & CommonActionProps;
 
 const TaskActions = ({
-  title, runId, taskId, dagId, executionDate, mapIndexes,
+  title, runId, taskId, dagId, executionDate, mapIndexes, isGroup,
 }: Props) => (
   <Box my={3}>
     <Text as="strong" size="lg">{title}</Text>
     <Divider my={2} />
-    <VStack justifyContent="center" divider={<StackDivider my={3} />}>
-      <RunAction
-        runId={runId}
-        taskId={taskId}
-        dagId={dagId}
-        mapIndexes={mapIndexes}
-      />
+    {/* For now only ClearAction is supported for groups */}
+    {isGroup ? (
       <ClearAction
         runId={runId}
         taskId={taskId}
         dagId={dagId}
         executionDate={executionDate}
         mapIndexes={mapIndexes}
+        isGroup={isGroup}
       />
-      <MarkFailedAction
-        runId={runId}
-        taskId={taskId}
-        dagId={dagId}
-        mapIndexes={mapIndexes}
-      />
-      <MarkSuccessAction
-        runId={runId}
-        taskId={taskId}
-        dagId={dagId}
-        mapIndexes={mapIndexes}
-      />
-    </VStack>
+    ) : (
+      <VStack justifyContent="center" divider={<StackDivider my={3} />}>
+        <RunAction
+          runId={runId}
+          taskId={taskId}
+          dagId={dagId}
+          mapIndexes={mapIndexes}
+        />
+        <ClearAction
+          runId={runId}
+          taskId={taskId}
+          dagId={dagId}
+          executionDate={executionDate}
+          mapIndexes={mapIndexes}
+          isGroup={!!isGroup}
+        />
+        <MarkFailedAction
+          runId={runId}
+          taskId={taskId}
+          dagId={dagId}
+          mapIndexes={mapIndexes}
+        />
+        <MarkSuccessAction
+          runId={runId}
+          taskId={taskId}
+          dagId={dagId}
+          mapIndexes={mapIndexes}
+        />
+      </VStack>
+    )}
     <Divider my={2} />
   </Box>
 );

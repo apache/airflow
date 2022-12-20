@@ -27,6 +27,23 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow SSL mode in MySQL provider (#27717)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
 3.3.0
 .....
 
