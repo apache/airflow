@@ -28,7 +28,14 @@ from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+except ImportError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
+
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,

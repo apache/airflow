@@ -576,3 +576,8 @@ secrets-backends:
 logging:
   - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
   - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
+
+additional-extras:
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=5.0.0
