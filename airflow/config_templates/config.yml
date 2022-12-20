@@ -2544,6 +2544,13 @@
       type: boolean
       example: ~
       default: "True"
+    - name: worker_pods_name_prefix
+      description: |
+        Prefix to be added to the beginning of worker pods' names
+      version_added: 2.6.0
+      type: string
+      example: prefix
+      default: ""
     - name: worker_pods_pending_timeout
       description: |
         How long in seconds a worker can be in Pending before it is considered a failure
