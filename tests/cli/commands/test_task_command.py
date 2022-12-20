@@ -32,6 +32,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+import time_machine
 from parameterized import parameterized
 
 from airflow import DAG
@@ -67,6 +68,15 @@ def move_back(old_path, new_path):
     shutil.move(old_path, new_path)
     yield
     shutil.move(new_path, old_path)
+
+
+@pytest.fixture()
+def freeze_time():
+    timestamp = "2022-06-10T12:02:44+00:00"
+    freezer = time_machine.travel(timestamp, tick=False)
+    freezer.start()
+    yield
+    freezer.stop()
 
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
@@ -599,6 +609,56 @@ class TestLogsfromTaskRunCommand:
                 pool=None,
                 external_executor_id="ABCD12345",
             )
+
+    def test_logging_with_run_task_stdout(self, capsys, freeze_time):
+        with conf_vars({("core", "dags_folder"): self.dag_path}):
+            task_command.task_run(self.parser.parse_args(self.task_args))
+        out, err = capsys.readouterr()
+        lines = []
+        found_start = False
+        for line in out.splitlines():
+            if "Running <TaskInstance: test_logging_dag.test_task test_run" in line:
+                found_start = True
+            if found_start:
+                lines.append(line)
+        assert lines == [
+            "[\x1b[34m2022-06-10 05:02:44,000\x1b[0m] "
+            "{\x1b[34mtask_command.py:\x1b[0m435} INFO\x1b[0m - Running <TaskInstance: "
+            "test_logging_dag.test_task test_run [None]> on host daniels-mbp-2.lan\x1b[0m",
+        ]
+
+    @mock.patch.dict("os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD="True")
+    def test_logging_with_run_task_stdout_k8s_executor_pod(self, capfd, freeze_time):
+        """
+        When running task --local as k8l executor pod, all logging should make it to stdout.
+
+        Unfortunately, we have to test this by running as a subprocess because
+        the stdout redirection & log capturing behavior is not compatible with pytest's stdout
+        capturing behavior.  Running as subprocess takes pytest out of the equation and
+        verifies with certainty the behavior.
+        """
+        import subprocess
+
+        with subprocess.Popen(
+            args=["airflow", *self.task_args, "-S", self.dag_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ) as process:
+            output, err = process.communicate()
+        lines = []
+        found_start = False
+        for line_ in output.splitlines():
+            line = line_.decode("utf-8")
+            if "Running <TaskInstance: test_logging_dag.test_task test_run" in line:
+                found_start = True
+            if found_start:
+                lines.append(line)
+        self.assert_log_line("Starting attempt 1 of 1", lines)
+        self.assert_log_line("Exporting the following env vars", lines)
+        self.assert_log_line("Log from DAG Logger", lines)
+        self.assert_log_line("Log from TI Logger", lines)
+        self.assert_log_line("Log from Print statement", lines, expect_from_logging_mixin=True)
+        self.assert_log_line("Task exited with return code 0", lines)
 
     @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
     def test_logging_with_run_task(self):
