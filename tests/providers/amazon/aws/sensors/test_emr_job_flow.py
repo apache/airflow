@@ -199,6 +199,9 @@ class TestEmrJobFlowSensor:
         # Mock out the emr_client creator
         self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
 
+        # Mock context used in execute function
+        self.mock_ctx = MagicMock()
+
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_a_target_state(self):
         self.mock_emr_client.describe_cluster.side_effect = [
             DESCRIBE_CLUSTER_STARTING_RETURN,
@@ -210,7 +213,7 @@ class TestEmrJobFlowSensor:
                 task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
             )
 
-            operator.execute(None)
+            operator.execute(self.mock_ctx)
 
             # make sure we called twice
             assert self.mock_emr_client.describe_cluster.call_count == 3
@@ -230,7 +233,7 @@ class TestEmrJobFlowSensor:
             )
 
             with pytest.raises(AirflowException):
-                operator.execute(None)
+                operator.execute(self.mock_ctx)
 
                 # make sure we called twice
                 assert self.mock_emr_client.describe_cluster.call_count == 2
@@ -256,7 +259,7 @@ class TestEmrJobFlowSensor:
                 target_states=["RUNNING", "WAITING"],
             )
 
-            operator.execute(None)
+            operator.execute(self.mock_ctx)
 
             # make sure we called twice
             assert self.mock_emr_client.describe_cluster.call_count == 3

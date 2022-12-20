@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.links.emr import EmrLogsLink
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
@@ -61,7 +63,7 @@ class EmrBaseSensor(BaseSensorOperator):
         return self.hook
 
     def poke(self, context: Context):
-        response = self.get_emr_response()
+        response = self.get_emr_response(context=context)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             self.log.info("Bad HTTP response: %s", response)
@@ -78,7 +80,7 @@ class EmrBaseSensor(BaseSensorOperator):
 
         return False
 
-    def get_emr_response(self) -> dict[str, Any]:
+    def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
         Make an API call with boto3 and get response.
 
@@ -329,7 +331,7 @@ class EmrNotebookExecutionSensor(EmrBaseSensor):
         self.target_states = target_states or self.COMPLETED_STATES
         self.failed_states = failed_states or self.FAILURE_STATES
 
-    def get_emr_response(self) -> dict[str, Any]:
+    def get_emr_response(self, context: Context) -> dict[str, Any]:
         emr_client = self.get_hook().get_conn()
         self.log.info("Poking notebook %s", self.notebook_execution_id)
 
@@ -382,6 +384,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
     template_fields: Sequence[str] = ("job_flow_id", "target_states", "failed_states")
     template_ext: Sequence[str] = ()
+    operator_extra_links = (EmrLogsLink(),)
 
     def __init__(
         self,
@@ -396,7 +399,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         self.target_states = target_states or ["TERMINATED"]
         self.failed_states = failed_states or ["TERMINATED_WITH_ERRORS"]
 
-    def get_emr_response(self) -> dict[str, Any]:
+    def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
         Make an API call with boto3 and get cluster-level details.
 
@@ -406,9 +409,18 @@ class EmrJobFlowSensor(EmrBaseSensor):
         :return: response
         """
         emr_client = self.get_hook().get_conn()
-
         self.log.info("Poking cluster %s", self.job_flow_id)
-        return emr_client.describe_cluster(ClusterId=self.job_flow_id)
+        response = emr_client.describe_cluster(ClusterId=self.job_flow_id)
+        log_uri = S3Hook.parse_s3_url(response["Cluster"]["LogUri"])
+        EmrLogsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.get_hook().conn_region_name,
+            aws_partition=self.get_hook().conn_partition,
+            job_flow_id=self.job_flow_id,
+            log_uri="/".join(log_uri),
+        )
+        return response
 
     @staticmethod
     def state_from_response(response: dict[str, Any]) -> str:
@@ -476,7 +488,7 @@ class EmrStepSensor(EmrBaseSensor):
         self.target_states = target_states or ["COMPLETED"]
         self.failed_states = failed_states or ["CANCELLED", "FAILED", "INTERRUPTED"]
 
-    def get_emr_response(self) -> dict[str, Any]:
+    def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
         Make an API call with boto3 and get details about the cluster step.
 
