@@ -16,13 +16,17 @@
 # under the License.
 
 
-from airflow.providers.sas._utils.logon import create_session_for_connection
-from airflow.models.baseoperator import BaseOperator
-from airflow.exceptions import AirflowFailException
+from __future__ import annotations
+
 import urllib.parse
 
-JES_URI = '/jobExecution'
-JOB_URI = f'{JES_URI}/jobs'
+from airflow.exceptions import AirflowFailException
+from airflow.models import BaseOperator
+from airflow.providers.sas._utils.logon import create_session_for_connection
+
+JES_URI = "/jobExecution"
+JOB_URI = f"{JES_URI}/jobs"
+
 
 class SASJobExecutionOperator(BaseOperator):
     """
@@ -47,22 +51,23 @@ class SASJobExecutionOperator(BaseOperator):
     def execute(self, context):
         session = create_session_for_connection(self.connection_name)
 
-        print(f'Executing SAS job: {self.job_name}')
+        print(f"Executing SAS job: {self.job_name}")
         # url escape the program name
         program_name = urllib.parse.quote(self.job_name)
-        url_string = ''
+        url_string = ""
         for key, value in self.parameters.items():
-            url_string += f'&{key}={urllib.parse.quote(value)}'
+            url_string += f"&{key}={urllib.parse.quote(value)}"
 
-        url = f'/SASJobExecution/?_program={program_name}{url_string}'
+        url = f"/SASJobExecution/?_program={program_name}{url_string}"
 
-        payload = {'_program': self.job_name, '_action': 'wait,execute',
-                   '_output_type': 'html',
-                   '_debug': 'log'}
-
-        headers = {
-            'Accept': 'application/vnd.sas.job.execution.job+json'
+        payload = {
+            "_program": self.job_name,
+            "_action": "wait,execute",
+            "_output_type": "html",
+            "_debug": "log",
         }
+
+        headers = {"Accept": "application/vnd.sas.job.execution.job+json"}
         response = session.post(url, headers=headers, data=payload, verify=False)
 
         if response.status_code != 200:
