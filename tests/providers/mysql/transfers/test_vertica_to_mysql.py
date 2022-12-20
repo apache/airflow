@@ -20,8 +20,14 @@ from __future__ import annotations
 import datetime
 from unittest import mock
 
+import pytest
+
 from airflow.models.dag import DAG
-from airflow.providers.mysql.transfers.vertica_to_mysql import VerticaToMySqlOperator
+
+try:
+    from airflow.providers.mysql.transfers.vertica_to_mysql import VerticaToMySqlOperator
+except ImportError:
+    pytest.skip("MySQL not available", allow_module_level=True)
 
 
 def mock_get_conn():

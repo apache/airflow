@@ -756,6 +756,12 @@ class KubernetesExecutor(BaseExecutor):
         self.event_buffer[key] = state, None
 
     def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
+        pod_override = ti.executor_config.get("pod_override")
+        if pod_override and pod_override.metadata and pod_override.metadata.namespace:
+            namespace = pod_override.metadata.namespace
+        else:
+            namespace = conf.get("kubernetes_executor", "namespace")
+
         try:
 
             kube_client = get_kube_client()
@@ -764,7 +770,7 @@ class KubernetesExecutor(BaseExecutor):
 
             res = kube_client.read_namespaced_pod_log(
                 name=ti.hostname,
-                namespace=conf.get("kubernetes_executor", "namespace"),
+                namespace=namespace,
                 container="base",
                 follow=False,
                 tail_lines=100,

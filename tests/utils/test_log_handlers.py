@@ -22,7 +22,10 @@ import logging.config
 import os
 import re
 from unittest import mock
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
+from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
@@ -272,6 +275,64 @@ class TestFileTaskLogHandler:
                 fth._get_task_log_from_worker.assert_called_once()
                 assert "Local log file does not exist" in log[0]
                 assert "Couldn't fetch log from executor. Falling back to fetching log from worker" in log[0]
+
+    @pytest.mark.parametrize(
+        "pod_override, namespace_to_call",
+        [
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-A")), "namespace-A"),
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-B")), "namespace-B"),
+            pytest.param(k8s.V1Pod(), "default"),
+            pytest.param(None, "default"),
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name-xxx")), "default"),
+        ],
+    )
+    @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
+    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_read_from_k8s_under_multi_namespace_mode(
+        self, mock_kube_client, pod_override, namespace_to_call
+    ):
+        mock_read_namespaced_pod_log = MagicMock()
+        mock_kube_client.return_value.read_namespaced_pod_log = mock_read_namespaced_pod_log
+
+        def task_callable(ti):
+            ti.log.info("test")
+
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+        )
+        executor_config_pod = pod_override
+        task = PythonOperator(
+            task_id="task_for_testing_file_log_handler",
+            dag=dag,
+            python_callable=task_callable,
+            executor_config={"pod_override": executor_config_pod},
+        )
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        ti.try_number = 3
+
+        logger = ti.log
+        ti.log.disabled = False
+
+        file_handler = next(
+            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+        )
+        set_context(logger, ti)
+        ti.run(ignore_ti_state=True)
+
+        file_handler.read(ti, 3)
+
+        # Check if kube_client.read_namespaced_pod_log() is called with the namespace we expect
+        mock_read_namespaced_pod_log.assert_called_once_with(
+            name=ti.hostname,
+            namespace=namespace_to_call,
+            container="base",
+            follow=False,
+            tail_lines=100,
+            _preload_content=False,
+        )
 
 
 class TestFilenameRendering:

@@ -23,13 +23,19 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import pytest
+
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+
+try:
+    from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+except ImportError:
+    pytest.skip("MySQL not available", allow_module_level=True)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
