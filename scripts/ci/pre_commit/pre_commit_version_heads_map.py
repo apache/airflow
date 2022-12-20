@@ -55,9 +55,9 @@ def read_current_airflow_version():
     return Version(ast.literal_eval(version.value))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     airflow_version = read_current_airflow_version()
-    if airflow_version.is_devrelease or 'b' in (airflow_version.pre or ()):
+    if airflow_version.is_devrelease or "b" in (airflow_version.pre or ()):
         exit(0)
     versions = read_revision_heads_map()
     if airflow_version.base_version not in versions:

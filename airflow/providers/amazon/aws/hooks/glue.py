@@ -24,12 +24,12 @@ import boto3
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
-DEFAULT_LOG_SUFFIX = 'output'
-FAILURE_LOG_SUFFIX = 'error'
+DEFAULT_LOG_SUFFIX = "output"
+FAILURE_LOG_SUFFIX = "error"
 # A filter value of ' ' translates to "match all".
 # see: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html
-DEFAULT_LOG_FILTER = ' '
-FAILURE_LOG_FILTER = '?ERROR ?Exception'
+DEFAULT_LOG_FILTER = " "
+FAILURE_LOG_FILTER = "?ERROR ?Exception"
 
 
 class GlueJobHook(AwsBaseHook):
@@ -71,7 +71,7 @@ class GlueJobHook(AwsBaseHook):
         self.retry_limit = retry_limit
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
-        self.s3_glue_logs = 'logs/glue-logs/'
+        self.s3_glue_logs = "logs/glue-logs/"
         self.create_job_kwargs = create_job_kwargs or {}
 
         worker_type_exists = "WorkerType" in self.create_job_kwargs
@@ -89,19 +89,47 @@ class GlueJobHook(AwsBaseHook):
         else:
             self.num_of_dpus = num_of_dpus
 
-        kwargs['client_type'] = 'glue'
+        kwargs["client_type"] = "glue"
         super().__init__(*args, **kwargs)
+
+    def create_glue_job_config(self) -> dict:
+        if self.s3_bucket is None:
+            raise ValueError("Could not initialize glue job, error: Specify Parameter `s3_bucket`")
+
+        default_command = {
+            "Name": "glueetl",
+            "ScriptLocation": self.script_location,
+        }
+        command = self.create_job_kwargs.pop("Command", default_command)
+
+        s3_log_path = f"s3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}"
+        execution_role = self.get_iam_execution_role()
+
+        ret_config = {
+            "Name": self.job_name,
+            "Description": self.desc,
+            "LogUri": s3_log_path,
+            "Role": execution_role["Role"]["Arn"],
+            "ExecutionProperty": {"MaxConcurrentRuns": self.concurrent_run_limit},
+            "Command": command,
+            "MaxRetries": self.retry_limit,
+            **self.create_job_kwargs,
+        }
+
+        if hasattr(self, "num_of_dpus"):
+            ret_config["MaxCapacity"] = self.num_of_dpus
+
+        return ret_config
 
     def list_jobs(self) -> list:
         """:return: Lists of Jobs"""
-        conn = self.get_conn()
-        return conn.get_jobs()
+        return self.get_conn().get_jobs()
 
     def get_iam_execution_role(self) -> dict:
         """:return: iam role for job execution"""
         try:
             iam_client = self.get_session(region_name=self.region_name).client(
-                'iam', endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
+                "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
             )
             glue_execution_role = iam_client.get_role(RoleName=self.role_name)
             self.log.info("Iam Role Name: %s", self.role_name)
@@ -120,14 +148,12 @@ class GlueJobHook(AwsBaseHook):
         to run job
         :return:
         """
-        glue_client = self.get_conn()
         script_arguments = script_arguments or {}
         run_kwargs = run_kwargs or {}
 
         try:
-            job_name = self.get_or_create_glue_job()
-            return glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
-
+            job_name = self.create_or_update_glue_job()
+            return self.get_conn().start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
@@ -140,9 +166,8 @@ class GlueJobHook(AwsBaseHook):
         :param run_id: The job-run ID of the predecessor job run
         :return: State of the Glue job
         """
-        glue_client = self.get_conn()
-        job_run = glue_client.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
-        return job_run['JobRun']['JobRunState']
+        job_run = self.get_conn().get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
+        return job_run["JobRun"]["JobRunState"]
 
     def print_job_logs(
         self,
@@ -152,13 +177,13 @@ class GlueJobHook(AwsBaseHook):
         next_token: str | None = None,
     ) -> str | None:
         """Prints the batch of logs to the Airflow task log and returns nextToken."""
-        log_client = boto3.client('logs')
+        log_client = boto3.client("logs")
         response = {}
 
         filter_pattern = FAILURE_LOG_FILTER if job_failed else DEFAULT_LOG_FILTER
-        log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)['JobRun']['LogGroupName']
+        log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["LogGroupName"]
         log_group_suffix = FAILURE_LOG_SUFFIX if job_failed else DEFAULT_LOG_SUFFIX
-        log_group_name = f'{log_group_prefix}/{log_group_suffix}'
+        log_group_name = f"{log_group_prefix}/{log_group_suffix}"
 
         try:
             if next_token:
@@ -174,20 +199,20 @@ class GlueJobHook(AwsBaseHook):
                     logStreamNames=[run_id],
                     filterPattern=filter_pattern,
                 )
-            if len(response['events']):
-                messages = '\t'.join([event['message'] for event in response['events']])
-                self.log.info('Glue Job Run Logs:\n\t%s', messages)
+            if len(response["events"]):
+                messages = "\t".join([event["message"] for event in response["events"]])
+                self.log.info("Glue Job Run Logs:\n\t%s", messages)
 
         except log_client.exceptions.ResourceNotFoundException:
             self.log.warning(
-                'No new Glue driver logs found. This might be because there are no new logs, '
-                'or might be an error.\nIf the error persists, check the CloudWatch dashboard '
-                f'at: https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home'
+                "No new Glue driver logs found. This might be because there are no new logs, "
+                "or might be an error.\nIf the error persists, check the CloudWatch dashboard "
+                f"at: https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home"
             )
 
         # If no new log events are available, filter_log_events will return None.
         # In that case, check the same token again next pass.
-        return response.get('nextToken') or next_token
+        return response.get("nextToken") or next_token
 
     def job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
         """
@@ -199,8 +224,8 @@ class GlueJobHook(AwsBaseHook):
         :param verbose: If True, more Glue Job Run logs show in the Airflow Task Logs.  (default: False)
         :return: Dict of JobRunState and JobRunId
         """
-        failed_states = ['FAILED', 'TIMEOUT']
-        finished_states = ['SUCCEEDED', 'STOPPED']
+        failed_states = ["FAILED", "TIMEOUT"]
+        finished_states = ["SUCCEEDED", "STOPPED"]
         next_log_token = None
         job_failed = False
 
@@ -208,16 +233,16 @@ class GlueJobHook(AwsBaseHook):
             try:
                 job_run_state = self.get_job_state(job_name, run_id)
                 if job_run_state in finished_states:
-                    self.log.info('Exiting Job %s Run State: %s', run_id, job_run_state)
-                    return {'JobRunState': job_run_state, 'JobRunId': run_id}
+                    self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
+                    return {"JobRunState": job_run_state, "JobRunId": run_id}
                 if job_run_state in failed_states:
                     job_failed = True
-                    job_error_message = f'Exiting Job {run_id} Run State: {job_run_state}'
+                    job_error_message = f"Exiting Job {run_id} Run State: {job_run_state}"
                     self.log.info(job_error_message)
                     raise AirflowException(job_error_message)
                 else:
                     self.log.info(
-                        'Polling for AWS Glue Job %s current run state with status %s',
+                        "Polling for AWS Glue Job %s current run state with status %s",
                         job_name,
                         job_run_state,
                     )
@@ -231,54 +256,53 @@ class GlueJobHook(AwsBaseHook):
                         next_token=next_log_token,
                     )
 
-    def get_or_create_glue_job(self) -> str:
+    def has_job(self, job_name) -> bool:
         """
-        Creates(or just returns) and returns the Job name
+        Checks if the job already exists
+
+        :param job_name: unique job name per AWS account
+        :return: Returns True if the job already exists and False if not.
+        """
+        self.log.info("Checking if job already exists: %s", job_name)
+
+        try:
+            self.get_conn().get_job(JobName=job_name)
+            return True
+        except self.get_conn().exceptions.EntityNotFoundException:
+            return False
+
+    def update_job(self, **job_kwargs) -> bool:
+        """
+        Updates job configurations
+
+        :param job_kwargs: Keyword args that define the configurations used for the job
+        :return: True if job was updated and false otherwise
+        """
+        job_name = job_kwargs.pop("Name")
+        current_job = self.get_conn().get_job(JobName=job_name)["Job"]
+
+        update_config = {
+            key: value for key, value in job_kwargs.items() if current_job.get(key) != job_kwargs[key]
+        }
+        if update_config != {}:
+            self.log.info("Updating job: %s", job_name)
+            self.get_conn().update_job(JobName=job_name, JobUpdate=job_kwargs)
+            self.log.info("Updated configurations: %s", update_config)
+            return True
+        else:
+            return False
+
+    def create_or_update_glue_job(self) -> str | None:
+        """
+        Creates(or updates) and returns the Job name
         :return:Name of the Job
         """
-        glue_client = self.get_conn()
-        try:
-            get_job_response = glue_client.get_job(JobName=self.job_name)
-            self.log.info("Job Already exist. Returning Name of the job")
-            return get_job_response['Job']['Name']
+        config = self.create_glue_job_config()
 
-        except glue_client.exceptions.EntityNotFoundException:
-            self.log.info("Job doesn't exist. Now creating and running AWS Glue Job")
-            if self.s3_bucket is None:
-                raise AirflowException('Could not initialize glue job, error: Specify Parameter `s3_bucket`')
-            s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
-            execution_role = self.get_iam_execution_role()
-            try:
-                default_command = {
-                    "Name": "glueetl",
-                    "ScriptLocation": self.script_location,
-                }
-                command = self.create_job_kwargs.pop("Command", default_command)
+        if self.has_job(self.job_name):
+            self.update_job(**config)
+        else:
+            self.log.info("Creating job: %s", self.job_name)
+            self.get_conn().create_job(**config)
 
-                if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
-                    create_job_response = glue_client.create_job(
-                        Name=self.job_name,
-                        Description=self.desc,
-                        LogUri=s3_log_path,
-                        Role=execution_role['Role']['Arn'],
-                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                        Command=command,
-                        MaxRetries=self.retry_limit,
-                        **self.create_job_kwargs,
-                    )
-                else:
-                    create_job_response = glue_client.create_job(
-                        Name=self.job_name,
-                        Description=self.desc,
-                        LogUri=s3_log_path,
-                        Role=execution_role['Role']['Arn'],
-                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                        Command=command,
-                        MaxRetries=self.retry_limit,
-                        MaxCapacity=self.num_of_dpus,
-                        **self.create_job_kwargs,
-                    )
-                return create_job_response['Name']
-            except Exception as general_error:
-                self.log.error("Failed to create aws glue job, error: %s", general_error)
-                raise
+        return self.job_name

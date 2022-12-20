@@ -41,15 +41,13 @@ from os.path import dirname, relpath
 from pathlib import Path
 from random import choice
 from shutil import copyfile
-from typing import Any, Generator, Iterable, NamedTuple, Union
+from typing import Any, Generator, Iterable, NamedTuple
 
 import jsonschema
 import rich_click as click
 import semver as semver
-from github import Github, Issue, PullRequest, UnknownObjectException
 from packaging.version import Version
 from rich.console import Console
-from rich.progress import Progress
 from rich.syntax import Syntax
 from yaml import safe_load
 
@@ -86,7 +84,7 @@ Initial version of the provider.
 """
 
 HTTPS_REMOTE = "apache-https-for-providers"
-HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/main"
+HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}"
 
 MY_DIR_PATH = Path(__file__).parent
 AIRFLOW_SOURCES_ROOT_PATH = MY_DIR_PATH.parents[1]
@@ -145,7 +143,7 @@ class EntityType(Enum):
     Secrets = "Secrets"
 
 
-@click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
+@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
 def cli():
     ...
 
@@ -158,19 +156,19 @@ option_skip_tag_check = click.option(
 )
 
 option_git_update = click.option(
-    '--git-update/--no-git-update',
+    "--git-update/--no-git-update",
     default=True,
     is_flag=True,
     help=f"If the git remote {HTTPS_REMOTE} already exists, don't try to update it",
 )
 
 option_package_format = click.option(
-    '--package-format',
+    "--package-format",
     type=click.Choice(["wheel", "sdist", "both"]),
-    help='Format of packages.',
+    help="Format of packages.",
     default="wheel",
     show_default=True,
-    envvar='PACKAGE_FORMAT',
+    envvar="PACKAGE_FORMAT",
 )
 
 option_version_suffix = click.option(
@@ -192,9 +190,14 @@ option_force = click.option(
     is_flag=True,
     help="Forces regeneration of already generated documentation",
 )
-argument_package_id = click.argument('package_id')
-argument_changelog_files = click.argument('changelog_files', nargs=-1)
-argument_package_ids = click.argument('package_ids', nargs=-1)
+option_base_branch = click.option(
+    "--base-branch",
+    type=str,
+    default="main",
+)
+argument_package_id = click.argument("package_id")
+argument_changelog_files = click.argument("changelog_files", nargs=-1)
+argument_package_ids = click.argument("package_ids", nargs=-1)
 
 
 @contextmanager
@@ -206,8 +209,8 @@ def with_group(title: str) -> Generator[None, None, None]:
     For more information, see:
     https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
     """
-    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
-        console.print("#" * 10 + ' [bright_blue]' + title + '[/] ' + "#" * 10)
+    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+        console.print("#" * 10 + " [bright_blue]" + title + "[/] " + "#" * 10)
         yield
         return
     console.print(f"::group::[bright_blue]{title}[/]")
@@ -291,7 +294,7 @@ def get_long_description(provider_package_id: str) -> str:
     readme_file = os.path.join(package_folder, "README.md")
     if not os.path.exists(readme_file):
         return ""
-    with open(readme_file, encoding='utf-8') as file:
+    with open(readme_file, encoding="utf-8") as file:
         readme_contents = file.read()
     copying = True
     long_description = ""
@@ -325,7 +328,7 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
             # including all development releases. When you specify dependency as >= X.Y.Z, and you
             # have packages X.Y.Zdev0 or X.Y.Zrc1 in a local file, such package is not considered
             # as fulfilling the requirement even if `--pre` switch is used.
-            return install_clause + ".*"
+            return install_clause + ".dev0"
         return install_clause
 
     install_requires = [
@@ -352,18 +355,18 @@ def get_package_extras(provider_package_id: str) -> dict[str, list[str]]:
 
     :param provider_package_id: id of the package
     """
-    if provider_package_id == 'providers':
+    if provider_package_id == "providers":
         return {}
     extras_dict: dict[str, list[str]] = {
         module: [get_pip_package_name(module)]
         for module in ALL_DEPENDENCIES[provider_package_id][CROSS_PROVIDERS_DEPS]
     }
     provider_yaml_dict = get_provider_yaml(provider_package_id)
-    additional_extras = provider_yaml_dict.get('additional-extras')
+    additional_extras = provider_yaml_dict.get("additional-extras")
     if additional_extras:
         for entry in additional_extras:
-            name = entry['name']
-            dependencies = entry['dependencies']
+            name = entry["name"]
+            dependencies = entry["dependencies"]
             if name in extras_dict:
                 # remove non-versioned dependencies if versioned ones are coming
                 existing_dependencies = set(extras_dict[name])
@@ -509,7 +512,7 @@ def convert_pip_requirements_to_table(requirements: Iterable[str], markdown: boo
             package = found.group(1)
             version_required = found.group(2)
             if version_required != "":
-                version_required = f"`{version_required}`" if markdown else f'``{version_required}``'
+                version_required = f"`{version_required}`" if markdown else f"``{version_required}``"
             table_data.append((f"`{package}`" if markdown else f"``{package}``", version_required))
         else:
             table_data.append((dependency, ""))
@@ -635,11 +638,11 @@ def check_if_release_version_ok(
     :return: Tuple of current/previous_release (previous might be None if there are no releases)
     """
     previous_release_version = past_releases[0].release_version if past_releases else None
-    if current_release_version == '':
+    if current_release_version == "":
         if previous_release_version:
             current_release_version = previous_release_version
         else:
-            current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y.%m.%d')
+            current_release_version = (datetime.today() + timedelta(days=5)).strftime("%Y.%m.%d")
     if previous_release_version:
         if Version(current_release_version) < Version(previous_release_version):
             console.print(
@@ -714,7 +717,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
         console.print("This might override your local tags!")
     is_shallow_repo = (
         subprocess.check_output(["git", "rev-parse", "--is-shallow-repository"], stderr=subprocess.DEVNULL)
-        == 'true'
+        == "true"
     )
     fetch_command = ["git", "fetch", "--tags", "--force", HTTPS_REMOTE]
     if is_shallow_repo:
@@ -727,15 +730,13 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     if verbose:
         console.print(f"Running command: '{' '.join(fetch_command)}'")
     try:
-        subprocess.check_call(
-            fetch_command,
-        )
+        subprocess.check_call(fetch_command)
     except subprocess.CalledProcessError as e:
         console.print(
-            '[yellow]Error when fetching tags from remote. Your tags might not be refreshed. '
+            "[yellow]Error when fetching tags from remote. Your tags might not be refreshed. "
             f'Please refresh the tags manually via {" ".join(fetch_command)}\n'
         )
-        console.print(f'[yellow]The error was: {e}')
+        console.print(f"[yellow]The error was: {e}")
 
 
 def get_git_log_command(
@@ -758,7 +759,7 @@ def get_git_log_command(
         git_cmd.append(f"{from_commit}...{to_commit}")
     elif from_commit:
         git_cmd.append(from_commit)
-    git_cmd.extend(['--', '.'])
+    git_cmd.extend(["--", "."])
     if verbose:
         console.print(f"Command to run: '{' '.join(git_cmd)}'")
     return git_cmd
@@ -885,9 +886,9 @@ def get_provider_info_from_provider_yaml(provider_package_id: str) -> dict[str, 
     return provider_yaml_dict
 
 
-def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ''):
+def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ""):
     if version_suffix is None:
-        version_suffix = ''
+        version_suffix = ""
     return f"providers-{provider_package_id.replace('.','-')}/{version}{version_suffix}"
 
 
@@ -899,10 +900,12 @@ def print_changes_table(changes_table):
 def get_all_changes_for_package(
     provider_package_id: str,
     verbose: bool,
+    base_branch: str,
 ) -> tuple[bool, list[list[Change]] | Change | None, str]:
     """
     Retrieves all changes for the package.
     :param provider_package_id: provider package id
+    :param base_branch: base branch to check changes in apache remote for changes
     :param verbose: whether to print verbose messages
 
     """
@@ -920,7 +923,7 @@ def get_all_changes_for_package(
             console.print(f"The tag {current_tag_no_suffix} exists.")
         # The tag already exists
         changes = subprocess.check_output(
-            get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, current_tag_no_suffix),
+            get_git_log_command(verbose, f"{HEAD_OF_HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix),
             cwd=provider_details.source_provider_package_path,
             text=True,
         )
@@ -934,7 +937,9 @@ def get_all_changes_for_package(
                     last_doc_only_hash = f.read().strip()
                 try:
                     changes_since_last_doc_only_check = subprocess.check_output(
-                        get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
+                        get_git_log_command(
+                            verbose, f"{HEAD_OF_HTTPS_REMOTE}/{base_branch}", last_doc_only_hash
+                        ),
                         cwd=provider_details.source_provider_package_path,
                         text=True,
                     )
@@ -975,8 +980,8 @@ def get_all_changes_for_package(
         )
     else:
         console.print(f"New version of the '{provider_package_id}' package is ready to be released!\n")
-    next_version_tag = HEAD_OF_HTTPS_REMOTE
-    changes_table = ''
+    next_version_tag = f"{HEAD_OF_HTTPS_REMOTE}/{base_branch}"
+    changes_table = ""
     current_version = provider_details.versions[0]
     list_of_list_of_changes: list[list[Change]] = []
     for version in provider_details.versions[1:]:
@@ -1015,15 +1020,15 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
         pypi_package_name=f"apache-airflow-providers-{provider_package_id.replace('.', '-')}",
         source_provider_package_path=get_source_package_path(provider_package_id),
         documentation_provider_package_path=get_documentation_package_path(provider_package_id),
-        provider_description=provider_info['description'],
-        versions=provider_info['versions'],
+        provider_description=provider_info["description"],
+        versions=provider_info["versions"],
         excluded_python_versions=provider_info.get("excluded-python-versions") or [],
     )
 
 
 def get_provider_requirements(provider_package_id: str) -> list[str]:
     provider_yaml = get_provider_yaml(provider_package_id)
-    return provider_yaml['dependencies']
+    return provider_yaml["dependencies"]
 
 
 def get_provider_jinja_context(
@@ -1068,7 +1073,7 @@ def get_provider_jinja_context(
         "PROVIDER_PATH": provider_details.full_package_name.replace(".", "/"),
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
-        "VERSION_SUFFIX": version_suffix or '',
+        "VERSION_SUFFIX": version_suffix or "",
         "ADDITIONAL_INFO": get_additional_package_info(
             provider_package_path=provider_details.source_provider_package_path
         ),
@@ -1116,7 +1121,7 @@ def confirm(message: str, answer: str | None = None) -> bool:
     """
     given_answer = answer.lower() if answer is not None else ""
     while given_answer not in ["y", "n", "q", "yes", "no", "quit"]:
-        console.print(f"[yellow]{message}[y/n/q]?[/] ", end='')
+        console.print(f"[yellow]{message}[y/n/q]?[/] ", end="")
         try:
             given_answer = input("").lower()
         except KeyboardInterrupt:
@@ -1156,12 +1161,12 @@ def get_type_of_changes(answer: str | None) -> TypeOfChange:
         console.print(
             "[yellow]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
             "change, (s)kip, (q)uit [d/b/f/x/s/q]?[/] ",
-            end='',
+            end="",
         )
         try:
             given_answer = input("").lower()
         except KeyboardInterrupt:
-            given_answer = 'q'
+            given_answer = "q"
     if given_answer == "q":
         # Returns 65 in case user decided to quit
         sys.exit(65)
@@ -1194,7 +1199,7 @@ def add_new_version(type_of_change: TypeOfChange, provider_package_id: str):
         v = v.bump_patch()
     provider_yaml_path = Path(get_source_package_path(provider_package_id)) / "provider.yaml"
     original_text = provider_yaml_path.read_text()
-    new_text = re.sub(r'versions:', f'versions:\n  - {v}', original_text, 1)
+    new_text = re.sub(r"versions:", f"versions:\n  - {v}", original_text, 1)
     provider_yaml_path.write_text(new_text)
     console.print()
     console.print(f"[bright_blue]Bumped version to {v}")
@@ -1206,6 +1211,7 @@ def update_release_notes(
     force: bool,
     verbose: bool,
     answer: str | None,
+    base_branch: str,
 ) -> bool:
     """
     Updates generated files (readme, changes and/or setup.cfg/setup.py/manifest.in/provider_info)
@@ -1215,10 +1221,11 @@ def update_release_notes(
     :param force: regenerate already released documentation
     :param verbose: whether to print verbose messages
     :param answer: force answer to question if set.
+    :param base_branch: base branch to check changes in apache remote for changes
     :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
-    proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose)
+    proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose, base_branch)
     if not force:
         if proceed:
             if not confirm("Provider marked for release. Proceed", answer=answer):
@@ -1245,7 +1252,9 @@ def update_release_notes(
                 return False
             elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
                 add_new_version(type_of_change, provider_package_id)
-            proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose)
+            proceed, latest_change, changes = get_all_changes_for_package(
+                provider_package_id, verbose, base_branch
+            )
     provider_details = get_provider_details(provider_package_id)
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
     jinja_context = get_provider_jinja_context(
@@ -1324,7 +1333,7 @@ def update_index_rst(
     target_path,
 ):
     index_update = render_template(
-        template_name="PROVIDER_INDEX", context=context, extension='.rst', keep_trailing_newline=True
+        template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
     )
     index_file_path = os.path.join(target_path, "index.rst")
     old_text = ""
@@ -1347,7 +1356,7 @@ def update_commits_rst(
     target_path,
 ):
     new_text = render_template(
-        template_name="PROVIDER_COMMITS", context=context, extension='.rst', keep_trailing_newline=True
+        template_name="PROVIDER_COMMITS", context=context, extension=".rst", keep_trailing_newline=True
     )
     index_file_path = os.path.join(target_path, "commits.rst")
     old_text = ""
@@ -1364,16 +1373,16 @@ def black_mode():
     config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT_PATH, "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get('target_version', ()))),
+        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
     )
 
     return Mode(
         target_versions=target_versions,
-        line_length=config.get('line_length', Mode.line_length),
-        is_pyi=bool(config.get('is_pyi', Mode.is_pyi)),
-        string_normalization=not bool(config.get('skip_string_normalization', not Mode.string_normalization)),
+        line_length=config.get("line_length", Mode.line_length),
+        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
+        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
         experimental_string_processing=bool(
-            config.get('experimental_string_processing', Mode.experimental_string_processing)
+            config.get("experimental_string_processing", Mode.experimental_string_processing)
         ),
     )
 
@@ -1388,7 +1397,7 @@ def prepare_setup_py_file(context):
     setup_py_template_name = "SETUP"
     setup_py_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.py"))
     setup_py_content = render_template(
-        template_name=setup_py_template_name, context=context, extension='.py', autoescape=False
+        template_name=setup_py_template_name, context=context, extension=".py", autoescape=False
     )
     with open(setup_py_file_path, "wt") as setup_py_file:
         setup_py_file.write(black_format(setup_py_content))
@@ -1400,7 +1409,7 @@ def prepare_setup_cfg_file(context):
     setup_cfg_content = render_template(
         template_name=setup_cfg_template_name,
         context=context,
-        extension='.cfg',
+        extension=".cfg",
         autoescape=False,
         keep_trailing_newline=True,
     )
@@ -1419,7 +1428,7 @@ def prepare_get_provider_info_py_file(context, provider_package_id: str):
     get_provider_content = render_template(
         template_name=get_provider_template_name,
         context=context,
-        extension='.py',
+        extension=".py",
         autoescape=False,
         keep_trailing_newline=True,
     )
@@ -1432,7 +1441,7 @@ def prepare_manifest_in_file(context):
     content = render_template(
         template_name="MANIFEST",
         context=context,
-        extension='.in',
+        extension=".in",
         autoescape=False,
         keep_trailing_newline=True,
     )
@@ -1493,12 +1502,13 @@ def list_providers_packages():
 @argument_package_id
 @option_force
 @option_verbose
+@option_base_branch
 @click.option(
     "-a",
     "--answer",
-    type=click.Choice(['y', 'n', 'q', 'yes', 'no', 'quit']),
+    type=click.Choice(["y", "n", "q", "yes", "no", "quit"]),
     help="Force answer to questions.",
-    envvar='ANSWER',
+    envvar="ANSWER",
 )
 def update_package_documentation(
     version_suffix: str,
@@ -1507,6 +1517,7 @@ def update_package_documentation(
     package_id: str,
     force: bool,
     verbose: bool,
+    base_branch: str,
 ):
     """
     Updates package documentation.
@@ -1519,7 +1530,12 @@ def update_package_documentation(
         console.print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
         if not update_release_notes(
-            provider_package_id, version_suffix, force=force, verbose=verbose, answer=answer
+            provider_package_id,
+            version_suffix,
+            force=force,
+            verbose=verbose,
+            answer=answer,
+            base_branch=base_branch,
         ):
             # Returns 64 in case of skipped package
             sys.exit(64)
@@ -1574,7 +1590,7 @@ def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, ver
     verify_provider_package(provider_package_id)
     make_sure_remote_apache_exists_and_fetch(git_update, verbose)
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
-    versions: list[str] = provider_info['versions']
+    versions: list[str] = provider_info["versions"]
     current_version = versions[0]
     current_tag = get_version_tag(current_version, provider_package_id, suffix)
     return current_tag
@@ -1654,10 +1670,10 @@ def build_provider_packages(
             console.print(f"Building provider package: {provider_package} in format {package_format}")
             command: list[str] = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
             if version_suffix is not None:
-                command.extend(['egg_info', '--tag-build', version_suffix])
-            if package_format in ['sdist', 'both']:
+                command.extend(["egg_info", "--tag-build", version_suffix])
+            if package_format in ["sdist", "both"]:
                 command.append("sdist")
-            if package_format in ['wheel', 'both']:
+            if package_format in ["wheel", "both"]:
                 command.extend(["bdist_wheel", "--bdist-dir", tmp_dist_dir])
             console.print(f"Executing command: '{' '.join(command)}'")
             try:
@@ -1689,7 +1705,7 @@ def find_insertion_index_for_version(content: list[str], version: str) -> tuple[
         if not changelog_found and line.strip() == version:
             changelog_found = True
             skip_next_line = True
-        elif not skip_next_line and line and all(char == '.' for char in line):
+        elif not skip_next_line and line and all(char == "." for char in line):
             return index - 2, changelog_found
         else:
             skip_next_line = False
@@ -1729,17 +1745,19 @@ def get_changes_classified(changes: list[Change]) -> ClassifiedChanges:
 
 @cli.command()
 @argument_package_id
+@option_base_branch
 @option_verbose
-def update_changelog(package_id: str, verbose: bool):
+def update_changelog(package_id: str, base_branch: str, verbose: bool):
     """Updates changelog for the provider."""
-    if _update_changelog(package_id, verbose):
+    if _update_changelog(package_id, base_branch, verbose):
         sys.exit(64)
 
 
-def _update_changelog(package_id: str, verbose: bool) -> bool:
+def _update_changelog(package_id: str, base_branch: str, verbose: bool) -> bool:
     """
     Internal update changelog method
     :param package_id: package id
+    :param base_branch: base branch to check changes in apache remote for changes
     :param verbose: verbose flag
     :return: true if package is skipped
     """
@@ -1752,13 +1770,10 @@ def _update_changelog(package_id: str, verbose: bool) -> bool:
             provider_info=provider_info,
             provider_details=provider_details,
             current_release_version=current_release_version,
-            version_suffix='',
+            version_suffix="",
         )
         changelog_path = os.path.join(provider_details.source_provider_package_path, "CHANGELOG.rst")
-        proceed, changes, _ = get_all_changes_for_package(
-            package_id,
-            verbose,
-        )
+        proceed, changes, _ = get_all_changes_for_package(package_id, verbose, base_branch)
         if not proceed:
             console.print(
                 f"[yellow]The provider {package_id} is not being released. Skipping the package.[/]"
@@ -1796,7 +1811,7 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
             return
         context = {"new_changes": new_changes}
         generated_new_changelog = render_template(
-            template_name='UPDATE_CHANGELOG', context=context, extension=".rst"
+            template_name="UPDATE_CHANGELOG", context=context, extension=".rst"
         )
     else:
         classified_changes = get_changes_classified(changes[0])
@@ -1806,7 +1821,7 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
             "classified_changes": classified_changes,
         }
         generated_new_changelog = render_template(
-            template_name='CHANGELOG', context=context, extension=".rst"
+            template_name="CHANGELOG", context=context, extension=".rst"
         )
     new_changelog_lines = current_changelog_lines[0:insertion_index]
     new_changelog_lines.extend(generated_new_changelog.splitlines())
@@ -1830,11 +1845,11 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
 
 def get_package_from_changelog(changelog_path: str):
     folder = Path(changelog_path).parent
-    package = ''
-    separator = ''
-    while not os.path.basename(folder) == 'providers':
+    package = ""
+    separator = ""
+    while not os.path.basename(folder) == "providers":
         package = os.path.basename(folder) + separator + package
-        separator = '.'
+        separator = "."
         folder = Path(folder).parent
     return package
 
@@ -1842,174 +1857,15 @@ def get_package_from_changelog(changelog_path: str):
 @cli.command()
 @argument_changelog_files
 @option_git_update
+@option_base_branch
 @option_verbose
-def update_changelogs(changelog_files: list[str], git_update: bool, verbose: bool):
+def update_changelogs(changelog_files: list[str], git_update: bool, base_branch: str, verbose: bool):
     """Updates changelogs for multiple packages."""
     if git_update:
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
     for changelog_file in changelog_files:
         package_id = get_package_from_changelog(changelog_file)
-        _update_changelog(package_id=package_id, verbose=verbose)
-
-
-def get_prs_for_package(package_id: str) -> list[int]:
-    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
-    verify_provider_package(package_id)
-    changelog_path = verify_changelog_exists(package_id)
-    provider_details = get_provider_details(package_id)
-    current_release_version = provider_details.versions[0]
-    prs = []
-    with open(changelog_path) as changelog_file:
-        changelog_lines = changelog_file.readlines()
-        extract_prs = False
-        skip_line = False
-        for line in changelog_lines:
-            if skip_line:
-                # Skip first "....." header
-                skip_line = False
-                continue
-            if line.strip() == current_release_version:
-                extract_prs = True
-                skip_line = True
-                continue
-            if extract_prs:
-                if len(line) > 1 and all(c == '.' for c in line.strip()):
-                    # Header for next version reached
-                    break
-                if line.startswith('.. Below changes are excluded from the changelog'):
-                    # The reminder of PRs is not important skipping it
-                    break
-                match_result = pr_matcher.match(line.strip())
-                if match_result:
-                    prs.append(int(match_result.group(1)))
-    return prs
-
-
-PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
-
-
-class ProviderPRInfo(NamedTuple):
-    provider_details: ProviderPackageDetails
-    pr_list: list[PullRequestOrIssue]
-
-
-def is_package_in_dist(dist_files: list[str], package: str) -> bool:
-    """Check if package has been prepared in dist folder."""
-    for file in dist_files:
-        if file.startswith(f'apache_airflow_providers_{package.replace(".","_")}') or file.startswith(
-            f'apache-airflow-providers-{package.replace(".","-")}'
-        ):
-            return True
-    return False
-
-
-@cli.command()
-@click.option(
-    '--github-token',
-    envvar='GITHUB_TOKEN',
-    help=textwrap.dedent(
-        """
-      GitHub token used to authenticate.
-      You can set omit it if you have GITHUB_TOKEN env variable set.
-      Can be generated with:
-      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
-    ),
-)
-@click.option('--suffix', default='rc1')
-@click.option(
-    '--only-available-in-dist',
-    is_flag=True,
-    help='Only consider package ids with packages prepared in the dist folder',
-)
-@click.option('--excluded-pr-list', type=str, help="Coma-separated list of PRs to exclude from the issue.")
-@argument_package_ids
-def generate_issue_content(
-    package_ids: list[str],
-    github_token: str,
-    suffix: str,
-    only_available_in_dist: bool,
-    excluded_pr_list: str,
-):
-    if not package_ids:
-        package_ids = get_all_providers()
-    """Generates content for issue to test the release."""
-    with with_group("Generates GitHub issue content with people who can test it"):
-        if excluded_pr_list:
-            excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
-        else:
-            excluded_prs = []
-        all_prs: set[int] = set()
-        provider_prs: dict[str, list[int]] = {}
-        if only_available_in_dist:
-            files_in_dist = os.listdir(str(DIST_PATH))
-        prepared_package_ids = []
-        for package_id in package_ids:
-            if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
-                console.print(f"Extracting PRs for provider {package_id}")
-                prepared_package_ids.append(package_id)
-            else:
-                console.print(f"Skipping extracting PRs for provider {package_id} as it is missing in dist")
-                continue
-            prs = get_prs_for_package(package_id)
-            provider_prs[package_id] = list(filter(lambda pr: pr not in excluded_prs, prs))
-            all_prs.update(provider_prs[package_id])
-        g = Github(github_token)
-        repo = g.get_repo("apache/airflow")
-        pull_requests: dict[int, PullRequestOrIssue] = {}
-        with Progress(console=console) as progress:
-            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
-            pr_list = list(all_prs)
-            for i in range(len(pr_list)):
-                pr_number = pr_list[i]
-                progress.console.print(
-                    f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
-                )
-                try:
-                    pull_requests[pr_number] = repo.get_pull(pr_number)
-                except UnknownObjectException:
-                    # Fallback to issue if PR not found
-                    try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
-                    except UnknownObjectException:
-                        console.print(f"[red]The PR #{pr_number} could not be found[/]")
-                progress.advance(task)
-        interesting_providers: dict[str, ProviderPRInfo] = {}
-        non_interesting_providers: dict[str, ProviderPRInfo] = {}
-        for package_id in prepared_package_ids:
-            pull_request_list = [pull_requests[pr] for pr in provider_prs[package_id] if pr in pull_requests]
-            provider_details = get_provider_details(package_id)
-            if pull_request_list:
-                interesting_providers[package_id] = ProviderPRInfo(provider_details, pull_request_list)
-            else:
-                non_interesting_providers[package_id] = ProviderPRInfo(provider_details, pull_request_list)
-        context = {
-            'interesting_providers': interesting_providers,
-            'date': datetime.now(),
-            'suffix': suffix,
-            'non_interesting_providers': non_interesting_providers,
-        }
-        issue_content = render_template(template_name="PROVIDER_ISSUE", context=context, extension=".md")
-        console.print()
-        console.print(
-            "[green]Below you can find the issue content that you can use "
-            "to ask contributor to test providers![/]"
-        )
-        console.print()
-        console.print()
-        console.print(
-            "Issue title: [yellow]Status of testing Providers that were "
-            f"prepared on { datetime.now().strftime('%B %d, %Y') }[/]"
-        )
-        console.print()
-        syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
-        console.print(syntax)
-        console.print()
-        users: set[str] = set()
-        for provider_info in interesting_providers.values():
-            for pr in provider_info.pr_list:
-                users.add("@" + pr.user.login)
-        console.print("All users involved in the PRs:")
-        console.print(" ".join(users))
+        _update_changelog(package_id=package_id, base_branch=base_branch, verbose=verbose)
 
 
 if __name__ == "__main__":
@@ -2022,7 +1878,7 @@ if __name__ == "__main__":
     try:
         cli()
     except KeyboardInterrupt:
-        print('Interrupted')
+        print("Interrupted")
         try:
             sys.exit(65)
         except SystemExit:

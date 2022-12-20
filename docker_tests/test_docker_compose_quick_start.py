@@ -28,9 +28,12 @@ from unittest import mock
 
 import requests
 
+# isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
 from docker_tests.docker_tests_utils import docker_image
+
+# isort:on (needed to workaround isort bug)
 
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
@@ -62,7 +65,7 @@ def tmp_chdir(path):
 
 def wait_for_container(container_id: str, timeout: int = 300):
     container_name = (
-        subprocess.check_output(["docker", "inspect", container_id, "--format", '{{ .Name }}'])
+        subprocess.check_output(["docker", "inspect", container_id, "--format", "{{ .Name }}"])
         .decode()
         .strip()
     )
@@ -71,11 +74,11 @@ def wait_for_container(container_id: str, timeout: int = 300):
     start_time = monotonic()
     while not waiting_done:
         container_state = (
-            subprocess.check_output(["docker", "inspect", container_id, "--format", '{{ .State.Status }}'])
+            subprocess.check_output(["docker", "inspect", container_id, "--format", "{{ .State.Status }}"])
             .decode()
             .strip()
         )
-        if container_state in ("running", 'restarting'):
+        if container_state in ("running", "restarting"):
             health_status = (
                 subprocess.check_output(
                     [
@@ -117,7 +120,7 @@ def test_trigger_dag_and_wait_for_result():
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir, tmp_chdir(tmp_dir), mock.patch.dict(
-        'os.environ', AIRFLOW_IMAGE_NAME=docker_image
+        "os.environ", AIRFLOW_IMAGE_NAME=docker_image
     ):
         copyfile(str(compose_file_path), f"{tmp_dir}/docker-compose.yaml")
         os.mkdir(f"{tmp_dir}/dags")
@@ -140,7 +143,7 @@ def test_trigger_dag_and_wait_for_result():
             # https://github.com/docker/compose/releases/tag/v2.1.1
             # https://github.com/docker/compose/pull/8777
             for container_id in (
-                subprocess.check_output(["docker-compose", 'ps', '-q']).decode().strip().splitlines()
+                subprocess.check_output(["docker-compose", "ps", "-q"]).decode().strip().splitlines()
             ):
                 wait_for_container(container_id)
             api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})

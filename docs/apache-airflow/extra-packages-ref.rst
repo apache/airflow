@@ -324,12 +324,14 @@ you need to list explicitly all the non-bundle extras that you want to install.
 Doc extras
 ----------
 
-This is the extra that is needed to generated documentation for Airflow. This is used for development time only
+Those are the extras that are needed to generated documentation for Airflow. This is used for development time only
 
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | extra               | install command                                     | enables                                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | doc                 | ``pip install 'apache-airflow[doc]'``               | Packages needed to build docs (included in ``devel``)                |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| doc_gen             | ``pip install 'apache-airflow[doc_gen]'``           | Packages needed to generate er diagrams (included in ``devel_all``)  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 

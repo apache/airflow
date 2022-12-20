@@ -29,12 +29,14 @@ configuring an Airflow environment.
 .. toctree::
     :maxdepth: 2
 
+    Using the CLI <usage-cli>
     add-dag-tags
     add-owner-links
     set-config
     set-up-database
     operator/index
     timetable
+    custom-view-plugin
     customize-ui
     custom-operator
     create-custom-decorator
@@ -48,3 +50,4 @@ configuring an Airflow environment.
     email-config
     dynamic-dag-generation
     docker-compose/index
+    upgrading-from-1-10/index

@@ -23,6 +23,8 @@ import {
   Flex,
   ButtonGroup,
   useDisclosure,
+  Alert,
+  AlertIcon,
 } from '@chakra-ui/react';
 
 import ConfirmDialog from 'src/components/ConfirmDialog';
@@ -30,16 +32,9 @@ import { useClearTask } from 'src/api';
 import { getMetaValue } from 'src/utils';
 
 import ActionButton from './ActionButton';
+import type { CommonActionProps } from './types';
 
 const canEdit = getMetaValue('can_edit') === 'True';
-
-interface Props {
-  dagId: string;
-  runId: string;
-  taskId: string;
-  executionDate: string;
-  mapIndexes: number[];
-}
 
 const Run = ({
   dagId,
@@ -47,8 +42,9 @@ const Run = ({
   taskId,
   executionDate,
   mapIndexes,
-}: Props) => {
-  const [affectedTasks, setAffectedTasks] = useState('');
+  isGroup,
+}: CommonActionProps) => {
+  const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
 
   // Options check/unchecked
   const [past, setPast] = useState(false);
@@ -73,7 +69,7 @@ const Run = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const { mutateAsync: clearTask, isLoading } = useClearTask({
-    dagId, runId, taskId, executionDate,
+    dagId, runId, taskId, executionDate, isGroup: !!isGroup,
   });
 
   const onClick = async () => {
@@ -102,7 +98,7 @@ const Run = ({
       confirmed: true,
       mapIndexes,
     });
-    setAffectedTasks('');
+    setAffectedTasks([]);
     onClose();
   };
 
@@ -130,9 +126,19 @@ const Run = ({
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to clear:"
-        body={affectedTasks}
-      />
+        description={`Task instances you are about to clear (${affectedTasks.length}):`}
+        affectedTasks={affectedTasks}
+      >
+        { isGroup && (past || future) && (
+          <Alert status="warning" mb={3}>
+            <AlertIcon />
+            Clearing a TaskGroup in the future and/or past will affect all the tasks of this group
+            across multiple dag runs.
+            <br />
+            This can take a while to complete.
+          </Alert>
+        )}
+      </ConfirmDialog>
     </Flex>
   );
 };

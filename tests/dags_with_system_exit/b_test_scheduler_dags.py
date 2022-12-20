@@ -24,6 +24,6 @@ from airflow.operators.empty import EmptyOperator
 
 DEFAULT_DATE = datetime(2000, 1, 1)
 
-dag1 = DAG(dag_id='exit_test_dag', start_date=DEFAULT_DATE)
+dag1 = DAG(dag_id="exit_test_dag", start_date=DEFAULT_DATE)
 
-dag1_task1 = EmptyOperator(task_id='dummy', dag=dag1, owner='airflow')
+dag1_task1 = EmptyOperator(task_id="dummy", dag=dag1, owner="airflow")

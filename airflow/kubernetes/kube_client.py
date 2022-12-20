@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Client for kubernetes communication"""
+"""Client for kubernetes communication."""
 from __future__ import annotations
 
 import logging
@@ -31,7 +31,7 @@ try:
     has_kubernetes = True
 
     def _disable_verify_ssl() -> None:
-        if hasattr(Configuration, 'get_default_copy'):
+        if hasattr(Configuration, "get_default_copy"):
             configuration = Configuration.get_default_copy()
         else:
             configuration = Configuration()
@@ -48,9 +48,10 @@ except ImportError as e:
 
 def _enable_tcp_keepalive() -> None:
     """
-    This function enables TCP keepalive mechanism. This prevents urllib3 connection
-    to hang indefinitely when idle connection is time-outed on services like cloud
-    load balancers or firewalls.
+    This function enables TCP keepalive mechanism.
+
+    This prevents urllib3 connection to hang indefinitely when idle connection
+    is time-outed on services like cloud load balancers or firewalls.
 
     See https://github.com/apache/airflow/pull/11406 for detailed explanation.
     Please ping @michalmisiewicz or @dimberman in the PR if you want to modify this function.
@@ -59,9 +60,9 @@ def _enable_tcp_keepalive() -> None:
 
     from urllib3.connection import HTTPConnection, HTTPSConnection
 
-    tcp_keep_idle = conf.getint('kubernetes_executor', 'tcp_keep_idle')
-    tcp_keep_intvl = conf.getint('kubernetes_executor', 'tcp_keep_intvl')
-    tcp_keep_cnt = conf.getint('kubernetes_executor', 'tcp_keep_cnt')
+    tcp_keep_idle = conf.getint("kubernetes_executor", "tcp_keep_idle")
+    tcp_keep_intvl = conf.getint("kubernetes_executor", "tcp_keep_intvl")
+    tcp_keep_cnt = conf.getint("kubernetes_executor", "tcp_keep_cnt")
 
     socket_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
 
@@ -85,12 +86,12 @@ def _enable_tcp_keepalive() -> None:
 
 
 def get_kube_client(
-    in_cluster: bool = conf.getboolean('kubernetes_executor', 'in_cluster'),
+    in_cluster: bool = conf.getboolean("kubernetes_executor", "in_cluster"),
     cluster_context: str | None = None,
     config_file: str | None = None,
 ) -> client.CoreV1Api:
     """
-    Retrieves Kubernetes client
+    Retrieves Kubernetes client.
 
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster
@@ -101,19 +102,19 @@ def get_kube_client(
     if not has_kubernetes:
         raise _import_err
 
-    if conf.getboolean('kubernetes_executor', 'enable_tcp_keepalive'):
+    if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
         _enable_tcp_keepalive()
 
     if in_cluster:
         config.load_incluster_config()
     else:
         if cluster_context is None:
-            cluster_context = conf.get('kubernetes_executor', 'cluster_context', fallback=None)
+            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
         if config_file is None:
-            config_file = conf.get('kubernetes_executor', 'config_file', fallback=None)
+            config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
         config.load_kube_config(config_file=config_file, context=cluster_context)
 
-    if not conf.getboolean('kubernetes_executor', 'verify_ssl'):
+    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
         _disable_verify_ssl()
 
     return client.CoreV1Api()

@@ -44,7 +44,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-papermill/3.0.0/tests/system/providers/papermill>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-papermill/|version|/tests/system/providers/papermill>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-papermill/>
     Installing from sources <installing-providers-from-sources>
 
@@ -64,7 +64,7 @@ Package apache-airflow-providers-papermill
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 3.0.0
+Release: 3.1.0
 
 Provider package
 ----------------
@@ -85,7 +85,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``papermill[all]``  ``>=1.2.1``
 ``scrapbook[all]``
 ==================  ==================

@@ -49,14 +49,14 @@ class TriggererJob(BaseJob):
      - A subthread runs all the async code
     """
 
-    __mapper_args__ = {'polymorphic_identity': 'TriggererJob'}
+    __mapper_args__ = {"polymorphic_identity": "TriggererJob"}
 
     def __init__(self, capacity=None, *args, **kwargs):
         # Call superclass
         super().__init__(*args, **kwargs)
 
         if capacity is None:
-            self.capacity = conf.getint('triggerer', 'default_capacity', fallback=1000)
+            self.capacity = conf.getint("triggerer", "default_capacity", fallback=1000)
         elif isinstance(capacity, int) and capacity > 0:
             self.capacity = capacity
         else:
@@ -66,7 +66,7 @@ class TriggererJob(BaseJob):
         self.runner = TriggerRunner()
 
     def register_signals(self) -> None:
-        """Register signals that stop child processes"""
+        """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
@@ -159,7 +159,7 @@ class TriggererJob(BaseJob):
             # Tell the model to wake up its tasks
             Trigger.submit_event(trigger_id=trigger_id, event=event)
             # Emit stat event
-            Stats.incr('triggers.succeeded')
+            Stats.incr("triggers.succeeded")
 
     def handle_failed_triggers(self):
         """
@@ -171,14 +171,14 @@ class TriggererJob(BaseJob):
             trigger_id, saved_exc = self.runner.failed_triggers.popleft()
             Trigger.submit_failure(trigger_id=trigger_id, exc=saved_exc)
             # Emit stat event
-            Stats.incr('triggers.failed')
+            Stats.incr("triggers.failed")
 
     def emit_metrics(self):
-        Stats.gauge('triggers.running', len(self.runner.triggers))
+        Stats.gauge("triggers.running", len(self.runner.triggers))
 
 
 class TriggerDetails(TypedDict):
-    """Type class for the trigger details dictionary"""
+    """Type class for the trigger details dictionary."""
 
     task: asyncio.Task
     name: str
@@ -347,7 +347,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     "to get more information on overrunning coroutines.",
                     time_elapsed,
                 )
-                Stats.incr('triggers.blocked_main_thread')
+                Stats.incr("triggers.blocked_main_thread")
 
     # Async trigger logic
 
@@ -356,10 +356,10 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         Wrapper which runs an actual trigger (they are async generators)
         and pushes their events into our outbound event deque.
         """
-        self.log.info("Trigger %s starting", self.triggers[trigger_id]['name'])
+        self.log.info("Trigger %s starting", self.triggers[trigger_id]["name"])
         try:
             async for event in trigger.run():
-                self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]['name'], event)
+                self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
         finally:
@@ -416,7 +416,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """
-        Gets a trigger class by its classpath ("path.to.module.classname")
+        Gets a trigger class by its classpath ("path.to.module.classname").
 
         Uses a cache dictionary to speed up lookups after the first time.
         """

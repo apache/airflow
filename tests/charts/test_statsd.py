@@ -16,16 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
+import pytest
 import yaml
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class StatsdTest(unittest.TestCase):
+class TestStatsd:
     def test_should_create_statsd_default(self):
         docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
 
@@ -42,6 +40,9 @@ class StatsdTest(unittest.TestCase):
             "mountPath": "/etc/statsd-exporter/mappings.yml",
             "subPath": "mappings.yml",
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+        default_args = ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+        assert default_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
         extra_mapping = {
@@ -85,13 +86,16 @@ class StatsdTest(unittest.TestCase):
             "subPath": "mappings.yml",
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    @pytest.mark.parametrize(
+        "revision_history_limit, global_revision_history_limit",
+        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
+    )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {"statsd": {"enabled": True}}
         if revision_history_limit:
-            values['statsd']['revisionHistoryLimit'] = revision_history_limit
+            values["statsd"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/statsd/statsd-deployment.yaml"],
@@ -148,8 +152,8 @@ class StatsdTest(unittest.TestCase):
             values={
                 "statsd": {
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     }
                 },
             },
@@ -209,3 +213,12 @@ class StatsdTest(unittest.TestCase):
 
         assert 1 == len(mappings_yml_obj["mappings"])
         assert "airflow_pool_queued_slots" == mappings_yml_obj["mappings"][0]["name"]
+
+    def test_statsd_args_can_be_overridden(self):
+        args = ["--some-arg=foo"]
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "args": args}},
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == args

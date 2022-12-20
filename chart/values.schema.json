@@ -77,13 +77,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.4.1",
+            "default": "2.5.0",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.4.1",
+            "default": "2.5.0",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -602,7 +602,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "6-bullseye"
+                            "default": "7-bullseye"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
@@ -723,6 +723,24 @@
                     "value": "something_fun"
                 }
             ]
+        },
+        "volumes": {
+            "description": "Volumes for all Airflow containers.",
+            "x-docsSection": "Airflow",
+            "type": "array",
+            "default": [],
+            "items": {
+                "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+            }
+        },
+        "volumeMounts": {
+            "description": "VolumeMounts for all Airflow containers.",
+            "x-docsSection": "Airflow",
+            "type": "array",
+            "default": [],
+            "items": {
+                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+            }
         },
         "secret": {
             "description": "Secrets for all Airflow containers.",
@@ -1561,6 +1579,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Whether to deploy the Airflow worker log groomer sidecar.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "command": {
                             "description": "Command to use when running the Airflow workers log groomer sidecar (templated).",
                             "type": [
@@ -2885,6 +2908,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to this job",
+                    "type": "boolean",
+                    "default": true
+                },
                 "env": {
                     "description": "Add additional env vars to the create user job pod.",
                     "type": "array",
@@ -3077,6 +3105,11 @@
                 },
                 "useHelmHooks": {
                     "description": "Specify if you want to use the default Helm Hook annotations",
+                    "type": "boolean",
+                    "default": true
+                },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to this job",
                     "type": "boolean",
                     "default": true
                 }
@@ -3414,7 +3447,7 @@
                     }
                 },
                 "webserverConfig": {
-                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
+                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
                         "string",
                         "null"
@@ -3423,6 +3456,18 @@
                     "default": null,
                     "examples": [
                         "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                    ]
+                },
+                "webserverConfigConfigMapName": {
+                    "description": "The configmap name containing the webserver_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "my-webserver-configmap"
                     ]
                 },
                 "service": {
@@ -3460,6 +3505,12 @@
                                         ]
                                     },
                                     "targetPort": {
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
+                                    },
+                                    "nodePort": {
                                         "type": [
                                             "string",
                                             "integer"
@@ -4146,6 +4197,19 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "args": {
+                    "description": "Args to use when running statsd-exporter (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+                    ]
                 }
             }
         },
@@ -4160,6 +4224,11 @@
                     "type": "boolean",
                     "x-docsSection": "Common",
                     "default": false
+                },
+                "replicas": {
+                    "description": "Number of PgBouncer replicas to run in Deployment.",
+                    "type": "integer",
+                    "default": 1
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
@@ -5228,9 +5297,9 @@
                             "default": "tests/dags"
                         },
                         "wait": {
-                            "description": "Interval between git sync attempts in seconds.",
+                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
                             "type": "integer",
-                            "default": 60
+                            "default": 5
                         },
                         "containerName": {
                             "description": "Git sync container name.",

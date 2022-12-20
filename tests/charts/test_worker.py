@@ -16,22 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class WorkerTest(unittest.TestCase):
-    @parameterized.expand(
+class TestWorker:
+    @pytest.mark.parametrize(
+        "executor, persistence, kind",
         [
             ("CeleryExecutor", False, "Deployment"),
             ("CeleryExecutor", True, "StatefulSet"),
             ("CeleryKubernetesExecutor", False, "Deployment"),
             ("CeleryKubernetesExecutor", True, "StatefulSet"),
-        ]
+        ],
     )
     def test_worker_kind(self, executor, persistence, kind):
         """
@@ -47,13 +46,16 @@ class WorkerTest(unittest.TestCase):
 
         assert kind == jmespath.search("kind", docs[0])
 
-    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    @pytest.mark.parametrize(
+        "revision_history_limit, global_revision_history_limit",
+        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
+    )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {"workers": {}}
         if revision_history_limit:
-            values['workers']['revisionHistoryLimit'] = revision_history_limit
+            values["workers"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
-            values['revisionHistoryLimit'] = global_revision_history_limit
+            values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -113,6 +115,20 @@ class WorkerTest(unittest.TestCase):
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -123,7 +139,7 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
 
@@ -137,7 +153,7 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
@@ -169,12 +185,13 @@ class WorkerTest(unittest.TestCase):
         assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "test.hostname" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "persistence, update_strategy, expected_update_strategy",
         [
             (False, None, None),
             (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
             (True, None, None),
-        ]
+        ],
     )
     def test_workers_update_strategy(self, persistence, update_strategy, expected_update_strategy):
         docs = render_chart(
@@ -190,7 +207,8 @@ class WorkerTest(unittest.TestCase):
 
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "persistence, strategy, expected_strategy",
         [
             (True, None, None),
             (
@@ -199,7 +217,7 @@ class WorkerTest(unittest.TestCase):
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
             (False, None, None),
-        ]
+        ],
     )
     def test_workers_strategy(self, persistence, strategy, expected_strategy):
         docs = render_chart(
@@ -378,7 +396,8 @@ class WorkerTest(unittest.TestCase):
         livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
         assert livenessprobe is None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "log_persistence_values, expected_volume",
         [
             ({"enabled": False}, {"emptyDir": {}}),
             ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
@@ -386,7 +405,7 @@ class WorkerTest(unittest.TestCase):
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
-        ]
+        ],
     )
     def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
         docs = render_chart(
@@ -405,8 +424,8 @@ class WorkerTest(unittest.TestCase):
             values={
                 "workers": {
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     }
                 },
             },
@@ -446,18 +465,22 @@ class WorkerTest(unittest.TestCase):
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
+        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={"airflowLocalSettings": "# Well hello!"},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert {
+        volume_mount = {
             "name": "config",
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     def test_airflow_local_settings_kerberos_sidecar(self):
         docs = render_chart(
@@ -474,7 +497,8 @@ class WorkerTest(unittest.TestCase):
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "airflow_version, expected_arg",
         [
             ("1.9.0", "airflow worker"),
             ("1.10.14", "airflow worker"),
@@ -497,14 +521,8 @@ class WorkerTest(unittest.TestCase):
             f"exec \\\n{expected_arg}",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"workers": {"command": command, "args": args}},
@@ -523,6 +541,23 @@ class WorkerTest(unittest.TestCase):
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
+    def test_log_groomer_collector_default_enabled(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert "worker-log-groomer" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
+
+    def test_log_groomer_collector_can_be_disabled(self):
+        docs = render_chart(
+            values={"workers": {"logGroomerSidecar": {"enabled": False}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert "worker-log-groomer" not in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
+
     def test_log_groomer_default_command_and_args(self):
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
 
@@ -537,14 +572,8 @@ class WorkerTest(unittest.TestCase):
         )
         assert "15" == jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0])
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_log_groomer_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"workers": {"logGroomerSidecar": {"command": command, "args": args}}},
@@ -570,11 +599,12 @@ class WorkerTest(unittest.TestCase):
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "retention_days, retention_result",
         [
             (None, None),
             (30, "30"),
-        ]
+        ],
     )
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         docs = render_chart(
@@ -651,7 +681,7 @@ class WorkerTest(unittest.TestCase):
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
 
 
-class WorkerKedaAutoScalerTest(unittest.TestCase):
+class TestWorkerKedaAutoScaler:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
@@ -668,7 +698,7 @@ class WorkerKedaAutoScalerTest(unittest.TestCase):
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
-class WorkerNetworkPolicyTest(unittest.TestCase):
+class TestWorkerNetworkPolicy:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
@@ -685,7 +715,7 @@ class WorkerNetworkPolicyTest(unittest.TestCase):
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
-class WorkerServiceTest(unittest.TestCase):
+class TestWorkerService:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
@@ -701,7 +731,7 @@ class WorkerServiceTest(unittest.TestCase):
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
-class WorkerServiceAccountTest(unittest.TestCase):
+class TestWorkerServiceAccount:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={

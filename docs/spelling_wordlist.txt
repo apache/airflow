@@ -44,6 +44,7 @@ analyzeSyntax
 AnalyzeSyntaxResponse
 Aneesh
 AnnotateTextResponse
+ans
 Ansible
 apache
 api
@@ -229,6 +230,8 @@ cli
 clientId
 Cloudant
 cloudant
+cloudbuild
+CloudBuildClient
 cloudml
 cloudsqldatabehook
 CloudTasksClient
@@ -254,6 +257,8 @@ colours
 CommandType
 comparator
 compat
+Compute
+compute
 Computenodes
 ComputeNodeState
 concat
@@ -276,6 +281,8 @@ conn
 connectTimeoutMS
 connexion
 containerConfiguration
+ContainerGroup
+containerinstance
 ContainerPort
 contentUrl
 contextmgr
@@ -328,6 +335,7 @@ dat
 Databricks
 databricks
 datacenter
+dataclass
 Datadog
 datadog
 Dataflow
@@ -373,6 +381,7 @@ dbs
 dbt
 dbtapquerycmd
 dbutils
+ddl
 de
 Debounce
 declaratively
@@ -403,11 +412,13 @@ Deserialize
 deserialize
 Deserialized
 deserialized
+deserializer
 deserializing
 dest
 dev
 devel
 DevOps
+devtools
 df
 dicts
 dimensionX
@@ -418,6 +429,7 @@ DirectRunner
 dirs
 discoverability
 discoverable
+diskTypes
 displayName
 distcp
 distro
@@ -609,6 +621,8 @@ globstring
 glyphicon
 Gmail
 golang
+googleads
+GoogleAdsRow
 googleapiclient
 gpu
 gpus
@@ -653,6 +667,8 @@ hoc
 homebrew
 honoured
 hookable
+hookimpl
+hookspec
 HostAliases
 Hostname
 hostname
@@ -854,6 +870,7 @@ Lowin
 lshift
 lxml
 Lyft
+machineTypes
 macOS
 macosx
 mailto
@@ -883,6 +900,7 @@ metarouter
 Metastore
 metastore
 mget
+mgmt
 microservice
 microservices
 microsoft
@@ -1042,6 +1060,7 @@ pkill
 plaintext
 platformVersion
 pluggable
+pluggy
 plyvel
 png
 podName
@@ -1253,6 +1272,7 @@ securityManager
 seealso
 Seedlist
 seedlist
+seekable
 segmentGranularity
 Sendgrid
 sendgrid
@@ -1260,6 +1280,8 @@ serde
 serialise
 serializable
 SerializedDAG
+serializer
+serializers
 serverless
 ServiceAccount
 setattr
@@ -1366,6 +1388,7 @@ submodules
 subnet
 subnets
 subnetwork
+subnetworks
 subpackage
 Subpackages
 subpackages
@@ -1467,6 +1490,8 @@ tooltips
 traceback
 tracebacks
 travis
+triage
+triaging
 triggerer
 triggerers
 trino

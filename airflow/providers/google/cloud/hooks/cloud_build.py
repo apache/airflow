@@ -20,10 +20,11 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
-from google.cloud.devtools.cloudbuild import CloudBuildClient
+from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 from airflow.exceptions import AirflowException
@@ -71,19 +72,25 @@ class CloudBuildHook(GoogleBaseHook):
             version to
 
         :return: Cloud Build ID
-        :rtype: str
         """
         try:
             return operation.metadata.build.id
         except Exception:
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
+        """Waits for long-lasting operation to complete."""
+        try:
+            return operation.result(timeout=timeout)
+        except Exception:
+            error = operation.exception(timeout=timeout)
+            raise AirflowException(error)
+
     def get_conn(self) -> CloudBuildClient:
         """
         Retrieves the connection to Google Cloud Build.
 
         :return: Google Cloud Build client object.
-        :rtype: `google.cloud.devtools.cloudbuild_v1.CloudBuildClient`
         """
         if not self._client:
             self._client = CloudBuildClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -110,14 +117,13 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
         self.log.info("Start cancelling build: %s.", id_)
 
         build = client.cancel_build(
-            request={'project_id': project_id, 'id': id_},
+            request={"project_id": project_id, "id": id_},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -125,6 +131,41 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Build has been cancelled: %s.", id_)
 
         return build
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_build_without_waiting_for_result(
+        self,
+        build: dict | Build,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> tuple[Operation, str]:
+        """
+        Starts a build with the specified configuration without waiting for it to finish.
+
+        :param build: The build resource to create. If a dict is provided, it must be of the same form
+            as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
+        :param project_id: Optional, Google Cloud Project project_id where the function belongs.
+            If set to None or missing, the default project_id from the GCP connection is used.
+        :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional, additional metadata that is provided to the method.
+        """
+        client = self.get_conn()
+
+        self.log.info("Start creating build...")
+
+        operation = client.create_build(
+            request={"project_id": project_id, "build": build},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        id_ = self._get_build_id_from_operation(operation)
+        return operation, id_
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_build(
@@ -150,14 +191,13 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
-        self.log.info("Start creating build.")
+        self.log.info("Start creating build...")
 
         operation = client.create_build(
-            request={'project_id': project_id, 'build': build},
+            request={"project_id": project_id, "build": build},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -196,18 +236,20 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
         client = self.get_conn()
 
-        self.log.info("Start creating build trigger.")
+        self.log.info("Start creating build trigger...")
 
-        trigger = client.create_build_trigger(
-            request={'project_id': project_id, 'trigger': trigger},
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
+        try:
+            trigger = client.create_build_trigger(
+                request={"project_id": project_id, "trigger": trigger},
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata,
+            )
+        except AlreadyExists:
+            raise AirflowException("Cloud Build Trigger with such parameters already exists.")
 
         self.log.info("Build trigger has been created.")
 
@@ -239,7 +281,7 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start deleting build trigger: %s.", trigger_id)
 
         client.delete_build_trigger(
-            request={'project_id': project_id, 'trigger_id': trigger_id},
+            request={"project_id": project_id, "trigger_id": trigger_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -268,14 +310,13 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
         self.log.info("Start retrieving build: %s.", id_)
 
         build = client.get_build(
-            request={'project_id': project_id, 'id': id_},
+            request={"project_id": project_id, "id": id_},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -306,14 +347,13 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
         client = self.get_conn()
 
         self.log.info("Start retrieving build trigger: %s.", trigger_id)
 
         trigger = client.get_build_trigger(
-            request={'project_id': project_id, 'trigger_id': trigger_id},
+            request={"project_id": project_id, "trigger_id": trigger_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -348,7 +388,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
         client = self.get_conn()
 
@@ -358,10 +397,10 @@ class CloudBuildHook(GoogleBaseHook):
 
         response = client.list_build_triggers(
             request={
-                'parent': parent,
-                'project_id': project_id,
-                'page_size': page_size,
-                'page_token': page_token,
+                "parent": parent,
+                "project_id": project_id,
+                "page_size": page_size,
+                "page_token": page_token,
             },
             retry=retry,
             timeout=timeout,
@@ -399,7 +438,6 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: List[`google.cloud.devtools.cloudbuild_v1.types.Build`]
         """
         client = self.get_conn()
 
@@ -409,11 +447,11 @@ class CloudBuildHook(GoogleBaseHook):
 
         response = client.list_builds(
             request={
-                'parent': parent,
-                'project_id': project_id,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter_,
+                "parent": parent,
+                "project_id": project_id,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter_,
             },
             retry=retry,
             timeout=timeout,
@@ -448,14 +486,13 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
         self.log.info("Start retrying build: %s.", id_)
 
         operation = client.retry_build(
-            request={'project_id': project_id, 'id': id_},
+            request={"project_id": project_id, "id": id_},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -498,14 +535,12 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
         client = self.get_conn()
 
         self.log.info("Start running build trigger: %s.", trigger_id)
-
         operation = client.run_build_trigger(
-            request={'project_id': project_id, 'trigger_id': trigger_id, 'source': source},
+            request={"project_id": project_id, "trigger_id": trigger_id, "source": source},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -515,7 +550,6 @@ class CloudBuildHook(GoogleBaseHook):
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)
-
         operation.result()
 
         self.log.info("Build trigger has been run: %s.", trigger_id)
@@ -546,14 +580,13 @@ class CloudBuildHook(GoogleBaseHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
 
-        :rtype: `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
         """
         client = self.get_conn()
 
         self.log.info("Start updating build trigger: %s.", trigger_id)
 
         trigger = client.update_build_trigger(
-            request={'project_id': project_id, 'trigger_id': trigger_id, 'trigger': trigger},
+            request={"project_id": project_id, "trigger_id": trigger_id, "trigger": trigger},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -562,3 +595,34 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Build trigger has been updated: %s.", trigger_id)
 
         return trigger
+
+
+class CloudBuildAsyncHook(GoogleBaseHook):
+    """Asynchronous Hook for the Google Cloud Build Service."""
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def get_cloud_build(
+        self,
+        id_: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Build:
+        """Retrieves a Cloud Build with a specified id."""
+        if not id_:
+            raise AirflowException("Google Cloud Build id is required.")
+
+        client = CloudBuildAsyncClient()
+
+        request = GetBuildRequest(
+            project_id=project_id,
+            id=id_,
+        )
+        build_instance = await client.get_build(
+            request=request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return build_instance

@@ -36,6 +36,7 @@ from airflow.exceptions import (
     TaskConcurrencyLimitReached,
 )
 from airflow.executors import executor_constants
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
@@ -50,30 +51,32 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.abstractoperator import AbstractOperator
 
 
 class BackfillJob(BaseJob):
     """
-    A backfill job consists of a dag or subdag for a specific time range. It
-    triggers a set of task instance runs, in the right order and lasts for
+    A backfill job consists of a dag or subdag for a specific time range.
+
+    It triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
     """
 
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
-    __mapper_args__ = {'polymorphic_identity': 'BackfillJob'}
+    __mapper_args__ = {"polymorphic_identity": "BackfillJob"}
 
     @attr.define
     class _DagRunTaskStatus:
         """
-        Internal status of the backfill job. This class is intended to be instantiated
-        only within a BackfillJob instance and will track the execution of tasks,
-        e.g. running, skipped, succeeded, failed, etc. Information about the dag runs
-        related to the backfill job are also being tracked in this structure,
-        .e.g finished runs, etc. Any other status related information related to the
-        execution of dag runs / tasks can be included in this structure since it makes
-        it easier to pass it around.
+        Internal status of the backfill job.
+
+        This class is intended to be instantiated only within a BackfillJob
+        instance and will track the execution of tasks, e.g. running, skipped,
+        succeeded, failed, etc. Information about the dag runs related to the
+        backfill job are also being tracked in this structure, e.g. finished runs, etc.
+        Any other status related information related to the execution of dag runs / tasks
+        can be included in this structure since it makes it easier to pass it around.
 
         :param to_run: Tasks to run in the backfill
         :param running: Maps running task instance key to task instance object
@@ -117,10 +120,13 @@ class BackfillJob(BaseJob):
         run_backwards=False,
         run_at_least_once=False,
         continue_on_failures=False,
+        disable_retry=False,
         *args,
         **kwargs,
     ):
         """
+        Create a BackfillJob.
+
         :param dag: DAG object.
         :param start_date: start date for the backfill date range.
         :param end_date: end date for the backfill date range.
@@ -156,12 +162,14 @@ class BackfillJob(BaseJob):
         self.run_backwards = run_backwards
         self.run_at_least_once = run_at_least_once
         self.continue_on_failures = continue_on_failures
+        self.disable_retry = disable_retry
         super().__init__(*args, **kwargs)
 
-    def _update_counters(self, ti_status, session=None):
+    def _update_counters(self, ti_status, session):
         """
-        Updates the counters per state of the tasks that were running. Can re-add
-        to tasks to run in case required.
+        Updates the counters per state of the tasks that were running.
+
+        Can re-add to tasks to run when required.
 
         :param ti_status: the internal status of the backfill job tasks
         """
@@ -234,12 +242,11 @@ class BackfillJob(BaseJob):
 
     def _manage_executor_state(
         self, running, session
-    ) -> Iterator[tuple[MappedOperator, str, Sequence[TaskInstance], int]]:
+    ) -> Iterator[tuple[AbstractOperator, str, Sequence[TaskInstance], int]]:
         """
-        Checks if the executor agrees with the state of task instances
-        that are running.
+        Compare task instances' states with that of the executor.
 
-        Expands downstream mapped tasks when necessary
+        Expands downstream mapped tasks when necessary.
 
         :param running: dict of key, task to verify
         :return: An iterable of expanded TaskInstance per MappedTask
@@ -269,19 +276,29 @@ class BackfillJob(BaseJob):
                 self.log.error(msg)
                 ti.handle_failure(error=msg)
                 continue
+
+            def _iter_task_needing_expansion() -> Iterator[AbstractOperator]:
+                from airflow.models.mappedoperator import AbstractOperator
+
+                for node in self.dag.get_task(ti.task_id, include_subdags=True).iter_mapped_dependants():
+                    if isinstance(node, AbstractOperator):
+                        yield node
+                    else:  # A (mapped) task group. All its children need expansion.
+                        yield from node.iter_tasks()
+
             if ti.state not in self.STATES_COUNT_AS_RUNNING:
                 # Don't use ti.task; if this task is mapped, that attribute
                 # would hold the unmapped task. We need to original task here.
-                for node in self.dag.get_task(ti.task_id, include_subdags=True).iter_mapped_dependants():
+                for node in _iter_task_needing_expansion():
                     new_tis, num_mapped_tis = node.expand_mapped_task(ti.run_id, session=session)
                     yield node, ti.run_id, new_tis, num_mapped_tis
 
     @provide_session
     def _get_dag_run(self, dagrun_info: DagRunInfo, dag: DAG, session: Session = None):
         """
-        Returns a dag run for the given run date, which will be matched to an existing
-        dag run if available or create a new dag run otherwise. If the max_active_runs
-        limit is reached, this function will return None.
+        Return an existing dag run for the given run date or create one.
+
+        If the max_active_runs limit is reached, this function will return None.
 
         :param dagrun_info: Schedule information for the dag run
         :param dag: DAG
@@ -334,13 +351,14 @@ class BackfillJob(BaseJob):
         run.state = DagRunState.RUNNING
         run.run_type = DagRunType.BACKFILL_JOB
         run.verify_integrity(session=session)
+
+        run.notify_dagrun_state_changed(msg="started")
         return run
 
     @provide_session
     def _task_instances_for_dag_run(self, dag, dag_run, session=None):
         """
-        Returns a map of task instance key to task instance object for the tasks to
-        run in the given dag run.
+        Return a map of task instance keys to task instance objects for the given dag run.
 
         :param dag_run: the dag run to get the tasks from
         :param session: the database session object
@@ -374,8 +392,8 @@ class BackfillJob(BaseJob):
 
     def _log_progress(self, ti_status):
         self.log.info(
-            '[backfill progress] | finished run %s of %s | tasks waiting: %s | succeeded: %s | '
-            'running: %s | failed: %s | skipped: %s | deadlocked: %s | not ready: %s',
+            "[backfill progress] | finished run %s of %s | tasks waiting: %s | succeeded: %s | "
+            "running: %s | failed: %s | skipped: %s | deadlocked: %s | not ready: %s",
             ti_status.finished_runs,
             ti_status.total_runs,
             len(ti_status.to_run),
@@ -389,19 +407,20 @@ class BackfillJob(BaseJob):
 
         self.log.debug("Finished dag run loop iteration. Remaining tasks %s", ti_status.to_run.values())
 
-    @provide_session
     def _process_backfill_task_instances(
         self,
         ti_status,
         executor,
         pickle_id,
         start_date=None,
-        session=None,
-    ):
+        *,
+        session: Session,
+    ) -> list:
         """
-        Process a set of task instances from a set of dag runs. Special handling is done
-        to account for different task instance states that could be present when running
-        them in a backfill process.
+        Process a set of task instances from a set of DAG runs.
+
+        Special handling is done to account for different task instance states
+        that could be present when running them in a backfill process.
 
         :param ti_status: the internal status of the job
         :param executor: the executor to run the task instances
@@ -409,11 +428,10 @@ class BackfillJob(BaseJob):
         :param start_date: the start date of the backfill job
         :param session: the current session object
         :return: the list of execution_dates for the finished dag runs
-        :rtype: list
         """
         executed_run_dates = []
 
-        is_unit_test = airflow_conf.getboolean('core', 'unit_test_mode')
+        is_unit_test = airflow_conf.getboolean("core", "unit_test_mode")
 
         while (len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and len(ti_status.deadlocked) == 0:
             self.log.debug("*** Clearing out not_ready list ***")
@@ -423,7 +441,7 @@ class BackfillJob(BaseJob):
             # or leaf to root, as otherwise tasks might be
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
-            def _per_task_process(key, ti: TaskInstance, session=None):
+            def _per_task_process(key, ti: TaskInstance, session):
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
@@ -487,7 +505,7 @@ class BackfillJob(BaseJob):
                     if executor.has_task(ti):
                         self.log.debug("Task Instance %s already in executor waiting for queue to clear", ti)
                     else:
-                        self.log.debug('Sending %s to executor', ti)
+                        self.log.debug("Sending %s to executor", ti)
                         # Skip scheduled state, we are executing immediately
                         ti.state = TaskInstanceState.QUEUED
                         ti.queued_by_job_id = self.id
@@ -502,10 +520,11 @@ class BackfillJob(BaseJob):
                             return
 
                         cfg_path = None
-                        if self.executor_class in (
-                            executor_constants.LOCAL_EXECUTOR,
-                            executor_constants.SEQUENTIAL_EXECUTOR,
-                        ):
+
+                        executor_class, _ = ExecutorLoader.import_executor_cls(
+                            self.executor_class,
+                        )
+                        if executor_class.is_local:
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(
@@ -546,7 +565,7 @@ class BackfillJob(BaseJob):
                     return
 
                 # all remaining tasks
-                self.log.debug('Adding %s to not_ready', ti)
+                self.log.debug("Adding %s to not_ready", ti)
                 ti_status.not_ready.add(key)
 
             try:
@@ -557,7 +576,7 @@ class BackfillJob(BaseJob):
 
                         pool = session.query(models.Pool).filter(models.Pool.pool == task.pool).first()
                         if not pool:
-                            raise PoolNotFound(f'Unknown pool: {task.pool}')
+                            raise PoolNotFound(f"Unknown pool: {task.pool}")
 
                         open_slots = pool.open_slots(session=session)
                         if open_slots <= 0:
@@ -629,6 +648,11 @@ class BackfillJob(BaseJob):
                 for new_ti in new_mapped_tis:
                     new_ti.set_state(TaskInstanceState.SCHEDULED, session=session)
 
+            # Set state to failed for running TIs that are set up for retry if disable-retry flag is set
+            for ti in ti_status.running.values():
+                if self.disable_retry and ti.state == TaskInstanceState.UP_FOR_RETRY:
+                    ti.set_state(TaskInstanceState.FAILED, session=session)
+
             # update the task counters
             self._update_counters(ti_status=ti_status, session=session)
             session.commit()
@@ -671,12 +695,12 @@ class BackfillJob(BaseJob):
 
             return tabulate(sorted_ti_keys, headers=headers)
 
-        err = ''
+        err = ""
         if ti_status.failed:
             err += "Some task instances failed:\n"
             err += tabulate_ti_keys_set(ti_status.failed)
         if ti_status.deadlocked:
-            err += 'BackfillJob is deadlocked.'
+            err += "BackfillJob is deadlocked."
             deadlocked_depends_on_past = any(
                 t.are_dependencies_met(
                     dep_context=DepContext(ignore_depends_on_past=False),
@@ -690,21 +714,21 @@ class BackfillJob(BaseJob):
             )
             if deadlocked_depends_on_past:
                 err += (
-                    'Some of the deadlocked tasks were unable to run because '
+                    "Some of the deadlocked tasks were unable to run because "
                     'of "depends_on_past" relationships. Try running the '
-                    'backfill with the option '
+                    "backfill with the option "
                     '"ignore_first_depends_on_past=True" or passing "-I" at '
-                    'the command line.'
+                    "the command line."
                 )
-            err += '\nThese tasks have succeeded:\n'
+            err += "\nThese tasks have succeeded:\n"
             err += tabulate_ti_keys_set(ti_status.succeeded)
-            err += '\n\nThese tasks are running:\n'
+            err += "\n\nThese tasks are running:\n"
             err += tabulate_ti_keys_set(ti_status.running)
-            err += '\n\nThese tasks have failed:\n'
+            err += "\n\nThese tasks have failed:\n"
             err += tabulate_ti_keys_set(ti_status.failed)
-            err += '\n\nThese tasks are skipped:\n'
+            err += "\n\nThese tasks are skipped:\n"
             err += tabulate_ti_keys_set(ti_status.skipped)
-            err += '\n\nThese tasks are deadlocked:\n'
+            err += "\n\nThese tasks are deadlocked:\n"
             err += tabulate_ti_keys_set([ti.key for ti in ti_status.deadlocked])
 
         return err
@@ -715,8 +739,8 @@ class BackfillJob(BaseJob):
     @provide_session
     def _execute_dagruns(self, dagrun_infos, ti_status, executor, pickle_id, start_date, session=None):
         """
-        Computes the dag runs and their respective task instances for
-        the given run dates and executes the task instances.
+        Compute and execute dag runs and their respective task instances for the given dates.
+
         Returns a list of execution dates of the dag runs that were executed.
 
         :param dagrun_infos: Schedule information for dag runs
@@ -764,10 +788,7 @@ class BackfillJob(BaseJob):
 
     @provide_session
     def _execute(self, session=None):
-        """
-        Initializes all components required to run a dag for a specified date range and
-        calls helper method to execute the tasks.
-        """
+        """Initialize all required components of a dag for a specified date range and execute the tasks."""
         ti_status = BackfillJob._DagRunTaskStatus()
 
         start_date = self.bf_start_date
@@ -783,7 +804,7 @@ class BackfillJob(BaseJob):
             tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]
             if tasks_that_depend_on_past:
                 raise AirflowException(
-                    f'You cannot backfill backwards because one or more '
+                    f"You cannot backfill backwards because one or more "
                     f'tasks depend_on_past: {",".join(tasks_that_depend_on_past)}'
                 )
             dagrun_infos = dagrun_infos[::-1]
@@ -833,7 +854,7 @@ class BackfillJob(BaseJob):
             pickle_id = pickle.id
 
         executor = self.executor
-        executor.job_id = "backfill"
+        executor.job_id = self.id
         executor.start()
 
         ti_status.total_runs = len(dagrun_infos)  # total dag runs in backfill
@@ -881,8 +902,10 @@ class BackfillJob(BaseJob):
         self.log.info("Backfill done for DAG %s. Exiting.", self.dag)
 
     @provide_session
-    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):
+    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None) -> int | None:
         """
+        Reset state of orphaned tasks.
+
         This function checks if there are any tasks in the dagrun (or all) that
         have a schedule or queued states but are not known by the executor. If
         it finds those it will reset the state to None so they will get picked
@@ -891,7 +914,6 @@ class BackfillJob(BaseJob):
 
         :param filter_by_dag_run: the dag_run we want to process, None if all
         :return: the number of TIs reset
-        :rtype: int
         """
         queued_tis = self.executor.queued_tasks
         # also consider running as the state might not have changed in the db yet
@@ -936,7 +958,7 @@ class BackfillJob(BaseJob):
 
         reset_tis = helpers.reduce_in_chunks(query, tis_to_reset, [], self.max_tis_per_query)
 
-        task_instance_str = '\n\t'.join(repr(x) for x in reset_tis)
+        task_instance_str = "\n\t".join(repr(x) for x in reset_tis)
         session.flush()
 
         self.log.info("Reset the following %s TaskInstances:\n\t%s", len(reset_tis), task_instance_str)

@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.4.1"
+defaultAirflowTag: "2.5.0"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.4.1"
+airflowVersion: "2.5.0"
 
 # Images
 images:
@@ -81,7 +81,7 @@ images:
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 6-bullseye
+    tag: 7-bullseye
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
@@ -242,6 +242,12 @@ allowPodLaunching: true
 env: []
 # - name: ""
 #   value: ""
+
+# Volumes for all airflow containers
+volumes: []
+
+# VolumeMounts for all airflow containers
+volumeMounts: []
 
 # Secrets for all airflow containers
 secret: []
@@ -600,6 +606,8 @@ workers:
   labels: {}
 
   logGroomerSidecar:
+    # Whether to deploy the Airflow worker log groomer sidecar.
+    enabled: true
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
     # Args to use when running the Airflow worker log groomer sidecar (templated).
@@ -804,6 +812,8 @@ createUserJob:
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
+  applyCustomEnv: true
+
   env: []
 
   resources: {}
@@ -872,6 +882,7 @@ migrateDatabaseJob:
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
+  applyCustomEnv: true
 
 # Airflow webserver settings
 webserver:
@@ -965,8 +976,10 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
+  # This string (can be templated) will be mounted into the Airflow Webserver
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
@@ -976,6 +989,7 @@ webserver:
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
+  webserverConfigConfigMapName: ~
 
   service:
     type: ClusterIP
@@ -1326,6 +1340,9 @@ statsd:
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
 
+  # Arguments for StatsD exporter command.
+  args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -1381,6 +1398,8 @@ statsd:
 pgbouncer:
   # Enable PgBouncer
   enabled: false
+  # Number of PgBouncer replicas to run in Deployment
+  replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
   # Command to use for PgBouncer(templated).
@@ -1776,8 +1795,7 @@ dags:
     enabled: false
 
     # git repo clone url
-    # ssh examples ssh://git@github.com/apache/airflow.git
-    # git@github.com:apache/airflow.git
+    # ssh example: git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
     branch: v2-2-stable
@@ -1822,8 +1840,11 @@ dags:
     # knownHosts: |
     #    <host1>,<ip1> <key1>
     #    <host2>,<ip2> <key2>
+
     # interval between git sync attempts in seconds
-    wait: 60
+    # high values are more likely to cause DAGs to become out of sync between different components
+    # low values cause more traffic to the remote git repository
+    wait: 5
     containerName: git-sync
     uid: 65533
 

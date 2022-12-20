@@ -327,9 +327,9 @@ this (note the ``if ti_key is not None:`` condition).
 
     def get_link(
         self,
-        operator,
-        dttm: Optional[datetime] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        operator: BaseOperator,
+        dttm: datetime | None = None,
+        ti_key: "TaskInstanceKey" | None = None,
     ):
         if ti_key is not None:
             job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
@@ -349,8 +349,8 @@ this (note the ``if ti_key is not None:`` condition).
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
-Having sensors return XOM values
---------------------------------
+Having sensors return XCOM values
+---------------------------------
 In Airflow 2.3, sensor operators will be able to return XCOM values. This is achieved by returning an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` method:
 
   .. code-block:: python

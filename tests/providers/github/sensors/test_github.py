@@ -30,15 +30,15 @@ github_client_mock = Mock(name="github_client_for_test")
 
 class TestGithubSensor:
     def setup_class(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_dag_id", default_args=args)
         self.dag = dag
         db.merge_conn(
             Connection(
-                conn_id='github_default',
-                conn_type='github',
-                password='my-access-token',
-                host='https://mygithub.com/api/v3',
+                conn_id="github_default",
+                conn_type="github",
+                password="my-access-token",
+                host="https://mygithub.com/api/v3",
             )
         )
 
@@ -55,8 +55,8 @@ class TestGithubSensor:
         github_mock.return_value.get_repo.return_value.get_tags.return_value = [tag]
 
         github_tag_sensor = GithubTagSensor(
-            task_id='search-ticket-test',
-            tag_name='v1.0',
+            task_id="search-ticket-test",
+            tag_name="v1.0",
             repository_name="pateash/jetbrains_settings",
             timeout=60,
             poke_interval=10,

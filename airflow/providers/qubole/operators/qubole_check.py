@@ -105,7 +105,7 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         set(QuboleOperator.template_fields) | set(SQLCheckOperator.template_fields)
     )
     template_ext = QuboleOperator.template_ext
-    ui_fgcolor = '#000'
+    ui_fgcolor = "#000"
 
     def __init__(
         self,
@@ -115,7 +115,7 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         **kwargs,
     ) -> None:
         sql = get_sql_from_qbol_cmd(kwargs)
-        kwargs.pop('sql', None)
+        kwargs.pop("sql", None)
         super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, **kwargs)
         self.results_parser_callable = results_parser_callable
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
@@ -154,7 +154,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
 
     template_fields = tuple(set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields))
     template_ext = QuboleOperator.template_ext
-    ui_fgcolor = '#000'
+    ui_fgcolor = "#000"
 
     def __init__(
         self,
@@ -166,7 +166,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
         **kwargs,
     ) -> None:
         sql = get_sql_from_qbol_cmd(kwargs)
-        kwargs.pop('sql', None)
+        kwargs.pop("sql", None)
         super().__init__(
             qubole_conn_id=qubole_conn_id, sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs
         )
@@ -178,11 +178,11 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
 
 def get_sql_from_qbol_cmd(params) -> str:
     """Get Qubole sql from Qubole command"""
-    sql = ''
-    if 'query' in params:
-        sql = params['query']
-    elif 'sql' in params:
-        sql = params['sql']
+    sql = ""
+    if "query" in params:
+        sql = params["query"]
+    elif "sql" in params:
+        sql = params["sql"]
     return sql
 
 
@@ -194,7 +194,7 @@ def handle_airflow_exception(airflow_exception, hook: QuboleCheckHook):
             qubole_command_results = hook.get_query_results()
             qubole_command_id = cmd.id
             exception_message = (
-                f'\nQubole Command Id: {qubole_command_id}\nQubole Command Results:\n{qubole_command_results}'
+                f"\nQubole Command Id: {qubole_command_id}\nQubole Command Results:\n{qubole_command_results}"
             )
             raise AirflowException(str(airflow_exception) + exception_message)
     raise AirflowException(str(airflow_exception))

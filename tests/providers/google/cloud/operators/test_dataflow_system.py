@@ -22,7 +22,7 @@ import os
 import shlex
 import textwrap
 from tempfile import NamedTemporaryFile
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -46,29 +46,29 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_DATAFLOW_KEY)
-class CloudDataflowExampleDagsSystemTest(GoogleSystemTest):
+class TestCloudDataflowExampleDagsSystem(GoogleSystemTest):
     @provide_gcp_context(GCP_DATAFLOW_KEY)
     def test_run_example_gcp_dataflow_native_java(self):
-        self.run_dag('example_gcp_dataflow_native_java', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_dataflow_native_java", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_DATAFLOW_KEY)
     def test_run_example_gcp_dataflow_native_python(self):
-        self.run_dag('example_gcp_dataflow_native_python', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_dataflow_native_python", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_DATAFLOW_KEY)
     def test_run_example_gcp_dataflow_native_python_async(self):
-        self.run_dag('example_gcp_dataflow_native_python_async', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_dataflow_native_python_async", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_DATAFLOW_KEY)
     def test_run_example_gcp_dataflow_template(self):
-        self.run_dag('example_gcp_dataflow_template', CLOUD_DAG_FOLDER)
+        self.run_dag("example_gcp_dataflow_template", CLOUD_DAG_FOLDER)
 
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCR_FLEX_TEMPLATE_IMAGE = f"gcr.io/{GCP_PROJECT_ID}/samples-dataflow-streaming-beam-sql:latest"
 
 # https://github.com/GoogleCloudPlatform/java-docs-samples/tree/954553c/dataflow/flex-templates/streaming_beam_sql
-GCS_TEMPLATE_PARTS = urlparse(GCS_FLEX_TEMPLATE_TEMPLATE_PATH)
+GCS_TEMPLATE_PARTS = urlsplit(GCS_FLEX_TEMPLATE_TEMPLATE_PATH)
 GCS_FLEX_TEMPLATE_BUCKET_NAME = GCS_TEMPLATE_PARTS.netloc
 
 
@@ -79,35 +79,34 @@ EXAMPLE_FLEX_TEMPLATE_SUBDIR = "dataflow/flex-templates/streaming_beam_sql"
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_TRANSFER_KEY)
-class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
+class TestCloudDataflowExampleDagFlexTemplateJavaSystem(GoogleSystemTest):
     @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
-    def setUp(self) -> None:
-        super().setUp()
+    def setup_method(self) -> None:
         # Create a Cloud Storage bucket
         self.execute_cmd(["gsutil", "mb", f"gs://{GCS_FLEX_TEMPLATE_BUCKET_NAME}"])
 
         # Build image with pipeline
         with NamedTemporaryFile("w") as f:
             cloud_build_config = {
-                'steps': [
-                    {'name': 'gcr.io/cloud-builders/git', 'args': ['clone', "$_EXAMPLE_REPO", "repo_dir"]},
+                "steps": [
+                    {"name": "gcr.io/cloud-builders/git", "args": ["clone", "$_EXAMPLE_REPO", "repo_dir"]},
                     {
-                        'name': 'gcr.io/cloud-builders/git',
-                        'args': ['checkout', '$_EXAMPLE_COMMIT'],
-                        'dir': 'repo_dir',
+                        "name": "gcr.io/cloud-builders/git",
+                        "args": ["checkout", "$_EXAMPLE_COMMIT"],
+                        "dir": "repo_dir",
                     },
                     {
-                        'name': 'maven',
-                        'args': ['mvn', 'clean', 'package'],
-                        'dir': 'repo_dir/$_EXAMPLE_SUBDIR',
+                        "name": "maven",
+                        "args": ["mvn", "clean", "package"],
+                        "dir": "repo_dir/$_EXAMPLE_SUBDIR",
                     },
                     {
-                        'name': 'gcr.io/cloud-builders/docker',
-                        'args': ['build', '-t', '$_TEMPLATE_IMAGE', '.'],
-                        'dir': 'repo_dir/$_EXAMPLE_SUBDIR',
+                        "name": "gcr.io/cloud-builders/docker",
+                        "args": ["build", "-t", "$_TEMPLATE_IMAGE", "."],
+                        "dir": "repo_dir/$_EXAMPLE_SUBDIR",
                     },
                 ],
-                'images': ['$_TEMPLATE_IMAGE'],
+                "images": ["$_TEMPLATE_IMAGE"],
             }
             f.write(json.dumps(cloud_build_config))
             f.flush()
@@ -177,7 +176,7 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
                 "create",
                 "pubsub",
                 "positive-ratings-publisher",
-                '--schedule=* * * * *',
+                "--schedule=* * * * *",
                 f"--topic={PUBSUB_FLEX_TEMPLATE_TOPIC}",
                 '--message-body=\'{"url": "https://beam.apache.org/", "review": "positive"}\'',
             ]
@@ -191,21 +190,21 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
                 "create",
                 "pubsub",
                 "negative-ratings-publisher",
-                '--schedule=*/2 * * * *',
+                "--schedule=*/2 * * * *",
                 f"--topic={PUBSUB_FLEX_TEMPLATE_TOPIC}",
                 '--message-body=\'{"url": "https://beam.apache.org/", "review": "negative"}\'',
             ]
         )
 
         # Create a BigQuery dataset
-        self.execute_cmd(["bq", "mk", "--dataset", f'{self._project_id()}:{BQ_FLEX_TEMPLATE_DATASET}'])
+        self.execute_cmd(["bq", "mk", "--dataset", f"{self._project_id()}:{BQ_FLEX_TEMPLATE_DATASET}"])
 
     @provide_gcp_context(GCP_GCS_TRANSFER_KEY)
     def test_run_example_dag_function(self):
         self.run_dag("example_gcp_dataflow_flex_template_java", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         # Stop the Dataflow pipeline.
         self.execute_cmd(
             [
@@ -248,7 +247,7 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
         self.execute_cmd(["gcloud", "pubsub", "topics", "delete", PUBSUB_FLEX_TEMPLATE_TOPIC])
 
         # Delete the BigQuery dataset,
-        self.execute_cmd(["bq", "rm", "-r", "-f", "-d", f'{self._project_id()}:{BQ_FLEX_TEMPLATE_DATASET}'])
+        self.execute_cmd(["bq", "rm", "-r", "-f", "-d", f"{self._project_id()}:{BQ_FLEX_TEMPLATE_DATASET}"])
 
         # Delete the Cloud Storage bucket
         self.execute_cmd(["gsutil", "rm", "-r", f"gs://{GCS_FLEX_TEMPLATE_BUCKET_NAME}"])
@@ -257,10 +256,9 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_TRANSFER_KEY)
-class CloudDataflowExampleDagSqlSystemTest(GoogleSystemTest):
+class TestCloudDataflowExampleDagSqlSystem(GoogleSystemTest):
     @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
-    def setUp(self) -> None:
-        super().setUp()
+    def setup_method(self) -> None:
         # Build image with pipeline
         with NamedTemporaryFile(suffix=".csv") as f:
             f.write(
@@ -328,7 +326,7 @@ class CloudDataflowExampleDagSqlSystemTest(GoogleSystemTest):
             )
             f.flush()
 
-            self.execute_cmd(["bq", "mk", "--dataset", f'{self._project_id()}:{BQ_SQL_DATASET}'])
+            self.execute_cmd(["bq", "mk", "--dataset", f"{self._project_id()}:{BQ_SQL_DATASET}"])
 
             self.execute_cmd(
                 ["bq", "load", "--autodetect", "--source_format=CSV", f"{BQ_SQL_DATASET}.beam_input", f.name]
@@ -339,14 +337,14 @@ class CloudDataflowExampleDagSqlSystemTest(GoogleSystemTest):
         self.run_dag("example_gcp_dataflow_sql", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         # Execute test query
         self.execute_cmd(
             [
-                'bq',
-                'query',
-                '--use_legacy_sql=false',
-                f'select * FROM `{self._project_id()}.{BQ_SQL_DATASET}.beam_output`',
+                "bq",
+                "query",
+                "--use_legacy_sql=false",
+                f"select * FROM `{self._project_id()}.{BQ_SQL_DATASET}.beam_output`",
             ]
         )
 
@@ -367,5 +365,4 @@ class CloudDataflowExampleDagSqlSystemTest(GoogleSystemTest):
             ]
         )
         # Delete the BigQuery dataset,
-        self.execute_cmd(["bq", "rm", "-r", "-f", "-d", f'{self._project_id()}:{BQ_SQL_DATASET}'])
-        super().tearDown()
+        self.execute_cmd(["bq", "rm", "-r", "-f", "-d", f"{self._project_id()}:{BQ_SQL_DATASET}"])

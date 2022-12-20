@@ -18,20 +18,10 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any
 
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-
-try:
-    from airflow.triggers.base import BaseTrigger, TriggerEvent
-except ImportError:
-    logging.getLogger(__name__).warning(
-        'Deferrable Operators only work starting Airflow 2.2',
-        exc_info=True,
-    )
-    BaseTrigger = object  # type: ignore
-    TriggerEvent = None  # type: ignore
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class DatabricksExecutionTrigger(BaseTrigger):
@@ -53,11 +43,11 @@ class DatabricksExecutionTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            'airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger',
+            "airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger",
             {
-                'run_id': self.run_id,
-                'databricks_conn_id': self.databricks_conn_id,
-                'polling_period_seconds': self.polling_period_seconds,
+                "run_id": self.run_id,
+                "databricks_conn_id": self.databricks_conn_id,
+                "polling_period_seconds": self.polling_period_seconds,
             },
         )
 
@@ -69,9 +59,9 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 if run_state.is_terminal:
                     yield TriggerEvent(
                         {
-                            'run_id': self.run_id,
-                            'run_state': run_state.to_json(),
-                            'run_page_url': run_page_url,
+                            "run_id": self.run_id,
+                            "run_state": run_state.to_json(),
+                            "run_page_url": run_page_url,
                         }
                     )
                     break

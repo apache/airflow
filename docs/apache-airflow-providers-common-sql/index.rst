@@ -44,7 +44,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-common-sql/1.0.0/tests/system/providers/common/sql>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-common-sql/|version|/tests/system/providers/common/sql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-sql/>
     Installing from sources <installing-providers-from-sources>
 
@@ -64,7 +64,7 @@ Package apache-airflow-providers-common-sql
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.2.0
+Release: 1.3.1
 
 Provider package
 ----------------

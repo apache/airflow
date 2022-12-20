@@ -30,8 +30,8 @@ from airflow.version import version as airflow_version
 
 
 def _parse_version(val):
-    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return tuple(int(x) for x in val.split('.'))
+    val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), val)
+    return tuple(int(x) for x in val.split("."))
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
@@ -73,11 +73,11 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str = 'airflow-connections',
-        variables_prefix: str = 'airflow-variables',
-        config_prefix: str = 'airflow-config',
-        vault_url: str = '',
-        sep: str = '-',
+        connections_prefix: str = "airflow-connections",
+        variables_prefix: str = "airflow-variables",
+        config_prefix: str = "airflow-config",
+        vault_url: str = "",
+        sep: str = "-",
         **kwargs,
     ) -> None:
         super().__init__()
@@ -158,7 +158,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         return self._get_secret(self.config_prefix, key)
 
     @staticmethod
-    def build_path(path_prefix: str, secret_id: str, sep: str = '-') -> str:
+    def build_path(path_prefix: str, secret_id: str, sep: str = "-") -> str:
         """
         Given a path_prefix and secret_id, build a valid secret name for the Azure Key Vault Backend.
         Also replaces underscore in the path with dashes to support easy switching between
@@ -170,10 +170,10 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         """
         # When an empty prefix is given, do not add a separator to the secret name
         if path_prefix == "":
-            path = f'{secret_id}'
+            path = f"{secret_id}"
         else:
-            path = f'{path_prefix}{sep}{secret_id}'
-        return path.replace('_', sep)
+            path = f"{path_prefix}{sep}{secret_id}"
+        return path.replace("_", sep)
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
         """
@@ -187,5 +187,5 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             secret = self.client.get_secret(name=name)
             return secret.value
         except ResourceNotFoundError as ex:
-            self.log.debug('Secret %s not found: %s', name, ex)
+            self.log.debug("Secret %s not found: %s", name, ex)
             return None

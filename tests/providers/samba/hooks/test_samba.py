@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from inspect import getfullargspec
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -31,24 +29,24 @@ from airflow.providers.samba.hooks.samba import SambaHook
 PATH_PARAMETER_NAMES = {"path", "src", "dst"}
 
 CONNECTION = Connection(
-    host='ip',
-    schema='share',
-    login='username',
-    password='password',
+    host="ip",
+    schema="share",
+    login="username",
+    password="password",
 )
 
 
-class TestSambaHook(unittest.TestCase):
+class TestSambaHook:
     def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
         with pytest.raises(AirflowException):
-            SambaHook('conn')
+            SambaHook("conn")
 
-    @mock.patch('smbclient.register_session')
-    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
+    @mock.patch("smbclient.register_session")
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_context_manager(self, get_conn_mock, register_session):
         get_conn_mock.return_value = CONNECTION
         register_session.return_value = None
-        with SambaHook('samba_default'):
+        with SambaHook("samba_default"):
             args, kwargs = tuple(register_session.call_args_list[0])
             assert args == (CONNECTION.host,)
             assert kwargs == {
@@ -65,7 +63,8 @@ class TestSambaHook(unittest.TestCase):
         # Test that the connection was disconnected upon exit.
         assert len(mock_connection.disconnect.mock_calls) == 1
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "name",
         [
             "getxattr",
             "link",
@@ -93,17 +92,17 @@ class TestSambaHook(unittest.TestCase):
             "walk",
         ],
     )
-    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
-    def test_method(self, name, get_conn_mock):
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    def test_method(self, get_conn_mock, name):
         get_conn_mock.return_value = CONNECTION
-        hook = SambaHook('samba_default')
+        hook = SambaHook("samba_default")
         connection_settings = {
-            'connection_cache': {},
-            'username': CONNECTION.login,
-            'password': CONNECTION.password,
-            'port': 445,
+            "connection_cache": {},
+            "username": CONNECTION.login,
+            "password": CONNECTION.password,
+            "port": 445,
         }
-        with mock.patch('smbclient.' + name) as p:
+        with mock.patch("smbclient." + name) as p:
             kwargs = {}
             method = getattr(hook, name)
             spec = getfullargspec(method)
@@ -132,14 +131,15 @@ class TestSambaHook(unittest.TestCase):
             # We expect keyword arguments to include the connection settings.
             assert dict(kwargs, **connection_settings) == p_kwargs
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "path, full_path",
         [
             ("/start/path/with/slash", "//ip/share/start/path/with/slash"),
             ("start/path/without/slash", "//ip/share/start/path/without/slash"),
         ],
     )
-    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
-    def test__join_path(self, path, full_path, get_conn_mock):
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    def test__join_path(self, get_conn_mock, path, full_path):
         get_conn_mock.return_value = CONNECTION
-        hook = SambaHook('samba_default')
+        hook = SambaHook("samba_default")
         assert hook._join_path(path) == full_path

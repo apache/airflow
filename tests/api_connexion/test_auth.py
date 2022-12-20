@@ -20,7 +20,6 @@ from base64 import b64encode
 
 import pytest
 from flask_login import current_user
-from parameterized import parameterized
 
 from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
@@ -52,14 +51,14 @@ class TestBasicAuth(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_success(self):
         token = "Basic " + b64encode(b"test:test").decode()
@@ -86,17 +85,18 @@ class TestBasicAuth(BaseTestAuth):
             "total_entries": 1,
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "token",
         [
-            ("basic",),
-            ("basic ",),
-            ("bearer",),
-            ("test:test",),
-            (b64encode(b"test:test").decode(),),
-            ("bearer ",),
-            ("basic: ",),
-            ("basic 123",),
-        ]
+            "basic",
+            "basic ",
+            "bearer",
+            "test:test",
+            b64encode(b"test:test").decode(),
+            "bearer ",
+            "basic: ",
+            "basic 123",
+        ],
     )
     def test_malformed_headers(self, token):
         with self.app.test_client() as test_client:
@@ -106,13 +106,14 @@ class TestBasicAuth(BaseTestAuth):
             assert response.headers["WWW-Authenticate"] == "Basic"
             assert_401(response)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "token",
         [
-            ("basic " + b64encode(b"test").decode(),),
-            ("basic " + b64encode(b"test:").decode(),),
-            ("basic " + b64encode(b"test:123").decode(),),
-            ("basic " + b64encode(b"test test").decode(),),
-        ]
+            "basic " + b64encode(b"test").decode(),
+            "basic " + b64encode(b"test:").decode(),
+            "basic " + b64encode(b"test:123").decode(),
+            "basic " + b64encode(b"test test").decode(),
+        ],
     )
     def test_invalid_auth_header(self, token):
         with self.app.test_client() as test_client:
@@ -128,14 +129,14 @@ class TestSessionAuth(BaseTestAuth):
     def with_session_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.session"}):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_success(self):
         clear_db_pools()
@@ -172,7 +173,7 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
     def with_basic_auth_backend(self, minimal_app_for_api):
         from airflow.www.extensions.init_security import init_api_experimental_auth
 
-        old_auth = getattr(minimal_app_for_api, 'api_auth')
+        old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars(
@@ -186,7 +187,7 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
-            setattr(minimal_app_for_api, 'api_auth', old_auth)
+            setattr(minimal_app_for_api, "api_auth", old_auth)
 
     def test_basic_auth_fallback(self):
         token = "Basic " + b64encode(b"test:test").decode()

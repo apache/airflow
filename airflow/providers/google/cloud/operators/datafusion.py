@@ -344,7 +344,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
             instance = hook.wait_for_operation(operation)
             self.log.info("Instance %s created successfully", self.instance_name)
         except HttpError as err:
-            if err.resp.status not in (409, '409'):
+            if err.resp.status not in (409, "409"):
                 raise
             self.log.info("Instance %s already exists", self.instance_name)
             instance = hook.get_instance(
@@ -352,7 +352,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
             )
             # Wait for instance to be ready
             for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-                if instance['state'] != 'CREATING':
+                if instance["state"] != "CREATING":
                     break
                 sleep(time_to_wait)
                 instance = hook.get_instance(

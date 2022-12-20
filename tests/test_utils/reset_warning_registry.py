@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 import sys
-from typing import Dict, Match, Optional
+from typing import Match
 
 # We need to explicitly clear the warning registry context
 # https://docs.python.org/2/library/warnings.html
@@ -43,10 +43,10 @@ class reset_warning_registry:
     """
 
     #: regexp for filtering which modules are reset
-    _pattern = None  # type: Optional[Match[str]]
+    _pattern: Match[str] | None = None
 
     #: dict mapping module name -> old registry contents
-    _backup = None  # type: Optional[Dict]
+    _backup: dict | None = None
 
     def __init__(self, pattern=None):
         self._pattern = re.compile(pattern or ".*")

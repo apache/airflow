@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import tempfile
 import unittest
 from argparse import ArgumentParser
@@ -63,15 +64,15 @@ def reset(dag_id):
 
 @contextmanager
 def move_back(old_path, new_path):
-    os.rename(old_path, new_path)
+    shutil.move(old_path, new_path)
     yield
-    os.rename(new_path, old_path)
+    shutil.move(new_path, old_path)
 
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliTasks:
-    run_id = 'TEST_RUN_ID'
-    dag_id = 'example_python_operator'
+    run_id = "TEST_RUN_ID"
+    dag_id = "example_python_operator"
     parser: ArgumentParser
     dagbag: DagBag
     dag: DAG
@@ -93,19 +94,20 @@ class TestCliTasks:
     def teardown_class(cls) -> None:
         clear_db_runs()
 
+    @pytest.mark.execution_timeout(120)
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
-            args = self.parser.parse_args(['tasks', 'list', dag_id])
+            args = self.parser.parse_args(["tasks", "list", dag_id])
             task_command.task_list(args)
 
-        args = self.parser.parse_args(['tasks', 'list', 'example_bash_operator', '--tree'])
+        args = self.parser.parse_args(["tasks", "list", "example_bash_operator", "--tree"])
         task_command.task_list(args)
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test(self):
         """Test the `airflow test` command"""
         args = self.parser.parse_args(
-            ["tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01']
+            ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"]
         )
 
         with redirect_stdout(io.StringIO()) as stdout:
@@ -115,13 +117,13 @@ class TestCliTasks:
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
-    @mock.patch('airflow.utils.timezone.utcnow')
+    @mock.patch("airflow.utils.timezone.utcnow")
     def test_test_no_execution_date(self, mock_utcnow):
         """Test the `airflow test` command"""
-        now = pendulum.now('UTC')
+        now = pendulum.now("UTC")
         mock_utcnow.return_value = now
         ds = now.strftime("%Y%m%d")
-        args = self.parser.parse_args(["tasks", "test", "example_python_operator", 'print_the_context'])
+        args = self.parser.parse_args(["tasks", "test", "example_python_operator", "print_the_context"])
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
@@ -132,7 +134,7 @@ class TestCliTasks:
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self, caplog):
         """Test the `airflow test` command"""
-        task_id = 'print_the_context'
+        task_id = "print_the_context"
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
         with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
@@ -165,20 +167,20 @@ class TestCliTasks:
         from the worker, ``airflow tasks run --local`` should still work.
         """
         repo_root = Path(__file__).parent.parent.parent.parent
-        orig_file_path = repo_root / 'tests/dags/test_dags_folder.py'
+        orig_file_path = repo_root / "tests/dags/test_dags_folder.py"
         orig_dags_folder = orig_file_path.parent
 
         # parse dag in original path
-        with conf_vars({('core', 'dags_folder'): orig_dags_folder.as_posix()}):
+        with conf_vars({("core", "dags_folder"): orig_dags_folder.as_posix()}):
             dagbag = DagBag(include_examples=False)
-            dag = dagbag.get_dag('test_dags_folder')
+            dag = dagbag.get_dag("test_dags_folder")
             dagbag.sync_to_db(session=session)
 
         dag.create_dagrun(
             state=State.NONE,
-            run_id='abc123',
+            run_id="abc123",
             run_type=DagRunType.MANUAL,
-            execution_date=pendulum.now('UTC'),
+            execution_date=pendulum.now("UTC"),
             session=session,
         )
         session.commit()
@@ -191,17 +193,17 @@ class TestCliTasks:
             new_file_path = Path(td) / Path(orig_file_path).name
             new_dags_folder = new_file_path.parent
             with move_back(orig_file_path, new_file_path), conf_vars(
-                {('core', 'dags_folder'): new_dags_folder.as_posix()}
+                {("core", "dags_folder"): new_dags_folder.as_posix()}
             ):
                 ser_dag = (
                     session.query(SerializedDagModel)
-                    .filter(SerializedDagModel.dag_id == 'test_dags_folder')
+                    .filter(SerializedDagModel.dag_id == "test_dags_folder")
                     .one()
                 )
                 # confirm that the serialized dag location has not been updated
                 assert ser_dag.fileloc == orig_file_path.as_posix()
-                assert ser_dag.data['dag']['_processor_dags_folder'] == orig_dags_folder.as_posix()
-                assert ser_dag.data['dag']['fileloc'] == orig_file_path.as_posix()
+                assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
+                assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
                 assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
                 from airflow.settings import DAGS_FOLDER
 
@@ -209,27 +211,27 @@ class TestCliTasks:
                 task_command.task_run(
                     self.parser.parse_args(
                         [
-                            'tasks',
-                            'run',
-                            '--ignore-all-dependencies',
-                            '--local',
-                            'test_dags_folder',
-                            'task',
-                            'abc123',
+                            "tasks",
+                            "run",
+                            "--ignore-all-dependencies",
+                            "--local",
+                            "test_dags_folder",
+                            "task",
+                            "abc123",
                         ]
                     )
                 )
             ti = (
                 session.query(TaskInstance)
                 .filter(
-                    TaskInstance.task_id == 'task',
-                    TaskInstance.dag_id == 'test_dags_folder',
-                    TaskInstance.run_id == 'abc123',
+                    TaskInstance.task_id == "task",
+                    TaskInstance.dag_id == "test_dags_folder",
+                    TaskInstance.run_id == "abc123",
                     TaskInstance.map_index == -1,
                 )
                 .one()
             )
-            assert ti.state == 'success'
+            assert ti.state == "success"
             # verify that the file was in different location when run
             assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
@@ -240,10 +242,10 @@ class TestCliTasks:
         """
         task0_id = self.dag.task_ids[0]
         args0 = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            '--local',
+            "tasks",
+            "run",
+            "--ignore-all-dependencies",
+            "--local",
             self.dag_id,
             task0_id,
             self.run_id,
@@ -267,15 +269,15 @@ class TestCliTasks:
         """
         Test that run raises when there's run_id but no dag_run
         """
-        dag_id = 'test_run_ignores_all_dependencies'
+        dag_id = "test_run_ignores_all_dependencies"
         dag = self.dagbag.get_dag(dag_id)
-        task0_id = 'test_run_dependent_task'
-        run_id = 'TEST_RUN_ID'
+        task0_id = "test_run_dependent_task"
+        run_id = "TEST_RUN_ID"
         args0 = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            '--local',
+            "tasks",
+            "run",
+            "--ignore-all-dependencies",
+            "--local",
             dag_id,
             task0_id,
             run_id,
@@ -287,12 +289,12 @@ class TestCliTasks:
         task_command.task_test(
             self.parser.parse_args(
                 [
-                    'tasks',
-                    'test',
-                    'example_passing_params_via_test_command',
-                    'run_this',
+                    "tasks",
+                    "test",
+                    "example_passing_params_via_test_command",
+                    "run_this",
                     DEFAULT_DATE.isoformat(),
-                    '--task-params',
+                    "--task-params",
                     '{"foo":"bar"}',
                 ]
             )
@@ -300,12 +302,12 @@ class TestCliTasks:
         task_command.task_test(
             self.parser.parse_args(
                 [
-                    'tasks',
-                    'test',
-                    'example_passing_params_via_test_command',
-                    'also_run_this',
+                    "tasks",
+                    "test",
+                    "example_passing_params_via_test_command",
+                    "also_run_this",
                     DEFAULT_DATE.isoformat(),
-                    '--task-params',
+                    "--task-params",
                     '{"foo":"bar"}',
                 ]
             )
@@ -316,19 +318,19 @@ class TestCliTasks:
             task_command.task_test(
                 self.parser.parse_args(
                     [
-                        'tasks',
-                        'test',
-                        'example_passing_params_via_test_command',
-                        'env_var_test_task',
+                        "tasks",
+                        "test",
+                        "example_passing_params_via_test_command",
+                        "env_var_test_task",
                         DEFAULT_DATE.isoformat(),
-                        '--env-vars',
+                        "--env-vars",
                         '{"foo":"bar"}',
                     ]
                 )
             )
         output = stdout.getvalue()
-        assert 'foo=bar' in output
-        assert 'AIRFLOW_TEST_MODE=True' in output
+        assert "foo=bar" in output
+        assert "AIRFLOW_TEST_MODE=True" in output
 
     @parameterized.expand(
         [
@@ -346,12 +348,12 @@ class TestCliTasks:
             task_command.task_run(
                 self.parser.parse_args(
                     [  # type: ignore
-                        'tasks',
-                        'run',
-                        'example_bash_operator',
-                        'runme_0',
+                        "tasks",
+                        "run",
+                        "example_bash_operator",
+                        "runme_0",
                         DEFAULT_DATE.isoformat(),
-                        '--raw',
+                        "--raw",
                         option,
                     ]
                 )
@@ -362,13 +364,13 @@ class TestCliTasks:
             task_command.task_run(
                 self.parser.parse_args(
                     [
-                        'tasks',
-                        'run',
-                        'example_bash_operator',
-                        'runme_0',
+                        "tasks",
+                        "run",
+                        "example_bash_operator",
+                        "runme_0",
                         DEFAULT_DATE.isoformat(),
-                        '--raw',
-                        '--local',
+                        "--raw",
+                        "--local",
                     ]
                 )
             )
@@ -379,7 +381,7 @@ class TestCliTasks:
         """
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
-                self.parser.parse_args(['tasks', 'render', 'tutorial', 'templated', '2016-01-01'])
+                self.parser.parse_args(["tasks", "render", "tutorial", "templated", "2016-01-01"])
             )
 
         output = stdout.getvalue()
@@ -391,7 +393,7 @@ class TestCliTasks:
         """
         tasks run should return an AirflowException when invalid pickle_id is passed
         """
-        pickle_id = 'pickle_id'
+        pickle_id = "pickle_id"
 
         with pytest.raises(
             AirflowException,
@@ -400,12 +402,12 @@ class TestCliTasks:
             task_command.task_run(
                 self.parser.parse_args(
                     [
-                        'tasks',
-                        'run',
-                        'example_bash_operator',
-                        'runme_0',
+                        "tasks",
+                        "run",
+                        "example_bash_operator",
+                        "runme_0",
                         DEFAULT_DATE.isoformat(),
-                        '--pickle',
+                        "--pickle",
                         pickle_id,
                     ]
                 ),
@@ -415,14 +417,14 @@ class TestCliTasks:
     def test_task_state(self):
         task_command.task_state(
             self.parser.parse_args(
-                ['tasks', 'state', self.dag_id, 'print_the_context', DEFAULT_DATE.isoformat()]
+                ["tasks", "state", self.dag_id, "print_the_context", DEFAULT_DATE.isoformat()]
             )
         )
 
     def test_task_states_for_dag_run(self):
 
-        dag2 = DagBag().dags['example_python_operator']
-        task2 = dag2.get_task(task_id='print_the_context')
+        dag2 = DagBag().dags["example_python_operator"]
+        task2 = dag2.get_task(task_id="print_the_context")
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
         dagrun = dag2.create_dagrun(
@@ -440,11 +442,11 @@ class TestCliTasks:
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
                     [
-                        'tasks',
-                        'states-for-dag-run',
-                        'example_python_operator',
+                        "tasks",
+                        "states-for-dag-run",
+                        "example_python_operator",
                         default_date2.isoformat(),
-                        '--output',
+                        "--output",
                         "json",
                     ]
                 )
@@ -453,12 +455,12 @@ class TestCliTasks:
 
         assert len(actual_out) == 1
         assert actual_out[0] == {
-            'dag_id': 'example_python_operator',
-            'execution_date': '2016-01-09T00:00:00+00:00',
-            'task_id': 'print_the_context',
-            'state': 'success',
-            'start_date': ti_start.isoformat(),
-            'end_date': ti_end.isoformat(),
+            "dag_id": "example_python_operator",
+            "execution_date": "2016-01-09T00:00:00+00:00",
+            "task_id": "print_the_context",
+            "state": "success",
+            "start_date": ti_start.isoformat(),
+            "end_date": ti_end.isoformat(),
         }
 
     def test_task_states_for_dag_run_when_dag_run_not_exists(self):
@@ -470,35 +472,35 @@ class TestCliTasks:
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
                     [
-                        'tasks',
-                        'states-for-dag-run',
-                        'not_exists_dag',
+                        "tasks",
+                        "states-for-dag-run",
+                        "not_exists_dag",
                         default_date2.isoformat(),
-                        '--output',
+                        "--output",
                         "json",
                     ]
                 )
             )
 
     def test_subdag_clear(self):
-        args = self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator', '--yes'])
+        args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator", "--yes"])
         task_command.task_clear(args)
         args = self.parser.parse_args(
-            ['tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude-subdags']
+            ["tasks", "clear", "example_subdag_operator", "--yes", "--exclude-subdags"]
         )
         task_command.task_clear(args)
 
     def test_parentdag_downstream_clear(self):
-        args = self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator.section-1', '--yes'])
+        args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator.section-1", "--yes"])
         task_command.task_clear(args)
         args = self.parser.parse_args(
-            ['tasks', 'clear', 'example_subdag_operator.section-1', '--yes', '--exclude-parentdag']
+            ["tasks", "clear", "example_subdag_operator.section-1", "--yes", "--exclude-parentdag"]
         )
         task_command.task_clear(args)
 
 
-class TestLogsfromTaskRunCommand(unittest.TestCase):
-    def setUp(self) -> None:
+class TestLogsfromTaskRunCommand:
+    def setup_method(self) -> None:
         self.dag_id = "test_logging_dag"
         self.task_id = "test_task"
         self.run_id = "test_run"
@@ -506,8 +508,8 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         reset(self.dag_id)
         self.execution_date = timezone.datetime(2017, 1, 1)
         self.execution_date_str = self.execution_date.isoformat()
-        self.task_args = ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
-        self.log_dir = conf.get_mandatory_value('logging', 'base_log_folder')
+        self.task_args = ["tasks", "run", self.dag_id, self.task_id, "--local", self.execution_date_str]
+        self.log_dir = conf.get_mandatory_value("logging", "base_log_folder")
         self.log_filename = f"dag_id={self.dag_id}/run_id={self.run_id}/task_id={self.task_id}/attempt=1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
@@ -530,7 +532,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         except OSError:
             pass
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         root = self.root_logger
         root.setLevel(self.root_level)
         root.handlers[:] = self.root_handlers
@@ -595,12 +597,9 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 external_executor_id="ABCD12345",
             )
 
-    @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
+    @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
     def test_logging_with_run_task(self):
-        #  We are not using self.assertLogs as we want to verify what actually is stored in the Log file
-        # as that is what gets displayed
-
-        with conf_vars({('core', 'dags_folder'): self.dag_path}):
+        with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
 
         with open(self.ti_log_file_path) as l_file:
@@ -626,9 +625,9 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             f"task_id={self.task_id}, execution_date=20170101T000000" in logs
         )
 
-    @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
+    @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
     def test_run_task_with_pool(self):
-        pool_name = 'test_pool_run'
+        pool_name = "test_pool_run"
 
         clear_db_pools()
         with create_session() as session:
@@ -637,19 +636,15 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             session.commit()
 
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
-            task_command.task_run(self.parser.parse_args(self.task_args + ['--pool', pool_name]))
+            task_command.task_run(self.parser.parse_args(self.task_args + ["--pool", pool_name]))
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
 
             session.delete(pool)
             session.commit()
 
-    # For this test memory spins out of control on Python 3.6. TODO(potiuk): FIXME")
-    @pytest.mark.quarantined
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self):
-        # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
-        # as that is what gets displayed
-        with conf_vars({('core', 'dags_folder'): self.dag_path}):
+        with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
 
         with open(self.ti_log_file_path) as l_file:
@@ -664,10 +659,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
 
-        assert (
-            f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
-            f"'{self.task_id}', '{self.execution_date_str}'," in logs
-        )
+        assert f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', '{self.task_id}'," in logs
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
             f"task_id={self.task_id}, execution_date=20170101T000000" in logs
@@ -676,7 +668,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
     def test_log_file_template_with_run_task(self):
         """Verify that the taskinstance has the right context for log_filename_template"""
 
-        with conf_vars({('core', 'dags_folder'): self.dag_path}):
+        with conf_vars({("core", "dags_folder"): self.dag_path}):
             # increment the try_number of the task to be run
             with create_session() as session:
                 ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
@@ -695,7 +687,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                     pass
 
     @mock.patch.object(task_command, "_run_task_by_selected_method")
-    def test_root_logger_restored(self, run_task_mock):
+    def test_root_logger_restored(self, run_task_mock, caplog):
         """Verify that the root logging context is restored"""
 
         logger = logging.getLogger("foo.bar")
@@ -706,23 +698,22 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         run_task_mock.side_effect = task_inner
 
         config = {
-            ('core', 'dags_folder'): self.dag_path,
-            ('logging', 'logging_level'): "INFO",
+            ("core", "dags_folder"): self.dag_path,
+            ("logging", "logging_level"): "INFO",
         }
 
-        with conf_vars(config):
-            with self.assertLogs(level=logging.WARNING) as captured:
+        with caplog.at_level(level=logging.WARNING):
+            with conf_vars(config):
                 logger.warning("not redirected")
                 task_command.task_run(self.parser.parse_args(self.task_args))
-
-                assert captured.output == ["WARNING:foo.bar:not redirected"]
+                assert "not redirected" in caplog.text
                 assert self.root_logger.level == logging.WARNING
 
         assert self.root_logger.handlers == self.root_handlers
 
-    @pytest.mark.quarantined
     @mock.patch.object(task_command, "_run_task_by_selected_method")
-    def test_disable_handler_modifying(self, run_task_mock):
+    @pytest.mark.parametrize("do_not_modify_handler", [True, False])
+    def test_disable_handler_modifying(self, run_task_mock, caplog, do_not_modify_handler):
         """If [core] donot_modify_handlers is set to True, the root logger is untouched"""
         from airflow import settings
 
@@ -734,19 +725,21 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         run_task_mock.side_effect = task_inner
 
         config = {
-            ('core', 'dags_folder'): self.dag_path,
-            ('logging', 'logging_level'): "INFO",
+            ("core", "dags_folder"): self.dag_path,
+            ("logging", "logging_level"): "INFO",
         }
-        old_value = settings.DONOT_MODIFY_HANDLERS
-        settings.DONOT_MODIFY_HANDLERS = True
-
-        with conf_vars(config):
-            with self.assertLogs(level=logging.WARNING) as captured:
-                task_command.task_run(self.parser.parse_args(self.task_args))
-
-                assert captured.output == ["WARNING:foo.bar:not redirected"]
-
-        settings.DONOT_MODIFY_HANDLERS = old_value
+        with caplog.at_level(logging.WARNING, logger="foo.bar"):
+            with conf_vars(config):
+                old_value = settings.DONOT_MODIFY_HANDLERS
+                settings.DONOT_MODIFY_HANDLERS = do_not_modify_handler
+                try:
+                    task_command.task_run(self.parser.parse_args(self.task_args))
+                    if do_not_modify_handler:
+                        assert "not redirected" in caplog.text
+                    else:
+                        assert "not redirected" not in caplog.text
+                finally:
+                    settings.DONOT_MODIFY_HANDLERS = old_value
 
 
 def test_context_with_run():
@@ -757,7 +750,7 @@ def test_context_with_run():
     reset(dag_id)
     execution_date = timezone.datetime(2017, 1, 1)
     execution_date_str = execution_date.isoformat()
-    task_args = ['tasks', 'run', dag_id, task_id, '--local', execution_date_str]
+    task_args = ["tasks", "run", dag_id, task_id, "--local", execution_date_str]
     parser = cli_parser.get_parser()
 
     DagBag().get_dag(dag_id).create_dagrun(
@@ -767,7 +760,7 @@ def test_context_with_run():
         state=State.RUNNING,
         run_type=DagRunType.MANUAL,
     )
-    with conf_vars({('core', 'dags_folder'): dag_path}):
+    with conf_vars({("core", "dags_folder"): dag_path}):
         task_command.task_run(parser.parse_args(task_args))
 
     context_file = Path("/tmp/airflow_parsing_context")

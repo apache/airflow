@@ -58,14 +58,14 @@ def ctx(create_task_instance):
 def appflow_conn():
     with mock.patch("airflow.providers.amazon.aws.hooks.appflow.AppflowHook.conn") as mock_conn:
         mock_conn.describe_flow.return_value = {
-            'sourceFlowConfig': {'connectorType': CONNECTION_TYPE},
-            'tasks': [],
-            'triggerConfig': {'triggerProperties': None},
-            'flowName': FLOW_NAME,
-            'destinationFlowConfigList': {},
-            'lastRunExecutionDetails': {
-                'mostRecentExecutionStatus': 'Successful',
-                'mostRecentExecutionTime': datetime(3000, 1, 1, tzinfo=timezone.utc),
+            "sourceFlowConfig": {"connectorType": CONNECTION_TYPE},
+            "tasks": [],
+            "triggerConfig": {"triggerProperties": None},
+            "flowName": FLOW_NAME,
+            "destinationFlowConfigList": {},
+            "lastRunExecutionDetails": {
+                "mostRecentExecutionStatus": "Successful",
+                "mostRecentExecutionTime": datetime(3000, 1, 1, tzinfo=timezone.utc),
             },
         }
         mock_conn.update_flow.return_value = {}
@@ -111,10 +111,10 @@ def test_run_after(appflow_conn, ctx):
         appflow_conn,
         [
             {
-                'taskType': 'Filter',
-                'connectorOperator': {'Salesforce': 'GREATER_THAN'},
-                'sourceFields': ['col0'],
-                'taskProperties': {'DATA_TYPE': 'datetime', 'VALUE': '1653523200000'},
+                "taskType": "Filter",
+                "connectorOperator": {"Salesforce": "GREATER_THAN"},
+                "sourceFields": ["col0"],
+                "taskProperties": {"DATA_TYPE": "datetime", "VALUE": "1653523200000"},
             }
         ],
     )
@@ -127,10 +127,10 @@ def test_run_before(appflow_conn, ctx):
         appflow_conn,
         [
             {
-                'taskType': 'Filter',
-                'connectorOperator': {'Salesforce': 'LESS_THAN'},
-                'sourceFields': ['col0'],
-                'taskProperties': {'DATA_TYPE': 'datetime', 'VALUE': '1653523200000'},
+                "taskType": "Filter",
+                "connectorOperator": {"Salesforce": "LESS_THAN"},
+                "sourceFields": ["col0"],
+                "taskProperties": {"DATA_TYPE": "datetime", "VALUE": "1653523200000"},
             }
         ],
     )
@@ -143,13 +143,13 @@ def test_run_daily(appflow_conn, ctx):
         appflow_conn,
         [
             {
-                'taskType': 'Filter',
-                'connectorOperator': {'Salesforce': 'BETWEEN'},
-                'sourceFields': ['col0'],
-                'taskProperties': {
-                    'DATA_TYPE': 'datetime',
-                    'LOWER_BOUND': '1653523199999',
-                    'UPPER_BOUND': '1653609600000',
+                "taskType": "Filter",
+                "connectorOperator": {"Salesforce": "BETWEEN"},
+                "sourceFields": ["col0"],
+                "taskProperties": {
+                    "DATA_TYPE": "datetime",
+                    "LOWER_BOUND": "1653523199999",
+                    "UPPER_BOUND": "1653609600000",
                 },
             }
         ],

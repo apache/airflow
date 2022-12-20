@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Optional, Sequence
+from typing import Sequence
 
 from googleapiclient.discovery import build, build_from_document
 
@@ -52,7 +52,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     """
 
-    _conn = None  # type: Optional[Any]
+    _conn = None
 
     def __init__(
         self,
@@ -120,7 +120,6 @@ class CloudFirestoreHook(GoogleBaseHook):
 
         :param operation_name: The name of the operation.
         :return: The response returned by the operation.
-        :rtype: dict
         :exception: AirflowException in case error is returned.
         """
         service = self.get_conn()

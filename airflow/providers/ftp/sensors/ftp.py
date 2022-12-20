@@ -39,7 +39,7 @@ class FTPSensor(BaseSensorOperator):
         reference to run the sensor against.
     """
 
-    template_fields: Sequence[str] = ('path',)
+    template_fields: Sequence[str] = ("path",)
 
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]
@@ -47,7 +47,7 @@ class FTPSensor(BaseSensorOperator):
     error_code_pattern = re.compile(r"([\d]+)")
 
     def __init__(
-        self, *, path: str, ftp_conn_id: str = 'ftp_default', fail_on_transient_errors: bool = True, **kwargs
+        self, *, path: str, ftp_conn_id: str = "ftp_default", fail_on_transient_errors: bool = True, **kwargs
     ) -> None:
         super().__init__(**kwargs)
 
@@ -70,13 +70,13 @@ class FTPSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         with self._create_hook() as hook:
-            self.log.info('Poking for %s', self.path)
+            self.log.info("Poking for %s", self.path)
             try:
                 mod_time = hook.get_mod_time(self.path)
-                self.log.info('Found File %s last modified: %s', str(self.path), str(mod_time))
+                self.log.info("Found File %s last modified: %s", str(self.path), str(mod_time))
 
             except ftplib.error_perm as e:
-                self.log.error('Ftp error encountered: %s', str(e))
+                self.log.error("Ftp error encountered: %s", str(e))
                 error_code = self._get_error_code(e)
                 if (error_code != 550) and (
                     self.fail_on_transient_errors or (error_code not in self.transient_errors)

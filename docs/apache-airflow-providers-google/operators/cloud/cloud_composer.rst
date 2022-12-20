@@ -39,7 +39,7 @@ For more information about the available fields to pass when creating a environm
 
 A simple environment configuration can look as followed:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_composer_simple_environment]
@@ -48,7 +48,7 @@ A simple environment configuration can look as followed:
 With this configuration we can create the environment:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerCreateEnvironmentOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_composer_environment]
@@ -57,7 +57,7 @@ With this configuration we can create the environment:
 or you can define the same operator in the deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerCreateEnvironmentOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_composer_environment_deferrable_mode]
@@ -70,7 +70,7 @@ To get a environment you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerGetEnvironmentOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_get_composer_environment]
@@ -83,7 +83,7 @@ To get a environment you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerListEnvironmentsOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_composer_environments]
@@ -98,7 +98,7 @@ For more information on updateMask and other parameters take a look at `Cloud Co
 
 An example of a new service config and the updateMask:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_composer_update_environment]
@@ -107,7 +107,7 @@ An example of a new service config and the updateMask:
 To update a service you can use:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerUpdateEnvironmentOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_update_composer_environment]
@@ -116,7 +116,7 @@ To update a service you can use:
 or you can define the same operator in the deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerCreateEnvironmentOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_update_composer_environment_deferrable_mode]
@@ -129,7 +129,7 @@ To delete a service you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerDeleteEnvironmentOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_composer_environment]
@@ -138,7 +138,7 @@ To delete a service you can use:
 or you can define the same operator in the deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerDeleteEnvironmentOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_composer_environment_deferrable_mode]
@@ -152,7 +152,7 @@ You can also list all supported Cloud Composer images:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerListImageVersionsOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_composer.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_composer_image_list]

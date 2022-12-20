@@ -35,8 +35,8 @@ from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 class S3KeySensor(BaseSensorOperator):
     """
     Waits for one or multiple keys (a file-like instance on S3) to be present in a S3 bucket.
-    S3 being a key/value it does not support folders. The path is just a key
-    a resource.
+    The path is just a key/value pointer to a resource for the given S3 path.
+    Note: S3 does not support folders directly, and only provides key/value pairs.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -71,7 +71,7 @@ class S3KeySensor(BaseSensorOperator):
                  CA cert bundle than the one used by botocore.
     """
 
-    template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
+    template_fields: Sequence[str] = ("bucket_key", "bucket_name")
 
     def __init__(
         self,
@@ -80,13 +80,13 @@ class S3KeySensor(BaseSensorOperator):
         bucket_name: str | None = None,
         wildcard_match: bool = False,
         check_fn: Callable[..., bool] | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
-        self.bucket_key = [bucket_key] if isinstance(bucket_key, str) else bucket_key
+        self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
         self.check_fn = check_fn
         self.aws_conn_id = aws_conn_id
@@ -94,8 +94,8 @@ class S3KeySensor(BaseSensorOperator):
         self.hook: S3Hook | None = None
 
     def _check_key(self, key):
-        bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, 'bucket_name', 'bucket_key')
-        self.log.info('Poking for key : s3://%s/%s', bucket_name, key)
+        bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
+        self.log.info("Poking for key : s3://%s/%s", bucket_name, key)
 
         """
         Set variable `files` which contains a list of dict which contains only the size
@@ -105,19 +105,19 @@ class S3KeySensor(BaseSensorOperator):
         }]
         """
         if self.wildcard_match:
-            prefix = re.split(r'[\[\*\?]', key, 1)[0]
+            prefix = re.split(r"[\[\*\?]", key, 1)[0]
             keys = self.get_hook().get_file_metadata(prefix, bucket_name)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k['Key'], key)]
+            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
             if len(key_matches) == 0:
                 return False
 
             # Reduce the set of metadata to size only
-            files = list(map(lambda f: {'Size': f['Size']}, key_matches))
+            files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
         else:
             obj = self.get_hook().head_object(key, bucket_name)
             if obj is None:
                 return False
-            files = [{'Size': obj['ContentLength']}]
+            files = [{"Size": obj["ContentLength"]}]
 
         if self.check_fn is not None:
             return self.check_fn(files)
@@ -125,7 +125,10 @@ class S3KeySensor(BaseSensorOperator):
         return True
 
     def poke(self, context: Context):
-        return all(self._check_key(key) for key in self.bucket_key)
+        if isinstance(self.bucket_key, str):
+            return self._check_key(self.bucket_key)
+        else:
+            return all(self._check_key(key) for key in self.bucket_key)
 
     def get_hook(self) -> S3Hook:
         """Create and return an S3Hook"""
@@ -174,14 +177,14 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         when this happens. If false an error will be raised.
     """
 
-    template_fields: Sequence[str] = ('bucket_name', 'prefix')
+    template_fields: Sequence[str] = ("bucket_name", "prefix")
 
     def __init__(
         self,
         *,
         bucket_name: str,
         prefix: str,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: bool | str | None = None,
         inactivity_period: float = 60 * 60,
         min_objects: int = 1,

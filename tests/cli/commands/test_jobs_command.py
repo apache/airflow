@@ -52,14 +52,14 @@ class TestCliConfigList:
             self.scheduler_job.heartbeat()
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
-            jobs_command.check(self.parser.parse_args(['jobs', 'check', '--job-type', 'SchedulerJob']))
+            jobs_command.check(self.parser.parse_args(["jobs", "check", "--job-type", "SchedulerJob"]))
         assert "Found one alive job." in temp_stdout.getvalue()
 
     def test_should_report_success_for_one_working_scheduler_with_hostname(self):
         with create_session() as session:
             self.scheduler_job = SchedulerJob()
             self.scheduler_job.state = State.RUNNING
-            self.scheduler_job.hostname = 'HOSTNAME'
+            self.scheduler_job.hostname = "HOSTNAME"
             session.add(self.scheduler_job)
             session.commit()
             self.scheduler_job.heartbeat()
@@ -67,7 +67,7 @@ class TestCliConfigList:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(
                 self.parser.parse_args(
-                    ['jobs', 'check', '--job-type', 'SchedulerJob', '--hostname', 'HOSTNAME']
+                    ["jobs", "check", "--job-type", "SchedulerJob", "--hostname", "HOSTNAME"]
                 )
             )
         assert "Found one alive job." in temp_stdout.getvalue()
@@ -86,7 +86,7 @@ class TestCliConfigList:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(
                 self.parser.parse_args(
-                    ['jobs', 'check', '--job-type', 'SchedulerJob', '--limit', '100', '--allow-multiple']
+                    ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "100", "--allow-multiple"]
                 )
             )
         assert "Found 3 alive jobs." in temp_stdout.getvalue()
@@ -105,7 +105,7 @@ class TestCliConfigList:
             session.commit()
         # No alive jobs found.
         with pytest.raises(SystemExit, match=r"No alive jobs found."):
-            jobs_command.check(self.parser.parse_args(['jobs', 'check']))
+            jobs_command.check(self.parser.parse_args(["jobs", "check"]))
         for scheduler_job in scheduler_jobs:
             if scheduler_job.processor_agent:
                 scheduler_job.processor_agent.end()
@@ -116,7 +116,7 @@ class TestCliConfigList:
             for _ in range(3):
                 scheduler_job = SchedulerJob()
                 scheduler_job.state = State.RUNNING
-                scheduler_job.hostname = 'HOSTNAME'
+                scheduler_job.hostname = "HOSTNAME"
                 session.add(scheduler_job)
             session.commit()
             scheduler_job.heartbeat()
@@ -125,12 +125,12 @@ class TestCliConfigList:
             jobs_command.check(
                 self.parser.parse_args(
                     [
-                        'jobs',
-                        'check',
-                        '--job-type',
-                        'SchedulerJob',
-                        '--limit',
-                        '100',
+                        "jobs",
+                        "check",
+                        "--job-type",
+                        "SchedulerJob",
+                        "--limit",
+                        "100",
                     ]
                 )
             )
@@ -143,4 +143,4 @@ class TestCliConfigList:
             SystemExit,
             match=r"To use option --allow-multiple, you must set the limit to a value greater than 1.",
         ):
-            jobs_command.check(self.parser.parse_args(['jobs', 'check', '--allow-multiple']))
+            jobs_command.check(self.parser.parse_args(["jobs", "check", "--allow-multiple"]))

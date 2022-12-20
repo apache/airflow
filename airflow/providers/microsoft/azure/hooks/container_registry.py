@@ -34,29 +34,29 @@ class AzureContainerRegistryHook(BaseHook):
 
     """
 
-    conn_name_attr = 'azure_container_registry_conn_id'
-    default_conn_name = 'azure_container_registry_default'
-    conn_type = 'azure_container_registry'
-    hook_name = 'Azure Container Registry'
+    conn_name_attr = "azure_container_registry_conn_id"
+    default_conn_name = "azure_container_registry_default"
+    conn_type = "azure_container_registry"
+    hook_name = "Azure Container Registry"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'extra'],
+            "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
-                'login': 'Registry Username',
-                'password': 'Registry Password',
-                'host': 'Registry Server',
+                "login": "Registry Username",
+                "password": "Registry Password",
+                "host": "Registry Server",
             },
             "placeholders": {
-                'login': 'private registry username',
-                'password': 'private registry password',
-                'host': 'docker image registry server',
+                "login": "private registry username",
+                "password": "private registry password",
+                "host": "docker image registry server",
             },
         }
 
-    def __init__(self, conn_id: str = 'azure_registry') -> None:
+    def __init__(self, conn_id: str = "azure_registry") -> None:
         super().__init__()
         self.conn_id = conn_id
         self.connection = self.get_conn()

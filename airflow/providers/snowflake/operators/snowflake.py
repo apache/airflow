@@ -17,37 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
+import warnings
+from typing import Any, Iterable, Mapping, Sequence, SupportsAbs
 
-from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
+    SQLExecuteQueryOperator,
     SQLIntervalCheckOperator,
     SQLValueCheckOperator,
 )
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
-def get_db_hook(self) -> SnowflakeHook:
-    """
-    Create and return SnowflakeHook.
-
-    :return: a SnowflakeHook instance.
-    :rtype: SnowflakeHook
-    """
-    return SnowflakeHook(
-        snowflake_conn_id=self.snowflake_conn_id,
-        warehouse=self.warehouse,
-        database=self.database,
-        role=self.role,
-        schema=self.schema,
-        authenticator=self.authenticator,
-        session_parameters=self.session_parameters,
-    )
-
-
-class SnowflakeOperator(BaseOperator):
+class SnowflakeOperator(SQLExecuteQueryOperator):
     """
     Executes SQL code in a Snowflake database
 
@@ -80,60 +61,67 @@ class SnowflakeOperator(BaseOperator):
         through native Okta.
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :param handler: A Python callable that will act on cursor result.
-        By default, it will use ``fetchall``
+    :return Returns list of dictionaries in { 'column': 'value', 'column2': 'value2' } form.
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
-        sql: str | Iterable[str],
-        snowflake_conn_id: str = 'snowflake_default',
-        parameters: Iterable | Mapping | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
+        snowflake_conn_id: str = "snowflake_default",
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
         schema: str | None = None,
         authenticator: str | None = None,
         session_parameters: dict | None = None,
-        handler: Callable | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.snowflake_conn_id = snowflake_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.do_xcom_push = do_xcom_push
-        self.parameters = parameters
-        self.warehouse = warehouse
-        self.database = database
-        self.role = role
-        self.schema = schema
-        self.authenticator = authenticator
-        self.session_parameters = session_parameters
-        self.query_ids: list[str] = []
-        self.handler = handler
+        if any([warehouse, database, role, schema, authenticator, session_parameters]):
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {
+                "warehouse": warehouse,
+                "database": database,
+                "role": role,
+                "schema": schema,
+                "authenticator": authenticator,
+                "session_parameters": session_parameters,
+                **hook_params,
+            }
+        super().__init__(conn_id=snowflake_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+            Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>,
+            'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,
+            'session_parameters': <session_parameters>}`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
-
-    def execute(self, context: Any):
-        """Run query on snowflake"""
-        self.log.info('Executing: %s', self.sql)
-        hook = self.get_db_hook()
-        handler = self.handler or fetch_all_handler
-        execution_info = hook.run(self.sql, self.autocommit, self.parameters, handler)
-        self.query_ids = hook.query_ids
-
-        if self.do_xcom_push:
-            return execution_info
+    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+        validated_descriptions: list[Sequence[Sequence]] = []
+        for idx, description in enumerate(descriptions):
+            if not description:
+                raise RuntimeError(
+                    f"The query did not return descriptions of the cursor for query number {idx}. "
+                    "Cannot return values in a form of dictionary for that query."
+                )
+            validated_descriptions.append(description)
+        returned_results = []
+        for result_id, result_list in enumerate(results):
+            current_processed_result = []
+            for row in result_list:
+                dict_result: dict[Any, Any] = {}
+                for idx, description in enumerate(validated_descriptions[result_id]):
+                    dict_result[description[0]] = row[idx]
+                current_processed_result.append(dict_result)
+            returned_results.append(current_processed_result)
+        return returned_results
 
 
 class SnowflakeCheckOperator(SQLCheckOperator):
@@ -191,15 +179,15 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
         sql: str,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
@@ -211,7 +199,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(sql=sql, **kwargs)
+        super().__init__(sql=sql, parameters=parameters, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.autocommit = autocommit
@@ -224,9 +212,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
-
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
 
 
 class SnowflakeValueCheckOperator(SQLValueCheckOperator):
@@ -268,7 +253,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
@@ -293,9 +278,6 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
-
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
 
 
 class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
@@ -343,9 +325,9 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         *,
         table: str,
         metrics_thresholds: dict,
-        date_filter_column: str = 'ds',
+        date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
@@ -375,6 +357,3 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
-
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)

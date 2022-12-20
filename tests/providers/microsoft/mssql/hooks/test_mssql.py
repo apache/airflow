@@ -17,44 +17,47 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from urllib.parse import quote_plus
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models import Connection
-from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+
+try:
+    from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+except ImportError:
+    pytest.skip("MSSQL not available", allow_module_level=True)
 
 PYMSSQL_CONN = Connection(
-    conn_type='mssql', host='ip', schema='share', login='username', password='password', port=8081
+    conn_type="mssql", host="ip", schema="share", login="username", password="password", port=8081
 )
 PYMSSQL_CONN_ALT = Connection(
-    conn_type='mssql', host='ip', schema='', login='username', password='password', port=8081
+    conn_type="mssql", host="ip", schema="", login="username", password="password", port=8081
 )
 PYMSSQL_CONN_ALT_1 = Connection(
-    conn_type='mssql',
-    host='ip',
-    schema='',
-    login='username',
-    password='password',
+    conn_type="mssql",
+    host="ip",
+    schema="",
+    login="username",
+    password="password",
     port=8081,
     extra={"SQlalchemy_Scheme": "mssql+testdriver"},
 )
 PYMSSQL_CONN_ALT_2 = Connection(
-    conn_type='mssql',
-    host='ip',
-    schema='',
-    login='username',
-    password='password',
+    conn_type="mssql",
+    host="ip",
+    schema="",
+    login="username",
+    password="password",
     port=8081,
     extra={"SQlalchemy_Scheme": "mssql+testdriver", "myparam": "5@-//*"},
 )
 
 
-class TestMsSqlHook(unittest.TestCase):
-    @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
-    @mock.patch('airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection')
+class TestMsSqlHook:
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
     def test_get_conn_should_return_connection(self, get_connection, mssql_get_conn):
         get_connection.return_value = PYMSSQL_CONN
         mssql_get_conn.return_value = mock.Mock()
@@ -65,8 +68,8 @@ class TestMsSqlHook(unittest.TestCase):
         assert mssql_get_conn.return_value == conn
         mssql_get_conn.assert_called_once()
 
-    @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
-    @mock.patch('airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection')
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
     def test_set_autocommit_should_invoke_autocommit(self, get_connection, mssql_get_conn):
         get_connection.return_value = PYMSSQL_CONN
         mssql_get_conn.return_value = mock.Mock()
@@ -79,20 +82,21 @@ class TestMsSqlHook(unittest.TestCase):
         mssql_get_conn.assert_called_once()
         mssql_get_conn.return_value.autocommit.assert_called_once_with(autocommit_value)
 
-    @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
-    @mock.patch('airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection')
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
     def test_get_autocommit_should_return_autocommit_state(self, get_connection, mssql_get_conn):
         get_connection.return_value = PYMSSQL_CONN
         mssql_get_conn.return_value = mock.Mock()
-        mssql_get_conn.return_value.autocommit_state = 'autocommit_state'
+        mssql_get_conn.return_value.autocommit_state = "autocommit_state"
 
         hook = MsSqlHook()
         conn = hook.get_conn()
 
         mssql_get_conn.assert_called_once()
-        assert hook.get_autocommit(conn) == 'autocommit_state'
+        assert hook.get_autocommit(conn) == "autocommit_state"
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "conn, exp_uri",
         [
             (
                 PYMSSQL_CONN,
@@ -129,8 +133,8 @@ class TestMsSqlHook(unittest.TestCase):
             ),
         ],
     )
-    @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection')
-    def test_get_uri_driver_rewrite(self, conn, exp_uri, get_connection):
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
+    def test_get_uri_driver_rewrite(self, get_connection, conn, exp_uri):
         get_connection.return_value = conn
 
         hook = MsSqlHook()
@@ -139,7 +143,7 @@ class TestMsSqlHook(unittest.TestCase):
         get_connection.assert_called()
         assert res_uri == exp_uri
 
-    @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection')
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     def test_sqlalchemy_scheme_is_default(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN
 
@@ -150,7 +154,7 @@ class TestMsSqlHook(unittest.TestCase):
         hook = MsSqlHook(sqlalchemy_scheme="mssql+mytestdriver")
         assert hook.sqlalchemy_scheme == "mssql+mytestdriver"
 
-    @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection')
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     def test_sqlalchemy_scheme_is_from_conn_extra(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN_ALT_1
 
@@ -159,7 +163,7 @@ class TestMsSqlHook(unittest.TestCase):
         get_connection.assert_called()
         assert scheme == PYMSSQL_CONN_ALT_1.extra_dejson["SQlalchemy_Scheme"]
 
-    @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection')
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     def test_get_sqlalchemy_engine(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN
 

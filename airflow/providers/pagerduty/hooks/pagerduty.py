@@ -54,9 +54,9 @@ class PagerdutyHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['port', 'login', 'schema', 'host'],
+            "hidden_fields": ["port", "login", "schema", "host"],
             "relabeling": {
-                'password': 'Pagerduty API token',
+                "password": "Pagerduty API token",
             },
         }
 
@@ -77,7 +77,7 @@ class PagerdutyHook(BaseHook):
             self.token = token
 
         if self.token is None:
-            raise AirflowException('Cannot get token: No valid api token nor pagerduty_conn_id supplied.')
+            raise AirflowException("Cannot get token: No valid api token nor pagerduty_conn_id supplied.")
 
     def get_session(self) -> pdpyras.APISession:
         """
@@ -136,7 +136,6 @@ class PagerdutyHook(BaseHook):
             `text`: [Optional] Plain text that describes the purpose of the link, and can be used as the
             link's text.
         :return: PagerDuty Events API v2 response.
-        :rtype: dict
         """
         warnings.warn(
             "This method will be deprecated. Please use the "

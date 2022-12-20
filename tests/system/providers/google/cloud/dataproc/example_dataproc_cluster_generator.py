@@ -58,7 +58,7 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     num_workers=2,
     storage_bucket=BUCKET_NAME,
     init_actions_uris=[f"gs://{BUCKET_NAME}/{INIT_FILE}"],
-    metadata={'PIP_PACKAGES': 'pyyaml requests pandas openpyxl'},
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
 ).make()
 
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
@@ -68,7 +68,7 @@ TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "dataproc"],
@@ -87,7 +87,7 @@ with models.DAG(
     # [START how_to_cloud_dataproc_create_cluster_generate_cluster_config_operator]
 
     create_dataproc_cluster = DataprocCreateClusterOperator(
-        task_id='create_dataproc_cluster',
+        task_id="create_dataproc_cluster",
         cluster_name=CLUSTER_NAME,
         project_id=PROJECT_ID,
         region=REGION,

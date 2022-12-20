@@ -30,7 +30,7 @@ from airflow.security import permissions
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE)])
 def get_dag_source(*, file_token: str) -> Response:
-    """Get source code using file token"""
+    """Get source code using file token."""
     secret_key = current_app.config["SECRET_KEY"]
     auth_s = URLSafeSerializer(secret_key)
     try:
@@ -39,10 +39,10 @@ def get_dag_source(*, file_token: str) -> Response:
     except (BadSignature, FileNotFoundError):
         raise NotFound("Dag source not found")
 
-    return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
-    if return_type == 'text/plain':
-        return Response(dag_source, headers={'Content-Type': return_type})
-    if return_type == 'application/json':
+    return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
+    if return_type == "text/plain":
+        return Response(dag_source, headers={"Content-Type": return_type})
+    if return_type == "application/json":
         content = dag_source_schema.dumps(dict(content=dag_source))
-        return Response(content, headers={'Content-Type': return_type})
+        return Response(content, headers={"Content-Type": return_type})
     return Response("Not Allowed Accept Header", status=HTTPStatus.NOT_ACCEPTABLE)

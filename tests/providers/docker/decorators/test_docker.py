@@ -106,4 +106,4 @@ class TestDockerDecorator:
                 do_run()
 
         assert len(dag.task_ids) == 21
-        assert dag.task_ids[-1] == 'do_run__20'
+        assert dag.task_ids[-1] == "do_run__20"

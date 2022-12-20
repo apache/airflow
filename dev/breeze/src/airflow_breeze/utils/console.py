@@ -36,7 +36,7 @@ def get_theme() -> Theme:
     try:
         from airflow_breeze.utils.cache import read_from_cache_file
 
-        if read_from_cache_file('suppress_colour') is not None:
+        if read_from_cache_file("suppress_colour") is not None:
             return Theme(
                 {
                     "success": "bold italic",

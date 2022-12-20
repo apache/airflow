@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import json
-import time
 from typing import TYPE_CHECKING, Sequence
 
 from mypy_boto3_rds.type_defs import TagTypeDef
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
@@ -44,56 +42,6 @@ class RdsBaseOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
         self._await_interval = 60  # seconds
-
-    def _describe_item(self, item_type: str, item_name: str) -> list:
-
-        if item_type == 'instance_snapshot':
-            db_snaps = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=item_name)
-            return db_snaps['DBSnapshots']
-        elif item_type == 'cluster_snapshot':
-            cl_snaps = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=item_name)
-            return cl_snaps['DBClusterSnapshots']
-        elif item_type == 'export_task':
-            exports = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=item_name)
-            return exports['ExportTasks']
-        elif item_type == 'event_subscription':
-            subscriptions = self.hook.conn.describe_event_subscriptions(SubscriptionName=item_name)
-            return subscriptions['EventSubscriptionsList']
-        else:
-            raise AirflowException(f"Method for {item_type} is not implemented")
-
-    def _await_status(
-        self,
-        item_type: str,
-        item_name: str,
-        wait_statuses: list[str] | None = None,
-        ok_statuses: list[str] | None = None,
-        error_statuses: list[str] | None = None,
-    ) -> None:
-        """
-        Continuously gets item description from `_describe_item()` and waits while:
-        - status is in `wait_statuses`
-        - status not in `ok_statuses` and `error_statuses`
-        """
-        while True:
-            items = self._describe_item(item_type, item_name)
-
-            if len(items) == 0:
-                raise AirflowException(f"There is no {item_type} with identifier {item_name}")
-            if len(items) > 1:
-                raise AirflowException(f"There are {len(items)} {item_type} with identifier {item_name}")
-
-            if wait_statuses and items[0]['Status'].lower() in wait_statuses:
-                time.sleep(self._await_interval)
-                continue
-            elif ok_statuses and items[0]['Status'].lower() in ok_statuses:
-                break
-            elif error_statuses and items[0]['Status'].lower() in error_statuses:
-                raise AirflowException(f"Item has error status ({error_statuses}): {items[0]}")
-            else:
-                raise AirflowException(f"Item has uncertain status: {items[0]}")
-
-        return None
 
     def execute(self, context: Context) -> str:
         """Different implementations for snapshots, tasks and events"""
@@ -156,8 +104,8 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
                 Tags=self.tags,
             )
             create_response = json.dumps(create_instance_snap, default=str)
-            item_type = 'instance_snapshot'
-
+            if self.wait_for_completion:
+                self.hook.wait_for_db_snapshot_state(self.db_snapshot_identifier, target_state="available")
         else:
             create_cluster_snap = self.hook.conn.create_db_cluster_snapshot(
                 DBClusterIdentifier=self.db_identifier,
@@ -165,15 +113,10 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
                 Tags=self.tags,
             )
             create_response = json.dumps(create_cluster_snap, default=str)
-            item_type = 'cluster_snapshot'
-
-        if self.wait_for_completion:
-            self._await_status(
-                item_type,
-                self.db_snapshot_identifier,
-                wait_statuses=['creating'],
-                ok_statuses=['available'],
-            )
+            if self.wait_for_completion:
+                self.hook.wait_for_db_cluster_snapshot_state(
+                    self.db_snapshot_identifier, target_state="available"
+                )
         return create_response
 
 
@@ -260,8 +203,10 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceRegion=self.source_region,
             )
             copy_response = json.dumps(copy_instance_snap, default=str)
-            item_type = 'instance_snapshot'
-
+            if self.wait_for_completion:
+                self.hook.wait_for_db_snapshot_state(
+                    self.target_db_snapshot_identifier, target_state="available"
+                )
         else:
             copy_cluster_snap = self.hook.conn.copy_db_cluster_snapshot(
                 SourceDBClusterSnapshotIdentifier=self.source_db_snapshot_identifier,
@@ -273,15 +218,10 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceRegion=self.source_region,
             )
             copy_response = json.dumps(copy_cluster_snap, default=str)
-            item_type = 'cluster_snapshot'
-
-        if self.wait_for_completion:
-            self._await_status(
-                item_type,
-                self.target_db_snapshot_identifier,
-                wait_statuses=['creating', 'copying'],
-                ok_statuses=['available'],
-            )
+            if self.wait_for_completion:
+                self.hook.wait_for_db_cluster_snapshot_state(
+                    self.target_db_snapshot_identifier, target_state="available"
+                )
         return copy_response
 
 
@@ -304,6 +244,7 @@ class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
         *,
         db_type: str,
         db_snapshot_identifier: str,
+        wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -311,6 +252,7 @@ class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
 
         self.db_type = RdsDbType(db_type)
         self.db_snapshot_identifier = db_snapshot_identifier
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
         self.log.info("Starting to delete snapshot '%s'", self.db_snapshot_identifier)
@@ -320,11 +262,17 @@ class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
                 DBSnapshotIdentifier=self.db_snapshot_identifier,
             )
             delete_response = json.dumps(delete_instance_snap, default=str)
+            if self.wait_for_completion:
+                self.hook.wait_for_db_snapshot_state(self.db_snapshot_identifier, target_state="deleted")
         else:
             delete_cluster_snap = self.hook.conn.delete_db_cluster_snapshot(
                 DBClusterSnapshotIdentifier=self.db_snapshot_identifier,
             )
             delete_response = json.dumps(delete_cluster_snap, default=str)
+            if self.wait_for_completion:
+                self.hook.wait_for_db_cluster_snapshot_state(
+                    self.db_snapshot_identifier, target_state="deleted"
+                )
 
         return delete_response
 
@@ -365,7 +313,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         s3_bucket_name: str,
         iam_role_arn: str,
         kms_key_id: str,
-        s3_prefix: str = '',
+        s3_prefix: str = "",
         export_only: list[str] | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
@@ -396,14 +344,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self._await_status(
-                'export_task',
-                self.export_task_identifier,
-                wait_statuses=['starting', 'in_progress'],
-                ok_statuses=['complete'],
-                error_statuses=['canceling', 'canceled'],
-            )
-
+            self.hook.wait_for_export_task_state(self.export_task_identifier, target_state="complete")
         return json.dumps(start_export, default=str)
 
 
@@ -442,13 +383,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self._await_status(
-                'export_task',
-                self.export_task_identifier,
-                wait_statuses=['canceling'],
-                ok_statuses=['canceled'],
-            )
-
+            self.hook.wait_for_export_task_state(self.export_task_identifier, target_state="canceled")
         return json.dumps(cancel_export, default=str)
 
 
@@ -521,13 +456,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self._await_status(
-                'event_subscription',
-                self.subscription_name,
-                wait_statuses=['creating'],
-                ok_statuses=['active'],
-            )
-
+            self.hook.wait_for_event_subscription_state(self.subscription_name, target_state="active")
         return json.dumps(create_subscription, default=str)
 
 
@@ -618,10 +547,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self.hook.conn.get_waiter("db_instance_available").wait(
-                DBInstanceIdentifier=self.db_instance_identifier
-            )
-
+            self.hook.wait_for_db_instance_state(self.db_instance_identifier, target_state="available")
         return json.dumps(create_db_instance, default=str)
 
 
@@ -665,11 +591,129 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self.hook.conn.get_waiter("db_instance_deleted").wait(
-                DBInstanceIdentifier=self.db_instance_identifier
-            )
-
+            self.hook.wait_for_db_instance_state(self.db_instance_identifier, target_state="deleted")
         return json.dumps(delete_db_instance, default=str)
+
+
+class RdsStartDbOperator(RdsBaseOperator):
+    """
+    Starts an RDS DB instance / cluster
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RdsStartDbOperator`
+
+    :param db_identifier: The AWS identifier of the DB to start
+    :param db_type: Type of the DB - either "instance" or "cluster" (default: "instance")
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (default: "aws_default")
+    :param wait_for_completion:  If True, waits for DB to start. (default: True)
+    """
+
+    template_fields = ("db_identifier", "db_type")
+
+    def __init__(
+        self,
+        *,
+        db_identifier: str,
+        db_type: RdsDbType | str = RdsDbType.INSTANCE,
+        aws_conn_id: str = "aws_default",
+        wait_for_completion: bool = True,
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        self.db_identifier = db_identifier
+        self.db_type = db_type
+        self.wait_for_completion = wait_for_completion
+
+    def execute(self, context: Context) -> str:
+        self.db_type = RdsDbType(self.db_type)
+        start_db_response = self._start_db()
+        if self.wait_for_completion:
+            self._wait_until_db_available()
+        return json.dumps(start_db_response, default=str)
+
+    def _start_db(self):
+        self.log.info("Starting DB %s '%s'", self.db_type.value, self.db_identifier)
+        if self.db_type == RdsDbType.INSTANCE:
+            response = self.hook.conn.start_db_instance(DBInstanceIdentifier=self.db_identifier)
+        else:
+            response = self.hook.conn.start_db_cluster(DBClusterIdentifier=self.db_identifier)
+        return response
+
+    def _wait_until_db_available(self):
+        self.log.info("Waiting for DB %s to reach 'available' state", self.db_type.value)
+        if self.db_type == RdsDbType.INSTANCE:
+            self.hook.wait_for_db_instance_state(self.db_identifier, target_state="available")
+        else:
+            self.hook.wait_for_db_cluster_state(self.db_identifier, target_state="available")
+
+
+class RdsStopDbOperator(RdsBaseOperator):
+    """
+    Stops an RDS DB instance / cluster
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RdsStopDbOperator`
+
+    :param db_identifier: The AWS identifier of the DB to stop
+    :param db_type: Type of the DB - either "instance" or "cluster" (default: "instance")
+    :param db_snapshot_identifier: The instance identifier of the DB Snapshot to create before
+        stopping the DB instance. The default value (None) skips snapshot creation. This
+        parameter is ignored when ``db_type`` is "cluster"
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (default: "aws_default")
+    :param wait_for_completion:  If True, waits for DB to stop. (default: True)
+    """
+
+    template_fields = ("db_identifier", "db_snapshot_identifier", "db_type")
+
+    def __init__(
+        self,
+        *,
+        db_identifier: str,
+        db_type: RdsDbType | str = RdsDbType.INSTANCE,
+        db_snapshot_identifier: str | None = None,
+        aws_conn_id: str = "aws_default",
+        wait_for_completion: bool = True,
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        self.db_identifier = db_identifier
+        self.db_type = db_type
+        self.db_snapshot_identifier = db_snapshot_identifier
+        self.wait_for_completion = wait_for_completion
+
+    def execute(self, context: Context) -> str:
+        self.db_type = RdsDbType(self.db_type)
+        stop_db_response = self._stop_db()
+        if self.wait_for_completion:
+            self._wait_until_db_stopped()
+        return json.dumps(stop_db_response, default=str)
+
+    def _stop_db(self):
+        self.log.info("Stopping DB %s '%s'", self.db_type.value, self.db_identifier)
+        if self.db_type == RdsDbType.INSTANCE:
+            conn_params = {"DBInstanceIdentifier": self.db_identifier}
+            # The db snapshot parameter is optional, but the AWS SDK raises an exception
+            # if passed a null value. Only set snapshot id if value is present.
+            if self.db_snapshot_identifier:
+                conn_params["DBSnapshotIdentifier"] = self.db_snapshot_identifier
+            response = self.hook.conn.stop_db_instance(**conn_params)
+        else:
+            if self.db_snapshot_identifier:
+                self.log.warning(
+                    "'db_snapshot_identifier' does not apply to db clusters. "
+                    "Remove it to silence this warning."
+                )
+            response = self.hook.conn.stop_db_cluster(DBClusterIdentifier=self.db_identifier)
+        return response
+
+    def _wait_until_db_stopped(self):
+        self.log.info("Waiting for DB %s to reach 'stopped' state", self.db_type.value)
+        if self.db_type == RdsDbType.INSTANCE:
+            self.hook.wait_for_db_instance_state(self.db_identifier, target_state="stopped")
+        else:
+            self.hook.wait_for_db_cluster_state(self.db_identifier, target_state="stopped")
 
 
 __all__ = [
@@ -682,4 +726,6 @@ __all__ = [
     "RdsCancelExportTaskOperator",
     "RdsCreateDbInstanceOperator",
     "RdsDeleteDbInstanceOperator",
+    "RdsStartDbOperator",
+    "RdsStopDbOperator",
 ]

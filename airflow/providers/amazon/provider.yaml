@@ -22,6 +22,8 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 6.2.0
+  - 6.1.0
   - 6.0.0
   - 5.1.0
   - 5.0.0
@@ -46,9 +48,9 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.2.0
-  - boto3>=1.15.0
+  - apache-airflow>=2.3.0
+  - apache-airflow-providers-common-sql>=1.3.1
+  - boto3>=1.24.0
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
   # change logging behaviour:
   # https://github.com/kislyuk/watchtower/blob/develop/Changes.rst#changes-for-v300-2022-01-26
@@ -58,9 +60,9 @@ dependencies:
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
   - pandas>=0.17.1
-  - mypy-boto3-rds>=1.21.0
-  - mypy-boto3-redshift-data>=1.21.0
-  - mypy-boto3-appflow>=1.21.0
+  - mypy-boto3-rds>=1.24.0
+  - mypy-boto3-redshift-data>=1.24.0
+  - mypy-boto3-appflow>=1.24.0
 
 integrations:
   - integration-name: Amazon Athena
@@ -93,6 +95,10 @@ integrations:
     logo: /integration-logos/aws/Amazon-EC2_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/ec2.rst
+    tags: [aws]
+  - integration-name: Amazon Elastic Container Registry (ECR)
+    external-doc-url: https://aws.amazon.com/ecr/
+    logo: /integration-logos/aws/Amazon-Elastic-Container-Registry_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
@@ -352,6 +358,9 @@ sensors:
       - airflow.providers.amazon.aws.sensors.glue
       - airflow.providers.amazon.aws.sensors.glue_crawler
       - airflow.providers.amazon.aws.sensors.glue_catalog_partition
+  - integration-name: AWS Lambda
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.lambda_function
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.sensors.rds
@@ -400,6 +409,9 @@ hooks:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.hooks.ec2
+  - integration-name: Amazon Elastic Container Registry (ECR)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.ecr
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.hooks.ecs

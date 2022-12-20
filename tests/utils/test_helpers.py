@@ -51,14 +51,14 @@ class TestHelpers:
     @pytest.mark.usefixtures("clear_db")
     def test_render_log_filename(self, create_task_instance):
         try_number = 1
-        dag_id = 'test_render_log_filename_dag'
-        task_id = 'test_render_log_filename_task'
+        dag_id = "test_render_log_filename_dag"
+        task_id = "test_render_log_filename_task"
         execution_date = timezone.datetime(2016, 1, 1)
 
         ti = create_task_instance(dag_id=dag_id, task_id=task_id, execution_date=execution_date)
         filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
 
-        ts = ti.get_template_context()['ts']
+        ts = ti.get_template_context()["ts"]
         expected_filename = f"{dag_id}/{task_id}/{ts}/{try_number}.log"
 
         rendered_filename = helpers.render_log_filename(ti, try_number, filename_template)
@@ -87,8 +87,8 @@ class TestHelpers:
         assert not helpers.is_container("a string is not a container")
         assert helpers.is_container(["a", "list", "is", "a", "container"])
 
-        assert helpers.is_container(['test_list'])
-        assert not helpers.is_container('test_str_not_iterable')
+        assert helpers.is_container(["test_list"])
+        assert not helpers.is_container("test_str_not_iterable")
         # Pass an object that is not iter nor a string.
         assert not helpers.is_container(10)
 
@@ -104,55 +104,55 @@ class TestHelpers:
         )
 
     def test_as_tuple_iter(self):
-        test_list = ['test_str']
+        test_list = ["test_str"]
         as_tup = helpers.as_tuple(test_list)
         assert tuple(test_list) == as_tup
 
     def test_as_tuple_no_iter(self):
-        test_str = 'test_str'
+        test_str = "test_str"
         as_tup = helpers.as_tuple(test_str)
         assert (test_str,) == as_tup
 
     def test_convert_camel_to_snake(self):
-        assert helpers.convert_camel_to_snake('LocalTaskJob') == 'local_task_job'
-        assert helpers.convert_camel_to_snake('somethingVeryRandom') == 'something_very_random'
+        assert helpers.convert_camel_to_snake("LocalTaskJob") == "local_task_job"
+        assert helpers.convert_camel_to_snake("somethingVeryRandom") == "something_very_random"
 
     def test_merge_dicts(self):
         """
         Test _merge method from JSONFormatter
         """
-        dict1 = {'a': 1, 'b': 2, 'c': 3}
-        dict2 = {'a': 1, 'b': 3, 'd': 42}
+        dict1 = {"a": 1, "b": 2, "c": 3}
+        dict2 = {"a": 1, "b": 3, "d": 42}
         merged = merge_dicts(dict1, dict2)
-        assert merged == {'a': 1, 'b': 3, 'c': 3, 'd': 42}
+        assert merged == {"a": 1, "b": 3, "c": 3, "d": 42}
 
     def test_merge_dicts_recursive_overlap_l1(self):
         """
         Test merge_dicts with recursive dict; one level of nesting
         """
-        dict1 = {'a': 1, 'r': {'a': 1, 'b': 2}}
-        dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
+        dict1 = {"a": 1, "r": {"a": 1, "b": 2}}
+        dict2 = {"a": 1, "r": {"c": 3, "b": 0}}
         merged = merge_dicts(dict1, dict2)
-        assert merged == {'a': 1, 'r': {'a': 1, 'b': 0, 'c': 3}}
+        assert merged == {"a": 1, "r": {"a": 1, "b": 0, "c": 3}}
 
     def test_merge_dicts_recursive_overlap_l2(self):
         """
         Test merge_dicts with recursive dict; two levels of nesting
         """
 
-        dict1 = {'a': 1, 'r': {'a': 1, 'b': {'a': 1}}}
-        dict2 = {'a': 1, 'r': {'c': 3, 'b': {'b': 1}}}
+        dict1 = {"a": 1, "r": {"a": 1, "b": {"a": 1}}}
+        dict2 = {"a": 1, "r": {"c": 3, "b": {"b": 1}}}
         merged = merge_dicts(dict1, dict2)
-        assert merged == {'a': 1, 'r': {'a': 1, 'b': {'a': 1, 'b': 1}, 'c': 3}}
+        assert merged == {"a": 1, "r": {"a": 1, "b": {"a": 1, "b": 1}, "c": 3}}
 
     def test_merge_dicts_recursive_right_only(self):
         """
         Test merge_dicts with recursive when dict1 doesn't have any nested dict
         """
-        dict1 = {'a': 1}
-        dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
+        dict1 = {"a": 1}
+        dict2 = {"a": 1, "r": {"c": 3, "b": 0}}
         merged = merge_dicts(dict1, dict2)
-        assert merged == {'a': 1, 'r': {'b': 0, 'c': 3}}
+        assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
     @conf_vars(
         {
@@ -192,7 +192,7 @@ class TestHelpers:
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
-            (' ' * 251, "The key has to be less than 250 characters", AirflowException),
+            (" " * 251, "The key has to be less than 250 characters", AirflowException),
         ],
     )
     def test_validate_key(self, key_id, message, exception):
@@ -233,7 +233,7 @@ class TestHelpers:
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
-            (' ' * 201, "The key has to be less than 200 characters", AirflowException),
+            (" " * 201, "The key has to be less than 200 characters", AirflowException),
         ],
     )
     def test_validate_group_key(self, key_id, message, exception):
@@ -254,7 +254,7 @@ class TestHelpers:
 
         def assert_exactly_one(true=0, truthy=0, false=0, falsy=0):
             sample = []
-            for truth_value, num in [(True, true), (False, false), ('a', truthy), ('', falsy)]:
+            for truth_value, num in [(True, true), (False, false), ("a", truthy), ("", falsy)]:
                 if num:
                     sample.extend([truth_value] * num)
             if sample:
@@ -282,8 +282,8 @@ class TestHelpers:
             for truth_value, num in [
                 (True, true),
                 (False, false),
-                ('a', truthy),
-                ('', falsy),
+                ("a", truthy),
+                ("", falsy),
                 (NOTSET, notset),
             ]:
                 if num:
@@ -297,29 +297,29 @@ class TestHelpers:
             assert_at_most_one(*row)
 
     @pytest.mark.parametrize(
-        'mode, expected',
+        "mode, expected",
         [
             (
-                'strict',
+                "strict",
                 {
-                    'b': '',
-                    'c': {'b': '', 'c': 'hi', 'd': ['', 0, '1']},
-                    'd': ['', 0, '1'],
-                    'e': ['', 0, {'b': '', 'c': 'hi', 'd': ['', 0, '1']}, ['', 0, '1'], ['']],
+                    "b": "",
+                    "c": {"b": "", "c": "hi", "d": ["", 0, "1"]},
+                    "d": ["", 0, "1"],
+                    "e": ["", 0, {"b": "", "c": "hi", "d": ["", 0, "1"]}, ["", 0, "1"], [""]],
                 },
             ),
             (
-                'truthy',
+                "truthy",
                 {
-                    'c': {'c': 'hi', 'd': ['1']},
-                    'd': ['1'],
-                    'e': [{'c': 'hi', 'd': ['1']}, ['1']],
+                    "c": {"c": "hi", "d": ["1"]},
+                    "d": ["1"],
+                    "e": [{"c": "hi", "d": ["1"]}, ["1"]],
                 },
             ),
         ],
     )
     def test_prune_dict(self, mode, expected):
-        l1 = ['', 0, '1', None]
-        d1 = {'a': None, 'b': '', 'c': 'hi', 'd': l1}
-        d2 = {'a': None, 'b': '', 'c': d1, 'd': l1, 'e': [None, '', 0, d1, l1, ['']]}
+        l1 = ["", 0, "1", None]
+        d1 = {"a": None, "b": "", "c": "hi", "d": l1}
+        d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]]}
         assert prune_dict(d2, mode=mode) == expected

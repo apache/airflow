@@ -20,7 +20,7 @@ import os
 
 from docker_tests.command_utils import run_command
 
-docker_image = os.environ.get('DOCKER_IMAGE')
+docker_image = os.environ.get("DOCKER_IMAGE")
 
 if not docker_image:
     raise Exception("The DOCKER_IMAGE environment variable is required")

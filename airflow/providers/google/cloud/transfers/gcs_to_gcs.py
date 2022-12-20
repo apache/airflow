@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
-WILDCARD = '*'
+WILDCARD = "*"
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -165,15 +165,15 @@ class GCSToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_object',
-        'source_objects',
-        'destination_bucket',
-        'destination_object',
-        'delimiter',
-        'impersonation_chain',
+        "source_bucket",
+        "source_object",
+        "source_objects",
+        "destination_bucket",
+        "destination_object",
+        "delimiter",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -186,7 +186,7 @@ class GCSToGCSOperator(BaseOperator):
         delimiter=None,
         move_object=False,
         replace=True,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id="google_cloud_default",
         delegate_to=None,
         last_modified_time=None,
         maximum_modified_time=None,
@@ -234,7 +234,7 @@ class GCSToGCSOperator(BaseOperator):
             raise AirflowException(error_msg)
 
         if self.source_objects and not all(isinstance(item, str) for item in self.source_objects):
-            raise AirflowException('At least, one of the `objects` in the `source_objects` is not a string')
+            raise AirflowException("At least, one of the `objects` in the `source_objects` is not a string")
 
         # If source_object is set, default it to source_objects
         if self.source_object:
@@ -242,15 +242,15 @@ class GCSToGCSOperator(BaseOperator):
 
         if self.destination_bucket is None:
             self.log.warning(
-                'destination_bucket is None. Defaulting it to source_bucket (%s)', self.source_bucket
+                "destination_bucket is None. Defaulting it to source_bucket (%s)", self.source_bucket
             )
             self.destination_bucket = self.source_bucket
 
         # An empty source_object means to copy all files
         if len(self.source_objects) == 0:
-            self.source_objects = ['']
+            self.source_objects = [""]
         # Raise exception if empty string `''` is used twice in source_object, this is to avoid double copy
-        if self.source_objects.count('') > 1:
+        if self.source_objects.count("") > 1:
             raise AirflowException("You can't have two empty strings inside source_object")
 
         # Iterate over the source_objects and do the copy
@@ -266,8 +266,8 @@ class GCSToGCSOperator(BaseOperator):
         # list all files in the Destination GCS bucket
         # and only keep those files which are present in
         # Source GCS bucket and not in Destination GCS bucket
-        delimiter = kwargs.get('delimiter')
-        objects = kwargs.get('objects')
+        delimiter = kwargs.get("delimiter")
+        objects = kwargs.get("objects")
         if self.destination_object is None:
             existing_objects = hook.list(self.destination_bucket, prefix=prefix, delimiter=delimiter)
         else:
@@ -283,9 +283,9 @@ class GCSToGCSOperator(BaseOperator):
 
         objects = set(objects) - set(existing_objects)
         if len(objects) > 0:
-            self.log.info('%s files are going to be synced: %s.', len(objects), objects)
+            self.log.info("%s files are going to be synced: %s.", len(objects), objects)
         else:
-            self.log.info('There are no new files to sync. Have a nice day!')
+            self.log.info("There are no new files to sync. Have a nice day!")
         return objects
 
     def _copy_source_without_wildcard(self, hook, prefix):
@@ -298,8 +298,8 @@ class GCSToGCSOperator(BaseOperator):
         Example 1:
 
 
-        The following Operator would copy all the files from ``a/``folder
-        (i.e a/a.csv, a/b.csv, a/c.csv)in ``data`` bucket to the ``b/`` folder in
+        The following Operator would copy all the files from ``a/`` folder
+        (i.e a/a.csv, a/b.csv, a/c.csv) in ``data`` bucket to the ``b/`` folder in
         the ``data_backup`` bucket (b/a.csv, b/b.csv, b/c.csv) ::
 
             copy_files = GCSToGCSOperator(
@@ -314,8 +314,8 @@ class GCSToGCSOperator(BaseOperator):
         Example 2:
 
 
-        The following Operator would copy all avro files from ``a/``folder
-        (i.e a/a.avro, a/b.avro, a/c.avro)in ``data`` bucket to the ``b/`` folder in
+        The following Operator would copy all avro files from ``a/`` folder
+        (i.e a/a.avro, a/b.avro, a/c.avro) in ``data`` bucket to the ``b/`` folder in
         the ``data_backup`` bucket (b/a.avro, b/b.avro, b/c.avro) ::
 
             copy_files = GCSToGCSOperator(
@@ -327,6 +327,22 @@ class GCSToGCSOperator(BaseOperator):
                 delimiter='.avro',
                 gcp_conn_id=google_cloud_conn_id
             )
+
+        Example 3:
+
+
+        The following Operator would copy files (a/file_1.txt, a/file_2.csv, a/file_3.avro)
+        in ``data`` bucket to the ``b/`` folder in
+        the ``data_backup`` bucket (b/file_1.txt, b/file_2.csv, b/file_3.avro) ::
+
+            copy_files = GCSToGCSOperator(
+                task_id='copy_files_without_wildcard',
+                source_bucket='data',
+                source_objects=['a/file_1.txt', 'a/file_2.csv', 'a/file_3.avro'],
+                destination_bucket='data_backup',
+                destination_object='b/',
+                gcp_conn_id=google_cloud_conn_id
+            )
         """
         objects = hook.list(self.source_bucket, prefix=prefix, delimiter=self.delimiter)
 
@@ -334,7 +350,7 @@ class GCSToGCSOperator(BaseOperator):
             # If we are not replacing, ignore files already existing in source buckets
             objects = self._ignore_existing_files(hook, prefix, objects=objects, delimiter=self.delimiter)
 
-        # If objects is empty and we have prefix, let's check if prefix is a blob
+        # If objects is empty, and we have prefix, let's check if prefix is a blob
         # and copy directly
         if len(objects) == 0 and prefix:
             if hook.exists(self.source_bucket, prefix):
@@ -346,13 +362,31 @@ class GCSToGCSOperator(BaseOperator):
                 self.log.warning(msg)
                 raise AirflowException(msg)
 
-        for source_obj in objects:
+        if len(objects) == 1 and objects[0][-1] != "/":
+            self._copy_file(hook=hook, source_object=objects[0])
+        elif len(objects):
+            self._copy_directory(hook=hook, source_objects=objects, prefix=prefix)
+
+    def _copy_file(self, hook, source_object):
+        destination_object = self.destination_object or source_object
+        if self.destination_object[-1] == "/":
+            file_name = source_object.split("/")[-1]
+            destination_object += file_name
+        self._copy_single_object(
+            hook=hook, source_object=source_object, destination_object=destination_object
+        )
+
+    def _copy_directory(self, hook, source_objects, prefix):
+        _prefix = prefix.rstrip("/") + "/"
+        for source_obj in source_objects:
             if self.exact_match and (source_obj != prefix or not source_obj.endswith(prefix)):
                 continue
             if self.destination_object is None:
                 destination_object = source_obj
             else:
-                destination_object = source_obj.replace(prefix, self.destination_object, 1)
+                file_name_postfix = source_obj.replace(_prefix, "", 1)
+                destination_object = self.destination_object.rstrip("/") + "/" + file_name_postfix
+
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
             )
@@ -366,7 +400,7 @@ class GCSToGCSOperator(BaseOperator):
             )
 
             raise AirflowException(error_msg)
-        self.log.info('Delimiter ignored because wildcard is in prefix')
+        self.log.info("Delimiter ignored because wildcard is in prefix")
         prefix_, delimiter = prefix.split(WILDCARD, 1)
         objects = hook.list(self.source_bucket, prefix=prefix_, delimiter=delimiter)
         if not self.replace:
@@ -429,7 +463,7 @@ class GCSToGCSOperator(BaseOperator):
                 return
 
         self.log.info(
-            'Executing copy of gs://%s/%s to gs://%s/%s',
+            "Executing copy of gs://%s/%s to gs://%s/%s",
             self.source_bucket,
             source_object,
             self.destination_bucket,

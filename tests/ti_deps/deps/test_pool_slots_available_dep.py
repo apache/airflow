@@ -30,29 +30,29 @@ class TestPoolSlotsAvailableDep:
     def setup_method(self):
         db.clear_db_pools()
         with create_session() as session:
-            test_pool = Pool(pool='test_pool')
+            test_pool = Pool(pool="test_pool")
             session.add(test_pool)
             session.commit()
 
     def teardown_method(self):
         db.clear_db_pools()
 
-    @patch('airflow.models.Pool.open_slots', return_value=0)
+    @patch("airflow.models.Pool.open_slots", return_value=0)
     def test_pooled_task_reached_concurrency(self, mock_open_slots):
-        ti = Mock(pool='test_pool', pool_slots=1)
+        ti = Mock(pool="test_pool", pool_slots=1)
         assert not PoolSlotsAvailableDep().is_met(ti=ti)
 
-    @patch('airflow.models.Pool.open_slots', return_value=1)
+    @patch("airflow.models.Pool.open_slots", return_value=1)
     def test_pooled_task_pass(self, mock_open_slots):
-        ti = Mock(pool='test_pool', pool_slots=1)
+        ti = Mock(pool="test_pool", pool_slots=1)
         assert PoolSlotsAvailableDep().is_met(ti=ti)
 
-    @patch('airflow.models.Pool.open_slots', return_value=0)
+    @patch("airflow.models.Pool.open_slots", return_value=0)
     def test_running_pooled_task_pass(self, mock_open_slots):
         for state in EXECUTION_STATES:
-            ti = Mock(pool='test_pool', state=state, pool_slots=1)
+            ti = Mock(pool="test_pool", state=state, pool_slots=1)
             assert PoolSlotsAvailableDep().is_met(ti=ti)
 
     def test_task_with_nonexistent_pool(self):
-        ti = Mock(pool='nonexistent_pool', pool_slots=1)
+        ti = Mock(pool="nonexistent_pool", pool_slots=1)
         assert not PoolSlotsAvailableDep().is_met(ti=ti)

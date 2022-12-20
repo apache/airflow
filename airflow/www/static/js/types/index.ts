@@ -56,6 +56,7 @@ interface DagRun {
   externalTrigger: boolean;
   conf: string | null;
   confIsJson: boolean;
+  note: string | null;
 }
 
 interface TaskInstance {
@@ -71,6 +72,7 @@ interface TaskInstance {
   tryNumber?: number;
   triggererJob?: Job;
   trigger?: Trigger;
+  note: string | null;
 }
 
 interface Trigger {
@@ -109,8 +111,8 @@ interface DepNode {
 }
 
 interface DepEdge {
-  u: string;
-  v: string;
+  source: string;
+  target: string;
 }
 
 interface DatasetListItem extends API.Dataset {

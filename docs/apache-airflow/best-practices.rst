@@ -82,7 +82,7 @@ it difficult to check the logs of that Task from the Webserver. If that is not d
 Communication
 --------------
 
-Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`.
+Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor </core-concepts/executor/kubernetes>` or :doc:`Celery executor </core-concepts/executor/celery>`.
 Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in DAG.
@@ -92,7 +92,7 @@ For example, if we have a task that stores processed data in S3 that task can pu
 and the downstream tasks can pull the path from XCom and use it to read the data.
 
 The tasks should also not store any authentication parameters such as passwords or token inside them.
-Where at all possible, use :doc:`Connections </concepts/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
+Where at all possible, use :doc:`Connections </authoring-and-scheduling/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 .. _best_practices/top_level_code:
 
@@ -185,7 +185,7 @@ Avoiding excessive processing at the top level code described in the previous ch
 in case of dynamic DAG configuration, which can be configured essentially in one of those ways:
 
 * via `environment variables <https://wiki.archlinux.org/title/environment_variables>`_ (not to be mistaken
-  with the :doc:`Airflow Variables </concepts/variables>`)
+  with the :doc:`Airflow Variables </core-concepts/variables>`)
 * via externally provided, generated Python code, containing meta-data in the DAG folder
 * via externally provided, generated configuration meta-data file in the DAG folder
 
@@ -213,6 +213,48 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
+Make sure to use variable with template in operator, not in the top level code.
+
+Bad example:
+
+.. code-block:: python
+
+    from airflow.models import Variable
+
+    foo_var = Variable.get("foo")  # DON'T DO THAT
+    bash_use_variable_bad_1 = BashOperator(
+        task_id="bash_use_variable_bad_1", bash_command="echo variable foo=${foo_env}", env={"foo_env": foo_var}
+    )
+
+    bash_use_variable_bad_2 = BashOperator(
+        task_id="bash_use_variable_bad_2",
+        bash_command=f"echo variable foo=${Variable.get('foo')}",  # DON'T DO THAT
+    )
+
+    bash_use_variable_bad_3 = BashOperator(
+        task_id="bash_use_variable_bad_3",
+        bash_command="echo variable foo=${foo_env}",
+        env={"foo_env": Variable.get("foo")},  # DON'T DO THAT
+    )
+
+
+Good example:
+
+.. code-block:: python
+
+    bash_use_variable_good = BashOperator(
+        task_id="bash_use_variable_good",
+        bash_command="echo variable foo=${foo_env}",
+        env={"foo_env": "{{ var.value.get('foo') }}"},
+    )
+
+.. code-block:: python
+
+  @task
+  def my_task():
+      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan dags.
+      print(var)
+
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
 for any variable that contains sensitive data.
 
@@ -233,7 +275,7 @@ Bad example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
-        def __init__(self, *args, something=Variable.get('something'), **kwargs):
+        def __init__(self, *args, something=Variable.get("something"), **kwargs):
             self._something = something
             super().__init__(*args, **kwargs)
 
@@ -246,7 +288,7 @@ Good example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
-        def __init__(self, *args, something='something', **kwargs):
+        def __init__(self, *args, something="something", **kwargs):
             self._something = Variable.get(something)
             super().__init__(*args, **kwargs)
 
@@ -804,7 +846,7 @@ The drawbacks:
   same worker might be affected by previous tasks creating/modifying files et.c
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
-that make it smother to move from development phase to production phase. As a DAG author you'd normally
+that make it smoother to move from development phase to production phase. As a DAG author you'd normally
 iterate with dependencies and develop your DAG using ``PythonVirtualenvOperator`` (thus decorating
 your tasks with ``@task.virtualenv`` decorators) while after the iteration and changes you would likely
 want to change it for production to switch to the ``ExternalPythonOperator`` (and ``@task.external_python``)

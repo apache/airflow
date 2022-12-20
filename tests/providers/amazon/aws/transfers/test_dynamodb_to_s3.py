@@ -18,14 +18,27 @@
 from __future__ import annotations
 
 import json
-import unittest
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
+import pytest
+
+from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator, JSONEncoder
 
 
-class DynamodbToS3Test(unittest.TestCase):
-    def setUp(self):
+class TestJSONEncoder:
+    @pytest.mark.parametrize("value", ["102938.3043847474", 1.010001, 10, "100", "1E-128", 1e-128])
+    def test_jsonencoder_with_decimal(self, value):
+        """Test JSONEncoder correctly encodes and decodes decimal values."""
+
+        org = Decimal(value)
+        encoded = json.dumps(org, cls=JSONEncoder)
+        decoded = json.loads(encoded, parse_float=Decimal)
+        assert org == pytest.approx(decoded)
+
+
+class TestDynamodbToS3:
+    def setup_method(self):
         self.output_queue = []
 
     def mock_upload_file(self, Filename, Bucket, Key):
@@ -34,16 +47,16 @@ class DynamodbToS3Test(unittest.TestCase):
             for line in lines:
                 self.output_queue.append(json.loads(line))
 
-    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook')
-    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook')
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
     def test_dynamodb_to_s3_success(self, mock_aws_dynamodb_hook, mock_s3_hook):
         responses = [
             {
-                'Items': [{'a': 1}, {'b': 2}],
-                'LastEvaluatedKey': '123',
+                "Items": [{"a": 1}, {"b": 2}],
+                "LastEvaluatedKey": "123",
             },
             {
-                'Items': [{'c': 3}],
+                "Items": [{"c": 3}],
             },
         ]
         table = MagicMock()
@@ -55,26 +68,55 @@ class DynamodbToS3Test(unittest.TestCase):
         mock_s3_hook.return_value.get_conn = s3_client
 
         dynamodb_to_s3_operator = DynamoDBToS3Operator(
-            task_id='dynamodb_to_s3',
-            dynamodb_table_name='airflow_rocks',
-            s3_bucket_name='airflow-bucket',
+            task_id="dynamodb_to_s3",
+            dynamodb_table_name="airflow_rocks",
+            s3_bucket_name="airflow-bucket",
             file_size=4000,
         )
 
         dynamodb_to_s3_operator.execute(context={})
 
-        assert [{'a': 1}, {'b': 2}, {'c': 3}] == self.output_queue
+        assert [{"a": 1}, {"b": 2}, {"c": 3}] == self.output_queue
 
-    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook')
-    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook')
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
+    def test_dynamodb_to_s3_success_with_decimal(self, mock_aws_dynamodb_hook, mock_s3_hook):
+        a = Decimal(10.028)
+        b = Decimal("10.048")
+        responses = [
+            {
+                "Items": [{"a": a}, {"b": b}],
+            }
+        ]
+        table = MagicMock()
+        table.return_value.scan.side_effect = responses
+        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+
+        s3_client = MagicMock()
+        s3_client.return_value.upload_file = self.mock_upload_file
+        mock_s3_hook.return_value.get_conn = s3_client
+
+        dynamodb_to_s3_operator = DynamoDBToS3Operator(
+            task_id="dynamodb_to_s3",
+            dynamodb_table_name="airflow_rocks",
+            s3_bucket_name="airflow-bucket",
+            file_size=4000,
+        )
+
+        dynamodb_to_s3_operator.execute(context={})
+
+        assert [{"a": float(a)}, {"b": float(b)}] == self.output_queue
+
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
     def test_dynamodb_to_s3_with_different_aws_conn_id(self, mock_aws_dynamodb_hook, mock_s3_hook):
         responses = [
             {
-                'Items': [{'a': 1}, {'b': 2}],
-                'LastEvaluatedKey': '123',
+                "Items": [{"a": 1}, {"b": 2}],
+                "LastEvaluatedKey": "123",
             },
             {
-                'Items': [{'c': 3}],
+                "Items": [{"c": 3}],
             },
         ]
         table = MagicMock()
@@ -87,16 +129,16 @@ class DynamodbToS3Test(unittest.TestCase):
 
         aws_conn_id = "test-conn-id"
         dynamodb_to_s3_operator = DynamoDBToS3Operator(
-            task_id='dynamodb_to_s3',
-            dynamodb_table_name='airflow_rocks',
-            s3_bucket_name='airflow-bucket',
+            task_id="dynamodb_to_s3",
+            dynamodb_table_name="airflow_rocks",
+            s3_bucket_name="airflow-bucket",
             file_size=4000,
             aws_conn_id=aws_conn_id,
         )
 
         dynamodb_to_s3_operator.execute(context={})
 
-        assert [{'a': 1}, {'b': 2}, {'c': 3}] == self.output_queue
+        assert [{"a": 1}, {"b": 2}, {"c": 3}] == self.output_queue
 
         mock_s3_hook.assert_called_with(aws_conn_id=aws_conn_id)
         mock_aws_dynamodb_hook.assert_called_with(aws_conn_id=aws_conn_id)

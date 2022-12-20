@@ -28,14 +28,58 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.2
+.....
+
+Latest change: 2022-12-01
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`d9cefcd0c5 <https://github.com/apache/airflow/commit/d9cefcd0c50a1cce1c3c8e9ecb99cfacde5eafbf>`_  2022-12-01   ``Make Snowflake Hook conform to semantics of DBApi (#28006)``
+`2e7a4bcb55 <https://github.com/apache/airflow/commit/2e7a4bcb550538283f28550208b01515d348fb51>`_  2022-11-30   ``Fix wrapping of run() method result of exasol and snoflake DB hooks (#27997)``
+=================================================================================================  ===========  ================================================================================
+
+4.0.1
+.....
+
+Latest change: 2022-11-26
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
+`db5375bea7 <https://github.com/apache/airflow/commit/db5375bea7a0564c12f56c91e1c8c7b6c049698c>`_  2022-11-26   ``Fixing the behaviours of SQL Hooks and Operators finally (#27912)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`ea306c9462 <https://github.com/apache/airflow/commit/ea306c9462615d6b215d43f7f17d68f4c62951b1>`_  2022-11-24   ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+=================================================================================================  ===========  ==============================================================================
+
+4.0.0
+.....
+
+Latest change: 2022-11-15
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
+`3ae98b824d <https://github.com/apache/airflow/commit/3ae98b824db437b2db928a73ac8b50c0a2f80124>`_  2022-11-14   ``Use unused SQLCheckOperator.parameters in SQLCheckOperator.execute. (#27599)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`82e9ed7aca <https://github.com/apache/airflow/commit/82e9ed7aca371247f9f7fe882d7ad157cb4859d8>`_  2022-10-22   ``Update snowflake hook to not use extra prefix (#26764)``
+`ecd4d6654f <https://github.com/apache/airflow/commit/ecd4d6654ff8e0da4a7b8f29fd23c37c9c219076>`_  2022-10-18   ``Add SQLExecuteQueryOperator (#25717)``
+=================================================================================================  ===========  ================================================================================
+
 3.3.0
 .....
 
-Latest change: 2022-09-13
+Latest change: 2022-09-28
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 `6a615ee477 <https://github.com/apache/airflow/commit/6a615ee47755e851854970d7042ee00d0040c8dc>`_  2022-08-30   ``Fix wrong deprecation warning for 'S3ToSnowflakeOperator' (#26047)``
 `9e12d483bc <https://github.com/apache/airflow/commit/9e12d483bcde714ca4225c94df182c4eacd36f7c>`_  2022-08-27   ``Add custom handler param in SnowflakeOperator (#25983)``

@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-neo4j/3.0.0/tests/system/providers/neo4j>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-neo4j/|version|/tests/system/providers/neo4j>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-neo4j/>
     Installing from sources <installing-providers-from-sources>
 
@@ -65,7 +65,7 @@ Package apache-airflow-providers-neo4j
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 3.1.0
+Release: 3.2.1
 
 Provider package
 ----------------
@@ -86,7 +86,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``neo4j``           ``>=4.2.1``
 ==================  ==================
 

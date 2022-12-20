@@ -26,14 +26,18 @@ import boto3
 from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.operators.lambda_function import AwsLambdaInvokeFunctionOperator
+from airflow.providers.amazon.aws.operators.lambda_function import (
+    AwsLambdaInvokeFunctionOperator,
+    LambdaCreateFunctionOperator,
+)
+from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
 
-DAG_ID = 'example_lambda'
+DAG_ID = "example_lambda"
 
 # Externally fetched variables:
-ROLE_ARN_KEY = 'ROLE_ARN'
+ROLE_ARN_KEY = "ROLE_ARN"
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
@@ -54,31 +58,9 @@ def create_zip(content: str):
     return zip_output.read()
 
 
-@task
-def create_lambda(function_name: str, role_arn: str):
-    client = boto3.client('lambda')
-    client.create_function(
-        FunctionName=function_name,
-        Runtime='python3.9',
-        Role=role_arn,
-        Handler='lambda_function.test',
-        Code={
-            'ZipFile': create_zip(CODE_CONTENT),
-        },
-        Description='Function used for system tests',
-    )
-
-
-@task
-def await_lambda(function_name: str):
-    client = boto3.client('lambda')
-    waiter = client.get_waiter('function_active_v2')
-    waiter.wait(FunctionName=function_name)
-
-
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_lambda(function_name: str):
-    client = boto3.client('lambda')
+    client = boto3.client("lambda")
     client.delete_function(
         FunctionName=function_name,
     )
@@ -87,7 +69,7 @@ def delete_lambda(function_name: str):
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_logs(function_name: str) -> None:
     generated_log_groups: list[tuple[str, str | None]] = [
-        (f'/aws/lambda/{function_name}', None),
+        (f"/aws/lambda/{function_name}", None),
     ]
 
     purge_logs(test_logs=generated_log_groups, force_delete=True, retry=True)
@@ -95,29 +77,50 @@ def delete_logs(function_name: str) -> None:
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
 
-    lambda_function_name: str = f'{test_context[ENV_ID_KEY]}-function'
+    lambda_function_name: str = f"{test_context[ENV_ID_KEY]}-function"
+    role_arn = test_context[ROLE_ARN_KEY]
 
-    # [START howto_operator_lambda]
+    # [START howto_operator_create_lambda_function]
+    create_lambda_function = LambdaCreateFunctionOperator(
+        task_id="create_lambda_function",
+        function_name=lambda_function_name,
+        runtime="python3.9",
+        role=role_arn,
+        handler="lambda_function.test",
+        code={
+            "ZipFile": create_zip(CODE_CONTENT),
+        },
+    )
+    # [END howto_operator_create_lambda_function]
+
+    # [START howto_sensor_lambda_function_state]
+    wait_lambda_function_state = LambdaFunctionStateSensor(
+        task_id="wait_lambda_function_state",
+        function_name=lambda_function_name,
+    )
+    # [END howto_sensor_lambda_function_state]
+
+    # [START howto_operator_invoke_lambda_function]
     invoke_lambda_function = AwsLambdaInvokeFunctionOperator(
-        task_id='invoke_lambda_function',
+        task_id="invoke_lambda_function",
         function_name=lambda_function_name,
         payload=json.dumps({"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}),
     )
-    # [END howto_operator_lambda]
+    # [END howto_operator_invoke_lambda_function]
 
     chain(
         # TEST SETUP
         test_context,
-        create_lambda(lambda_function_name, test_context[ROLE_ARN_KEY]),
-        await_lambda(lambda_function_name),
         # TEST BODY
+        create_lambda_function,
+        wait_lambda_function_state,
         invoke_lambda_function,
         # TEST TEARDOWN
         delete_lambda(lambda_function_name),

@@ -15,15 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sentry Integration"""
+"""Sentry Integration."""
 from __future__ import annotations
 
 import logging
 from functools import wraps
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.session import find_session_idx, provide_session
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +40,7 @@ class DummySentry:
         """Blank function for tagging."""
 
     @classmethod
-    def add_breadcrumbs(cls, task_instance, session=None):
+    def add_breadcrumbs(cls, task_instance, session: Session | None = None):
         """Blank function for breadcrumbs."""
 
     @classmethod
@@ -49,7 +53,7 @@ class DummySentry:
 
 
 Sentry: DummySentry = DummySentry()
-if conf.getboolean("sentry", 'sentry_on', fallback=False):
+if conf.getboolean("sentry", "sentry_on", fallback=False):
     import sentry_sdk
 
     # Verify blinker installation
@@ -107,7 +111,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                         ", ".join(unsupported_options),
                     )
 
-                sentry_config_opts['before_send'] = conf.getimport('sentry', 'before_send', fallback=None)
+                sentry_config_opts["before_send"] = conf.getimport("sentry", "before_send", fallback=None)
 
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
@@ -150,8 +154,9 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
 
         def enrich_errors(self, func):
             """
+            Decorate errors.
             Wrap TaskInstance._run_raw_task and LocalTaskJob._run_mini_scheduler_on_child_tasks
-             to support task specific tags and breadcrumbs.
+            to support task specific tags and breadcrumbs.
             """
             session_args_idx = find_session_idx(func)
 
@@ -161,14 +166,14 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 # tags and breadcrumbs to a specific Task Instance
 
                 try:
-                    session = kwargs.get('session', args[session_args_idx])
+                    session = kwargs.get("session", args[session_args_idx])
                 except IndexError:
                     session = None
 
                 with sentry_sdk.push_scope():
                     try:
                         # Is a LocalTaskJob get the task instance
-                        if hasattr(_self, 'task_instance'):
+                        if hasattr(_self, "task_instance"):
                             task_instance = _self.task_instance
                         else:
                             task_instance = _self

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.grpc.operators.grpc import GrpcOperator
@@ -30,11 +29,11 @@ class StubClass:
         pass
 
 
-class TestGrpcOperator(unittest.TestCase):
+class TestGrpcOperator:
     def custom_conn_func(self, connection):
         pass
 
-    @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
+    @mock.patch("airflow.providers.grpc.operators.grpc.GrpcHook")
     def test_with_interceptors(self, mock_hook):
         operator = GrpcOperator(
             stub_class=StubClass,
@@ -46,7 +45,7 @@ class TestGrpcOperator(unittest.TestCase):
         operator.execute({})
         mock_hook.assert_called_once_with("grpc_default", interceptors=[], custom_connection_func=None)
 
-    @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
+    @mock.patch("airflow.providers.grpc.operators.grpc.GrpcHook")
     def test_with_custom_connection_func(self, mock_hook):
         operator = GrpcOperator(
             stub_class=StubClass,
@@ -60,11 +59,11 @@ class TestGrpcOperator(unittest.TestCase):
             "grpc_default", interceptors=None, custom_connection_func=self.custom_conn_func
         )
 
-    @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
+    @mock.patch("airflow.providers.grpc.operators.grpc.GrpcHook")
     def test_execute_with_log(self, mock_hook):
         mocked_hook = mock.Mock()
         mock_hook.return_value = mocked_hook
-        mocked_hook.configure_mock(**{'run.return_value': ["value1", "value2"]})
+        mocked_hook.configure_mock(**{"run.return_value": ["value1", "value2"]})
         operator = GrpcOperator(
             stub_class=StubClass,
             call_func="stream_call",
@@ -72,7 +71,7 @@ class TestGrpcOperator(unittest.TestCase):
             task_id="test_grpc",
         )
 
-        with mock.patch.object(operator.log, 'info') as mock_info:
+        with mock.patch.object(operator.log, "info") as mock_info:
             operator.execute({})
 
             mock_hook.assert_called_once_with("grpc_default", interceptors=None, custom_connection_func=None)
@@ -81,17 +80,17 @@ class TestGrpcOperator(unittest.TestCase):
             mock_info.assert_any_call("'value1'")
             mock_info.assert_any_call("'value2'")
 
-    @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
+    @mock.patch("airflow.providers.grpc.operators.grpc.GrpcHook")
     def test_execute_with_callback(self, mock_hook):
         mocked_hook = mock.Mock()
         callback = mock.Mock()
         mock_hook.return_value = mocked_hook
-        mocked_hook.configure_mock(**{'run.return_value': ["value1", "value2"]})
+        mocked_hook.configure_mock(**{"run.return_value": ["value1", "value2"]})
         operator = GrpcOperator(
             stub_class=StubClass, call_func="stream_call", task_id="test_grpc", response_callback=callback
         )
 
-        with mock.patch.object(operator.log, 'info') as mock_info:
+        with mock.patch.object(operator.log, "info") as mock_info:
             operator.execute({})
             mock_hook.assert_called_once_with("grpc_default", interceptors=None, custom_connection_func=None)
             mocked_hook.run.assert_called_once_with(StubClass, "stream_call", data={}, streaming=False)

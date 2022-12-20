@@ -27,13 +27,13 @@ from airflow import models
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
 SQL_TABLE = os.environ.get("SQL_TABLE", "test_table")
-SQL_CONN_ID = 'presto_default'
+SQL_CONN_ID = "presto_default"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_sql_to_slack"
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2022, 1, 1),
     catchup=False,
     tags=["example"],
@@ -44,7 +44,7 @@ with models.DAG(
         sql_conn_id=SQL_CONN_ID,
         sql=f"SELECT col FROM {SQL_TABLE}",
         slack_channel="my_channel",
-        slack_conn_id='slack_default',
+        slack_conn_id="slack_default",
         slack_message="message: {{ ds }}, {{ results_df }}",
     )
     # [END howto_operator_sql_to_slack]

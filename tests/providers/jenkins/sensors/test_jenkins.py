@@ -17,17 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
-from parameterized import parameterized
+import pytest
 
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
 
-class TestJenkinsBuildSensor(unittest.TestCase):
-    @parameterized.expand(
+class TestJenkinsBuildSensor:
+    @pytest.mark.parametrize(
+        "build_number, build_state",
         [
             (
                 1,
@@ -41,20 +41,20 @@ class TestJenkinsBuildSensor(unittest.TestCase):
                 3,
                 True,
             ),
-        ]
+        ],
     )
-    @patch('jenkins.Jenkins')
-    def test_poke(self, build_number, build_state, mock_jenkins):
+    @patch("jenkins.Jenkins")
+    def test_poke(self, mock_jenkins, build_number, build_state):
         target_build_number = build_number if build_number else 10
 
         jenkins_mock = MagicMock()
-        jenkins_mock.get_job_info.return_value = {'lastBuild': {'number': target_build_number}}
+        jenkins_mock.get_job_info.return_value = {"lastBuild": {"number": target_build_number}}
         jenkins_mock.get_build_info.return_value = {
-            'building': build_state,
+            "building": build_state,
         }
         mock_jenkins.return_value = jenkins_mock
 
-        with patch.object(JenkinsHook, 'get_connection') as mock_get_connection:
+        with patch.object(JenkinsHook, "get_connection") as mock_get_connection:
             mock_get_connection.return_value = MagicMock()
 
             sensor = JenkinsBuildSensor(
@@ -69,4 +69,4 @@ class TestJenkinsBuildSensor(unittest.TestCase):
 
             assert output == (not build_state)
             assert jenkins_mock.get_job_info.call_count == 0 if build_number else 1
-            jenkins_mock.get_build_info.assert_called_once_with('a_job_on_jenkins', target_build_number)
+            jenkins_mock.get_build_info.assert_called_once_with("a_job_on_jenkins", target_build_number)

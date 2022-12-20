@@ -34,7 +34,7 @@ DAG_ID = "example_gcs_to_presto"
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule='@once',  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2022, 1, 1),
     catchup=False,
     tags=["example"],

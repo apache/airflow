@@ -30,8 +30,8 @@ from tests.test_utils import db
 DEFAULT_DATE = datetime(2018, 12, 10)
 WEEKDAY_DATE = datetime(2018, 12, 20)
 WEEKEND_DATE = datetime(2018, 12, 22)
-TEST_DAG_ID = 'weekday_sensor_dag'
-DEV_NULL = '/dev/null'
+TEST_DAG_ID = "weekday_sensor_dag"
+DEV_NULL = "/dev/null"
 TEST_CASE_WEEKDAY_SENSOR_TRUE = {
     "with-string": "Thursday",
     "with-enum": WeekDay.THURSDAY,
@@ -58,7 +58,7 @@ class TestDayOfWeekSensor:
     def setup_method(self):
         self.clean_db()
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
-        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=self.args)
         self.dag = dag
 
@@ -70,17 +70,17 @@ class TestDayOfWeekSensor:
     )
     def test_weekday_sensor_true(self, week_day):
         op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true', week_day=week_day, use_task_logical_date=True, dag=self.dag
+            task_id="weekday_sensor_check_true", week_day=week_day, use_task_logical_date=True, dag=self.dag
         )
         op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
         assert op.week_day == week_day
 
     def test_weekday_sensor_false(self):
         op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_false',
+            task_id="weekday_sensor_check_false",
             poke_interval=1,
             timeout=2,
-            week_day='Tuesday',
+            week_day="Tuesday",
             use_task_logical_date=True,
             dag=self.dag,
         )
@@ -88,10 +88,10 @@ class TestDayOfWeekSensor:
             op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
 
     def test_invalid_weekday_number(self):
-        invalid_week_day = 'Thsday'
+        invalid_week_day = "Thsday"
         with pytest.raises(AttributeError, match=f'Invalid Week Day passed: "{invalid_week_day}"'):
             DayOfWeekSensor(
-                task_id='weekday_sensor_invalid_weekday_num',
+                task_id="weekday_sensor_invalid_weekday_num",
                 week_day=invalid_week_day,
                 use_task_logical_date=True,
                 dag=self.dag,
@@ -106,7 +106,7 @@ class TestDayOfWeekSensor:
             "str, set, list, dict or Weekday enum type",
         ):
             DayOfWeekSensor(
-                task_id='weekday_sensor_check_true',
+                task_id="weekday_sensor_check_true",
                 week_day=invalid_week_day,
                 use_task_logical_date=True,
                 dag=self.dag,
@@ -114,7 +114,7 @@ class TestDayOfWeekSensor:
 
     def test_weekday_sensor_timeout_with_set(self):
         op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_false',
+            task_id="weekday_sensor_check_false",
             poke_interval=1,
             timeout=2,
             week_day={WeekDay.MONDAY, WeekDay.TUESDAY},
@@ -130,10 +130,10 @@ class TestDayOfWeekSensor:
         )
         with pytest.warns(DeprecationWarning) as warnings:
             DayOfWeekSensor(
-                task_id='week_day_warn',
+                task_id="week_day_warn",
                 poke_interval=1,
                 timeout=2,
-                week_day='Tuesday',
+                week_day="Tuesday",
                 use_task_execution_day=True,
                 dag=self.dag,
             )

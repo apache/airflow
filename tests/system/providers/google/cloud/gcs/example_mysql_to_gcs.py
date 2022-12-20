@@ -19,9 +19,16 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import pytest
+
 from airflow import models
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
+
+try:
+    from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
+except ImportError:
+    pytest.skip("MySQL not available", allow_module_level=True)
+
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -29,16 +36,16 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "example_mysql_to_gcs"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-FILENAME = 'test_file'
+FILENAME = "test_file"
 
 SQL_QUERY = "SELECT * from test_table"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'mysql'],
+    tags=["example", "mysql"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
@@ -46,7 +53,7 @@ with models.DAG(
 
     # [START howto_operator_mysql_to_gcs]
     upload_mysql_to_gcs = MySQLToGCSOperator(
-        task_id='mysql_to_gcs', sql=SQL_QUERY, bucket=BUCKET_NAME, filename=FILENAME, export_format='csv'
+        task_id="mysql_to_gcs", sql=SQL_QUERY, bucket=BUCKET_NAME, filename=FILENAME, export_format="csv"
     )
     # [END howto_operator_mysql_to_gcs]
 

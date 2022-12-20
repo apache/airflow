@@ -23,7 +23,7 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
-Airflow Helm Chart 1.7.0 (2022-10-13)
+Airflow Helm Chart 1.7.0 (2022-10-14)
 -------------------------------------
 
 Significant Changes

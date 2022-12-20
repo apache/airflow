@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import sys
 from logging.config import fileConfig
 
 from alembic import context
@@ -91,7 +92,7 @@ def run_migrations_online():
 
     """
     with contextlib.ExitStack() as stack:
-        connection = config.attributes.get('connection', None)
+        connection = config.attributes.get("connection", None)
 
         if not connection:
             connection = stack.push(settings.engine.connect())
@@ -114,3 +115,9 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+
+if "airflow.www.app" in sys.modules:
+    # Already imported, make sure we clear out any cached app
+    from airflow.www.app import purge_cached_app
+
+    purge_cached_app()

@@ -166,3 +166,19 @@ function initForm() {
 initForm();
 
 window.updateJSONconf = updateJSONconf;
+
+function setRecentConfig(e) {
+  let { value } = e.target;
+  try {
+    const json = JSON.parse(value);
+    value = JSON.stringify(json, null, 2);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('config is not valid JSON format');
+  }
+
+  // TODO Values need to be applied to all form fields accordingly!
+  document.querySelector('.CodeMirror').CodeMirror.setValue(value);
+}
+
+recentConfigList.addEventListener('change', setRecentConfig);

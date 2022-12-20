@@ -39,24 +39,24 @@ class DrillHook(DbApiHook):
     connection using the extras field e.g. ``{"storage_plugin": "dfs"}``.
     """
 
-    conn_name_attr = 'drill_conn_id'
-    default_conn_name = 'drill_default'
-    conn_type = 'drill'
-    hook_name = 'Drill'
+    conn_name_attr = "drill_conn_id"
+    default_conn_name = "drill_default"
+    conn_type = "drill"
+    hook_name = "Drill"
     supports_autocommit = False
 
     def get_conn(self) -> Connection:
         """Establish a connection to Drillbit."""
         conn_md = self.get_connection(getattr(self, self.conn_name_attr))
-        creds = f'{conn_md.login}:{conn_md.password}@' if conn_md.login else ''
+        creds = f"{conn_md.login}:{conn_md.password}@" if conn_md.login else ""
         engine = create_engine(
             f'{conn_md.extra_dejson.get("dialect_driver", "drill+sadrill")}://{creds}'
-            f'{conn_md.host}:{conn_md.port}/'
+            f"{conn_md.host}:{conn_md.port}/"
             f'{conn_md.extra_dejson.get("storage_plugin", "dfs")}'
         )
 
         self.log.info(
-            'Connected to the Drillbit at %s:%s as user %s', conn_md.host, conn_md.port, conn_md.login
+            "Connected to the Drillbit at %s:%s as user %s", conn_md.host, conn_md.port, conn_md.login
         )
         return engine.raw_connection()
 
@@ -69,11 +69,11 @@ class DrillHook(DbApiHook):
         conn_md = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn_md.host
         if conn_md.port is not None:
-            host += f':{conn_md.port}'
-        conn_type = conn_md.conn_type or 'drill'
-        dialect_driver = conn_md.extra_dejson.get('dialect_driver', 'drill+sadrill')
-        storage_plugin = conn_md.extra_dejson.get('storage_plugin', 'dfs')
-        return f'{conn_type}://{host}/{storage_plugin}?dialect_driver={dialect_driver}'
+            host += f":{conn_md.port}"
+        conn_type = conn_md.conn_type or "drill"
+        dialect_driver = conn_md.extra_dejson.get("dialect_driver", "drill+sadrill")
+        storage_plugin = conn_md.extra_dejson.get("storage_plugin", "dfs")
+        return f"{conn_type}://{host}/{storage_plugin}?dialect_driver={dialect_driver}"
 
     def set_autocommit(self, conn: Connection, autocommit: bool) -> NotImplementedError:
         raise NotImplementedError("There are no transactions in Drill.")

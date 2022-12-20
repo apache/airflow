@@ -51,7 +51,7 @@ option_github_token = click.option(
         Can be generated with:
         https://github.com/settings/tokens/new?description=Read%20issues&scopes=repo:status"""
     ),
-    envvar='GITHUB_TOKEN',
+    envvar="GITHUB_TOKEN",
 )
 
 
@@ -90,7 +90,7 @@ class PrStat:
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
             lowercase_body = comment.body.lower()
-            if 'protm' in lowercase_body:
+            if "protm" in lowercase_body:
                 num_protm += 1
             num_comments += 1
         self.protm_score = num_protm
@@ -104,7 +104,7 @@ class PrStat:
         for conv_comment in self.pull_request.get_issue_comments():
             self._users.add(conv_comment.user.login)
             lowercase_body = conv_comment.body.lower()
-            if 'protm' in lowercase_body:
+            if "protm" in lowercase_body:
                 num_protm += 1
             num_conv_comments += 1
         self.protm_score = num_protm
@@ -143,7 +143,7 @@ class PrStat:
     def issues(self):
         """finds issues in PR"""
         if self.pull_request.body is not None:
-            regex = r'(?<=closes: #|elated: #)\d{5}'
+            regex = r"(?<=closes: #|elated: #)\d{5}"
             issue_strs = re.findall(regex, self.pull_request.body)
             issue_ints = [eval(s) for s in issue_strs]
             self.issue_nums = issue_ints
@@ -296,15 +296,15 @@ class PrStat:
     def __str__(self) -> str:
         if self.protm_score > 0:
             return (
-                '[magenta]##Tagged PR## [/]'
+                "[magenta]##Tagged PR## [/]"
                 f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
-                f"\"{self.pull_request.title}\". "
+                f'"{self.pull_request.title}". '
                 f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
             )
         else:
             return (
                 f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
-                f"\"{self.pull_request.title}\". "
+                f'"{self.pull_request.title}". '
                 f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
             )
 
@@ -312,33 +312,33 @@ class PrStat:
         if self.protm_score > 0:
             console.print("********************* Tagged with '#protm' *********************", style="magenta")
         return (
-            f'-- Created at [bright_blue]{self.pull_request.created_at}[/], '
-            f'merged at [bright_blue]{self.pull_request.merged_at}[/]\n'
-            f'-- Label score: [green]{self.label_score}[/]\n'
-            f'-- Length score: [green]{self.length_score}[/] '
-            f'(body length: {self.body_length}, '
-            f'comment length: {self.comment_length})\n'
-            f'-- Interaction score: [green]{self.interaction_score}[/] '
-            f'(users interacting: {self.num_interacting_users}, '
-            f'reviews: {self.num_reviews}, '
-            f'review comments: {self.num_comments}, '
-            f'review reactions: {self.num_reactions}, '
-            f'non-review comments: {self.num_conv_comments}, '
-            f'non-review reactions: {self.num_conv_reactions}, '
-            f'issue comments: {self.num_issue_comments}, '
-            f'issue reactions: {self.num_issue_reactions})\n'
-            f'-- Change score: [green]{self.change_score}[/] '
-            f'(changed files: {self.num_changed_files}, '
-            f'additions: {self.num_additions}, '
-            f'deletions: {self.num_deletions})\n'
-            f'-- Overall score: [red]{self.score:.2f}[/]\n'
+            f"-- Created at [bright_blue]{self.pull_request.created_at}[/], "
+            f"merged at [bright_blue]{self.pull_request.merged_at}[/]\n"
+            f"-- Label score: [green]{self.label_score}[/]\n"
+            f"-- Length score: [green]{self.length_score}[/] "
+            f"(body length: {self.body_length}, "
+            f"comment length: {self.comment_length})\n"
+            f"-- Interaction score: [green]{self.interaction_score}[/] "
+            f"(users interacting: {self.num_interacting_users}, "
+            f"reviews: {self.num_reviews}, "
+            f"review comments: {self.num_comments}, "
+            f"review reactions: {self.num_reactions}, "
+            f"non-review comments: {self.num_conv_comments}, "
+            f"non-review reactions: {self.num_conv_reactions}, "
+            f"issue comments: {self.num_issue_comments}, "
+            f"issue reactions: {self.num_issue_reactions})\n"
+            f"-- Change score: [green]{self.change_score}[/] "
+            f"(changed files: {self.num_changed_files}, "
+            f"additions: {self.num_additions}, "
+            f"deletions: {self.num_deletions})\n"
+            f"-- Overall score: [red]{self.score:.2f}[/]\n"
         )
 
 
 DAYS_BACK = 5
 # Current (or previous during first few days of the next month)
-DEFAULT_BEGINNING_OF_MONTH = pendulum.now().subtract(days=DAYS_BACK).start_of('month')
-DEFAULT_END_OF_MONTH = DEFAULT_BEGINNING_OF_MONTH.end_of('month').add(days=1)
+DEFAULT_BEGINNING_OF_MONTH = pendulum.now().subtract(days=DAYS_BACK).start_of("month")
+DEFAULT_END_OF_MONTH = DEFAULT_BEGINNING_OF_MONTH.end_of("month").add(days=1)
 
 MAX_PR_CANDIDATES = 500
 DEFAULT_TOP_PRS = 10
@@ -347,15 +347,15 @@ DEFAULT_TOP_PRS = 10
 @click.command()
 @option_github_token  # TODO: this should only be required if --load isn't provided
 @click.option(
-    '--date-start', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_BEGINNING_OF_MONTH.date())
+    "--date-start", type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_BEGINNING_OF_MONTH.date())
 )
 @click.option(
-    '--date-end', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_END_OF_MONTH.date())
+    "--date-end", type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_END_OF_MONTH.date())
 )
-@click.option('--top-number', type=int, default=DEFAULT_TOP_PRS, help="The number of PRs to select")
-@click.option('--save', type=click.File("wb"), help="Save PR data to a pickle file")
-@click.option('--load', type=click.File("rb"), help="Load PR data from a file and recalcuate scores")
-@click.option('--verbose', is_flag="True", help="Print scoring details")
+@click.option("--top-number", type=int, default=DEFAULT_TOP_PRS, help="The number of PRs to select")
+@click.option("--save", type=click.File("wb"), help="Save PR data to a pickle file")
+@click.option("--load", type=click.File("rb"), help="Load PR data from a file and recalcuate scores")
+@click.option("--verbose", is_flag="True", help="Print scoring details")
 def main(
     github_token: str,
     date_start: datetime,
@@ -368,7 +368,7 @@ def main(
     selected_prs: list[PrStat] = []
     if load:
         console.print("Loading PRs from cache and recalculating scores.")
-        selected_prs = pickle.load(load, encoding='bytes')
+        selected_prs = pickle.load(load, encoding="bytes")
         issue_num = 0
         for pr_stat in selected_prs:
             issue_num += 1
@@ -385,7 +385,7 @@ def main(
         console.print(f"Finding best candidate PRs between {date_start} and {date_end}.")
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
-        pulls = repo.get_pulls(state="closed", sort="created", direction='desc')
+        pulls = repo.get_pulls(state="closed", sort="created", direction="desc")
         issue_num = 0
         for pr in pulls:
             if not pr.merged:
@@ -415,7 +415,7 @@ def main(
 
             selected_prs.append(pr_stat)
             if issue_num == MAX_PR_CANDIDATES:
-                console.print(f'[red]Reached {MAX_PR_CANDIDATES}. Stopping')
+                console.print(f"[red]Reached {MAX_PR_CANDIDATES}. Stopping")
                 break
 
     console.print(f"Top {top_number} out of {issue_num} PRs:")

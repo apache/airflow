@@ -61,7 +61,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
     def __init__(
         self,
         *,
-        wasb_conn_id='wasb_default',
+        wasb_conn_id="wasb_default",
         gcp_conn_id: str = "google_cloud_default",
         blob_name: str,
         file_path: str,

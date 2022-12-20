@@ -27,6 +27,7 @@ from botocore.exceptions import ClientError
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.waiter import get_state, waiter
 
 
 class EmrHook(AwsBaseHook):
@@ -44,10 +45,10 @@ class EmrHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    conn_name_attr = 'emr_conn_id'
-    default_conn_name = 'emr_default'
-    conn_type = 'emr'
-    hook_name = 'Amazon Elastic MapReduce'
+    conn_name_attr = "emr_conn_id"
+    default_conn_name = "emr_default"
+    conn_type = "emr"
+    hook_name = "Amazon Elastic MapReduce"
 
     def __init__(self, emr_conn_id: str | None = default_conn_name, *args, **kwargs) -> None:
         self.emr_conn_id = emr_conn_id
@@ -66,17 +67,17 @@ class EmrHook(AwsBaseHook):
         response = self.get_conn().list_clusters(ClusterStates=cluster_states)
 
         matching_clusters = list(
-            filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters'])
+            filter(lambda cluster: cluster["Name"] == emr_cluster_name, response["Clusters"])
         )
 
         if len(matching_clusters) == 1:
-            cluster_id = matching_clusters[0]['Id']
-            self.log.info('Found cluster name = %s id = %s', emr_cluster_name, cluster_id)
+            cluster_id = matching_clusters[0]["Id"]
+            self.log.info("Found cluster name = %s id = %s", emr_cluster_name, cluster_id)
             return cluster_id
         elif len(matching_clusters) > 1:
-            raise AirflowException(f'More than one cluster found for name {emr_cluster_name}')
+            raise AirflowException(f"More than one cluster found for name {emr_cluster_name}")
         else:
-            self.log.info('No cluster found for name %s', emr_cluster_name)
+            self.log.info("No cluster found for name %s", emr_cluster_name)
             return None
 
     def create_job_flow(self, job_flow_overrides: dict[str, Any]) -> dict[str, Any]:
@@ -123,6 +124,35 @@ class EmrHook(AwsBaseHook):
         response = self.get_conn().run_job_flow(**config)
 
         return response
+
+    def add_job_flow_steps(
+        self, job_flow_id: str, steps: list[dict] | str | None = None, wait_for_completion: bool = False
+    ) -> list[str]:
+        """
+        Add new steps to a running cluster.
+
+        :param job_flow_id: The id of the job flow to which the steps are being added
+        :param steps: A list of the steps to be executed by the job flow
+        :param wait_for_completion: If True, wait for the steps to be completed. Default is False
+        """
+        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Adding steps failed: {response}")
+
+        self.log.info("Steps %s added to JobFlow", response["StepIds"])
+        if wait_for_completion:
+            waiter = self.get_conn().get_waiter("step_complete")
+            for step_id in response["StepIds"]:
+                waiter.wait(
+                    ClusterId=job_flow_id,
+                    StepId=step_id,
+                    WaiterConfig={
+                        "Delay": 5,
+                        "MaxAttempts": 100,
+                    },
+                )
+        return response["StepIds"]
 
     def test_connection(self):
         """
@@ -184,14 +214,14 @@ class EmrServerlessHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    JOB_INTERMEDIATE_STATES = {'PENDING', 'RUNNING', 'SCHEDULED', 'SUBMITTED'}
-    JOB_FAILURE_STATES = {'FAILED', 'CANCELLING', 'CANCELLED'}
-    JOB_SUCCESS_STATES = {'SUCCESS'}
+    JOB_INTERMEDIATE_STATES = {"PENDING", "RUNNING", "SCHEDULED", "SUBMITTED"}
+    JOB_FAILURE_STATES = {"FAILED", "CANCELLING", "CANCELLED"}
+    JOB_SUCCESS_STATES = {"SUCCESS"}
     JOB_TERMINAL_STATES = JOB_SUCCESS_STATES.union(JOB_FAILURE_STATES)
 
-    APPLICATION_INTERMEDIATE_STATES = {'CREATING', 'STARTING', 'STOPPING'}
-    APPLICATION_FAILURE_STATES = {'STOPPED', 'TERMINATED'}
-    APPLICATION_SUCCESS_STATES = {'CREATED', 'STARTED'}
+    APPLICATION_INTERMEDIATE_STATES = {"CREATING", "STARTING", "STOPPING"}
+    APPLICATION_FAILURE_STATES = {"STOPPED", "TERMINATED"}
+    APPLICATION_SUCCESS_STATES = {"CREATED", "STARTED"}
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs["client_type"] = "emr-serverless"
@@ -231,27 +261,32 @@ class EmrServerlessHook(AwsBaseHook):
         :param check_interval_seconds: Number of seconds waiter should wait before attempting
             to retry get_state_callable. Defaults to 60 seconds.
         """
-        response = get_state_callable(**get_state_args)
-        state: str = self.get_state(response, parse_response)
-        while state not in desired_state:
-            if state in failure_states:
-                raise AirflowException(f'{object_type.title()} reached failure state {state}.')
-            if countdown >= check_interval_seconds:
-                countdown -= check_interval_seconds
-                self.log.info('Waiting for %s to be %s.', object_type.lower(), action.lower())
-                sleep(check_interval_seconds)
-                state = self.get_state(get_state_callable(**get_state_args), parse_response)
-            else:
-                message = f'{object_type.title()} still not {action.lower()} after the allocated time limit.'
-                self.log.error(message)
-                raise RuntimeError(message)
+        warnings.warn(
+            """This method is deprecated.
+            Please use `airflow.providers.amazon.aws.utils.waiter.waiter`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        waiter(
+            get_state_callable=get_state_callable,
+            get_state_args=get_state_args,
+            parse_response=parse_response,
+            desired_state=desired_state,
+            failure_states=failure_states,
+            object_type=object_type,
+            action=action,
+            countdown=countdown,
+            check_interval_seconds=check_interval_seconds,
+        )
 
     def get_state(self, response, keys) -> str:
-        value = response
-        for key in keys:
-            if value is not None:
-                value = value.get(key, None)
-        return value
+        warnings.warn(
+            """This method is deprecated.
+            Please use `airflow.providers.amazon.aws.utils.waiter.get_state`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return get_state(response=response, keys=keys)
 
 
 class EmrContainerHook(AwsBaseHook):
@@ -305,14 +340,14 @@ class EmrContainerHook(AwsBaseHook):
             tags=tags or {},
         )
 
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'Create EMR EKS Cluster failed: {response}')
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Create EMR EKS Cluster failed: {response}")
         else:
             self.log.info(
                 "Create EMR EKS Cluster success - virtual cluster id %s",
-                response['id'],
+                response["id"],
             )
-            return response['id']
+            return response["id"]
 
     def submit_job(
         self,
@@ -355,15 +390,15 @@ class EmrContainerHook(AwsBaseHook):
 
         response = self.conn.start_job_run(**params)
 
-        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(f'Start Job Run failed: {response}')
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Start Job Run failed: {response}")
         else:
             self.log.info(
                 "Start Job Run success - Job Id %s and virtual cluster id %s",
-                response['id'],
-                response['virtualClusterId'],
+                response["id"],
+                response["virtualClusterId"],
             )
-            return response['id']
+            return response["id"]
 
     def get_job_failure_reason(self, job_id: str) -> str | None:
         """
@@ -380,13 +415,13 @@ class EmrContainerHook(AwsBaseHook):
                 virtualClusterId=self.virtual_cluster_id,
                 id=job_id,
             )
-            failure_reason = response['jobRun']['failureReason']
+            failure_reason = response["jobRun"]["failureReason"]
             state_details = response["jobRun"]["stateDetails"]
             reason = f"{failure_reason} - {state_details}"
         except KeyError:
-            self.log.error('Could not get status of the EMR on EKS job')
+            self.log.error("Could not get status of the EMR on EKS job")
         except ClientError as ex:
-            self.log.error('AWS request failed, check logs for more info: %s', ex)
+            self.log.error("AWS request failed, check logs for more info: %s", ex)
 
         return reason
 
@@ -405,10 +440,10 @@ class EmrContainerHook(AwsBaseHook):
             return response["jobRun"]["state"]
         except self.conn.exceptions.ResourceNotFoundException:
             # If the job is not found, we raise an exception as something fatal has happened.
-            raise AirflowException(f'Job ID {job_id} not found on Virtual Cluster {self.virtual_cluster_id}')
+            raise AirflowException(f"Job ID {job_id} not found on Virtual Cluster {self.virtual_cluster_id}")
         except ClientError as ex:
             # If we receive a generic ClientError, we swallow the exception so that the
-            self.log.error('AWS request failed, check logs for more info: %s', ex)
+            self.log.error("AWS request failed, check logs for more info: %s", ex)
             return None
 
     def poll_query_status(

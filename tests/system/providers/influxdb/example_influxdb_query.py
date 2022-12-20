@@ -28,15 +28,15 @@ DAG_ID = "example_influxdb_operator"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
     # [START howto_operator_influxdb]
 
     query_influxdb_task = InfluxDBOperator(
-        influxdb_conn_id='influxdb_conn_id',
-        task_id='query_influxdb',
+        influxdb_conn_id="influxdb_conn_id",
+        task_id="query_influxdb",
         sql='from(bucket:"test-influx") |> range(start: -10m, stop: {{ds}})',
         dag=dag,
     )

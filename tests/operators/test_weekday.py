@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -86,7 +86,7 @@ class TestBranchDayOfWeekOperator:
             try:
                 expected_state = task_ids_to_states[ti.task_id]
             except KeyError:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                raise ValueError(f"Invalid task id {ti.task_id} found!")
             else:
                 assert_msg = f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
                 assert ti.state == expected_state, assert_msg
@@ -94,7 +94,7 @@ class TestBranchDayOfWeekOperator:
     @pytest.mark.parametrize(
         "weekday", TEST_CASE_BRANCH_FOLLOW_TRUE.values(), ids=TEST_CASE_BRANCH_FOLLOW_TRUE.keys()
     )
-    @freeze_time("2021-01-25")  # Monday
+    @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_true(self, weekday):
         """Checks if BranchDayOfWeekOperator follows true branch"""
         print(datetime.datetime.now())
@@ -124,14 +124,14 @@ class TestBranchDayOfWeekOperator:
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.NONE,
-                'branch_2': State.NONE,
-                'branch_3': State.SKIPPED,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.NONE,
+                "branch_3": State.SKIPPED,
             },
         )
 
-    @freeze_time("2021-01-25")  # Monday
+    @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_true_with_execution_date(self):
         """Checks if BranchDayOfWeekOperator follows true branch when set use_task_logical_date"""
 
@@ -160,13 +160,13 @@ class TestBranchDayOfWeekOperator:
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.NONE,
-                'branch_2': State.SKIPPED,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
             },
         )
 
-    @freeze_time("2021-01-25")  # Monday
+    @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_false(self):
         """Checks if BranchDayOfWeekOperator follow false branch"""
 
@@ -194,9 +194,9 @@ class TestBranchDayOfWeekOperator:
         self._assert_task_ids_match_states(
             dr,
             {
-                'make_choice': State.SUCCESS,
-                'branch_1': State.SKIPPED,
-                'branch_2': State.NONE,
+                "make_choice": State.SUCCESS,
+                "branch_1": State.SKIPPED,
+                "branch_2": State.NONE,
             },
         )
 
@@ -245,7 +245,7 @@ class TestBranchDayOfWeekOperator:
                 dag=self.dag,
             )
 
-    @freeze_time("2021-01-25")  # Monday
+    @time_machine.travel("2021-01-25")  # Monday
     def test_branch_xcom_push_true_branch(self):
         """Check if BranchDayOfWeekOperator push to xcom value of follow_task_ids_if_true"""
         branch_op = BranchDayOfWeekOperator(
@@ -271,8 +271,8 @@ class TestBranchDayOfWeekOperator:
 
         tis = dr.get_task_instances()
         for ti in tis:
-            if ti.task_id == 'make_choice':
-                assert ti.xcom_pull(task_ids='make_choice') == 'branch_1'
+            if ti.task_id == "make_choice":
+                assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
 
     def test_deprecation_warning(self):
         warning_message = (

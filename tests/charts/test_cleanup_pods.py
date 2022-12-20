@@ -16,15 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class CleanupPodsTest(unittest.TestCase):
+class TestCleanupPods:
     def test_should_create_cronjob_for_enabled_cleanup(self):
         docs = render_chart(
             values={
@@ -37,7 +35,7 @@ class CleanupPodsTest(unittest.TestCase):
             "spec.jobTemplate.spec.template.spec.containers[0].name", docs[0]
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]).startswith(
-            'apache/airflow'
+            "apache/airflow"
         )
         assert {"name": "config", "configMap": {"name": "release-name-airflow-config"}} in jmespath.search(
             "spec.jobTemplate.spec.template.spec.volumes", docs[0]
@@ -53,7 +51,7 @@ class CleanupPodsTest(unittest.TestCase):
         render_chart(
             values={"cleanup": {"enabled": True}},
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
-            kubernetes_version='1.16.0',
+            kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_change_image_when_set_airflow_image(self):
@@ -135,18 +133,12 @@ class CleanupPodsTest(unittest.TestCase):
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
         )
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"cleanup": {"enabled": True, "command": command, "args": args}},
@@ -247,8 +239,36 @@ class CleanupPodsTest(unittest.TestCase):
         assert 2 == jmespath.search("spec.failedJobsHistoryLimit", docs[0])
         assert 4 == jmespath.search("spec.successfulJobsHistoryLimit", docs[0])
 
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "airflowLocalSettings": None,
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+        volume_mounts = jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
+        assert "airflow_local_settings.py" not in str(volume_mounts)
 
-class CleanupServiceAccountTest(unittest.TestCase):
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "airflowLocalSettings": "# Well hello!",
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
+
+
+class TestCleanupServiceAccount:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={

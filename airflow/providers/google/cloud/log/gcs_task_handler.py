@@ -71,7 +71,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
-        self.log_relative_path = ''
+        self.log_relative_path = ""
         self._hook = None
         self.closed = False
         self.upload_on_close = True
@@ -147,10 +147,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             blob = storage.Blob.from_string(remote_loc, self.client)
             remote_log = blob.download_as_bytes().decode()
-            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
-            return log, {'end_of_log': True}
+            log = f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
+            return log, {"end_of_log": True}
         except Exception as e:
-            log = f'*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n'
+            log = f"*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n"
             self.log.error(log)
             local_log, metadata = super()._read(ti, try_number, metadata)
             log += local_log
@@ -167,14 +167,14 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             old_log = blob.download_as_bytes().decode()
-            log = '\n'.join([old_log, log]) if old_log else log
+            log = "\n".join([old_log, log]) if old_log else log
         except Exception as e:
-            if not hasattr(e, 'resp') or e.resp.get('status') != '404':
-                log = f'*** Previous log discarded: {str(e)}\n\n' + log
+            if not hasattr(e, "resp") or e.resp.get("status") != "404":
+                log = f"*** Previous log discarded: {str(e)}\n\n" + log
                 self.log.info("Previous log discarded: %s", e)
 
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             blob.upload_from_string(log, content_type="text/plain")
         except Exception as e:
-            self.log.error('Could not write logs to %s: %s', remote_log_location, e)
+            self.log.error("Could not write logs to %s: %s", remote_log_location, e)

@@ -35,11 +35,11 @@ from airflow.providers.amazon.aws.sensors.rds import RdsExportTaskExistenceSenso
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_rds_export'
+DAG_ID = "example_rds_export"
 
 # Externally fetched variables:
-KMS_KEY_ID_KEY = 'KMS_KEY_ID'
-ROLE_ARN_KEY = 'ROLE_ARN'
+KMS_KEY_ID_KEY = "KMS_KEY_ID"
+ROLE_ARN_KEY = "ROLE_ARN"
 
 sys_test_context_task = (
     SystemTestContextBuilder().add_variable(KMS_KEY_ID_KEY).add_variable(ROLE_ARN_KEY).build()
@@ -49,28 +49,28 @@ sys_test_context_task = (
 @task
 def get_snapshot_arn(snapshot_name: str) -> str:
     result = RdsHook().conn.describe_db_snapshots(DBSnapshotIdentifier=snapshot_name)
-    return result['DBSnapshots'][0]['DBSnapshotArn']
+    return result["DBSnapshots"][0]["DBSnapshotArn"]
 
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
 
-    bucket_name: str = f'{env_id}-bucket'
+    bucket_name: str = f"{env_id}-bucket"
 
-    rds_db_name: str = f'{env_id}_db'
-    rds_instance_name: str = f'{env_id}-instance'
-    rds_snapshot_name: str = f'{env_id}-snapshot'
-    rds_export_task_id: str = f'{env_id}-export-task'
+    rds_db_name: str = f"{env_id}_db"
+    rds_instance_name: str = f"{env_id}-instance"
+    rds_snapshot_name: str = f"{env_id}-snapshot"
+    rds_export_task_id: str = f"{env_id}-export-task"
 
     create_bucket = S3CreateBucketOperator(
-        task_id='create_bucket',
+        task_id="create_bucket",
         bucket_name=bucket_name,
     )
 
@@ -90,28 +90,28 @@ with DAG(
     )
 
     create_snapshot = RdsCreateDbSnapshotOperator(
-        task_id='create_snapshot',
-        db_type='instance',
+        task_id="create_snapshot",
+        db_type="instance",
         db_identifier=rds_instance_name,
         db_snapshot_identifier=rds_snapshot_name,
     )
 
     await_snapshot = RdsSnapshotExistenceSensor(
-        task_id='snapshot_sensor',
-        db_type='instance',
+        task_id="snapshot_sensor",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_name,
-        target_statuses=['available'],
+        target_statuses=["available"],
     )
 
     snapshot_arn = get_snapshot_arn(rds_snapshot_name)
 
     # [START howto_operator_rds_start_export_task]
     start_export = RdsStartExportTaskOperator(
-        task_id='start_export',
+        task_id="start_export",
         export_task_identifier=rds_export_task_id,
         source_arn=snapshot_arn,
         s3_bucket_name=bucket_name,
-        s3_prefix='rds-test',
+        s3_prefix="rds-test",
         iam_role_arn=test_context[ROLE_ARN_KEY],
         kms_key_id=test_context[KMS_KEY_ID_KEY],
     )
@@ -122,28 +122,28 @@ with DAG(
 
     # [START howto_operator_rds_cancel_export]
     cancel_export = RdsCancelExportTaskOperator(
-        task_id='cancel_export',
+        task_id="cancel_export",
         export_task_identifier=rds_export_task_id,
     )
     # [END howto_operator_rds_cancel_export]
 
     # [START howto_sensor_rds_export_task_existence]
     export_sensor = RdsExportTaskExistenceSensor(
-        task_id='export_sensor',
+        task_id="export_sensor",
         export_task_identifier=rds_export_task_id,
-        target_statuses=['canceled'],
+        target_statuses=["canceled"],
     )
     # [END howto_sensor_rds_export_task_existence]
 
     delete_snapshot = RdsDeleteDbSnapshotOperator(
-        task_id='delete_snapshot',
-        db_type='instance',
+        task_id="delete_snapshot",
+        db_type="instance",
         db_snapshot_identifier=rds_snapshot_name,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket = S3DeleteBucketOperator(
-        task_id='delete_bucket',
+        task_id="delete_bucket",
         bucket_name=bucket_name,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,

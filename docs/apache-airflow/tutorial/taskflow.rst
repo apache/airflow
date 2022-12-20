@@ -359,6 +359,22 @@ Notes on using the operator:
     You should upgrade to Airflow 2.4 or above in order to use it.
 
 
+Using the TaskFlow API with Sensor operators
+--------------------------------------------
+You can apply the ``@task.sensor`` decorator to convert a regular Python function to an instance of the
+BaseSensorOperator class. The Python function implements the poke logic and returns an instance of
+the ``PokeReturnValue`` class as the ``poke()`` method in the BaseSensorOperator does. The ``PokeReturnValue`` is
+a new feature in Airflow 2.3 that allows a sensor operator to push an XCom value as described in
+section "Having sensors return XOM values" of :doc:`apache-airflow-providers:howto/create-update-providers`.
+
+.. _taskflow/task_sensor_example:
+
+.. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
+
+
 Multiple outputs inference
 --------------------------
 Tasks can also infer multiple outputs by using dict Python typing.
@@ -366,7 +382,7 @@ Tasks can also infer multiple outputs by using dict Python typing.
 .. code-block:: python
 
    @task
-   def identity_dict(x: int, y: int) -> Dict[str, int]:
+   def identity_dict(x: int, y: int) -> dict[str, int]:
        return {"x": x, "y": y}
 
 By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter
@@ -439,7 +455,7 @@ To retrieve an XCom result for a key other than ``return_value``, you can use:
     listed as a ``template_field``.
 
 In the code example below, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
-is captured via :doc:`XComs </concepts/xcoms>`. This XCom result, which is the task output, is then passed
+is captured via :doc:`XComs </core-concepts/xcoms>`. This XCom result, which is the task output, is then passed
 to a TaskFlow function which parses the response as JSON.
 
 .. code-block:: python
@@ -568,5 +584,5 @@ You have seen how simple it is to write DAGs using the TaskFlow API paradigm wit
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/pipeline`
-    - Read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
-    - View the section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.
+    - Read the :doc:`Concepts section </core-concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - View the section on the :doc:`TaskFlow API </core-concepts/taskflow>` and the ``@task`` decorator.

@@ -73,7 +73,6 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Queue
     """
 
     template_fields: Sequence[str] = (
@@ -181,7 +180,6 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Queue
     """
 
     template_fields: Sequence[str] = (
@@ -273,7 +271,6 @@ class CloudTasksQueueGetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Queue
     """
 
     template_fields: Sequence[str] = (
@@ -359,7 +356,6 @@ class CloudTasksQueuesListOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
     template_fields: Sequence[str] = (
@@ -520,7 +516,6 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
     template_fields: Sequence[str] = (
@@ -604,7 +599,6 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
     template_fields: Sequence[str] = (
@@ -688,7 +682,6 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
     template_fields: Sequence[str] = (
@@ -778,7 +771,6 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Task
     """
 
     template_fields: Sequence[str] = (
@@ -876,7 +868,6 @@ class CloudTasksTaskGetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Task
     """
 
     template_fields: Sequence[str] = (
@@ -971,7 +962,6 @@ class CloudTasksTasksListOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Task]
     """
 
     template_fields: Sequence[str] = (
@@ -1145,7 +1135,6 @@ class CloudTasksTaskRunOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Task
     """
 
     template_fields: Sequence[str] = (

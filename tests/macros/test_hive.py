@@ -24,12 +24,12 @@ from airflow.macros import hive
 
 class TestHive:
     def test_closest_ds_partition(self):
-        date1 = datetime.strptime('2017-04-24', '%Y-%m-%d')
-        date2 = datetime.strptime('2017-04-25', '%Y-%m-%d')
-        date3 = datetime.strptime('2017-04-26', '%Y-%m-%d')
-        date4 = datetime.strptime('2017-04-28', '%Y-%m-%d')
-        date5 = datetime.strptime('2017-04-29', '%Y-%m-%d')
-        target_dt = datetime.strptime('2017-04-27', '%Y-%m-%d')
+        date1 = datetime.strptime("2017-04-24", "%Y-%m-%d")
+        date2 = datetime.strptime("2017-04-25", "%Y-%m-%d")
+        date3 = datetime.strptime("2017-04-26", "%Y-%m-%d")
+        date4 = datetime.strptime("2017-04-28", "%Y-%m-%d")
+        date5 = datetime.strptime("2017-04-29", "%Y-%m-%d")
+        target_dt = datetime.strptime("2017-04-27", "%Y-%m-%d")
         date_list = [date1, date2, date3, date4, date5]
 
         assert "2017-04-26" == str(hive._closest_date(target_dt, date_list, True))

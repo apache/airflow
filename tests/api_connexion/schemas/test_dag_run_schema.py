@@ -52,7 +52,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         dagrun_model = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run",
-            state='running',
+            state="running",
             run_type=DagRunType.MANUAL.value,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -77,6 +77,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             "data_interval_start": None,
             "last_scheduling_decision": None,
             "run_type": "manual",
+            "note": None,
         }
 
     @pytest.mark.parametrize(
@@ -135,7 +136,7 @@ class TestDagRunCollection(TestDAGRunBase):
         dagrun_model_1 = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run",
-            state='running',
+            state="running",
             execution_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
             start_date=timezone.parse(self.default_time),
@@ -144,7 +145,7 @@ class TestDagRunCollection(TestDAGRunBase):
         dagrun_model_2 = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run-2",
-            state='running',
+            state="running",
             execution_date=timezone.parse(self.second_time),
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
@@ -170,6 +171,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
+                    "note": None,
                 },
                 {
                     "dag_id": "my-dag-run",
@@ -185,6 +187,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
                     "run_type": "manual",
+                    "note": None,
                 },
             ],
             "total_entries": 2,

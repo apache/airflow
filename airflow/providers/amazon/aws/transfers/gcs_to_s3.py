@@ -85,13 +85,13 @@ class GCSToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'prefix',
-        'delimiter',
-        'dest_s3_key',
-        'google_impersonation_chain',
+        "bucket",
+        "prefix",
+        "delimiter",
+        "dest_s3_key",
+        "google_impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -99,10 +99,10 @@ class GCSToS3Operator(BaseOperator):
         bucket: str,
         prefix: str | None = None,
         delimiter: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         google_cloud_storage_conn_id: str | None = None,
         delegate_to: str | None = None,
-        dest_aws_conn_id: str = 'aws_default',
+        dest_aws_conn_id: str = "aws_default",
         dest_s3_key: str,
         dest_verify: str | bool | None = None,
         replace: bool = False,
@@ -146,7 +146,7 @@ class GCSToS3Operator(BaseOperator):
         )
 
         self.log.info(
-            'Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
+            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
             self.bucket,
             self.delimiter,
             self.prefix,
@@ -172,7 +172,7 @@ class GCSToS3Operator(BaseOperator):
             # in case that no files exists, return an empty array to avoid errors
             existing_files = existing_files if existing_files is not None else []
             # remove the prefix for the existing files to allow the match
-            existing_files = [file.replace(prefix, '', 1) for file in existing_files]
+            existing_files = [file.replace(prefix, "", 1) for file in existing_files]
             files = list(set(files) - set(existing_files))
 
         if files:

@@ -51,14 +51,14 @@ def print_all_cases(xunit_test_file_path):
 
     root = ElementTree.fromstring(text)
 
-    test_cases = root.findall('.//testcase')
+    test_cases = root.findall(".//testcase")
     classes = set()
     modules = set()
 
     for test_case in test_cases:
-        the_module = '.'.join(test_case.get('classname').split('.')[:-1])
-        the_class = last_replace(test_case.get('classname'), ".", ":", 1)
-        test_method = test_case.get('name')
+        the_module = ".".join(test_case.get("classname").split(".")[:-1])
+        the_class = last_replace(test_case.get("classname"), ".", ":", 1)
+        test_method = test_case.get("name")
         modules.add(the_module)
         classes.add(the_class)
         print(the_class + "." + test_method)
@@ -70,7 +70,7 @@ def print_all_cases(xunit_test_file_path):
         print(the_module)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Please provide name of xml unit file as first parameter")
         sys.exit(1)

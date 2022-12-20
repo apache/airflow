@@ -22,10 +22,10 @@ from airflow.models import SlaMiss
 
 
 class SlaMissSchema(SQLAlchemySchema):
-    """Sla Miss Schema"""
+    """Sla Miss Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = SlaMiss
 

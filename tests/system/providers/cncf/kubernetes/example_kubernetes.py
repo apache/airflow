@@ -31,30 +31,30 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 # [START howto_operator_k8s_cluster_resources]
-secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
-secret_env = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
-secret_all_keys = Secret('env', None, 'airflow-secrets-2')
+secret_file = Secret("volume", "/etc/sql_conn", "airflow-secrets", "sql_alchemy_conn")
+secret_env = Secret("env", "SQL_CONN", "airflow-secrets", "sql_alchemy_conn")
+secret_all_keys = Secret("env", None, "airflow-secrets-2")
 volume_mount = k8s.V1VolumeMount(
-    name='test-volume', mount_path='/root/mount_file', sub_path=None, read_only=True
+    name="test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True
 )
 
 configmaps = [
-    k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='test-configmap-1')),
-    k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='test-configmap-2')),
+    k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-configmap-1")),
+    k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-configmap-2")),
 ]
 
 volume = k8s.V1Volume(
-    name='test-volume',
-    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-volume'),
+    name="test-volume",
+    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name="test-volume"),
 )
 
-port = k8s.V1ContainerPort(name='http', container_port=80)
+port = k8s.V1ContainerPort(name="http", container_port=80)
 
 init_container_volume_mounts = [
-    k8s.V1VolumeMount(mount_path='/etc/foo', name='test-volume', sub_path=None, read_only=True)
+    k8s.V1VolumeMount(mount_path="/etc/foo", name="test-volume", sub_path=None, read_only=True)
 ]
 
-init_environments = [k8s.V1EnvVar(name='key1', value='value1'), k8s.V1EnvVar(name='key2', value='value2')]
+init_environments = [k8s.V1EnvVar(name="key1", value="value1"), k8s.V1EnvVar(name="key2", value="value2")]
 
 init_container = k8s.V1Container(
     name="init-container",
@@ -103,13 +103,13 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_kubernetes_operator"
 
 with DAG(
-    dag_id='example_kubernetes_operator',
+    dag_id="example_kubernetes_operator",
     schedule=None,
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo", "10"],
@@ -131,9 +131,9 @@ with DAG(
 
     # [START howto_operator_k8s_private_image]
     quay_k8s = KubernetesPodOperator(
-        namespace='default',
-        image='quay.io/apache/bash',
-        image_pull_secrets=[k8s.V1LocalObjectReference('testquay')],
+        namespace="default",
+        image="quay.io/apache/bash",
+        image_pull_secrets=[k8s.V1LocalObjectReference("testquay")],
         cmds=["bash", "-cx"],
         arguments=["echo", "10", "echo pwd"],
         labels={"foo": "bar"},
@@ -147,8 +147,8 @@ with DAG(
 
     # [START howto_operator_k8s_write_xcom]
     write_xcom = KubernetesPodOperator(
-        namespace='default',
-        image='alpine',
+        namespace="default",
+        image="alpine",
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="write-xcom",
         do_xcom_push=True,

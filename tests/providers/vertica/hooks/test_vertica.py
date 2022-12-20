@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import patch
 
@@ -25,50 +24,46 @@ from airflow.models import Connection
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 
-class TestVerticaHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestVerticaHookConn:
+    def setup_method(self):
         self.connection = Connection(
-            login='login',
-            password='password',
-            host='host',
-            schema='vertica',
+            login="login",
+            password="password",
+            host="host",
+            schema="vertica",
         )
 
         class UnitTestVerticaHook(VerticaHook):
-            conn_name_attr = 'vertica_conn_id'
+            conn_name_attr = "vertica_conn_id"
 
         self.db_hook = UnitTestVerticaHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @patch('airflow.providers.vertica.hooks.vertica.connect')
+    @patch("airflow.providers.vertica.hooks.vertica.connect")
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            host='host', port=5433, database='vertica', user='login', password="password"
+            host="host", port=5433, database="vertica", user="login", password="password"
         )
 
 
-class TestVerticaHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestVerticaHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
         class UnitTestVerticaHook(VerticaHook):
-            conn_name_attr = 'test_conn_id'
+            conn_name_attr = "test_conn_id"
 
             def get_conn(self):
                 return conn
 
         self.db_hook = UnitTestVerticaHook()
 
-    @patch('airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows')
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows")
     def test_insert_rows(self, mock_insert_rows):
         table = "table"
         rows = [("hello",), ("world",)]
@@ -78,8 +73,8 @@ class TestVerticaHook(unittest.TestCase):
         mock_insert_rows.assert_called_once_with(table, rows, None, 10)
 
     def test_get_first_record(self):
-        statement = 'SQL'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        result_sets = [("row1",), ("row2",)]
         self.cur.fetchone.return_value = result_sets[0]
 
         assert result_sets[0] == self.db_hook.get_first(statement)
@@ -88,8 +83,8 @@ class TestVerticaHook(unittest.TestCase):
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records(self):
-        statement = 'SQL'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        result_sets = [("row1",), ("row2",)]
         self.cur.fetchall.return_value = result_sets
 
         assert result_sets == self.db_hook.get_records(statement)
@@ -98,9 +93,9 @@ class TestVerticaHook(unittest.TestCase):
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_pandas_df(self):
-        statement = 'SQL'
-        column = 'col'
-        result_sets = [('row1',), ('row2',)]
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook.get_pandas_df(statement)

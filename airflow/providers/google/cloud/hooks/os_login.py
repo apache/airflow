@@ -22,7 +22,7 @@
 """
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -42,7 +42,7 @@ class OSLoginHook(GoogleBaseHook):
 
     def __init__(
         self,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
@@ -51,7 +51,7 @@ class OSLoginHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._conn = None  # type: Optional[OsLoginServiceClient]
+        self._conn: OsLoginServiceClient | None = None
 
     def get_conn(self) -> OsLoginServiceClient:
         """Return OS Login service client"""

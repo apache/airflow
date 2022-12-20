@@ -22,6 +22,7 @@ from time import sleep
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 
 
 class GlueCrawlerHook(AwsBaseHook):
@@ -36,7 +37,7 @@ class GlueCrawlerHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        kwargs['client_type'] = 'glue'
+        kwargs["client_type"] = "glue"
         super().__init__(*args, **kwargs)
 
     @cached_property
@@ -66,7 +67,7 @@ class GlueCrawlerHook(AwsBaseHook):
         :param crawler_name: unique crawler name per AWS account
         :return: Nested dictionary of crawler configurations
         """
-        return self.glue_client.get_crawler(Name=crawler_name)['Crawler']
+        return self.glue_client.get_crawler(Name=crawler_name)["Crawler"]
 
     def update_crawler(self, **crawler_kwargs) -> bool:
         """
@@ -75,19 +76,59 @@ class GlueCrawlerHook(AwsBaseHook):
         :param crawler_kwargs: Keyword args that define the configurations used for the crawler
         :return: True if crawler was updated and false otherwise
         """
-        crawler_name = crawler_kwargs['Name']
+        crawler_name = crawler_kwargs["Name"]
         current_crawler = self.get_crawler(crawler_name)
 
+        tags_updated = self.update_tags(crawler_name, crawler_kwargs.pop("Tags", {}))
+
         update_config = {
-            key: value for key, value in crawler_kwargs.items() if current_crawler[key] != crawler_kwargs[key]
+            key: value
+            for key, value in crawler_kwargs.items()
+            if current_crawler.get(key, None) != crawler_kwargs.get(key)
         }
-        if update_config != {}:
+        if update_config:
             self.log.info("Updating crawler: %s", crawler_name)
             self.glue_client.update_crawler(**crawler_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
-        else:
-            return False
+        return tags_updated
+
+    def update_tags(self, crawler_name: str, crawler_tags: dict) -> bool:
+        """
+        Updates crawler tags
+
+        :param crawler_name: Name of the crawler for which to update tags
+        :param crawler_tags: Dictionary of new tags. If empty, all tags will be deleted
+        :return: True if tags were updated and false otherwise
+        """
+        account_number = StsHook(aws_conn_id=self.aws_conn_id).get_account_number()
+        crawler_arn = (
+            f"arn:{self.conn_partition}:glue:{self.conn_region_name}:{account_number}:crawler/{crawler_name}"
+        )
+        current_crawler_tags: dict = self.glue_client.get_tags(ResourceArn=crawler_arn)["Tags"]
+
+        update_tags = {}
+        delete_tags = []
+        for key, value in current_crawler_tags.items():
+            wanted_tag_value = crawler_tags.get(key, None)
+            if wanted_tag_value is None:
+                # key is missing from new configuration, mark it for deletion
+                delete_tags.append(key)
+            elif wanted_tag_value != value:
+                update_tags[key] = wanted_tag_value
+
+        updated_tags = False
+        if update_tags:
+            self.log.info("Updating crawler tags: %s", crawler_name)
+            self.glue_client.tag_resource(ResourceArn=crawler_arn, TagsToAdd=update_tags)
+            self.log.info("Updated crawler tags: %s", crawler_name)
+            updated_tags = True
+        if delete_tags:
+            self.log.info("Deleting crawler tags: %s", crawler_name)
+            self.glue_client.untag_resource(ResourceArn=crawler_arn, TagsToRemove=delete_tags)
+            self.log.info("Deleted crawler tags: %s", crawler_name)
+            updated_tags = True
+        return updated_tags
 
     def create_crawler(self, **crawler_kwargs) -> str:
         """
@@ -96,7 +137,7 @@ class GlueCrawlerHook(AwsBaseHook):
         :param crawler_kwargs: Keyword args that define the configurations used to create the crawler
         :return: Name of the crawler
         """
-        crawler_name = crawler_kwargs['Name']
+        crawler_name = crawler_kwargs["Name"]
         self.log.info("Creating crawler: %s", crawler_name)
         return self.glue_client.create_crawler(**crawler_kwargs)
 
@@ -120,26 +161,26 @@ class GlueCrawlerHook(AwsBaseHook):
         :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
         :return: Crawler's status
         """
-        failed_status = ['FAILED', 'CANCELLED']
+        failed_status = ["FAILED", "CANCELLED"]
 
         while True:
             crawler = self.get_crawler(crawler_name)
-            crawler_state = crawler['State']
-            if crawler_state == 'READY':
+            crawler_state = crawler["State"]
+            if crawler_state == "READY":
                 self.log.info("State: %s", crawler_state)
                 self.log.info("crawler_config: %s", crawler)
-                crawler_status = crawler['LastCrawl']['Status']
+                crawler_status = crawler["LastCrawl"]["Status"]
                 if crawler_status in failed_status:
                     raise AirflowException(f"Status: {crawler_status}")
                 metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])[
-                    'CrawlerMetricsList'
+                    "CrawlerMetricsList"
                 ][0]
                 self.log.info("Status: %s", crawler_status)
-                self.log.info("Last Runtime Duration (seconds): %s", metrics['LastRuntimeSeconds'])
-                self.log.info("Median Runtime Duration (seconds): %s", metrics['MedianRuntimeSeconds'])
-                self.log.info("Tables Created: %s", metrics['TablesCreated'])
-                self.log.info("Tables Updated: %s", metrics['TablesUpdated'])
-                self.log.info("Tables Deleted: %s", metrics['TablesDeleted'])
+                self.log.info("Last Runtime Duration (seconds): %s", metrics["LastRuntimeSeconds"])
+                self.log.info("Median Runtime Duration (seconds): %s", metrics["MedianRuntimeSeconds"])
+                self.log.info("Tables Created: %s", metrics["TablesCreated"])
+                self.log.info("Tables Updated: %s", metrics["TablesUpdated"])
+                self.log.info("Tables Deleted: %s", metrics["TablesDeleted"])
 
                 return crawler_status
 
@@ -148,9 +189,9 @@ class GlueCrawlerHook(AwsBaseHook):
                 self.log.info("State: %s", crawler_state)
 
                 metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])[
-                    'CrawlerMetricsList'
+                    "CrawlerMetricsList"
                 ][0]
-                time_left = int(metrics['TimeLeftSeconds'])
+                time_left = int(metrics["TimeLeftSeconds"])
 
                 if time_left > 0:
                     self.log.info("Estimated Time Left (seconds): %s", time_left)

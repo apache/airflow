@@ -58,6 +58,7 @@ Currently, **officially** using Airflow:
 1. [Artelys](https://www.artelys.com/) [[@fortierq](https://github.com/fortierq)]
 1. [Asana](https://asana.com/) [[@chang](https://github.com/chang), [@dima-asana](https://github.com/dima-asana), [@jdavidheiser](https://github.com/jdavidheiser), [@ricardoandresrojas](https://github.com/ricardoandresrojas)]
 1. [Astronomer](https://www.astronomer.io) [[@schnie](https://github.com/schnie), [@ashb](https://github.com/ashb), [@kaxil](https://github.com/kaxil), [@dimberman](https://github.com/dimberman), [@andriisoldatenko](https://github.com/andriisoldatenko), [@ryw](https://github.com/ryw), [@ryanahamilton](https://github.com/ryanahamilton), [@jhtimmins](https://github.com/jhtimmins), [@vikramkoka](https://github.com/vikramkoka), [@jedcunningham](https://github.com/jedcunningham), [@BasPH](https://github.com/basph), [@ephraimbuddy](https://github.com/ephraimbuddy), [@feluelle](https://github.com/feluelle)]
+1. [Audiomack](https://audiomack.com) [[@billcrook](https://github.com/billcrook)]
 1. [Auth0](https://auth0.com) [[@scottypate](https://github.com/scottypate)], [[@dm03514](https://github.com/dm03514)], [[@karangale](https://github.com/karangale)]
 1. [Automattic](https://automattic.com/) [[@anandnalya](https://github.com/anandnalya), [@bperson](https://github.com/bperson), [@khrol](https://github.com/Khrol), [@xyu](https://github.com/xyu)]
 1. [Avesta Technologies](https://avestatechnologies.com) [[@TheRum](https://github.com/TheRum)]
@@ -95,7 +96,7 @@ Currently, **officially** using Airflow:
 1. [Bombora Inc](https://bombora.com/) [[@jeffkpayne](https://github.com/jeffkpayne), [@pakelley](https://github.com/pakelley), [@dNavalta](https://github.com/dNavalta), [@austynh](https://github.com/austynh), [@TheOriginalAlex](https://github.com/TheOriginalAlex)]
 1. [Bonial International GmbH](https://www.bonial.com/)
 1. [Bonnier Broadcasting](http://www.bonnierbroadcasting.com) [[@wileeam](https://github.com/wileeam)]
-1. [Bosch (Robert Bosch GmbH)](https://www.bosch.com/stories/topics/automated-driving/) [[@jens-scheffler-bosch](https://github.com/jens-scheffler-bosch), [@clellmann](https://github.com/clellmann), [@wolfdn](https://github.com/wolfdn)]
+1. [Bosch (Robert Bosch GmbH)](https://www.bosch.com/stories/topics/automated-driving/) [[@jens-scheffler-bosch](https://github.com/jens-scheffler-bosch), [@clellmann](https://github.com/clellmann), [@wolfdn](https://github.com/wolfdn)], [@AutomationDev85](https://github.com/AutomationDev85)
 1. [BounceX](http://www.bouncex.com) [[@JoshFerge](https://github.com/JoshFerge), [@hudsonrio](https://github.com/hudsonrio), [@ronniekritou](https://github.com/ronniekritou)]
 1. [Braintree](https://www.braintreepayments.com) [[@coopergillan](https://github.com/coopergillan), [@curiousjazz77](https://github.com/curiousjazz77), [@raymondberg](https://github.com/raymondberg)]
 1. [Branch](https://branch.io) [[@sdebarshi](https://github.com/sdebarshi), [@dmitrig01](https://github.com/dmitrig01)]
@@ -126,7 +127,7 @@ Currently, **officially** using Airflow:
 1. [Classmethod, Inc.](https://classmethod.jp/) [[@shoito](https://github.com/shoito)]
 1. [Cleartax](https://cleartax.in/) [[@anks](https://github.com/anks) & [@codebuff](https://github.com/codebuff)]
 1. [Clicksign](https://clicksign.com/) [[@mbbernstein](https://github.com/mbbernstein) & [@jorgeac12](https://github.com/jorgeac12) & [@franklin390](https://github.com/franklin390)]
-1. [Cloudera](https://www.cloudera.com/) [[@phraniiac](https://github.com/phraniiac) & [@VivekPemawat](https://github.com/VivekPemawat)]
+1. [Cloudera](https://www.cloudera.com/) [[@phraniiac](https://github.com/phraniiac) & [@VivekPemawat](https://github.com/VivekPemawat) & [@amoghrajesh](https://github.com/amoghrajesh)]
 1. [Clover Health](https://www.cloverhealth.com) [[@ryansiu1995](https://github.com/ryansiu1995)]
 1. [Coinbase](https://www.coinbase.com) [[@mingshi-wang](https://github.com/mingshi-wang)]
 1. [Colgate-Palmolive](https://www.colgatepalmolive.com/) [[@fhoda](https://github.com/fhoda)]
@@ -136,6 +137,7 @@ Currently, **officially** using Airflow:
 1. [ContaAzul](https://www.contaazul.com) [[@bern4rdelli](https://github.com/bern4rdelli), [@renanleme](https://github.com/renanleme) & [@sabino](https://github.com/sabino)]
 1. [Corsearch](https://corsearch.com/) [[@silvantonio](https://github.com/silvantonio), [@erjanmx](https://github.com/erjanmx), [@honarkhah](https://github.com/honarkhah), [@RogierVanDoggenaar](https://github.com/RogierVanDoggenaar), [@arekgorecki](https://github.com/arekgorecki), [@jmolpointerbp](https://github.com/jmolpointerbp)]
 1. [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
+1. [Coursera](https://coursera.org/) [[@darrenmk](https://github.com/darrenmk)]
 1. [CoverGenius](https://covergenius.com) [[@lihan](https://github.com/lihan), [@tyomo4ka](https://github.com/tyomo4ka), [@girish-l](https://github.com/girish-l)]
 1. [Craig@Work](https://www.craigatwork.com)
 1. [Crealytics](https://crealytics.com)
@@ -276,6 +278,7 @@ Currently, **officially** using Airflow:
 1. [Liberty Global](https://www.libertyglobal.com/) [[@LibertyGlobal](https://github.com/LibertyGlobal/)]
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
 1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
+1. [LinkedIn](http://linkedin.com/) [[@csm10495](https://github.com/csm10495)]
 1. [Loadsmart](https://loadsmart.com/) [[@loadsmart](https://github.com/loadsmart)]
 1. [Logitravel Group](https://www.logitravel.com/)
 1. [LokSuvidha](http://loksuvidha.com/) [[@saurabhwahile](https://github.com/saurabhwahile)]
@@ -322,6 +325,7 @@ Currently, **officially** using Airflow:
 1. [Open Knowledge International](https://okfn.org) [@vitorbaptista](https://github.com/vitorbaptista)
 1. [Opensignal](https://www.opensignal.com) [@harrisjoseph](https://github.com/harrisjoseph)
 1. [OpenSlate](https://openslate.com) [@marcusianlevine](https://github.com/marcusianlevine)
+1. [Openverse](https://wordpress.org/openverse)
 1. [Optum](https://www.optum.com/) - [UnitedHealthGroup](https://www.unitedhealthgroup.com/) [[@fhoda](https://github.com/fhoda), [@ianstanton](https://github.com/ianstanton), [@nilaybhatt](https://github.com/NilayBhatt),[@hiteshrd](https://github.com/hiteshrd)]
 1. [Opus Interactive](https://www.opusinteractive.com/) [[@Opus-Interactive](https://github.com/Opus-Interactive)]
 1. [OrangeBank](https://www.orangebank.fr/) [[@HamzaBoukraa](https://github.com/HamzaBoukraa)]
@@ -413,6 +417,7 @@ Currently, **officially** using Airflow:
 1. [Strongmind](https://www.strongmind.com) [[@tomchapin](https://github.com/tomchapin) & [@wongstein](https://github.com/wongstein)]
 1. [Ströer Labs](https://stroeer-labs.com) [[@mbrtargeting](https://github.com/mbrtargeting/)]
 1. [Surfline](https://www.surfline.com/) [[@jawang35](https://github.com/jawang35)]
+1. [Swisscom](https://www.swisscom.ch) [[@JulesTriomphe](https://github.com/JulesTriomphe)]
 1. [Syapse](https://www.syapse.com/) [[@zedmor](https://github.com/zedmor)]
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]

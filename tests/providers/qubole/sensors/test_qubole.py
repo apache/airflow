@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest.mock import patch
 
@@ -35,24 +34,24 @@ TEMPLATE_CONN = "my_conn_id"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
-class TestQuboleSensor(unittest.TestCase):
-    def setUp(self):
-        db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
+class TestQuboleSensor:
+    def setup_method(self):
+        db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type="HTTP"))
 
-    @patch('airflow.providers.qubole.sensors.qubole.QuboleFileSensor.poke')
+    @patch("airflow.providers.qubole.sensors.qubole.QuboleFileSensor.poke")
     def test_file_sensor(self, patched_poke):
         patched_poke.return_value = True
         sensor = QuboleFileSensor(
-            task_id='test_qubole_file_sensor', data={"files": ["s3://some_bucket/some_file"]}
+            task_id="test_qubole_file_sensor", data={"files": ["s3://some_bucket/some_file"]}
         )
         assert sensor.poke({})
 
-    @patch('airflow.providers.qubole.sensors.qubole.QubolePartitionSensor.poke')
+    @patch("airflow.providers.qubole.sensors.qubole.QubolePartitionSensor.poke")
     def test_partition_sensor(self, patched_poke):
         patched_poke.return_value = True
 
         sensor = QubolePartitionSensor(
-            task_id='test_qubole_partition_sensor',
+            task_id="test_qubole_partition_sensor",
             data={
                 "schema": "default",
                 "table": "my_partitioned_table",
@@ -62,7 +61,7 @@ class TestQuboleSensor(unittest.TestCase):
 
         assert sensor.poke({})
 
-    @patch('airflow.providers.qubole.sensors.qubole.QubolePartitionSensor.poke')
+    @patch("airflow.providers.qubole.sensors.qubole.QubolePartitionSensor.poke")
     def test_partition_sensor_error(self, patched_poke):
         patched_poke.return_value = True
 
@@ -70,7 +69,7 @@ class TestQuboleSensor(unittest.TestCase):
 
         with pytest.raises(AirflowException):
             QubolePartitionSensor(
-                task_id='test_qubole_partition_sensor',
+                task_id="test_qubole_partition_sensor",
                 poke_interval=1,
                 data={
                     "schema": "default",

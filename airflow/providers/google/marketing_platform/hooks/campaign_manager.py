@@ -18,7 +18,7 @@
 """This module contains Google Campaign Manager hook."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from googleapiclient import http
 from googleapiclient.discovery import Resource, build
@@ -30,7 +30,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleCampaignManagerHook(GoogleBaseHook):
     """Hook for Google Campaign Manager."""
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
@@ -260,8 +260,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
             )
             .execute(num_retries=self.num_retries)
         )
-        if response.get('hasFailures', False):
-            errored_conversions = [stat['errors'] for stat in response['status'] if 'errors' in stat]
+        if response.get("hasFailures", False):
+            errored_conversions = [stat["errors"] for stat in response["status"] if "errors" in stat]
             if len(errored_conversions) > max_failed_inserts:
                 raise AirflowException(errored_conversions)
         return response
@@ -304,8 +304,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
             )
             .execute(num_retries=self.num_retries)
         )
-        if response.get('hasFailures', False):
-            errored_conversions = [stat['errors'] for stat in response['status'] if 'errors' in stat]
+        if response.get("hasFailures", False):
+            errored_conversions = [stat["errors"] for stat in response["status"] if "errors" in stat]
             if len(errored_conversions) > max_failed_updates:
                 raise AirflowException(errored_conversions)
         return response

@@ -37,11 +37,14 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
     SageMakerProcessingOperator,
+    SageMakerStartPipelineOperator,
+    SageMakerStopPipelineOperator,
     SageMakerTrainingOperator,
     SageMakerTransformOperator,
     SageMakerTuningOperator,
 )
 from airflow.providers.amazon.aws.sensors.sagemaker import (
+    SageMakerPipelineSensor,
     SageMakerTrainingSensor,
     SageMakerTransformSensor,
     SageMakerTuningSensor,
@@ -49,10 +52,10 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
 
-DAG_ID = 'example_sagemaker'
+DAG_ID = "example_sagemaker"
 
 # Externally fetched variables:
-ROLE_ARN_KEY = 'ROLE_ARN'
+ROLE_ARN_KEY = "ROLE_ARN"
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
@@ -62,8 +65,8 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).bu
 # https://docs.aws.amazon.com/sagemaker/latest/dg/ecr-us-east-1.html#knn-us-east-1.title
 # This URI should be in the format of {12-digits}.dkr.ecr.{region}.amazonaws.com/knn
 KNN_IMAGES_BY_REGION = {
-    'us-east-1': '382416733822.dkr.ecr.us-east-1.amazonaws.com/knn:1',
-    'us-west-2': '174872318107.dkr.ecr.us-west-2.amazonaws.com/knn:1',
+    "us-east-1": "382416733822.dkr.ecr.us-east-1.amazonaws.com/knn:1",
+    "us-west-2": "174872318107.dkr.ecr.us-west-2.amazonaws.com/knn:1",
 }
 
 # For this example we are using a subset of Fischer's Iris Data Set.
@@ -77,7 +80,7 @@ DATASET = """
         4.9,2.5,4.5,1.7,Iris-virginica
         7.3,2.9,6.3,1.8,Iris-virginica
         """
-SAMPLE_SIZE = DATASET.count('\n') - 1
+SAMPLE_SIZE = DATASET.count("\n") - 1
 
 # This script will be the entrypoint for the docker image which will handle preprocessing the raw data
 # NOTE:  The following string must remain dedented as it is being written to a file.
@@ -118,24 +121,24 @@ if __name__ == "__main__":
 
 
 def _create_ecr_repository(repo_name):
-    execution_role_arn = boto3.client('sts').get_caller_identity()['Arn']
+    execution_role_arn = boto3.client("sts").get_caller_identity()["Arn"]
     access_policy = {
-        'Version': '2012-10-17',
-        'Statement': [
+        "Version": "2012-10-17",
+        "Statement": [
             {
-                'Sid': 'Allow access to the system test execution role',
-                'Effect': 'Allow',
-                'Principal': {'AWS': execution_role_arn},
-                'Action': 'ecr:*',
+                "Sid": "Allow access to the system test execution role",
+                "Effect": "Allow",
+                "Principal": {"AWS": execution_role_arn},
+                "Action": "ecr:*",
             }
         ],
     }
 
-    client = boto3.client('ecr')
-    repo = client.create_repository(repositoryName=repo_name)['repository']
-    client.set_repository_policy(repositoryName=repo['repositoryName'], policyText=json.dumps(access_policy))
+    client = boto3.client("ecr")
+    repo = client.create_repository(repositoryName=repo_name)["repository"]
+    client.set_repository_policy(repositoryName=repo["repositoryName"], policyText=json.dumps(access_policy))
 
-    return repo['repositoryUri']
+    return repo["repositoryUri"]
 
 
 def _build_and_upload_docker_image(preprocess_script, repository_uri):
@@ -144,14 +147,14 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
       - Has numpy, pandas, requests, and boto3 installed
       - Has our data preprocessing script mounted and set as the entry point
     """
-    ecr_region = repository_uri.split('.')[3]
+    ecr_region = repository_uri.split(".")[3]
 
     # Fetch and parse ECR Token to be used for the docker push
-    token = boto3.client('ecr', region_name=ecr_region).get_authorization_token()
-    credentials = (base64.b64decode(token['authorizationData'][0]['authorizationToken'])).decode('utf-8')
-    username, password = credentials.split(':')
+    token = boto3.client("ecr", region_name=ecr_region).get_authorization_token()
+    credentials = (base64.b64decode(token["authorizationData"][0]["authorizationToken"])).decode("utf-8")
+    username, password = credentials.split(":")
 
-    with NamedTemporaryFile(mode='w+t') as preprocessing_script, NamedTemporaryFile(mode='w+t') as dockerfile:
+    with NamedTemporaryFile(mode="w+t") as preprocessing_script, NamedTemporaryFile(mode="w+t") as dockerfile:
         preprocessing_script.write(preprocess_script)
         preprocessing_script.flush()
 
@@ -170,7 +173,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         docker_build_and_push_commands = f"""
             cp /root/.aws/credentials /tmp/credentials &&
-            docker build -f {dockerfile.name} -t {repository_uri} /tmp &&
+            docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
             rm /tmp/credentials &&
             aws ecr get-login-password --region {ecr_region} |
             docker login --username {username} --password {password} {repository_uri} &&
@@ -182,29 +185,31 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        docker_build.communicate()
+        _, stderr = docker_build.communicate()
         if docker_build.returncode != 0:
-            # Note: The stderr output from communicate() contains an unrelated
-            # warning message, not the actual cause of the failure.
-            raise RuntimeError('Failed to push docker image to the repository.')
+            raise RuntimeError(
+                "Failed to push docker image to the repository.  The following error "
+                f"message may be useful, but can occasionally be misleading: {stderr}"
+            )
 
 
 @task
 def set_up(env_id, role_arn):
-    bucket_name = f'{env_id}-sagemaker-example'
-    ecr_repository_name = f'{env_id}-repo'
-    model_name = f'{env_id}-KNN-model'
-    processing_job_name = f'{env_id}-processing'
-    training_job_name = f'{env_id}-train'
-    transform_job_name = f'{env_id}-transform'
-    tuning_job_name = f'{env_id}-tune'
+    bucket_name = f"{env_id}-sagemaker-example"
+    ecr_repository_name = f"{env_id}-repo"
+    model_name = f"{env_id}-KNN-model"
+    processing_job_name = f"{env_id}-processing"
+    training_job_name = f"{env_id}-train"
+    transform_job_name = f"{env_id}-transform"
+    tuning_job_name = f"{env_id}-tune"
+    pipeline_name = f"{env_id}-pipe"
 
-    input_data_S3_key = f'{env_id}/processed-input-data'
-    prediction_output_s3_key = f'{env_id}/transform'
-    processing_local_input_path = '/opt/ml/processing/input'
-    processing_local_output_path = '/opt/ml/processing/output'
-    raw_data_s3_key = f'{env_id}/preprocessing/input.csv'
-    training_output_s3_key = f'{env_id}/results'
+    input_data_S3_key = f"{env_id}/processed-input-data"
+    prediction_output_s3_key = f"{env_id}/transform"
+    processing_local_input_path = "/opt/ml/processing/input"
+    processing_local_output_path = "/opt/ml/processing/output"
+    raw_data_s3_key = f"{env_id}/preprocessing/input.csv"
+    training_output_s3_key = f"{env_id}/results"
 
     ecr_repository_uri = _create_ecr_repository(ecr_repository_name)
     region = boto3.session.Session().region_name
@@ -212,15 +217,25 @@ def set_up(env_id, role_arn):
         knn_image_uri = KNN_IMAGES_BY_REGION[region]
     except KeyError:
         raise KeyError(
-            f'Region name {region} does not have a known KNN '
-            f'Image URI.  Please add the region and URI following '
-            f'the directions at the top of the system testfile '
+            f"Region name {region} does not have a known KNN "
+            f"Image URI.  Please add the region and URI following "
+            f"the directions at the top of the system testfile "
         )
 
+    # Json definition for a dummy pipeline of 30 chained "conditional step" checking that 3 < 6
+    # Each step takes roughly 1 second to execute, so the pipeline runtimes is ~30 seconds, which should be
+    # enough to test stopping and awaiting without race conditions.
+    # Built using sagemaker sdk, and using json.loads(pipeline.definition())
+    pipeline_json_definition = """{"Version": "2020-12-01", "Metadata": {}, "Parameters": [], "PipelineExperimentConfig": {"ExperimentName": {"Get": "Execution.PipelineName"}, "TrialName": {"Get": "Execution.PipelineExecutionId"}}, "Steps": [{"Name": "DummyCond29", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond28", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond27", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond26", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond25", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond24", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond23", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond22", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond21", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond20", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond19", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond18", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond17", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond16", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond15", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond14", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond13", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond12", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond11", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond10", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond9", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond8", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond7", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond6", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond5", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond4", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond3", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond2", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond1", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond0", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}]}"""  # noqa: E501
+    sgmk_client = boto3.client("sagemaker")
+    sgmk_client.create_pipeline(
+        PipelineName=pipeline_name, PipelineDefinition=pipeline_json_definition, RoleArn=role_arn
+    )
+
     resource_config = {
-        'InstanceCount': 1,
-        'InstanceType': 'ml.m5.large',
-        'VolumeSizeInGB': 1,
+        "InstanceCount": 1,
+        "InstanceType": "ml.m5.large",
+        "VolumeSizeInGB": 1,
     }
     processing_config = {
         "ProcessingJobName": processing_job_name,
@@ -229,7 +244,7 @@ def set_up(env_id, role_arn):
                 "InputName": "input",
                 "AppManaged": False,
                 "S3Input": {
-                    "S3Uri": f's3://{bucket_name}/{raw_data_s3_key}',
+                    "S3Uri": f"s3://{bucket_name}/{raw_data_s3_key}",
                     "LocalPath": processing_local_input_path,
                     "S3DataType": "S3Prefix",
                     "S3InputMode": "File",
@@ -243,7 +258,7 @@ def set_up(env_id, role_arn):
                 {
                     "OutputName": "output",
                     "S3Output": {
-                        "S3Uri": f's3://{bucket_name}/{input_data_S3_key}',
+                        "S3Uri": f"s3://{bucket_name}/{input_data_S3_key}",
                         "LocalPath": processing_local_output_path,
                         "S3UploadMode": "EndOfJob",
                     },
@@ -254,7 +269,7 @@ def set_up(env_id, role_arn):
         "ProcessingResources": {
             "ClusterConfig": resource_config,
         },
-        "StoppingCondition": {"MaxRuntimeInSeconds": 300},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         "AppSpecification": {
             "ImageUri": ecr_repository_uri,
         },
@@ -268,7 +283,7 @@ def set_up(env_id, role_arn):
             "S3DataSource": {
                 "S3DataDistributionType": "FullyReplicated",
                 "S3DataType": "S3Prefix",
-                "S3Uri": f's3://{bucket_name}/{input_data_S3_key}/train.csv',
+                "S3Uri": f"s3://{bucket_name}/{input_data_S3_key}/train.csv",
             }
         },
     }
@@ -292,7 +307,7 @@ def set_up(env_id, role_arn):
         "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
-        "StoppingCondition": {"MaxRuntimeInSeconds": 6000},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         "TrainingJobName": training_job_name,
     }
     model_config = {
@@ -313,9 +328,8 @@ def set_up(env_id, role_arn):
                 "Type": "Maximize",
             },
             "ResourceLimits": {
-                # You would bump these up in production as appropriate.
-                "MaxNumberOfTrainingJobs": 2,
-                "MaxParallelTrainingJobs": 2,
+                "MaxNumberOfTrainingJobs": 10,
+                "MaxParallelTrainingJobs": 10,
             },
             "ParameterRanges": {
                 "CategoricalParameterRanges": [],
@@ -353,7 +367,7 @@ def set_up(env_id, role_arn):
             "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}"},
             "ResourceConfig": resource_config,
             "RoleArn": role_arn,
-            "StoppingCondition": {"MaxRuntimeInSeconds": 60000},
+            "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         },
     }
     transform_config = {
@@ -381,30 +395,31 @@ def set_up(env_id, role_arn):
     )
     _build_and_upload_docker_image(preprocess_script, ecr_repository_uri)
 
-    ti = get_current_context()['ti']
-    ti.xcom_push(key='bucket_name', value=bucket_name)
-    ti.xcom_push(key='raw_data_s3_key', value=raw_data_s3_key)
-    ti.xcom_push(key='ecr_repository_name', value=ecr_repository_name)
-    ti.xcom_push(key='processing_config', value=processing_config)
-    ti.xcom_push(key='training_config', value=training_config)
-    ti.xcom_push(key='training_job_name', value=training_job_name)
-    ti.xcom_push(key='model_config', value=model_config)
-    ti.xcom_push(key='model_name', value=model_name)
-    ti.xcom_push(key='tuning_config', value=tuning_config)
-    ti.xcom_push(key='tuning_job_name', value=tuning_job_name)
-    ti.xcom_push(key='transform_config', value=transform_config)
-    ti.xcom_push(key='transform_job_name', value=transform_job_name)
+    ti = get_current_context()["ti"]
+    ti.xcom_push(key="bucket_name", value=bucket_name)
+    ti.xcom_push(key="raw_data_s3_key", value=raw_data_s3_key)
+    ti.xcom_push(key="ecr_repository_name", value=ecr_repository_name)
+    ti.xcom_push(key="processing_config", value=processing_config)
+    ti.xcom_push(key="training_config", value=training_config)
+    ti.xcom_push(key="training_job_name", value=training_job_name)
+    ti.xcom_push(key="pipeline_name", value=pipeline_name)
+    ti.xcom_push(key="model_config", value=model_config)
+    ti.xcom_push(key="model_name", value=model_name)
+    ti.xcom_push(key="tuning_config", value=tuning_config)
+    ti.xcom_push(key="tuning_job_name", value=tuning_job_name)
+    ti.xcom_push(key="transform_config", value=transform_config)
+    ti.xcom_push(key="transform_job_name", value=transform_job_name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_ecr_repository(repository_name):
-    client = boto3.client('ecr')
+    client = boto3.client("ecr")
 
     # All images must be removed from the repo before it can be deleted.
-    image_ids = client.list_images(repositoryName=repository_name)['imageIds']
+    image_ids = client.list_images(repositoryName=repository_name)["imageIds"]
     client.batch_delete_image(
         repositoryName=repository_name,
-        imageIds=[{'imageDigest': image['imageDigest'] for image in image_ids}],
+        imageIds=[{"imageDigest": image["imageDigest"] for image in image_ids}],
     )
     client.delete_repository(repositoryName=repository_name)
 
@@ -413,18 +428,24 @@ def delete_ecr_repository(repository_name):
 def delete_logs(env_id):
     generated_logs = [
         # Format: ('log group name', 'log stream prefix')
-        ('/aws/sagemaker/ProcessingJobs', env_id),
-        ('/aws/sagemaker/TrainingJobs', env_id),
-        ('/aws/sagemaker/TransformJobs', env_id),
+        ("/aws/sagemaker/ProcessingJobs", env_id),
+        ("/aws/sagemaker/TrainingJobs", env_id),
+        ("/aws/sagemaker/TransformJobs", env_id),
     ]
     purge_logs(generated_logs)
 
 
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_pipeline(pipeline_name):
+    sgmk_client = boto3.client("sagemaker")
+    sgmk_client.delete_pipeline(PipelineName=pipeline_name)
+
+
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -435,29 +456,55 @@ with DAG(
     )
 
     create_bucket = S3CreateBucketOperator(
-        task_id='create_bucket',
-        bucket_name=test_setup['bucket_name'],
+        task_id="create_bucket",
+        bucket_name=test_setup["bucket_name"],
     )
 
     upload_dataset = S3CreateObjectOperator(
-        task_id='upload_dataset',
-        s3_bucket=test_setup['bucket_name'],
-        s3_key=test_setup['raw_data_s3_key'],
+        task_id="upload_dataset",
+        s3_bucket=test_setup["bucket_name"],
+        s3_key=test_setup["raw_data_s3_key"],
         data=DATASET,
         replace=True,
     )
 
+    # [START howto_operator_sagemaker_start_pipeline]
+    start_pipeline1 = SageMakerStartPipelineOperator(
+        task_id="start_pipeline1",
+        pipeline_name=test_setup["pipeline_name"],
+    )
+    # [END howto_operator_sagemaker_start_pipeline]
+
+    # [START howto_operator_sagemaker_stop_pipeline]
+    stop_pipeline1 = SageMakerStopPipelineOperator(
+        task_id="stop_pipeline1",
+        pipeline_exec_arn=start_pipeline1.output,
+    )
+    # [END howto_operator_sagemaker_stop_pipeline]
+
+    start_pipeline2 = SageMakerStartPipelineOperator(
+        task_id="start_pipeline2",
+        pipeline_name=test_setup["pipeline_name"],
+    )
+
+    # [START howto_sensor_sagemaker_pipeline]
+    await_pipeline2 = SageMakerPipelineSensor(
+        task_id="await_pipeline2",
+        pipeline_exec_arn=start_pipeline2.output,
+    )
+    # [END howto_sensor_sagemaker_pipeline]
+
     # [START howto_operator_sagemaker_processing]
     preprocess_raw_data = SageMakerProcessingOperator(
-        task_id='preprocess_raw_data',
-        config=test_setup['processing_config'],
+        task_id="preprocess_raw_data",
+        config=test_setup["processing_config"],
     )
     # [END howto_operator_sagemaker_processing]
 
     # [START howto_operator_sagemaker_training]
     train_model = SageMakerTrainingOperator(
-        task_id='train_model',
-        config=test_setup['training_config'],
+        task_id="train_model",
+        config=test_setup["training_config"],
     )
     # [END howto_operator_sagemaker_training]
 
@@ -466,22 +513,22 @@ with DAG(
 
     # [START howto_sensor_sagemaker_training]
     await_training = SageMakerTrainingSensor(
-        task_id='await_training',
-        job_name=test_setup['training_job_name'],
+        task_id="await_training",
+        job_name=test_setup["training_job_name"],
     )
     # [END howto_sensor_sagemaker_training]
 
     # [START howto_operator_sagemaker_model]
     create_model = SageMakerModelOperator(
-        task_id='create_model',
-        config=test_setup['model_config'],
+        task_id="create_model",
+        config=test_setup["model_config"],
     )
     # [END howto_operator_sagemaker_model]
 
     # [START howto_operator_sagemaker_tuning]
     tune_model = SageMakerTuningOperator(
-        task_id='tune_model',
-        config=test_setup['tuning_config'],
+        task_id="tune_model",
+        config=test_setup["tuning_config"],
     )
     # [END howto_operator_sagemaker_tuning]
 
@@ -490,15 +537,15 @@ with DAG(
 
     # [START howto_sensor_sagemaker_tuning]
     await_tuning = SageMakerTuningSensor(
-        task_id='await_tuning',
-        job_name=test_setup['tuning_job_name'],
+        task_id="await_tuning",
+        job_name=test_setup["tuning_job_name"],
     )
     # [END howto_sensor_sagemaker_tuning]
 
     # [START howto_operator_sagemaker_transform]
     test_model = SageMakerTransformOperator(
-        task_id='test_model',
-        config=test_setup['transform_config'],
+        task_id="test_model",
+        config=test_setup["transform_config"],
     )
     # [END howto_operator_sagemaker_transform]
 
@@ -507,23 +554,23 @@ with DAG(
 
     # [START howto_sensor_sagemaker_transform]
     await_transform = SageMakerTransformSensor(
-        task_id='await_transform',
-        job_name=test_setup['transform_job_name'],
+        task_id="await_transform",
+        job_name=test_setup["transform_job_name"],
     )
     # [END howto_sensor_sagemaker_transform]
 
     # [START howto_operator_sagemaker_delete_model]
     delete_model = SageMakerDeleteModelOperator(
-        task_id='delete_model',
-        config={'ModelName': test_setup['model_name']},
+        task_id="delete_model",
+        config={"ModelName": test_setup["model_name"]},
     )
     # [END howto_operator_sagemaker_delete_model]
     delete_model.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = S3DeleteBucketOperator(
-        task_id='delete_bucket',
+        task_id="delete_bucket",
         trigger_rule=TriggerRule.ALL_DONE,
-        bucket_name=test_setup['bucket_name'],
+        bucket_name=test_setup["bucket_name"],
         force_delete=True,
     )
 
@@ -534,6 +581,10 @@ with DAG(
         create_bucket,
         upload_dataset,
         # TEST BODY
+        start_pipeline1,
+        start_pipeline2,
+        stop_pipeline1,
+        await_pipeline2,
         preprocess_raw_data,
         train_model,
         await_training,
@@ -543,10 +594,11 @@ with DAG(
         test_model,
         await_transform,
         # TEST TEARDOWN
-        delete_ecr_repository(test_setup['ecr_repository_name']),
+        delete_ecr_repository(test_setup["ecr_repository_name"]),
         delete_model,
         delete_bucket,
         delete_logs(test_context[ENV_ID_KEY]),
+        delete_pipeline(test_setup["pipeline_name"]),
     )
 
     from tests.system.utils.watcher import watcher

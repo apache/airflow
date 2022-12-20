@@ -43,12 +43,12 @@ class TestClearTasks:
 
     def test_clear_task_instances(self, dag_maker):
         with dag_maker(
-            'test_clear_task_instances',
+            "test_clear_task_instances",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            task0 = EmptyOperator(task_id='0')
-            task1 = EmptyOperator(task_id='1', retries=2)
+            task0 = EmptyOperator(task_id="0")
+            task1 = EmptyOperator(task_id="1", retries=2)
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -81,11 +81,11 @@ class TestClearTasks:
 
     def test_clear_task_instances_external_executor_id(self, dag_maker):
         with dag_maker(
-            'test_clear_task_instances_external_executor_id',
+            "test_clear_task_instances_external_executor_id",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            EmptyOperator(task_id='task0')
+            EmptyOperator(task_id="task0")
 
         ti0 = dag_maker.create_dagrun().task_instances[0]
         ti0.state = State.SUCCESS
@@ -109,11 +109,11 @@ class TestClearTasks:
 
     def test_clear_task_instances_next_method(self, dag_maker, session):
         with dag_maker(
-            'test_clear_task_instances_next_method',
+            "test_clear_task_instances_next_method",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            EmptyOperator(task_id='task0')
+            EmptyOperator(task_id="task0")
 
         ti0 = dag_maker.create_dagrun().task_instances[0]
         ti0.state = State.DEFERRED
@@ -139,12 +139,12 @@ class TestClearTasks:
         start_date is also set to None
         """
         with dag_maker(
-            'test_clear_task_instances',
+            "test_clear_task_instances",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            EmptyOperator(task_id='0')
-            EmptyOperator(task_id='1', retries=2)
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1", retries=2)
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
@@ -172,12 +172,12 @@ class TestClearTasks:
 
     def test_clear_task_instances_without_task(self, dag_maker):
         with dag_maker(
-            'test_clear_task_instances_without_task',
+            "test_clear_task_instances_without_task",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            task0 = EmptyOperator(task_id='task0')
-            task1 = EmptyOperator(task_id='task1', retries=2)
+            task0 = EmptyOperator(task_id="task0")
+            task1 = EmptyOperator(task_id="task1", retries=2)
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -215,12 +215,12 @@ class TestClearTasks:
 
     def test_clear_task_instances_without_dag(self, dag_maker):
         with dag_maker(
-            'test_clear_task_instances_without_dag',
+            "test_clear_task_instances_without_dag",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            task0 = EmptyOperator(task_id='task0')
-            task1 = EmptyOperator(task_id='task1', retries=2)
+            task0 = EmptyOperator(task_id="task0")
+            task1 = EmptyOperator(task_id="task1", retries=2)
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -255,12 +255,12 @@ class TestClearTasks:
         """Test that TaskReschedules are deleted correctly when TaskInstances are cleared"""
 
         with dag_maker(
-            'test_clear_task_instances_with_task_reschedule',
+            "test_clear_task_instances_with_task_reschedule",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            task0 = PythonSensor(task_id='0', python_callable=lambda: False, mode="reschedule")
-            task1 = PythonSensor(task_id='1', python_callable=lambda: False, mode="reschedule")
+            task0 = PythonSensor(task_id="0", python_callable=lambda: False, mode="reschedule")
+            task1 = PythonSensor(task_id="1", python_callable=lambda: False, mode="reschedule")
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -305,10 +305,10 @@ class TestClearTasks:
 
     def test_dag_clear(self, dag_maker):
         with dag_maker(
-            'test_dag_clear', start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + datetime.timedelta(days=10)
+            "test_dag_clear", start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + datetime.timedelta(days=10)
         ) as dag:
-            task0 = EmptyOperator(task_id='test_dag_clear_task_0')
-            task1 = EmptyOperator(task_id='test_dag_clear_task_1', retries=2)
+            task0 = EmptyOperator(task_id="test_dag_clear_task_0")
+            task1 = EmptyOperator(task_id="test_dag_clear_task_1", retries=2)
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -359,11 +359,11 @@ class TestClearTasks:
         num_of_dags = 5
         for i in range(num_of_dags):
             dag = DAG(
-                'test_dag_clear_' + str(i),
+                "test_dag_clear_" + str(i),
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             )
-            task = EmptyOperator(task_id='test_task_clear_' + str(i), owner='test', dag=dag)
+            task = EmptyOperator(task_id="test_task_clear_" + str(i), owner="test", dag=dag)
 
             dr = dag.create_dagrun(
                 execution_date=DEFAULT_DATE,
@@ -429,12 +429,12 @@ class TestClearTasks:
 
     def test_operator_clear(self, dag_maker):
         with dag_maker(
-            'test_operator_clear',
+            "test_operator_clear",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ):
-            op1 = EmptyOperator(task_id='test1')
-            op2 = EmptyOperator(task_id='test2', retries=1)
+            op1 = EmptyOperator(task_id="test1")
+            op2 = EmptyOperator(task_id="test2", retries=1)
             op1 >> op2
 
         dr = dag_maker.create_dagrun(

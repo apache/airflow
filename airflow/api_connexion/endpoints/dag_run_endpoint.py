@@ -40,6 +40,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagrun_collection_schema,
     dagrun_schema,
     dagruns_batch_form_schema,
+    set_dagrun_note_form_schema,
     set_dagrun_state_form_schema,
 )
 from airflow.api_connexion.schemas.dataset_schema import (
@@ -67,7 +68,7 @@ from airflow.utils.types import DagRunType
 )
 @provide_session
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Delete a DAG Run"""
+    """Delete a DAG Run."""
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, HTTPStatus.NO_CONTENT
@@ -175,13 +176,13 @@ def _fetch_dag_runs(
 )
 @format_parameters(
     {
-        'start_date_gte': format_datetime,
-        'start_date_lte': format_datetime,
-        'execution_date_gte': format_datetime,
-        'execution_date_lte': format_datetime,
-        'end_date_gte': format_datetime,
-        'end_date_lte': format_datetime,
-        'limit': check_limit,
+        "start_date_gte": format_datetime,
+        "start_date_lte": format_datetime,
+        "execution_date_gte": format_datetime,
+        "execution_date_lte": format_datetime,
+        "end_date_gte": format_datetime,
+        "end_date_lte": format_datetime,
+        "limit": check_limit,
     }
 )
 @provide_session
@@ -236,7 +237,7 @@ def get_dag_runs(
 )
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
-    """Get list of DAG Runs"""
+    """Get list of DAG Runs."""
     body = get_json_request_dict()
     try:
         data = dagruns_batch_form_schema.load(body)
@@ -316,6 +317,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 conf=post_body.get("conf"),
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                session=session,
             )
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
@@ -345,14 +347,14 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     )
     if dag_run is None:
-        error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+        error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
         raise NotFound(error_message)
     try:
         post_body = set_dagrun_state_form_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    state = post_body['state']
+    state = post_body["state"]
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if state == DagRunState.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
@@ -377,14 +379,14 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     )
     if dag_run is None:
-        error_message = f'Dag Run id {dag_run_id} not found in dag   {dag_id}'
+        error_message = f"Dag Run id {dag_run_id} not found in dag   {dag_id}"
         raise NotFound(error_message)
     try:
         post_body = clear_dagrun_form_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    dry_run = post_body.get('dry_run', False)
+    dry_run = post_body.get("dry_run", False)
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     start_date = dag_run.logical_date
     end_date = dag_run.logical_date
@@ -411,5 +413,38 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             include_parentdag=True,
             only_failed=False,
         )
-        dag_run.refresh_from_db()
+        dag_run = session.query(DagRun).filter(DagRun.id == dag_run.id).one()
         return dagrun_schema.dump(dag_run)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+    ],
+)
+@provide_session
+def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+    """Set the note for a dag run."""
+    dag_run: DagRun | None = (
+        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    )
+    if dag_run is None:
+        error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
+        raise NotFound(error_message)
+    try:
+        post_body = set_dagrun_note_form_schema.load(get_json_request_dict())
+        new_note = post_body["note"]
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
+
+    from flask_login import current_user
+
+    current_user_id = getattr(current_user, "id", None)
+    if dag_run.dag_run_note is None:
+        dag_run.note = (new_note, current_user_id)
+    else:
+        dag_run.dag_run_note.content = new_note
+        dag_run.dag_run_note.user_id = current_user_id
+    session.commit()
+    return dagrun_schema.dump(dag_run)

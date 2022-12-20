@@ -168,11 +168,11 @@ class CloudVisionGetProductSetOperator(BaseOperator):
 
     # [START vision_productset_get_template_fields]
     template_fields: Sequence[str] = (
-        'location',
-        'project_id',
-        'product_set_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "location",
+        "project_id",
+        "product_set_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END vision_productset_get_template_fields]
 
@@ -185,7 +185,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -263,11 +263,11 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
 
     # [START vision_productset_update_template_fields]
     template_fields: Sequence[str] = (
-        'location',
-        'project_id',
-        'product_set_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "location",
+        "project_id",
+        "product_set_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END vision_productset_update_template_fields]
 
@@ -282,7 +282,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -349,11 +349,11 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
 
     # [START vision_productset_delete_template_fields]
     template_fields: Sequence[str] = (
-        'location',
-        'project_id',
-        'product_set_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "location",
+        "project_id",
+        "product_set_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END vision_productset_delete_template_fields]
 
@@ -366,7 +366,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -438,11 +438,11 @@ class CloudVisionCreateProductOperator(BaseOperator):
 
     # [START vision_product_create_template_fields]
     template_fields: Sequence[str] = (
-        'location',
-        'project_id',
-        'product_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "location",
+        "project_id",
+        "product_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END vision_product_create_template_fields]
 
@@ -456,7 +456,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -488,7 +488,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
             )
         except AlreadyExists:
             self.log.info(
-                'Product with id %s already exists. Exiting from the create operation.', self.product_id
+                "Product with id %s already exists. Exiting from the create operation.", self.product_id
             )
             return self.product_id
 
@@ -529,11 +529,11 @@ class CloudVisionGetProductOperator(BaseOperator):
 
     # [START vision_product_get_template_fields]
     template_fields: Sequence[str] = (
-        'location',
-        'project_id',
-        'product_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "location",
+        "project_id",
+        "product_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END vision_product_get_template_fields]
 
@@ -635,11 +635,11 @@ class CloudVisionUpdateProductOperator(BaseOperator):
 
     # [START vision_product_update_template_fields]
     template_fields: Sequence[str] = (
-        'location',
-        'project_id',
-        'product_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "location",
+        "project_id",
+        "product_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END vision_product_update_template_fields]
 
@@ -654,7 +654,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -726,11 +726,11 @@ class CloudVisionDeleteProductOperator(BaseOperator):
 
     # [START vision_product_delete_template_fields]
     template_fields: Sequence[str] = (
-        'location',
-        'project_id',
-        'product_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "location",
+        "project_id",
+        "product_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END vision_product_delete_template_fields]
 
@@ -743,7 +743,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -801,9 +801,9 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
 
     # [START vision_annotate_image_template_fields]
     template_fields: Sequence[str] = (
-        'request',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "request",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END vision_annotate_image_template_fields]
 
@@ -813,7 +813,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
         request: dict | AnnotateImageRequest,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -901,7 +901,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -996,7 +996,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -1519,14 +1519,14 @@ def prepare_additional_parameters(
 
     merged_additional_parameters = deepcopy(additional_properties)
 
-    if 'image_context' not in merged_additional_parameters:
-        merged_additional_parameters['image_context'] = {}
+    if "image_context" not in merged_additional_parameters:
+        merged_additional_parameters["image_context"] = {}
 
-    merged_additional_parameters['image_context']['language_hints'] = merged_additional_parameters[
-        'image_context'
-    ].get('language_hints', language_hints)
-    merged_additional_parameters['image_context']['web_detection_params'] = merged_additional_parameters[
-        'image_context'
-    ].get('web_detection_params', web_detection_params)
+    merged_additional_parameters["image_context"]["language_hints"] = merged_additional_parameters[
+        "image_context"
+    ].get("language_hints", language_hints)
+    merged_additional_parameters["image_context"]["web_detection_params"] = merged_additional_parameters[
+        "image_context"
+    ].get("web_detection_params", web_detection_params)
 
     return merged_additional_parameters

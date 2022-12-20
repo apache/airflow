@@ -34,6 +34,7 @@ import { MdReadMore } from 'react-icons/md';
 import { useGridData } from 'src/api';
 import { getMetaValue } from 'src/utils';
 import AutoRefresh from 'src/components/AutoRefresh';
+import useOffsetHeight from 'src/utils/useOffsetHeight';
 
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
@@ -48,9 +49,14 @@ interface Props {
   hoveredTaskState?: string | null;
 }
 
-const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) => {
+const Grid = ({
+  isPanelOpen = false,
+  onPanelToggle,
+  hoveredTaskState,
+}: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
+  const offsetHeight = useOffsetHeight(scrollRef);
 
   const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
@@ -90,16 +96,15 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
 
   return (
     <Box
-      minWidth={isPanelOpen ? '350px' : undefined}
-      flexGrow={1}
       m={3}
       mt={0}
+      height="100%"
     >
       <Flex
         alignItems="center"
         justifyContent="space-between"
-        mb={2}
         p={1}
+        pb={2}
         backgroundColor="white"
       >
         <Flex alignItems="center">
@@ -122,11 +127,13 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         />
       </Flex>
       <Box
-        overflow="auto"
+        height="100%"
+        maxHeight={offsetHeight}
         ref={scrollRef}
-        maxHeight="900px"
+        overflow="auto"
         position="relative"
         pr={4}
+        pb={4}
       >
         <Table pr="10px">
           <Thead>

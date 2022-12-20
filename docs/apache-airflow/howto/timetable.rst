@@ -46,7 +46,7 @@ Timetable Registration
 ----------------------
 
 A timetable must be a subclass of :class:`~airflow.timetables.base.Timetable`,
-and be registered as a part of a :doc:`plugin </plugins>`. The following is a
+and be registered as a part of a :doc:`plugin </authoring-and-scheduling/plugins>`. The following is a
 skeleton for us to implement a new timetable:
 
 .. code-block:: python
@@ -238,11 +238,11 @@ implementing two additional methods on our timetable class:
     class SometimeAfterWorkdayTimetable(Timetable):
         ...
 
-        def serialize(self) -> Dict[str, Any]:
+        def serialize(self) -> dict[str, Any]:
             return {"schedule_at": self._schedule_at.isoformat()}
 
         @classmethod
-        def deserialize(cls, value: Dict[str, Any]) -> Timetable:
+        def deserialize(cls, value: dict[str, Any]) -> Timetable:
             return cls(Time.fromisoformat(value["schedule_at"]))
 
 When the DAG is being serialized, ``serialize`` is called to obtain a

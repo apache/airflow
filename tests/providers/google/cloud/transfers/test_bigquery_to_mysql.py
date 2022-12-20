@@ -22,19 +22,19 @@ from unittest import mock
 
 from airflow.providers.google.cloud.transfers.bigquery_to_mysql import BigQueryToMySqlOperator
 
-TASK_ID = 'test-bq-create-table-operator'
-TEST_DATASET = 'test-dataset'
-TEST_TABLE_ID = 'test-table-id'
-TEST_DAG_ID = 'test-bigquery-operators'
+TASK_ID = "test-bq-create-table-operator"
+TEST_DATASET = "test-dataset"
+TEST_TABLE_ID = "test-table-id"
+TEST_DAG_ID = "test-bigquery-operators"
 
 
 class TestBigQueryToMySqlOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook):
-        destination_table = 'table'
+        destination_table = "table"
         operator = BigQueryToMySqlOperator(
             task_id=TASK_ID,
-            dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
+            dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
             mysql_table=destination_table,
             replace=False,
         )

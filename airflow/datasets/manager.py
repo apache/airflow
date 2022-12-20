@@ -46,12 +46,14 @@ class DatasetManager(LoggingMixin):
         self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
     ) -> None:
         """
+        Register dataset related changes.
+
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
         dataset_model = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
         if not dataset_model:
-            self.log.warning("DatasetModel %s not found", dataset_model)
+            self.log.warning("DatasetModel %s not found", dataset)
             return
         session.add(
             DatasetEvent(
@@ -102,19 +104,20 @@ class DatasetManager(LoggingMixin):
         stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
         session.execute(
             stmt,
-            [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags],
+            [{"target_dag_id": target_dag.dag_id} for target_dag in dataset.consuming_dags],
         )
 
 
 def resolve_dataset_manager() -> DatasetManager:
+    """Retrieve the dataset manager."""
     _dataset_manager_class = conf.getimport(
-        section='core',
-        key='dataset_manager_class',
-        fallback='airflow.datasets.manager.DatasetManager',
+        section="core",
+        key="dataset_manager_class",
+        fallback="airflow.datasets.manager.DatasetManager",
     )
     _dataset_manager_kwargs = conf.getjson(
-        section='core',
-        key='dataset_manager_kwargs',
+        section="core",
+        key="dataset_manager_kwargs",
         fallback={},
     )
     return _dataset_manager_class(**_dataset_manager_kwargs)

@@ -103,7 +103,6 @@ class CloudDLPHook(GoogleBaseHook):
         Provides a client for interacting with the Cloud DLP API.
 
         :return: Google Cloud DLP API Client
-        :rtype: google.cloud.dlp_v2.DlpServiceClient
         """
         if not self._client:
             self._client = DlpServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -167,7 +166,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
         """
         client = self.get_conn()
         # Handle project_id from connection configuration
@@ -219,7 +217,6 @@ class CloudDLPHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :param wait_until_finished: (Optional) If true, it will keep polling the job state
             until it is set to DONE.
-        :rtype: google.cloud.dlp_v2.types.DlpJob
         :param time_to_sleep_in_seconds: (Optional) Time to sleep, in seconds, between active checks
             of the operation results. Defaults to 60.
         """
@@ -291,7 +288,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.InspectTemplate
         """
         client = self.get_conn()
 
@@ -339,7 +335,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.JobTrigger
         """
         client = self.get_conn()
 
@@ -379,7 +374,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.StoredInfoType
         """
         client = self.get_conn()
 
@@ -439,7 +433,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.DeidentifyContentResponse
         """
         client = self.get_conn()
 
@@ -663,7 +656,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
         """
         client = self.get_conn()
 
@@ -704,7 +696,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.DlpJob
         """
         client = self.get_conn()
 
@@ -738,7 +729,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.InspectTemplate
         """
         client = self.get_conn()
 
@@ -779,7 +769,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.JobTrigger
         """
         client = self.get_conn()
 
@@ -813,7 +802,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.StoredInfoType
         """
         client = self.get_conn()
 
@@ -861,7 +849,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.InspectContentResponse
         """
         client = self.get_conn()
 
@@ -904,7 +891,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: List[google.cloud.dlp_v2.types.DeidentifyTemplate]
         """
         client = self.get_conn()
 
@@ -959,7 +945,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: List[google.cloud.dlp_v2.types.DlpJob]
         """
         client = self.get_conn()
 
@@ -997,7 +982,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.ListInfoTypesResponse
         """
         client = self.get_conn()
 
@@ -1037,7 +1021,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: List[google.cloud.dlp_v2.types.InspectTemplate]
         """
         client = self.get_conn()
 
@@ -1089,7 +1072,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: List[google.cloud.dlp_v2.types.JobTrigger]
         """
         client = self.get_conn()
 
@@ -1133,7 +1115,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: List[google.cloud.dlp_v2.types.StoredInfoType]
         """
         client = self.get_conn()
 
@@ -1180,7 +1161,7 @@ class CloudDLPHook(GoogleBaseHook):
             here will override the template referenced by the inspect_template_name argument.
         :param image_redaction_configs: (Optional) The configuration for specifying what
             content to redact from images.
-            List[google.cloud.dlp_v2.types.RedactImageRequest.ImageRedactionConfig]
+            list[google.cloud.dlp_v2.types.RedactImageRequest.ImageRedactionConfig]
         :param include_findings: (Optional) Whether the response should include findings
             along with the redacted image.
         :param byte_item: (Optional) The content must be PNG, JPEG, SVG or BMP.
@@ -1190,7 +1171,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.RedactImageResponse
         """
         client = self.get_conn()
 
@@ -1240,7 +1220,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.ReidentifyContentResponse
         """
         client = self.get_conn()
 
@@ -1285,7 +1264,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
         """
         client = self.get_conn()
 
@@ -1339,7 +1317,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.InspectTemplate
         """
         client = self.get_conn()
 
@@ -1390,7 +1367,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.JobTrigger
         """
         client = self.get_conn()
 
@@ -1436,7 +1412,6 @@ class CloudDLPHook(GoogleBaseHook):
             to complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :param metadata: (Optional) Additional metadata that is provided to the method.
-        :rtype: google.cloud.dlp_v2.types.StoredInfoType
         """
         client = self.get_conn()
 

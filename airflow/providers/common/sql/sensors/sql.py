@@ -18,13 +18,10 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
-from packaging.version import Version
-
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.version import version
 
 
 class SqlSensor(BaseSensorOperator):
@@ -50,12 +47,12 @@ class SqlSensor(BaseSensorOperator):
             Should match the desired hook constructor params.
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (
-        '.hql',
-        '.sql',
+        ".hql",
+        ".sql",
     )
-    ui_color = '#7c7287'
+    ui_color = "#7c7287"
 
     def __init__(
         self,
@@ -80,24 +77,18 @@ class SqlSensor(BaseSensorOperator):
 
     def _get_hook(self):
         conn = BaseHook.get_connection(self.conn_id)
-        if Version(version) >= Version('2.3'):
-            # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
-            hook = conn.get_hook(hook_params=self.hook_params)  # ignore airflow compat check
-        else:
-            # For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-            # when "apache-airflow-providers-common-sql" will depend on Airflow >= 2.3.
-            hook = _backported_get_hook(conn, hook_params=self.hook_params)
+        hook = conn.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             raise AirflowException(
-                f'The connection type is not supported by {self.__class__.__name__}. '
-                f'The associated hook should be a subclass of `DbApiHook`. Got {hook.__class__.__name__}'
+                f"The connection type is not supported by {self.__class__.__name__}. "
+                f"The associated hook should be a subclass of `DbApiHook`. Got {hook.__class__.__name__}"
             )
         return hook
 
     def poke(self, context: Any):
         hook = self._get_hook()
 
-        self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)
+        self.log.info("Poking: %s (with parameters %s)", self.sql, self.parameters)
         records = hook.get_records(self.sql, self.parameters)
         if not records:
             if self.fail_on_empty:

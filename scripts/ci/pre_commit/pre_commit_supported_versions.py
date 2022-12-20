@@ -27,7 +27,7 @@ AIRFLOW_SOURCES = Path(__file__).resolve().parent.parent.parent.parent
 HEADERS = ("Version", "Current Patch/Minor", "State", "First Release", "Limited Support", "EOL/Terminated")
 
 SUPPORTED_VERSIONS = (
-    ("2", "2.4.1", "Supported", "Dec 17, 2020", "TBD", "TBD"),
+    ("2", "2.5.0", "Supported", "Dec 17, 2020", "TBD", "TBD"),
     ("1.10", "1.10.15", "EOL", "Aug 27, 2018", "Dec 17, 2020", "June 17, 2021"),
     ("1.9", "1.9.0", "EOL", "Jan 03, 2018", "Aug 27, 2018", "Aug 27, 2018"),
     ("1.8", "1.8.2", "EOL", "Mar 19, 2017", "Jan 03, 2018", "Jan 03, 2018"),
@@ -42,7 +42,7 @@ def replace_text_between(file: Path, start: str, end: str, replacement_text: str
     file.write_text(leading_text + start + replacement_text + end + trailing_text)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     replace_text_between(
         file=AIRFLOW_SOURCES / "README.md",
         start="<!-- Beginning of auto-generated table -->\n",
