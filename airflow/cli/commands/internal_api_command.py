@@ -61,8 +61,8 @@ def internal_api(args):
     """Starts Airflow Internal API."""
     print(settings.HEADER)
 
-    access_logfile = args.access_logfile if args.access_logfile is not None else "-"
-    error_logfile = args.error_logfile if args.error_logfile is not None else "-"
+    access_logfile = args.access_logfile or "-"
+    error_logfile = args.error_logfile or "-"
     access_logformat = args.access_logformat
     num_workers = args.workers
     worker_timeout = args.worker_timeout
