@@ -131,6 +131,9 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-azure/operators/azure_synapse.rst
     tags: [azure]
+  - integration-name: Microsoft Azure Functions
+    external-doc-url: https://azure.microsoft.com/en-in/products/functions/
+    logo: /integration-logos/azure/Service-Bus.svg
   - integration-name: Microsoft Azure Data Lake Storage Client Gen2
     external-doc-url: https://azure.microsoft.com/en-us/products/storage/data-lake-storage/
     logo: /integration-logos/azure/Data Lake Storage.svg
@@ -215,6 +218,9 @@ hooks:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
+  - integration-name: Microsoft Azure Functions
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.azure_functions
 
 transfers:
   - source-integration-name: Local
