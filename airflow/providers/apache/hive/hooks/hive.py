@@ -28,7 +28,13 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Iterable, Mapping
 
-import pandas
+try:
+    import pandas
+except ImportError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
+
 import unicodecsv as csv
 
 from airflow.configuration import conf
