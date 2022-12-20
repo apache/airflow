@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
     SageMakerProcessingOperator,
+    SageMakerRegisterModelVersionOperator,
     SageMakerStartPipelineOperator,
     SageMakerStopPipelineOperator,
     SageMakerTrainingOperator,
@@ -202,6 +203,7 @@ def set_up(env_id, role_arn):
     training_job_name = f"{env_id}-train"
     transform_job_name = f"{env_id}-transform"
     tuning_job_name = f"{env_id}-tune"
+    model_package_group_name = f"{env_id}-group"
     pipeline_name = f"{env_id}-pipe"
 
     input_data_S3_key = f"{env_id}/processed-input-data"
@@ -310,13 +312,16 @@ def set_up(env_id, role_arn):
         "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         "TrainingJobName": training_job_name,
     }
+    model_trained_weights = (
+        f"s3://{bucket_name}/{training_output_s3_key}/{training_job_name}/output/model.tar.gz"
+    )
     model_config = {
         "ExecutionRoleArn": role_arn,
         "ModelName": model_name,
         "PrimaryContainer": {
             "Mode": "SingleModel",
             "Image": knn_image_uri,
-            "ModelDataUrl": f"s3://{bucket_name}/{training_output_s3_key}/{training_job_name}/output/model.tar.gz",  # noqa: E501
+            "ModelDataUrl": model_trained_weights,
         },
     }
     tuning_config = {
@@ -402,9 +407,12 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="processing_config", value=processing_config)
     ti.xcom_push(key="training_config", value=training_config)
     ti.xcom_push(key="training_job_name", value=training_job_name)
+    ti.xcom_push(key="model_package_group_name", value=model_package_group_name)
     ti.xcom_push(key="pipeline_name", value=pipeline_name)
     ti.xcom_push(key="model_config", value=model_config)
     ti.xcom_push(key="model_name", value=model_name)
+    ti.xcom_push(key="inference_code_image", value=knn_image_uri)
+    ti.xcom_push(key="model_trained_weights", value=model_trained_weights)
     ti.xcom_push(key="tuning_config", value=tuning_config)
     ti.xcom_push(key="tuning_job_name", value=tuning_job_name)
     ti.xcom_push(key="transform_config", value=transform_config)
@@ -433,6 +441,14 @@ def delete_logs(env_id):
         ("/aws/sagemaker/TransformJobs", env_id),
     ]
     purge_logs(generated_logs)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_model_group(group_name, model_version_arn):
+    sgmk_client = boto3.client("sagemaker")
+    # need to destroy model registered in group first
+    sgmk_client.delete_model_package(ModelPackageName=model_version_arn)
+    sgmk_client.delete_model_package_group(ModelPackageGroupName=group_name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -525,6 +541,15 @@ with DAG(
     )
     # [END howto_operator_sagemaker_model]
 
+    # [START howto_operator_sagemaker_register]
+    register_model = SageMakerRegisterModelVersionOperator(
+        task_id="register_model",
+        image_uri=test_setup["inference_code_image"],
+        model_url=test_setup["model_trained_weights"],
+        package_group_name=test_setup["model_package_group_name"],
+    )
+    # [END howto_operator_sagemaker_register]
+
     # [START howto_operator_sagemaker_tuning]
     tune_model = SageMakerTuningOperator(
         task_id="tune_model",
@@ -589,12 +614,14 @@ with DAG(
         train_model,
         await_training,
         create_model,
+        register_model,
         tune_model,
         await_tuning,
         test_model,
         await_transform,
         # TEST TEARDOWN
         delete_ecr_repository(test_setup["ecr_repository_name"]),
+        delete_model_group(test_setup["model_package_group_name"], register_model.output),
         delete_model,
         delete_bucket,
         delete_logs(test_context[ENV_ID_KEY]),
