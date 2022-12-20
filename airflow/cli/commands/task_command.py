@@ -324,16 +324,18 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
                     if isinstance(h, RedirectStdHandler):
                         root_logger.addHandler(h)
                         h.respect_redirection = False
-    yield
-    if did_modify:
-        task_logger.propagate = task_propagate
-        root_logger.setLevel(root_level)
-        root_logger.handlers[:] = root_handlers
-        task_logger.handlers[:] = task_handlers
-        if is_k8s_executor_pod:
-            for h in root_handlers:
-                if isinstance(h, RedirectStdHandler):
-                    h.respect_redirection = True
+    try:
+        yield
+    finally:
+        if did_modify:
+            task_logger.propagate = task_propagate
+            root_logger.setLevel(root_level)
+            root_logger.handlers[:] = root_handlers
+            task_logger.handlers[:] = task_handlers
+            if is_k8s_executor_pod:
+                for h in root_handlers:
+                    if isinstance(h, RedirectStdHandler):
+                        h.respect_redirection = True
 
 
 @contextmanager
