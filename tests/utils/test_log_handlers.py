@@ -287,7 +287,7 @@ class TestFileTaskLogHandler:
         ],
     )
     @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
-    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    @patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_read_from_k8s_under_multi_namespace_mode(
         self, mock_kube_client, pod_override, namespace_to_call
     ):
