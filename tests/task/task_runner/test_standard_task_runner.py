@@ -20,20 +20,20 @@ from __future__ import annotations
 import logging
 import os
 import time
-from logging.config import dictConfig
+from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
 
 import psutil
 import pytest
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -45,28 +45,41 @@ TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
-TASK_FORMAT = "{{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s"
-
-LOGGING_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "airflow.task": {"format": TASK_FORMAT},
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "airflow.task",
-            "stream": "ext://sys.stdout",
-        },
-    },
-    "loggers": {"airflow": {"handlers": ["console"], "level": "INFO", "propagate": True}},
-}
+TASK_FORMAT = "%(filename)s:%(lineno)d %(levelname)s - %(message)s"
 
 
+@contextmanager
+def propagate_task_logger():
+    """
+    Set `airflow.task` logger to propagate.
+
+    Apparently, caplog doesn't work if you don't propagate messages to root.
+
+    But the normal behavior of the `airflow.task` logger is not to propagate.
+
+    When freshly configured, the logger is set to propagate.  However,
+    ordinarily when set_context is called, this is set to False.
+
+    To override this behavior, so that the messages make it to caplog, we
+    must tell the handler to maintain its current setting.
+    """
+    logger = logging.getLogger("airflow.task")
+    h = logger.handlers[0]
+    assert isinstance(h, FileTaskHandler)  # just to make sure / document
+    _propagate = h.maintain_propagate
+    if _propagate is False:
+        h.maintain_propagate = True
+    try:
+        yield
+    finally:
+        if _propagate is False:
+            h.maintain_propagate = _propagate
+
+
+@pytest.mark.usefixtures("reset_logging_config")
 class TestStandardTaskRunner:
     @pytest.fixture(autouse=True, scope="class")
-    def logging_and_db(self):
+    def setup_db(self):
         """
         This fixture sets up logging to have a different setup on the way in
         (as the test environment does not have enough context for the normal
@@ -74,12 +87,8 @@ class TestStandardTaskRunner:
         """
         get_listener_manager().clear()
         clear_db_runs()
-        dictConfig(LOGGING_CONFIG)
         yield
-        airflow_logger = logging.getLogger("airflow")
-        airflow_logger.handlers = []
         clear_db_runs()
-        dictConfig(DEFAULT_LOGGING_CONFIG)
         get_listener_manager().clear()
 
     def test_start_and_terminate(self):
@@ -195,13 +204,13 @@ class TestStandardTaskRunner:
 
         assert runner.return_code() is not None
 
+    @propagate_task_logger()
     def test_early_reap_exit(self, caplog):
         """
         Tests that when a child process running a task is killed externally
         (e.g. by an OOM error, which we fake here), then we get return code
         -9 and a log message.
         """
-        # Set up mock task
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.task_id = "task_id"
