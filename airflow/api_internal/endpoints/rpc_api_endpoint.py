@@ -36,6 +36,7 @@ def _initialize_map() -> dict[str, Callable]:
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
+        DagFileProcessor.manage_slas,
     ]
     return {f"{func.__module__}.{func.__name__}": func for func in functions}
 

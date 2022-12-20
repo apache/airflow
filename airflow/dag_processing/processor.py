@@ -55,6 +55,8 @@ from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
+log = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
 
@@ -365,8 +367,10 @@ class DagFileProcessor(LoggingMixin):
         self._dag_directory = dag_directory
         self.dag_warnings: set[tuple[str, str]] = set()
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def manage_slas(self, dag: DAG, session: Session = None) -> None:
+    def manage_slas(dag_folder, dag_id: str, session: Session = None) -> None:
         """
         Finding all tasks that have SLAs defined, and sending alert emails when needed.
 
@@ -375,9 +379,11 @@ class DagFileProcessor(LoggingMixin):
         We are assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
-        self.log.info("Running SLA Checks for %s", dag.dag_id)
+        dagbag = DagFileProcessor._get_dagbag(dag_folder, log)
+        dag = dagbag.get_dag(dag_id)
+        log.info("Running SLA Checks for %s", dag.dag_id)
         if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
-            self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
+            log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
         qry = (
@@ -479,13 +485,13 @@ class DagFileProcessor(LoggingMixin):
                     else [dag.sla_miss_callback]
                 )
                 for callback in callbacks:
-                    self.log.info("Calling SLA miss callback %s", callback)
+                    log.info("Calling SLA miss callback %s", callback)
                     try:
                         callback(dag, task_list, blocking_task_list, slas, blocking_tis)
                         notification_sent = True
                     except Exception:
                         Stats.incr("sla_callback_notification_failure")
-                        self.log.exception(
+                        log.exception(
                             "Could not call sla_miss_callback(%s) for DAG %s",
                             callback.func_name,  # type: ignore[attr-defined]
                             dag.dag_id,
@@ -504,7 +510,7 @@ class DagFileProcessor(LoggingMixin):
                     task = dag.get_task(sla.task_id)
                 except TaskNotFound:
                     # task already deleted from DAG, skip it
-                    self.log.warning(
+                    log.warning(
                         "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.", sla.task_id
                     )
                     continue
@@ -524,7 +530,7 @@ class DagFileProcessor(LoggingMixin):
                     notification_sent = True
                 except Exception:
                     Stats.incr("sla_email_notification_failure")
-                    self.log.exception("Could not send SLA Miss email notification for DAG %s", dag.dag_id)
+                    log.exception("Could not send SLA Miss email notification for DAG %s", dag.dag_id)
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:
@@ -644,7 +650,7 @@ class DagFileProcessor(LoggingMixin):
                 if isinstance(request, TaskCallbackRequest):
                     self._execute_task_callbacks(dagbag, request, session=session)
                 elif isinstance(request, SlaCallbackRequest):
-                    self.manage_slas(dagbag.get_dag(request.dag_id), session=session)
+                    DagFileProcessor.manage_slas(dagbag.dag_folder, request.dag_id, session=session)
                 elif isinstance(request, DagCallbackRequest):
                     self._execute_dag_callbacks(dagbag, request, session)
             except Exception:
@@ -728,6 +734,15 @@ class DagFileProcessor(LoggingMixin):
         self.log.info("Executed failure callback for %s in state %s", ti, ti.state)
         session.flush()
 
+    @staticmethod
+    def _get_dagbag(file_path: str, logger: logging.Logger):
+        try:
+            return DagBag(file_path, include_examples=False)
+        except Exception:
+            logger.exception("Failed at reloading the DAG file %s", file_path)
+            Stats.incr("dag_file_refresh_error", 1, 1)
+            raise
+
     @provide_session
     def process_file(
         self,
@@ -758,10 +773,8 @@ class DagFileProcessor(LoggingMixin):
         self.log.info("Processing file %s for tasks to queue", file_path)
 
         try:
-            dagbag = DagBag(file_path, include_examples=False)
+            dagbag = DagFileProcessor._get_dagbag(file_path, self.log)
         except Exception:
-            self.log.exception("Failed at reloading the DAG file %s", file_path)
-            Stats.incr("dag_file_refresh_error", 1, 1)
             return 0, 0
 
         if len(dagbag.dags) > 0:
