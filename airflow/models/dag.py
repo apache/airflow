@@ -2586,7 +2586,11 @@ class DAG(LoggingMixin):
             else:
                 data_interval = self.infer_automated_data_interval(logical_date)
 
-        if run_type is not None and not isinstance(run_type, DagRunType):
+        if run_type is None or isinstance(run_type, DagRunType):
+            pass
+        elif isinstance(run_type, str):  # Compatibility: run_type used to be a str.
+            run_type = DagRunType(run_type)
+        else:
             raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
 
         if run_id:  # Infer run_type from run_id if needed.
