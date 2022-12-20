@@ -21,6 +21,7 @@
 
 let jsonForm;
 const objectFields = new Map();
+const recentConfigList = document.getElementById('recent_configs');
 
 /**
  * Update the generated JSON DagRun.conf JSON field if any field changed
@@ -79,7 +80,7 @@ function initForm() {
 
   // Initialize the Generated JSON form or JSON entry form
   const minHeight = 300;
-  const maxHeight = (formWithFields ? window.innerHeight / 2 : window.innerHeight) - 450;
+  const maxHeight = (formWithFields ? window.innerHeight / 2 : window.innerHeight) - 550;
   const height = maxHeight > minHeight ? maxHeight : minHeight;
   jsonForm = CodeMirror.fromTextArea(document.getElementById('json'), {
     lineNumbers: true,
@@ -143,6 +144,7 @@ function initForm() {
             JSON.parse(textValue);
           }
         } catch (ex) {
+          // eslint-disable-next-line no-alert
           window.alert(`Invalid JSON entered, please correct:\n\n${textValue}`);
           cm.focus();
           event.preventDefault();
@@ -168,17 +170,39 @@ initForm();
 window.updateJSONconf = updateJSONconf;
 
 function setRecentConfig(e) {
-  let { value } = e.target;
+  const dropdownValue = e.target.value;
+  let dropdownJson; let
+    value;
   try {
-    const json = JSON.parse(value);
-    value = JSON.stringify(json, null, 2);
+    dropdownJson = JSON.parse(dropdownValue);
+    value = JSON.stringify(dropdownJson, null, 4);
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error('config is not valid JSON format');
+    console.error(`config is not valid JSON format: ${dropdownValue}`);
   }
 
-  // TODO Values need to be applied to all form fields accordingly!
-  document.querySelector('.CodeMirror').CodeMirror.setValue(value);
+  // Form fields need to be populated from recent config
+  const keys = Object.keys(dropdownJson);
+  for (let i = 0; i < keys.length; i += 1) {
+    const element = document.getElementById(`element_${keys[i]}`);
+    if (element) {
+      const newValue = dropdownJson[keys[i]];
+      if (element.type === 'checkbox') {
+        element.checked = newValue;
+      } else if (newValue === '' || newValue == null) {
+        element.value = '';
+      } else if (element.attributes.valuetype && element.attributes.valuetype.value === 'array') {
+        element.value = newValue.join('\n');
+      } else if (element.attributes.valuetype && element.attributes.valuetype.value === 'object') {
+        objectFields.get(`element_${keys[i]}`).setValue(JSON.stringify(newValue, null, 4));
+      } else {
+        element.value = newValue;
+      }
+    }
+  }
+
+  // Populate JSON field
+  jsonForm.setValue(value);
 }
 
 recentConfigList.addEventListener('change', setRecentConfig);

@@ -129,17 +129,19 @@
         <input type="text" class="form-control" placeholder="Run ID" name="run_id">
       </div>
     </div>
+    {% if recent_confs|length > 0 %}
     <div class="form-group row">
       <div class="col-md-2">
-        <label for="recent_configs">Recent Configurations</label>
+        <label for="recent_configs">Select Recent Configurations</label>
         <select class="form-control" name="recent_configs" id="recent_configs">
-          <option value="">empty config</option>
-          {% for conf in recent_confs %}
-          <option value="{{ conf }}">{{ conf }}</option>
+          <option value="{{ conf }}">Default parameters</option>
+          {% for run_id, recent_conf in recent_confs.items() %}
+          <option value="{{ recent_conf }}">{{ run_id }}: {{ recent_conf }}</option>
           {% endfor %}
         </select>
       </div>
     </div>
+    {% endif %}
     {%- if form_fields %}
     <div class="panel panel-primary ">
       <div class="panel-heading">
