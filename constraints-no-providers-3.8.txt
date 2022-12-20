@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-19T04:40:03Z
+# This constraints file was automatically generated on 2022-12-20T09:14:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -29,7 +29,7 @@ MarkupSafe==2.1.1
 PyJWT==2.6.0
 PyYAML==6.0
 Pygments==2.13.0
-SQLAlchemy-JSONField==1.0.0
+SQLAlchemy-JSONField==1.0.1.post0
 SQLAlchemy-Utils==0.38.3
 SQLAlchemy==1.4.45
 WTForms==3.0.1
@@ -156,7 +156,7 @@ requests==2.28.1
 rfc3986==1.5.0
 rich==12.6.0
 rsa==4.9
-sentry-sdk==1.12.0
+sentry-sdk==1.12.1
 setproctitle==1.3.2
 six==1.16.0
 sniffio==1.3.0
