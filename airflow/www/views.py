@@ -108,6 +108,7 @@ from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.timetables.base import DataInterval, TimeRestriction
+from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -2828,7 +2829,7 @@ class Airflow(AirflowBaseView):
             restriction = TimeRestriction(dag.start_date, dag.end_date, False)
             dates = collections.Counter()
 
-            if isinstance(dag.timetable, CronTriggerTimetable):
+            if isinstance(dag.timetable, (CronTriggerTimetable, CronDataIntervalTimetable)):
                 for next in croniter(
                     dag.timetable.summary, start_time=last_automated_data_interval.end, ret_type=datetime
                 ):
