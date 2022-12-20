@@ -615,6 +615,12 @@
     ],
     "cross-providers-deps": []
   },
+  "sas": {
+    "deps": [
+      "apache-airflow>=2.3.0"
+    ],
+    "cross-providers-deps": []
+  },
   "segment": {
     "deps": [
       "analytics-python>=1.2.9",
