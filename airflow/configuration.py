@@ -136,7 +136,7 @@ def _default_config_file_path(file_name: str) -> str:
     return os.path.join(templates_dir, file_name)
 
 
-def default_config_yaml() -> list[dict[str, Any]]:
+def default_config_yaml() -> dict[str, Any]:
     """
     Read Airflow configs from YAML file.
 

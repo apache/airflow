@@ -81,12 +81,11 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
         configfile.writelines(FILE_HEADER)
         config_yaml = read_default_config_yaml(yaml_config_file_path)
 
-        for section in config_yaml:
-            _write_section(configfile, section)
+        for section_name, section in config_yaml.items():
+            _write_section(configfile, section_name, section)
 
 
-def _write_section(configfile, section):
-    section_name = section["name"]
+def _write_section(configfile, section_name, section):
     configfile.write(f"\n[{section_name}]\n")
     section_description = None
     if section["description"] is not None:
@@ -100,11 +99,11 @@ def _write_section(configfile, section):
                 configfile.write("#\n")
             else:
                 configfile.write(f"# {single_line_desc}\n")
-    for idx, option in enumerate(section["options"]):
-        _write_option(configfile, idx, option)
+    for idx, (option_name, option) in enumerate(section["options"].items()):
+        _write_option(configfile, idx, option_name, option)
 
 
-def _write_option(configfile, idx, option):
+def _write_option(configfile, idx, option_name, option):
     option_description = None
     if option["description"] is not None:
         option_description = list(filter(lambda x: x is not None, option["description"].splitlines()))
@@ -119,14 +118,14 @@ def _write_option(configfile, idx, option):
                 configfile.write(f"# {single_line_desc}\n")
 
     if option["example"]:
-        if not str(option["name"]).endswith("_template"):
+        if not str(option_name).endswith("_template"):
             option["example"] = option["example"].replace("{", "{{").replace("}", "}}")
-        configfile.write(f"# Example: {option['name']} = {option['example']}\n")
+        configfile.write(f"# Example: {option_name} = {option['example']}\n")
 
     if option["default"] is not None:
         if not isinstance(option["default"], str):
             raise Exception(
-                f"Key \"default\" in element with name=\"{option['name']}\" has an invalid type. "
+                f'Key "default" in element with name="{option_name}" has an invalid type. '
                 f"Current type: {type(option['default'])}"
             )
         # Remove trailing whitespace on empty string
@@ -134,9 +133,9 @@ def _write_option(configfile, idx, option):
             value = " " + option["default"]
         else:
             value = ""
-        configfile.write(f"{option['name']} ={value}\n")
+        configfile.write(f"{option_name} ={value}\n")
     else:
-        configfile.write(f"# {option['name']} =\n")
+        configfile.write(f"# {option_name} =\n")
 
 
 if __name__ == "__main__":

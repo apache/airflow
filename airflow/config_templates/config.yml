@@ -17,10 +17,10 @@
 
 ---
 
-- name: core
+core:
   description: ~
   options:
-    - name: dags_folder
+    dags_folder:
       description: |
         The folder where your airflow pipelines live, most likely a
         subfolder in a code repository. This path must be absolute.
@@ -28,7 +28,7 @@
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/dags"
-    - name: hostname_callable
+    hostname_callable:
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
         The format is "package.function".
@@ -42,7 +42,7 @@
       type: string
       example: ~
       default: "airflow.utils.net.getfqdn"
-    - name: default_timezone
+    default_timezone:
       description: |
         Default timezone in case supplied date times are naive
         can be utc (default), system, or any IANA timezone string (e.g. Europe/Amsterdam)
@@ -50,7 +50,7 @@
       type: string
       example: ~
       default: "utc"
-    - name: executor
+    executor:
       description: |
         The executor class that airflow should use. Choices include
         ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``, ``DaskExecutor``,
@@ -60,7 +60,7 @@
       type: string
       example: ~
       default: "SequentialExecutor"
-    - name: parallelism
+    parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
         Airflow, regardless of the worker count. Generally this value, multiplied by the number of
@@ -70,7 +70,7 @@
       type: string
       example: ~
       default: "32"
-    - name: max_active_tasks_per_dag
+    max_active_tasks_per_dag:
       description: |
         The maximum number of task instances allowed to run concurrently in each DAG. To calculate
         the number of tasks that is running concurrently for a DAG, add up the number of running
@@ -83,14 +83,14 @@
       type: string
       example: ~
       default: "16"
-    - name: dags_are_paused_at_creation
+    dags_are_paused_at_creation:
       description: |
         Are DAGs paused by default at creation
       version_added: ~
       type: string
       example: ~
       default: "True"
-    - name: max_active_runs_per_dag
+    max_active_runs_per_dag:
       description: |
         The maximum number of active DAG runs per DAG. The scheduler will not create more DAG runs
         if it reaches the limit. This is configurable at the DAG level with ``max_active_runs``,
@@ -99,7 +99,7 @@
       type: string
       example: ~
       default: "16"
-    - name: mp_start_method
+    mp_start_method:
       description: |
         The name of the method used in order to start Python processes via the multiprocessing module.
         This corresponds directly with the options available in the Python docs:
@@ -110,7 +110,7 @@
       type: string
       default: ~
       example: "fork"
-    - name: load_examples
+    load_examples:
       description: |
         Whether to load the DAG examples that ship with Airflow. It's good to
         get started, but you probably want to set this to ``False`` in a production
@@ -119,14 +119,14 @@
       type: string
       example: ~
       default: "True"
-    - name: plugins_folder
+    plugins_folder:
       description: |
         Path to the folder containing Airflow plugins
       version_added: ~
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/plugins"
-    - name: execute_tasks_new_python_interpreter
+    execute_tasks_new_python_interpreter:
       description: |
         Should tasks be executed via forking of the parent process ("False",
         the speedier option) or by spawning a new python process ("True" slow,
@@ -136,7 +136,7 @@
       version_added: 2.0.0
       see_also: ":ref:`plugins:loading`"
       type: boolean
-    - name: fernet_key
+    fernet_key:
       description: |
         Secret key to save connection passwords in the db
       version_added: ~
@@ -144,21 +144,21 @@
       sensitive: true
       example: ~
       default: "{FERNET_KEY}"
-    - name: donot_pickle
+    donot_pickle:
       description: |
         Whether to disable pickling dags
       version_added: ~
       type: string
       example: ~
       default: "True"
-    - name: dagbag_import_timeout
+    dagbag_import_timeout:
       description: |
         How long before timing out a python file import
       version_added: ~
       type: float
       example: ~
       default: "30.0"
-    - name: dagbag_import_error_tracebacks
+    dagbag_import_error_tracebacks:
       description: |
         Should a traceback be shown in the UI for dagbag import errors,
         instead of just the exception message
@@ -166,21 +166,21 @@
       type: boolean
       example: ~
       default: "True"
-    - name: dagbag_import_error_traceback_depth
+    dagbag_import_error_traceback_depth:
       description: |
         If tracebacks are shown, how many entries from the traceback should be shown
       version_added: 2.0.0
       type: integer
       example: ~
       default: "2"
-    - name: dag_file_processor_timeout
+    dag_file_processor_timeout:
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file
       version_added: 1.10.6
       type: string
       example: ~
       default: "50"
-    - name: task_runner
+    task_runner:
       description: |
         The class to use for running task instances in a subprocess.
         Choices include StandardTaskRunner, CgroupTaskRunner or the full import path to the class
@@ -189,7 +189,7 @@
       type: string
       example: ~
       default: "StandardTaskRunner"
-    - name: default_impersonation
+    default_impersonation:
       description: |
         If set, tasks without a ``run_as_user`` argument will be run with this user
         Can be used to de-elevate a sudo user running Airflow when executing tasks
@@ -197,14 +197,14 @@
       type: string
       example: ~
       default: ""
-    - name: security
+    security:
       description: |
         What security module to use (for example kerberos)
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: unit_test_mode
+    unit_test_mode:
       description: |
         Turn unit test mode on (overwrites many configuration options with test
         values at runtime)
@@ -212,7 +212,7 @@
       type: string
       example: ~
       default: "False"
-    - name: enable_xcom_pickling
+    enable_xcom_pickling:
       description: |
         Whether to enable pickling for xcom (note that this is insecure and allows for
         RCE exploits).
@@ -221,7 +221,7 @@
       example: ~
       default: "False"
       see_also: "https://docs.python.org/3/library/pickle.html#comparison-with-json"
-    - name: allowed_deserialization_classes
+    allowed_deserialization_classes:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
         The individual items will be parsed as regexp. Python built-in classes (like dict)
@@ -230,7 +230,7 @@
       type: string
       default: 'airflow\..*'
       example: ~
-    - name: killed_task_cleanup_time
+    killed_task_cleanup_time:
       description: |
         When a task is killed forcefully, this is the amount of time in seconds that
         it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED
@@ -238,7 +238,7 @@
       type: string
       example: ~
       default: "60"
-    - name: dag_run_conf_overrides_params
+    dag_run_conf_overrides_params:
       description: |
         Whether to override params with dag_run.conf. If you pass some key-value pairs
         through ``airflow dags backfill -c`` or
@@ -247,14 +247,14 @@
       type: string
       example: ~
       default: "True"
-    - name: dag_discovery_safe_mode
+    dag_discovery_safe_mode:
       description: |
         When discovering DAGs, ignore any files that don't contain the strings ``DAG`` and ``airflow``.
       version_added: 1.10.3
       type: string
       example: ~
       default: "True"
-    - name: dag_ignore_file_syntax
+    dag_ignore_file_syntax:
       description: |
         The pattern syntax used in the ".airflowignore" files in the DAG directories. Valid values are
         ``regexp`` or ``glob``.
@@ -262,14 +262,14 @@
       type: string
       example: ~
       default: "regexp"
-    - name: default_task_retries
+    default_task_retries:
       description: |
         The number of retries each task is going to have by default. Can be overridden at dag or task level.
       version_added: 1.10.6
       type: string
       example: ~
       default: "0"
-    - name: default_task_retry_delay
+    default_task_retry_delay:
       description: |
           The number of seconds each task is going to wait by default between retries. Can be overridden at
           dag or task level.
@@ -277,7 +277,7 @@
       type: integer
       example: ~
       default: "300"
-    - name: max_task_retry_delay
+    max_task_retry_delay:
       description: |
         The maximum delay (in seconds) each task is going to wait by default between retries.
         This is a global setting and cannot be overridden at task or DAG level.
@@ -285,14 +285,14 @@
       type: integer
       default: "86400"
       example: ~
-    - name: default_task_weight_rule
+    default_task_weight_rule:
       description: |
         The weighting method used for the effective total priority weight of the task
       version_added: 2.2.0
       type: string
       example: ~
       default: "downstream"
-    - name: default_task_execution_timeout
+    default_task_execution_timeout:
       description: |
         The default task execution_timeout value for the operators. Expected an integer value to
         be passed into timedelta as seconds. If not specified, then the value is considered as None,
@@ -301,14 +301,14 @@
       type: integer
       example: ~
       default: ""
-    - name: min_serialized_dag_update_interval
+    min_serialized_dag_update_interval:
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
       version_added: 1.10.7
       type: string
       example: ~
       default: "30"
-    - name: compress_serialized_dags
+    compress_serialized_dags:
       description: |
         If True, serialized DAGs are compressed before writing to DB.
         Note: this will disable the DAG dependencies view
@@ -316,7 +316,7 @@
       type: string
       example: ~
       default: "False"
-    - name: min_serialized_dag_fetch_interval
+    min_serialized_dag_fetch_interval:
       description: |
         Fetching serialized DAG can not be faster than a minimum interval to reduce database
         read rate. This config controls when your DAGs are updated in the Webserver
@@ -324,7 +324,7 @@
       type: string
       example: ~
       default: "10"
-    - name: max_num_rendered_ti_fields_per_task
+    max_num_rendered_ti_fields_per_task:
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
         in the Database.
@@ -335,21 +335,21 @@
       type: integer
       example: ~
       default: "30"
-    - name: check_slas
+    check_slas:
       description: |
         On each dagrun check against defined SLAs
       version_added: 1.10.8
       type: string
       example: ~
       default: "True"
-    - name: xcom_backend
+    xcom_backend:
       description: |
         Path to custom XCom class that will be used to store and resolve operators results
       version_added: 1.10.12
       type: string
       example: "path.to.CustomXCom"
       default: "airflow.models.xcom.BaseXCom"
-    - name: lazy_load_plugins
+    lazy_load_plugins:
       description: |
         By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,
         if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
@@ -357,7 +357,7 @@
       type: boolean
       example: ~
       default: "True"
-    - name: lazy_discover_providers
+    lazy_discover_providers:
       description: |
         By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
         Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
@@ -366,7 +366,7 @@
       type: boolean
       example: ~
       default: "True"
-    - name: hide_sensitive_var_conn_fields
+    hide_sensitive_var_conn_fields:
       description: |
         Hide sensitive Variables or Connection extra json keys from UI and task logs when set to True
 
@@ -375,7 +375,7 @@
       type: boolean
       example: ~
       default: "True"
-    - name: sensitive_var_conn_names
+    sensitive_var_conn_names:
       description: |
         A comma-separated list of extra sensitive keywords to look for in variables names or connection's
         extra JSON.
@@ -383,7 +383,7 @@
       type: string
       example: ~
       default: ""
-    - name: default_pool_task_slot_count
+    default_pool_task_slot_count:
       description: |
         Task Slot counts for ``default_pool``. This setting would not have any effect in an existing
         deployment where the ``default_pool`` is already created. For existing deployments, users can
@@ -392,7 +392,7 @@
       type: string
       example: ~
       default: "128"
-    - name: max_map_length
+    max_map_length:
       description: |
         The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a
         length exceeding this value, the task pushing the XCom will be failed automatically to prevent the
@@ -402,7 +402,7 @@
       example: ~
       default: "1024"
 
-    - name: daemon_umask
+    daemon_umask:
       description: |
         The default umask to use for process when run in daemon mode (scheduler, worker,  etc.)
 
@@ -414,35 +414,35 @@
       type: string
       default: "0o077"
       example: ~
-    - name: dataset_manager_class
+    dataset_manager_class:
       description: Class to use as dataset manager.
       version_added: 2.4.0
       type: string
       default: ~
       example: 'airflow.datasets.manager.DatasetManager'
-    - name: dataset_manager_kwargs
+    dataset_manager_kwargs:
       description: Kwargs to supply to dataset manager.
       version_added: 2.4.0
       type: string
       default: ~
       example: '{"some_param": "some_value"}'
-    - name: database_access_isolation
+    database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
       version_added: 2.6.0
       type: boolean
       example: ~
       default: "False"
-    - name: internal_api_url
+    internal_api_url:
       description: |
         (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
       version_added: 2.6.0
       type: string
       default: ~
       example: 'http://localhost:8080'
-- name: database
+database:
   description: ~
   options:
-    - name: sql_alchemy_conn
+    sql_alchemy_conn:
       description: |
         The SqlAlchemy connection string to the metadata database.
         SqlAlchemy supports many different database engines.
@@ -453,7 +453,7 @@
       sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
-    - name: sql_alchemy_engine_args
+    sql_alchemy_engine_args:
       description: |
         Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
       version_added: 2.3.0
@@ -461,14 +461,14 @@
       sensitive: true
       example: '{"arg1": True}'
       default: ~
-    - name: sql_engine_encoding
+    sql_engine_encoding:
       description: |
         The encoding for the databases
       version_added: 2.3.0
       type: string
       example: ~
       default: "utf-8"
-    - name: sql_engine_collation_for_ids
+    sql_engine_collation_for_ids:
       description: |
         Collation for ``dag_id``, ``task_id``, ``key``, ``external_executor_id`` columns
         in case they have different encoding.
@@ -480,14 +480,14 @@
       type: string
       example: ~
       default: ~
-    - name: sql_alchemy_pool_enabled
+    sql_alchemy_pool_enabled:
       description: |
         If SqlAlchemy should pool database connections.
       version_added: 2.3.0
       type: string
       example: ~
       default: "True"
-    - name: sql_alchemy_pool_size
+    sql_alchemy_pool_size:
       description: |
         The SqlAlchemy pool size is the maximum number of database connections
         in the pool. 0 indicates no limit.
@@ -495,7 +495,7 @@
       type: string
       example: ~
       default: "5"
-    - name: sql_alchemy_max_overflow
+    sql_alchemy_max_overflow:
       description: |
         The maximum overflow size of the pool.
         When the number of checked-out connections reaches the size set in pool_size,
@@ -510,7 +510,7 @@
       type: string
       example: ~
       default: "10"
-    - name: sql_alchemy_pool_recycle
+    sql_alchemy_pool_recycle:
       description: |
         The SqlAlchemy pool recycle is the number of seconds a connection
         can be idle in the pool before it is invalidated. This config does
@@ -520,7 +520,7 @@
       type: string
       example: ~
       default: "1800"
-    - name: sql_alchemy_pool_pre_ping
+    sql_alchemy_pool_pre_ping:
       description: |
         Check connection at the start of each connection pool checkout.
         Typically, this is a simple statement like "SELECT 1".
@@ -530,7 +530,7 @@
       type: string
       example: ~
       default: "True"
-    - name: sql_alchemy_schema
+    sql_alchemy_schema:
       description: |
         The schema to use for the metadata database.
         SqlAlchemy supports databases with the concept of multiple schemas.
@@ -538,7 +538,7 @@
       type: string
       example: ~
       default: ""
-    - name: sql_alchemy_connect_args
+    sql_alchemy_connect_args:
       description: |
         Import path for connect args in SqlAlchemy. Defaults to an empty dict.
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
@@ -548,7 +548,7 @@
       type: string
       example: ~
       default: ~
-    - name: load_default_connections
+    load_default_connections:
       description: |
         Whether to load the default connections that ship with Airflow. It's good to
         get started, but you probably want to set this to ``False`` in a production
@@ -557,7 +557,7 @@
       type: string
       example: ~
       default: "True"
-    - name: max_db_retries
+    max_db_retries:
       description: |
         Number of times the code should be retried in case of DB Operational Errors.
         Not all transactions will be retried as it can cause undesired state.
@@ -567,10 +567,10 @@
       example: ~
       default: "3"
 
-- name: logging
+logging:
   description: ~
   options:
-    - name: base_log_folder
+    base_log_folder:
       description: |
         The folder where airflow should store its log files.
         This path must be absolute.
@@ -581,7 +581,7 @@
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs"
-    - name: remote_logging
+    remote_logging:
       description: |
         Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
         Set this to True if you want to enable remote logging.
@@ -589,7 +589,7 @@
       type: string
       example: ~
       default: "False"
-    - name: remote_log_conn_id
+    remote_log_conn_id:
       description: |
         Users must supply an Airflow connection id that provides access to the storage
         location. Depending on your remote logging service, this may only be used for
@@ -598,7 +598,7 @@
       type: string
       example: ~
       default: ""
-    - name: google_key_path
+    google_key_path:
       description: |
         Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
         Credentials
@@ -608,7 +608,7 @@
       type: string
       example: ~
       default: ""
-    - name: remote_base_log_folder
+    remote_base_log_folder:
       description: |
         Storage bucket URL for remote logging
         S3 buckets should start with "s3://"
@@ -620,14 +620,14 @@
       type: string
       example: ~
       default: ""
-    - name: encrypt_s3_logs
+    encrypt_s3_logs:
       description: |
         Use server-side encryption for logs stored in S3
       version_added: 2.0.0
       type: string
       example: ~
       default: "False"
-    - name: logging_level
+    logging_level:
       description: |
         Logging level.
 
@@ -636,7 +636,7 @@
       type: string
       example: ~
       default: "INFO"
-    - name: celery_logging_level
+    celery_logging_level:
       description: |
         Logging level for celery. If not set, it uses the value of logging_level
 
@@ -645,7 +645,7 @@
       type: string
       example: ~
       default: ""
-    - name: fab_logging_level
+    fab_logging_level:
       description: |
         Logging level for Flask-appbuilder UI.
 
@@ -654,7 +654,7 @@
       type: string
       example: ~
       default: "WARNING"
-    - name: logging_config_class
+    logging_config_class:
       description: |
         Logging class
         Specify the class that will specify the logging configuration
@@ -663,7 +663,7 @@
       type: string
       example: "my.path.default_local_settings.LOGGING_CONFIG"
       default: ""
-    - name: colored_console_log
+    colored_console_log:
       description: |
         Flag to enable/disable Colored logs in Console
         Colour the logs when the controlling terminal is a TTY.
@@ -671,7 +671,7 @@
       type: string
       example: ~
       default: "True"
-    - name: colored_log_format
+    colored_log_format:
       description: |
         Log format for when Colored logs is enabled
       version_added: 2.0.0
@@ -680,33 +680,33 @@
       default: >-
         [%%(blue)s%%(asctime)s%%(reset)s] {{%%(blue)s%%(filename)s:%%(reset)s%%(lineno)d}}
         %%(log_color)s%%(levelname)s%%(reset)s - %%(log_color)s%%(message)s%%(reset)s
-    - name: colored_formatter_class
+    colored_formatter_class:
       description: ~
       version_added: 2.0.0
       type: string
       example: ~
       default: "airflow.utils.log.colored_log.CustomTTYColoredFormatter"
-    - name: log_format
+    log_format:
       description: |
         Format of Log line
       version_added: 2.0.0
       type: string
       example: ~
       default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
-    - name: simple_log_format
+    simple_log_format:
       description: ~
       version_added: 2.0.0
       type: string
       example: ~
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
-    - name: dag_processor_log_target
+    dag_processor_log_target:
       description: Where to send dag parser logs. If "file",
         logs are sent to log files defined by child_process_log_directory.
       version_added: 2.4.0
       type: string
       example: ~
       default: "file"
-    - name: dag_processor_log_format
+    dag_processor_log_format:
       description: |
         Format of Dag Processor Log line
       version_added: 2.4.0
@@ -714,13 +714,13 @@
       example: ~
       default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
         {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
-    - name: log_formatter_class
+    log_formatter_class:
       description: ~
       version_added: 2.3.4
       type: string
       example: ~
       default: "airflow.utils.log.timezone_aware.TimezoneAware"
-    - name: secret_mask_adapter
+    secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
         `airflow.utils.log.secrets_masker.mask_secret` to be masked in log messages. The given function
@@ -731,14 +731,14 @@
       type: string
       default: ""
       example: "urllib.parse.quote"
-    - name: task_log_prefix_template
+    task_log_prefix_template:
       description: |
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
       version_added: 2.0.0
       type: string
       example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{try_number}}"
       default: ""
-    - name: log_filename_template
+    log_filename_template:
       description: |
         Formatting for how airflow generates file names/paths for each task run.
       version_added: 2.0.0
@@ -747,21 +747,21 @@
       default: "dag_id={{{{ ti.dag_id }}}}/run_id={{{{ ti.run_id }}}}/task_id={{{{ ti.task_id }}}}/\
                {{%% if ti.map_index >= 0 %%}}map_index={{{{ ti.map_index }}}}/{{%% endif %%}}\
                attempt={{{{ try_number }}}}.log"
-    - name: log_processor_filename_template
+    log_processor_filename_template:
       description: |
         Formatting for how airflow generates file names for log
       version_added: 2.0.0
       type: string
       example: ~
       default: "{{{{ filename }}}}.log"
-    - name: dag_processor_manager_log_location
+    dag_processor_manager_log_location:
       description: |
         Full path of dag_processor_manager logfile.
       version_added: 2.0.0
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
-    - name: task_log_reader
+    task_log_reader:
       description: |
         Name of handler to read task instance logs.
         Defaults to use ``task`` handler.
@@ -769,7 +769,7 @@
       type: string
       example: ~
       default: "task"
-    - name: extra_logger_names
+    extra_logger_names:
       description: |
         A comma\-separated list of third-party logger names that will be configured to print messages to
         consoles\.
@@ -777,7 +777,7 @@
       type: string
       example: "connexion,sqlalchemy"
       default: ""
-    - name: worker_log_server_port
+    worker_log_server_port:
       description: |
         When you start an airflow worker, airflow starts a tiny web server
         subprocess to serve the workers local log files to the airflow main
@@ -788,36 +788,36 @@
       type: string
       example: ~
       default: "8793"
-- name: metrics
+metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
   options:
-    - name: statsd_on
+    statsd_on:
       description: |
         Enables sending metrics to StatsD.
       version_added: 2.0.0
       type: string
       example: ~
       default: "False"
-    - name: statsd_host
+    statsd_host:
       description: ~
       version_added: 2.0.0
       type: string
       example: ~
       default: "localhost"
-    - name: statsd_port
+    statsd_port:
       description: ~
       version_added: 2.0.0
       type: string
       example: ~
       default: "8125"
-    - name: statsd_prefix
+    statsd_prefix:
       description: ~
       version_added: 2.0.0
       type: string
       example: ~
       default: "airflow"
-    - name: statsd_allow_list
+    statsd_allow_list:
       description: |
         If you want to avoid sending all the available metrics to StatsD,
         you can configure an allow list of prefixes (comma separated) to send only the metrics that
@@ -826,7 +826,7 @@
       type: string
       example: ~
       default: ""
-    - name: stat_name_handler
+    stat_name_handler:
       description: |
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
         the transformed stat name.
@@ -837,21 +837,21 @@
       type: string
       example: ~
       default: ""
-    - name: statsd_datadog_enabled
+    statsd_datadog_enabled:
       description: |
         To enable datadog integration to send airflow metrics.
       version_added: 2.0.0
       type: string
       example: ~
       default: "False"
-    - name: statsd_datadog_tags
+    statsd_datadog_tags:
       description: |
         List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
       version_added: 2.0.0
       type: string
       example: ~
       default: ""
-    - name: statsd_custom_client_path
+    statsd_custom_client_path:
       description: |
         If you want to utilise your own custom StatsD client set the relevant
         module path below.
@@ -860,17 +860,17 @@
       type: string
       example: ~
       default: ~
-- name: secrets
+secrets:
   description: ~
   options:
-    - name: backend
+    backend:
       description: |
         Full class name of secrets backend to enable (will precede env vars and metastore in search path)
       version_added: 1.10.10
       type: string
       example: "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend"
       default: ""
-    - name: backend_kwargs
+    backend_kwargs:
       description: |
         The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
         See documentation for the secrets backend you are using. JSON is expected.
@@ -880,10 +880,10 @@
       type: string
       example: ~
       default: ""
-- name: cli
+cli:
   description: ~
   options:
-    - name: api_client
+    api_client:
       description: |
         In what way should the cli access the API. The LocalClient will use the
         database directly, while the json_client will use the api running on the
@@ -892,7 +892,7 @@
       type: string
       example: ~
       default: "airflow.api.client.local_client"
-    - name: endpoint_url
+    endpoint_url:
       description: |
         If you set web_server_url_prefix, do NOT forget to append it here, ex:
         ``endpoint_url = http://localhost:8080/myroot``
@@ -901,10 +901,10 @@
       type: string
       example: ~
       default: "http://localhost:8080"
-- name: debug
+debug:
   description: ~
   options:
-    - name: fail_fast
+    fail_fast:
       description: |
         Used only with ``DebugExecutor``. If set to ``True`` DAG will fail with first
         failed task. Helpful for debugging purposes.
@@ -912,10 +912,10 @@
       type: string
       example: ~
       default: "False"
-- name: api
+api:
   description: ~
   options:
-    - name: enable_experimental_api
+    enable_experimental_api:
       description: |
         Enables the deprecated experimental API. Please note that these APIs do not have access control.
         The authenticated user has full access.
@@ -931,7 +931,7 @@
       type: boolean
       example: ~
       default: "False"
-    - name: auth_backends
+    auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
         https://airflow.apache.org/docs/apache-airflow/stable/security/api.html for possible values.
@@ -940,14 +940,14 @@
       type: string
       example: ~
       default: "airflow.api.auth.backend.session"
-    - name: maximum_page_limit
+    maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests
       version_added: 2.0.0
       type: integer
       example: ~
       default: "100"
-    - name: fallback_page_limit
+    fallback_page_limit:
       description: |
         Used to set the default page limit when limit is zero. A default limit
         of 100 is set on OpenApi spec. However, this particular default limit
@@ -957,7 +957,7 @@
       example: ~
       version_added: 2.0.0
       default: "100"
-    - name: google_oauth2_audience
+    google_oauth2_audience:
       description: The intended audience for JWT token credentials used for authorization.
         This value must match on the client and server sides.
         If empty, audience will not be tested.
@@ -965,7 +965,7 @@
       version_added: 2.0.0
       example: project-id-random-value.apps.googleusercontent.com
       default: ""
-    - name: google_key_path
+    google_key_path:
       description: |
         Path to Google Cloud Service Account key file (JSON). If omitted, authorization based on
         `the Application Default Credentials
@@ -975,7 +975,7 @@
       version_added: 2.0.0
       example: /files/service-account-json
       default: ""
-    - name: access_control_allow_headers
+    access_control_allow_headers:
       description: |
         Used in response to a preflight request to indicate which HTTP
         headers can be used when making the actual request. This header is
@@ -985,14 +985,14 @@
       version_added: 2.1.0
       example: ~
       default: ""
-    - name: access_control_allow_methods
+    access_control_allow_methods:
       description: |
         Specifies the method or methods allowed when accessing the resource.
       type: string
       version_added: 2.1.0
       example: ~
       default: ""
-    - name: access_control_allow_origins
+    access_control_allow_origins:
       description: |
         Indicates whether the response can be shared with requesting code from the given origins.
         Separate URLs with space.
@@ -1000,54 +1000,54 @@
       version_added: 2.2.0
       example: ~
       default: ""
-- name: lineage
+lineage:
   description: ~
   options:
-    - name: backend
+    backend:
       description: |
         what lineage backend to use
       version_added: ~
       type: string
       example: ~
       default: ""
-- name: atlas
+atlas:
   description: ~
   options:
-    - name: sasl_enabled
+    sasl_enabled:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "False"
-    - name: host
+    host:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: port
+    port:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "21000"
-    - name: username
+    username:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: password
+    password:
       description: ~
       version_added: ~
       type: string
       sensitive: true
       example: ~
       default: ""
-- name: operators
+operators:
   description: ~
   options:
-    - name: default_owner
+    default_owner:
       description: |
         The default owner assigned to each new operator, unless
         provided explicitly or passed via ``default_args``
@@ -1055,38 +1055,38 @@
       type: string
       example: ~
       default: "airflow"
-    - name: default_cpus
+    default_cpus:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "1"
-    - name: default_ram
+    default_ram:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "512"
-    - name: default_disk
+    default_disk:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "512"
-    - name: default_gpus
+    default_gpus:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "0"
-    - name: default_queue
+    default_queue:
       description: |
         Default queue that tasks get assigned to and that worker listen on.
       version_added: 2.1.0
       type: string
       example: ~
       default: "default"
-    - name: allow_illegal_arguments
+    allow_illegal_arguments:
       description: |
         Is allowed to pass additional/unused arguments (args, kwargs) to the BaseOperator operator.
         If set to False, an exception will be thrown, otherwise only the console message will be displayed.
@@ -1094,17 +1094,17 @@
       type: string
       example: ~
       default: "False"
-- name: hive
+hive:
   description: ~
   options:
-    - name: default_hive_mapred_queue
+    default_hive_mapred_queue:
       description: |
         Default mapreduce queue for HiveOperator tasks
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: mapred_job_name_template
+    mapred_job_name_template:
       description: |
         Template for mapred_job_name in HiveOperator, supports the following named parameters
         hostname, dag_id, task_id, execution_date
@@ -1112,10 +1112,10 @@
       type: string
       example: ~
       default: ~
-- name: webserver
+webserver:
   description: ~
   options:
-    - name: base_url
+    base_url:
       description: |
         The base url of your website as airflow cannot guess what domain or
         cname you are using. This is used in automated emails that
@@ -1124,7 +1124,7 @@
       type: string
       example: ~
       default: "http://localhost:8080"
-    - name: default_ui_timezone
+    default_ui_timezone:
       description: |
         Default timezone to display all dates in the UI, can be UTC, system, or
         any IANA timezone string (e.g. Europe/Amsterdam). If left empty the
@@ -1134,21 +1134,21 @@
       example: "America/New_York"
       # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
       default: "UTC"
-    - name: web_server_host
+    web_server_host:
       description: |
         The ip specified when starting the web server
       version_added: ~
       type: string
       example: ~
       default: "0.0.0.0"
-    - name: web_server_port
+    web_server_port:
       description: |
         The port on which to run the web server
       version_added: ~
       type: string
       example: ~
       default: "8080"
-    - name: web_server_ssl_cert
+    web_server_ssl_cert:
       description: |
         Paths to the SSL certificate and key for the web server. When both are
         provided SSL will be enabled. This does not change the web server port.
@@ -1156,7 +1156,7 @@
       type: string
       example: ~
       default: ""
-    - name: web_server_ssl_key
+    web_server_ssl_key:
       description: |
         Paths to the SSL certificate and key for the web server. When both are
         provided SSL will be enabled. This does not change the web server port.
@@ -1164,28 +1164,28 @@
       type: string
       example: ~
       default: ""
-    - name: session_backend
+    session_backend:
       description: |
         The type of backend used to store web session data, can be 'database' or 'securecookie'
       version_added: 2.2.4
       type: string
       example: securecookie
       default: database
-    - name: web_server_master_timeout
+    web_server_master_timeout:
       description: |
         Number of seconds the webserver waits before killing gunicorn master that doesn't respond
       version_added: ~
       type: string
       example: ~
       default: "120"
-    - name: web_server_worker_timeout
+    web_server_worker_timeout:
       description: |
         Number of seconds the gunicorn webserver waits before timing out on a worker
       version_added: ~
       type: string
       example: ~
       default: "120"
-    - name: worker_refresh_batch_size
+    worker_refresh_batch_size:
       description: |
         Number of workers to refresh at a time. When set to 0, worker refresh is
         disabled. When nonzero, airflow periodically refreshes webserver workers by
@@ -1194,14 +1194,14 @@
       type: string
       example: ~
       default: "1"
-    - name: worker_refresh_interval
+    worker_refresh_interval:
       description: |
         Number of seconds to wait before refreshing a batch of workers.
       version_added: ~
       type: string
       example: ~
       default: "6000"
-    - name: reload_on_plugin_change
+    reload_on_plugin_change:
       description: |
         If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
         then reload the gunicorn.
@@ -1209,7 +1209,7 @@
       type: boolean
       example: ~
       default: "False"
-    - name: secret_key
+    secret_key:
       description: |
         Secret key used to run your flask app. It should be as random as possible. However, when running
         more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
@@ -1223,14 +1223,14 @@
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    - name: workers
+    workers:
       description: |
         Number of workers to run the Gunicorn web server
       version_added: ~
       type: string
       example: ~
       default: "4"
-    - name: worker_class
+    worker_class:
       description: |
         The worker class gunicorn should use. Choices include
         sync (default), eventlet, gevent
@@ -1238,21 +1238,21 @@
       type: string
       example: ~
       default: "sync"
-    - name: access_logfile
+    access_logfile:
       description: |
         Log files for the gunicorn webserver. '-' means log to stderr.
       version_added: ~
       type: string
       example: ~
       default: "-"
-    - name: error_logfile
+    error_logfile:
       description: |
         Log files for the gunicorn webserver. '-' means log to stderr.
       version_added: ~
       type: string
       example: ~
       default: "-"
-    - name: access_logformat
+    access_logformat:
       description: |
         Access log format for gunicorn webserver.
         default format is %%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"
@@ -1261,7 +1261,7 @@
       type: string
       example: ~
       default: ""
-    - name: expose_config
+    expose_config:
       description: |
         Expose the configuration file in the web server. Set to "non-sensitive-only" to show all values
         except those that have security implications. "True" shows all values. "False" hides the
@@ -1270,28 +1270,28 @@
       type: string
       example: ~
       default: "False"
-    - name: expose_hostname
+    expose_hostname:
       description: |
         Expose hostname in the web server
       version_added: 1.10.8
       type: string
       example: ~
       default: "True"
-    - name: expose_stacktrace
+    expose_stacktrace:
       description: |
         Expose stacktrace in the web server
       version_added: 1.10.8
       type: string
       example: ~
       default: "False"
-    - name: dag_default_view
+    dag_default_view:
       description: |
         Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
       version_added: ~
       type: string
       example: ~
       default: "grid"
-    - name: dag_orientation
+    dag_orientation:
       description: |
         Default DAG orientation. Valid values are:
         ``LR`` (Left->Right), ``TB`` (Top->Bottom), ``RL`` (Right->Left), ``BT`` (Bottom->Top)
@@ -1299,7 +1299,7 @@
       type: string
       example: ~
       default: "LR"
-    - name: log_fetch_timeout_sec
+    log_fetch_timeout_sec:
       description: |
         The amount of time (in secs) webserver will wait for initial handshake
         while fetching logs from other worker machine
@@ -1307,28 +1307,28 @@
       type: string
       example: ~
       default: "5"
-    - name: log_fetch_delay_sec
+    log_fetch_delay_sec:
       description: |
         Time interval (in secs) to wait before next log fetching.
       version_added: 1.10.8
       type: integer
       example: ~
       default: "2"
-    - name: log_auto_tailing_offset
+    log_auto_tailing_offset:
       description: |
         Distance away from page bottom to enable auto tailing.
       version_added: 1.10.8
       type: integer
       example: ~
       default: "30"
-    - name: log_animation_speed
+    log_animation_speed:
       description: |
         Animation speed for auto tailing log display.
       version_added: 1.10.8
       type: integer
       example: ~
       default: "1000"
-    - name: hide_paused_dags_by_default
+    hide_paused_dags_by_default:
       description: |
         By default, the webserver shows paused DAGs. Flip this to hide paused
         DAGs by default
@@ -1336,35 +1336,35 @@
       type: string
       example: ~
       default: "False"
-    - name: page_size
+    page_size:
       description: |
         Consistent page size across all listing views in the UI
       version_added: ~
       type: string
       example: ~
       default: "100"
-    - name: navbar_color
+    navbar_color:
       description: |
         Define the color of navigation bar
       version_added: ~
       type: string
       example: ~
       default: "#fff"
-    - name: default_dag_run_display_number
+    default_dag_run_display_number:
       description: |
         Default dagrun to show in UI
       version_added: ~
       type: string
       example: ~
       default: "25"
-    - name: enable_proxy_fix
+    enable_proxy_fix:
       description: |
         Enable werkzeug ``ProxyFix`` middleware for reverse proxy
       version_added: 1.10.1
       type: boolean
       example: ~
       default: "False"
-    - name: proxy_fix_x_for
+    proxy_fix_x_for:
       description: |
         Number of values to trust for ``X-Forwarded-For``.
         More info: https://werkzeug.palletsprojects.com/en/0.16.x/middleware/proxy_fix/
@@ -1372,63 +1372,63 @@
       type: integer
       example: ~
       default: "1"
-    - name: proxy_fix_x_proto
+    proxy_fix_x_proto:
       description: |
         Number of values to trust for ``X-Forwarded-Proto``
       version_added: 1.10.7
       type: integer
       example: ~
       default: "1"
-    - name: proxy_fix_x_host
+    proxy_fix_x_host:
       description: |
         Number of values to trust for ``X-Forwarded-Host``
       version_added: 1.10.7
       type: integer
       example: ~
       default: "1"
-    - name: proxy_fix_x_port
+    proxy_fix_x_port:
       description: |
         Number of values to trust for ``X-Forwarded-Port``
       version_added: 1.10.7
       type: integer
       example: ~
       default: "1"
-    - name: proxy_fix_x_prefix
+    proxy_fix_x_prefix:
       description: |
         Number of values to trust for ``X-Forwarded-Prefix``
       version_added: 1.10.7
       type: integer
       example: ~
       default: "1"
-    - name: cookie_secure
+    cookie_secure:
       description: |
         Set secure flag on session cookie
       version_added: 1.10.3
       type: string
       example: ~
       default: "False"
-    - name: cookie_samesite
+    cookie_samesite:
       description: |
         Set samesite policy on session cookie
       version_added: 1.10.3
       type: string
       example: ~
       default: "Lax"
-    - name: default_wrap
+    default_wrap:
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
       version_added: 1.10.4
       type: boolean
       example: ~
       default: "False"
-    - name: x_frame_enabled
+    x_frame_enabled:
       description: |
         Allow the UI to be rendered in a frame
       version_added: 1.10.8
       type: boolean
       example: ~
       default: "True"
-    - name: analytics_tool
+    analytics_tool:
       description: |
         Send anonymous user activity to your analytics tool
         choose from google_analytics, segment, or metarouter
@@ -1436,21 +1436,21 @@
       type: string
       example: ~
       default: ~
-    - name: analytics_id
+    analytics_id:
       description: |
         Unique ID of your account in the analytics tool
       version_added: 1.10.5
       type: string
       example: ~
       default: ~
-    - name: show_recent_stats_for_completed_runs
+    show_recent_stats_for_completed_runs:
       description: |
         'Recent Tasks' stats will show for old DagRuns if set
       version_added: 2.0.0
       type: boolean
       example: ~
       default: "True"
-    - name: update_fab_perms
+    update_fab_perms:
       description: |
         Update FAB permissions and sync security manager roles
         on webserver startup
@@ -1458,7 +1458,7 @@
       type: string
       example: ~
       default: "True"
-    - name: session_lifetime_minutes
+    session_lifetime_minutes:
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
         ``session_lifetime_minutes`` of non-activity
@@ -1466,21 +1466,21 @@
       type: integer
       example: ~
       default: "43200"
-    - name: instance_name
+    instance_name:
       description: |
         Sets a custom page title for the DAGs overview page and site title for all pages
       version_added: 2.1.0
       type: string
       example: ~
       default:
-    - name: instance_name_has_markup
+    instance_name_has_markup:
       description: |
         Whether the custom page title for the DAGs overview page contains any Markup language
       version_added: 2.3.0
       type: boolean
       example: ~
       default: "False"
-    - name: auto_refresh_interval
+    auto_refresh_interval:
       description: |
         How frequently, in seconds, the DAG data will auto-refresh in graph or grid view
         when auto-refresh is turned on
@@ -1488,14 +1488,14 @@
       type: integer
       example: ~
       default: "3"
-    - name: warn_deployment_exposure
+    warn_deployment_exposure:
       description: |
         Boolean for displaying warning for publicly viewable deployment
       version_added: 2.3.0
       type: boolean
       example: ~
       default: "True"
-    - name: audit_view_excluded_events
+    audit_view_excluded_events:
       description: |
         Comma separated string of view events to exclude from dag audit view.
         All other events will be added minus the ones passed here.
@@ -1504,7 +1504,7 @@
       type: string
       example: ~
       default: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data"
-    - name: audit_view_included_events
+    audit_view_included_events:
       description: |
         Comma separated string of view events to include in dag audit view.
         If passed, only these events will populate the dag audit view.
@@ -1513,14 +1513,14 @@
       type: string
       example: "dagrun_cleared,failed"
       default: ~
-    - name: enable_swagger_ui
+    enable_swagger_ui:
       description: |
         Boolean for running SwaggerUI in the webserver.
       version_added: 2.6.0
       type: boolean
       example: ~
       default: "True"
-    - name: run_internal_api
+    run_internal_api:
       description: |
         Boolean for running Internal API in the webserver.
       version_added: 2.6.0
@@ -1528,38 +1528,38 @@
       example: ~
       default: "False"
 
-- name: email
+email:
   description: |
     Configuration email backend and whether to
     send email alerts on retry or failure
   options:
-    - name: email_backend
+    email_backend:
       description: Email backend to use
       version_added: ~
       type: string
       example: ~
       default: "airflow.utils.email.send_email_smtp"
-    - name: email_conn_id
+    email_conn_id:
       description: Email connection to use
       version_added: 2.1.0
       type: string
       example: ~
       default: "smtp_default"
-    - name: default_email_on_retry
+    default_email_on_retry:
       description: |
         Whether email alerts should be sent when a task is retried
       version_added: 2.0.0
       type: boolean
       example: ~
       default: "True"
-    - name: default_email_on_failure
+    default_email_on_failure:
       description: |
         Whether email alerts should be sent when a task failed
       version_added: 2.0.0
       type: boolean
       example: ~
       default: "True"
-    - name: subject_template
+    subject_template:
       description: |
         File that will be used as the template for Email subject (which will be rendered using Jinja2).
         If not set, Airflow uses a base template.
@@ -1568,7 +1568,7 @@
       example: "/path/to/my_subject_template_file"
       default: ~
       see_also: ":doc:`Email Configuration </howto/email-config>`"
-    - name: html_content_template
+    html_content_template:
       description: |
         File that will be used as the template for Email content (which will be rendered using Jinja2).
         If not set, Airflow uses a base template.
@@ -1577,7 +1577,7 @@
       example: "/path/to/my_html_content_template_file"
       default: ~
       see_also: ":doc:`Email Configuration </howto/email-config>`"
-    - name: from_email
+    from_email:
       description: |
         Email address that will be used as sender address.
         It can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``
@@ -1586,68 +1586,68 @@
       example: "Airflow <airflow@example.com>"
       default: ~
 
-- name: smtp
+smtp:
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
     the airflow.utils.email.send_email_smtp function, you have to configure an
     smtp server here
   options:
-    - name: smtp_host
+    smtp_host:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "localhost"
-    - name: smtp_starttls
+    smtp_starttls:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "True"
-    - name: smtp_ssl
+    smtp_ssl:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "False"
-    - name: smtp_user
+    smtp_user:
       description: ~
       version_added: ~
       type: string
       example: "airflow"
       default: ~
-    - name: smtp_password
+    smtp_password:
       description: ~
       version_added: ~
       type: string
       sensitive: true
       example: "airflow"
       default: ~
-    - name: smtp_port
+    smtp_port:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "25"
-    - name: smtp_mail_from
+    smtp_mail_from:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "airflow@example.com"
-    - name: smtp_timeout
+    smtp_timeout:
       description: ~
       version_added: 2.0.0
       type: integer
       example: ~
       default: "30"
-    - name: smtp_retry_limit
+    smtp_retry_limit:
       description: ~
       version_added: 2.0.0
       type: integer
       example: ~
       default: "5"
-- name: sentry
+sentry:
   description: |
     Sentry (https://docs.sentry.io) integration. Here you can supply
     additional configuration options based on the Python platform. See:
@@ -1655,30 +1655,30 @@
     Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
     ``ignore_errors``, ``before_breadcrumb``, ``transport``.
   options:
-    - name: sentry_on
+    sentry_on:
       description: Enable error reporting to Sentry
       version_added: 2.0.0
       type: string
       example: ~
       default: "false"
-    - name: sentry_dsn
+    sentry_dsn:
       description: ~
       version_added: 1.10.6
       type: string
       example: ~
       default: ""
-    - name: before_send
+    before_send:
       description: Dotted path to a before_send function that the sentry SDK should be configured to use.
       version_added: 2.2.0
       type: string
       example: ~
       default: ~
-- name: local_kubernetes_executor
+local_kubernetes_executor:
   description: |
     This section only applies if you are using the ``LocalKubernetesExecutor`` in
     ``[core]`` section above
   options:
-    - name: kubernetes_queue
+    kubernetes_queue:
       description: |
         Define when to send a task to ``KubernetesExecutor`` when using ``LocalKubernetesExecutor``.
         When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
@@ -1688,12 +1688,12 @@
       type: string
       example: ~
       default: "kubernetes"
-- name: celery_kubernetes_executor
+celery_kubernetes_executor:
   description: |
     This section only applies if you are using the ``CeleryKubernetesExecutor`` in
     ``[core]`` section above
   options:
-    - name: kubernetes_queue
+    kubernetes_queue:
       description: |
         Define when to send a task to ``KubernetesExecutor`` when using ``CeleryKubernetesExecutor``.
         When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
@@ -1703,19 +1703,19 @@
       type: string
       example: ~
       default: "kubernetes"
-- name: celery
+celery:
   description: |
     This section only applies if you are using the CeleryExecutor in
     ``[core]`` section above
   options:
-    - name: celery_app_name
+    celery_app_name:
       description: |
         The app name that will be used by celery
       version_added: ~
       type: string
       example: ~
       default: "airflow.executors.celery_executor"
-    - name: worker_concurrency
+    worker_concurrency:
       description: |
         The concurrency that will be used when starting workers with the
         ``airflow celery worker`` command. This defines the number of task instances that
@@ -1725,7 +1725,7 @@
       type: string
       example: ~
       default: "16"
-    - name: worker_autoscale
+    worker_autoscale:
       description: |
         The maximum and minimum concurrency that will be used when starting workers with the
         ``airflow celery worker`` command (always keep minimum processes, but grow
@@ -1737,7 +1737,7 @@
       type: string
       example: 16,12
       default: ~
-    - name: worker_prefetch_multiplier
+    worker_prefetch_multiplier:
       description: |
         Used to increase the number of tasks that a worker prefetches which can improve performance.
         The number of processes multiplied by worker_prefetch_multiplier is the number of tasks
@@ -1750,7 +1750,7 @@
       type: integer
       example: ~
       default: "1"
-    - name: worker_enable_remote_control
+    worker_enable_remote_control:
       description: |
         Specify if remote control of the workers is enabled.
         When using Amazon SQS as the broker, Celery creates lots of ``.*reply-celery-pidbox`` queues. You can
@@ -1759,7 +1759,7 @@
       type: boolean
       example: ~
       default: "true"
-    - name: broker_url
+    broker_url:
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
         a sqlalchemy database. Refer to the Celery documentation for more information.
@@ -1768,7 +1768,7 @@
       sensitive: true
       example: ~
       default: "redis://redis:6379/0"
-    - name: result_backend
+    result_backend:
       description: |
         The Celery result_backend. When a job finishes, it needs to update the
         metadata of the job. Therefore it will post a message on a message bus,
@@ -1782,7 +1782,7 @@
       sensitive: true
       example: "db+postgresql://postgres:airflow@postgres/airflow"
       default: ~
-    - name: flower_host
+    flower_host:
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
         it ``airflow celery flower``. This defines the IP that Celery Flower runs on
@@ -1790,21 +1790,21 @@
       type: string
       example: ~
       default: "0.0.0.0"
-    - name: flower_url_prefix
+    flower_url_prefix:
       description: |
         The root URL for Flower
       version_added: ~
       type: string
       example: "/flower"
       default: ""
-    - name: flower_port
+    flower_port:
       description: |
         This defines the port that Celery Flower runs on
       version_added: ~
       type: string
       example: ~
       default: "5555"
-    - name: flower_basic_auth
+    flower_basic_auth:
       description: |
         Securing Flower with Basic Authentication
         Accepts user:password pairs separated by a comma
@@ -1813,7 +1813,7 @@
       sensitive: true
       example: "user1:password1,user2:password2"
       default: ""
-    - name: sync_parallelism
+    sync_parallelism:
       description: |
         How many processes CeleryExecutor uses to sync task state.
         0 means to use max(1, number of cores - 1) processes.
@@ -1821,38 +1821,38 @@
       type: string
       example: ~
       default: "0"
-    - name: celery_config_options
+    celery_config_options:
       description: |
         Import path for celery configuration options
       version_added: ~
       type: string
       example: ~
       default: "airflow.config_templates.default_celery.DEFAULT_CELERY_CONFIG"
-    - name: ssl_active
+    ssl_active:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "False"
-    - name: ssl_key
+    ssl_key:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: ssl_cert
+    ssl_cert:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: ssl_cacert
+    ssl_cacert:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: pool
+    pool:
       description: |
         Celery Pool implementation.
         Choices include: ``prefork`` (default), ``eventlet``, ``gevent`` or ``solo``.
@@ -1863,7 +1863,7 @@
       type: string
       example: ~
       default: "prefork"
-    - name: operation_timeout
+    operation_timeout:
       description: |
         The number of seconds to wait before timing out ``send_task_to_executor`` or
         ``fetch_celery_task_state`` operations.
@@ -1871,7 +1871,7 @@
       type: float
       example: ~
       default: "1.0"
-    - name: task_track_started
+    task_track_started:
       description: |
         Celery task will report its status as 'started' when the task is executed by a worker.
         This is used in Airflow to keep track of the running tasks and if a Scheduler is restarted
@@ -1880,7 +1880,7 @@
       type: boolean
       example: ~
       default: "True"
-    - name: task_adoption_timeout
+    task_adoption_timeout:
       description: |
         Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
         and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
@@ -1890,7 +1890,7 @@
       type: integer
       example: ~
       default: "600"
-    - name: stalled_task_timeout
+    stalled_task_timeout:
       description: |
         Time in seconds after which tasks queued in celery are assumed to be stalled, and are automatically
         rescheduled. Adopted tasks will instead use the ``task_adoption_timeout`` setting if specified.
@@ -1899,7 +1899,7 @@
       type: integer
       example: ~
       default: "0"
-    - name: task_publish_max_retries
+    task_publish_max_retries:
       description: |
         The Maximum number of retries for publishing task messages to the broker when failing
         due to ``AirflowTaskTimeout`` error before giving up and marking Task as failed.
@@ -1907,20 +1907,20 @@
       type: integer
       example: ~
       default: "3"
-    - name: worker_precheck
+    worker_precheck:
       description: |
         Worker initialisation check to validate Metadata Database connection
       version_added: 2.0.0
       type: string
       example: ~
       default: "False"
-- name: celery_broker_transport_options
+celery_broker_transport_options:
   description: |
     This section is for specifying options which can be passed to the
     underlying celery broker transport. See:
     http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_transport_options
   options:
-    - name: visibility_timeout
+    visibility_timeout:
       description: |
         The visibility timeout defines the number of seconds to wait for the worker
         to acknowledge the task before the message is redelivered to another worker.
@@ -1933,41 +1933,41 @@
       type: string
       example: "21600"
       default: ~
-- name: dask
+dask:
   description: |
     This section only applies if you are using the DaskExecutor in
     [core] section above
   options:
-    - name: cluster_address
+    cluster_address:
       description: |
         The IP address and port of the Dask cluster's scheduler.
       version_added: ~
       type: string
       example: ~
       default: "127.0.0.1:8786"
-    - name: tls_ca
+    tls_ca:
       description: |
         TLS/ SSL settings to access a secured Dask scheduler.
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: tls_cert
+    tls_cert:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: tls_key
+    tls_key:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: ""
-- name: scheduler
+scheduler:
   description: ~
   options:
-    - name: job_heartbeat_sec
+    job_heartbeat_sec:
       description: |
         Task instances listen for external kill signal (when you clear tasks
         from the CLI or the UI), this defines the frequency at which they should
@@ -1976,7 +1976,7 @@
       type: string
       example: ~
       default: "5"
-    - name: scheduler_heartbeat_sec
+    scheduler_heartbeat_sec:
       description: |
         The scheduler constantly tries to trigger new tasks (look at the
         scheduler section in the docs for more information). This defines
@@ -1985,7 +1985,7 @@
       type: string
       example: ~
       default: "5"
-    - name: num_runs
+    num_runs:
       description: |
         The number of times to try to schedule each DAG file
         -1 indicates unlimited number
@@ -1993,7 +1993,7 @@
       type: string
       example: ~
       default: "-1"
-    - name: scheduler_idle_sleep_time
+    scheduler_idle_sleep_time:
       description: |
         Controls how long the scheduler will sleep between loops, but if there was nothing to do
         in the loop. i.e. if it scheduled something then it will start the next loop
@@ -2002,7 +2002,7 @@
       type: string
       example: ~
       default: "1"
-    - name: min_file_process_interval
+    min_file_process_interval:
       description: |
         Number of seconds after which a DAG file is parsed. The DAG file is parsed every
         ``min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
@@ -2011,7 +2011,7 @@
       type: string
       example: ~
       default: "30"
-    - name: parsing_cleanup_interval
+    parsing_cleanup_interval:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
         the expected files) which should be deactivated, as well as datasets that are no longer
@@ -2020,28 +2020,28 @@
       type: integer
       example: ~
       default: "60"
-    - name: dag_dir_list_interval
+    dag_dir_list_interval:
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
       version_added: ~
       type: string
       example: ~
       default: "300"
-    - name: print_stats_interval
+    print_stats_interval:
       description: |
         How often should stats be printed to the logs. Setting to 0 will disable printing stats
       version_added: ~
       type: string
       example: ~
       default: "30"
-    - name: pool_metrics_interval
+    pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
       version_added: 2.0.0
       type: float
       example: ~
       default: "5.0"
-    - name: scheduler_health_check_threshold
+    scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
@@ -2050,7 +2050,7 @@
       type: string
       example: ~
       default: "30"
-    - name: enable_health_check
+    enable_health_check:
       description: |
         When you start a scheduler, airflow starts a tiny web server
         subprocess to serve a health check if this is set to True
@@ -2058,7 +2058,7 @@
       type: boolean
       example: ~
       default: "False"
-    - name: scheduler_health_check_server_port
+    scheduler_health_check_server_port:
       description: |
         When you start a scheduler, airflow starts a tiny web server
         subprocess to serve a health check on this port
@@ -2066,20 +2066,20 @@
       type: string
       example: ~
       default: "8974"
-    - name: orphaned_tasks_check_interval
+    orphaned_tasks_check_interval:
       description: |
         How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs
       version_added: 2.0.0
       type: float
       example: ~
       default: "300.0"
-    - name: child_process_log_directory
+    child_process_log_directory:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/scheduler"
-    - name: scheduler_zombie_task_threshold
+    scheduler_zombie_task_threshold:
       description: |
         Local task jobs periodically heartbeat to the DB. If the job has
         not heartbeat in this many seconds, the scheduler will mark the
@@ -2088,14 +2088,14 @@
       type: string
       example: ~
       default: "300"
-    - name: zombie_detection_interval
+    zombie_detection_interval:
       description: |
         How often (in seconds) should the scheduler check for zombie tasks.
       version_added: 2.3.0
       type: float
       example: ~
       default: "10.0"
-    - name: catchup_by_default
+    catchup_by_default:
       description: |
         Turn off scheduler catchup by setting this to ``False``.
         Default behavior is unchanged and
@@ -2107,7 +2107,7 @@
       type: string
       example: ~
       default: "True"
-    - name: ignore_first_depends_on_past_by_default
+    ignore_first_depends_on_past_by_default:
       description: |
         Setting this to True will make first task instance of a task
         ignore depends_on_past setting. A task instance will be considered
@@ -2118,7 +2118,7 @@
       type: string
       example: ~
       default: "True"
-    - name: max_tis_per_query
+    max_tis_per_query:
       description: |
         This changes the batch size of queries in the scheduling main loop.
         If this is too high, SQL query performance may be impacted by
@@ -2129,7 +2129,7 @@
       type: string
       example: ~
       default: "512"
-    - name: use_row_level_locking
+    use_row_level_locking:
       description: |
         Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.
         If this is set to False then you should not run more than a single
@@ -2138,7 +2138,7 @@
       type: boolean
       example: ~
       default: "True"
-    - name: max_dagruns_to_create_per_loop
+    max_dagruns_to_create_per_loop:
       description: |
         Max number of DAGs to create DagRuns for per scheduler loop.
       example: ~
@@ -2146,7 +2146,7 @@
       type: string
       default: "10"
       see_also: ":ref:`scheduler:ha:tunables`"
-    - name: max_dagruns_per_loop_to_schedule
+    max_dagruns_per_loop_to_schedule:
       description: |
         How many DagRuns should a scheduler examine (and lock) when scheduling
         and queuing tasks.
@@ -2155,7 +2155,7 @@
       type: string
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    - name: schedule_after_task_execution
+    schedule_after_task_execution:
       description: |
         Should the Task supervisor process perform a "mini scheduler" to attempt to schedule more tasks of the
         same DAG. Leaving this on will mean tasks in the same DAG execute quicker, but might starve out other
@@ -2164,7 +2164,7 @@
       version_added: 2.0.0
       type: boolean
       default: "True"
-    - name: parsing_processes
+    parsing_processes:
       description: |
         The scheduler can run multiple processes in parallel to parse dags.
         This defines how many processes will run.
@@ -2172,7 +2172,7 @@
       type: string
       example: ~
       default: "2"
-    - name: file_parsing_sort_mode
+    file_parsing_sort_mode:
       description: |
         One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
         The scheduler will list and sort the dag files to decide the parsing order.
@@ -2188,7 +2188,7 @@
       type: string
       example: ~
       default: "modified_time"
-    - name: standalone_dag_processor
+    standalone_dag_processor:
       description: |
         Whether the dag processor is running as a standalone process or it is a subprocess of a scheduler
         job.
@@ -2196,7 +2196,7 @@
       type: boolean
       example: ~
       default: "False"
-    - name: max_callbacks_per_loop
+    max_callbacks_per_loop:
       description: |
         Only applicable if `[scheduler]standalone_dag_processor` is true and  callbacks are stored
         in database. Contains maximum number of callbacks that are fetched during a single loop.
@@ -2204,7 +2204,7 @@
       type: integer
       example: ~
       default: "20"
-    - name: dag_stale_not_seen_duration
+    dag_stale_not_seen_duration:
       description: |
         Only applicable if `[scheduler]standalone_dag_processor` is true.
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
@@ -2212,7 +2212,7 @@
       type: integer
       example: ~
       default: "600"
-    - name: use_job_schedule
+    use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
         DAGs submitted manually in the web UI or with trigger_dag will still run.
@@ -2220,7 +2220,7 @@
       type: string
       example: ~
       default: "True"
-    - name: allow_trigger_in_future
+    allow_trigger_in_future:
       description: |
         Allow externally triggered DagRuns for Execution Dates in the future
         Only has effect if schedule_interval is set to None in DAG
@@ -2228,96 +2228,96 @@
       type: string
       example: ~
       default: "False"
-    - name: trigger_timeout_check_interval
+    trigger_timeout_check_interval:
       description: |
         How often to check for expired trigger requests that have not run yet.
       version_added: 2.2.0
       type: string
       example: ~
       default: "15"
-- name: triggerer
+triggerer:
   description: ~
   options:
-    - name: default_capacity
+    default_capacity:
       description: |
         How many triggers a single Triggerer will run at once, by default.
       version_added: 2.2.0
       type: string
       example: ~
       default: "1000"
-- name: kerberos
+kerberos:
   description: ~
   options:
-    - name: ccache
+    ccache:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "/tmp/airflow_krb5_ccache"
-    - name: principal
+    principal:
       description: |
         gets augmented with fqdn
       version_added: ~
       type: string
       example: ~
       default: "airflow"
-    - name: reinit_frequency
+    reinit_frequency:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "3600"
-    - name: kinit_path
+    kinit_path:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "kinit"
-    - name: keytab
+    keytab:
       description: ~
       version_added: ~
       type: string
       example: ~
       default: "airflow.keytab"
-    - name: forwardable
+    forwardable:
       description: |
         Allow to disable ticket forwardability.
       version_added: 2.2.0
       type: boolean
       example: ~
       default: "True"
-    - name: include_ip
+    include_ip:
       description: |
         Allow to remove source IP from token, useful when using token behind NATted Docker host.
       version_added: 2.2.0
       type: boolean
       example: ~
       default: "True"
-- name: elasticsearch
+elasticsearch:
   description: ~
   options:
-    - name: host
+    host:
       description: |
         Elasticsearch host
       version_added: 1.10.4
       type: string
       example: ~
       default: ""
-    - name: log_id_template
+    log_id_template:
       description: |
         Format of the log_id, which is used to query for a given tasks logs
       version_added: 1.10.4
       type: string
       example: ~
       default: "{{dag_id}}-{{task_id}}-{{run_id}}-{{map_index}}-{{try_number}}"
-    - name: end_of_log_mark
+    end_of_log_mark:
       description: |
         Used to mark the end of a log stream for a task
       version_added: 1.10.4
       type: string
       example: ~
       default: "end_of_log"
-    - name: frontend
+    frontend:
       description: |
         Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
         Code will construct log_id using the log_id template from the argument above.
@@ -2327,70 +2327,70 @@
       example: "http://localhost:5601/app/kibana#/discover\
         ?_a=(columns:!(message),query:(language:kuery,query:'log_id: \"{log_id}\"'),sort:!(log.offset,asc))"
       default: ""
-    - name: write_stdout
+    write_stdout:
       description: |
         Write the task logs to the stdout of the worker, rather than the default files
       version_added: 1.10.4
       type: string
       example: ~
       default: "False"
-    - name: json_format
+    json_format:
       description: |
         Instead of the default log formatter, write the log lines as JSON
       version_added: 1.10.4
       type: string
       example: ~
       default: "False"
-    - name: json_fields
+    json_fields:
       description: |
         Log fields to also attach to the json output, if enabled
       version_added: 1.10.4
       type: string
       example: ~
       default: "asctime, filename, lineno, levelname, message"
-    - name: host_field
+    host_field:
       description: |
         The field where host name is stored (normally either `host` or `host.name`)
       version_added: 2.1.1
       type: string
       example: ~
       default: "host"
-    - name: offset_field
+    offset_field:
       description: |
         The field where offset is stored (normally either `offset` or `log.offset`)
       version_added: 2.1.1
       type: string
       example: ~
       default: "offset"
-    - name: index_patterns
+    index_patterns:
       description: |
         Comma separated list of index patterns to use when searching for logs (default: `_all`).
       version_added: 2.6.0
       type: string
       example: something-*
       default: "_all"
-- name: elasticsearch_configs
+elasticsearch_configs:
   description: ~
   options:
-    - name: use_ssl
+    use_ssl:
       description: ~
       version_added: 1.10.5
       type: string
       example: ~
       default: "False"
-    - name: verify_certs
+    verify_certs:
       description: ~
       version_added: 1.10.5
       type: string
       example: ~
       default: "True"
-- name: kubernetes_executor
+kubernetes_executor:
   description: ~
   renamed:
     previous_name: kubernetes
     version: 2.5.0
   options:
-    - name: pod_template_file
+    pod_template_file:
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.
       version_added: 1.10.11
@@ -2398,35 +2398,35 @@
       example: ~
       default: ""
       see_also: ":ref:`concepts:pod_template_file`"
-    - name: worker_container_repository
+    worker_container_repository:
       description: |
         The repository of the Kubernetes Image for the Worker to Run
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: worker_container_tag
+    worker_container_tag:
       description: |
         The tag of the Kubernetes Image for the Worker to Run
       version_added: ~
       type: string
       example: ~
       default: ""
-    - name: namespace
+    namespace:
       description: |
         The Kubernetes namespace where airflow workers should be created. Defaults to ``default``
       version_added: ~
       type: string
       example: ~
       default: "default"
-    - name: delete_worker_pods
+    delete_worker_pods:
       description: |
         If True, all worker pods will be deleted upon termination
       version_added: ~
       type: string
       example: ~
       default: "True"
-    - name: delete_worker_pods_on_failure
+    delete_worker_pods_on_failure:
       description: |
         If False (and delete_worker_pods is True),
         failed worker pods will not be deleted so users can investigate them.
@@ -2436,7 +2436,7 @@
       type: string
       example: ~
       default: "False"
-    - name: worker_pods_creation_batch_size
+    worker_pods_creation_batch_size:
       description: |
         Number of Kubernetes Worker Pod creation calls per scheduler loop.
         Note that the current default of "1" will only launch a single pod
@@ -2447,7 +2447,7 @@
       type: string
       example: ~
       default: "1"
-    - name: multi_namespace_mode
+    multi_namespace_mode:
       description: |
         Allows users to launch pods in multiple namespaces.
         Will require creating a cluster-role for the scheduler,
@@ -2456,7 +2456,7 @@
       type: boolean
       example: ~
       default: "False"
-    - name: multi_namespace_mode_namespace_list
+    multi_namespace_mode_namespace_list:
       description: |
         If multi_namespace_mode is True while scheduler does not have a cluster-role,
         give the list of namespaces where the scheduler will schedule jobs
@@ -2465,7 +2465,7 @@
       type: string
       example: ~
       default: ""
-    - name: in_cluster
+    in_cluster:
       description: |
         Use the service account kubernetes gives to pods to connect to kubernetes cluster.
         It's intended for clients that expect to be running inside a pod running on kubernetes.
@@ -2474,7 +2474,7 @@
       type: string
       example: ~
       default: "True"
-    - name: cluster_context
+    cluster_context:
       description: |
         When running with in_cluster=False change the default cluster_context or config_file
         options to Kubernetes client. Leave blank these to use default behaviour like ``kubectl`` has.
@@ -2482,14 +2482,14 @@
       type: string
       example: ~
       default: ~
-    - name: config_file
+    config_file:
       description: |
         Path to the kubernetes configfile to be used when ``in_cluster`` is set to False
       version_added: 1.10.3
       type: string
       example: ~
       default: ~
-    - name: kube_client_request_args
+    kube_client_request_args:
       description: |
         Keyword parameters to pass while calling a kubernetes client core_v1_api methods
         from Kubernetes Executor provided as a single line formatted JSON dictionary string.
@@ -2500,7 +2500,7 @@
       type: string
       example: ~
       default: ""
-    - name: delete_option_kwargs
+    delete_option_kwargs:
       description: |
         Optional keyword arguments to pass to the ``delete_namespaced_pod`` kubernetes client
         ``core_v1_api`` method when using the Kubernetes Executor.
@@ -2511,7 +2511,7 @@
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""
-    - name: enable_tcp_keepalive
+    enable_tcp_keepalive:
       description: |
         Enables TCP keepalive mechanism. This prevents Kubernetes API requests to hang indefinitely
         when idle connection is time-outed on services like cloud load balancers or firewalls.
@@ -2519,7 +2519,7 @@
       type: boolean
       example: ~
       default: "True"
-    - name: tcp_keep_idle
+    tcp_keep_idle:
       description: |
         When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
         been idle for `tcp_keep_idle` seconds.
@@ -2527,7 +2527,7 @@
       type: integer
       example: ~
       default: "120"
-    - name: tcp_keep_intvl
+    tcp_keep_intvl:
       description: |
         When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
         to a keepalive probe, TCP retransmits the probe after `tcp_keep_intvl` seconds.
@@ -2535,7 +2535,7 @@
       type: integer
       example: ~
       default: "30"
-    - name: tcp_keep_cnt
+    tcp_keep_cnt:
       description: |
         When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
         to a keepalive probe, TCP retransmits the probe `tcp_keep_cnt number` of times before
@@ -2544,35 +2544,35 @@
       type: integer
       example: ~
       default: "6"
-    - name: verify_ssl
+    verify_ssl:
       description: |
         Set this to false to skip verifying SSL certificate of Kubernetes python client.
       version_added: 2.1.0
       type: boolean
       example: ~
       default: "True"
-    - name: worker_pods_pending_timeout
+    worker_pods_pending_timeout:
       description: |
         How long in seconds a worker can be in Pending before it is considered a failure
       version_added: 2.1.0
       type: integer
       example: ~
       default: "300"
-    - name: worker_pods_pending_timeout_check_interval
+    worker_pods_pending_timeout_check_interval:
       description: |
         How often in seconds to check if Pending workers have exceeded their timeouts
       version_added: 2.1.0
       type: integer
       example: ~
       default: "120"
-    - name: worker_pods_queued_check_interval
+    worker_pods_queued_check_interval:
       description: |
         How often in seconds to check for task instances stuck in "queued" status without a pod
       version_added: 2.2.0
       type: integer
       example: ~
       default: "60"
-    - name: worker_pods_pending_timeout_batch_size
+    worker_pods_pending_timeout_batch_size:
       description: |
         How many pending pods to check for timeout violations in each check interval.
         You may want this higher if you have a very large cluster and/or use ``multi_namespace_mode``.
@@ -2580,10 +2580,10 @@
       type: integer
       example: ~
       default: "100"
-- name: sensors
+sensors:
   description: ~
   options:
-    - name: default_timeout
+    default_timeout:
       description: |
         Sensor default timeout, 7 days by default (7 * 24 * 60 * 60).
       version_added: 2.3.0

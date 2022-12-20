@@ -41,12 +41,12 @@ that you run airflow components on is synchronized (for example using ntpd) othe
 
 .. jinja:: config_ctx
 
-    {% for section in configs %}
+    {% for section_name, section in configs.items() %}
 
-    .. _config:{{ section["name"] }}:
+    .. _config:{{ section_name }}:
 
-    [{{ section["name"] }}]
-    {{ "=" * (section["name"]|length + 2) }}
+    [{{ section_name }}]
+    {{ "=" * (section_name|length + 2) }}
 
     {% if 'renamed' in section %}
     *Renamed in version {{ section['renamed']['version'] }}, previous name was {{ section['renamed']['previous_name'] }}*
@@ -56,12 +56,12 @@ that you run airflow components on is synchronized (for example using ntpd) othe
     {{ section["description"] }}
     {% endif %}
 
-    {% for option in section["options"] %}
+    {% for option_name, option in section["options"].items() %}
 
-    .. _config:{{ section["name"] }}__{{ option["name"] }}:
+    .. _config:{{ section_name }}__{{ option_name }}:
 
-    {{ option["name"] }}
-    {{ "-" * option["name"]|length }}
+    {{ option_name }}
+    {{ "-" * option_name|length }}
 
     {% if option["version_added"] %}
     .. versionadded:: {{ option["version_added"] }}
@@ -79,13 +79,13 @@ that you run airflow components on is synchronized (for example using ntpd) othe
     :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
     {% if option.get("sensitive") %}
     :Environment Variables:
-        ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}``
+        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
 
-        ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}_CMD``
+        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_CMD``
 
-        ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}_SECRET``
+        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_SECRET``
     {% else %}
-    :Environment Variable: ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}``
+    :Environment Variable: ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
     {% endif %}
     {% if option["example"] %}
     :Example:
@@ -94,10 +94,10 @@ that you run airflow components on is synchronized (for example using ntpd) othe
 
     {% endfor %}
 
-    {% if section["name"] in deprecated_options %}
+    {% if section_name in deprecated_options %}
 
-    {% for deprecated_option_name, (new_section_name, new_option_name, since_version) in deprecated_options[section["name"]].items() %}
-    .. _config:{{ section["name"] }}__{{ deprecated_option_name }}:
+    {% for deprecated_option_name, (new_section_name, new_option_name, since_version) in deprecated_options[section_name].items() %}
+    .. _config:{{ section_name }}__{{ deprecated_option_name }}:
 
     {{ deprecated_option_name }} (Deprecated)
     {{ "-" * (deprecated_option_name + " (Deprecated)")|length }}

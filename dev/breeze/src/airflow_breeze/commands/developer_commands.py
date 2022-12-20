@@ -325,7 +325,7 @@ def build_docs(
 ):
     """Build documentation in the container."""
     if for_production and not clean_build:
-        get_console().print("\n[warning]When building docs for production, clan-build is forced\n")
+        get_console().print("\n[warning]When building docs for production, clean-build is forced\n")
         clean_build = True
     perform_environment_checks()
     cleanup_python_generated_files()
