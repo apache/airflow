@@ -21,6 +21,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr import EmrBaseSensor
+from airflow.utils.context import Context
 
 TARGET_STATE = "TARGET_STATE"
 FAILED_STATE = "FAILED_STATE"
@@ -40,7 +41,7 @@ class EmrBaseSensorSubclass(EmrBaseSensor):
         self.failed_states = [FAILED_STATE]
         self.response = {}  # will be set in tests
 
-    def get_emr_response(self):
+    def get_emr_response(self, context: Context):
         return self.response
 
     @staticmethod

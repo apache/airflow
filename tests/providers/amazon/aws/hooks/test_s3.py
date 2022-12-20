@@ -71,6 +71,14 @@ class TestAwsS3Hook:
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
         assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
 
+    def test_parse_s3_url_s3a_style(self):
+        parsed = S3Hook.parse_s3_url("s3a://test/this/is/not/a-real-key.txt")
+        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
+
+    def test_parse_s3_url_s3n_style(self):
+        parsed = S3Hook.parse_s3_url("s3n://test/this/is/not/a-real-key.txt")
+        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
+
     def test_parse_s3_url_path_style(self):
         parsed = S3Hook.parse_s3_url("https://s3.us-west-2.amazonaws.com/DOC-EXAMPLE-BUCKET1/test.jpg")
         assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.jpg"), "Incorrect parsing of the s3 url"

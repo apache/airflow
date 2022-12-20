@@ -152,7 +152,7 @@ class S3Hook(AwsBaseHook):
         :return: the parsed bucket name and key
         """
         format = s3url.split("//")
-        if format[0].lower() == "s3:":
+        if re.match(r"s3[na]?:", format[0], re.IGNORECASE):
             parsed_url = urlsplit(s3url)
             if not parsed_url.netloc:
                 raise AirflowException(f'Please provide a bucket name using a valid format: "{s3url}"')
