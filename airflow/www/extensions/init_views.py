@@ -208,7 +208,8 @@ def init_api_connexion(app: Flask) -> None:
             return views.method_not_allowed(ex)
 
     spec_dir = path.join(ROOT_APP_DIR, "api_connexion", "openapi")
-    connexion_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
+    options = {"swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True)}
+    connexion_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True, options=options)
     connexion_app.app = app
     api_bp = connexion_app.add_api(
         specification="v1.yaml", base_path=base_path, validate_responses=True, strict_validation=True
@@ -227,7 +228,8 @@ def init_api_internal(app: Flask) -> None:
     base_path = "/internal_api/v1"
 
     spec_dir = path.join(ROOT_APP_DIR, "api_internal", "openapi")
-    internal_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
+    options = {"swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True)}
+    internal_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True, options=options)
     internal_app.app = app
     api_bp = internal_app.add_api(
         specification="internal_api_v1.yaml",

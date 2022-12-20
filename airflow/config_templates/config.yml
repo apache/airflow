@@ -1513,6 +1513,13 @@
       type: string
       example: "dagrun_cleared,failed"
       default: ~
+    - name: enable_swagger_ui
+      description: |
+        Boolean for running SwaggerUI in the webserver.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
     - name: run_internal_api
       description: |
         Boolean for running Internal API in the webserver.
