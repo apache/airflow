@@ -919,7 +919,7 @@ Checking status of the K8S cluster
 ..................................
 
 You can delete kubernetes cluster and airflow deployed in the current cluster
-via ``breeze k8s status`` command. It can be also checked fora all clusters created so far by passing
+via ``breeze k8s status`` command. It can be also checked for all clusters created so far by passing
 ``--all`` flag.
 
 All parameters of the command are here:
@@ -1105,7 +1105,7 @@ Dumping logs from all k8s clusters
 ..................................
 
 KinD allows to export logs from the running cluster so that you can troubleshoot your deployment.
-This can be done with ``breeze k8s logs`` command. Logs can be also dumped fora all clusters created
+This can be done with ``breeze k8s logs`` command. Logs can be also dumped for all clusters created
 so far by passing ``--all`` flag.
 
 All parameters of the command are here:
