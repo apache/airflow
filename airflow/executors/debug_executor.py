@@ -25,6 +25,7 @@ DebugExecutor.
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
 from airflow.configuration import conf
@@ -118,6 +119,11 @@ class DebugExecutor(BaseExecutor):
 
         :param open_slots: Number of open slots
         """
+        if len(self.queued_tasks) == 0:
+            # wait a bit if there is no task ready to be executed to avoid spinning too fast in the void
+            time.sleep(0.5)
+            return
+
         sorted_queue = sorted(
             self.queued_tasks.items(),
             key=lambda x: x[1][1],
