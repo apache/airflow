@@ -151,25 +151,27 @@ class TestStandardTaskRunner:
             )
             ti = TaskInstance(task=task, run_id="test")
             job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-            session.commit()
-            ti.refresh_from_task(task)
 
+            # we must create runner within same session
             runner = StandardTaskRunner(job1)
-            runner.start()
 
-            # Wait until process sets its pgid to be equal to pid
-            with timeout(seconds=1):
-                while True:
-                    runner_pgid = os.getpgid(runner.process.pid)
-                    if runner_pgid == runner.process.pid:
-                        break
-                    time.sleep(0.01)
+        # we need to get out of session before starting runner
+        # because of the way things behave re sessions after forking
+        runner.start()
 
-                # Wait till process finishes
-            assert runner.return_code(timeout=10) is not None
-            with open(path_listener_writer) as f:
-                assert f.readline() == "on_starting\n"
-                assert f.readline() == "before_stopping\n"
+        # Wait until process sets its pgid to be equal to pid
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(runner.process.pid)
+                if runner_pgid == runner.process.pid:
+                    break
+                time.sleep(0.01)
+
+            # Wait till process finishes
+        assert runner.return_code(timeout=10) is not None
+        with open(path_listener_writer) as f:
+            assert f.readline() == "on_starting\n"
+            assert f.readline() == "before_stopping\n"
 
     def test_start_and_terminate_run_as_user(self):
         local_task_job = mock.Mock()
@@ -276,32 +278,31 @@ class TestStandardTaskRunner:
             )
             ti = TaskInstance(task=task, run_id="test")
             job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-            session.commit()
-            ti.refresh_from_task(task)
-
             runner = StandardTaskRunner(job1)
-            runner.start()
 
-            with timeout(seconds=3):
-                while True:
-                    runner_pgid = os.getpgid(runner.process.pid)
-                    if runner_pgid == runner.process.pid:
-                        break
-                    time.sleep(0.01)
+        # we need to get out of session before starting runner
+        # because of the way things behave re sessions after forking
+        runner.start()
 
-            processes = list(self._procs_in_pgroup(runner_pgid))
+        with timeout(seconds=3):
+            while True:
+                runner_pgid = os.getpgid(runner.process.pid)
+                if runner_pgid == runner.process.pid:
+                    break
+                time.sleep(0.01)
 
-            logging.info("Waiting for the task to start")
-            with timeout(seconds=20):
-                while True:
-                    if os.path.exists(path_on_kill_running):
-                        break
-                    time.sleep(0.01)
-            logging.info("Task started. Give the task some time to settle")
-            time.sleep(3)
-            logging.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
-            runner.terminate()
-            session.close()  # explicitly close as `create_session`s commit will blow up otherwise
+        processes = list(self._procs_in_pgroup(runner_pgid))
+
+        logging.info("Waiting for the task to start")
+        with timeout(seconds=20):
+            while True:
+                if os.path.exists(path_on_kill_running):
+                    break
+                time.sleep(0.01)
+        logging.info("Task started. Give the task some time to settle")
+        time.sleep(3)
+        logging.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
+        runner.terminate()
 
         ti.refresh_from_db()
 
@@ -342,25 +343,25 @@ class TestStandardTaskRunner:
             )
             ti = TaskInstance(task=task, run_id="test")
             job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-            session.commit()
-            ti.refresh_from_task(task)
-
             runner = StandardTaskRunner(job1)
-            runner.start()
 
-            # Wait until process sets its pgid to be equal to pid
-            with timeout(seconds=1):
-                while True:
-                    runner_pgid = os.getpgid(runner.process.pid)
-                    if runner_pgid == runner.process.pid:
-                        break
-                    time.sleep(0.01)
+        # we need to get out of session before starting runner
+        # because of the way things behave re sessions after forking
+        runner.start()
 
-            assert runner_pgid > 0
-            assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
-            processes = list(self._procs_in_pgroup(runner_pgid))
-            psutil.wait_procs([runner.process])
-            session.close()
+        # Wait until process sets its pgid to be equal to pid
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(runner.process.pid)
+                if runner_pgid == runner.process.pid:
+                    break
+                time.sleep(0.01)
+
+        assert runner_pgid > 0
+        assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
+        processes = list(self._procs_in_pgroup(runner_pgid))
+        psutil.wait_procs([runner.process])
+
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
         assert runner.return_code() == 0
