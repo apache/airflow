@@ -134,6 +134,20 @@ class TestTriggerer:
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={

@@ -23,6 +23,9 @@ import textwrap
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Sequence
 
+from google.api_core.retry import Retry
+from google.cloud.storage.retry import DEFAULT_RETRY
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
@@ -51,6 +54,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param retry: (Optional) How to retry the RPC
     """
 
     template_fields: Sequence[str] = (
@@ -68,6 +72,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         google_cloud_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        retry: Retry = DEFAULT_RETRY,
         **kwargs,
     ) -> None:
 
@@ -77,6 +82,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.google_cloud_conn_id = google_cloud_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.retry = retry
 
     def poke(self, context: Context) -> bool:
         self.log.info("Sensor checks existence of : %s, %s", self.bucket, self.object)
@@ -85,7 +91,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.exists(self.bucket, self.object)
+        return hook.exists(self.bucket, self.object, self.retry)
 
 
 def ts_function(context):

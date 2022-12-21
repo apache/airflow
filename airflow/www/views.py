@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, Collection
+from typing import Any, Callable, Collection, Mapping, MutableMapping, Sequence
 from urllib.parse import unquote, urljoin, urlsplit
 
 import configupdater
@@ -121,7 +121,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
-from airflow.utils.task_group import task_group_to_dict
+from airflow.utils.task_group import MappedTaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
@@ -254,7 +254,7 @@ def node_dict(node_id, label, node_class):
     }
 
 
-def dag_to_grid(dag, dag_runs, session):
+def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
     """
     Create a nested dict representation of the DAG's TaskGroup and its children
     used to construct the Graph and Grid views.
@@ -281,7 +281,7 @@ def dag_to_grid(dag, dag_runs, session):
 
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
-    def task_group_to_grid(item, dag_runs, grouped_tis):
+    def task_group_to_grid(item, grouped_tis, *, is_parent_mapped: bool):
         if isinstance(item, AbstractOperator):
 
             def _get_summary(task_instance):
@@ -341,7 +341,7 @@ def dag_to_grid(dag, dag_runs, session):
                     set_overall_state(record)
                     yield record
 
-            if isinstance(item, MappedOperator):
+            if isinstance(item, MappedOperator) or is_parent_mapped:
                 instances = list(_mapped_summary(grouped_tis.get(item.task_id, [])))
             else:
                 instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
@@ -351,33 +351,34 @@ def dag_to_grid(dag, dag_runs, session):
                 "instances": instances,
                 "label": item.label,
                 "extra_links": item.extra_links,
-                "is_mapped": isinstance(item, MappedOperator),
+                "is_mapped": isinstance(item, MappedOperator) or is_parent_mapped,
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
             }
 
         # Task Group
         task_group = item
+        group_is_mapped = isinstance(task_group, MappedTaskGroup)
 
         children = [
-            task_group_to_grid(child, dag_runs, grouped_tis) for child in task_group.topological_sort()
+            task_group_to_grid(child, grouped_tis, is_parent_mapped=group_is_mapped)
+            for child in task_group.topological_sort()
         ]
 
-        def get_summary(dag_run, children):
-            child_instances = [child["instances"] for child in children if "instances" in child]
+        def get_summary(dag_run: DagRun):
             child_instances = [
-                item for sublist in child_instances for item in sublist if item["run_id"] == dag_run.run_id
+                item
+                for sublist in (child["instances"] for child in children if "instances" in child)
+                for item in sublist
+                if item["run_id"] == dag_run.run_id
+                if item
             ]
 
-            children_start_dates = (item["start_date"] for item in child_instances if item)
-            children_end_dates = (item["end_date"] for item in child_instances if item)
-            children_states = {item["state"] for item in child_instances if item}
+            children_start_dates = (item["start_date"] for item in child_instances)
+            children_end_dates = (item["end_date"] for item in child_instances)
+            children_states = {item["state"] for item in child_instances}
 
-            group_state = None
-            for state in wwwutils.priority:
-                if state in children_states:
-                    group_state = state
-                    break
+            group_state = next((state for state in wwwutils.priority if state in children_states), None)
             group_start_date = min(filter(None, children_start_dates), default=None)
             group_end_date = max(filter(None, children_end_dates), default=None)
 
@@ -389,6 +390,62 @@ def dag_to_grid(dag, dag_runs, session):
                 "end_date": group_end_date,
             }
 
+        def get_mapped_group_summaries():
+            mapped_ti_query = (
+                session.query(
+                    TaskInstance.task_id, TaskInstance.state, TaskInstance.run_id, TaskInstance.map_index
+                )
+                .filter(
+                    TaskInstance.dag_id == dag.dag_id,
+                    TaskInstance.task_id.in_(child["id"] for child in children),
+                    TaskInstance.run_id.in_(r.run_id for r in dag_runs),
+                )
+                .order_by(TaskInstance.task_id, TaskInstance.run_id)
+            )
+            # Group tis by run_id, and then map_index.
+            mapped_tis: Mapping[str, Mapping[int, list[TaskInstance]]] = collections.defaultdict(
+                lambda: collections.defaultdict(list),
+            )
+            for ti in mapped_ti_query:
+                mapped_tis[ti.run_id][ti.map_index].append(ti)
+
+            def get_mapped_group_summary(run_id: str, mapped_instances: Mapping[int, list[TaskInstance]]):
+                child_instances = [
+                    item
+                    for sublist in (child["instances"] for child in children if "instances" in child)
+                    for item in sublist
+                    if item and item["run_id"] == run_id
+                ]
+
+                children_start_dates = (item["start_date"] for item in child_instances)
+                children_end_dates = (item["end_date"] for item in child_instances)
+                children_states = {item["state"] for item in child_instances}
+
+                # TODO: This assumes TI map index has a one-to-one mapping to
+                # its parent mapped task group, which will not be true when we
+                # allow nested mapping in the future.
+                mapped_states: MutableMapping[str, int] = collections.defaultdict(int)
+                for mis in mapped_instances.values():
+                    child_states = {mi.state for mi in mis}
+                    state = next(s for s in wwwutils.priority if s in child_states)
+                    value = state.value if state is not None else "no_status"
+                    mapped_states[value] += 1
+
+                group_state = next((state for state in wwwutils.priority if state in children_states), None)
+                group_start_date = min(filter(None, children_start_dates), default=None)
+                group_end_date = max(filter(None, children_end_dates), default=None)
+
+                return {
+                    "task_id": task_group.group_id,
+                    "run_id": run_id,
+                    "state": group_state,
+                    "start_date": group_start_date,
+                    "end_date": group_end_date,
+                    "mapped_states": mapped_states,
+                }
+
+            return [get_mapped_group_summary(run_id, tis) for run_id, tis in mapped_tis.items()]
+
         # We don't need to calculate summaries for the root
         if task_group.group_id is None:
             return {
@@ -398,7 +455,19 @@ def dag_to_grid(dag, dag_runs, session):
                 "instances": [],
             }
 
-        group_summaries = [get_summary(dr, children) for dr in dag_runs]
+        if group_is_mapped:
+            mapped_group_summaries = get_mapped_group_summaries()
+
+            return {
+                "id": task_group.group_id,
+                "label": task_group.label,
+                "children": children,
+                "tooltip": task_group.tooltip,
+                "instances": mapped_group_summaries,
+                "is_mapped": group_is_mapped,
+            }
+
+        group_summaries = [get_summary(dr) for dr in dag_runs]
 
         return {
             "id": task_group.group_id,
@@ -408,7 +477,7 @@ def dag_to_grid(dag, dag_runs, session):
             "instances": group_summaries,
         }
 
-    return task_group_to_grid(dag.task_group, dag_runs, grouped_tis)
+    return task_group_to_grid(dag.task_group, grouped_tis, is_parent_mapped=False)
 
 
 def get_key_paths(input_dict):
@@ -1793,8 +1862,8 @@ class Airflow(AirflowBaseView):
 
         executor = ExecutorLoader.get_default_executor()
 
-        if not getattr(executor, "supports_ad_hoc_ti_run", False):
-            msg = "Only works with the Celery, CeleryKubernetes or Kubernetes executors"
+        if not executor.supports_ad_hoc_ti_run:
+            msg = f"{executor.__class__.__name__} does not support ad hoc task runs"
             return redirect_or_json(origin, msg, "error", 400)
 
         dag_run = dag.get_dagrun(run_id=dag_run_id)
@@ -1886,7 +1955,7 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get("execution_date", default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        dag_orm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
@@ -1894,6 +1963,22 @@ class Airflow(AirflowBaseView):
         if dag_orm.has_import_errors:
             flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
             return redirect(origin)
+
+        recent_runs = (
+            session.query(DagRun.conf, func.max(DagRun.execution_date))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.run_type == DagRunType.MANUAL,
+                DagRun.conf.isnot(None),
+            )
+            .group_by(DagRun.conf)
+            .order_by(func.max(DagRun.execution_date).desc())
+            .limit(5)
+            .all()
+        )
+
+        recent_confs = [getattr(run, "conf") for run in recent_runs]
+        recent_confs = [conf[0] for conf in map(wwwutils.get_dag_run_conf, recent_confs) if conf[1]]
 
         if request.method == "GET":
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1907,7 +1992,9 @@ class Airflow(AirflowBaseView):
             else:
                 try:
                     default_conf = json.dumps(
-                        {str(k): v.resolve(suppress_exception=True) for k, v in dag.params.items()}, indent=4
+                        {str(k): v.resolve(suppress_exception=True) for k, v in dag.params.items()},
+                        indent=4,
+                        ensure_ascii=False,
                     )
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
@@ -1919,6 +2006,7 @@ class Airflow(AirflowBaseView):
                 doc_md=doc_md,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                recent_confs=recent_confs,
             )
 
         try:
@@ -1933,6 +2021,7 @@ class Airflow(AirflowBaseView):
                 conf=request_conf,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                recent_confs=recent_confs,
             )
 
         dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
@@ -1966,6 +2055,7 @@ class Airflow(AirflowBaseView):
                         conf=request_conf,
                         form=form,
                         is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                        recent_confs=recent_confs,
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
@@ -1977,6 +2067,7 @@ class Airflow(AirflowBaseView):
                     conf=request_conf,
                     form=form,
                     is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                    recent_confs=recent_confs,
                 )
 
         if unpause and dag.is_paused:
@@ -2019,7 +2110,7 @@ class Airflow(AirflowBaseView):
         recursive: bool = False,
         confirmed: bool = False,
         only_failed: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session,
     ):
         if confirmed:
             count = dag.clear(
@@ -2269,7 +2360,8 @@ class Airflow(AirflowBaseView):
 
             return htmlsafe_json_dumps(details, separators=(",", ":"))
 
-    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool):
+    @provide_session
+    def _mark_dagrun_state_as_queued(self, dag_id: str, dag_run_id: str, confirmed: bool, session=None):
         if not dag_run_id:
             return {"status": "error", "message": "Invalid dag_run_id"}
 
@@ -2278,13 +2370,23 @@ class Airflow(AirflowBaseView):
         if not dag:
             return {"status": "error", "message": f"Cannot find DAG: {dag_id}"}
 
-        new_dag_state = set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
+        set_dag_run_state_to_queued(dag=dag, run_id=dag_run_id, commit=confirmed)
 
         if confirmed:
             return {"status": "success", "message": "Marked the DagRun as queued."}
 
         else:
-            details = [str(t) for t in new_dag_state]
+            # Identify tasks that will be queued up to run when confirmed
+            all_task_ids = [task.task_id for task in dag.tasks]
+
+            existing_tis = session.query(TaskInstance.task_id).filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == dag_run_id,
+            )
+
+            completed_tis_ids = [task_id for task_id, in existing_tis]
+            tasks_with_no_state = list(set(all_task_ids) - set(completed_tis_ids))
+            details = [str(t) for t in tasks_with_no_state]
 
             return htmlsafe_json_dumps(details, separators=(",", ":"))
 
@@ -3708,7 +3810,7 @@ class Airflow(AirflowBaseView):
             data = {"datasets": datasets, "total_entries": count_query.scalar()}
 
             return (
-                htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.AirflowJsonEncoder),
+                htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
                 {"Content-Type": "application/json; charset=utf-8"},
             )
 

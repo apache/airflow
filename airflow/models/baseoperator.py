@@ -84,6 +84,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
+from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -340,25 +341,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             if param.default == param.empty and name != "task_id"
         }
 
-        class autostacklevel_warn:
-            def __init__(self):
-                self.warnings = __import__("warnings")
-
-            def __getattr__(self, name):
-                return getattr(self.warnings, name)
-
-            def __dir__(self):
-                return dir(self.warnings)
-
-            def warn(self, message, category=None, stacklevel=1, source=None):
-                self.warnings.warn(message, category, stacklevel + 2, source)
-
-        if func.__globals__.get("warnings") is sys.modules["warnings"]:
-            # Yes, this is slightly hacky, but it _automatically_ sets the right
-            # stacklevel parameter to `warnings.warn` to ignore the decorator. Now
-            # that the decorator is applied automatically, this makes the needed
-            # stacklevel parameter less confusing.
-            func.__globals__["warnings"] = autostacklevel_warn()
+        fixup_decorator_warning_stack(func)
 
         @functools.wraps(func)
         def apply_defaults(self: BaseOperator, *args: Any, **kwargs: Any) -> Any:

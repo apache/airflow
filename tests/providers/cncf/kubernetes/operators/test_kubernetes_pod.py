@@ -32,8 +32,7 @@ from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
     KubernetesPodOperator,
-    _suppress,
-    _task_id_to_pod_name,
+    _optionally_suppress,
 )
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -938,7 +937,6 @@ class TestKubernetesPodOperator:
         """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=False,
         )
         self.await_pod_mock.side_effect = AirflowException("oops")
         context = create_context(k)
@@ -993,7 +991,7 @@ class TestKubernetesPodOperator:
             random_name_suffix=False,
         )
         pod = k.build_pod_request_obj({})
-        assert pod.metadata.name == "0.hi.--09hi"
+        assert pod.metadata.name == "hi-09hi"
 
     def test_task_id_as_name_with_suffix(self):
         k = KubernetesPodOperator(
@@ -1001,9 +999,9 @@ class TestKubernetesPodOperator:
             random_name_suffix=True,
         )
         pod = k.build_pod_request_obj({})
-        expected = "0.hi.--09hi"
-        assert pod.metadata.name.startswith(expected)
-        assert re.match(rf"{expected}-[a-z0-9-]+", pod.metadata.name) is not None
+        expected = "hi-09hi"
+        assert pod.metadata.name[: len(expected)] == expected
+        assert re.match(rf"{expected}-[a-z0-9]{{8}}", pod.metadata.name) is not None
 
     def test_task_id_as_name_with_suffix_very_long(self):
         k = KubernetesPodOperator(
@@ -1011,7 +1009,13 @@ class TestKubernetesPodOperator:
             random_name_suffix=True,
         )
         pod = k.build_pod_request_obj({})
-        assert re.match(r"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-[a-z0-9-]+", pod.metadata.name) is not None
+        assert (
+            re.match(
+                r"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-[a-z0-9]{8}",
+                pod.metadata.name,
+            )
+            is not None
+        )
 
     def test_task_id_as_name_dag_id_is_ignored(self):
         dag = DAG(dag_id="this_is_a_dag_name", start_date=pendulum.now())
@@ -1023,28 +1027,59 @@ class TestKubernetesPodOperator:
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
 
 
-def test__suppress(caplog):
-    with _suppress(ValueError):
-        raise ValueError("failure")
+class TestSuppress:
+    def test__suppress(self, caplog):
+        with _optionally_suppress(ValueError):
+            raise ValueError("failure")
+        assert "ValueError: failure" in caplog.text
 
-    assert "ValueError: failure" in caplog.text
+    def test__suppress_no_args(self, caplog):
+        """By default, suppresses Exception, so should suppress and log RuntimeError"""
+        with _optionally_suppress():
+            raise RuntimeError("failure")
+        assert "RuntimeError: failure" in caplog.text
 
+    def test__suppress_no_args_reraise(self, caplog):
+        """
+        By default, suppresses Exception, but with reraise=True,
+        should raise RuntimeError and not log.
+        """
+        with pytest.raises(RuntimeError):
+            with _optionally_suppress(reraise=True):
+                raise RuntimeError("failure")
+            assert caplog.text == ""
 
-@pytest.mark.parametrize(
-    "val, expected",
-    [
-        ("task-id", "task-id"),  # no problem
-        ("task_id", "task-id"),  # underscores
-        ("task.id", "task.id"),  # dots ok
-        (".task.id", "0.task.id"),  # leading dot invalid
-        ("-90Abc*&", "0-90abc--0"),  # invalid ends
-        ("90AçLbˆˆç˙ßß˜˜˙c*a", "90a-lb---------c-a"),  # weird unicode
-    ],
-)
-def test_task_id_to_pod_name(val, expected):
-    assert _task_id_to_pod_name(val) == expected
+    def test__suppress_wrong_error(self, caplog):
+        """
+        Here, we specify only catch ValueError. But we raise RuntimeError.
+        So it should raise and not log.
+        """
+        with pytest.raises(RuntimeError):
+            with _optionally_suppress(ValueError):
+                raise RuntimeError("failure")
+        assert caplog.text == ""
 
+    def test__suppress_wrong_error_multiple(self, caplog):
+        """
+        Here, we specify only catch RuntimeError/IndexError.
+        But we raise RuntimeError. So it should raise and not log.
+        """
+        with pytest.raises(RuntimeError):
+            with _optionally_suppress(ValueError, IndexError):
+                raise RuntimeError("failure")
+        assert caplog.text == ""
 
-def test_task_id_to_pod_name_long():
-    with pytest.raises(ValueError, match="longer than 253"):
-        _task_id_to_pod_name("0" * 254)
+    def test__suppress_right_error_multiple(self, caplog):
+        """
+        Here, we specify catch RuntimeError/IndexError.
+        And we raise RuntimeError. So it should suppress and log.
+        """
+        with _optionally_suppress(ValueError, IndexError):
+            raise IndexError("failure")
+        assert "IndexError: failure" in caplog.text
+
+    def test__suppress_no_error(self, caplog):
+        """When no error in context, should do nothing."""
+        with _optionally_suppress():
+            print("hi")
+        assert caplog.text == ""

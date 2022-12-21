@@ -75,6 +75,7 @@ REVISION_HEADS_MAP = {
     "2.4.1": "ecb43d2a1842",
     "2.4.2": "b0d31815b5a6",
     "2.4.3": "e07f49787c9d",
+    "2.5.0": "290244fb8b83",
 }
 
 
@@ -307,6 +308,18 @@ def create_default_connections(session: Session = NEW_SESSION):
             conn_id="fs_default",
             conn_type="fs",
             extra='{"path": "/"}',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="ftp_default",
+            conn_type="ftp",
+            host="localhost",
+            port=21,
+            login="airflow",
+            password="airflow",
+            extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
         ),
         session,
     )
