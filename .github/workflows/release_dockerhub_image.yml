@@ -57,6 +57,8 @@ jobs:
         uses: ./.github/actions/breeze
       - name: Selective checks
         id: selective-checks
+        env:
+          VERBOSE: "false"
         run: breeze ci selective-check >> ${GITHUB_OUTPUT}
   release-images:
     timeout-minutes: 120
