@@ -49,6 +49,7 @@ jobs:
         id: selective-checks
         env:
           COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
         run: breeze ci selective-check >> ${GITHUB_OUTPUT}
 
   analyze:
