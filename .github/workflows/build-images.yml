@@ -151,7 +151,7 @@ jobs:
         env:
           PR_LABELS: "${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}"
           COMMIT_REF: "${{ env.TARGET_COMMIT_SHA }}"
-        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+        run: breeze ci selective-check >> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:

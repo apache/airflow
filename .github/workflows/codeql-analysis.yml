@@ -49,7 +49,7 @@ jobs:
         id: selective-checks
         env:
           COMMIT_REF: "${{ github.sha }}"
-        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+        run: breeze ci selective-check >> ${GITHUB_OUTPUT}
 
   analyze:
     name: Analyze
