@@ -47,12 +47,12 @@ from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3
 from airflow.providers.amazon.aws.sensors.dms import DmsTaskBaseSensor, DmsTaskCompletedSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
 
 DAG_ID = "example_dms"
 ROLE_ARN_KEY = "ROLE_ARN"
-VPC_ID_KEY = "VPC_ID"
 
-sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).add_variable(VPC_ID_KEY).build()
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 # Config values for setting up the "Source" database.
 RDS_ENGINE = "postgres"
@@ -94,12 +94,9 @@ def create_security_group(security_group_name: str, vpc_id: str):
     )
     client.get_waiter("security_group_exists").wait(
         GroupIds=[security_group["GroupId"]],
-        GroupNames=[security_group_name],
-        WaiterConfig={"Delay": 15, "MaxAttempts": 4},
     )
     client.authorize_security_group_ingress(
         GroupId=security_group["GroupId"],
-        GroupName=security_group_name,
         IpPermissions=[SG_IP_PERMISSION],
     )
 
@@ -236,7 +233,6 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     role_arn = test_context[ROLE_ARN_KEY]
-    vpc_id = test_context[VPC_ID_KEY]
 
     bucket_name = f"{env_id}-dms-bucket"
     rds_instance_name = f"{env_id}-instance"
@@ -284,7 +280,9 @@ with DAG(
 
     create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=bucket_name)
 
-    create_sg = create_security_group(security_group_name, vpc_id)
+    get_vpc_id = get_default_vpc_id()
+
+    create_sg = create_security_group(security_group_name, get_vpc_id)
 
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id="create_db_instance",
@@ -408,6 +406,7 @@ with DAG(
         # TEST SETUP
         test_context,
         create_s3_bucket,
+        get_vpc_id,
         create_sg,
         create_db_instance,
         create_sample_table(rds_instance_name, rds_db_name, rds_table_name),
