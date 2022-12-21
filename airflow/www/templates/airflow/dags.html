@@ -349,6 +349,12 @@
             <td class="text-center">
               <div class="btn-group">
                 {% if dag %}
+                  {% if trigger_dag_url %}
+                  <a href="{{ trigger_dag_url | replace('{dag_id}', dag.dag_id) | replace('{origin}', url_for(request.endpoint)) }}" title="Trigger&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }}"
+                    aria-label="Trigger DAG">
+                    <span class="material-icons" aria-hidden="true">play_arrow</span>
+                  </a>
+                  {% else %}
                   <div class="dropdown">
                     <a aria-label="Trigger DAG"
                        class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn"
@@ -367,6 +373,7 @@
                       <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}">Trigger DAG w/ config</a></li>
                     </ul>
                   </div>
+                  {% endif %}
                 {% endif %}
                 {# Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag #}
                 <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"

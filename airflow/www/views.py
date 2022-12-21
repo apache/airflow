@@ -916,6 +916,7 @@ class Airflow(AirflowBaseView):
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             dataset_triggered_next_run_info=dataset_triggered_next_run_info,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/datasets")
@@ -1224,6 +1225,7 @@ class Airflow(AirflowBaseView):
             title=dag_id,
             root=request.args.get("root"),
             wrapped=conf.getboolean("webserver", "default_wrap"),
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/dag_details")
@@ -1316,6 +1318,7 @@ class Airflow(AirflowBaseView):
             tags=tags,
             owner_links=owner_links,
             dag_model_attrs=dag_model_attrs,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/rendered-templates")
@@ -2783,6 +2786,7 @@ class Airflow(AirflowBaseView):
                     "numRuns": num_runs_options,
                 }
             ),
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/calendar")
@@ -2914,6 +2918,7 @@ class Airflow(AirflowBaseView):
             data=data,
             root=root,
             dag_model=dag_model,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/graph")
@@ -3033,6 +3038,7 @@ class Airflow(AirflowBaseView):
             dag_model=dag_model,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_priority=state_priority,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/duration")
@@ -3194,6 +3200,7 @@ class Airflow(AirflowBaseView):
             chart=Markup(chart.htmlcontent),
             cum_chart=Markup(cum_chart.htmlcontent),
             dag_model=dag_model,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/tries")
@@ -3289,6 +3296,7 @@ class Airflow(AirflowBaseView):
             chart=Markup(chart.htmlcontent),
             tab_title="Tries",
             dag_model=dag_model,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/landing_times")
@@ -3397,6 +3405,7 @@ class Airflow(AirflowBaseView):
             form=form,
             tab_title="Landing times",
             dag_model=dag_model,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/paused", methods=["POST"])
@@ -3532,6 +3541,7 @@ class Airflow(AirflowBaseView):
             base_date="",
             root=root,
             dag_model=dag_model,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/extra_links")
@@ -3934,6 +3944,7 @@ class Airflow(AirflowBaseView):
             ),
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
 
