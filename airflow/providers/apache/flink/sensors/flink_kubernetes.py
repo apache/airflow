@@ -57,10 +57,10 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         application_name: str,
         attach_log: bool = False,
         namespace: str | None = None,
-        kubernetes_conn_id: str = 'kubernetes_default',
-        api_group: str = 'flink.apache.org',
-        api_version: str = 'v1beta1',
-        plural: str = 'flinkdeployments',
+        kubernetes_conn_id: str = "kubernetes_default",
+        api_group: str = "flink.apache.org",
+        api_version: str = "v1beta1",
+        plural: str = "flinkdeployments",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -79,8 +79,8 @@ class FlinkKubernetesSensor(BaseSensorOperator):
             return
         status_info = response["status"]
         if "jobStatus" in status_info:
-            job_status = status_info['jobStatus']
-            job_state = job_status['state'] if 'state' in job_status else "StateFetchError"
+            job_status = status_info["jobStatus"]
+            job_state = job_status["state"] if "state" in job_status else "StateFetchError"
             self.log.info("Flink Job status is %s", job_state)
         else:
             return

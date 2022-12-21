@@ -52,18 +52,18 @@ class FlinkKubernetesOperator(BaseOperator):
         If not specified, default value is ``~/.kube/config``
     """
 
-    template_fields: Sequence[str] = ('application_file', 'namespace')
-    template_ext: Sequence[str] = ('.yaml', '.yml', '.json')
-    ui_color = '#f4a460'
+    template_fields: Sequence[str] = ("application_file", "namespace")
+    template_ext: Sequence[str] = (".yaml", ".yml", ".json")
+    ui_color = "#f4a460"
 
     def __init__(
         self,
         *,
         application_file: str,
         namespace: str | None = None,
-        kubernetes_conn_id: str = 'kubernetes_default',
-        api_group: str = 'flink.apache.org',
-        api_version: str = 'v1beta1',
+        kubernetes_conn_id: str = "kubernetes_default",
+        api_group: str = "flink.apache.org",
+        api_version: str = "v1beta1",
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         config_file: str | None = None,
@@ -102,22 +102,22 @@ class FlinkKubernetesOperator(BaseOperator):
         hook attributes here.
         """
         # default for enable_tcp_keepalive is True; patch if False
-        if conf.getboolean('kubernetes', 'enable_tcp_keepalive') is False:
-            hook._deprecated_core_disable_tcp_keepalive = True
+        if conf.getboolean("kubernetes", "enable_tcp_keepalive") is False:
+            hook._deprecated_core_disable_tcp_keepalive = True  # noqa
 
         # default verify_ssl is True; patch if False.
-        if conf.getboolean('kubernetes', 'verify_ssl') is False:
-            hook._deprecated_core_disable_verify_ssl = True
+        if conf.getboolean("kubernetes", "verify_ssl") is False:
+            hook._deprecated_core_disable_verify_ssl = True  # noqa
 
         # default for in_cluster is True; patch if False and no KPO param.
-        conf_in_cluster = conf.getboolean('kubernetes', 'in_cluster')
+        conf_in_cluster = conf.getboolean("kubernetes", "in_cluster")
         if self.in_cluster is None and conf_in_cluster is False:
-            hook._deprecated_core_in_cluster = conf_in_cluster
+            hook._deprecated_core_in_cluster = conf_in_cluster  # noqa
 
         # there's no default for cluster context; if we get something (and no KPO param) patch it.
-        conf_cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
+        conf_cluster_context = conf.get("kubernetes", "cluster_context", fallback=None)
         if not self.cluster_context and conf_cluster_context:
-            hook._deprecated_core_cluster_context = conf_cluster_context
+            hook._deprecated_core_cluster_context = conf_cluster_context  # noqa
 
     @cached_property
     def client(self) -> CoreV1Api:

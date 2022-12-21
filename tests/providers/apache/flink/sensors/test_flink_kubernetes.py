@@ -857,15 +857,15 @@ TEST_POD_LOG_RESULT = (
 )
 
 TASK_MANAGER_POD = V1Pod(
-    api_version='V1', metadata=V1ObjectMeta(namespace='default', name='basic-example-taskmanager-1-1')
+    api_version="V1", metadata=V1ObjectMeta(namespace="default", name="basic-example-taskmanager-1-1")
 )
-TASK_MANAGER_POD_LIST = V1PodList(api_version='v1', items=[TASK_MANAGER_POD], kind='PodList')
+TASK_MANAGER_POD_LIST = V1PodList(api_version="v1", items=[TASK_MANAGER_POD], kind="PodList")
 
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
 class TestFlinkKubernetesSensor(unittest.TestCase):
     def setUp(self):
-        db.merge_conn(Connection(conn_id='kubernetes_default', conn_type='kubernetes', extra=json.dumps({})))
+        db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
         db.merge_conn(
             Connection(
                 conn_id="kubernetes_default",
@@ -1022,8 +1022,8 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
         return_value=TEST_READY_CLUSTER,
     )
     def test_api_group_and_version_from_sensor(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        api_group = 'flink.apache.org'
-        api_version = 'v1beta1'
+        api_group = "flink.apache.org"
+        api_version = "v1beta1"
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
             dag=self.dag,
@@ -1088,16 +1088,16 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
         with pytest.raises(AirflowException):
             sensor.poke(None)
         mock_namespaced_pod_list.assert_called_once_with(
-            namespace='default', watch=False, label_selector='component=taskmanager,app=flink-stream-example'
+            namespace="default", watch=False, label_selector="component=taskmanager,app=flink-stream-example"
         )
-        mock_pod_logs.assert_called_once_with('basic-example-taskmanager-1-1', namespace='default')
+        mock_pod_logs.assert_called_once_with("basic-example-taskmanager-1-1", namespace="default")
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
         mock_namespaced_crd.assert_called_once_with(
-            group='flink.apache.org',
-            version='v1beta1',
-            namespace='default',
-            plural='flinkdeployments',
-            name='flink-stream-example',
+            group="flink.apache.org",
+            version="v1beta1",
+            namespace="default",
+            plural="flinkdeployments",
+            name="flink-stream-example",
         )
 
     @patch(
@@ -1125,20 +1125,20 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
         sensor.poke(None)
 
         mock_namespaced_pod_list.assert_called_once_with(
-            namespace='default', watch=False, label_selector='component=taskmanager,app=flink-stream-example'
+            namespace="default", watch=False, label_selector="component=taskmanager,app=flink-stream-example"
         )
-        mock_pod_logs.assert_called_once_with('basic-example-taskmanager-1-1', namespace='default')
+        mock_pod_logs.assert_called_once_with("basic-example-taskmanager-1-1", namespace="default")
         log_info_call = info_log_call.mock_calls[4]
         log_value = log_info_call[1][0]
 
         assert log_value == TEST_POD_LOG_RESULT
 
         mock_namespaced_crd.assert_called_once_with(
-            group='flink.apache.org',
-            version='v1beta1',
-            namespace='default',
-            plural='flinkdeployments',
-            name='flink-stream-example',
+            group="flink.apache.org",
+            version="v1beta1",
+            namespace="default",
+            plural="flinkdeployments",
+            name="flink-stream-example",
         )
 
     @patch(

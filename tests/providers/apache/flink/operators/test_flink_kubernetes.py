@@ -182,90 +182,90 @@ TEST_APPLICATION_DICT = {
 }
 
 
-@patch('airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn')
+@patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
 class TestFlinkKubernetesOperator(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
-            Connection(conn_id='kubernetes_default_kube_config', conn_type='kubernetes', extra=json.dumps({}))
+            Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
         db.merge_conn(
             Connection(
-                conn_id='kubernetes_with_namespace',
-                conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__namespace': 'mock_namespace'}),
+                conn_id="kubernetes_with_namespace",
+                conn_type="kubernetes",
+                extra=json.dumps({"extra__kubernetes__namespace": "mock_namespace"}),
             )
         )
-        args = {'owner': 'airflow', 'start_date': timezone.datetime(2020, 2, 1)}
-        self.dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
+        self.dag = DAG("test_dag_id", default_args=args)
 
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object")
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
     def test_create_application_from_yaml(
         self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
     ):
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_YAML,
             dag=self.dag,
-            kubernetes_conn_id='kubernetes_default_kube_config',
-            task_id='test_task_id',
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="test_task_id",
         )
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-            group='flink.apache.org',
-            namespace='default',
-            plural='flinkdeployments',
-            version='v1beta1',
+            group="flink.apache.org",
+            namespace="default",
+            plural="flinkdeployments",
+            version="v1beta1",
             name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
-            group='flink.apache.org',
-            namespace='default',
-            plural='flinkdeployments',
-            version='v1beta1',
+            group="flink.apache.org",
+            namespace="default",
+            plural="flinkdeployments",
+            version="v1beta1",
         )
 
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object")
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
     def test_create_application_from_json(
         self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
     ):
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
-            kubernetes_conn_id='kubernetes_default_kube_config',
-            task_id='test_task_id',
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="test_task_id",
         )
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-            group='flink.apache.org',
-            namespace='default',
-            plural='flinkdeployments',
-            version='v1beta1',
+            group="flink.apache.org",
+            namespace="default",
+            plural="flinkdeployments",
+            version="v1beta1",
             name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
-            group='flink.apache.org',
-            namespace='default',
-            plural='flinkdeployments',
-            version='v1beta1',
+            group="flink.apache.org",
+            namespace="default",
+            plural="flinkdeployments",
+            version="v1beta1",
         )
 
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object")
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
     def test_create_application_from_json_with_api_group_and_version(
         self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
     ):
-        api_group = 'flink.apache.org'
-        api_version = 'v1beta1'
+        api_group = "flink.apache.org"
+        api_version = "v1beta1"
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
-            kubernetes_conn_id='kubernetes_default_kube_config',
-            task_id='test_task_id',
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="test_task_id",
             api_group=api_group,
             api_version=api_version,
         )
@@ -273,73 +273,73 @@ class TestFlinkKubernetesOperator(unittest.TestCase):
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
             group=api_group,
-            namespace='default',
-            plural='flinkdeployments',
+            namespace="default",
+            plural="flinkdeployments",
             version=api_version,
             name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
             group=api_group,
-            namespace='default',
-            plural='flinkdeployments',
+            namespace="default",
+            plural="flinkdeployments",
             version=api_version,
         )
 
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object")
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
     def test_namespace_from_operator(
         self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
     ):
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
-            namespace='operator_namespace',
-            kubernetes_conn_id='kubernetes_with_namespace',
-            task_id='test_task_id',
+            namespace="operator_namespace",
+            kubernetes_conn_id="kubernetes_with_namespace",
+            task_id="test_task_id",
         )
         op.execute(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-            group='flink.apache.org',
-            namespace='operator_namespace',
-            plural='flinkdeployments',
-            version='v1beta1',
+            group="flink.apache.org",
+            namespace="operator_namespace",
+            plural="flinkdeployments",
+            version="v1beta1",
             name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
-            group='flink.apache.org',
-            namespace='operator_namespace',
-            plural='flinkdeployments',
-            version='v1beta1',
+            group="flink.apache.org",
+            namespace="operator_namespace",
+            plural="flinkdeployments",
+            version="v1beta1",
         )
 
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
-    @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object")
+    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
     def test_namespace_from_connection(
         self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
     ):
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
-            kubernetes_conn_id='kubernetes_with_namespace',
-            task_id='test_task_id',
+            kubernetes_conn_id="kubernetes_with_namespace",
+            task_id="test_task_id",
         )
         op.execute(None)
 
         mock_kubernetes_hook.assert_called_once_with()
         mock_delete_namespaced_crd.assert_called_once_with(
-            group='flink.apache.org',
-            namespace='mock_namespace',
-            plural='flinkdeployments',
-            version='v1beta1',
+            group="flink.apache.org",
+            namespace="mock_namespace",
+            plural="flinkdeployments",
+            version="v1beta1",
             name=TEST_APPLICATION_DICT["metadata"]["name"],
         )
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
-            group='flink.apache.org',
-            namespace='mock_namespace',
-            plural='flinkdeployments',
-            version='v1beta1',
+            group="flink.apache.org",
+            namespace="mock_namespace",
+            plural="flinkdeployments",
+            version="v1beta1",
         )
