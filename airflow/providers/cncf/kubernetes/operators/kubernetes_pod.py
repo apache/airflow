@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import secrets
 import string
@@ -56,6 +57,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     get_container_termination_message,
 )
+from airflow.providers.google.cloud.utils.kubernetes_engine_config import KUBE_CONFIG_ENV_VAR
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -545,7 +547,16 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
+        self.read_config_file_and_convert_to_dict()
         self.go_to_defer_mode()
+
+    def read_config_file_and_convert_to_dict(self):
+        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
+        if config_file:
+            with open(config_file) as f:
+                self.config_file_in_dict_representation = yaml.safe_load(f)
+        else:
+            self.config_file_in_dict_representation = None
 
     def go_to_defer_mode(self):
         """Method to easily redefine triggers which are being used in descendants."""
@@ -555,7 +566,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod_namespace=self.pod.metadata.namespace,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
-                config_file=self.config_file,
+                config_dict=self.config_file_in_dict_representation,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
             ),

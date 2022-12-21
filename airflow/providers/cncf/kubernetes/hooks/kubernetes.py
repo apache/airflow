@@ -25,6 +25,7 @@ from kubernetes import client, config, watch
 from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
+from kubernetes_asyncio.config import load_kube_config_from_dict
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -447,17 +448,17 @@ def _get_bool(val) -> bool | None:
 class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, config_dict: dict | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.config_dict = config_dict
 
     async def _load_config(self):
         """Returns Kubernetes API session for use with requests"""
         in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
-        kubeconfig_path = self._coalesce_param(self.config_file, self._get_field("kube_config_path"))
         kubeconfig = self._get_field("kube_config")
 
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
+        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, self.config_dict] if o])
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -472,16 +473,9 @@ class AsyncKubernetesHook(KubernetesHook):
             async_config.load_incluster_config()
             return async_client.ApiClient()
 
-        if kubeconfig_path is not None:
-            self.log.debug(
-                LOADING_KUBE_CONFIG_FILE_RESOURCE.format("provided custom file %s", kubeconfig_path)
-            )
-            self._is_in_cluster = False
-            await async_config.load_kube_config(
-                config_file=kubeconfig_path,
-                client_configuration=self.client_configuration,
-                context=cluster_context,
-            )
+        if self.config_dict:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
+            await load_kube_config_from_dict(self.config_dict)
             return async_client.ApiClient()
 
         if kubeconfig is not None:

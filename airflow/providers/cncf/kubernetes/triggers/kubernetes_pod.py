@@ -53,8 +53,8 @@ class KubernetesCreatePodTrigger(BaseTrigger):
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the Kubernetes cluster.
     :param cluster_context: Context that points to kubernetes cluster.
-    :param config_file: The path to the Kubernetes config file. If not specified, default value
-        is ``~/.kube/config``.
+    :param config_dict: Kubernetes config file content in dict format. If not specified,
+        default value is ``~/.kube/config``
     :param poll_interval: Polling period in seconds to check for the status.
     """
 
@@ -65,7 +65,7 @@ class KubernetesCreatePodTrigger(BaseTrigger):
         kubernetes_conn_id: str | None = None,
         poll_interval: float = 10,
         cluster_context: str | None = None,
-        config_file: str | None = None,
+        config_dict: dict | None = None,
         in_cluster: bool | None = None,
     ):
         super().__init__()
@@ -74,7 +74,7 @@ class KubernetesCreatePodTrigger(BaseTrigger):
         self.pod_namespace = pod_namespace
         self.poll_interval = poll_interval
         self.cluster_context = cluster_context
-        self.config_file = config_file
+        self.config_dict = config_dict
         self.in_cluster = in_cluster
 
         self._hook: AsyncKubernetesHook | None = None
@@ -89,7 +89,7 @@ class KubernetesCreatePodTrigger(BaseTrigger):
                 "kubernetes_conn_id": self.kubernetes_conn_id,
                 "poll_interval": self.poll_interval,
                 "cluster_context": self.cluster_context,
-                "config_file": self.config_file,
+                "config_dict": self.config_dict,
                 "in_cluster": self.in_cluster,
             },
         )
@@ -114,7 +114,7 @@ class KubernetesCreatePodTrigger(BaseTrigger):
                             "namespace": self.pod_namespace,
                             "status": "success",
                             "message": "All containers inside pod have started successfully.",
-                            "config_file": self.config_file,
+                            "config_dict": self.config_dict,
                         }
                     )
                     return
@@ -129,7 +129,7 @@ class KubernetesCreatePodTrigger(BaseTrigger):
                             "namespace": self.pod_namespace,
                             "status": "failed",
                             "message": pod.status.message,
-                            "config_file": self.config_file,
+                            "config_dict": self.config_dict,
                         }
                     )
                     return
@@ -141,7 +141,7 @@ class KubernetesCreatePodTrigger(BaseTrigger):
                         "namespace": self.pod_namespace,
                         "status": "error",
                         "message": str(e),
-                        "config_file": self.config_file,
+                        "config_dict": self.config_dict,
                     }
                 )
                 return
@@ -151,7 +151,7 @@ class KubernetesCreatePodTrigger(BaseTrigger):
             self._hook = AsyncKubernetesHook(
                 conn_id=self.kubernetes_conn_id,
                 in_cluster=self.in_cluster,
-                config_file=self.config_file,
+                config_dict=self.config_dict,
                 cluster_context=self.cluster_context,
             )
         return self._hook
