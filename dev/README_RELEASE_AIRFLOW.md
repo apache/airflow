@@ -41,6 +41,7 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
+  - [Manually release API clients](#manually-release-api-clients)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
@@ -221,8 +222,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
-- Set your version in `setup.py` (without the RC tag)
-- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- Set your version in `setup.py` and `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
+- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
 - Build the release notes:
 
@@ -964,6 +965,18 @@ At this point we release an official package:
     git push origin tag ${VERSION}
     ```
 
+## Manually release API clients
+
+For major/minor version release, always release new versions of the API clients.
+
+- [Python client](https://github.com/apache/airflow-client-python)
+- [Go client](https://github.com/apache/airflow-client-go)
+
+For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
+
+> The patch version of each API client is not necessarily in sync with the patch that you are releasing. You need to check for
+> each client what is the next patch version to be released.
+
 ## Manually prepare production Docker Image
 
 Building the image is triggered by running the
@@ -1144,12 +1157,12 @@ EOF
 
 This includes:
 
-- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
-- For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
+- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
+- For major/minor release, update version in `setup.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
-- Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
-- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version
-- Updating `Dockerfile` with the new version
+- Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
+- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
+- Updating `Dockerfile` with the new version.
 
 ## Update default Airflow version in the helm chart
 
