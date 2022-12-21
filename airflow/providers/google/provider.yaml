@@ -224,6 +224,12 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/pubsub.rst
     logo: /integration-logos/gcp/Cloud-PubSub.png
     tags: [gcp]
+  - integration-name: Google Cloud Run
+    external-doc-url: https://cloud.google.com/run/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_run.rst
+    logo: /integration-logos/gcp/Cloud-Run.png
+    tags: [gcp]
   - integration-name: Google Cloud Secret Manager
     external-doc-url: https://cloud.google.com/secret-manager/
     logo: /integration-logos/gcp/Google-Cloud-Secret-Manager.png
@@ -530,6 +536,9 @@ operators:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.operators.pubsub
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_run
   - integration-name: Google Cloud Spanner
     python-modules:
       - airflow.providers.google.cloud.operators.spanner
@@ -750,6 +759,9 @@ hooks:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.hooks.pubsub
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_run
   - integration-name: Google Cloud Secret Manager
     python-modules:
       - airflow.providers.google.cloud.hooks.secret_manager
@@ -1087,6 +1099,8 @@ extra-links:
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
   - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
   - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
+  - airflow.providers.google.cloud.links.cloud_run.CloudRunJobLink
+  - airflow.providers.google.cloud.links.cloud_run.CloudRunJobExecutionLink
   - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceDetailsLink
   - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceListLink
   - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceDetailsLink
