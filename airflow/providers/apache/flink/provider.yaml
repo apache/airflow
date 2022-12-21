@@ -38,7 +38,7 @@ dependencies:
   - kubernetes>=21.7.0,<24
 
 integrations:
-  - integration-name: Flink on Kubernetes
+  - integration-name: Apache Flink
     external-doc-url: https://github.com/apache/flink-kubernetes-operator
     how-to-guide:
       - /docs/apache-airflow-providers-apache-flink/operators.rst  # TODO
@@ -48,9 +48,9 @@ integrations:
 operators:
   - integration-name: Apache Flink
     python-modules:
-      - airflow.providers.flink.kubernetes.operators.flink_kubernetes
+      - airflow.providers.apache.flink.operators.flink_kubernetes
 
 sensors:
-  - integration-name: Kubernetes
+  - integration-name: Apache Flink
     python-modules:
-      - airflow.providers.flink.kubernetes.sensors.flink_kubernetes
+      - airflow.providers.apache.flink.sensors.flink_kubernetes
