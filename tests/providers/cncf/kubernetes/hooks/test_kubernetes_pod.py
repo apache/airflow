@@ -562,3 +562,15 @@ class TestAsyncKubernetesHook:
             timestamps=True,
         )
         assert "Container logs from 2023-01-11 Some string logs..." in caplog.text
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    async def test_load_config_with_more_than_one_config(self, mock_get_connection):
+        """Assert that raise exception if more than on config provided"""
+        hook = AsyncKubernetesHook(in_cluster=True, config_file="kube_config_path")
+        mock_get_connection.return_value = Connection(
+            conn_id="test_conn",
+            extra={"kubernetes": {"in_cluster": True, "kube_config": {}, "kube_config_path": "config_file"}},
+        )
+        with pytest.raises(AirflowException):
+            await hook._load_config()

@@ -22,6 +22,8 @@ import warnings
 from typing import TYPE_CHECKING, Any, Generator
 
 from asgiref.sync import sync_to_async
+import aiofiles
+from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
 from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
@@ -447,7 +449,33 @@ def _get_bool(val) -> bool | None:
 
 
 class AsyncKubernetesHook(KubernetesHook):
-    """Hook to use Kubernetes SDK asynchronously."""
+    """
+    Creates Async Kubernetes API connection.
+
+    - use in cluster configuration by using extra field ``in_cluster`` in connection
+    - use custom config by providing path to the file using extra field ``kube_config_path`` in connection
+    - use custom configuration by providing content of kubeconfig file via
+        extra field ``kube_config`` in connection
+    - use default config by providing no extras
+
+    This hook check for configuration option in the above order. Once an option is present it will
+    use this configuration.
+
+    .. seealso::
+        For more information about Kubernetes connection:
+        :doc:`/connections/kubernetes`
+
+    :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
+        to Kubernetes cluster.
+    :param client_configuration: Optional dictionary of client configuration params.
+        Passed on to kubernetes client.
+    :param cluster_context: Optionally specify a context to use (e.g. if you have multiple
+        in your kubeconfig.
+    :param config_file: Path to kubeconfig file.
+    :param in_cluster: Set to ``True`` if running from within a kubernetes cluster.
+    :param disable_verify_ssl: Set to ``True`` if SSL verification should be disabled.
+    :param disable_tcp_keepalive: Set to ``True`` if you want to disable keepalive logic.
+    """
 
     def __init__(self, config_dict: dict | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -455,10 +483,20 @@ class AsyncKubernetesHook(KubernetesHook):
 
         self._extras: dict | None = None
 
-    async def _load_config(self):
-        """Returns Kubernetes API session for use with requests"""
+    async def _load_config(self) -> client_async.ApiClient:
+        """
+        Load config to interact with Kubernetes
+
+        cluster_context: Optional[str] = None,
+        config_file: Optional[str] = None,
+        in_cluster: Optional[bool] = None,
+
+        """
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
+        kubeconfig_path = self._coalesce_param(
+            self.config_file, extras.get("extra__kubernetes__kube_config_path") or None
+        )
         kubeconfig = await self._get_field("kube_config")
 
         num_selected_configuration = len([o for o in [in_cluster, kubeconfig, self.config_dict] if o])
@@ -481,15 +519,22 @@ class AsyncKubernetesHook(KubernetesHook):
             await async_config.load_kube_config_from_dict(self.config_dict)
             return async_client.ApiClient()
 
+        if kubeconfig_path is not None:
+            self.log.debug("loading kube_config from: %s", kubeconfig_path)
+            await config.load_kube_config(
+                config_file=kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
+            return client.ApiClient()
+
         if kubeconfig is not None:
-            with tempfile.NamedTemporaryFile() as temp_config:
+            async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug(
-                    "Reading kubernetes configuration file from connection "
-                    "object and writing temporary config file with its content",
+                    "loading kube_config from: %s", kubeconfig_path
                 )
-                temp_config.write(kubeconfig.encode())
-                temp_config.flush()
-                self._is_in_cluster = False
+                await temp_config.write(kubeconfig.encode())
+                await temp_config.flush()
                 await async_config.load_kube_config(
                     config_file=temp_config.name,
                     client_configuration=self.client_configuration,
@@ -591,3 +636,10 @@ class AsyncKubernetesHook(KubernetesHook):
             except HTTPError:
                 self.log.exception("There was an error reading the kubernetes API.")
                 raise
+
+    async def get_api_client_async(self) -> client_async.ApiClient:
+        """Create an API Client object to interact with Kubernetes"""
+        kube_client = await self._load_config()
+        if kube_client is not None:
+            return kube_client
+        return client_async.ApiClient()

@@ -208,6 +208,7 @@
   },
   "cncf.kubernetes": {
     "deps": [
+      "aiofiles",
       "apache-airflow>=2.3.0",
       "asgiref>=3.5.2",
       "cryptography>=2.0.0",
