@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-20T09:08:48Z
+# This constraints file was automatically generated on 2022-12-21T07:14:30Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -63,7 +63,7 @@ appdirs==1.4.4
 argcomplete==2.0.0
 arrow==1.2.3
 asana==2.0.0
-asgiref==3.5.2
+asgiref==3.6.0
 asn1crypto==1.5.1
 astroid==2.11.7
 asttokens==2.2.1
@@ -104,9 +104,9 @@ billiard==3.6.4.0
 black==23.1a1
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.33
+boto3==1.26.34
 boto==2.49.0
-botocore==1.29.33
+botocore==1.29.34
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -244,7 +244,7 @@ gunicorn==20.1.0
 h11==0.14.0
 hdfs==2.7.0
 hmsclient==0.1.1
-httpcore==0.16.2
+httpcore==0.16.3
 httplib2==0.20.4
 httpx==0.23.1
 humanize==4.4.0
@@ -525,7 +525,7 @@ types-python-dateutil==2.8.19.5
 types-python-slugify==7.0.0.1
 types-pytz==2022.7.0.0
 types-redis==4.3.21.6
-types-requests==2.28.11.5
+types-requests==2.28.11.6
 types-setuptools==65.6.0.2
 types-tabulate==0.9.0.0
 types-termcolor==1.1.6
@@ -540,7 +540,7 @@ unicodecsv==0.14.1
 uritemplate==3.0.1
 urllib3==1.26.13
 userpath==1.8.0
-vertica-python==1.1.1
+vertica-python==1.2.0
 vine==5.0.0
 virtualenv==20.17.1
 volatile==2.1.0
