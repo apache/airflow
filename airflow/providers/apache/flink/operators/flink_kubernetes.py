@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Sequence
 from kubernetes.client import CoreV1Api
 
 from airflow.compat.functools import cached_property
-from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 
@@ -93,35 +92,7 @@ class FlinkKubernetesOperator(BaseOperator):
             config_file=self.config_file,
             cluster_context=self.cluster_context,
         )
-        self._patch_deprecated_k8s_settings(hook)
         return hook
-
-    def _patch_deprecated_k8s_settings(self, hook: KubernetesHook):
-        """
-        Here we read config from core Airflow config [kubernetes] section.
-        In a future release we will stop looking at this section and require users
-        to use Airflow connections to configure KPO.
-
-        When we find values there that we need to apply on the hook, we patch special
-        hook attributes here.
-        """
-        # default for enable_tcp_keepalive is True; patch if False
-        if conf.getboolean("kubernetes", "enable_tcp_keepalive") is False:
-            hook._deprecated_core_disable_tcp_keepalive = True  # type: ignore[attr-defined]
-
-        # default verify_ssl is True; patch if False.
-        if conf.getboolean("kubernetes", "verify_ssl") is False:
-            hook._deprecated_core_disable_verify_ssl = True  # type: ignore[attr-defined]
-
-        # default for in_cluster is True; patch if False and no KPO param.
-        conf_in_cluster = conf.getboolean("kubernetes", "in_cluster")
-        if self.in_cluster is None and conf_in_cluster is False:
-            hook._deprecated_core_in_cluster = conf_in_cluster  # type: ignore[attr-defined]
-
-        # there's no default for cluster context; if we get something (and no KPO param) patch it.
-        conf_cluster_context = conf.get("kubernetes", "cluster_context", fallback=None)
-        if not self.cluster_context and conf_cluster_context:
-            hook._deprecated_core_cluster_context = conf_cluster_context  # type: ignore[attr-defined]
 
     @cached_property
     def client(self) -> CoreV1Api:
