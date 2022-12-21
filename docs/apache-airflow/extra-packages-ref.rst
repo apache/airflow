@@ -122,6 +122,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.druid        | ``pip install 'apache-airflow[apache.druid]'``      | Druid related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.flink        | ``pip install 'apache-airflow[apache.flink]'``      | Flink related operators & hooks                |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.hdfs         | ``pip install 'apache-airflow[apache.hdfs]'``       | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.hive         | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                     |

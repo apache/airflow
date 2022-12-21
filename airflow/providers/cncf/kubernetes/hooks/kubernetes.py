@@ -249,6 +249,10 @@ class KubernetesHook(BaseHook):
     def core_v1_client(self) -> client.CoreV1Api:
         return client.CoreV1Api(api_client=self.api_client)
 
+    @cached_property
+    def custom_object_client(self) -> client.CustomObjectsApi:
+        return client.CustomObjectsApi(api_client=self.api_client)
+
     def create_custom_object(
         self, group: str, version: str, plural: str, body: str | dict, namespace: str | None = None
     ):
@@ -260,7 +264,7 @@ class KubernetesHook(BaseHook):
         :param body: crd object definition
         :param namespace: kubernetes namespace
         """
-        api = client.CustomObjectsApi(self.api_client)
+        api: client.CustomObjectsApi = self.custom_object_client
         namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
 
         if isinstance(body, str):
@@ -390,6 +394,27 @@ class KubernetesHook(BaseHook):
             container=container,
             _preload_content=False,
             namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+        )
+
+    def get_namespaced_pod_list(
+        self,
+        label_selector: str | None = "",
+        namespace: str | None = None,
+        watch: bool = False,
+        **kwargs,
+    ):
+        """
+        Retrieves a list of Kind pod which belong default kubernetes namespace
+        :param label_selector: A selector to restrict the list of returned objects by their labels
+        :param namespace: kubernetes namespace
+        :param watch: Watch for changes to the described resources and return them as a stream
+        """
+        return self.core_v1_client.list_namespaced_pod(
+            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+            watch=watch,
+            label_selector=label_selector,
+            _preload_content=False,
+            **kwargs,
         )
 
 

@@ -1,0 +1,56 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-apache-flink
+name: Apache Flink
+description: |
+    `Apache Flink <https://flink.apache.org/>`__
+
+versions:
+  - 1.0.0
+
+dependencies:
+  - apache-airflow>=2.3.0
+  - cryptography>=2.0.0
+  # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
+  # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
+  # (https://github.com/kubernetes-client/python#compatibility). This is a crucial component of Airflow
+  # So we should limit it to the next MAJOR version and only deliberately bump the version when we
+  # tested it, and we know it can be bumped. Bumping this version should also be connected with
+  # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
+  # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
+  # core is not hard-limited via install-requirements, only by extra).
+  - kubernetes>=21.7.0,<24
+
+integrations:
+  - integration-name: Apache Flink
+    external-doc-url: https://github.com/apache/flink-kubernetes-operator
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-flink/operators.rst  # TODO
+    logo: /integration-logos/kubernetes/FlinkOnK8s.png
+    tags: [apache]
+
+operators:
+  - integration-name: Apache Flink
+    python-modules:
+      - airflow.providers.apache.flink.operators.flink_kubernetes
+
+sensors:
+  - integration-name: Apache Flink
+    python-modules:
+      - airflow.providers.apache.flink.sensors.flink_kubernetes

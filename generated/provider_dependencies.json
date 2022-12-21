@@ -78,6 +78,16 @@
       "common.sql"
     ]
   },
+  "apache.flink": {
+    "deps": [
+      "apache-airflow>=2.3.0",
+      "cryptography>=2.0.0",
+      "kubernetes>=21.7.0,<24"
+    ],
+    "cross-providers-deps": [
+      "cncf.kubernetes"
+    ]
+  },
   "apache.hdfs": {
     "deps": [
       "apache-airflow>=2.3.0",
