@@ -24,6 +24,7 @@ Content
 .. toctree::
     :maxdepth: 1
     :caption: Guides
+
     Operators <operators>
 
 .. toctree::

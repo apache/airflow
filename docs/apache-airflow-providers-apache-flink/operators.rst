@@ -22,7 +22,7 @@ Apache Flink Operators
 .. _howto/operator:FlinkKubernetesOperator:
 
 FlinkKubernetesOperator
------------------
+-----------------------
 
 Launches spark applications on a Kubernetes cluster
 
