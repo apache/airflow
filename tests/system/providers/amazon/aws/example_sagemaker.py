@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import subprocess
 from datetime import datetime
 from tempfile import NamedTemporaryFile
@@ -401,6 +402,7 @@ def set_up(env_id, role_arn):
     _build_and_upload_docker_image(preprocess_script, ecr_repository_uri)
 
     ti = get_current_context()["ti"]
+    ti.xcom_push(key="docker_image", value=ecr_repository_uri)
     ti.xcom_push(key="bucket_name", value=bucket_name)
     ti.xcom_push(key="raw_data_s3_key", value=raw_data_s3_key)
     ti.xcom_push(key="ecr_repository_name", value=ecr_repository_name)
@@ -455,6 +457,23 @@ def delete_model_group(group_name, model_version_arn):
 def delete_pipeline(pipeline_name):
     sgmk_client = boto3.client("sagemaker")
     sgmk_client.delete_pipeline(PipelineName=pipeline_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_docker_image(image_name):
+    docker_build = subprocess.Popen(
+        f"docker rmi {image_name}",
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    _, stderr = docker_build.communicate()
+    if docker_build.returncode != 0:
+        logging.error(
+            "Failed to delete local docker image. "
+            "Run 'docker images' to see if you need to clean it yourself.\n"
+            f"error message: {stderr}"
+        )
 
 
 with DAG(
@@ -626,6 +645,7 @@ with DAG(
         delete_bucket,
         delete_logs(test_context[ENV_ID_KEY]),
         delete_pipeline(test_setup["pipeline_name"]),
+        delete_docker_image(test_setup["docker_image"]),
     )
 
     from tests.system.utils.watcher import watcher
