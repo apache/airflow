@@ -33,6 +33,8 @@ import uuid
 import warnings
 from copy import deepcopy
 from functools import wraps
+from os import PathLike
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
 import boto3
@@ -43,6 +45,7 @@ import tenacity
 from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
@@ -51,6 +54,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -763,6 +767,44 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         except Exception as e:
             return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
+
+    @cached_property
+    def waiter_path(self) -> PathLike[str] | None:
+        path = Path(__file__).parents[1].joinpath(f"waiters/{self.client_type}.json").resolve()
+        return path if path.exists() else None
+
+    def get_waiter(self, waiter_name: str) -> Waiter:
+        """
+        First checks if there is a custom waiter with the provided waiter_name and
+        uses that if it exists, otherwise it will check the service client for a
+        waiter that matches the name and pass that through.
+
+        :param waiter_name: The name of the waiter.  The name should exactly match the
+            name of the key in the waiter model file (typically this is CamelCase).
+        """
+        if self.waiter_path and (waiter_name in self._list_custom_waiters()):
+            # Technically if waiter_name is in custom_waiters then self.waiter_path must
+            # exist but MyPy doesn't like the fact that self.waiter_path could be None.
+            with open(self.waiter_path) as config_file:
+                config = json.load(config_file)
+                return BaseBotoWaiter(client=self.conn, model_config=config).waiter(waiter_name)
+        # If there is no custom waiter found for the provided name,
+        # then try checking the service's official waiters.
+        return self.conn.get_waiter(waiter_name)
+
+    def list_waiters(self) -> list[str]:
+        """Returns a list containing the names of all waiters for the service, official and custom."""
+        return [*self._list_official_waiters(), *self._list_custom_waiters()]
+
+    def _list_official_waiters(self) -> list[str]:
+        return self.conn.waiter_names
+
+    def _list_custom_waiters(self) -> list[str]:
+        if not self.waiter_path:
+            return []
+        with open(self.waiter_path) as config_file:
+            model_config = json.load(config_file)
+            return WaiterModel(model_config).waiter_names
 
 
 class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):

@@ -53,6 +53,7 @@ from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
+    from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.operators import ColumnOperators
 
 
@@ -82,7 +83,7 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-priority = [
+priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,
     TaskInstanceState.UPSTREAM_FAILED,
     TaskInstanceState.UP_FOR_RETRY,
@@ -713,7 +714,7 @@ class CustomSQLAInterface(SQLAInterface):
 
     """
 
-    def __init__(self, obj, session=None):
+    def __init__(self, obj, session: Session | None = None):
         super().__init__(obj, session=session)
 
         def clean_column_names():

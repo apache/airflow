@@ -1,7 +1,6 @@
-.[cncf.kubernetes,postgres]
+.[cncf.kubernetes]
 pytest
 pytest-cov
 pytest-instafail
 pytest-timeouts
 pytest-xdist
-freezegun

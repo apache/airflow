@@ -44,7 +44,7 @@ const InstanceTooltip = ({
 
   const numMap = finalStatesMap();
   let numMapped = 0;
-  if (isGroup && group.children) {
+  if (isGroup && group.children && !isMapped) {
     group.children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
@@ -52,7 +52,9 @@ const InstanceTooltip = ({
         if (numMap.has(stateKey)) numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
       }
     });
-  } else if (isMapped && mappedStates) {
+  }
+
+  if (isMapped && mappedStates) {
     Object.keys(mappedStates).forEach((stateKey) => {
       const num = mappedStates[stateKey];
       numMapped += num;
@@ -83,6 +85,7 @@ const InstanceTooltip = ({
           {numMapped}
           {' '}
           mapped task
+          {isGroup && ' group'}
           {numMapped > 1 && 's'}
         </Text>
       )}
@@ -93,16 +96,20 @@ const InstanceTooltip = ({
         {state || 'no status'}
       </Text>
       {(isGroup || isMapped) && summary}
-      <Text>
-        Started:
-        {' '}
-        <Time dateTime={startDate} />
-      </Text>
-      <Text>
-        Duration:
-        {' '}
-        {formatDuration(getDuration(startDate, endDate))}
-      </Text>
+      {startDate && (
+        <>
+          <Text>
+            Started:
+            {' '}
+            <Time dateTime={startDate} />
+          </Text>
+          <Text>
+            Duration:
+            {' '}
+            {formatDuration(getDuration(startDate, endDate))}
+          </Text>
+        </>
+      )}
       {note && (
         <Text>Contains a note</Text>
       )}

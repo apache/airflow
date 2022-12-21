@@ -90,7 +90,7 @@ Apache Airflow is tested with:
 |---------------------|------------------------------|------------------------------|
 | Python              | 3.7, 3.8, 3.9, 3.10          | 3.7, 3.8, 3.9, 3.10          |
 | Platform            | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
-| Kubernetes          | 1.23, 1.24, 1.25             | 1.21, 1.22, 1.23, 1.24, 1.25 |
+| Kubernetes          | 1.23, 1.24, 1.25, 1.26       | 1.21, 1.22, 1.23, 1.24, 1.25 |
 | PostgreSQL          | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15           |
 | MySQL               | 5.7, 8                       | 5.7, 8                       |
 | SQLite              | 3.15.0+                      | 3.15.0+                      |
@@ -317,7 +317,7 @@ we publish an Apache Airflow release. Those images contain:
 * Base OS with necessary packages to install Airflow (stable Debian OS)
 * Base Python installation in versions supported at the time of release for the MINOR version of
   Airflow released (so there could be different versions for 2.3 and 2.2 line for example)
-* Libraries required to connect to suppoerted Databases (again the set of databases supported depends
+* Libraries required to connect to supported Databases (again the set of databases supported depends
   on the MINOR version of Airflow.
 * Predefined set of popular providers (for details see the [Dockerfile](https://raw.githubusercontent.com/apache/airflow/main/Dockerfile)).
 * Possibility of building your own, custom image where the user can choose their own set of providers

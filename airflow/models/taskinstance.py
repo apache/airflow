@@ -1852,7 +1852,9 @@ class TaskInstance(Base, LoggingMixin):
         return self.task.retries and self.try_number <= self.max_tries
 
     def get_template_context(
-        self, session: Session = NEW_SESSION, ignore_param_exceptions: bool = True
+        self,
+        session: Session | None = None,
+        ignore_param_exceptions: bool = True,
     ) -> Context:
         """Return TI Context"""
         # Do not use provide_session here -- it expunges everything on exit!
@@ -1976,9 +1978,13 @@ class TaskInstance(Base, LoggingMixin):
             return prev_ds.replace("-", "")
 
         def get_triggering_events() -> dict[str, list[DatasetEvent]]:
+            if TYPE_CHECKING:
+                assert session is not None
+
+            # The dag_run may not be attached to the session anymore since the
+            # code base is over-zealous with use of session.expunge_all().
+            # Re-attach it if we get called.
             nonlocal dag_run
-            # The dag_run may not be attached to the session anymore (code base is over-zealous with use of
-            # `session.expunge_all()`) so re-attach it if we get called
             if dag_run not in session:
                 dag_run = session.merge(dag_run, load=False)
 
