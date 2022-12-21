@@ -341,7 +341,9 @@ def run_cleanup(
     effective_table_names = set(effective_config_dict)
     if desired_table_names != effective_table_names:
         outliers = desired_table_names - effective_table_names
-        logger.warning("The following table(s) are not valid choices and will be skipped: %s", sorted(outliers))
+        logger.warning(
+            "The following table(s) are not valid choices and will be skipped: %s", sorted(outliers)
+        )
     if not effective_table_names:
         raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
     if dry_run:
