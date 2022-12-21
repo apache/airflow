@@ -76,11 +76,14 @@ class FileTaskHandler(logging.Handler):
 
         :param ti: task instance object
         """
-        local_loc = self._init_file(ti)
-        self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
-        if self.formatter:
-            self.handler.setFormatter(self.formatter)
-        self.handler.setLevel(self.level)
+        from airflow.models.taskinstance import TaskInstance
+
+        if isinstance(ti, TaskInstance):
+            local_loc = self._init_file(ti)
+            self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
+            if self.formatter:
+                self.handler.setFormatter(self.formatter)
+            self.handler.setLevel(self.level)
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
     def emit(self, record):

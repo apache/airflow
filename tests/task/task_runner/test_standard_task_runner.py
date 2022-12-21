@@ -29,7 +29,6 @@ import pytest
 
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.listeners.listener import get_listener_manager
-from airflow.logging_config import configure_logging
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
@@ -77,6 +76,7 @@ def propagate_task_logger():
             h.maintain_propagate = _propagate
 
 
+@pytest.mark.usefixtures("reset_logging_config")
 class TestStandardTaskRunner:
     @pytest.fixture(autouse=True, scope="class")
     def setup_db(self):
@@ -90,11 +90,6 @@ class TestStandardTaskRunner:
         yield
         clear_db_runs()
         get_listener_manager().clear()
-
-    def teardown_method(self):
-        for handler_ref in logging._handlerList[:]:  # type: ignore
-            logging._removeHandlerRef(handler_ref)  # type: ignore
-        configure_logging()
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()
