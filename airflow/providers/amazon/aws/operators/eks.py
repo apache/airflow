@@ -29,10 +29,12 @@ from airflow.providers.amazon.aws.hooks.eks import EksHook
 
 try:
     from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-except ImportError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+except ImportError:
 
-    raise AirflowOptionalProviderFeatureException(e)
+    raise AirflowException(
+        "apache-airflow-providers-cncf-kubernetes not installed, run: "
+        "pip install 'apache-airflow-providers-amazon[cncf.kubernetes]'"
+    )
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

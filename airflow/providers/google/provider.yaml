@@ -1074,9 +1074,6 @@ additional-extras:
   - name: amazon
     dependencies:
       - apache-airflow-providers-amazon>=2.6.0
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=5.0.0
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

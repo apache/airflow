@@ -31,10 +31,12 @@ from airflow.models import BaseOperator
 
 try:
     from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-except ImportError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+except ImportError:
 
-    raise AirflowOptionalProviderFeatureException(e)
+    raise AirflowException(
+        "apache-airflow-providers-cncf-kubernetes not installed, run: "
+        "pip install 'apache-airflow-providers-google[cncf.kubernetes]'"
+    )
 
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
