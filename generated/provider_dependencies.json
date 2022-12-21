@@ -465,7 +465,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
-      "pymssql>=2.1.5; platform_machine != \"aarch64\""
+      "pymssql>=2.1.5"
     ],
     "cross-providers-deps": [
       "common.sql"
