@@ -21,6 +21,7 @@ Params
 ======
 
 Params are how Airflow provides runtime configuration to tasks.
+Also defined Params are used to render a nice UI when triggering manually.
 When you trigger a DAG manually, you can modify its Params before the dagrun starts.
 If the user-supplied values don't pass validation, Airflow shows a warning instead of creating the dagrun.
 (For scheduled runs, the default values are used.)
@@ -152,6 +153,53 @@ JSON Schema Validation
 .. note::
     As of now, for security reasons, one can not use Param objects derived out of custom classes. We are
     planning to have a registration system for custom Param classes, just like we've for Operator ExtraLinks.
+
+Use Params to Provide a Trigger UI Form
+---------------------------------------
+
+:class:`~airflow.models.dag.DAG` level params are used to render a user friendly trigger form.
+This form is provided when a user clicks on the "Trigger DAG w/ config" button.
+
+The Trigger UI Form is rendered based on the pre-defined DAG Prams. If the DAG has no params defined, a JSON entry mask is shown.
+The form elements can be defined with the :class:`~airflow.modules.param.Param` class and attributes define how a form field is displayed.
+
+The following features are supported in the Trigger UI Form:
+
+- Direct scalar values (boolean, int, string, lists, dicts) from top-level DAG params are interpreted and render a corresponding field type.
+  The name of the param is used as label and no further validation is made, all values are treated as optional.
+- If you use the :class:`~airflow.modules.param.Param` class as definition of the param value, the following parameters can be added:
+
+  - The Param attribute ``title`` is used to render the form field label of the entry box
+  - The Param attribute ``description`` is rendered below an entry field as help text in gray color.
+    Note that you can add HTML tags here if you like to apply special formatting or links.
+  - The Param attribute ``type`` influences how a field is rendered. The following types are supported:
+
+    - ``string``: Generates a text box to edit text.
+      You can add the parameters ``minLength`` and ``maxLength`` to restrict the text length.
+    - ``number`` or ``integer``: Generates a field which restricts adding numeric values only.
+      You can add the parameters ``minimum`` and ``maximum`` to restict number range accepted.
+    - ``boolean``: Generates a toggle button to be used as ``True`` or ``False``.
+    - ``date``, ``datetime`` and ``time``: Generate date and/or time picker
+    - ``list``: Generates a HTML multi line text field, every line edited will be made into a string array as value
+    - ``object``: Generates a JSON entry field
+    - Note: Per default if you specify a type, a field will be made required with input - because of JSON validation.
+      If you want to have a field value being added optional only, you must allow JSON schema validation allowing null values via:
+      ``type=["null", "string"]``
+
+- The Param attribute ``enum`` generates a drop-down select list. As of JSON validation, a value must be selected.
+- If a form field is left empty, it is passed as ``None`` value to the params dict.
+- Form fields are rendered in the order of definition.
+- If you want to add sections to the Form, add the parameter ``section`` to each field. The text will be used as section label.
+  Fields w/o ``section`` will be rendered in the default area.
+  Additional sections will be collapsed per default.
+- If you want to have params not being displayed, use the ``const`` attribute. These Params will be submitted but hidden in the Form.
+- On the bottom of the form the generated JSON configuration can be expanded.
+  If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
+- If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute.
+
+For examples also please take a look to two example DAGs provided: ``example_params_trigger_ui`` and ``example_params_ui_tutorial``.
+
+.. image:: ../img/trigger-dag-tutorial-form.png
 
 Disabling Runtime Param Modification
 ------------------------------------
