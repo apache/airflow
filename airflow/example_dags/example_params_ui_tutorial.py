@@ -123,7 +123,7 @@ with DAG(
         ),
         # Dates and Times are also supported
         "date_time": Param(
-            f"{datetime.datetime.now()}",
+            f"{datetime.date.today()} {datetime.time(hour=12, minute=17, second=00)}",
             type="string",
             format="date-time",
             title="Date-Time Picker",
