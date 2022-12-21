@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 7.0.0
   - 6.2.0
   - 6.1.0
   - 6.0.0
@@ -59,7 +60,6 @@ dependencies:
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
-  - pandas>=0.17.1
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
   - mypy-boto3-appflow>=1.24.0
@@ -576,3 +576,8 @@ secrets-backends:
 logging:
   - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
   - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
+
+additional-extras:
+  - name: pandas
+    dependencies:
+      - pandas>=0.17.1
