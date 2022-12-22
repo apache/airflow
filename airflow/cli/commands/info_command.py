@@ -176,6 +176,7 @@ _MACHINE_TO_ARCHITECTURE = {
     "arm64": Architecture.ARM,
     "armv7": Architecture.ARM,
     "armv7l": Architecture.ARM,
+    "aarch64": Architecture.ARM,
 }
 
 

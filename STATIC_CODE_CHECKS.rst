@@ -199,7 +199,7 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-provide-create-sessions-imports                     | Check provide_session and create_session imports                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-provider-yaml-valid                                 | Validate providers.yaml files                                    |         |
+| check-provider-yaml-valid                                 | Validate provider.yaml files                                     | *       |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-providers-init-file-missing                         | Provider init file is missing                                    |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
