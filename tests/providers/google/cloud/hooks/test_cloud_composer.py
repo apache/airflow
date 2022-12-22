@@ -22,8 +22,10 @@ from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.orchestration.airflow.service_v1 import EnvironmentsAsyncClient
 
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook, CloudComposerHook
+from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 TEST_GCP_REGION = "global"
 TEST_GCP_PROJECT = "test-project"
@@ -194,14 +196,16 @@ class TestCloudComposerHook(unittest.TestCase):
         )
 
 
-class TestCloudComposerAsyncHook(unittest.TestCase):
-    def setUp(self) -> None:
-        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
+class TestCloudComposerAsyncHook:
+    def setup_method(self, method) -> None:
+        with async_mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
 
     @pytest.mark.asyncio
-    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    @async_mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
     async def test_create_environment(self, mock_client) -> None:
+        mock_env_client = AsyncMock(EnvironmentsAsyncClient)
+        mock_client.return_value = mock_env_client
         await self.hook.create_environment(
             project_id=TEST_GCP_PROJECT,
             region=TEST_GCP_REGION,
@@ -222,8 +226,10 @@ class TestCloudComposerAsyncHook(unittest.TestCase):
         )
 
     @pytest.mark.asyncio
-    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    @async_mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
     async def test_delete_environment(self, mock_client) -> None:
+        mock_env_client = AsyncMock(EnvironmentsAsyncClient)
+        mock_client.return_value = mock_env_client
         await self.hook.delete_environment(
             project_id=TEST_GCP_PROJECT,
             region=TEST_GCP_REGION,
@@ -243,8 +249,10 @@ class TestCloudComposerAsyncHook(unittest.TestCase):
         )
 
     @pytest.mark.asyncio
-    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    @async_mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
     async def test_update_environment(self, mock_client) -> None:
+        mock_env_client = AsyncMock(EnvironmentsAsyncClient)
+        mock_client.return_value = mock_env_client
         await self.hook.update_environment(
             project_id=TEST_GCP_PROJECT,
             region=TEST_GCP_REGION,
