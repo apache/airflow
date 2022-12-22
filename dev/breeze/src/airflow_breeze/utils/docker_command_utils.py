@@ -104,7 +104,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
-    ("metastore_browser", "/opt/airflow/metastore_browser"),
 ]
 
 

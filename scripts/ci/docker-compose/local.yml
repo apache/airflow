@@ -123,7 +123,4 @@ services:
       - type: bind
         source: ../../../chart
         target: /opt/airflow/chart
-      - type: bind
-        source: ../../../metastore_browser
-        target: /opt/airflow/metastore_browser
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
