@@ -21,6 +21,10 @@ import logging
 import logging.config
 import os
 import re
+from unittest.mock import MagicMock, patch
+
+import pytest
+from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
@@ -216,6 +220,64 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
+    @pytest.mark.parametrize(
+        "pod_override, namespace_to_call",
+        [
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-A")), "namespace-A"),
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-B")), "namespace-B"),
+            pytest.param(k8s.V1Pod(), "default"),
+            pytest.param(None, "default"),
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name-xxx")), "default"),
+        ],
+    )
+    @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
+    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_read_from_k8s_under_multi_namespace_mode(
+        self, mock_kube_client, pod_override, namespace_to_call
+    ):
+        mock_read_namespaced_pod_log = MagicMock()
+        mock_kube_client.return_value.read_namespaced_pod_log = mock_read_namespaced_pod_log
+
+        def task_callable(ti):
+            ti.log.info("test")
+
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+        )
+        executor_config_pod = pod_override
+        task = PythonOperator(
+            task_id="task_for_testing_file_log_handler",
+            dag=dag,
+            python_callable=task_callable,
+            executor_config={"pod_override": executor_config_pod},
+        )
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        ti.try_number = 3
+
+        logger = ti.log
+        ti.log.disabled = False
+
+        file_handler = next(
+            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+        )
+        set_context(logger, ti)
+        ti.run(ignore_ti_state=True)
+
+        file_handler.read(ti, 3)
+
+        # Check if kube_client.read_namespaced_pod_log() is called with the namespace we expect
+        mock_read_namespaced_pod_log.assert_called_once_with(
+            name=ti.hostname,
+            namespace=namespace_to_call,
+            container="base",
+            follow=False,
+            tail_lines=100,
+            _preload_content=False,
+        )
+
 
 class TestFilenameRendering:
     def test_python_formatting(self, create_log_template, create_task_instance):
@@ -264,3 +326,36 @@ class TestLogUrl:
         log_url_ti.hostname = "hostname"
         url = FileTaskHandler._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
         assert url == "http://hostname:8793/log/DYNAMIC_PATH"
+
+
+@pytest.mark.parametrize(
+    "config, queue, expected",
+    [
+        (dict(AIRFLOW__CORE__EXECUTOR="LocalExecutor"), None, False),
+        (dict(AIRFLOW__CORE__EXECUTOR="LocalExecutor"), "kubernetes", False),
+        (dict(AIRFLOW__CORE__EXECUTOR="KubernetesExecutor"), None, True),
+        (dict(AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor"), "any", False),
+        (dict(AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor"), "kubernetes", True),
+        (
+            dict(
+                AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor",
+                AIRFLOW__CELERY_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE="hithere",
+            ),
+            "hithere",
+            True,
+        ),
+        (dict(AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor"), "any", False),
+        (dict(AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor"), "kubernetes", True),
+        (
+            dict(
+                AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor",
+                AIRFLOW__LOCAL_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE="hithere",
+            ),
+            "hithere",
+            True,
+        ),
+    ],
+)
+def test__should_check_k8s(config, queue, expected):
+    with patch.dict("os.environ", **config):
+        assert FileTaskHandler._should_check_k8s(queue) == expected

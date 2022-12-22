@@ -335,6 +335,7 @@ dat
 Databricks
 databricks
 datacenter
+dataclass
 Datadog
 datadog
 Dataflow
@@ -411,6 +412,7 @@ Deserialize
 deserialize
 Deserialized
 deserialized
+deserializer
 deserializing
 dest
 dev
@@ -563,6 +565,8 @@ Firestore
 firestore
 firstname
 Flink
+flink
+flinkDeployment
 FluentD
 fluentd
 fmt
@@ -1278,6 +1282,8 @@ serde
 serialise
 serializable
 SerializedDAG
+serializer
+serializers
 serverless
 ServiceAccount
 setattr

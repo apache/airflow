@@ -21,6 +21,7 @@ import datetime
 import operator
 import os
 import pathlib
+import pickle
 import signal
 import sys
 import urllib
@@ -32,7 +33,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow import models, settings
 from airflow.decorators import task, task_group
@@ -539,11 +540,11 @@ class TestTaskInstance:
         assert ti.next_kwargs is None
         assert ti.state == state
 
-    @freeze_time("2021-09-19 04:56:35", as_kwarg="frozen_time")
-    def test_retry_delay(self, dag_maker, frozen_time=None):
+    def test_retry_delay(self, dag_maker, time_machine):
         """
         Test that retry delays are respected
         """
+        time_machine.move_to("2021-09-19 04:56:35", tick=False)
         with dag_maker(dag_id="test_retry_handling"):
             task = BashOperator(
                 task_id="test_retry_handling_op",
@@ -568,12 +569,12 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
-        frozen_time.tick(delta=datetime.timedelta(seconds=3))
+        time_machine.coordinates.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        frozen_time.tick(delta=datetime.datetime.resolution)
+        time_machine.coordinates.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
 
@@ -731,7 +732,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -831,7 +832,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -930,7 +931,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -998,7 +999,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -3589,6 +3590,20 @@ class TestMappedTaskInstanceReceiveValue:
         with out.open() as f:
             out_lines = [line.strip() for line in f]
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
+
+
+def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="t")
+
+    run: DagRun = dag_maker.create_dagrun()
+    run.get_task_instance("t", session=session).xcom_push("xxx", 123, session=session)
+
+    original = LazyXComAccess.build_from_xcom_query(session.query(XCom))
+    processed = pickle.loads(pickle.dumps(original))
+
+    assert len(processed) == 1
+    assert list(processed) == [123]
 
 
 @mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)

@@ -1112,6 +1112,8 @@ class TaskInstance(Base, LoggingMixin):
         Get datetime of the next retry if the task instance fails. For exponential
         backoff, retry_delay is used as base and will be converted to seconds.
         """
+        from airflow.models.abstractoperator import MAX_RETRY_DELAY
+
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
             # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
@@ -1139,8 +1141,8 @@ class TaskInstance(Base, LoggingMixin):
             # here means this value can be exceeded after a certain number
             # of tries (around 50 if the initial delay is 1s, even fewer if
             # the delay is larger). Cap the value here before creating a
-            # timedelta object so the operation doesn't fail.
-            delay_backoff_in_seconds = min(modded_hash, timedelta.max.total_seconds() - 1)
+            # timedelta object so the operation doesn't fail with "OverflowError".
+            delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
             delay = timedelta(seconds=delay_backoff_in_seconds)
             if self.task.max_retry_delay:
                 delay = min(self.task.max_retry_delay, delay)
@@ -1850,7 +1852,9 @@ class TaskInstance(Base, LoggingMixin):
         return self.task.retries and self.try_number <= self.max_tries
 
     def get_template_context(
-        self, session: Session = NEW_SESSION, ignore_param_exceptions: bool = True
+        self,
+        session: Session | None = None,
+        ignore_param_exceptions: bool = True,
     ) -> Context:
         """Return TI Context"""
         # Do not use provide_session here -- it expunges everything on exit!
@@ -1974,9 +1978,13 @@ class TaskInstance(Base, LoggingMixin):
             return prev_ds.replace("-", "")
 
         def get_triggering_events() -> dict[str, list[DatasetEvent]]:
+            if TYPE_CHECKING:
+                assert session is not None
+
+            # The dag_run may not be attached to the session anymore since the
+            # code base is over-zealous with use of session.expunge_all().
+            # Re-attach it if we get called.
             nonlocal dag_run
-            # The dag_run may not be attached to the session anymore (code base is over-zealous with use of
-            # `session.expunge_all()`) so re-attach it if we get called
             if dag_run not in session:
                 dag_run = session.merge(dag_run, load=False)
 

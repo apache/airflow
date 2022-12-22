@@ -136,7 +136,7 @@ def _default_config_file_path(file_name: str) -> str:
     return os.path.join(templates_dir, file_name)
 
 
-def default_config_yaml() -> list[dict[str, Any]]:
+def default_config_yaml() -> dict[str, Any]:
     """
     Read Airflow configs from YAML file.
 
@@ -930,7 +930,9 @@ class AirflowConfigParser(ConfigParser):
                         _section[key] = False
         return _section
 
-    def write(self, fp: IO, space_around_delimiters: bool = True):  # type: ignore[override]
+    def write(  # type: ignore[override]
+        self, fp: IO, space_around_delimiters: bool = True, section: str | None = None
+    ) -> None:
         # This is based on the configparser.RawConfigParser.write method code to add support for
         # reading options from environment variables.
         # Various type ignores below deal with less-than-perfect RawConfigParser superclass typing
@@ -942,9 +944,14 @@ class AirflowConfigParser(ConfigParser):
             self._write_section(  # type: ignore[attr-defined]
                 fp, self.default_section, self._defaults.items(), delimiter  # type: ignore[attr-defined]
             )
-        for section in self._sections:  # type: ignore[attr-defined]
-            item_section: ConfigOptionsDictType = self.getsection(section)  # type: ignore[assignment]
-            self._write_section(fp, section, item_section.items(), delimiter)  # type: ignore[attr-defined]
+        sections = (
+            {section: dict(self.getsection(section))}  # type: ignore[arg-type]
+            if section
+            else self._sections  # type: ignore[attr-defined]
+        )
+        for sect in sections:
+            item_section: ConfigOptionsDictType = self.getsection(sect)  # type: ignore[assignment]
+            self._write_section(fp, sect, item_section.items(), delimiter)  # type: ignore[attr-defined]
 
     def as_dict(
         self,

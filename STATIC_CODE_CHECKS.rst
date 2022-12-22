@@ -191,13 +191,15 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-relative-imports                                 | No relative imports                                              |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-only-new-session-with-provide-session               | Check NEW_SESSION is only used with @provide_session             |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-persist-credentials-disabled-in-github-workflows    | Check that workflow files have persist-credentials disabled      |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-pre-commit-information-consistent                   | Update information re pre-commit hooks and verify ids and names  |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-provide-create-sessions-imports                     | Check provide_session and create_session imports                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-provider-yaml-valid                                 | Validate providers.yaml files                                    |         |
+| check-provider-yaml-valid                                 | Validate provider.yaml files                                     | *       |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-providers-init-file-missing                         | Provider init file is missing                                    |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+

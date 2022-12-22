@@ -20,10 +20,10 @@ import datetime
 import typing
 
 import dateutil.relativedelta
-import freezegun
 import pendulum
 import pendulum.tz
 import pytest
+import time_machine
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
@@ -47,7 +47,7 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
     "last_automated_data_interval",
     [pytest.param(None, id="first-run"), pytest.param(PREV_DATA_INTERVAL_EXACT, id="subsequent")],
 )
-@freezegun.freeze_time(CURRENT_TIME)
+@time_machine.travel(CURRENT_TIME)
 def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     last_automated_data_interval: DataInterval | None,
 ) -> None:
@@ -89,7 +89,7 @@ def test_hourly_cron_trigger_no_catchup_next_info(
     earliest: pendulum.DateTime,
     expected: DagRunInfo,
 ) -> None:
-    with freezegun.freeze_time(current_time):
+    with time_machine.travel(current_time):
         next_info = HOURLY_CRON_TRIGGER_TIMETABLE.next_dagrun_info(
             last_automated_data_interval=PREV_DATA_INTERVAL_EXACT,
             restriction=TimeRestriction(earliest=earliest, latest=None, catchup=False),

@@ -20,10 +20,14 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.session import find_session_idx, provide_session
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +40,7 @@ class DummySentry:
         """Blank function for tagging."""
 
     @classmethod
-    def add_breadcrumbs(cls, task_instance, session=None):
+    def add_breadcrumbs(cls, task_instance, session: Session | None = None):
         """Blank function for breadcrumbs."""
 
     @classmethod

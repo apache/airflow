@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -26,6 +27,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 from pytest import param
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.models import DagModel, DagRun, TaskInstance
@@ -118,6 +120,20 @@ class TestDBCleanup:
         )
         run_cleanup(**base_kwargs, table_names=table_names)
         assert clean_table_mock.call_count == len(table_names) if table_names else len(config_dict)
+
+    @patch("airflow.utils.db_cleanup._cleanup_table")
+    @patch("airflow.utils.db_cleanup._confirm_delete")
+    def test_validate_tables_all_invalid(self, confirm_delete_mock, clean_table_mock):
+        """If only invalid tables are provided, don't try cleaning anything"""
+        base_kwargs = dict(
+            clean_before_timestamp=None,
+            dry_run=None,
+            verbose=None,
+        )
+        with pytest.raises(SystemExit) as execinfo:
+            run_cleanup(**base_kwargs, table_names=["all", "fake"])
+        assert "No tables selected for db cleanup" in str(execinfo.value)
+        confirm_delete_mock.assert_not_called()
 
     @pytest.mark.parametrize(
         "dry_run",
@@ -280,6 +296,7 @@ class TestDBCleanup:
             "dataset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
+            "rendered_task_instance_fields",  # foreign key with TI
         }
 
         from airflow.utils.db_cleanup import config_dict
@@ -288,6 +305,20 @@ class TestDBCleanup:
         print(f"excl+conf={exclusion_list.union(config_dict)}")
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
+
+    def test_no_failure_warnings(self, caplog):
+        """
+        Ensure every table we have configured (and that is present in the db) can be cleaned successfully.
+        For example, this checks that the recency column is actually a column.
+        """
+        run_cleanup(clean_before_timestamp=datetime.utcnow(), dry_run=True)
+        assert "Encountered error when attempting to clean table" not in caplog.text
+
+        # Lets check we have the right error message just in case
+        caplog.clear()
+        with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
+            run_cleanup(clean_before_timestamp=datetime.utcnow(), table_names=["task_instance"], dry_run=True)
+        assert "Encountered error when attempting to clean table" in caplog.text
 
 
 def create_tis(base_date, num_tis, external_trigger=False):

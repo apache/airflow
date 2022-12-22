@@ -443,6 +443,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{ (printf "%s/webserver_config.py" .Values.airflowHome) | quote }}
 {{- end }}
 
+{{ define "airflow_webserver_config_configmap_name" -}}
+{{ default (printf "%s-webserver-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+{{- end }}
+
+{{ define "airflow_webserver_config_mount" -}}
+- name: webserver-config
+  mountPath: {{ template "airflow_webserver_config_path" . }}
+  subPath: webserver_config.py
+  readOnly: True
+{{- end -}}
+
 {{ define "airflow_local_setting_path" -}}
 {{ (printf "%s/config/airflow_local_settings.py" .Values.airflowHome) | quote }}
 {{- end }}

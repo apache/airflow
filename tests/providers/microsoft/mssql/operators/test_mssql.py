@@ -20,9 +20,15 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
+import pytest
+
 from airflow import AirflowException
-from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
+
+try:
+    from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+    from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
+except ImportError:
+    pytest.skip("MSSQL not available", allow_module_level=True)
 
 
 class TestMsSqlOperator:

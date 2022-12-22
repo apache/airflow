@@ -55,7 +55,7 @@ function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
 freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
-libkrb5-dev libldap2-dev libsasl2-2 libsasl2-dev libsasl2-modules \
+libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev locales lsb-release openssh-client sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
         export DEV_APT_DEPS
@@ -948,13 +948,7 @@ fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
 
-if [[ -n ${LIST_OF_INTEGRATION_TESTS_TO_RUN=} ]]; then
-    # Integration tests
-    for INT in ${LIST_OF_INTEGRATION_TESTS_TO_RUN}
-    do
-        EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
-    done
-elif [[ ${TEST_TYPE:=""} == "Long" ]]; then
+if [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"
