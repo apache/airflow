@@ -235,11 +235,6 @@ function install_mssql_client() {
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
 
-if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-    # disable MSSQL for ARM64
-    INSTALL_MSSQL_CLIENT="false"
-fi
-
 install_mssql_client "${@}"
 EOF
 

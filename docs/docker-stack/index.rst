@@ -83,6 +83,20 @@ are also images published from branches but they are used mainly for development
 See `Airflow Git Branching <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#airflow-git-branches>`_
 for details.
 
+Support
+=======
+
+The reference Docker Image supports the following platforms and database:
+
+
+* Intel platform (x86_64)
+  * Postgres Client
+  * MySQL Client
+  * MSSQL Client
+
+* ARM platform (aarch64) - experimental support, might change any time
+  * Postgres Client
+  * MSSQL Client
 
 Usage
 =====
