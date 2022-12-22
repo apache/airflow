@@ -104,6 +104,7 @@ from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor,
 from airflow.utils.email import send_email
 from airflow.utils.helpers import render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
@@ -1540,7 +1541,10 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     callback(context)
                 except Exception:  # pylint: disable=broad-except
-                    self.log.exception(f"Error when executing {callback_type} callback")
+                    callback_name = qualname(callback).split(".")[-1]
+                    self.log.exception(
+                        f"Error when executing {callback_name} callback"  # type: ignore[attr-defined]
+                    )
 
     def _execute_task(self, context, task_orig):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""

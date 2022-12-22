@@ -78,6 +78,7 @@ from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
+from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -2380,7 +2381,9 @@ class TestTaskInstance:
 
             assert called
             assert not completed
-            expected_message = f"Error when executing {callback_type} callback"
+            callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
+            callback_name = qualname(callback_name).split(".")[-1]
+            expected_message = f"Error when executing {callback_name} callback"
             ti.log.exception.assert_called_once_with(expected_message)
 
     @provide_session

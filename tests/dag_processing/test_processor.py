@@ -326,7 +326,9 @@ class TestDagFileProcessor:
             dag_file_processor.manage_slas(dag=dag, session=session)
             assert sla_callback.called
             mock_log.exception.assert_called_once_with(
-                "Could not call sla_miss_callback(%s) for DAG %s", sla_callback, f"test_sla_miss_{i}"
+                "Could not call sla_miss_callback(%s) for DAG %s",
+                sla_callback.func_name,  # type: ignore[attr-defined]
+                f"test_sla_miss_{i}",
             )
             mock_stats_incr.assert_called_once_with("sla_callback_notification_failure")
 

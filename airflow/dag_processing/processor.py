@@ -486,7 +486,9 @@ class DagFileProcessor(LoggingMixin):
                     except Exception:
                         Stats.incr("sla_callback_notification_failure")
                         self.log.exception(
-                            "Could not call sla_miss_callback(%s) for DAG %s", callback, dag.dag_id
+                            "Could not call sla_miss_callback(%s) for DAG %s",
+                            callback.func_name,  # type: ignore[attr-defined]
+                            dag.dag_id,
                         )
             email_content = f"""\
             Here's a list of tasks that missed their SLAs:
