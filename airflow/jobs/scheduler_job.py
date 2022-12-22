@@ -1526,10 +1526,26 @@ class SchedulerJob(BaseJob):
         or have a no-longer-running LocalTaskJob, and create a TaskCallbackRequest
         to be handled by the DAG processor.
         """
+        from airflow.jobs.local_task_job import LocalTaskJob
+
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
 
-        zombies = self._find_zombies_from_db(limit_dttm=limit_dttm)
+        with create_session() as session:
+            zombies: list[tuple[TI, str, str]] = (
+                session.query(TI, DM.fileloc, DM.processor_subdir)
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
+                .filter(TI.state == TaskInstanceState.RUNNING)
+                .filter(
+                    or_(
+                        LocalTaskJob.state != State.RUNNING,
+                        LocalTaskJob.latest_heartbeat < limit_dttm,
+                    )
+                )
+                .filter(TI.queued_by_job_id == self.id)
+                .all()
+            )
 
         if zombies:
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
@@ -1545,28 +1561,6 @@ class SchedulerJob(BaseJob):
             self.log.error("Detected zombie job: %s", request)
             self.executor.send_callback(request)
             Stats.incr("zombies_killed")
-
-    @provide_session
-    def _find_zombies_from_db(self, limit_dttm, session: Session = NEW_SESSION) -> list[tuple[TI, str, str]]:
-
-        from airflow.jobs.local_task_job import LocalTaskJob
-
-        zombies: list[tuple[TI, str, str]] = (
-            session.query(TI, DM.fileloc, DM.processor_subdir)
-            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
-            .filter(TI.state == TaskInstanceState.RUNNING)
-            .filter(
-                or_(
-                    LocalTaskJob.state != State.RUNNING,
-                    LocalTaskJob.latest_heartbeat < limit_dttm,
-                )
-            )
-            .filter(TI.queued_by_job_id == self.id)
-            .all()
-        )
-
-        return zombies
 
     @staticmethod
     def _generate_zombie_message_details(ti: TaskInstance):
