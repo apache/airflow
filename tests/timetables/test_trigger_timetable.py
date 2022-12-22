@@ -44,12 +44,29 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval",
-    [pytest.param(None, id="first-run"), pytest.param(PREV_DATA_INTERVAL_EXACT, id="subsequent")],
+    "last_automated_data_interval, next_start_time",
+    [
+        pytest.param(
+            None,
+            CURRENT_TIME + DELTA_FROM_MIDNIGHT,
+            id="first-run",
+        ),
+        pytest.param(
+            PREV_DATA_INTERVAL_EXACT,
+            CURRENT_TIME + DELTA_FROM_MIDNIGHT,
+            id="before-now",
+        ),
+        pytest.param(
+            DataInterval.exact(CURRENT_TIME + DELTA_FROM_MIDNIGHT),
+            CURRENT_TIME + datetime.timedelta(days=1) + DELTA_FROM_MIDNIGHT,
+            id="after-now",
+        ),
+    ],
 )
 @time_machine.travel(CURRENT_TIME)
 def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     last_automated_data_interval: DataInterval | None,
+    next_start_time: pendulum.DateTime,
 ) -> None:
     """If ``catchup=False`` and start_date is a day before"""
     timetable = CronTriggerTimetable("30 16 * * *", timezone=TIMEZONE)
@@ -57,8 +74,7 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
         last_automated_data_interval=last_automated_data_interval,
         restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
     )
-    expected = CURRENT_TIME + DELTA_FROM_MIDNIGHT
-    assert next_info == DagRunInfo.exact(expected)
+    assert next_info == DagRunInfo.exact(next_start_time)
 
 
 @pytest.mark.parametrize(
