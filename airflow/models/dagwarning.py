@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -65,13 +66,18 @@ class DagWarning(Base):
         return hash((self.dag_id, self.warning_type))
 
     @classmethod
-    @retry_db_transaction
-    def purge_inactive_dag_warnings(cls, session: Session) -> None:
+    @provide_session
+    def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
         """
         Deactivate DagWarning records for inactive dags.
 
         :return: None
         """
+        cls._purge_inactive_dag_warnings_with_retry(session)
+
+    @classmethod
+    @retry_db_transaction
+    def _purge_inactive_dag_warnings_with_retry(cls, session: Session) -> None:
         from airflow.models.dag import DagModel
 
         if session.get_bind().dialect.name == "sqlite":
