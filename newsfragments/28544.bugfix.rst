@@ -1,0 +1,1 @@
+Fix Amazon provider's test_connection when using a custom endpoint_url

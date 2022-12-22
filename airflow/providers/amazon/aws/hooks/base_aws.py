@@ -754,7 +754,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """
         try:
             session = self.get_session()
-            conn_info = session.client("sts").get_caller_identity()
+            conn_info = session.client(
+                "sts", endpoint_url=self.conn_config.endpoint_url
+            ).get_caller_identity()
             metadata = conn_info.pop("ResponseMetadata", {})
             if metadata.get("HTTPStatusCode") != 200:
                 try:

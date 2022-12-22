@@ -729,7 +729,7 @@ class TestAwsBaseHook:
         result, message = hook.test_connection()
         assert not result
         assert message == json.dumps(response_metadata)
-        mock_sts_client.assert_called_once_with("sts")
+        mock_sts_client.assert_called_once_with("sts", endpoint_url=None)
 
         def mock_error():
             raise ConnectionError("Test Error")
