@@ -140,9 +140,10 @@ class EmrHook(AwsBaseHook):
         :param wait_for_completion: If True, wait for the steps to be completed. Default is False
         :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
         """
-        response = self.get_conn().add_job_flow_steps(
-            JobFlowId=job_flow_id, Steps=steps, ExecutionRoleArn=execution_role_arn
-        )
+        config = {}
+        if execution_role_arn:
+            config["ExecutionRoleArn"] = execution_role_arn
+        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps, **config)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Adding steps failed: {response}")
