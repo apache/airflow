@@ -1532,7 +1532,7 @@
       version_added: 2.6.0
       type: string
       example: "/trigger?dag_id={dag_id}&origin={origin}"
-      default:
+      default: ~
 
 - name: email
   description: |

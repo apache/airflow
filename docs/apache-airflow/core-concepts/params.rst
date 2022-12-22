@@ -177,7 +177,7 @@ The following features are supported in the Trigger UI Form:
     - ``string``: Generates a text box to edit text.
       You can add the parameters ``minLength`` and ``maxLength`` to restrict the text length.
     - ``number`` or ``integer``: Generates a field which restricts adding numeric values only.
-      You can add the parameters ``minimum`` and ``maximum`` to restict number range accepted.
+      You can add the parameters ``minimum`` and ``maximum`` to restrict number range accepted.
     - ``boolean``: Generates a toggle button to be used as ``True`` or ``False``.
     - ``date``, ``datetime`` and ``time``: Generate date and/or time picker
     - ``list``: Generates a HTML multi line text field, every line edited will be made into a string array as value
