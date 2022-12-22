@@ -208,8 +208,23 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     """
     Convert pod to json and back so that pod is safe.
 
+    The pod_override in executor_config is a V1Pod object.
+    Such objects created with one k8s version, when unpickled in
+    an env with upgraded k8s version, may blow up when
+    `to_dict` is called, because openapi client code gen calls
+    getattr on all attrs in openapi_types for each object, and when
+    new attrs are added to that list, getattr will fail.
+
+    Here we re-serialize it to ensure it is not going to blow up.
+
     :meta private:
     """
+    try:
+        # if to_dict works, the pod is fine
+        pod.to_dict()
+        return pod
+    except AttributeError:
+        pass
     try:
         from kubernetes.client.models.v1_pod import V1Pod
     except ImportError:
@@ -219,6 +234,7 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     try:
         from airflow.kubernetes.pod_generator import PodGenerator
 
+        # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
         return PodGenerator.deserialize_model_dict(pod_dict)
     except Exception:
@@ -265,12 +281,6 @@ class ExecutorConfigType(PickleType):
                     value["pod_override"] = BaseSerialization.deserialize(pod_override)
                 else:
                     # backcompat path
-                    # pod_override is a V1Pod object. re-serialize it to ensure it is
-                    # not going to blow up (objects created with one k8s version, when
-                    # unpickled in an env with upgraded k8s version, may blow up when
-                    # `to_dict` is called, because openapi client code gen calls
-                    # getattr on all attrs in openapi_types for each object, and when
-                    # new attrs are added to that list, getattr will fail.
                     new_pod = ensure_pod_is_valid_after_unpickling(pod_override)
                     if new_pod:
                         value["pod_override"] = new_pod
