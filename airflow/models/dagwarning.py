@@ -17,19 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from enum import Enum
 
 from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-
-log = logging.getLogger(__name__)
 
 
 class DagWarning(Base):
@@ -69,7 +66,7 @@ class DagWarning(Base):
         return hash((self.dag_id, self.warning_type))
 
     @classmethod
-    @provide_session
+    @retry_db_transaction
     def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
         """
         Deactivate DagWarning records for inactive dags.
@@ -83,12 +80,7 @@ class DagWarning(Base):
             query = session.query(cls).filter(cls.dag_id.in_(dag_ids))
         else:
             query = session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
-        try:
-            query.delete(synchronize_session=False)
-        except OperationalError:
-            # If the purge query fails, it's not critical to the dag processor
-            # We ignore it so the dag processor manager doesn't exit
-            log.error("Failed to purge inactive dag_warnings, ignoring")
+        query.delete(synchronize_session=False)
         session.commit()
 
 
