@@ -65,8 +65,6 @@ from airflow.utils.process_utils import (
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
-log = logging.getLogger(__name__)
-
 
 class DagParsingStat(NamedTuple):
     """Information on processing progress."""
@@ -499,6 +497,7 @@ class DagFileProcessorManager(LoggingMixin):
                 last_parsed=last_parsed,
                 dag_directory=self.get_dag_directory(),
                 processor_timeout=self._processor_timeout,
+                log=self.log,
             )
             self.last_deactivate_stale_dags_time = timezone.utcnow()
 
@@ -509,6 +508,7 @@ class DagFileProcessorManager(LoggingMixin):
         last_parsed: dict[str, datetime | None],
         dag_directory: str,
         processor_timeout: timedelta,
+        log: logging.Logger,
         session: Session = NEW_SESSION,
     ):
         """

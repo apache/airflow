@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 import logging
+from inspect import signature
+from typing import Callable
 
 from flask import Response
 
@@ -32,6 +34,17 @@ log = logging.getLogger(__name__)
 
 def _build_methods_map(list) -> dict:
     return {f"{func.__module__}.{func.__name__}": func for func in list}
+
+
+def _in_parameters(func: Callable, parameter_name: str) -> bool:
+    """True if a parameter exists for a given function, False otherwise."""
+    func_params = signature(func).parameters
+    try:
+        # func_params is an ordered dict -- this is the "recommended" way of getting the position
+        tuple(func_params).index(parameter_name)
+        return True
+    except ValueError:
+        return False
 
 
 METHODS_MAP = _build_methods_map(
@@ -70,6 +83,8 @@ def internal_airflow_api(
 
     log.debug("Calling method %.", {method_name})
     try:
+        if _in_parameters(handler, "log"):
+            params["log"] = logging.getLogger(f"airflow.internal_api.{handler.__name__}")
         output = handler(**params)
         output_json = BaseSerialization.serialize(output)
         log.debug("Returning response")
