@@ -2549,7 +2549,7 @@ class DAG(LoggingMixin):
         external_trigger: bool | None = False,
         conf: dict | None = None,
         run_type: DagRunType | None = None,
-        session=NEW_SESSION,
+        session: Session = NEW_SESSION,
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
@@ -2586,14 +2586,27 @@ class DAG(LoggingMixin):
             else:
                 data_interval = self.infer_automated_data_interval(logical_date)
 
+        if run_type is None or isinstance(run_type, DagRunType):
+            pass
+        elif isinstance(run_type, str):  # Compatibility: run_type used to be a str.
+            run_type = DagRunType(run_type)
+        else:
+            raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
+
         if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
                 raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
-            if not run_type:
-                run_type = DagRunType.from_run_id(run_id)
+            inferred_run_type = DagRunType.from_run_id(run_id)
+            if run_type is None:
+                # No explicit type given, use the inferred type.
+                run_type = inferred_run_type
+            elif run_type == DagRunType.MANUAL and inferred_run_type != DagRunType.MANUAL:
+                # Prevent a manual run from using an ID that looks like a scheduled run.
+                raise ValueError(
+                    f"A {run_type.value} DAG run cannot use ID {run_id!r} since it "
+                    f"is reserved for {inferred_run_type.value} runs"
+                )
         elif run_type and logical_date is not None:  # Generate run_id from run_type and execution_date.
-            if not isinstance(run_type, DagRunType):
-                raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
             run_id = self.timetable.generate_run_id(
                 run_type=run_type, logical_date=logical_date, data_interval=data_interval
             )
