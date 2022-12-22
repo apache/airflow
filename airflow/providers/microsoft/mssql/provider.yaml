@@ -41,7 +41,7 @@ versions:
 dependencies:
   - apache-airflow>=2.3.0
   - apache-airflow-providers-common-sql>=1.3.1
-  - pymssql>=2.1.5; platform_machine != "aarch64"
+  - pymssql>=2.1.5
 
 integrations:
   - integration-name: Microsoft SQL Server (MSSQL)

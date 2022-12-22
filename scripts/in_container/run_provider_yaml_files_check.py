@@ -165,7 +165,7 @@ def check_if_object_exist(object_name: str, resource_type: str, yaml_file_path: 
             raise RuntimeError(f"Wrong enum {object_type}???")
     except Exception as e:
         if architecture == Architecture.ARM:
-            if "pymssql" in str(e) or "MySQLdb" in str(e):
+            if "MySQLdb" in str(e):
                 console.print(
                     f"[yellow]The imports fail on ARM: {object_name} in {resource_type} {e}, "
                     f"but it is expected.[/]"
