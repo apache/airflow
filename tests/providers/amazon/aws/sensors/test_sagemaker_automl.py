@@ -39,7 +39,7 @@ class TestSageMakerAutoMLSensor:
             },
         }
 
-    @mock.patch.object(SageMakerHook, "describe_auto_ml_job")
+    @mock.patch.object(SageMakerHook, "_describe_auto_ml_job")
     def test_sensor_with_failure(self, mock_describe):
         mock_describe.return_value = self.get_response_with_state("Failed")
         sensor = SageMakerAutoMLSensor(job_name="job_job", task_id="test_task")
@@ -49,7 +49,7 @@ class TestSageMakerAutoMLSensor:
 
         mock_describe.assert_called_once_with("job_job")
 
-    @mock.patch.object(SageMakerHook, "describe_auto_ml_job")
+    @mock.patch.object(SageMakerHook, "_describe_auto_ml_job")
     def test_sensor(self, mock_describe):
         mock_describe.side_effect = [
             self.get_response_with_state("InProgress"),

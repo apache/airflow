@@ -1208,19 +1208,20 @@ class SageMakerHook(AwsBaseHook):
             of the "BestCandidate" key in:
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.describe_auto_ml_job
         """
+        input_data = [
+            {
+                "DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": s3_input}},
+                "TargetAttributeName": target_attribute,
+            },
+        ]
         params_dict = {
             "AutoMLJobName": job_name,
-            "InputDataConfig": [
-                {
-                    "DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": s3_input}},
-                    "TargetAttributeName": target_attribute,
-                },
-            ],
+            "InputDataConfig": input_data,
             "OutputDataConfig": {"S3OutputPath": s3_output},
             "RoleArn": role_arn,
         }
         if compressed_input:
-            params_dict["InputDataConfig"][0]["CompressionType"] = "Gzip"
+            input_data[0]["CompressionType"] = "Gzip"
         if time_limit:
             params_dict.update(
                 {"AutoMLJobConfig": {"CompletionCriteria": {"MaxAutoMLJobRuntimeInSeconds": time_limit}}}
@@ -1238,8 +1239,9 @@ class SageMakerHook(AwsBaseHook):
                 job_name,
                 "AutoMLJobStatus",
                 # cannot pass the function directly because the parameter needs to be named
-                self.describe_auto_ml_job,
+                self._describe_auto_ml_job,
                 check_interval,
             )
             if "BestCandidate" in res:
                 return res["BestCandidate"]
+        return None

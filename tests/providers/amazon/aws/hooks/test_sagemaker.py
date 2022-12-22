@@ -883,9 +883,13 @@ class TestSageMakerHook:
     def test_create_auto_ml_waits_for_completion(self, conn_mock):
         hook = SageMakerHook()
         conn_mock().describe_auto_ml_job.side_effect = [
-            {"AutoMLJobStatus": "InProgress"},
-            {"AutoMLJobStatus": "InProgress"},
-            {"AutoMLJobStatus": "Completed", "BestCandidate": {"name": "me"}},
+            {"AutoMLJobStatus": "InProgress", "AutoMLJobSecondaryStatus": "a"},
+            {"AutoMLJobStatus": "InProgress", "AutoMLJobSecondaryStatus": "b"},
+            {
+                "AutoMLJobStatus": "Completed",
+                "AutoMLJobSecondaryStatus": "c",
+                "BestCandidate": {"name": "me"},
+            },
         ]
 
         ret = hook.create_auto_ml_job("a", "b", "c", "d", "e", check_interval=0)

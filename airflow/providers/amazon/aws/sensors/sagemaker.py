@@ -335,7 +335,7 @@ class SageMakerAutoMLSensor(SageMakerBaseSensor):
 
     def get_sagemaker_response(self) -> dict:
         self.log.info("Poking Sagemaker AutoML Execution %s", self.job_name)
-        return self.get_hook().describe_auto_ml_job(self.job_name)
+        return self.get_hook()._describe_auto_ml_job(self.job_name)
 
     def state_from_response(self, response: dict) -> str:
         return response["AutoMLJobStatus"]
