@@ -281,6 +281,8 @@ class ExecutorConfigType(PickleType):
                     value["pod_override"] = BaseSerialization.deserialize(pod_override)
                 else:
                     # backcompat path
+                    # we no longer pickle raw pods but this code may be reached
+                    # when accessing executor configs created in a prior version
                     new_pod = ensure_pod_is_valid_after_unpickling(pod_override)
                     if new_pod:
                         value["pod_override"] = new_pod
