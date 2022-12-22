@@ -55,8 +55,6 @@ from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
-log = logging.getLogger(__name__)
-
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
 
@@ -370,7 +368,7 @@ class DagFileProcessor(LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def manage_slas(dag_folder, dag_id: str, session: Session = None) -> None:
+    def manage_slas(dag_folder, dag_id: str, log: logging.Logger, session: Session = NEW_SESSION) -> None:
         """
         Finding all tasks that have SLAs defined, and sending alert emails when needed.
 
@@ -650,7 +648,9 @@ class DagFileProcessor(LoggingMixin):
                 if isinstance(request, TaskCallbackRequest):
                     self._execute_task_callbacks(dagbag, request, session=session)
                 elif isinstance(request, SlaCallbackRequest):
-                    DagFileProcessor.manage_slas(dagbag.dag_folder, request.dag_id, session=session)
+                    DagFileProcessor.manage_slas(
+                        dagbag.dag_folder, request.dag_id, log=self.log, session=session
+                    )
                 elif isinstance(request, DagCallbackRequest):
                     self._execute_dag_callbacks(dagbag, request, session)
             except Exception:

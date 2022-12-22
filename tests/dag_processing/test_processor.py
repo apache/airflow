@@ -125,11 +125,14 @@ class TestDagFileProcessor:
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
 
+        mock_log = mock.Mock()
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
 
         assert sla_callback.called
 
@@ -157,11 +160,14 @@ class TestDagFileProcessor:
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
 
+        mock_log = mock.Mock()
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
         sla_callback.assert_not_called()
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
@@ -199,12 +205,15 @@ class TestDagFileProcessor:
             )
         )
 
+        mock_log = mock.Mock()
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
         # Now call manage_slas and see if the sla_miss callback gets called
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
 
         sla_callback.assert_not_called()
 
@@ -234,11 +243,14 @@ class TestDagFileProcessor:
         session.merge(ti)
         session.flush()
 
+        mock_log = mock.Mock()
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
         sla_miss_count = (
             session.query(SlaMiss)
             .filter(
@@ -253,7 +265,9 @@ class TestDagFileProcessor:
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
         # ti is successful thereby trying to insert a duplicate record.
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
 
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
@@ -284,11 +298,14 @@ class TestDagFileProcessor:
         )
         session.flush()
 
+        mock_log = mock.Mock()
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
         sla_miss_count = (
             session.query(SlaMiss)
             .filter(
@@ -301,10 +318,9 @@ class TestDagFileProcessor:
         mock_stats_incr.assert_called_with("sla_missed")
 
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
-    @mock.patch("airflow.dag_processing.processor.log")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_callback_exception(
-        self, mock_get_dagbag, mock_log, mock_stats_incr, create_dummy_dag
+        self, mock_get_dagbag, mock_stats_incr, create_dummy_dag
     ):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
@@ -333,12 +349,14 @@ class TestDagFileProcessor:
             )
 
             # Now call manage_slas and see if the sla_miss callback gets called
+            mock_log = mock.Mock()
             mock_dagbag = mock.Mock()
             mock_dagbag.get_dag.return_value = dag
             mock_get_dagbag.return_value = mock_dagbag
-            mock_log.reset_mock()
 
-            DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+            DagFileProcessor.manage_slas(
+                dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+            )
             assert sla_callback.called
             mock_log.exception.assert_called_once_with(
                 "Could not call sla_miss_callback(%s) for DAG %s",
@@ -370,11 +388,14 @@ class TestDagFileProcessor:
 
         session.merge(SlaMiss(task_id="sla_missed", dag_id="test_sla_miss", execution_date=test_start_date))
 
+        mock_log = mock.Mock()
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
 
         assert len(mock_send_email.call_args_list) == 1
 
@@ -384,10 +405,9 @@ class TestDagFileProcessor:
 
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.utils.email.send_email")
-    @mock.patch("airflow.dag_processing.processor.log")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_email_exception(
-        self, mock_get_dagbag, mock_log, mock_send_email, mock_stats_incr, create_dummy_dag
+        self, mock_get_dagbag, mock_send_email, mock_stats_incr, create_dummy_dag
     ):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
@@ -412,11 +432,14 @@ class TestDagFileProcessor:
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
 
+        mock_log = mock.Mock()
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
         mock_log.exception.assert_called_once_with(
             "Could not send SLA Miss email notification for DAG %s", "test_sla_miss"
         )
@@ -445,11 +468,14 @@ class TestDagFileProcessor:
             SlaMiss(task_id="dummy_deleted", dag_id="test_sla_miss", execution_date=test_start_date)
         )
 
+        mock_log = mock.Mock()
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(
+            dag_folder=dag.fileloc, dag_id="test_sla_miss", log=mock_log, session=session
+        )
 
     @patch.object(TaskInstance, "handle_failure")
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
