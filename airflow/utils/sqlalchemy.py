@@ -166,7 +166,8 @@ def sanitize_for_serialization(obj: V1Pod):
     expected on new obj may not be there on the unpickled obj.
 
     This function still converts the pod to a dict; the only difference is
-    it populates missing attrs with None.
+    it populates missing attrs with None. You may compare with
+    https://github.com/kubernetes-client/python/blob/5a96bbcbe21a552cc1f9cda13e0522fafb0dbac8/kubernetes/client/api_client.py#L202
 
     If obj is None, return None.
     If obj is str, int, long, float, bool, return directly.
@@ -198,6 +199,7 @@ def sanitize_for_serialization(obj: V1Pod):
         obj_dict = {
             obj.attribute_map[attr]: getattr(obj, attr)
             for attr, _ in obj.openapi_types.items()
+            # below is the only line we change, and we just add default=None for getattr
             if getattr(obj, attr, None) is not None
         }
 
