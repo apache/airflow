@@ -354,6 +354,7 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
+        *,
         with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
         """
