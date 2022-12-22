@@ -22,6 +22,7 @@ import subprocess
 import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
@@ -45,6 +46,9 @@ from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
     trace_queries,
 )
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 @pytest.fixture()
@@ -741,7 +745,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_type=None,
         data_interval=None,
         **kwargs,
-    ):
+    ) -> TaskInstance:
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -775,7 +779,7 @@ def create_task_instance_of_operator(dag_maker):
         execution_date=None,
         session=None,
         **operator_kwargs,
-    ):
+    ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, session=session):
             operator_class(**operator_kwargs)
         if execution_date is None:
