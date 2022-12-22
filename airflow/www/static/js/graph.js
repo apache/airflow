@@ -27,7 +27,7 @@
 import { getMetaValue, finalStatesMap } from './utils';
 import { escapeHtml } from './main';
 import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
-import { callModal } from './dag';
+import callModal from './callModal';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
