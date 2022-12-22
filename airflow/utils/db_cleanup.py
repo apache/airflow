@@ -270,7 +270,7 @@ def _cleanup_table(
     session.commit()
 
 
-def _confirm_delete(*, date: DateTime, tables: set[str]):
+def _confirm_delete(*, date: DateTime, tables: list[str]):
     for_tables = f" for tables {tables!r}" if tables else ""
     question = (
         f"You have requested that we purge all data prior to {date}{for_tables}.\n"
