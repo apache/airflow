@@ -1147,14 +1147,14 @@ class TestKubernetesPodOperatorAsync:
         )
         return remote_pod_mock
 
+    @patch(KUB_OP_PATH.format("read_config_file_and_convert_to_dict"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj):
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, mocked_conf_file):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
         """
-
         k = KubernetesPodOperator(
             task_id=TEST_TASK_ID,
             namespace=TEST_NAMESPACE,
@@ -1168,7 +1168,7 @@ class TestKubernetesPodOperatorAsync:
             get_logs=True,
             deferrable=True,
         )
-
+        k.config_file_in_dict_representation = {"a": "b"}
         with pytest.raises(TaskDeferred) as exc:
             k.execute(create_context(k))
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)

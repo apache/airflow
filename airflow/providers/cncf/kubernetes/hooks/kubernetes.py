@@ -456,7 +456,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         self._extras: dict | None = None
 
-    async def _load_config(self):
+    async def _get_client(self):
         """Returns Kubernetes API session for use with requests"""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
@@ -502,6 +502,7 @@ class AsyncKubernetesHook(KubernetesHook):
             client_configuration=self.client_configuration,
             context=cluster_context,
         )
+        return async_client.ApiClient()
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
@@ -528,7 +529,7 @@ class AsyncKubernetesHook(KubernetesHook):
     async def get_conn(self) -> async_client.ApiClient:
         kube_client = None
         try:
-            kube_client = await self._load_config() or async_client.ApiClient()
+            kube_client = await self._get_client() or async_client.ApiClient()
             yield kube_client
         finally:
             if kube_client is not None:
