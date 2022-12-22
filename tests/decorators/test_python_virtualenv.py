@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime
 import sys
-from datetime import timedelta
 from subprocess import CalledProcessError
 
 import pytest
@@ -28,18 +27,6 @@ from airflow.decorators import task
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-END_DATE = timezone.datetime(2016, 1, 2)
-INTERVAL = timedelta(hours=12)
-FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
-
-TI_CONTEXT_ENV_VARS = [
-    "AIRFLOW_CTX_DAG_ID",
-    "AIRFLOW_CTX_TASK_ID",
-    "AIRFLOW_CTX_EXECUTION_DATE",
-    "AIRFLOW_CTX_DAG_RUN_ID",
-]
-
-
 PYTHON_VERSION = sys.version_info[0]
 
 

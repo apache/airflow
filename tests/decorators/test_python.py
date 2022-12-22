@@ -37,41 +37,20 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
-from tests.operators.test_python import Call, assert_calls_equal, build_recording_function
-from tests.test_utils.db import clear_db_runs
+from tests.operators.test_python import BasePythonTest
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-END_DATE = timezone.datetime(2016, 1, 2)
-INTERVAL = timedelta(hours=12)
-FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
-
-TI_CONTEXT_ENV_VARS = [
-    "AIRFLOW_CTX_DAG_ID",
-    "AIRFLOW_CTX_TASK_ID",
-    "AIRFLOW_CTX_EXECUTION_DATE",
-    "AIRFLOW_CTX_DAG_RUN_ID",
-]
 
 
-class TestAirflowTaskDecorator:
-    def setup_class(self):
-        clear_db_runs()
-
-    def setup_method(self):
-        self.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
-        self.run = False
-
-    def teardown_method(self):
-        self.dag.clear()
-        self.run = False
-        clear_db_runs()
+class TestAirflowTaskDecorator(BasePythonTest):
+    default_date = DEFAULT_DATE
 
     def test_python_operator_python_callable_is_callable(self):
         """Tests that @task will only instantiate if
         the python_callable argument is callable."""
         not_callable = {}
         with pytest.raises(TypeError):
-            task_decorator(not_callable, dag=self.dag)
+            task_decorator(not_callable)
 
     @pytest.mark.parametrize(
         "resolve",
@@ -155,13 +134,7 @@ class TestAirflowTaskDecorator:
         with self.dag:
             res = identity2(8, 4)
 
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-
+        dr = self.create_dag_run()
         res.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
@@ -179,13 +152,7 @@ class TestAirflowTaskDecorator:
         with self.dag:
             ident = identity_tuple(35, 36)
 
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-
+        dr = self.create_dag_run()
         ident.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
@@ -227,15 +194,9 @@ class TestAirflowTaskDecorator:
 
         with self.dag:
             ret = add_number(2)
-        self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
 
+        self.create_dag_run()
         with pytest.raises(AirflowException):
-
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_fail_multiple_outputs_no_dict(self):
@@ -245,84 +206,53 @@ class TestAirflowTaskDecorator:
 
         with self.dag:
             ret = add_number(2)
-        self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
 
+        self.create_dag_run()
         with pytest.raises(AirflowException):
-
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
-        recorded_calls = []
+
+        @task_decorator
+        def arg_task(*args):
+            raise RuntimeError("Should not executed")
 
         # Create a named tuple and ensure it is still preserved
         # after the rendering is done
         Named = namedtuple("Named", ["var1", "var2"])
         named_tuple = Named("{{ ds }}", "unchanged")
 
-        task = task_decorator(
-            # a Mock instance cannot be used as a callable function or test fails with a
-            # TypeError: Object of type Mock is not JSON serializable
-            build_recording_function(recorded_calls),
-            dag=self.dag,
-        )
-        ret = task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
+        with self.dag:
+            ret = arg_task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
-        self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        ds_templated = DEFAULT_DATE.date().isoformat()
-        assert len(recorded_calls) == 1
-        assert_calls_equal(
-            recorded_calls[0],
-            Call(
-                4,
-                date(2019, 1, 1),
-                f"dag {self.dag.dag_id} ran on {ds_templated}.",
-                Named(ds_templated, "unchanged"),
-            ),
-        )
+        dr = self.create_dag_run()
+        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        rendered_op_args = ti.render_templates().op_args
+        assert len(rendered_op_args) == 4
+        assert rendered_op_args[0] == 4
+        assert rendered_op_args[1] == date(2019, 1, 1)
+        assert rendered_op_args[2] == f"dag {self.dag_id} ran on {self.ds_templated}."
+        assert rendered_op_args[3] == Named(self.ds_templated, "unchanged")
 
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonOperator op_kwargs are templatized"""
-        recorded_calls = []
 
-        task = task_decorator(
-            # a Mock instance cannot be used as a callable function or test fails with a
-            # TypeError: Object of type Mock is not JSON serializable
-            build_recording_function(recorded_calls),
-            dag=self.dag,
-        )
-        ret = task(an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.")
-        self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        @task_decorator
+        def kwargs_task(an_int, a_date, a_templated_string):
+            raise RuntimeError("Should not executed")
 
-        assert len(recorded_calls) == 1
-        assert_calls_equal(
-            recorded_calls[0],
-            Call(
-                an_int=4,
-                a_date=date(2019, 1, 1),
-                a_templated_string=f"dag {self.dag.dag_id} ran on {DEFAULT_DATE.date().isoformat()}.",
-            ),
-        )
+        with self.dag:
+            ret = kwargs_task(
+                an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}."
+            )
+
+        dr = self.create_dag_run()
+        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        rendered_op_kwargs = ti.render_templates().op_kwargs
+        assert rendered_op_kwargs["an_int"] == 4
+        assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
+        assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
 
     def test_manual_task_id(self):
         """Test manually setting task_id"""
@@ -415,6 +345,7 @@ class TestAirflowTaskDecorator:
         def do_run():
             return 4
 
+        self.dag.default_args["owner"] = "airflow"
         with self.dag:
             ret = do_run()
         assert ret.operator.owner == "airflow"
