@@ -1520,8 +1520,7 @@ class SchedulerJob(BaseJob):
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
-    @provide_session
-    def _find_zombies(self, session: Session) -> None:
+    def _find_zombies(self) -> None:
         """
         Find zombie task instances, which are tasks haven't heartbeated for too long
         or have a no-longer-running LocalTaskJob, and create a TaskCallbackRequest
@@ -1532,30 +1531,30 @@ class SchedulerJob(BaseJob):
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
 
-        zombies = (
-            session.query(TaskInstance, DagModel.fileloc)
-            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
-            .join(DagModel, TaskInstance.dag_id == DagModel.dag_id)
-            .filter(TaskInstance.state == TaskInstanceState.RUNNING)
-            .filter(
-                or_(
-                    LocalTaskJob.state != State.RUNNING,
-                    LocalTaskJob.latest_heartbeat < limit_dttm,
+        with create_session() as session:
+            zombies: list[tuple[TI, str, str]] = (
+                session.query(TI, DM.fileloc, DM.processor_subdir)
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
+                .filter(TI.state == TaskInstanceState.RUNNING)
+                .filter(
+                    or_(
+                        LocalTaskJob.state != State.RUNNING,
+                        LocalTaskJob.latest_heartbeat < limit_dttm,
+                    )
                 )
+                .filter(TI.queued_by_job_id == self.id)
+                .all()
             )
-            .filter(TaskInstance.queued_by_job_id == self.id)
-            .all()
-        )
 
         if zombies:
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
-        for ti, file_loc in zombies:
+        for ti, file_loc, processor_subdir in zombies:
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
-                processor_subdir=ti.dag_model.processor_subdir,
+                processor_subdir=processor_subdir,
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=str(zombie_message_details),
             )
