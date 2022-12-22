@@ -20,7 +20,7 @@
 import React from "react";
 import { Text, Flex, Table, Tbody, Tr, Td, Divider } from "@chakra-ui/react";
 
-import { finalStatesMap } from "src/utils";
+import { getGroupAndMapSummary } from "src/utils";
 import { getDuration, formatDuration } from "src/datetime_utils";
 import { SimpleStatus } from "src/dag/StatusBox";
 import Time from "src/components/Time";
@@ -52,27 +52,13 @@ const Details = ({ instance, group, dagId }: Props) => {
     enabled: !isGroup && !isMapped,
   });
 
-  const numMap = finalStatesMap();
-  let numMapped = 0;
-  if (isGroup && !isMapped) {
-    group.children?.forEach((child) => {
-      const taskInstance = child.instances.find((ti) => ti.runId === runId);
-      if (taskInstance) {
-        const stateKey =
-          taskInstance.state == null ? "no_status" : taskInstance.state;
-        if (numMap.has(stateKey))
-          numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
-      }
-    });
-  } else if (isMapped && mappedStates) {
-    Object.keys(mappedStates).forEach((stateKey) => {
-      const num = mappedStates[stateKey];
-      numMapped += num;
-      numMap.set(stateKey || "no_status", num);
-    });
-  }
+  const { totalTasks, childTaskMap } = getGroupAndMapSummary({
+    group,
+    runId,
+    mappedStates,
+  });
 
-  numMap.forEach((key, val) => {
+  childTaskMap.forEach((key, val) => {
     if (key > 0) {
       summary.push(
         // eslint-disable-next-line react/no-array-index-key
@@ -146,11 +132,11 @@ const Details = ({ instance, group, dagId }: Props) => {
               </Flex>
             </Td>
           </Tr>
-          {mappedStates && numMapped > 0 && (
+          {mappedStates && totalTasks > 0 && (
             <Tr>
               <Td colSpan={2}>
-                {numMapped} {isGroup ? "Task Group" : "Task"}
-                {numMapped === 1 ? " " : "s "}
+                {totalTasks} {isGroup ? "Task Group" : "Task"}
+                {totalTasks === 1 ? " " : "s "}
                 Mapped
               </Td>
             </Tr>

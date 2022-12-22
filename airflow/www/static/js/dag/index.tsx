@@ -22,6 +22,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import createCache from "@emotion/cache";
+import reactFlowStyle from "reactflow/dist/style.css";
 
 import App from "src/App";
 
@@ -30,6 +31,7 @@ import Main from "./Main";
 // create shadowRoot
 const root = document.querySelector("#root");
 const shadowRoot = root?.attachShadow({ mode: "open" });
+
 const cache = createCache({
   container: shadowRoot,
   key: "c",
@@ -37,6 +39,16 @@ const cache = createCache({
 const mainElement = document.getElementById("react-container");
 
 if (mainElement) {
+  const styleTag = document.createElement("style");
+  // We need to set the z-index manually to make sure edges inside of groups still work
+  let style = reactFlowStyle.toString();
+  style += `
+    .react-flow__node {
+      z-index: -1 !important;
+    }
+  `;
+  styleTag.innerHTML = style;
+  shadowRoot?.appendChild(styleTag);
   shadowRoot?.appendChild(mainElement);
 
   const reactRoot = createRoot(mainElement);

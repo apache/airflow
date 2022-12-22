@@ -54,6 +54,7 @@ const ExtraLinks = ({ dagId, taskId, executionDate, extraLinks }: Props) => {
             colorScheme="blue"
             href={url}
             isDisabled={!url}
+            mr={1}
             target={isExternal(url) ? "_blank" : undefined}
             mr={2}
           >
