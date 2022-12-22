@@ -121,6 +121,20 @@ class TestDBCleanup:
         run_cleanup(**base_kwargs, table_names=table_names)
         assert clean_table_mock.call_count == len(table_names) if table_names else len(config_dict)
 
+    @patch("airflow.utils.db_cleanup._cleanup_table")
+    @patch("airflow.utils.db_cleanup._confirm_delete")
+    def test_validate_tables_all_invalid(self, confirm_delete_mock, clean_table_mock):
+        """If only invalid tables are provided, don't try cleaning anything"""
+        base_kwargs = dict(
+            clean_before_timestamp=None,
+            dry_run=None,
+            verbose=None,
+        )
+        with pytest.raises(SystemExit) as execinfo:
+            run_cleanup(**base_kwargs, table_names=["all", "fake"])
+        assert "No tables selected for db cleanup" in str(execinfo.value)
+        confirm_delete_mock.assert_not_called()
+
     @pytest.mark.parametrize(
         "dry_run",
         [None, True, False],
