@@ -1419,6 +1419,7 @@ class Airflow(AirflowBaseView):
             form=form,
             root=root,
             title=title,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/rendered-k8s")
@@ -1481,6 +1482,7 @@ class Airflow(AirflowBaseView):
             form=form,
             root=root,
             title=title,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/get_logs_with_metadata")
@@ -1617,6 +1619,7 @@ class Airflow(AirflowBaseView):
             form=form,
             root=root,
             wrapped=conf.getboolean("webserver", "default_wrap"),
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/redirect_to_external_log")
@@ -1785,6 +1788,7 @@ class Airflow(AirflowBaseView):
             root=root,
             dag=dag,
             title=title,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/xcom")
@@ -1838,6 +1842,7 @@ class Airflow(AirflowBaseView):
             root=root,
             dag=dag,
             title=title,
+            trigger_dag_url=conf.get("webserver", "trigger_dag_url", fallback=None),
         )
 
     @expose("/run", methods=["POST"])
