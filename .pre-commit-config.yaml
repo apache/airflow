@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.2.0
+    rev: v1.3.1
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -157,7 +157,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/PyCQA/isort
-    rev: 5.11.2
+    rev: 5.11.4
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
@@ -183,7 +183,7 @@ repos:
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -241,7 +241,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^airflow/_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.26.3
+    rev: v1.28.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -657,19 +657,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
-      - id: check-provider-yaml-valid
-        name: Validate providers.yaml files
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
-        language: python
-        require_serial: true
-        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
-        additional_dependencies:
-          - 'PyYAML==5.3.1'
-          - 'jsonschema>=3.2.0,<5.0.0'
-          - 'tabulate==0.8.8'
-          - 'jsonpath-ng==1.5.3'
-          - 'rich>=12.4.4'
       - id: check-pre-commit-information-consistent
         name: Update information re pre-commit hooks and verify ids and names
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hooks.py
@@ -918,6 +905,14 @@ repos:
         pass_filenames: true
         exclude: ^airflow/_vendor/
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+      - id: check-provider-yaml-valid
+        name: Validate provider.yaml files
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
+        language: python
+        require_serial: true
+        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
       - id: update-migration-references
         name: Update migration ref doc
         language: python
