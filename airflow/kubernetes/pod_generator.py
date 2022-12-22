@@ -446,6 +446,7 @@ class PodGenerator:
         map_index=None,
         date=None,
         run_id=None,
+        airflow_worker=None,
     ):
         """
         Generate selector for kubernetes executor pod
@@ -459,10 +460,12 @@ class PodGenerator:
             map_index=map_index,
             date=date,
             run_id=run_id,
+            airflow_worker=airflow_worker,
         )
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
         selector = ",".join(label_strings)
-        selector += ",airflow-worker"
+        if not airflow_worker:  # this filters out KPO pods even when we don't know the scheduler job id
+            selector += ",airflow-worker"
         return selector
 
     @classmethod

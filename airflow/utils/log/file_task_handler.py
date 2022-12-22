@@ -204,6 +204,7 @@ class FileTaskHandler(logging.Handler):
                     try_number=ti.try_number,
                     map_index=ti.map_index,
                     run_id=ti.run_id,
+                    airflow_worker=ti.queued_by_job_id,
                 )
                 namespace = self._get_pod_namespace(ti)
                 pod_list = client.list_namespaced_pod(
@@ -212,6 +213,8 @@ class FileTaskHandler(logging.Handler):
                 ).items
                 if not pod_list:
                     raise RuntimeError("Cannot find pod for ti %s", ti)
+                elif len(pod_list) > 1:
+                    raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
                 res = client.read_namespaced_pod_log(
                     name=pod_list[0].metadata.name,
                     namespace=namespace,
