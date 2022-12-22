@@ -415,3 +415,16 @@ Example:
       apache/airflow:2.6.0.dev0-python3.8 webserver
 
 This method is only available starting from Docker image of Airflow 2.1.1 and above.
+
+While experimenting with various packages, you might find yourself installing these packages over and over. This can be fine for small packages, if you are planning to use something like scikit or pandas its a different story. To speed up the process, and avoid the waiting time, you can you a pypi proxy. A pypi proxy is a service that sits between pip and the pypi services. Each time that a request is made to download a new package it is sent to the proxy. If the proxy doesn't have the wanted package - it will download it from pypi and keep a local copy. If the proxy does have a local copy it will return that right away. Resulting in a major speedup for installation / bring up of the development containers.
+
+There are a lot of pypi proxies out there, most likely each one of them will work for you just fine. For the sake of convenience we added a simple example here. For the example we will be using https://github.com/EpicWink/proxpi
+
+Example:
+
+.. code-block:: bash
+  
+  docker run -p 5000:5000 epicwink/proxpi
+  
+Once the proxy is up and running, you will need to make sure that it is used. Referring again to the proxpi docs, we see that we need ``--index-url``. Also, it is very likely that you don't have an SSL certificate for your proxy, so we will need ``--trusted-host`` as well. Now just add these parameters to the ``_PIP_ADDITIONAL_REQUIREMENTS`` environment.
+*Note:* you need to use the IP address of the relevant host you are using such that it will be accessible by the containers. For our example we will take 172.31.234.147 - a random private ip. ``_PIP_ADDITIONAL_REQUIREMENTS="--trusted-host 172.31.234.147 --index-url http://172.31.234.147:5000/index/ scikit``
