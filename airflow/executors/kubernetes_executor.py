@@ -690,7 +690,7 @@ class KubernetesExecutor(BaseExecutor):
                     self.log.error(
                         "Pod Mutation Hook failed for the task %s. Failing task. Details: %s",
                         key,
-                        e,
+                        e.__cause__,
                     )
                     self.fail(key, e)
                 finally:
