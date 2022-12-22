@@ -191,19 +191,29 @@ class FileTaskHandler(logging.Handler):
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
         elif self._should_check_k8s(ti.queue):
-            pod_override = ti.executor_config.get("pod_override")
-            if pod_override and pod_override.metadata and pod_override.metadata.namespace:
-                namespace = pod_override.metadata.namespace
-            else:
-                namespace = conf.get("kubernetes_executor", "namespace")
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
+                from airflow.kubernetes.pod_generator import PodGenerator
 
-                kube_client = get_kube_client()
+                client = get_kube_client()
 
                 log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
-                res = kube_client.read_namespaced_pod_log(
-                    name=ti.hostname,
+                selector = PodGenerator.build_selector_for_k8s_executor_pod(
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    try_number=ti.try_number,
+                    map_index=ti.map_index,
+                    run_id=ti.run_id,
+                )
+                namespace = self._get_pod_namespace(ti)
+                pod_list = client.list_namespaced_pod(
+                    namespace=namespace,
+                    label_selector=selector,
+                ).items
+                if not pod_list:
+                    raise RuntimeError("Cannot find pod for ti %s", ti)
+                res = client.read_namespaced_pod_log(
+                    name=pod_list[0].metadata.name,
                     namespace=namespace,
                     container="base",
                     follow=False,
@@ -271,6 +281,14 @@ class FileTaskHandler(logging.Handler):
             log = log[previous_chars:]  # Cut off previously passed log test as new tail
 
         return log, {"end_of_log": end_of_log, "log_pos": log_pos}
+
+    @staticmethod
+    def _get_pod_namespace(ti: TaskInstance):
+        pod_override = ti.executor_config.get("pod_override")
+        try:
+            return pod_override.metadata.namespace
+        except Exception:
+            return conf.get("kubernetes_executor", "namespace")
 
     @staticmethod
     def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
