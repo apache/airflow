@@ -24,112 +24,52 @@ import pytest
 
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.python import PythonSensor
-from airflow.utils.state import State
-from airflow.utils.timezone import datetime
-from airflow.utils.types import DagRunType
-from tests.operators.test_python import Call, assert_calls_equal, build_recording_function
-
-DEFAULT_DATE = datetime(2015, 1, 1)
+from tests.operators.test_python import BasePythonTest
 
 
-class TestPythonSensor:
-    def test_python_sensor_true(self, dag_maker):
-        with dag_maker():
-            op = PythonSensor(task_id="python_sensor_check_true", python_callable=lambda: True)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+class TestPythonSensor(BasePythonTest):
+    opcls = PythonSensor
 
-    def test_python_sensor_false(self, dag_maker):
-        with dag_maker():
-            op = PythonSensor(
-                task_id="python_sensor_check_false",
-                timeout=0.01,
-                poke_interval=0.01,
-                python_callable=lambda: False,
-            )
+    def test_python_sensor_true(self):
+        self.run_as_task(fn=lambda: True)
+
+    def test_python_sensor_false(self):
         with pytest.raises(AirflowSensorTimeout):
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            self.run_as_task(lambda: False, timeout=0.01, poke_interval=0.01)
 
-    def test_python_sensor_raise(self, dag_maker):
-        with dag_maker():
-            op = PythonSensor(task_id="python_sensor_check_raise", python_callable=lambda: 1 / 0)
+    def test_python_sensor_raise(self):
         with pytest.raises(ZeroDivisionError):
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            self.run_as_task(lambda: 1 / 0)
 
-    def test_python_callable_arguments_are_templatized(self, dag_maker):
+    def test_python_callable_arguments_are_templatized(self):
         """Test PythonSensor op_args are templatized"""
-        recorded_calls = []
-
         # Create a named tuple and ensure it is still preserved
         # after the rendering is done
         Named = namedtuple("Named", ["var1", "var2"])
         named_tuple = Named("{{ ds }}", "unchanged")
 
-        with dag_maker() as dag:
-            task = PythonSensor(
-                task_id="python_sensor",
-                timeout=0.01,
-                poke_interval=0.3,
-                # a Mock instance cannot be used as a callable function or test fails with a
-                # TypeError: Object of type Mock is not JSON serializable
-                python_callable=build_recording_function(recorded_calls),
-                op_args=[4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple],
-            )
-
-        dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
+        task = self.render_templates(
+            lambda: 0,
+            op_args=[4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple],
         )
-        with pytest.raises(AirflowSensorTimeout):
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        rendered_op_args = task.op_args
+        assert len(rendered_op_args) == 4
+        assert rendered_op_args[0] == 4
+        assert rendered_op_args[1] == date(2019, 1, 1)
+        assert rendered_op_args[2] == f"dag {self.dag_id} ran on {self.ds_templated}."
+        assert rendered_op_args[3] == Named(self.ds_templated, "unchanged")
 
-        ds_templated = DEFAULT_DATE.date().isoformat()
-        assert_calls_equal(
-            recorded_calls[0],
-            Call(
-                4,
-                date(2019, 1, 1),
-                f"dag {dag.dag_id} ran on {ds_templated}.",
-                Named(ds_templated, "unchanged"),
-            ),
-        )
-
-    def test_python_callable_keyword_arguments_are_templatized(self, dag_maker):
+    def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonSensor op_kwargs are templatized"""
-        recorded_calls = []
-
-        with dag_maker() as dag:
-            task = PythonSensor(
-                task_id="python_sensor",
-                timeout=0.01,
-                poke_interval=0.01,
-                # a Mock instance cannot be used as a callable function or test fails with a
-                # TypeError: Object of type Mock is not JSON serializable
-                python_callable=build_recording_function(recorded_calls),
-                op_kwargs={
-                    "an_int": 4,
-                    "a_date": date(2019, 1, 1),
-                    "a_templated_string": "dag {{dag.dag_id}} ran on {{ds}}.",
-                },
-            )
-
-        dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
+        task = self.render_templates(
+            lambda: 0,
+            op_kwargs={
+                "an_int": 4,
+                "a_date": date(2019, 1, 1),
+                "a_templated_string": "dag {{dag.dag_id}} ran on {{ds}}.",
+            },
         )
-        with pytest.raises(AirflowSensorTimeout):
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        assert_calls_equal(
-            recorded_calls[0],
-            Call(
-                an_int=4,
-                a_date=date(2019, 1, 1),
-                a_templated_string=f"dag {dag.dag_id} ran on {DEFAULT_DATE.date().isoformat()}.",
-            ),
-        )
+        rendered_op_kwargs = task.op_kwargs
+        assert rendered_op_kwargs["an_int"] == 4
+        assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
+        assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
