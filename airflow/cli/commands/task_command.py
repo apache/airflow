@@ -296,7 +296,7 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     # because either the handlers were already moved by the LocalTaskJob
     # invocation of task_run (which wraps the --raw invocation), or
     # user is doing something custom / unexpected
-    if not ti.log.handlers or not settings.DONOT_MODIFY_HANDLERS:
+    if not ti.log.handlers or settings.DONOT_MODIFY_HANDLERS:
         yield
         return
     is_k8s_executor_pod = os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD")
