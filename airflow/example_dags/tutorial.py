@@ -113,13 +113,13 @@ with DAG(
     {% endfor %}
     """
     )
-
+    # [END jinja_template]
+    
     t3 = BashOperator(
         task_id="templated",
         depends_on_past=False,
         bash_command=templated_command,
     )
-    # [END jinja_template]
 
     t1 >> [t2, t3]
 # [END tutorial]
