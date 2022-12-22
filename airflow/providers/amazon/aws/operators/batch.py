@@ -26,6 +26,7 @@ An Airflow operator for AWS Batch services
 from __future__ import annotations
 
 import sys
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -63,7 +64,9 @@ class BatchOperator(BaseOperator):
 
     :param job_queue: the queue name on AWS Batch
 
-    :param overrides: the `containerOverrides` parameter for boto3 (templated)
+    :param overrides: DEPRECATED, use container_overrides instead with the same value.
+
+    :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
 
     :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
 
@@ -108,7 +111,7 @@ class BatchOperator(BaseOperator):
         "job_name",
         "job_definition",
         "job_queue",
-        "overrides",
+        "container_overrides",
         "array_properties",
         "node_overrides",
         "parameters",
@@ -116,7 +119,11 @@ class BatchOperator(BaseOperator):
         "tags",
         "wait_for_completion",
     )
-    template_fields_renderers = {"overrides": "json", "parameters": "json", "node_overrides": "json"}
+    template_fields_renderers = {
+        "container_overrides": "json",
+        "parameters": "json",
+        "node_overrides": "json",
+    }
 
     @property
     def operator_extra_links(self):
@@ -135,7 +142,8 @@ class BatchOperator(BaseOperator):
         job_name: str,
         job_definition: str,
         job_queue: str,
-        overrides: dict | None = None,
+        overrides: dict | None = None,  # deprecated
+        container_overrides: dict | None = None,
         array_properties: dict | None = None,
         node_overrides: dict | None = None,
         parameters: dict | None = None,
@@ -155,7 +163,21 @@ class BatchOperator(BaseOperator):
         self.job_name = job_name
         self.job_definition = job_definition
         self.job_queue = job_queue
-        self.container_overrides = overrides
+
+        if overrides:
+            self.container_overrides = overrides
+            warnings.warn(
+                f"Parameter `overrides` is deprecated, Please use `container_overrides` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if container_overrides:
+                raise AirflowException(
+                    "If providing `container_overrides`, then old parameter 'overrides' should be removed."
+                )
+        else:
+            self.container_overrides = container_overrides
+
         self.node_overrides = node_overrides
         self.array_properties = array_properties
         self.parameters = parameters or {}
