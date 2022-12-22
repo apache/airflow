@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.2.0
+    rev: v1.3.1
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -157,7 +157,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/PyCQA/isort
-    rev: 5.11.2
+    rev: 5.11.4
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
@@ -183,7 +183,7 @@ repos:
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -241,7 +241,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^airflow/_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.26.3
+    rev: v1.28.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
