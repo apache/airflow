@@ -292,8 +292,14 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     If running in a k8s executor pod, also keep the stream handler on root logger
     so that logs are still emitted to stdout.
     """
+    # if there are no task handlers, then we should not do anything
+    # because either the handlers were already moved by the LocalTaskJob
+    # invocation of task_run (which wraps the --raw invocation), or
+    # user is doing something custom / unexpected
+    if not ti.log.handlers:
+        yield
+        return
     modify = not settings.DONOT_MODIFY_HANDLERS
-    did_modify = False
     is_k8s_executor_pod = os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD")
     if modify:
         root_logger = logging.getLogger()
@@ -302,40 +308,34 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
         task_propagate = task_logger.propagate
         task_handlers = task_logger.handlers.copy()
 
-        # if there are no task handlers, then we should not do anything
-        # because either the handlers were already moved by the LocalTaskJob
-        # invocation of task_run (which wraps the --raw invocation), or
-        # user is doing something custom / unexpected
-        if task_handlers:
-            did_modify = True
-            # these are already copied to root logger, so remove and propagate
-            # (this ensures they are not handled more than they need to be)
-            # we'll add them back later
-            for h in task_logger.handlers[:]:
-                task_logger.removeHandler(h)
-            task_logger.propagate = True
-            root_logger.setLevel(task_logger.level)
-            root_handlers = root_logger.handlers.copy()
-            root_logger.handlers[:] = task_handlers
-            # task log handler reads from k8s pod logs when pod still running
-            # so we need to keep the console handler
-            if is_k8s_executor_pod:
-                for h in root_handlers:
-                    if isinstance(h, RedirectStdHandler):
-                        root_logger.addHandler(h)
-                        h.respect_redirection = False
+        # these are already copied to root logger, so remove and propagate
+        # (this ensures they are not handled more than they need to be)
+        # we'll add them back later
+        for h in task_logger.handlers[:]:
+            task_logger.removeHandler(h)
+        task_logger.propagate = True
+        root_logger.setLevel(task_logger.level)
+        root_handlers = root_logger.handlers.copy()
+        root_logger.handlers[:] = task_handlers
+
+        # task log handler reads from k8s pod logs when pod still running
+        # so we need to keep the console handler
+        if is_k8s_executor_pod:
+            for h in root_handlers:
+                if isinstance(h, RedirectStdHandler):
+                    root_logger.addHandler(h)
+                    h.respect_redirection = False
     try:
         yield
     finally:
-        if did_modify:
-            task_logger.propagate = task_propagate
-            root_logger.setLevel(root_level)
-            root_logger.handlers[:] = root_handlers
-            task_logger.handlers[:] = task_handlers
-            if is_k8s_executor_pod:
-                for h in root_handlers:
-                    if isinstance(h, RedirectStdHandler):
-                        h.respect_redirection = True
+        task_logger.propagate = task_propagate
+        root_logger.setLevel(root_level)
+        root_logger.handlers[:] = root_handlers
+        task_logger.handlers[:] = task_handlers
+        if is_k8s_executor_pod:
+            for h in root_handlers:
+                if isinstance(h, RedirectStdHandler):
+                    h.respect_redirection = True
 
 
 @contextmanager
