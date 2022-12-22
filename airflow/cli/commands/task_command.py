@@ -296,35 +296,40 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     # because either the handlers were already moved by the LocalTaskJob
     # invocation of task_run (which wraps the --raw invocation), or
     # user is doing something custom / unexpected
-    if not ti.log.handlers:
+    if not ti.log.handlers or not settings.DONOT_MODIFY_HANDLERS:
         yield
         return
-    modify = not settings.DONOT_MODIFY_HANDLERS
     is_k8s_executor_pod = os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD")
-    if modify:
-        root_logger = logging.getLogger()
-        root_level = root_logger.level
-        task_logger = ti.log
-        task_propagate = task_logger.propagate
-        task_handlers = task_logger.handlers.copy()
+    root_logger = logging.getLogger()
+    root_level = root_logger.level
+    task_logger = ti.log
+    task_propagate = task_logger.propagate
+    task_handlers = task_logger.handlers.copy()
 
-        # these are already copied to root logger, so remove and propagate
-        # (this ensures they are not handled more than they need to be)
-        # we'll add them back later
-        for h in task_logger.handlers[:]:
-            task_logger.removeHandler(h)
-        task_logger.propagate = True
-        root_logger.setLevel(task_logger.level)
-        root_handlers = root_logger.handlers.copy()
-        root_logger.handlers[:] = task_handlers
+    # these are already copied to root logger, so remove and propagate
+    # (this ensures they are not handled more than they need to be)
+    # we'll add them back later
+    for h in task_logger.handlers[:]:
+        task_logger.removeHandler(h)
+    task_logger.propagate = True
+    root_logger.setLevel(task_logger.level)
+    root_handlers = root_logger.handlers.copy()
+    root_logger.handlers[:] = task_handlers
 
-        # task log handler reads from k8s pod logs when pod still running
-        # so we need to keep the console handler
-        if is_k8s_executor_pod:
-            for h in root_handlers:
-                if isinstance(h, RedirectStdHandler):
-                    root_logger.addHandler(h)
-                    h.respect_redirection = False
+    # task log handler reads from k8s pod logs when pod still running
+    # so we need to keep the console handler and set it to not respect
+    # redirection because we read live pod logging from container stdout
+    if is_k8s_executor_pod:
+        for h in root_handlers:
+            if isinstance(h, RedirectStdHandler):
+                root_logger.addHandler(h)
+                # "redirect stdout" context managers work by changing what lives at
+                # sys.stdout. If respect_redirection is True, then we reference whatever
+                # "sys.stdout" is at runtime. If False, this handler will store the value
+                # of sys.stdout at handler *init* time, and stream to *that* instead of whatever
+                # the current value is.
+                h.respect_redirection = False
+                break
     try:
         yield
     finally:
