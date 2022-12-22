@@ -657,19 +657,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
-      - id: check-provider-yaml-valid
-        name: Validate providers.yaml files
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
-        language: python
-        require_serial: true
-        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
-        additional_dependencies:
-          - 'PyYAML==5.3.1'
-          - 'jsonschema>=3.2.0,<5.0.0'
-          - 'tabulate==0.8.8'
-          - 'jsonpath-ng==1.5.3'
-          - 'rich>=12.4.4'
       - id: check-pre-commit-information-consistent
         name: Update information re pre-commit hooks and verify ids and names
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hooks.py
@@ -918,6 +905,14 @@ repos:
         pass_filenames: true
         exclude: ^airflow/_vendor/
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+      - id: check-provider-yaml-valid
+        name: Validate provider.yaml files
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
+        language: python
+        require_serial: true
+        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
       - id: update-migration-references
         name: Update migration ref doc
         language: python
