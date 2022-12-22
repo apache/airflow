@@ -35,7 +35,6 @@ from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.listeners.file_write_listener import FileWriteListener
@@ -140,23 +139,15 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_example_bash_operator")
         task = dag.get_task("runme_1")
-
-        with create_session() as session:
-            dag.create_dagrun(
-                run_id="test",
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                state=State.RUNNING,
-                start_date=DEFAULT_DATE,
-                session=session,
-            )
-            ti = TaskInstance(task=task, run_id="test")
-            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-
-            # we must create runner within same session
-            runner = StandardTaskRunner(job1)
-
-        # we need to get out of session before starting runner
-        # because of the way things behave re sessions after forking
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id="test")
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        runner = StandardTaskRunner(job1)
         runner.start()
 
         # Wait until process sets its pgid to be equal to pid
@@ -267,21 +258,15 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_on_kill")
         task = dag.get_task("task1")
-
-        with create_session() as session:
-            dag.create_dagrun(
-                run_id="test",
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                state=State.RUNNING,
-                start_date=DEFAULT_DATE,
-                session=session,
-            )
-            ti = TaskInstance(task=task, run_id="test")
-            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-            runner = StandardTaskRunner(job1)
-
-        # we need to get out of session before starting runner
-        # because of the way things behave re sessions after forking
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id="test")
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        runner = StandardTaskRunner(job1)
         runner.start()
 
         with timeout(seconds=3):
@@ -333,20 +318,15 @@ class TestStandardTaskRunner:
         dag = dagbag.dags.get("test_parsing_context")
         task = dag.get_task("task1")
 
-        with create_session() as session:
-            dag.create_dagrun(
-                run_id="test",
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                state=State.RUNNING,
-                start_date=DEFAULT_DATE,
-                session=session,
-            )
-            ti = TaskInstance(task=task, run_id="test")
-            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-            runner = StandardTaskRunner(job1)
-
-        # we need to get out of session before starting runner
-        # because of the way things behave re sessions after forking
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id="test")
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        runner = StandardTaskRunner(job1)
         runner.start()
 
         # Wait until process sets its pgid to be equal to pid
