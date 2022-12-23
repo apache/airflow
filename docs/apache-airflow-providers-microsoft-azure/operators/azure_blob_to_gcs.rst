@@ -17,7 +17,7 @@
     under the License.
 
 Azure Blob Storage to Google Cloud Storage (GCS) Transfer Operator
-====================================
+==================================================================
 The Blob service stores text and binary data as objects in the cloud.
 The Blob service offers the following three resources: the storage account, containers, and blobs.
 Within your storage account, containers provide a way to organize sets of blobs.
