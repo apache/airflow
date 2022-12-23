@@ -121,6 +121,9 @@ chart/values_schema.schema.json
 # Newsfragments are snippets that will be, eventually, consumed into RELEASE_NOTES
 newsfragments/*
 
+# Warning file generated
+warnings.txt
+
 # Dev stuff
 tests/*
 scripts/*

@@ -67,16 +67,7 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
-        - name: config
-          mountPath: {{ template "airflow_config_path" . }}
-          subPath: airflow.cfg
-          readOnly: true
-{{- if .Values.airflowLocalSettings }}
-        - name: config
-          mountPath: {{ template "airflow_local_setting_path" . }}
-          subPath: airflow_local_settings.py
-          readOnly: true
-{{- end }}
+{{- include "airflow_config_mount" . | nindent 8 }}
 {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
         {{- include "airflow_dags_mount" . | nindent 8 }}
 {{- end }}

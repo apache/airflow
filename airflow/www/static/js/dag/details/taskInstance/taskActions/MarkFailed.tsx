@@ -116,7 +116,7 @@ const MarkFailed = ({
         onConfirm={onConfirm}
         isLoading={isLoading}
         description="Task instances you are about to mark as failed:"
-        body={affectedTasks}
+        affectedTasks={affectedTasks}
       />
     </Flex>
   );

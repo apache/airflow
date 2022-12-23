@@ -21,6 +21,7 @@ import datetime
 import operator
 import os
 import pathlib
+import pickle
 import signal
 import sys
 import urllib
@@ -32,10 +33,10 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow import models, settings
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
     AirflowException,
@@ -47,26 +48,22 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
-from airflow.models import (
-    DAG,
-    Connection,
-    DagBag,
-    DagRun,
-    Pool,
-    RenderedTaskInstanceFields,
-    TaskInstance as TI,
-    TaskReschedule,
-    Variable,
-    XCom,
-)
+from airflow.models.connection import Connection
+from airflow.models.dag import DAG
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
+from airflow.models.pool import Pool
+from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.variable import Variable
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComAccess, XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -78,7 +75,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
-from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
+from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
@@ -543,11 +540,11 @@ class TestTaskInstance:
         assert ti.next_kwargs is None
         assert ti.state == state
 
-    @freeze_time("2021-09-19 04:56:35", as_kwarg="frozen_time")
-    def test_retry_delay(self, dag_maker, frozen_time=None):
+    def test_retry_delay(self, dag_maker, time_machine):
         """
         Test that retry delays are respected
         """
+        time_machine.move_to("2021-09-19 04:56:35", tick=False)
         with dag_maker(dag_id="test_retry_handling"):
             task = BashOperator(
                 task_id="test_retry_handling_op",
@@ -572,12 +569,12 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
-        frozen_time.tick(delta=datetime.timedelta(seconds=3))
+        time_machine.coordinates.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        frozen_time.tick(delta=datetime.datetime.resolution)
+        time_machine.coordinates.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
 
@@ -735,7 +732,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -835,7 +832,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -934,7 +931,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -1002,7 +999,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -1068,69 +1065,66 @@ class TestTaskInstance:
     # Numeric fields are in order:
     #   successes, skipped, failed, upstream_failed, done, removed
     @pytest.mark.parametrize(
-        "trigger_rule,successes,skipped,failed,upstream_failed,done,removed,"
-        "flag_upstream_failed,expect_state,expect_completed",
+        "trigger_rule, upstream_states, flag_upstream_failed, expect_state, expect_completed",
         [
             #
             # Tests for all_success
             #
-            ["all_success", 5, 0, 0, 0, 0, 0, True, None, True],
-            ["all_success", 2, 0, 0, 0, 0, 0, True, None, False],
-            ["all_success", 2, 0, 1, 0, 0, 0, True, State.UPSTREAM_FAILED, False],
-            ["all_success", 2, 1, 0, 0, 0, 0, True, State.SKIPPED, False],
+            ["all_success", _UpstreamTIStates(5, 0, 0, 0, 0, 0), True, None, True],
+            ["all_success", _UpstreamTIStates(2, 0, 0, 0, 0, 0), True, None, False],
+            ["all_success", _UpstreamTIStates(2, 0, 1, 0, 0, 0), True, State.UPSTREAM_FAILED, False],
+            ["all_success", _UpstreamTIStates(2, 1, 0, 0, 0, 0), True, State.SKIPPED, False],
             #
             # Tests for one_success
             #
-            ["one_success", 5, 0, 0, 0, 5, 0, True, None, True],
-            ["one_success", 2, 0, 0, 0, 2, 0, True, None, True],
-            ["one_success", 2, 0, 1, 0, 3, 0, True, None, True],
-            ["one_success", 2, 1, 0, 0, 3, 0, True, None, True],
-            ["one_success", 0, 5, 0, 0, 5, 0, True, State.SKIPPED, False],
-            ["one_success", 0, 4, 1, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 3, 1, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 4, 0, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 0, 5, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 0, 4, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 0, 0, 5, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(5, 0, 0, 0, 0, 5), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 0, 0, 0, 0, 2), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 0, 1, 0, 0, 3), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 1, 0, 0, 0, 3), True, None, True],
+            ["one_success", _UpstreamTIStates(0, 5, 0, 0, 0, 5), True, State.SKIPPED, False],
+            ["one_success", _UpstreamTIStates(0, 4, 1, 0, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 3, 1, 1, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 4, 0, 1, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 0, 5, 0, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 0, 4, 1, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 0, 0, 5, 0, 5), True, State.UPSTREAM_FAILED, False],
             #
             # Tests for all_failed
             #
-            ["all_failed", 5, 0, 0, 0, 5, 0, True, State.SKIPPED, False],
-            ["all_failed", 0, 0, 5, 0, 5, 0, True, None, True],
-            ["all_failed", 2, 0, 0, 0, 2, 0, True, State.SKIPPED, False],
-            ["all_failed", 2, 0, 1, 0, 3, 0, True, State.SKIPPED, False],
-            ["all_failed", 2, 1, 0, 0, 3, 0, True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(5, 0, 0, 0, 0, 5), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(0, 0, 5, 0, 0, 5), True, None, True],
+            ["all_failed", _UpstreamTIStates(2, 0, 0, 0, 0, 2), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(2, 0, 1, 0, 0, 3), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(2, 1, 0, 0, 0, 3), True, State.SKIPPED, False],
             #
             # Tests for one_failed
             #
-            ["one_failed", 5, 0, 0, 0, 0, 0, True, None, False],
-            ["one_failed", 2, 0, 0, 0, 0, 0, True, None, False],
-            ["one_failed", 2, 0, 1, 0, 0, 0, True, None, True],
-            ["one_failed", 2, 1, 0, 0, 3, 0, True, None, False],
-            ["one_failed", 2, 3, 0, 0, 5, 0, True, State.SKIPPED, False],
+            ["one_failed", _UpstreamTIStates(5, 0, 0, 0, 0, 0), True, None, False],
+            ["one_failed", _UpstreamTIStates(2, 0, 0, 0, 0, 0), True, None, False],
+            ["one_failed", _UpstreamTIStates(2, 0, 1, 0, 0, 0), True, None, True],
+            ["one_failed", _UpstreamTIStates(2, 1, 0, 0, 0, 3), True, None, False],
+            ["one_failed", _UpstreamTIStates(2, 3, 0, 0, 0, 5), True, State.SKIPPED, False],
             #
             # Tests for done
             #
-            ["all_done", 5, 0, 0, 0, 5, 0, True, None, True],
-            ["all_done", 2, 0, 0, 0, 2, 0, True, None, False],
-            ["all_done", 2, 0, 1, 0, 3, 0, True, None, False],
-            ["all_done", 2, 1, 0, 0, 3, 0, True, None, False],
+            ["all_done", _UpstreamTIStates(5, 0, 0, 0, 0, 5), True, None, True],
+            ["all_done", _UpstreamTIStates(2, 0, 0, 0, 0, 2), True, None, False],
+            ["all_done", _UpstreamTIStates(2, 0, 1, 0, 0, 3), True, None, False],
+            ["all_done", _UpstreamTIStates(2, 1, 0, 0, 0, 3), True, None, False],
         ],
     )
     def test_check_task_dependencies(
         self,
+        monkeypatch,
+        dag_maker,
         trigger_rule: str,
-        successes: int,
-        skipped: int,
-        failed: int,
-        removed: int,
-        upstream_failed: int,
-        done: int,
+        upstream_states: _UpstreamTIStates,
         flag_upstream_failed: bool,
         expect_state: State,
         expect_completed: bool,
-        dag_maker,
     ):
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
+
         with dag_maker() as dag:
             downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
             for i in range(5):
@@ -1141,16 +1135,11 @@ class TestTaskInstance:
 
         ti = dag_maker.create_dagrun(execution_date=run_date).get_task_instance(downstream.task_id)
         ti.task = downstream
+
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
-            successes=successes,
-            skipped=skipped,
-            failed=failed,
-            removed=removed,
-            upstream_failed=upstream_failed,
-            done=done,
-            dep_context=DepContext(),
-            flag_upstream_failed=flag_upstream_failed,
+            dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+            session=dag_maker.session,
         )
         completed = all(dep.passed for dep in dep_results)
 
@@ -1162,72 +1151,68 @@ class TestTaskInstance:
     # Numeric fields are in order:
     #   successes, skipped, failed, upstream_failed, done,removed
     @pytest.mark.parametrize(
-        "trigger_rule,successes,skipped,failed,upstream_failed,done,removed,"
-        "flag_upstream_failed,expect_state,expect_completed",
+        "trigger_rule, upstream_states, flag_upstream_failed, expect_state, expect_completed",
         [
             #
             # Tests for all_success
             #
-            ["all_success", 5, 0, 0, 0, 0, 0, True, None, True],
-            ["all_success", 2, 0, 0, 0, 0, 0, True, None, False],
-            ["all_success", 2, 0, 1, 0, 0, 0, True, State.UPSTREAM_FAILED, False],
-            ["all_success", 2, 1, 0, 0, 0, 0, True, State.SKIPPED, False],
-            ["all_success", 3, 0, 0, 0, 0, 2, True, State.REMOVED, True],  # ti.map_index >=successes
+            ["all_success", _UpstreamTIStates(5, 0, 0, 0, 0, 0), True, None, True],
+            ["all_success", _UpstreamTIStates(2, 0, 0, 0, 0, 0), True, None, False],
+            ["all_success", _UpstreamTIStates(2, 0, 1, 0, 0, 0), True, State.UPSTREAM_FAILED, False],
+            ["all_success", _UpstreamTIStates(2, 1, 0, 0, 0, 0), True, State.SKIPPED, False],
+            # ti.map_index >= success
+            ["all_success", _UpstreamTIStates(3, 0, 0, 0, 2, 0), True, State.REMOVED, True],
             #
             # Tests for one_success
             #
-            ["one_success", 5, 0, 0, 0, 5, 0, True, None, True],
-            ["one_success", 2, 0, 0, 0, 2, 0, True, None, True],
-            ["one_success", 2, 0, 1, 0, 3, 0, True, None, True],
-            ["one_success", 2, 1, 0, 0, 3, 0, True, None, True],
-            ["one_success", 0, 5, 0, 0, 5, 0, True, State.SKIPPED, False],
-            ["one_success", 0, 4, 1, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 3, 1, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 4, 0, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 0, 5, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 0, 4, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
-            ["one_success", 0, 0, 0, 5, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(5, 0, 0, 0, 0, 5), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 0, 0, 0, 0, 2), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 0, 1, 0, 0, 3), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 1, 0, 0, 0, 3), True, None, True],
+            ["one_success", _UpstreamTIStates(0, 5, 0, 0, 0, 5), True, State.SKIPPED, False],
+            ["one_success", _UpstreamTIStates(0, 4, 1, 0, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 3, 1, 1, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 4, 0, 1, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 0, 5, 0, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 0, 4, 1, 0, 5), True, State.UPSTREAM_FAILED, False],
+            ["one_success", _UpstreamTIStates(0, 0, 0, 5, 0, 5), True, State.UPSTREAM_FAILED, False],
             #
             # Tests for all_failed
             #
-            ["all_failed", 5, 0, 0, 0, 5, 0, True, State.SKIPPED, False],
-            ["all_failed", 0, 0, 5, 0, 5, 0, True, None, True],
-            ["all_failed", 2, 0, 0, 0, 2, 0, True, State.SKIPPED, False],
-            ["all_failed", 2, 0, 1, 0, 3, 0, True, State.SKIPPED, False],
-            ["all_failed", 2, 1, 0, 0, 3, 0, True, State.SKIPPED, False],
-            ["all_failed", 2, 1, 0, 0, 4, 1, True, State.SKIPPED, False],  # One removed
+            ["all_failed", _UpstreamTIStates(5, 0, 0, 0, 0, 5), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(0, 0, 5, 0, 0, 5), True, None, True],
+            ["all_failed", _UpstreamTIStates(2, 0, 0, 0, 0, 2), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(2, 0, 1, 0, 0, 3), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(2, 1, 0, 0, 0, 3), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(2, 1, 0, 0, 1, 4), True, State.SKIPPED, False],  # One removed
             #
             # Tests for one_failed
             #
-            ["one_failed", 5, 0, 0, 0, 0, 0, True, None, False],
-            ["one_failed", 2, 0, 0, 0, 0, 0, True, None, False],
-            ["one_failed", 2, 0, 1, 0, 0, 0, True, None, True],
-            ["one_failed", 2, 1, 0, 0, 3, 0, True, None, False],
-            ["one_failed", 2, 3, 0, 0, 5, 0, True, State.SKIPPED, False],
-            ["one_failed", 2, 2, 0, 0, 5, 1, True, State.SKIPPED, False],  # One removed
+            ["one_failed", _UpstreamTIStates(5, 0, 0, 0, 0, 0), True, None, False],
+            ["one_failed", _UpstreamTIStates(2, 0, 0, 0, 0, 0), True, None, False],
+            ["one_failed", _UpstreamTIStates(2, 0, 1, 0, 0, 0), True, None, True],
+            ["one_failed", _UpstreamTIStates(2, 1, 0, 0, 0, 3), True, None, False],
+            ["one_failed", _UpstreamTIStates(2, 3, 0, 0, 0, 5), True, State.SKIPPED, False],
+            ["one_failed", _UpstreamTIStates(2, 2, 0, 0, 1, 5), True, State.SKIPPED, False],  # One removed
             #
             # Tests for done
             #
-            ["all_done", 5, 0, 0, 0, 5, 0, True, None, True],
-            ["all_done", 2, 0, 0, 0, 2, 0, True, None, False],
-            ["all_done", 2, 0, 1, 0, 3, 0, True, None, False],
-            ["all_done", 2, 1, 0, 0, 3, 0, True, None, False],
+            ["all_done", _UpstreamTIStates(5, 0, 0, 0, 0, 5), True, None, True],
+            ["all_done", _UpstreamTIStates(2, 0, 0, 0, 0, 2), True, None, False],
+            ["all_done", _UpstreamTIStates(2, 0, 1, 0, 0, 3), True, None, False],
+            ["all_done", _UpstreamTIStates(2, 1, 0, 0, 0, 3), True, None, False],
         ],
     )
     def test_check_task_dependencies_for_mapped(
         self,
+        monkeypatch,
+        dag_maker,
+        session,
         trigger_rule: str,
-        successes: int,
-        skipped: int,
-        failed: int,
-        removed: int,
-        upstream_failed: int,
-        done: int,
+        upstream_states: _UpstreamTIStates,
         flag_upstream_failed: bool,
         expect_state: State,
         expect_completed: bool,
-        dag_maker,
-        session,
     ):
         from airflow.decorators import task
 
@@ -1239,12 +1224,13 @@ class TestTaskInstance:
         def do_something_else(i):
             return 1
 
-        with dag_maker(dag_id="test_dag"):
+        with dag_maker(dag_id="test_dag", session=session):
             nums = do_something.expand(i=[i + 1 for i in range(5)])
             do_something_else.expand(i=nums)
 
         dr = dag_maker.create_dagrun()
 
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
         ti = dr.get_task_instance("do_something_else", session=session)
         ti.map_index = 0
         for map_index in range(1, 5):
@@ -1257,14 +1243,8 @@ class TestTaskInstance:
         ti.task = downstream
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
-            successes=successes,
-            skipped=skipped,
-            failed=failed,
-            removed=removed,
-            upstream_failed=upstream_failed,
-            done=done,
-            dep_context=DepContext(),
-            flag_upstream_failed=flag_upstream_failed,
+            dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+            session=session,
         )
         completed = all(dep.passed for dep in dep_results)
 
@@ -1883,6 +1863,29 @@ class TestTaskInstance:
 
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
+
+    def test_mapped_current_state(self, dag_maker):
+        with dag_maker(dag_id="test_mapped_current_state") as _:
+            from airflow.decorators import task
+
+            @task()
+            def raise_an_exception(placeholder: int):
+                if placeholder == 0:
+                    raise AirflowFailException("failing task")
+                else:
+                    pass
+
+            _ = raise_an_exception.expand(placeholder=[0, 1])
+
+        tis = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
+        for task_instance in tis:
+            if task_instance.map_index == 0:
+                with pytest.raises(AirflowFailException):
+                    task_instance.run()
+                assert task_instance.current_state() == TaskInstanceState.FAILED
+            else:
+                task_instance.run()
+                assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
     def test_outlet_datasets_skipped(self, create_task_instance):
         """
@@ -2799,7 +2802,6 @@ class TestTaskInstance:
             "next_kwargs": None,
             "next_method": None,
             "updated_at": None,
-            "notes": None,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values}
@@ -3024,24 +3026,39 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
-    def test_not_recorded_if_irrelevant(self, dag_maker, xcom_value):
+    @pytest.mark.parametrize("xcom_1", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
+    @pytest.mark.parametrize("xcom_4", [[1, 2, 3], {"a": 1, "b": 2}])
+    def test_not_recorded_if_irrelevant(self, dag_maker, xcom_1, xcom_4):
         """Return value should only be recorded if a mapped downstream uses the it."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
             @dag.task()
             def push_1():
-                return xcom_value
+                return xcom_1
 
             @dag.task()
             def push_2():
                 return [-1, -2]
 
             @dag.task()
+            def push_3():
+                return ["x", "y"]
+
+            @dag.task()
+            def push_4():
+                return xcom_4
+
+            @dag.task()
             def show(arg1, arg2):
                 print(arg1, arg2)
 
+            @task_group()
+            def tg(arg):
+                show(arg1=task_3, arg2=arg)
+
+            task_3 = push_3()
             show.partial(arg1=push_1()).expand(arg2=push_2())
+            tg.expand(arg=push_4())
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
 
@@ -3050,6 +3067,12 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         tis["push_2"].run()
         assert dag_maker.session.query(TaskMap).count() == 1
+
+        tis["push_3"].run()
+        assert dag_maker.session.query(TaskMap).count() == 1
+
+        tis["push_4"].run()
+        assert dag_maker.session.query(TaskMap).count() == 2
 
     @pytest.mark.parametrize(
         "return_value, exception_type, error_message",
@@ -3102,6 +3125,76 @@ class TestTaskInstanceRecordTaskMapXComPush:
                 return return_value
 
             MockOperator.partial(task_id="pull").expand_kwargs(push())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
+        with pytest.raises(exception_type) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_task_group_expand_error_if_unmappable_type(
+        self,
+        dag_maker,
+        return_value,
+        exception_type,
+        error_message,
+    ):
+        """If an unmappable return value is used , fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_task_group_expand_error_if_unmappable_type") as dag:
+
+            @dag.task()
+            def push():
+                return return_value
+
+            @task_group
+            def tg(arg):
+                MockOperator(task_id="pull", arg1=arg)
+
+            tg.expand(arg=push())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
+        with pytest.raises(exception_type) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_task_group_expand_kwargs_error_if_unmappable_type(
+        self,
+        dag_maker,
+        return_value,
+        exception_type,
+        error_message,
+    ):
+        """If an unmappable return value is used, fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_task_group_expand_kwargs_error_if_unmappable_type") as dag:
+
+            @dag.task()
+            def push():
+                return return_value
+
+            @task_group
+            def tg(arg):
+                MockOperator(task_id="pull", arg1=arg)
+
+            tg.expand_kwargs(push())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
         with pytest.raises(exception_type) as ctx:
@@ -3499,6 +3592,20 @@ class TestMappedTaskInstanceReceiveValue:
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
 
 
+def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="t")
+
+    run: DagRun = dag_maker.create_dagrun()
+    run.get_task_instance("t", session=session).xcom_push("xxx", 123, session=session)
+
+    original = LazyXComAccess.build_from_xcom_query(session.query(XCom))
+    processed = pickle.loads(pickle.dumps(original))
+
+    assert len(processed) == 1
+    assert list(processed) == [123]
+
+
 @mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)
 def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_value, dag_maker, session):
     """Ensure we access XCom lazily when pulling from a mapped operator."""
@@ -3522,9 +3629,8 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
 
     # Simply pulling the joined XCom value should not deserialize.
     joined = ti_2.xcom_pull("task_1", session=session)
+    assert isinstance(joined, LazyXComAccess)
     assert mock_deserialize_value.call_count == 0
-
-    assert repr(joined) == "LazyXComAccess(dag_id='test_xcom', run_id='test', task_id='task_1')"
 
     # Only when we go through the iterable does deserialization happen.
     it = iter(joined)

@@ -27,8 +27,10 @@ from airflow.utils.state import State
 
 class PrevDagrunDep(BaseTIDep):
     """
-    Is the past dagrun in a state that allows this task instance to run, e.g. did this
-    task instance's task in the previous dagrun complete if we are depending on past.
+    Is the past dagrun in a state that allows this task instance to run.
+
+    For example, did this task instance's task in the previous dagrun complete
+    if we are depending on past?
     """
 
     NAME = "Previous Dagrun State"
@@ -68,7 +70,7 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
-        previous_ti = last_dagrun.get_task_instance(ti.task_id, session=session)
+        previous_ti = last_dagrun.get_task_instance(ti.task_id, map_index=ti.map_index, session=session)
         if not previous_ti:
             if ti.task.ignore_first_depends_on_past:
                 has_historical_ti = (

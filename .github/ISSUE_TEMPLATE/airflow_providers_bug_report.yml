@@ -30,6 +30,7 @@ body:
         - apache-cassandra
         - apache-drill
         - apache-druid
+        - apache-flink
         - apache-hdfs
         - apache-hive
         - apache-kylin

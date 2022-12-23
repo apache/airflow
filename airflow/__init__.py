@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
+Init setup.
+
 Authentication is implemented using flask_login and different environments can
 implement their own login mechanisms by providing an `airflow_login` module
-in their PYTHONPATH. airflow_login should be based off the
-`airflow.www.login`
+in their PYTHONPATH. airflow_login should be based off the `airflow.www.login`
 
 isort:skip_file
 """
@@ -31,6 +32,14 @@ import os
 import sys
 from typing import Callable
 
+if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
+    # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
+    # as one of the first thing when Airflow is started. This allows gevent to patch networking and other
+    # system libraries to make them gevent-compatible before anything else patches them (for example boto)
+    from gevent.monkey import patch_all
+
+    patch_all()
+
 from airflow import settings
 
 __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
@@ -39,6 +48,7 @@ __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310
 # airflow.providers.* in different locations (i.e. one in site, and one in user
 # lib.)
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+
 
 # Perform side-effects unless someone has explicitly opted out before import
 # WARNING: DO NOT USE THIS UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.

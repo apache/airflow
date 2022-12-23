@@ -17,17 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
-from parameterized import parameterized
+import pytest
 
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
 
-class TestJenkinsBuildSensor(unittest.TestCase):
-    @parameterized.expand(
+class TestJenkinsBuildSensor:
+    @pytest.mark.parametrize(
+        "build_number, build_state",
         [
             (
                 1,
@@ -41,10 +41,10 @@ class TestJenkinsBuildSensor(unittest.TestCase):
                 3,
                 True,
             ),
-        ]
+        ],
     )
     @patch("jenkins.Jenkins")
-    def test_poke(self, build_number, build_state, mock_jenkins):
+    def test_poke(self, mock_jenkins, build_number, build_state):
         target_build_number = build_number if build_number else 10
 
         jenkins_mock = MagicMock()

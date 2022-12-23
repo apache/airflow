@@ -22,6 +22,7 @@ from unittest import TestCase, mock
 
 import pendulum
 import pytest
+from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG, AirflowException
@@ -84,7 +85,7 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT)
+        mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, DEFAULT_RETRY)
 
 
 class TestTsFunction(TestCase):

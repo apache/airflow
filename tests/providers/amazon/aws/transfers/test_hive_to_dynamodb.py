@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime
 import json
-import unittest
 from unittest import mock
 
 import pandas as pd
@@ -34,8 +33,8 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class TestHiveToDynamoDBOperator(unittest.TestCase):
-    def setUp(self):
+class TestHiveToDynamoDBOperator:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG("test_dag_id", default_args=args)
         self.dag = dag

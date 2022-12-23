@@ -34,8 +34,9 @@ import {
 import ResizeTextarea from 'react-textarea-autosize';
 
 import { getMetaValue } from 'src/utils';
-import { useSetDagRunNotes, useSetTaskInstanceNotes } from 'src/api';
+import { useSetDagRunNote, useSetTaskInstanceNote } from 'src/api';
 import { MdEdit } from 'react-icons/md';
+import ReactMarkdown from 'src/components/ReactMarkdown';
 
 interface Props {
   dagId: string;
@@ -49,15 +50,15 @@ const NotesAccordion = ({
   dagId, runId, taskId, mapIndex, initialValue,
 }: Props) => {
   const canEdit = getMetaValue('can_edit') === 'True';
-  const [notes, setNotes] = useState(initialValue ?? '');
+  const [note, setNote] = useState(initialValue ?? '');
   const [editMode, setEditMode] = useState(false);
 
   const {
     mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading,
-  } = useSetDagRunNotes({ dagId, runId });
+  } = useSetDagRunNote({ dagId, runId });
   const {
     mutateAsync: apiCallToSetTINote, isLoading: tiIsLoading,
-  } = useSetTaskInstanceNotes({
+  } = useSetTaskInstanceNote({
     dagId,
     runId,
     taskId: taskId ?? '',
@@ -70,9 +71,9 @@ const NotesAccordion = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (taskId == null) {
-      await apiCallToSetDagRunNote(notes);
+      await apiCallToSetDagRunNote(note);
     } else {
-      await apiCallToSetTINote(notes);
+      await apiCallToSetTINote(note);
     }
     setEditMode(false);
   };
@@ -95,6 +96,7 @@ const NotesAccordion = ({
             {editMode ? (
               <form onSubmit={handleSubmit}>
                 <Box>
+
                   <Textarea
                     autoFocus
                     minH="unset"
@@ -104,17 +106,17 @@ const NotesAccordion = ({
                     minRows={3}
                     maxRows={10}
                     as={ResizeTextarea}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
                     data-testid="notes-input"
                   />
                 </Box>
-                <Flex mt={3}>
+                <Flex mt={3} justify="right">
                   <Button type="submit" isLoading={isLoading} colorScheme="blue">
                     Save Note
                   </Button>
                   <Button
-                    onClick={() => { setNotes(initialValue ?? ''); setEditMode(false); }}
+                    onClick={() => { setNote(initialValue ?? ''); setEditMode(false); }}
                     isLoading={isLoading}
                     ml={3}
                   >
@@ -123,20 +125,24 @@ const NotesAccordion = ({
                 </Flex>
               </form>
             ) : (
-              <>
-                <Text whiteSpace="pre-line">{notes}</Text>
-                <Button
-                  onClick={() => setEditMode(true)}
-                  isDisabled={!canEdit}
-                  isLoading={isLoading}
-                  title={`${!notes ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
-                  aria-label={`${!notes ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
-                  mt={2}
-                  leftIcon={<MdEdit />}
-                >
-                  {!notes ? 'Add Note' : 'Edit Note'}
-                </Button>
-              </>
+              <Flex direction="column">
+                <Flex direction="column" style={{ fontSize: '12px' }}>
+                  <ReactMarkdown>{note}</ReactMarkdown>
+                </Flex>
+                <Flex justify="right">
+                  <Button
+                    onClick={() => setEditMode(true)}
+                    isDisabled={!canEdit}
+                    isLoading={isLoading}
+                    title={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                    aria-label={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                    mt={2}
+                    leftIcon={<MdEdit />}
+                  >
+                    {!note ? 'Add Note' : 'Edit Note'}
+                  </Button>
+                </Flex>
+              </Flex>
             )}
           </AccordionPanel>
         </AccordionItem>

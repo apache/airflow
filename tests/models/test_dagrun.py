@@ -29,7 +29,15 @@ from sqlalchemy.orm.session import Session
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import task, task_group
-from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models import (
+    DAG,
+    DagBag,
+    DagModel,
+    DagRun,
+    TaskInstance,
+    TaskInstance as TI,
+    clear_task_instances,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
@@ -1285,6 +1293,39 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     ]
 
 
+def test_mapped_literal_faulty_state_in_db(dag_maker, session):
+    """
+    This test tries to recreate a faulty state in the database and checks if we can recover from it.
+    The state that happens is that there exists mapped task instances and the unmapped task instance.
+    So we have instances with map_index [-1, 0, 1]. The -1 task instances should be removed in this case.
+    """
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_1():
+            return [1, 2]
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1")
+    ti.run()
+    decision = dr.task_instance_scheduling_decisions()
+    assert len(decision.schedulable_tis) == 2
+
+    # We insert a faulty record
+    session.add(TaskInstance(dag.get_task("task_2"), dr.execution_date, dr.run_id))
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions()
+    assert len(decision.schedulable_tis) == 2
+
+
 def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_integrity(dag_maker, session):
     """
     Test that when there's no change to mapped task indexes at runtime, the dagrun.verify_integrity
@@ -1943,7 +1984,9 @@ def test_mapped_skip_upstream_not_deadlock(dag_maker):
     tis["say_hi"].state = TaskInstanceState.SUCCESS
     session.flush()
 
-    dr.update_state(session=session)
+    dr.update_state(session=session)  # expands the mapped tasks
+    dr.update_state(session=session)  # marks the task as skipped
+    dr.update_state(session=session)  # marks dagrun as success
     assert dr.state == DagRunState.SUCCESS
     assert tis["add_one__1"].state == TaskInstanceState.SKIPPED
 
@@ -2051,3 +2094,131 @@ def test_mapped_task_group_expands(dag_maker, session):
         ("tg.task_2", 4, None),
         ("tg.task_2", 5, None),
     }
+
+
+def test_operator_mapped_task_group_receives_value(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def t(value, *, ti=None):
+            results[(ti.task_id, ti.map_index)] = value
+            return value
+
+        @task_group
+        def tg(va):
+            # Each expanded group has one t1 and t2 each.
+            t1 = t.override(task_id="t1")(va)
+            t2 = t.override(task_id="t2")(t1)
+
+            with pytest.raises(NotImplementedError) as ctx:
+                t.override(task_id="t4").expand(value=va)
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+
+            return t2
+
+        # The group is mapped by 3.
+        t2 = tg.expand(va=[["a", "b"], [4], ["z"]])
+
+        # Aggregates results from task group.
+        t.override(task_id="t3")(t2)
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert results == {("tg.t1", 0): ["a", "b"], ("tg.t1", 1): [4], ("tg.t1", 2): ["z"]}
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert results == {("tg.t2", 0): ["a", "b"], ("tg.t2", 1): [4], ("tg.t2", 2): ["z"]}
+
+    results = {}
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    for ti in decision.schedulable_tis:
+        ti.run()
+    assert len(results) == 1
+    assert list(results[("t3", -1)]) == [["a", "b"], [4], ["z"]]
+
+
+def test_mapping_against_empty_list(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def add_one(x: int):
+            return x + 1
+
+        @task
+        def say_hi():
+            print("Hi")
+
+        @task
+        def say_bye():
+            print("Bye")
+
+        added_values = add_one.expand(x=[])
+        added_more_values = add_one.expand(x=[])
+        added_more_more_values = add_one.expand(x=[])
+        say_hi() >> say_bye() >> added_values
+        added_values >> added_more_values >> added_more_more_values
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    say_hi_ti = tis["say_hi"]
+    say_bye_ti = tis["say_bye"]
+    say_hi_ti.state = TaskInstanceState.SUCCESS
+    say_bye_ti.state = TaskInstanceState.SUCCESS
+    session.merge(say_hi_ti)
+    session.merge(say_bye_ti)
+    session.flush()
+
+    dr.update_state(session=session)
+    dr.update_state(session=session)  # marks first empty mapped task as skipped
+    dr.update_state(session=session)  # marks second empty mapped task as skipped
+    dr.update_state(session=session)  # marks the third empty mapped task as skipped and dagrun as success
+    tis = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+    assert tis["say_hi"] == TaskInstanceState.SUCCESS
+    assert tis["say_bye"] == TaskInstanceState.SUCCESS
+    assert tis["add_one"] == TaskInstanceState.SKIPPED
+    assert tis["add_one__1"] == TaskInstanceState.SKIPPED
+    assert tis["add_one__2"] == TaskInstanceState.SKIPPED
+    assert dr.state == State.SUCCESS
+
+
+def test_mapped_task_depends_on_past(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task(depends_on_past=True)
+        def print_value(value):
+            print(value)
+
+        print_value.expand_kwargs([{"value": i} for i in range(2)])
+
+    dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+    dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+
+    # print_value in dr2 is not ready yet since the task depends on past.
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 0
+
+    # Run print_value in dr1.
+    decision = dr1.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    # Now print_value in dr2 can run
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    # Both runs are finished now.
+    decision = dr1.task_instance_scheduling_decisions(session=session)
+    assert len(decision.unfinished_tis) == 0
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.unfinished_tis) == 0

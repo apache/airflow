@@ -286,7 +286,6 @@ class MappedOperator(AbstractOperator):
     This should be a name to call ``getattr()`` on.
     """
 
-    is_mapped: ClassVar[bool] = True
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
@@ -329,7 +328,6 @@ class MappedOperator(AbstractOperator):
         return frozenset(attr.fields_dict(MappedOperator)) - {
             "dag",
             "deps",
-            "is_mapped",
             "expand_input",  # This is needed to be able to accept XComArg.
             "subdag",
             "task_group",
@@ -452,17 +450,33 @@ class MappedOperator(AbstractOperator):
     def on_execute_callback(self) -> TaskStateChangeCallback | None:
         return self.partial_kwargs.get("on_execute_callback")
 
+    @on_execute_callback.setter
+    def on_execute_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_execute_callback"] = value
+
     @property
     def on_failure_callback(self) -> TaskStateChangeCallback | None:
         return self.partial_kwargs.get("on_failure_callback")
+
+    @on_failure_callback.setter
+    def on_failure_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_failure_callback"] = value
 
     @property
     def on_retry_callback(self) -> TaskStateChangeCallback | None:
         return self.partial_kwargs.get("on_retry_callback")
 
+    @on_retry_callback.setter
+    def on_retry_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_retry_callback"] = value
+
     @property
     def on_success_callback(self) -> TaskStateChangeCallback | None:
         return self.partial_kwargs.get("on_success_callback")
+
+    @on_success_callback.setter
+    def on_success_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_success_callback"] = value
 
     @property
     def run_as_user(self) -> str | None:

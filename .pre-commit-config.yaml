@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.2.0
+    rev: v1.3.1
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -146,7 +146,22 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  # Keep version of black in sync wit blacken-docs and pre-commit-hook-names
+  - repo: local
+    hooks:
+      - id: update-common-sql-api-stubs
+        name: Check and update common.sql API stubs
+        entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
+        language: python
+        files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
+        additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.3.0', 'jinja2']
+        pass_filenames: false
+        require_serial: true
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.11.4
+    hooks:
+      - id: isort
+        name: Run isort to sort imports in Python files
+  # Keep version of black in sync wit blacken-docs, pre-commit-hook-names, update-common-sql-api-stubs
   - repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
@@ -168,7 +183,7 @@ repos:
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -226,18 +241,13 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^airflow/_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.26.3
+    rev: v1.28.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/_vendor/
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.10.1
-    hooks:
-      - id: isort
-        name: Run isort to sort imports in Python files
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -402,6 +412,19 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: check-links-to-example-dags-do-not-use-hardcoded-versions
+        name: Check that example dags do not use hard-coded version numbers
+        description: The links to example dags should use |version| as version specification
+        language: pygrep
+        entry: >
+          (?i)
+          .*https://github.*[0-9]/tests/system/providers|
+          .*https://github.*/main/tests/system/providers|
+          .*https://github.*/master/tests/system/providers|
+          .*https://github.*/main/airflow/providers/.*/example_dags/|
+          .*https://github.*/master/airflow/providers/.*/example_dags/
+        pass_filenames: true
+        files: ^docs/apache-airflow-providers-.*\.rst
       - id: check-safe-filter-usage-in-html
         language: pygrep
         name: Don't use safe in templates
@@ -424,6 +447,12 @@ repos:
         pass_filenames: true
         files: \.py$
         exclude: ^tests/|^airflow/_vendor/|^docs/
+      - id: check-only-new-session-with-provide-session
+        name: Check NEW_SESSION is only used with @provide_session
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_new_session_in_provide_session.py
+        pass_filenames: true
+        files: ^airflow/.+\.py$
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
@@ -446,6 +475,7 @@ repos:
           ^airflow/www/static/|
           ^airflow/providers/|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^tests/integration/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^tests/system/providers/apache/spark/example_spark_dag.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
@@ -627,19 +657,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
-      - id: check-provider-yaml-valid
-        name: Validate providers.yaml files
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
-        language: python
-        require_serial: true
-        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
-        additional_dependencies:
-          - 'PyYAML==5.3.1'
-          - 'jsonschema>=3.2.0,<5.0.0'
-          - 'tabulate==0.8.8'
-          - 'jsonpath-ng==1.5.3'
-          - 'rich>=12.4.4'
       - id: check-pre-commit-information-consistent
         name: Update information re pre-commit hooks and verify ids and names
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hooks.py
@@ -654,7 +671,7 @@ repos:
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
-        files: ^dev/breeze/setup.*$|^dev/breeze/pyproject.toml$|^dev/breeze/README.md$
+        files: dev/breeze/setup.py|dev/breeze/setup.cfg|dev/breeze/pyproject.toml|dev/breeze/README.md
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
@@ -809,7 +826,7 @@ repos:
         files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -888,6 +905,14 @@ repos:
         pass_filenames: true
         exclude: ^airflow/_vendor/
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+      - id: check-provider-yaml-valid
+        name: Validate provider.yaml files
+        pass_filenames: false
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
+        language: python
+        require_serial: true
+        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
       - id: update-migration-references
         name: Update migration ref doc
         language: python

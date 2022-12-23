@@ -104,7 +104,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
-    ("metastore_browser", "/opt/airflow/metastore_browser"),
 ]
 
 
@@ -260,6 +259,34 @@ def check_docker_version():
 Please upgrade to at least {MIN_DOCKER_VERSION}[/]
 """
                 )
+
+
+def check_remote_ghcr_io_commands():
+    """
+    Checks if you have permissions to pull an empty image from ghcr.io. Unfortunately, GitHub packages
+    treat expired login as "no-access" even on public repos. We need to detect that situation and suggest
+    user to log-out.
+    :return:
+    """
+    response = run_command(
+        ["docker", "pull", "ghcr.io/apache/airflow-hello-world"],
+        no_output_dump_on_exception=True,
+        text=False,
+        capture_output=True,
+        check=False,
+    )
+    if response.returncode != 0:
+        if "no such host" in response.stderr.decode("utf-8"):
+            get_console().print(
+                "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
+            )
+            sys.exit(2)
+        get_console().print(
+            "[error]\nYou seem to have expired permissions on ghcr.io.[/]\n"
+            "[warning]Please logout. Run this command:[/]\n\n"
+            "   docker logout ghcr.io\n\n"
+        )
+        sys.exit(1)
 
 
 DOCKER_COMPOSE_COMMAND = ["docker-compose"]
@@ -579,7 +606,6 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "INIT_SCRIPT_FILE", "init.sh")
     set_value_to_default_if_not_set(env, "INSTALL_PACKAGES_FROM_CONTEXT", "false")
     set_value_to_default_if_not_set(env, "INSTALL_PROVIDERS_FROM_SOURCES", "true")
-    set_value_to_default_if_not_set(env, "LIST_OF_INTEGRATION_TESTS_TO_RUN", "")
     set_value_to_default_if_not_set(env, "LOAD_DEFAULT_CONNECTIONS", "false")
     set_value_to_default_if_not_set(env, "LOAD_EXAMPLES", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
@@ -614,7 +640,6 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "DB_RESET": "db_reset",
     "DEV_MODE": "dev_mode",
     "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
-    "ENABLED_INTEGRATIONS": "enabled_integrations",
     "GITHUB_ACTIONS": "github_actions",
     "INSTALL_AIRFLOW_VERSION": "install_airflow_version",
     "INSTALL_PROVIDERS_FROM_SOURCES": "install_providers_from_sources",

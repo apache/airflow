@@ -526,13 +526,13 @@ class TestSlackWebhookHook:
         mock_hook_send_dict.assert_called_once_with(body=expected_body, headers=None)
 
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
-    def test_hook_ignored_attributes(self, mock_webhook_client_cls, recwarn):
+    def test_hook_ignored_attributes(self, mock_webhook_client_cls):
         """Test hook constructor warn users about ignored attributes."""
         mock_webhook_client = mock_webhook_client_cls.return_value
         mock_webhook_client_send_dict = mock_webhook_client.send_dict
         mock_webhook_client_send_dict.return_value = MOCK_WEBHOOK_RESPONSE
-
-        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, link_names="test-value")
+        with pytest.warns(UserWarning) as recwarn:
+            hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, link_names="test-value")
         assert len(recwarn) == 2
         assert str(recwarn.pop(UserWarning).message).startswith(
             "`link_names` has no affect, if you want to mention user see:"

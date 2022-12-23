@@ -21,7 +21,7 @@ import json
 import math
 import time
 import warnings
-from contextlib import closing
+from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, cast
@@ -85,12 +85,10 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 
 
 def get_container_termination_message(pod: V1Pod, container_name: str):
-    try:
+    with suppress(AttributeError, TypeError):
         container_statuses = pod.status.container_statuses
         container_status = next((x for x in container_statuses if x.name == container_name), None)
         return container_status.state.terminated.message if container_status else None
-    except (AttributeError, TypeError):
-        return None
 
 
 @dataclass

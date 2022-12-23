@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import re
-import unittest
 from collections import OrderedDict
 from unittest.mock import MagicMock, patch
 
@@ -62,7 +61,7 @@ class MockPrestoHook(PrestoHook):
 
 
 class TestHiveStatsCollectionOperator(TestHiveEnvironment):
-    def setUp(self):
+    def setup_method(self, method):
         self.kwargs = dict(
             table="table",
             partition=dict(col="col", value="value"),
@@ -71,7 +70,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
             mysql_conn_id="mysql_conn_id",
             task_id="test_hive_stats_collection_operator",
         )
-        super().setUp()
+        super().setup_method(method)
 
     def test_get_default_exprs(self):
         col = "col"
@@ -305,8 +304,8 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
             """
         mock_mysql_hook.return_value.run.assert_called_once_with(sql)
 
-    @unittest.skipIf(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    @pytest.mark.skipif(
+        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
     )
     @patch(
         "airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook",

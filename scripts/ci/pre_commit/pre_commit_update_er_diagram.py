@@ -34,6 +34,7 @@ os.environ["SKIP_GROUP_OUTPUT"] = "true"
 if __name__ == "__main__":
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
     from airflow_breeze.global_constants import MOUNT_SELECTED
+    from airflow_breeze.utils.console import get_console
     from airflow_breeze.utils.docker_command_utils import (
         get_extra_docker_flags,
         update_expected_environment_variables,
@@ -62,4 +63,10 @@ if __name__ == "__main__":
         env=env,
         check=False,
     )
+    if cmd_result.returncode != 0:
+        get_console().print(
+            "[warning]If you see strange stacktraces above, "
+            "run `breeze ci-image build --python 3.7` and try again."
+        )
+
     sys.exit(cmd_result.returncode)

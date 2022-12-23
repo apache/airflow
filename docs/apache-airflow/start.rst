@@ -24,7 +24,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
-   Successful installation requires a Python 3 environment.
+   Successful installation requires a Python 3 environment. Starting with Airflow 2.3.0, Airflow is tested with Python 3.7, 3.8, 3.9, 3.10. Note that
+   Python 3.11 is not yet supported.
 
    Only ``pip`` installation is currently officially supported.
 
@@ -80,7 +81,7 @@ command line utilities.
 
 As you grow and deploy Airflow to production, you will also want to move away
 from the ``standalone`` command we use here to running the components
-separately. You can read more in :doc:`/production-deployment`.
+separately. You can read more in :doc:`/administration-and-deployment/production-deployment`.
 
 Here are a few commands that will trigger a few task instances. You should
 be able to see the status of the jobs change in the ``example_bash_operator`` DAG as you
