@@ -319,7 +319,7 @@ class ExternalTaskSensor(BaseSensorOperator):
     def _count_query(self, model, session, states, dttm_filter) -> Query:
         query = session.query(func.count()).filter(
             model.dag_id == self.external_dag_id,
-            model.state.in_(states),  # pylint: disable=no-member
+            model.state.in_(states),
             model.execution_date.in_(dttm_filter),
         )
         return query

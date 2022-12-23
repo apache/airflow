@@ -18,7 +18,6 @@
 """This module contains a Dataproc Job sensor."""
 from __future__ import annotations
 
-# pylint: disable=C0302
 import time
 from typing import TYPE_CHECKING, Sequence
 

@@ -38,7 +38,7 @@ class TimeoutWindows(_timeout, LoggingMixin):
         self.seconds = seconds
         self.error_message = error_message + ", PID: " + str(os.getpid())
 
-    def handle_timeout(self, *args):  # pylint: disable=unused-argument
+    def handle_timeout(self, *args):
         """Logs information and raises AirflowTaskTimeout."""
         self.log.error("Process timed out, PID: %s", str(os.getpid()))
         raise AirflowTaskTimeout(self.error_message)
