@@ -29,11 +29,9 @@ import multiprocessing
 import time
 from collections import defaultdict
 from datetime import timedelta
-from logging import Logger
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any, Dict, Optional, Sequence, Tuple, Callable
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple, Callable
 
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s
@@ -72,7 +70,7 @@ def multi_threads_queue_process(
     queue_type: str,
     process_method: Callable,
     max_threads: int,
-    log: Logger,
+    log: logging.Logger,
     batch_size: Optional[int] = None,
 ) -> None:
     """
@@ -429,7 +427,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         """
         self.log.debug("Syncing KubernetesExecutor")
-        self._health_check_kube_watcher()
+        self._health_check_kube_watchers()
 
         multi_threads_queue_process(
             queue_size=self.watcher_queue.qsize(),
@@ -441,8 +439,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def process_watcher_queue(self, sub_batch_size: int) -> None:
         for _ in range(sub_batch_size):
-        self._health_check_kube_watchers()
-        while True:
             try:
                 task = self.watcher_queue.get_nowait()
                 try:
@@ -523,6 +519,7 @@ class KubernetesExecutor(BaseExecutor):
         self.event_scheduler: EventScheduler | None = None
         self.last_handled: dict[TaskInstanceKey, float] = {}
         self.kubernetes_queue: str | None = None
+        self.last_resource_version: dict[str, str] = {}
         super().__init__(parallelism=self.kube_config.parallelism)
 
     def _list_pods(self, query_kwargs):
@@ -694,6 +691,7 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_scheduler.sync()
 
         """processing result queue"""
+        self.last_resource_version = defaultdict(lambda: "0")
         multi_threads_queue_process(
             queue_size=self.result_queue.qsize(),
             queue_type='result',
@@ -718,13 +716,11 @@ class KubernetesExecutor(BaseExecutor):
 
     def process_result_queue(self, sub_batch_size):
         for _ in range(sub_batch_size):
-        last_resource_version: dict[str, str] = defaultdict(lambda: "0")
-        while True:
             try:
                 results = self.result_queue.get_nowait()
                 try:
                     key, state, pod_id, namespace, resource_version = results
-                    last_resource_version[namespace] = resource_version
+                    self.last_resource_version[namespace] = resource_version
                     self.log.info("Changing state of %s to %s", results, state)
                     try:
                         self._change_state(key, state, pod_id, namespace)
@@ -741,15 +737,14 @@ class KubernetesExecutor(BaseExecutor):
             except Empty:
                 break
 
-    def process_task_queue(self, sub_batch_size):
-        for _ in range(sub_batch_size):
         resource_instance = ResourceVersion()
         for ns in resource_instance.resource_version.keys():
             resource_instance.resource_version[ns] = (
-                last_resource_version[ns] or resource_instance.resource_version[ns]
+                self.last_resource_version[ns] or resource_instance.resource_version[ns]
             )
 
-        for _ in range(self.kube_config.worker_pods_creation_batch_size):
+    def process_task_queue(self, sub_batch_size):
+        for _ in range(sub_batch_size):
             try:
                 task = self.task_queue.get_nowait()
                 try:
