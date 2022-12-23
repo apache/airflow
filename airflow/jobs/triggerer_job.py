@@ -264,7 +264,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             if trigger_id not in self.triggers:
                 self.triggers[trigger_id] = {
                     "task": asyncio.create_task(self.run_trigger(trigger_id, trigger_instance)),
-                    "name": f"{trigger_instance!r} (ID {trigger_id})",
+                    "name": f"{trigger_instance.classpath} (ID {trigger_id})",
                     "events": 0,
                 }
             else:
