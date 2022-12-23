@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-22T06:44:55Z
+# This constraints file was automatically generated on 2022-12-23T19:37:40Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -38,7 +38,7 @@ PyNaCl==1.5.0
 PyYAML==6.0
 Pygments==2.13.0
 SQLAlchemy-JSONField==1.0.1.post0
-SQLAlchemy-Utils==0.38.3
+SQLAlchemy-Utils==0.39.0
 SQLAlchemy==1.4.45
 SecretStorage==3.3.3
 Sphinx==5.3.0
@@ -62,7 +62,7 @@ apispec==3.3.2
 appdirs==1.4.4
 argcomplete==2.0.0
 arrow==1.2.3
-asana==2.0.0
+asana==3.0.0
 asgiref==3.6.0
 asn1crypto==1.5.1
 astroid==2.11.7
@@ -104,9 +104,9 @@ billiard==3.6.4.0
 black==23.1a1
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.35
+boto3==1.26.36
 boto==2.49.0
-botocore==1.29.35
+botocore==1.29.36
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -161,7 +161,7 @@ email-validator==1.3.0
 entrypoints==0.4
 eralchemy2==1.3.6
 eventlet==0.33.2
-exceptiongroup==1.0.4
+exceptiongroup==1.1.0
 execnet==1.9.0
 executing==1.2.0
 facebook-business==15.0.0
@@ -279,7 +279,7 @@ jsonpointer==2.3
 jsonschema==3.2.0
 junit-xml==1.9
 jupyter-client==7.3.4
-jupyter_core==5.1.0
+jupyter_core==5.1.1
 keyring==23.13.1
 kombu==5.2.4
 krb5==0.4.1
@@ -315,7 +315,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.3
 mypy-boto3-appflow==1.26.32
-mypy-boto3-rds==1.26.33
+mypy-boto3-rds==1.26.36
 mypy-boto3-redshift-data==1.26.30
 mypy-extensions==0.4.3
 mypy==0.971
@@ -491,7 +491,7 @@ stack-data==0.6.2
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
 swagger-ui-bundle==0.0.9
-tableauserverclient==0.23
+tableauserverclient==0.23.4
 tabulate==0.9.0
 tblib==1.7.0
 tenacity==8.1.0
@@ -525,7 +525,7 @@ types-python-dateutil==2.8.19.5
 types-python-slugify==7.0.0.1
 types-pytz==2022.7.0.0
 types-redis==4.3.21.6
-types-requests==2.28.11.6
+types-requests==2.28.11.7
 types-setuptools==65.6.0.2
 types-tabulate==0.9.0.0
 types-termcolor==1.1.6
