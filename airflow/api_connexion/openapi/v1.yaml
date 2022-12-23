@@ -599,7 +599,7 @@ paths:
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: set_task_instance_note
-      tags: [DAG]
+      tags: [TaskInstance]
       requestBody:
         description: Parameters of set Task Instance note.
         required: true
@@ -639,7 +639,7 @@ paths:
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: set_mapped_task_instance_note
-      tags: [DAG]
+      tags: [TaskInstance]
       requestBody:
         description: Parameters of set Task Instance note.
         required: true
