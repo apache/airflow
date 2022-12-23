@@ -37,7 +37,12 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
-from airflow.exceptions import AirflowConfigException, PodReconciliationError, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowConfigException,
+    PodMutationHookException,
+    PodReconciliationError,
+    RemovedInAirflow3Warning,
+)
 from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
@@ -349,6 +354,8 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
+        *,
+        with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
         """
         Create a Pod.
@@ -426,9 +433,19 @@ class PodGenerator:
         pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
 
         try:
-            return reduce(PodGenerator.reconcile_pods, pod_list)
+            pod = reduce(PodGenerator.reconcile_pods, pod_list)
         except Exception as e:
             raise PodReconciliationError from e
+
+        if with_mutation_hook:
+            from airflow.settings import pod_mutation_hook
+
+            try:
+                pod_mutation_hook(pod)
+            except Exception as e:
+                raise PodMutationHookException from e
+
+        return pod
 
     @staticmethod
     def serialize_pod(pod: k8s.V1Pod) -> dict:

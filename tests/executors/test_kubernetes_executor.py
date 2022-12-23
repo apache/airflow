@@ -303,7 +303,7 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
-    @mock.patch("airflow.executors.kubernetes_executor.pod_mutation_hook")
+    @mock.patch("airflow.settings.pod_mutation_hook")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_run_next_pmh_error(self, mock_get_kube_client, mock_pmh):
         """
@@ -335,7 +335,7 @@ class TestKubernetesExecutor:
             # The task is not re-queued and there is the failed record in event_buffer
             assert kubernetes_executor.task_queue.empty()
             assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
-            assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == exception_in_pmh
+            assert kubernetes_executor.event_buffer[task_instance_key][1].__cause__ == exception_in_pmh
         finally:
             kubernetes_executor.end()
 
