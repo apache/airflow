@@ -274,13 +274,13 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
         context.update((k, v) for k, v in template.globals.items() if k not in context)
     try:
         nodes = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
+        if native:
+            import jinja2.nativetypes
+
+            return jinja2.nativetypes.native_concat(nodes)
+        return "".join(nodes)
     except Exception:
         env.handle_exception()  # Rewrite traceback to point to the template.
-    if native:
-        import jinja2.nativetypes
-
-        return jinja2.nativetypes.native_concat(nodes)
-    return "".join(nodes)
 
 
 def render_template_to_string(template: jinja2.Template, context: Context) -> str:
