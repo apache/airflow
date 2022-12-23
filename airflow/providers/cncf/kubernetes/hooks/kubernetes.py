@@ -21,6 +21,7 @@ import tempfile
 import warnings
 from typing import TYPE_CHECKING, Any, Generator
 
+from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
 from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
@@ -454,9 +455,9 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def _load_config(self):
         """Returns Kubernetes API session for use with requests"""
-        in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
-        cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
-        kubeconfig = self._get_field("kube_config")
+        in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
+        cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
+        kubeconfig = await self._get_field("kube_config")
 
         num_selected_configuration = len([o for o in [in_cluster, kubeconfig, self.config_dict] if o])
 
@@ -498,6 +499,26 @@ class AsyncKubernetesHook(KubernetesHook):
             client_configuration=self.client_configuration,
             context=cluster_context,
         )
+
+    async def get_conn_extras(self) -> dict:
+        if self.conn_id:
+            connection = await sync_to_async(self.get_connection)(self.conn_id)
+            extras = connection.extra_dejson
+        else:
+            extras = {}
+        return extras
+
+    async def _get_field(self, field_name):
+        if field_name.startswith("extra__"):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the 'extra__kubernetes__' prefix "
+                f"when using this method."
+            )
+        extras = await self.get_conn_extras()
+        if field_name in extras:
+            return extras[field_name] or None
+        prefixed_name = f"extra__kubernetes__{field_name}"
+        return extras.get(prefixed_name) or None
 
     @contextlib.asynccontextmanager
     async def get_conn(self) -> async_client.ApiClient:

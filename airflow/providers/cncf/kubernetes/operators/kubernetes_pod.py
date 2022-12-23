@@ -57,7 +57,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     get_container_termination_message,
 )
-from airflow.providers.google.cloud.utils.kubernetes_engine_config import KUBE_CONFIG_ENV_VAR
+from airflow.providers.google.cloud.utils.kubernetes_engine_config import KUBE_CONFIG_ENV_VAR, check_temp_file
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -211,7 +211,7 @@ class KubernetesPodOperator(BaseOperator):
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
     :param deferrable: Run operator in the deferrable mode.
-    :param poll_interval: Polling period in seconds to check for the status.
+    :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
     """
 
     BASE_CONTAINER_NAME = "base"
@@ -440,13 +440,13 @@ class KubernetesPodOperator(BaseOperator):
         )
         return hook
 
-    @cached_property
-    def client(self) -> CoreV1Api:
-        return self.hook.core_v1_client
-
     def get_hook(self):
         warnings.warn("get_hook is deprecated. Please use hook instead.", DeprecationWarning, stacklevel=2)
         return self.hook
+
+    @cached_property
+    def client(self) -> CoreV1Api:
+        return self.hook.core_v1_client
 
     def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
         """Returns an already-running pod for this task instance if one exists."""
@@ -500,11 +500,11 @@ class KubernetesPodOperator(BaseOperator):
     def execute(self, context: Context):
         """Based on the deferrable parameter runs the pod asynchronously or synchronously"""
         if self.deferrable:
-            self.asynchronously(context)
+            self.execute_async(context)
         else:
-            return self.synchronously(context)
+            return self.execute_sync(context)
 
-    def synchronously(self, context: Context):
+    def execute_sync(self, context: Context):
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)
             self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
@@ -541,7 +541,7 @@ class KubernetesPodOperator(BaseOperator):
         if self.do_xcom_push:
             return result
 
-    def asynchronously(self, context: Context):
+    def execute_async(self, context: Context):
         self.pod_request_obj = self.build_pod_request_obj(context)
         self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
             pod_request_obj=self.pod_request_obj,

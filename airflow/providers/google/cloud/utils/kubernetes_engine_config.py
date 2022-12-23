@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import functools
+import logging
 import os
 import tempfile
 import uuid
@@ -40,40 +42,49 @@ def temporary_gke_config_file(
     location: str,
     use_internal_ip: bool,
 ) -> Generator[str, None, None]:
+    conf_file = None
+    try:
+        hook = GoogleBaseHook(gcp_conn_id=gcp_conn_id)
+        project_id = project_id or hook.project_id
 
-    hook = GoogleBaseHook(gcp_conn_id=gcp_conn_id)
-    project_id = project_id or hook.project_id
+        if not project_id:
+            raise AirflowException(
+                "The project id must be passed either as "
+                "keyword project_id parameter or as project_id extra "
+                "in Google Cloud connection definition. Both are not set!"
+            )
 
-    if not project_id:
-        raise AirflowException(
-            "The project id must be passed either as "
-            "keyword project_id parameter or as project_id extra "
-            "in Google Cloud connection definition. Both are not set!"
-        )
+        # Write config to a temp file and set the environment variable to point to it.
+        # This is to avoid race conditions of reading/writing a single file
+        conf_file = tempfile.NamedTemporaryFile()
+        with patch_environ(
+            {KUBE_CONFIG_ENV_VAR: conf_file.name}
+        ), hook.provide_authorized_gcloud():
+            # Attempt to get/update credentials
+            # We call gcloud directly instead of using google-cloud-python api
+            # because there is no way to write kubernetes config to a file, which is
+            # required by KubernetesPodOperator.
+            # The gcloud command looks at the env variable `KUBECONFIG` for where to save
+            # the kubernetes config file.
 
-    # Write config to a temp file and set the environment variable to point to it.
-    # This is to avoid race conditions of reading/writing a single file
-    with tempfile.NamedTemporaryFile() as conf_file, patch_environ(
-        {KUBE_CONFIG_ENV_VAR: conf_file.name}
-    ), hook.provide_authorized_gcloud():
-        # Attempt to get/update credentials
-        # We call gcloud directly instead of using google-cloud-python api
-        # because there is no way to write kubernetes config to a file, which is
-        # required by KubernetesPodOperator.
-        # The gcloud command looks at the env variable `KUBECONFIG` for where to save
-        # the kubernetes config file.
-        cmd = _build_gcloud_cmd(
-            project_id=project_id,
-            cluster_name=cluster_name,
-            impersonation_chain=impersonation_chain,
-            regional=regional,
-            location=location,
-            use_internal_ip=use_internal_ip,
-        )
-        execute_in_subprocess(cmd)
+            cmd = _build_gcloud_cmd(
+                project_id=project_id,
+                cluster_name=cluster_name,
+                impersonation_chain=impersonation_chain,
+                regional=regional,
+                location=location,
+                use_internal_ip=use_internal_ip,
+            )
+            execute_in_subprocess(cmd)
 
-        # Tell the kubernetes api where the config file is located
-        yield os.environ[KUBE_CONFIG_ENV_VAR]
+            # Tell the kubernetes api where the config file is located
+            yield os.environ[KUBE_CONFIG_ENV_VAR]
+    finally:
+        if conf_file is not None:
+            logging.info("Closing temporary file")
+            conf_file.close()
+        else:
+            logging.info("Config file is None")
 
 
 def write_permanent_gke_config_file(

@@ -34,7 +34,6 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
 )
 from airflow.providers.google.cloud.utils.kubernetes_engine_config import (
     temporary_gke_config_file,
-    write_permanent_gke_config_file,
 )
 
 if TYPE_CHECKING:
@@ -354,31 +353,25 @@ class GKEStartPodOperator(KubernetesPodOperator):
             "use_internal_ip": self.use_internal_ip,
         }
 
-        if self.deferrable:
-            config_file = write_permanent_gke_config_file(**config_args)  # type: ignore[arg-type]
+        with temporary_gke_config_file(**config_args) as config_file:  # type: ignore[arg-type]
             self.config_file = config_file
             super().execute(context)
-        else:
-            with temporary_gke_config_file(**config_args) as config_file:  # type: ignore[arg-type]
-                self.config_file = config_file
-                super().execute(context)
 
     def execute_complete(self, context: Context, event: dict):
         # Config file should be set to successfully use Kubernetes API after triggers work
-        config_file = event["config_file"]
-        if config_file is not None:
+        config_args = {
+            "gcp_conn_id": self.gcp_conn_id,
+            "project_id": self.project_id,
+            "cluster_name": self.cluster_name,
+            "impersonation_chain": self.impersonation_chain,
+            "regional": self.regional,
+            "location": self.location,
+            "use_internal_ip": self.use_internal_ip,
+        }
+
+        with temporary_gke_config_file(
+            **config_args,
+        ) as config_file:
             self.config_file = config_file
-
-        return super().execute_complete(context, event)
-
-    def post_complete_action(self, **kwargs):
-        super().post_complete_action(**kwargs)
-        # Remove config file which was created in execute method
-        self._remove_config_file()
-
-    def on_kill(self) -> None:
-        self._remove_config_file()
-
-    def _remove_config_file(self):
-        if self.config_file is not None and os.path.exists(self.config_file):
-            os.remove(self.config_file)
+            result = super().execute_complete(context, event)
+        return result
