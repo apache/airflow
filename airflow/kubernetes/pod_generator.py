@@ -401,7 +401,7 @@ class PodGenerator:
                     try_number=try_number,
                     airflow_worker=scheduler_job_id,
                     map_index=map_index,
-                    date=date,
+                    execution_date=date,
                     run_id=run_id,
                 ),
             ),
@@ -444,7 +444,7 @@ class PodGenerator:
         task_id,
         try_number,
         map_index=None,
-        date=None,
+        execution_date=None,
         run_id=None,
         airflow_worker=None,
     ):
@@ -458,7 +458,7 @@ class PodGenerator:
             task_id=task_id,
             try_number=try_number,
             map_index=map_index,
-            date=date,
+            execution_date=execution_date,
             run_id=run_id,
             airflow_worker=airflow_worker,
         )
@@ -477,7 +477,7 @@ class PodGenerator:
         try_number,
         airflow_worker=None,
         map_index=None,
-        date=None,
+        execution_date=None,
         run_id=None,
     ):
         """
@@ -490,15 +490,14 @@ class PodGenerator:
             "task_id": make_safe_label_value(task_id),
             "try_number": str(try_number),
             "kubernetes_executor": "True",
+            "airflow_version": airflow_version.replace("+", "-"),
         }
         if airflow_worker is not None:
-            labels.update({"airflow-worker": make_safe_label_value(airflow_worker)})
-        if airflow_version:
-            labels["airflow_version"] = airflow_version.replace("+", "-")
-        if map_index >= 0:
+            labels["airflow-worker"] = make_safe_label_value(str(airflow_worker))
+        if (map_index or -1) >= 0:
             labels["map_index"] = str(map_index)
-        if date:
-            labels["execution_date"] = datetime_to_label_safe_datestring(date)
+        if execution_date:
+            labels["execution_date"] = datetime_to_label_safe_datestring(execution_date)
         if run_id:
             labels["run_id"] = make_safe_label_value(run_id)
         return labels
