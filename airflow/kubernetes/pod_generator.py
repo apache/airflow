@@ -494,7 +494,7 @@ class PodGenerator:
         }
         if airflow_worker is not None:
             labels["airflow-worker"] = make_safe_label_value(str(airflow_worker))
-        if (map_index or -1) >= 0:
+        if map_index is not None and map_index >= 0:
             labels["map_index"] = str(map_index)
         if execution_date:
             labels["execution_date"] = datetime_to_label_safe_datestring(execution_date)

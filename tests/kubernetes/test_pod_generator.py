@@ -479,7 +479,7 @@ class TestPodGenerator:
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         expected_dict = self.k8s_client.sanitize_for_serialization(expected)
 
-        assert expected_dict == result_dict
+        assert result_dict == expected_dict
 
     def test_construct_pod_empty_executor_config(self):
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
