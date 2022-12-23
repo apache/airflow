@@ -250,4 +250,4 @@ def setup(app):
     if not airflow_theme_is_available:
         # Sphinx airflow theme has its own styles.
         app.add_css_file("exampleinclude.css")
-    return {"version": "builtin", "parallel_read_safe": False, "parallel_write_safe": False}
+    return {"version": "builtin", "parallel_read_safe": True, "parallel_write_safe": True}

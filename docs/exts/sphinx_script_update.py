@@ -121,3 +121,4 @@ def setup(app):
     app.add_config_value("redoc_script_url", None, "env")
     app.connect("builder-inited", builder_inited)
     app.connect("build-finished", build_finished)
+    return {"parallel_read_safe": True, "parallel_write_safe": True}
