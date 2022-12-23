@@ -104,6 +104,7 @@ from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor,
 from airflow.utils.email import send_email
 from airflow.utils.helpers import render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
@@ -1528,14 +1529,22 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("ti_successes")
 
     def _run_finished_callback(
-        self, callback: TaskStateChangeCallback | None, context: Context, callback_type: str
+        self,
+        callbacks: None | TaskStateChangeCallback | list[TaskStateChangeCallback],
+        context: Context,
+        callback_type: str,
     ) -> None:
         """Run callback after task finishes"""
-        try:
-            if callback:
-                callback(context)
-        except Exception:  # pylint: disable=broad-except
-            self.log.exception(f"Error when executing {callback_type} callback")
+        if callbacks:
+            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+            for callback in callbacks:
+                try:
+                    callback(context)
+                except Exception:  # pylint: disable=broad-except
+                    callback_name = qualname(callback).split(".")[-1]
+                    self.log.exception(
+                        f"Error when executing {callback_name} callback"  # type: ignore[attr-defined]
+                    )
 
     def _execute_task(self, context, task_orig):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
@@ -1632,11 +1641,14 @@ class TaskInstance(Base, LoggingMixin):
 
     def _run_execute_callback(self, context: Context, task: Operator) -> None:
         """Functions that need to be run before a Task is executed"""
-        try:
-            if task.on_execute_callback:
-                task.on_execute_callback(context)
-        except Exception:
-            self.log.exception("Failed when executing execute callback")
+        callbacks = task.on_execute_callback
+        if callbacks:
+            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+            for callback in callbacks:
+                try:
+                    callback(context)
+                except Exception:
+                    self.log.exception("Failed when executing execute callback")
 
     @provide_session
     def run(
@@ -1814,7 +1826,7 @@ class TaskInstance(Base, LoggingMixin):
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
-            callback = task.on_failure_callback if task else None
+            callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
         else:
             if self.state == State.QUEUED:
@@ -1822,7 +1834,7 @@ class TaskInstance(Base, LoggingMixin):
                 self._try_number += 1
             self.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
-            callback = task.on_retry_callback if task else None
+            callbacks = task.on_retry_callback if task else None
             callback_type = "on_retry"
 
         self._log_state("Immediate failure requested. " if force_fail else "")
@@ -1832,8 +1844,8 @@ class TaskInstance(Base, LoggingMixin):
             except Exception:
                 self.log.exception("Failed to send email to: %s", task.email)
 
-        if callback and context:
-            self._run_finished_callback(callback, context, callback_type)
+        if callbacks and context:
+            self._run_finished_callback(callbacks, context, callback_type)
 
         if not test_mode:
             session.merge(self)
