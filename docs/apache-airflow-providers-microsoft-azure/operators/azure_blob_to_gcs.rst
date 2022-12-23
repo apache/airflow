@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Azure Blob Storage Transfer Operator
+Azure Blob Storage to Google Cloud Storage (GCS) Transfer Operator
 ====================================
 The Blob service stores text and binary data as objects in the cloud.
 The Blob service offers the following three resources: the storage account, containers, and blobs.
