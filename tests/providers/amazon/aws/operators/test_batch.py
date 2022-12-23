@@ -49,7 +49,7 @@ class TestBatchOperator:
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def setup_method(self, method, get_client_type_mock):
+    def setup_method(self, _, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch = BatchOperator(
             task_id="task",
@@ -59,7 +59,7 @@ class TestBatchOperator:
             max_retries=self.MAX_RETRIES,
             status_retries=self.STATUS_RETRIES,
             parameters=None,
-            overrides={},
+            container_overrides={},
             array_properties=None,
             aws_conn_id="airflow_test",
             region_name="eu-west-1",
@@ -93,8 +93,8 @@ class TestBatchOperator:
         assert self.batch.hook.status_retries == self.STATUS_RETRIES
         assert self.batch.parameters == {}
         assert self.batch.container_overrides == {}
-        assert self.batch.array_properties == None
-        assert self.batch.node_overrides == None
+        assert self.batch.array_properties is None
+        assert self.batch.node_overrides is None
         assert self.batch.hook.region_name == "eu-west-1"
         assert self.batch.hook.aws_conn_id == "airflow_test"
         assert self.batch.hook.client == self.client_mock
@@ -109,7 +109,7 @@ class TestBatchOperator:
             "job_name",
             "job_definition",
             "job_queue",
-            "overrides",
+            "container_overrides",
             "array_properties",
             "node_overrides",
             "parameters",
@@ -187,10 +187,6 @@ class TestBatchOperator:
         self.batch.on_kill()
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
 
-
-class TestBatchOperatorTrimmedArgs:
-    """test class that does not inherit from unittest.TestCase"""
-
     @pytest.mark.parametrize("override", ["overrides", "node_overrides"])
     @patch(
         "airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
@@ -227,6 +223,28 @@ class TestBatchOperatorTrimmedArgs:
         else:
             expected_args["nodeOverrides"] = {"a": "a"}
         client_mock().submit_job.assert_called_once_with(**expected_args)
+
+    def test_deprecated_override_param(self):
+        with pytest.warns(DeprecationWarning):
+            _ = BatchOperator(
+                task_id="task",
+                job_name=JOB_NAME,
+                job_queue="queue",
+                job_definition="hello-world",
+                overrides={"a": "b"},  # <- the deprecated field
+            )
+
+    def test_cant_set_old_and_new_override_param(self):
+        with pytest.raises(AirflowException):
+            _ = BatchOperator(
+                task_id="task",
+                job_name=JOB_NAME,
+                job_queue="queue",
+                job_definition="hello-world",
+                # can't set both of those, as one is a replacement for the other
+                overrides={"a": "b"},
+                container_overrides={"a": "b"},
+            )
 
 
 class TestBatchCreateComputeEnvironmentOperator:
