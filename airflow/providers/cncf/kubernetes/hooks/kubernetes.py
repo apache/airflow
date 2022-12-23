@@ -453,6 +453,8 @@ class AsyncKubernetesHook(KubernetesHook):
         super().__init__(*args, **kwargs)
         self.config_dict = config_dict
 
+        self._extras: dict | None = None
+
     async def _load_config(self):
         """Returns Kubernetes API session for use with requests"""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
@@ -501,12 +503,13 @@ class AsyncKubernetesHook(KubernetesHook):
         )
 
     async def get_conn_extras(self) -> dict:
-        if self.conn_id:
-            connection = await sync_to_async(self.get_connection)(self.conn_id)
-            extras = connection.extra_dejson
-        else:
-            extras = {}
-        return extras
+        if self._extras is None:
+            if self.conn_id:
+                connection = await sync_to_async(self.get_connection)(self.conn_id)
+                self._extras = connection.extra_dejson
+            else:
+                self._extras = {}
+        return self._extras
 
     async def _get_field(self, field_name):
         if field_name.startswith("extra__"):

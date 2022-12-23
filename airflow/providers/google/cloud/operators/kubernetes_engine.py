@@ -18,7 +18,6 @@
 """This module contains Google Kubernetes Engine operators."""
 from __future__ import annotations
 
-import os
 import warnings
 from typing import TYPE_CHECKING, Sequence
 
@@ -32,9 +31,7 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
     KubernetesEnginePodLink,
 )
-from airflow.providers.google.cloud.utils.kubernetes_engine_config import (
-    temporary_gke_config_file,
-)
+from airflow.providers.google.cloud.utils.kubernetes_engine_config import temporary_gke_config_file
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -343,34 +340,28 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     def execute(self, context: Context) -> None:
         """Look for a pod, if not found then create one and defer"""
-        config_args = {
-            "gcp_conn_id": self.gcp_conn_id,
-            "project_id": self.project_id,
-            "cluster_name": self.cluster_name,
-            "impersonation_chain": self.impersonation_chain,
-            "regional": self.regional,
-            "location": self.location,
-            "use_internal_ip": self.use_internal_ip,
-        }
-
-        with temporary_gke_config_file(**config_args) as config_file:  # type: ignore[arg-type]
+        with temporary_gke_config_file(
+            gcp_conn_id=self.gcp_conn_id,
+            project_id=self.project_id,
+            cluster_name=self.cluster_name,
+            impersonation_chain=self.impersonation_chain,
+            regional=self.regional,
+            location=self.location,
+            use_internal_ip=self.use_internal_ip,
+        ) as config_file:  # type: ignore[arg-type]
             self.config_file = config_file
             super().execute(context)
 
     def execute_complete(self, context: Context, event: dict):
         # Config file should be set to successfully use Kubernetes API after triggers work
-        config_args = {
-            "gcp_conn_id": self.gcp_conn_id,
-            "project_id": self.project_id,
-            "cluster_name": self.cluster_name,
-            "impersonation_chain": self.impersonation_chain,
-            "regional": self.regional,
-            "location": self.location,
-            "use_internal_ip": self.use_internal_ip,
-        }
-
         with temporary_gke_config_file(
-            **config_args,
+            gcp_conn_id=self.gcp_conn_id,
+            project_id=self.project_id,
+            cluster_name=self.cluster_name,
+            impersonation_chain=self.impersonation_chain,
+            regional=self.regional,
+            location=self.location,
+            use_internal_ip=self.use_internal_ip,
         ) as config_file:
             self.config_file = config_file
             result = super().execute_complete(context, event)

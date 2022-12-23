@@ -57,7 +57,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     get_container_termination_message,
 )
-from airflow.providers.google.cloud.utils.kubernetes_engine_config import KUBE_CONFIG_ENV_VAR, check_temp_file
+from airflow.providers.google.cloud.utils.kubernetes_engine_config import KUBE_CONFIG_ENV_VAR
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
