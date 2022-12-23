@@ -289,8 +289,6 @@ class TestStandardTaskRunner:
         logging.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
         runner.terminate()
 
-        ti.refresh_from_db()
-
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
             while True:
