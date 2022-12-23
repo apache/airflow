@@ -1535,7 +1535,8 @@ class SchedulerJob(BaseJob):
             zombies: list[tuple[TI, str, str]] = (
                 session.query(TI, DM.fileloc, DM.processor_subdir)
                 .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
+                .join(LocalTaskJob, TI.job_id == LocalTaskJob.id)
+                .join(DM, TI.dag_id == DM.dag_id)
                 .filter(TI.state == TaskInstanceState.RUNNING)
                 .filter(
                     or_(
