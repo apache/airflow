@@ -26,6 +26,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.datasets import Dataset
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.log import Log
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -34,7 +35,7 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs, clear_db_serialized_dags
 
 
 @pytest.fixture(scope="module")
@@ -107,14 +108,18 @@ class TestDagRunEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
-        clear_db_runs()
-        clear_db_serialized_dags()
-        clear_db_dags()
 
-    def teardown_method(self) -> None:
+    @pytest.fixture(autouse=True)
+    def clear_db(self):
         clear_db_runs()
-        clear_db_dags()
         clear_db_serialized_dags()
+        clear_db_dags()
+        clear_db_logs()
+        yield
+        clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
+        clear_db_logs()
 
     def _create_dag(self, dag_id):
         dag_instance = DagModel(dag_id=dag_id)
@@ -1642,6 +1647,10 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "note": new_note_value,
         }
         assert dr.dag_run_note.user_id is not None
+
+        log_entry = session.query(Log).order_by(Log.dttm.desc()).first()
+        assert log_entry.event == "dagrun.set_note"
+        assert new_note_value in log_entry.extra
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.patch(

@@ -29,6 +29,7 @@ import pendulum
 from flask import after_this_request, g, request
 from pendulum.parsing.exceptions import ParserError
 
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.models import Log
 from airflow.utils.log import secrets_masker
 from airflow.utils.session import create_session
@@ -75,7 +76,12 @@ def _mask_connection_fields(extra_fields):
     return result
 
 
-def action_logging(func: Callable | None = None, event: str | None = None) -> Callable[[T], T]:
+def action_logging(
+    func: Callable | None = None,
+    event: str | None = None,
+    *,
+    add_json_request_data_to_extra: bool = False,
+) -> Callable[[T], T]:
     """Decorator to log user actions"""
 
     def log_action(f: T) -> T:
@@ -99,6 +105,9 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                     extra_fields = _mask_variable_fields(extra_fields)
                 if event and event.startswith("connection."):
                     extra_fields = _mask_connection_fields(extra_fields)
+
+                if add_json_request_data_to_extra:
+                    extra_fields.append(("request_data", get_json_request_dict()))
 
                 params = {k: v for k, v in chain(request.values.items(), request.view_args.items())}
 

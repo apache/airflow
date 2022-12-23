@@ -51,6 +51,7 @@ from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State
+from airflow.www.decorators import action_logging
 
 T = TypeVar("T")
 
@@ -629,6 +630,7 @@ def patch_mapped_task_instance(
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
     ],
 )
+@action_logging(event="taskinstance.set_note", add_json_request_data_to_extra=True)
 @provide_session
 def set_task_instance_note(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION

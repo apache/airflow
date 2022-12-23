@@ -25,6 +25,7 @@ from sqlalchemy.orm import contains_eager
 
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
+from airflow.models.log import Log
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
 from airflow.utils.platform import getuser
@@ -33,7 +34,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
-from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
+from tests.test_utils.db import clear_db_logs, clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -107,10 +108,19 @@ class TestTaskInstanceEndpoint:
         }
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
+        self.dagbag = dagbag
+
+    @pytest.fixture(autouse=True)
+    def clear_db(self):
         clear_db_runs()
         clear_db_sla_miss()
+        clear_db_logs()
         clear_rendered_ti_fields()
-        self.dagbag = dagbag
+        yield
+        clear_db_runs()
+        clear_db_sla_miss()
+        clear_db_logs()
+        clear_rendered_ti_fields()
 
     def create_task_instances(
         self,
@@ -1810,15 +1820,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
 
 class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
-    def setup_method(self):
-        clear_db_runs()
-
-    def teardown_method(self):
-        clear_db_runs()
-
     @provide_session
     def test_should_respond_200(self, session):
-        tis = self.create_task_instances(session)
+        ti = self.create_task_instances(session)[0]
         new_note_value = "My super cool TaskInstance note."
         response = self.client.patch(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
@@ -1855,8 +1859,16 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
         }
-        ti = tis[0]
+        ti = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.run_id == ti.run_id, TaskInstance.task_id == ti.task_id)
+            .first()
+        )
         assert ti.task_instance_note.user_id is not None
+
+        log_entry = session.query(Log).order_by(Log.dttm.desc()).first()
+        assert log_entry.event == "taskinstance.set_note"
+        assert new_note_value in log_entry.extra
 
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
         """Verify we don't duplicate rows through join to RTIF"""

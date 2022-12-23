@@ -58,6 +58,7 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+from airflow.www.decorators import action_logging
 
 
 @security.requires_access(
@@ -423,6 +424,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
     ],
 )
+@action_logging(event="dagrun.set_note", add_json_request_data_to_extra=True)
 @provide_session
 def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set the note for a dag run."""
