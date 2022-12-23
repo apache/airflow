@@ -1540,7 +1540,7 @@ class TaskInstance(Base, LoggingMixin):
             for callback in callbacks:
                 try:
                     callback(context)
-                except Exception:  # pylint: disable=broad-except
+                except Exception:
                     callback_name = qualname(callback).split(".")[-1]
                     self.log.exception(
                         f"Error when executing {callback_name} callback"  # type: ignore[attr-defined]
