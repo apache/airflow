@@ -18,7 +18,7 @@
 
 
 
-Azure Blob Storage Transfer Operator
+SFTP to Azure Blob Storage Transfer Operator
 ====================================
 The Blob service stores text and binary data as objects in the cloud.
 The Blob service offers the following three resources: the storage account, containers, and blobs.
