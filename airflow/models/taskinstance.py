@@ -2147,8 +2147,8 @@ class TaskInstance(Base, LoggingMixin):
             scheduler_job_id="0",
             namespace=kube_config.executor_namespace,
             base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+            with_mutation_hook=True,
         )
-        settings.pod_mutation_hook(pod)
         sanitized_pod = ApiClient().sanitize_for_serialization(pod)
         return sanitized_pod
 
