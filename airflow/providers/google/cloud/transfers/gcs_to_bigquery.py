@@ -57,13 +57,16 @@ ALLOWED_FORMATS = [
 class GCSToBigQueryOperator(BaseOperator):
     """
     Loads files from Google Cloud Storage into BigQuery.
+
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
     point the operator to a Google Cloud Storage object name. The object in
     Google Cloud Storage must be a JSON file with the schema fields in it.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GCSToBigQueryOperator`
+
     :param bucket: The bucket to load from. (templated)
     :param source_objects: String or List of Google Cloud Storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
@@ -148,6 +151,7 @@ class GCSToBigQueryOperator(BaseOperator):
         nor a schema_object), assume the table already exists.
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
+
             encryption_configuration = {
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
@@ -691,6 +695,7 @@ class GCSToBigQueryOperator(BaseOperator):
         """
         Validates the given src_fmt_configs against a valid configuration for the source format.
         Adds the backward compatibility config to the src_fmt_configs.
+
         :param source_format: File format to export.
         :param src_fmt_configs: Configure optional fields specific to the source format.
         :param valid_configs: Valid configuration specific to the source format
