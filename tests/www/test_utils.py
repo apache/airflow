@@ -266,7 +266,7 @@ class TestWrappedMarkdown:
         assert (
             """<div class="rich_doc" ><h1>Markdown code block</h1>
 <p>Inline <code>code</code> works well.</p>
-<pre><code>Code block\nodes not\nrespect\nnewlines\n</code></pre>
+<pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre>
 </div>"""
             == rendered
         )
