@@ -760,6 +760,101 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         gcs_hook.return_value.download.assert_called_once_with(SCHEMA_BUCKET, SCHEMA_OBJECT)
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_autodetect_none_external_table_should_execute_successfully(self, hook):
+        hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=pytest.real_job_id, error_result=False),
+            pytest.real_job_id,
+        ]
+        hook.return_value.generate_job_id.return_value = pytest.real_job_id
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            write_disposition=WRITE_DISPOSITION,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            external_table=True,
+            autodetect=None,
+        )
+
+        operator.execute(context=MagicMock())
+
+        hook.return_value.create_empty_table.assert_called_once_with(
+            exists_ok=True,
+            location=None,
+            project_id=PROJECT_ID,
+            table_resource={
+                "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
+                "labels": {},
+                "externalDataConfiguration": {
+                    "autodetect": None,
+                    "sourceFormat": "CSV",
+                    "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
+                    "compression": "NONE",
+                    "ignoreUnknownValues": False,
+                    "csvOptions": {
+                        "skipLeadingRows": None,
+                        "fieldDelimiter": ",",
+                        "quote": None,
+                        "allowQuotedNewlines": False,
+                        "allowJaggedRows": False,
+                        "encoding": "UTF-8",
+                    },
+                },
+            },
+        )
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_autodetect_none_without_external_table_should_execute_successfully(self, hook):
+        hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=pytest.real_job_id, error_result=False),
+            pytest.real_job_id,
+        ]
+        hook.return_value.generate_job_id.return_value = pytest.real_job_id
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            autodetect=None,
+            external_table=False,
+        )
+
+        operator.execute(context=MagicMock())
+
+        calls = [
+            call(
+                configuration={
+                    "load": {
+                        "autodetect": None,
+                        "createDisposition": "CREATE_IF_NEEDED",
+                        "destinationTable": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
+                        "sourceFormat": "CSV",
+                        "sourceUris": [f"gs://{TEST_BUCKET}/{TEST_SOURCE_OBJECTS}"],
+                        "writeDisposition": "WRITE_TRUNCATE",
+                        "ignoreUnknownValues": False,
+                        "skipLeadingRows": None,
+                        "fieldDelimiter": ",",
+                        "quote": None,
+                        "allowQuotedNewlines": False,
+                        "encoding": "UTF-8",
+                    }
+                },
+                project_id=hook.return_value.project_id,
+                location=None,
+                job_id=pytest.real_job_id,
+                timeout=None,
+                retry=DEFAULT_RETRY,
+                nowait=True,
+            )
+        ]
+
+        hook.return_value.insert_job.assert_has_calls(calls)
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_should_throw_ex_when_no_bucket_specified(self, hook):
         hook.return_value.insert_job.side_effect = [
             MagicMock(job_id=pytest.real_job_id, error_result=False),
