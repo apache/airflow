@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 import os
 import time
-from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -34,7 +33,6 @@ from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
-from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
@@ -46,34 +44,6 @@ TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 TASK_FORMAT = "%(filename)s:%(lineno)d %(levelname)s - %(message)s"
-
-
-@contextmanager
-def propagate_task_logger():
-    """
-    Set `airflow.task` logger to propagate.
-
-    Apparently, caplog doesn't work if you don't propagate messages to root.
-
-    But the normal behavior of the `airflow.task` logger is not to propagate.
-
-    When freshly configured, the logger is set to propagate.  However,
-    ordinarily when set_context is called, this is set to False.
-
-    To override this behavior, so that the messages make it to caplog, we
-    must tell the handler to maintain its current setting.
-    """
-    logger = logging.getLogger("airflow.task")
-    h = logger.handlers[0]
-    assert isinstance(h, FileTaskHandler)  # just to make sure / document
-    _propagate = h.maintain_propagate
-    if _propagate is False:
-        h.maintain_propagate = True
-    try:
-        yield
-    finally:
-        if _propagate is False:
-            h.maintain_propagate = _propagate
 
 
 @pytest.mark.usefixtures("reset_logging_config")
@@ -201,7 +171,6 @@ class TestStandardTaskRunner:
 
         assert runner.return_code() is not None
 
-    @propagate_task_logger()
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
     def test_early_reap_exit(self, mock_init, caplog):
         """

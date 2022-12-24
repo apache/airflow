@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
-from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -63,22 +62,10 @@ class FileTaskHandler(logging.Handler):
                 # handler, not the one that calls super()__init__.
                 stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
-        self.maintain_propagate: bool = False
-        """
-        If true, overrides default behavior of setting propagate=False
 
-        :meta private:
-        """
-
-    def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
+    def set_context(self, ti: TaskInstance) -> None:
         """
         Provide task_instance context to airflow task handler.
-
-        Generally speaking returns None.  But if attr `maintain_propagate` has
-        been set to propagate, then returns sentinel MAINTAIN_PROPAGATE. This
-        has the effect of overriding the default behavior to set `propagate`
-        to False whenever set_context is called.  At time of writing, this
-        functionality is only used in unit testing.
 
         :param ti: task instance object
         """
@@ -87,7 +74,6 @@ class FileTaskHandler(logging.Handler):
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
-        return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
     def emit(self, record):
         if self.handler:

@@ -32,15 +32,22 @@ from airflow.settings import IS_K8S_EXECUTOR_POD
 ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
 
-# Private: A sentinel objects
+# Private: Sentinel objects
 class SetContextPropagate(enum.Enum):
-    """:meta private:"""
+    """
+    Deprecated.  Previously used to allow disabling of propagation (the default) of
+    "airflow.task" logger.  But now that we move these handlers to root (instead of
+    copy) we do not want to disable propagation -- messages will only be
+    processed by root logger.
 
-    # If a `set_context` function wants to _keep_ propagation set on it's logger it needs to return this
-    # special value.
+    :meta private:
+    """
+
+    # Not used anymore.
     MAINTAIN_PROPAGATE = object()
-    # Don't use this one anymore!
+
     DISABLE_PROPAGATE = object()
+    """Return this sentinel from set_context to disable propagation."""
 
 
 def __getattr__(name):
@@ -87,8 +94,7 @@ class LoggingMixin:
         return LoggingMixin._get_log(self, self.__class__)
 
     def _set_context(self, context):
-        if context is not None:
-            set_context(self.log, context)
+        set_context(self.log, context)
 
 
 class ExternalLoggingMixin:
@@ -218,24 +224,14 @@ def set_context(logger, value):
     :param logger: logger
     :param value: value to set
     """
-    while logger:
-        orig_propagate = logger.propagate
+    if value is not None:
         for handler in logger.handlers:
-            # Not all handlers need to have context passed in so we ignore
-            # the error when handlers do not have set_context defined.
-
-            # Don't use getatrr so we have type checking. And we don't care if handler is actually a
-            # FileTaskHandler, it just needs to have a set_context function!
+            # Not all handlers need to have context passed
             if hasattr(handler, "set_context"):
+                # Don't use getatrr so we have type checking. And we don't care if handler is actually a
+                # FileTaskHandler, it just needs to have a set_context function!
                 from airflow.utils.log.file_task_handler import FileTaskHandler
 
                 flag = cast(FileTaskHandler, handler).set_context(value)
-                # By default we disable propagate once we have configured the logger, unless that handler
-                # explicitly asks us to keep it on.
-                if flag is not SetContextPropagate.MAINTAIN_PROPAGATE:
+                if flag is SetContextPropagate.DISABLE_PROPAGATE:
                     logger.propagate = False
-        if orig_propagate is True:
-            # If we were set to propagate before we turned if off, then keep passing set_context up
-            logger = logger.parent
-        else:
-            break

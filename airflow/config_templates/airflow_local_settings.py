@@ -122,7 +122,6 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
         "airflow.task": {
             "handlers": ["task"],
             "level": LOG_LEVEL,
-            # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
             "propagate": True,
             "filters": ["mask_secrets"],
         },
