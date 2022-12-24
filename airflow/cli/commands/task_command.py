@@ -414,12 +414,6 @@ def task_run(args, dag=None):
 
     settings.MASK_SECRETS_IN_LOGS = True
 
-    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
-    # behind multiple open sleeping connections while heartbeating, which could
-    # easily exceed the database connection limit when
-    # processing hundreds of simultaneous tasks.
-    settings.reconfigure_orm(disable_connection_pool=True)
-
     get_listener_manager().hook.on_starting(component=TaskCommandMarker())
 
     if args.pickle:
@@ -437,6 +431,13 @@ def task_run(args, dag=None):
     hostname = get_hostname()
 
     log.info("Running %s on host %s", ti, hostname)
+
+    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
+    # behind multiple open sleeping connections while heartbeating, which could
+    # easily exceed the database connection limit when
+    # processing hundreds of simultaneous tasks.
+    # this should be last thing before running, to reduce likelihood of an open session
+    settings.reconfigure_orm(disable_connection_pool=True)
 
     try:
         if args.interactive:
