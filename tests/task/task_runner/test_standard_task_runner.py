@@ -77,8 +77,7 @@ def propagate_task_logger():
 
 @pytest.mark.usefixtures("reset_logging_config")
 class TestStandardTaskRunner:
-    @pytest.fixture(autouse=True, scope="class")
-    def setup_db(self):
+    def setup_class(self):
         """
         This fixture sets up logging to have a different setup on the way in
         (as the test environment does not have enough context for the normal
@@ -89,7 +88,6 @@ class TestStandardTaskRunner:
         yield
         clear_db_runs()
         get_listener_manager().clear()
-        logging.shutdown()
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()

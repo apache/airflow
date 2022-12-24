@@ -437,6 +437,7 @@ def task_run(args, dag=None):
     # easily exceed the database connection limit when
     # processing hundreds of simultaneous tasks.
     # this should be last thing before running, to reduce likelihood of an open session
+    # which can cause trouble if running process in a fork.
     settings.reconfigure_orm(disable_connection_pool=True)
 
     try:
