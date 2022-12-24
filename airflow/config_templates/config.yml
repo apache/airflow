@@ -1233,7 +1233,9 @@ webserver:
     worker_class:
       description: |
         The worker class gunicorn should use. Choices include
-        sync (default), eventlet, gevent
+        sync (default), eventlet, gevent. Note when using gevent you might also want to set the
+        "_AIRFLOW_PATCH_GEVENT" environment variable to "1" to make sure gevent patching is done as
+        early as possible.
       version_added: ~
       type: string
       example: ~

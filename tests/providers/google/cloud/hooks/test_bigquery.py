@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 import re
-import sys
 import unittest
 from datetime import datetime
+from unittest import mock
 
 import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -42,13 +42,7 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     _validate_value,
     split_tablename,
 )
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-    from asynctest.mock import CoroutineMock as AsyncMock
-else:
-    from unittest import mock
-    from unittest.mock import AsyncMock
+from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 PROJECT_ID = "bq-project"
 CREDENTIALS = "bq-credentials"
@@ -2090,14 +2084,14 @@ class _BigQueryBaseAsyncTestClass:
 
 class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
+    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
     async def test_get_job_instance(self, mock_session):
         hook = BigQueryAsyncHook()
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_status_success(self, mock_job_instance):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
@@ -2108,7 +2102,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert resp == response
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_status_oserror(self, mock_job_instance):
         """Assets that the BigQueryAsyncHook returns a pending response when OSError is raised"""
         mock_job_instance.return_value.result.side_effect = OSError()
@@ -2117,7 +2111,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert job_status == "pending"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_status_exception(self, mock_job_instance, caplog):
         """Assets that the logging is done correctly when BigQueryAsyncHook raises Exception"""
         mock_job_instance.return_value.result.side_effect = Exception()
@@ -2126,7 +2120,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert "Query execution finished with errors..." in caplog.text
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_output_assert_once_with(self, mock_job_instance):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
@@ -2189,7 +2183,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert response is None
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_output(self, mock_job_instance):
         """
         Tests to check if a particular object in Google Cloud Storage
@@ -2269,7 +2263,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert BigQueryAsyncHook._convert_to_float_if_possible(test_input) == expected
 
     @pytest.mark.asyncio
-    @mock.patch("aiohttp.client.ClientSession")
+    @async_mock.patch("aiohttp.client.ClientSession")
     async def test_get_table_client(self, mock_session):
         """Test get_table_client async function and check whether the return value is a
         Table instance object"""

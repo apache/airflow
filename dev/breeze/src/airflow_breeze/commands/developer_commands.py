@@ -549,7 +549,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
             sys.exit(1)
         if shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            return 1
+            sys.exit(1)
     command_result = run_command(
         cmd, env=env_variables, text=True, check=False, output_outside_the_group=True
     )
