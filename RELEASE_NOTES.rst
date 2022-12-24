@@ -7956,7 +7956,7 @@ Improvement
 - [AIRFLOW-3862] Check types with mypy. (#4685)
 - [AIRFLOW-251] Add option SQL_ALCHEMY_SCHEMA parameter to specify schema for metadata (#4199)
 - [AIRFLOW-1814] Temple PythonOperator {op_args,op_kwargs} fields (#4691)
-- [AIRFLOW-3730] Standarization use of logs mechanisms (#4556)
+- [AIRFLOW-3730] Standardization use of logs mechanisms (#4556)
 - [AIRFLOW-3770] Validation of documentation on CI] (#4593)
 - [AIRFLOW-3866] Run docker-compose pull silently in CI (#4688)
 - [AIRFLOW-3685] Move licence header check (#4497)

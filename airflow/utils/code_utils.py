@@ -56,7 +56,7 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
     """
     Prepare code snippet with line numbers and  a specific line marked.
 
-    :param file_path: File nam
+    :param file_path: File name
     :param line_no: Line number
     :param context_lines_count: The number of lines that will be cut before and after.
     :return: str

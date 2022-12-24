@@ -391,6 +391,7 @@ Decrypt
 decrypt
 decrypted
 Decrypts
+dedented
 deduplicate
 deduplication
 deepcopy
@@ -406,6 +407,7 @@ DependencyMixin
 deploymentUrl
 Deprecations
 deps
+deques
 deregister
 desc
 deserialization
@@ -1354,7 +1356,6 @@ ssm
 Stackdriver
 stackdriver
 stacktrace
-Standarization
 starttls
 StatefulSet
 StatefulSets
