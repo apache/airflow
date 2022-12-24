@@ -305,6 +305,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | ts-compile-and-lint-javascript                            | TS types generation and ESLint against current UI files          |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-black-version                                      | Update black versions everywhere                                 |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-cmd-output                                  | Update output of breeze commands in BREEZE.rst                   |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash                   |         |

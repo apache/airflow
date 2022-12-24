@@ -100,6 +100,7 @@ PRE_COMMIT_LIST = [
     "static-check-autoflake",
     "trailing-whitespace",
     "ts-compile-and-lint-javascript",
+    "update-black-version",
     "update-breeze-cmd-output",
     "update-breeze-readme-config-hash",
     "update-common-sql-api-stubs",
