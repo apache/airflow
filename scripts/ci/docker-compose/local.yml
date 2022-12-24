@@ -34,6 +34,9 @@ services:
         source: ../../../.bash_history
         target: /root/.bash_history
       - type: bind
+        source: ../../../.build
+        target: /opt/airflow/.build
+      - type: bind
         source: ../../../.coveragerc
         target: /opt/airflow/.coveragerc
       - type: bind

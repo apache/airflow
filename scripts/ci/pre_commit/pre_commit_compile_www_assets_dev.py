@@ -28,7 +28,7 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
-WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www_dir_hash.txt"
+WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www" / "hash.txt"
 
 if __name__ == "__main__":
     www_directory = Path("airflow") / "www"
