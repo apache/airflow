@@ -36,7 +36,7 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 RunCommandResult = Union[subprocess.CompletedProcess, subprocess.CalledProcessError]
@@ -393,16 +393,43 @@ def get_ci_image_for_pre_commits() -> str:
     return airflow_image
 
 
-def _run_compile_internally(command_to_execute: list[str]):
+def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunCommandResult:
+    from filelock import SoftFileLock, Timeout
+
     env = os.environ.copy()
-    compile_www_assets_result = run_command(
-        command_to_execute,
-        check=False,
-        no_output_dump_on_exception=True,
-        text=True,
-        env=env,
-    )
-    return compile_www_assets_result
+    if dev:
+        return run_command(
+            command_to_execute,
+            check=False,
+            no_output_dump_on_exception=True,
+            text=True,
+            env=env,
+        )
+    else:
+        WWW_ASSET_COMPILE_LOCK.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            WWW_ASSET_COMPILE_LOCK.unlink()
+        except FileNotFoundError:
+            pass
+        try:
+            with SoftFileLock(WWW_ASSET_COMPILE_LOCK, timeout=5):
+                with open(WWW_ASSET_OUT_FILE, "w") as f:
+                    return run_command(
+                        command_to_execute,
+                        check=False,
+                        no_output_dump_on_exception=True,
+                        text=True,
+                        env=env,
+                        stderr=subprocess.STDOUT,
+                        stdout=f,
+                    )
+        except Timeout:
+            get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
+            get_console().print("[warning]If you are sure there is no other compilation,[/]")
+            get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
+            get_console().print(WWW_ASSET_COMPILE_LOCK)
+            get_console().print()
+            sys.exit(1)
 
 
 def run_compile_www_assets(
@@ -425,9 +452,11 @@ def run_compile_www_assets(
         "manual",
         "compile-www-assets-dev" if dev else "compile-www-assets",
         "--all-files",
+        "--verbose",
     ]
+    get_console().print(f"[info] The output of the asset compilation is stored in: [/]{WWW_ASSET_OUT_FILE}\n")
     if run_in_background:
-        thread = Thread(daemon=True, target=_run_compile_internally, args=(command_to_execute,))
+        thread = Thread(daemon=True, target=_run_compile_internally, args=(command_to_execute, dev))
         thread.start()
     else:
-        return _run_compile_internally(command_to_execute)
+        return _run_compile_internally(command_to_execute, dev)
