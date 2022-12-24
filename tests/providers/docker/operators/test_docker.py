@@ -101,7 +101,7 @@ class TestDockerOperator:
             host_tmp_dir="/host/airflow",
             container_name="test_container",
             tty=True,
-            hostname="test.contrainer.host",
+            hostname="test.container.host",
             device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
             log_opts_max_file="5",
             log_opts_max_size="10m",
@@ -128,7 +128,7 @@ class TestDockerOperator:
             entrypoint=["sh", "-c"],
             working_dir="/container/path",
             tty=True,
-            hostname="test.contrainer.host",
+            hostname="test.container.host",
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
@@ -185,7 +185,7 @@ class TestDockerOperator:
             shm_size=1000,
             host_tmp_dir="/host/airflow",
             container_name="test_container",
-            hostname="test.contrainer.host",
+            hostname="test.container.host",
             tty=True,
         )
         operator.execute(None)
@@ -204,7 +204,7 @@ class TestDockerOperator:
             entrypoint=["sh", "-c"],
             working_dir="/container/path",
             tty=True,
-            hostname="test.contrainer.host",
+            hostname="test.container.host",
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
