@@ -37,7 +37,7 @@ def _create_init_py(app, config):
     del config
     # This file is deleted by /docs/build_docs.py. If you are not using the script, the file will be
     # deleted by pre-commit.
-    with open(PROVIDER_INIT_FILE, "wt"):
+    with open(PROVIDER_INIT_FILE, "w"):
         pass
 
 

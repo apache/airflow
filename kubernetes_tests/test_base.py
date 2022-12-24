@@ -52,7 +52,7 @@ class TestBase(unittest.TestCase):
         ci = os.environ.get("CI")
         if ci and ci.lower() == "true":
             print("The resource dump will be uploaded as artifact of the CI job")
-        with open(output_file_path, "wt") as output_file:
+        with open(output_file_path, "w") as output_file:
             print("=" * 80, file=output_file)
             print(f"Describe resources for namespace {namespace}", file=output_file)
             print(f"Datetime: {datetime.utcnow()}", file=output_file)

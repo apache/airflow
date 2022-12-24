@@ -38,7 +38,7 @@ def copy_docker_compose(app, exception):
         with open(os.path.join(app.outdir, os.path.dirname(path), os.path.basename(path))) as input_file:
             content = input_file.readlines()
         with open(
-            os.path.join(app.outdir, os.path.dirname(path), os.path.basename(path)), "wt"
+            os.path.join(app.outdir, os.path.dirname(path), os.path.basename(path)), "w"
         ) as output_file:
             for line in content:
                 output_file.write(line.replace("|version|", app.config.version))

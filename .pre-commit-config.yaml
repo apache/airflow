@@ -163,7 +163,7 @@ repos:
         name: Run isort to sort imports in Python files
   # Keep version of black in sync wit blacken-docs, pre-commit-hook-names, update-common-sql-api-stubs
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 22.12.0
     hooks:
       - id: black
         name: Run black (python formatter)
@@ -225,7 +225,7 @@ repos:
         pass_filenames: true
   # TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.32.1
+    rev: v3.3.1
     hooks:
       - id: pyupgrade
         name: Upgrade Python code automatically
@@ -269,7 +269,7 @@ repos:
           ^airflow/_vendor/
         additional_dependencies: ['toml']
   - repo: https://github.com/asottile/yesqa
-    rev: v1.3.0
+    rev: v1.4.0
     hooks:
       - id: yesqa
         name: Remove unnecessary noqa statements
@@ -278,7 +278,7 @@ repos:
           ^airflow/_vendor/
         additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
-    rev: '0.76'
+    rev: '0.77'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python

@@ -177,7 +177,7 @@ def _run_test(
             for container_id in container_ids:
                 dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
                 get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}")
-                with open(dump_path, "wt") as outfile:
+                with open(dump_path, "w") as outfile:
                     run_command(["docker", "logs", container_id], check=False, stdout=outfile)
     finally:
         run_command(

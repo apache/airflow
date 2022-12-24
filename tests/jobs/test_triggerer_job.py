@@ -44,7 +44,7 @@ class TimeDeltaTrigger_(TimeDeltaTrigger):
         self.delta = delta
 
     async def run(self):
-        with open(self.filename, "at") as f:
+        with open(self.filename, "a") as f:
             f.write("hi\n")
         async for event in super().run():
             yield event

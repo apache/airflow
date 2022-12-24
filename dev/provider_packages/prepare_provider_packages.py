@@ -1108,7 +1108,7 @@ def prepare_readme_file(context):
         template_name="PROVIDER_README", context=context, extension=".rst"
     )
     readme_file_path = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.rst")
-    with open(readme_file_path, "wt") as readme_file:
+    with open(readme_file_path, "w") as readme_file:
         readme_file.write(readme_content)
 
 
@@ -1180,7 +1180,7 @@ def mark_latest_changes_as_documentation_only(provider_package_id: str, latest_c
         "as doc-only changes!"
     )
     with open(
-        os.path.join(provider_details.source_provider_package_path, ".latest-doc-only-change.txt"), "tw"
+        os.path.join(provider_details.source_provider_package_path, ".latest-doc-only-change.txt"), "w"
     ) as f:
         f.write(latest_change.full_hash + "\n")
         # exit code 66 marks doc-only change marked
@@ -1309,7 +1309,7 @@ def replace_content(file_path, old_text, new_text, provider_package_id):
         try:
             if os.path.isfile(file_path):
                 copyfile(file_path, temp_file_path)
-            with open(file_path, "wt") as readme_file:
+            with open(file_path, "w") as readme_file:
                 readme_file.write(new_text)
             console.print()
             console.print(f"Generated {file_path} file for the {provider_package_id} provider")
@@ -1399,7 +1399,7 @@ def prepare_setup_py_file(context):
     setup_py_content = render_template(
         template_name=setup_py_template_name, context=context, extension=".py", autoescape=False
     )
-    with open(setup_py_file_path, "wt") as setup_py_file:
+    with open(setup_py_file_path, "w") as setup_py_file:
         setup_py_file.write(black_format(setup_py_content))
 
 
@@ -1413,7 +1413,7 @@ def prepare_setup_cfg_file(context):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(setup_cfg_file_path, "wt") as setup_cfg_file:
+    with open(setup_cfg_file_path, "w") as setup_cfg_file:
         setup_cfg_file.write(setup_cfg_content)
 
 
@@ -1432,7 +1432,7 @@ def prepare_get_provider_info_py_file(context, provider_package_id: str):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(get_provider_file_path, "wt") as get_provider_file:
+    with open(get_provider_file_path, "w") as get_provider_file:
         get_provider_file.write(black_format(get_provider_content))
 
 
@@ -1445,7 +1445,7 @@ def prepare_manifest_in_file(context):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(target, "wt") as fh:
+    with open(target, "w") as fh:
         fh.write(content)
 
 
@@ -1838,7 +1838,7 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
         console.print(
             f"[green]Appending the provider {package_id} changelog for `{latest_version}` version.[/]"
         )
-    with open(changelog_path, "wt") as changelog:
+    with open(changelog_path, "w") as changelog:
         changelog.write("\n".join(new_changelog_lines))
         changelog.write("\n")
 
