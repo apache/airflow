@@ -1563,12 +1563,12 @@ def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
 
     .. code-block:: python
 
-        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, t2())
+        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, x3())
 
     is equivalent to::
 
           / "branch one" -> x1 \
-        t1                      -> t2 -> x3
+        t1                      -> task_group1 -> x3
           \ "branch two" -> x2 /
 
     .. code-block:: python
