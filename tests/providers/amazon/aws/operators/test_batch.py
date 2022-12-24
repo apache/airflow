@@ -167,9 +167,17 @@ class TestBatchOperator:
         self.batch.waiters = mock_waiters
 
         self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "status": "SUCCEEDED",
+                    "logStreamName": "logStreamName",
+                    "container": {"logConfiguration": {}},
+                }
+            ]
+        }
         self.batch.execute(self.mock_context)
-
         mock_waiters.wait_for_job.assert_called_once_with(JOB_ID)
         check_mock.assert_called_once_with(JOB_ID)
 

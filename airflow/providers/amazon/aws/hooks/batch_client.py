@@ -449,10 +449,9 @@ class BatchClientHook(AwsBaseHook):
             log_configuration = job_container_desc.get("logConfiguration", {})
             awslogs_stream_name = job_container_desc.get("logStreamName")
         else:
-            self.log.warning(
-                "AWS Batch job (%s) is neither a container nor multinode job. Log info not found."
+            raise AirflowException(
+                "AWS Batch job (%s) is not a supported job type. Supported job types: container, array, multinode."
             )
-            return None
 
         # In case if user select other "logDriver" rather than "awslogs"
         # than CloudWatch logging should be disabled.
