@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-23T19:46:26Z
+# This constraints file was automatically generated on 2022-12-24T00:32:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -46,7 +46,7 @@ Unidecode==1.3.6
 WTForms==3.0.1
 Werkzeug==2.2.2
 adal==1.2.7
-aiofiles==0.8.0
+aiofiles==22.1.0
 aiohttp==3.8.3
 aiosignal==1.3.1
 alabaster==0.7.12
@@ -174,9 +174,9 @@ billiard==3.6.4.0
 black==23.1a1
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.36
+boto3==1.26.37
 boto==2.49.0
-botocore==1.29.36
+botocore==1.29.37
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -204,7 +204,7 @@ colorama==0.4.6
 colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.14.1
-coverage==7.0.0
+coverage==7.0.1
 crcmod==1.7
 cron-descriptor==1.2.32
 croniter==1.3.8
@@ -248,9 +248,9 @@ flower==1.2.0
 frozenlist==1.3.3
 fsspec==2022.11.0
 future==0.18.2
-gcloud-aio-auth==4.1.0
-gcloud-aio-bigquery==6.1.2
-gcloud-aio-storage==7.0.1
+gcloud-aio-auth==4.1.2
+gcloud-aio-bigquery==6.2.0
+gcloud-aio-storage==8.0.0
 gcsfs==2022.11.0
 geomet==0.2.1.post1
 gevent==22.10.2

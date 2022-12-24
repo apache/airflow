@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-23T19:37:40Z
+# This constraints file was automatically generated on 2022-12-24T00:27:08Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -46,11 +46,11 @@ Unidecode==1.3.6
 WTForms==3.0.1
 Werkzeug==2.2.2
 adal==1.2.7
-aiofiles==0.8.0
+aiofiles==22.1.0
 aiohttp==3.8.3
 aiosignal==1.3.1
 alabaster==0.7.12
-alembic==1.9.0
+alembic==1.9.1
 aliyun-python-sdk-core==2.13.36
 aliyun-python-sdk-kms==2.16.0
 amqp==5.1.1
@@ -103,9 +103,9 @@ billiard==3.6.4.0
 black==23.1a1
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.36
+boto3==1.26.37
 boto==2.49.0
-botocore==1.29.36
+botocore==1.29.37
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -133,11 +133,11 @@ colorama==0.4.6
 colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.14.1
-coverage==7.0.0
+coverage==7.0.1
 crcmod==1.7
 cron-descriptor==1.2.32
 croniter==1.3.8
-cryptography==36.0.2
+cryptography==38.0.4
 curlify==2.2.1
 dask==2022.12.1
 databricks-sql-connector==2.2.0
@@ -177,9 +177,9 @@ flower==1.2.0
 frozenlist==1.3.3
 fsspec==2022.11.0
 future==0.18.2
-gcloud-aio-auth==4.0.1
-gcloud-aio-bigquery==6.1.2
-gcloud-aio-storage==7.0.1
+gcloud-aio-auth==4.1.2
+gcloud-aio-bigquery==6.2.0
+gcloud-aio-storage==8.0.0
 gcsfs==2022.11.0
 geomet==0.2.1.post1
 gevent==22.10.2
@@ -373,7 +373,7 @@ pure-eval==0.2.2
 pure-sasl==0.6.2
 py4j==0.10.9.5
 py==1.11.0
-pyOpenSSL==22.0.0
+pyOpenSSL==22.1.0
 pyarrow==9.0.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
