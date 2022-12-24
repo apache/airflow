@@ -28,14 +28,30 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
-WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www" / "hash.txt"
+WWW_CACHE_DIR = AIRFLOW_SOURCES_PATH / ".build" / "www"
+WWW_HASH_FILE = WWW_CACHE_DIR / "hash.txt"
+WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
 
 if __name__ == "__main__":
-    www_directory = Path("airflow") / "www"
+    www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
     if WWW_HASH_FILE.exists():
         # cleanup hash of www so that next compile-assets recompiles them
         WWW_HASH_FILE.unlink()
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=str(www_directory))
-    subprocess.check_call(["yarn", "dev"], cwd=str(www_directory), env=env)
+    with open(WWW_ASSET_OUT_FILE, "w") as f:
+        subprocess.run(
+            ["yarn", "install", "--frozen-lockfile"],
+            cwd=os.fspath(www_directory),
+            check=True,
+            stdout=f,
+            stderr=subprocess.STDOUT,
+        )
+        subprocess.run(
+            ["yarn", "dev"],
+            check=True,
+            cwd=os.fspath(www_directory),
+            env=env,
+            stdout=f,
+            stderr=subprocess.STDOUT,
+        )

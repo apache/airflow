@@ -44,6 +44,6 @@ if __name__ == "__main__":
         sys.exit(0)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=str(www_directory))
-    subprocess.check_call(["yarn", "run", "build"], cwd=str(www_directory), env=env)
+    subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory))
+    subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
     WWW_HASH_FILE.write_text(new_hash)
