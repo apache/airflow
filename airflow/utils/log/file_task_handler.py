@@ -102,16 +102,17 @@ class FileTaskHandler(logging.Handler):
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
-        str_tpl, jinja_tpl = parse_template_string(template)
+            str_tpl, jinja_tpl = parse_template_string(template)
 
-        if jinja_tpl:
-            if hasattr(ti, "task"):
-                context = ti.get_template_context()
-            else:
-                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-            context["try_number"] = try_number
-            return render_template_to_string(jinja_tpl, context)
-        elif str_tpl:
+            if jinja_tpl:
+                if hasattr(ti, "task"):
+                    context = ti.get_template_context(session=session)
+                else:
+                    context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
+                context["try_number"] = try_number
+                return render_template_to_string(jinja_tpl, context)
+
+        if str_tpl:
             try:
                 dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.

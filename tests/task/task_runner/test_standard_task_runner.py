@@ -23,7 +23,6 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
-from unittest.mock import patch
 
 import psutil
 import pytest
@@ -46,20 +45,6 @@ TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 TASK_FORMAT = "%(filename)s:%(lineno)d %(levelname)s - %(message)s"
-
-
-@pytest.fixture()
-def mock_fth():
-    """
-    _render_filename creates a session and this does not behave well with
-    the forking behavior in StandardTaskRunner in the test context.
-    If we do not mock, then we get errors during test cleanup.
-    """
-    patch_log_init = patch("airflow.utils.log.file_task_handler.FileTaskHandler._render_filename")
-    mock_log_init = patch_log_init.start()
-    mock_log_init.return_value = "/tmp/my_file.txt"
-    yield mock_log_init
-    patch_log_init.stop()
 
 
 @contextmanager
@@ -139,7 +124,7 @@ class TestStandardTaskRunner:
 
         assert runner.return_code() is not None
 
-    def test_notifies_about_start_and_stop(self, mock_fth):
+    def test_notifies_about_start_and_stop(self):
         path_listener_writer = "/tmp/path_listener_writer"
         try:
             os.unlink(path_listener_writer)
@@ -164,7 +149,6 @@ class TestStandardTaskRunner:
         ti = TaskInstance(task=task, run_id="test")
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         runner = StandardTaskRunner(job1)
-
         runner.start()
 
         # Wait until process sets its pgid to be equal to pid
@@ -253,7 +237,7 @@ class TestStandardTaskRunner:
         assert runner.return_code() == -9
         assert "running out of memory" in caplog.text
 
-    def test_on_kill(self, mock_fth):
+    def test_on_kill(self):
         """
         Test that ensures that clearing in the UI SIGTERMS
         the task
@@ -320,7 +304,7 @@ class TestStandardTaskRunner:
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-    def test_parsing_context(self, mock_fth):
+    def test_parsing_context(self):
         context_file = Path("/tmp/airflow_parsing_context")
         try:
             context_file.unlink()
