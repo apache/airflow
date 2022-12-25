@@ -17,7 +17,8 @@
 # under the License.
 
 """
-Example Airflow DAG for testing Google Dataflow "DataflowTemplatedJobStartOperator" operator.
+Example Airflow DAG for testing Google Dataflow
+:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator` operator.
 """
 from __future__ import annotations
 
