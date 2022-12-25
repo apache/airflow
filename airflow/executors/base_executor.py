@@ -19,8 +19,12 @@ from __future__ import annotations
 
 import sys
 import warnings
-from collections import OrderedDict
-from typing import Any, Counter, List, Optional, Sequence, Tuple
+from collections import OrderedDict, defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, List, Optional, Sequence, Tuple
+
+import pendulum
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -55,6 +59,27 @@ EventBufferValueType = Tuple[Optional[str], Any]
 TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 
+@dataclass
+class AttemptType:
+    """
+    For keeping track of attempts to queue again when task still apparently running.
+
+    We don't want to slow down the loop, but we don't want to try more frequently
+    than once per second.  So we keep track of last check time.
+    """
+
+    count: int = 0
+    latest_attempt_time: datetime = field(default_factory=lambda: pendulum.now("UTC"))
+
+    @property
+    def can_try_again(self):
+        return (pendulum.now("UTC") - self.latest_attempt_time).total_seconds() > 1
+
+    def increment(self):
+        self.count += 1
+        self.latest_attempt_time = pendulum.now("UTC")
+
+
 class BaseExecutor(LoggingMixin):
     """
     Class to derive in order to implement concrete executors.
@@ -77,7 +102,7 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
-        self.attempts: Counter[TaskInstanceKey] = Counter()
+        self.attempts: dict[TaskInstanceKey, AttemptType] = defaultdict(AttemptType)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
@@ -212,9 +237,14 @@ class BaseExecutor(LoggingMixin):
             # removed from the running set in the meantime.
             if key in self.running:
                 attempt = self.attempts[key]
-                if attempt < QUEUEING_ATTEMPTS - 1:
-                    self.attempts[key] = attempt + 1
-                    self.log.info("task %s is still running", key)
+                if attempt.count < QUEUEING_ATTEMPTS - 1:
+                    if attempt.can_try_again:
+                        attempt.increment()
+                        self.log.info("queued but still running; attempt=%s task=%s", attempt.count, key)
+                    else:
+                        self.log.debug(
+                            "hasn't been enough time to check again; attempt=%s task=%s", attempt.count, key
+                        )
                     continue
 
                 # We give up and remove the task from the queue.
