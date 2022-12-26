@@ -709,7 +709,7 @@ Create the name of the cleanup service account to use
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --hostname $(hostname)
+    airflow jobs check
 {{- end }}
 
 {{ define "registry_docker_config" -}}
