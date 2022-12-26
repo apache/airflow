@@ -140,12 +140,18 @@ def test_hourly_cron_trigger_no_catchup_next_info(
             DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
             id="no_last_automated_with_earliest_not_on_boundary",
         ),
+        pytest.param(
+            None,
+            None,
+            None,
+            id="no_last_automated_no_earliest",
+        ),
     ],
 )
 def test_hourly_cron_trigger_catchup_next_info(
-    last_automated_data_interval: DataInterval,
-    earliest: pendulum.DateTime,
-    expected: DagRunInfo,
+    last_automated_data_interval: DataInterval | None,
+    earliest: pendulum.DateTime | None,
+    expected: DagRunInfo | None,
 ) -> None:
     next_info = HOURLY_CRON_TRIGGER_TIMETABLE.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
