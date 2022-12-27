@@ -52,6 +52,7 @@ from airflow.utils.cli import (
     get_dag_by_file_location,
     get_dag_by_pickle,
     get_dags,
+    should_ignore_depends_on_past,
     suppress_logs_and_warning,
 )
 from airflow.utils.dates import timezone
@@ -226,7 +227,7 @@ def _run_task_by_executor(args, dag, ti):
         mark_success=args.mark_success,
         pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_depends_on_past=should_ignore_depends_on_past(args),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -242,7 +243,7 @@ def _run_task_by_local_task_job(args, ti):
         mark_success=args.mark_success,
         pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_depends_on_past=should_ignore_depends_on_past(args),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,

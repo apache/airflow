@@ -540,8 +540,17 @@ ARG_IGNORE_DEPENDENCIES = Arg(
 )
 ARG_IGNORE_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-depends-on-past"),
-    help="Ignore depends_on_past dependencies (but respect upstream dependencies)",
+    help="Deprecated -- use `--depends-on-past ignore` instead. "
+    "Ignore depends_on_past dependencies (but respect upstream dependencies)",
     action="store_true",
+)
+ARG_DEPENDS_ON_PAST = Arg(
+    ("-d", "--depends-on-past"),
+    help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
+    "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
+    "them, if `ignore` is provided, the past dependencies will be ignored.",
+    choices={"check", "ignore"},
+    default="check",
 )
 ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
@@ -1326,6 +1335,7 @@ TASKS_COMMANDS = (
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_IGNORE_DEPENDS_ON_PAST,
+            ARG_DEPENDS_ON_PAST,
             ARG_SHIP_DAG,
             ARG_PICKLE,
             ARG_JOB_ID,

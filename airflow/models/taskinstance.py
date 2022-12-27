@@ -686,7 +686,7 @@ class TaskInstance(Base, LoggingMixin):
         if ignore_task_deps:
             cmd.extend(["--ignore-dependencies"])
         if ignore_depends_on_past:
-            cmd.extend(["--ignore-depends-on-past"])
+            cmd.extend(["--depends-on-past", "ignore"])
         if ignore_ti_state:
             cmd.extend(["--force"])
         if local:
