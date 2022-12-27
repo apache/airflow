@@ -43,6 +43,8 @@ class LocalKubernetesExecutor(LoggingMixin):
 
     KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
 
+    is_local: bool = False
+
     def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
         self._job_id: str | None = None
