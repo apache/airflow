@@ -124,6 +124,12 @@ PY3 = sys.version_info[0] == 3
 console = Console(width=400, color_system="standard")
 
 
+class PluginInfo(NamedTuple):
+    name: str
+    package_name: str
+    class_name: str
+
+
 class ProviderPackageDetails(NamedTuple):
     provider_package_id: str
     full_package_name: str
@@ -133,6 +139,7 @@ class ProviderPackageDetails(NamedTuple):
     provider_description: str
     versions: list[str]
     excluded_python_versions: list[str]
+    plugins: list[PluginInfo]
 
 
 class EntityType(Enum):
@@ -1014,6 +1021,17 @@ def get_all_changes_for_package(
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
+    plugins: list[PluginInfo] = []
+    if "plugins" in provider_info:
+        for plugin in provider_info["plugins"]:
+            package_name, class_name = plugin["plugin-class"].rsplit(".", maxsplit=1)
+            plugins.append(
+                PluginInfo(
+                    name=plugin["name"],
+                    package_name=package_name,
+                    class_name=class_name,
+                )
+            )
     return ProviderPackageDetails(
         provider_package_id=provider_package_id,
         full_package_name=f"airflow.providers.{provider_package_id}",
@@ -1023,6 +1041,7 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
         provider_description=provider_info["description"],
         versions=provider_info["versions"],
         excluded_python_versions=provider_info.get("excluded-python-versions") or [],
+        plugins=plugins,
     )
 
 
@@ -1099,6 +1118,7 @@ def get_provider_jinja_context(
         "CHANGELOG": changelog,
         "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
         "PYTHON_REQUIRES": python_requires,
+        "PLUGINS": provider_details.plugins,
     }
     return context
 

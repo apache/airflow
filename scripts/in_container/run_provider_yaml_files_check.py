@@ -293,6 +293,22 @@ def check_hook_classes(yaml_files: dict[str, dict]):
             )
 
 
+def check_plugin_classes(yaml_files: dict[str, dict]):
+    print("Checking plugin classes belong to package, exist and are classes")
+    resource_type = "plugins"
+    for yaml_file_path, provider_data in yaml_files.items():
+        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
+        plugins = provider_data.get(resource_type)
+        if plugins:
+            check_if_objects_exist_and_belong_to_package(
+                {plugin["plugin-class"] for plugin in plugins},
+                provider_package,
+                yaml_file_path,
+                resource_type,
+                ObjectType.CLASS,
+            )
+
+
 def check_extra_link_classes(yaml_files: dict[str, dict]):
     print("Checking extra-links belong to package, exist and are classes")
     resource_type = "extra-links"
@@ -464,6 +480,7 @@ if __name__ == "__main__":
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
     check_hook_classes(all_parsed_yaml_files)
+    check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_modules(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)

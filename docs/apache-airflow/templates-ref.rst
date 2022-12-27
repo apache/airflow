@@ -178,7 +178,4 @@ Some airflow specific macros are also defined:
 .. automodule:: airflow.macros
     :members:
 
-.. automodule:: airflow.macros.hive
-    :members:
-
 .. _pendulum.DateTime: https://pendulum.eustace.io/docs/#introduction

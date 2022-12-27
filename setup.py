@@ -809,6 +809,10 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )
+    elif extra == "apache.hive":
+        # We moved the hive macros to the hive provider, and they are available in hive provider only as of
+        # 5.1.0 version only, so we have to make sure minimum version is used
+        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-hive>=5.1.0"]
     else:
         EXTRAS_DEPENDENCIES[extra] = [
             get_provider_package_name_from_package_id(package_name) for package_name in providers

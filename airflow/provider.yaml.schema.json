@@ -276,6 +276,18 @@
       "items": {
           "type": "string"
       }
+    },
+    "plugins": {
+      "type": "array",
+      "description": "Plugins exposed by the provider",
+      "items": {
+        "name": {
+           "type": "string"
+        },
+        "plugin-class": {
+           "type": "string"
+        }
+      }
     }
   },
   "additionalProperties": false,

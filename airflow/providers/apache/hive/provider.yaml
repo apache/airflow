@@ -22,6 +22,7 @@ description: |
   `Apache Hive <https://hive.apache.org/>`__
 
 versions:
+  - 5.1.0
   - 5.0.0
   - 4.1.1
   - 4.1.0
@@ -109,3 +110,7 @@ connection-types:
     connection-type: hiveserver2
   - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook
     connection-type: hive_metastore
+
+plugins:
+  - name: hive
+    plugin-class: airflow.providers.apache.hive.plugins.hive.HivePlugin

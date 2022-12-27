@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+The ``apache.hive`` provider provides now hive macros that used to be provided by Airflow. As of 5.1.0 version
+of ``apache.hive`` the hive macros are provided by the Provider.
+
 5.0.0
 .....
 
