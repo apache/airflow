@@ -890,7 +890,7 @@ class TestSSHHook:
                 session.delete(conn)
                 session.commit()
 
-    @pytest.mark.flaky(max_runs=5, min_passes=1)
+    @pytest.mark.flaky(reruns=5)
     def test_exec_ssh_client_command(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
@@ -907,7 +907,7 @@ class TestSSHHook:
             )
             assert ret == (0, b"airflow\n", b"")
 
-    @pytest.mark.flaky(max_runs=5, min_passes=1)
+    @pytest.mark.flaky(reruns=5)
     def test_command_timeout(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
