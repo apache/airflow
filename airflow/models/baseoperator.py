@@ -211,10 +211,10 @@ def partial(
     weight_rule: str = DEFAULT_WEIGHT_RULE,
     sla: timedelta | None = None,
     max_active_tis_per_dag: int | None = None,
-    on_execute_callback: TaskStateChangeCallback | None = None,
-    on_failure_callback: TaskStateChangeCallback | None = None,
-    on_success_callback: TaskStateChangeCallback | None = None,
-    on_retry_callback: TaskStateChangeCallback | None = None,
+    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
     run_as_user: str | None = None,
     executor_config: dict | None = None,
     inlets: Any | None = None,
@@ -538,7 +538,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         notification are sent once and only once for each task instance.
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
-    :param on_failure_callback: a function to be called when a task instance
+    :param on_failure_callback: a function or list of functions to be called when a task instance
         of this task fails. a context dictionary is passed as a single
         parameter to this function. Context contains references to related
         objects to the task instance and is documented under the macros
@@ -706,10 +706,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
-        on_execute_callback: TaskStateChangeCallback | None = None,
-        on_failure_callback: TaskStateChangeCallback | None = None,
-        on_success_callback: TaskStateChangeCallback | None = None,
-        on_retry_callback: TaskStateChangeCallback | None = None,
+        on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         pre_execute: TaskPreExecuteHook | None = None,
         post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,

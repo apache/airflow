@@ -30,7 +30,6 @@ from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DagRun, TaskInstance
-from airflow.settings import pod_mutation_hook
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 
@@ -58,8 +57,8 @@ def generate_pod_yaml(args):
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,
             base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+            with_mutation_hook=True,
         )
-        pod_mutation_hook(pod)
         api_client = ApiClient()
         date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
         yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"

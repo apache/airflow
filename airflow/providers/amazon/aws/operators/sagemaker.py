@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -868,3 +869,92 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
             status,
         )
         return status
+
+
+class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
+    """
+    Registers an Amazon SageMaker model by creating a model version that specifies the model group to which it
+    belongs. Will create the model group if it does not exist already.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerRegisterModelVersionOperator`
+
+    :param image_uri: The Amazon EC2 Container Registry (Amazon ECR) path where inference code is stored.
+    :param model_url: The Amazon S3 path where the model artifacts (the trained weights of the model), which
+        result from model training, are stored. This path must point to a single gzip compressed tar archive
+        (.tar.gz suffix).
+    :param package_group_name: The name of the model package group that the model is going to be registered
+        to. Will be created if it doesn't already exist.
+    :param package_group_desc: Description of the model package group, if it was to be created (optional).
+    :param package_desc: Description of the model package (optional).
+    :param model_approval: Approval status of the model package. Defaults to PendingManualApproval
+    :param extras: Can contain extra parameters for the boto call to create_model_package, and/or overrides
+        for any parameter defined above. For a complete list of available parameters, see
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_model_package
+
+    :return str: Returns the ARN of the model package created.
+    """
+
+    template_fields: Sequence[str] = (
+        "image_uri",
+        "model_url",
+        "package_group_name",
+        "package_group_desc",
+        "package_desc",
+        "model_approval",
+    )
+
+    def __init__(
+        self,
+        *,
+        image_uri: str,
+        model_url: str,
+        package_group_name: str,
+        package_group_desc: str = "",
+        package_desc: str = "",
+        model_approval: ApprovalStatus = ApprovalStatus.PENDING_MANUAL_APPROVAL,
+        extras: dict | None = None,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        config: dict | None = None,
+        **kwargs,
+    ):
+        super().__init__(config=config or {}, aws_conn_id=aws_conn_id, **kwargs)
+        self.image_uri = image_uri
+        self.model_url = model_url
+        self.package_group_name = package_group_name
+        self.package_group_desc = package_group_desc
+        self.package_desc = package_desc
+        self.model_approval = model_approval
+        self.extras = extras
+
+    def execute(self, context: Context):
+        # create a model package group if it does not exist
+        group_created = self.hook.create_model_package_group(self.package_group_name, self.package_desc)
+
+        # then create a model package in that group
+        input_dict = {
+            "InferenceSpecification": {
+                "Containers": [
+                    {
+                        "Image": self.image_uri,
+                        "ModelDataUrl": self.model_url,
+                    }
+                ],
+                "SupportedContentTypes": ["text/csv"],
+                "SupportedResponseMIMETypes": ["text/csv"],
+            },
+            "ModelPackageGroupName": self.package_group_name,
+            "ModelPackageDescription": self.package_desc,
+            "ModelApprovalStatus": self.model_approval.value,
+        }
+        if self.extras:
+            input_dict.update(self.extras)  # overrides config above if keys are redefined in extras
+        try:
+            res = self.hook.conn.create_model_package(**input_dict)
+            return res["ModelPackageArn"]
+        except ClientError:
+            # rollback group creation if adding the model to it was not successful
+            if group_created:
+                self.hook.conn.delete_model_package_group(ModelPackageGroupName=self.package_group_name)
+            raise

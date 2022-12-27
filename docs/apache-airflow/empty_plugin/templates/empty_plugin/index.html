@@ -17,30 +17,23 @@
  under the License.
 #}
 
-{% extends 'metastore_browser/base.html' %}
+{% extends base_template %}
 
-{% block plugin_content %}
-  <h3 style="float: left">
-    <span class="text-muted">Database:</span> {{ db }}
-  </h3>
-  <table class="table table-striped table-bordered table-hover">
-    <thead>
-      <tr>
-        <th>Table</th>
-        <th>Owner</th>
-      </tr>
-    </thead>
-    <tbody>
-      {%for table in tables %}
-        <tr>
-          <td>
-            <a href="{{ url_for('.table', table=table.dbName + '.' + table.tableName) }}">
-              {{ table.tableName }}
-            </a>
-          </td>
-          <td>{{ table.owner }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% block head %}
+  {{ super() }}
+{% endblock %}
+
+{% block body %}
+  <div>
+    <h3 style="float: left">
+        {% block page_header %}{{ name }}{% endblock%}
+    </h3>
+    <div id="object" class="select2-drop-mask" style="margin-top: 25px; width: 400px;float: right"></div>
+    <div style="clear: both"></div>
+  </div>
+  {% block plugin_content %}{% endblock %}
+{% endblock %}
+
+{% block tail %}
+  {{ super() }}
 {% endblock %}

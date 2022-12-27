@@ -204,7 +204,7 @@ class TestSSHOperator:
     def test_push_ssh_exit_to_xcom(self, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same
         command = "not_a_real_command"
-        ssh_exit_code = randrange(0, 100)
+        ssh_exit_code = randrange(1, 100)
         self.exec_ssh_client_command.return_value = (ssh_exit_code, b"", b"ssh output")
 
         with dag_maker(dag_id=f"dag_{request.node.name}"):
