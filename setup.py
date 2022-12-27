@@ -374,7 +374,6 @@ devel_only = [
     "flake8>=3.9.0",
     "flake8-colors",
     "flake8-implicit-str-concat",
-    "flaky",
     "gitpython",
     "ipdb",
     # make sure that we are using stable sorting order from 5.* version (some changes were introduced
