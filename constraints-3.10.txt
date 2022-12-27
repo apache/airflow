@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-26T09:09:02Z
+# This constraints file was automatically generated on 2022-12-27T17:22:04Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -242,7 +242,6 @@ fissix==21.11.13
 flake8-colors==0.1.9
 flake8==6.0.0
 flake8_implicit_str_concat==0.3.0
-flaky==3.7.0
 flower==1.2.0
 frozenlist==1.3.3
 fsspec==2022.11.0
@@ -621,7 +620,7 @@ websocket-client==1.4.2
 wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.28.0
-yandexcloud==0.193.0
+yandexcloud==0.194.0
 yarl==1.8.2
 zeep==4.2.1
 zenpy==2.0.25
