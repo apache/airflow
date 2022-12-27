@@ -45,9 +45,10 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/|versrion|/tests/system/providers/apache/hive>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/|version|/tests/system/providers/apache/hive>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hive/>
     Installing from sources <installing-providers-from-sources>
+    Macros <macros>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
