@@ -127,20 +127,18 @@ def get_unique_task_id(
       ...
       task_id__20
     """
-    dag = dag or DagContext.get_current_dag()
     if not dag:
         return task_id
 
-    # We need to check if we are in the context of TaskGroup as the task_id may
-    # already be altered
     task_group = task_group or TaskGroupContext.get_current_task_group(dag)
     tg_task_id = task_group.child_id(task_id) if task_group else task_id
 
     if tg_task_id not in dag.task_ids:
-        return task_id
+        return tg_task_id
+
+    prefix = re.split(r"__\d+$", tg_task_id)[0]
 
     def _find_id_suffixes(dag: DAG) -> Iterator[int]:
-        prefix = re.split(r"__\d+$", tg_task_id)[0]
         for task_id in dag.task_ids:
             match = re.match(rf"^{prefix}__(\d+)$", task_id)
             if match is None:
@@ -148,7 +146,7 @@ def get_unique_task_id(
             yield int(match.group(1))
         yield 0  # Default if there's no matching task ID.
 
-    core = re.split(r"__\d+$", task_id)[0]
+    core = re.split(r"__\d+$", tg_task_id)[0]
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 

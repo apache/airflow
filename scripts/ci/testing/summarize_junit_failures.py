@@ -32,45 +32,62 @@ TEXT_RESET = "\033[0m"
 
 
 @lru_cache(maxsize=None)
-def translate_classname(classname):
-    # The pytest xunit output has "classname" in the python sense as 'dir.subdir.package.Class' -- we want to
-    # convert that back in to a pytest "selector" of dir/subdir/package.py::Class
+def translate_classname(classname: str) -> str | None:
+    """
+    Translates a classname in the form 'dir.subdir.package.Class' to a pytest selector in the form
+    'dir/subdir/package.py::Class'.
+
+    Args:
+        classname: The classname to translate.
+
+    Returns:
+        The translated pytest selector.
+    """
 
     if not classname:
         return None
 
-    context = Path.cwd()
-
+    context = str(Path.cwd())
     parts = classname.split(".")
+    num_parts = len(parts)
+    i = 0
 
-    for i, component in enumerate(parts):
-        candidate = context / component
+    while i < num_parts:
+        component = parts[i]
+        candidate = context + "/" + component
 
-        if candidate.is_dir():
-            context = candidate
-            continue
-        candidate = context / (component + ".py")
-        if candidate.is_file():
+        if Path(candidate).is_dir():
             context = candidate
             i += 1
+        elif Path(candidate + ".py").is_file():
+            context = candidate + ".py"
+            i += 1
             break
-        break
+        else:
+            break
+
     parts = parts[i:]
 
-    val = str(context.relative_to(Path.cwd()))
+    val = str(Path(context).relative_to(Path.cwd()))
 
     if parts:
         val += "::" + ".".join(parts)
     return val
 
 
-def translate_name(testcase):
-    classname = translate_classname(testcase.get("classname"))
-    name = testcase.get("name")
+def translate_name(testcase: dict) -> str:
+    """
+    Translates a test case name in the form 'dir.subdir.package.Class.method' to a pytest selector in the form
+    'dir/subdir/package.py::Class::method'.
 
-    if not classname:
-        # Some times (i.e. collect error) the classname is empty and we only have a name
-        return translate_classname(name)
+    Args:
+        testcase: The test case to translate.
+
+    Returns:
+        The translated pytest selector.
+    """
+    classname = translate_classname(testcase.get("classname")) or ""
+    name = testcase.get("name") or ""
 
     return f"{classname}::{name}"
 

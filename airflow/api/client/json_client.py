@@ -34,29 +34,23 @@ class Client(api_client.Client):
             params["json"] = json
         resp = getattr(self._session, method.lower())(**params)
         if resp.is_error:
-            # It is justified here because there might be many resp types.
             try:
                 data = resp.json()
             except Exception:
                 data = {}
             raise OSError(data.get("error", "Server error"))
-
         return resp.json()
 
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
         endpoint = f"/api/experimental/dags/{dag_id}/dag_runs"
         url = urljoin(self._api_base_url, endpoint)
-        data = self._request(
-            url,
-            method="POST",
-            json={
-                "run_id": run_id,
-                "conf": conf,
-                "execution_date": execution_date,
-                "replace_microseconds": replace_microseconds,
-            },
-        )
-        return data["message"]
+        data = {
+            "run_id": run_id,
+            "conf": conf,
+            "execution_date": execution_date,
+            "replace_microseconds": replace_microseconds,
+        }
+        return self._request(url, method="POST", json=data)["message"]
 
     def delete_dag(self, dag_id):
         endpoint = f"/api/experimental/dags/{dag_id}/delete_dag"
@@ -78,17 +72,13 @@ class Client(api_client.Client):
 
     def create_pool(self, name, slots, description):
         endpoint = "/api/experimental/pools"
-        url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(
-            url,
-            method="POST",
-            json={
-                "name": name,
-                "slots": slots,
-                "description": description,
-            },
-        )
-        return pool["pool"], pool["slots"], pool["description"]
+        data = {
+            "name": name,
+            "slots": slots,
+            "description": description,
+        }
+        response = self._request(urljoin(self._api_base_url, endpoint), method="POST", json=data)
+        return response["pool"], response["slots"], response["description"]
 
     def delete_pool(self, name):
         endpoint = f"/api/experimental/pools/{name}"
