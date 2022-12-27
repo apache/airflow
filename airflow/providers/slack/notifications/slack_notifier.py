@@ -20,15 +20,16 @@ from __future__ import annotations
 import json
 
 from airflow.compat.functools import cached_property
-from airflow.notifications.notifier import Notifier
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.slack.hooks.slack import SlackHook
 
 
-class SlackNotifier(Notifier):
+class SlackNotifier(BaseNotifier):
     """
-    Slack Notifier
+    Slack BaseNotifier
 
-    :param slack_conn_id: Slack API token (https://api.slack.com/web). Optional
+    :param slack_conn_id: Slack API token (https://api.slack.com/web).
+    :param text: The content of the message
     :param channel: The channel to send the message to. Optional
     :param username: The username to send the message as. Optional
     :param icon_url: The icon to use for the message. Optional
@@ -36,22 +37,23 @@ class SlackNotifier(Notifier):
     :param blocks: A list of blocks to send with the message. Optional
     """
 
-    template_fields = ("message", "channel", "username", "attachments", "blocks")
+    template_fields = ("text", "channel", "username", "attachments", "blocks")
 
     def __init__(
         self,
         *,
-        slack_conn_id: str | None = "slack_api_default",
+        slack_conn_id: str = "slack_api_default",
+        text: str = "This is a default message",
         channel: str = "#general",
         username: str = "Airflow",
         icon_url: str = "https://raw.githubusercontent.com/apache/"
         "airflow/main/airflow/www/static/pin_100.png",
         attachments: list | None = None,
         blocks: list | None = None,
-        **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__()
         self.slack_conn_id = slack_conn_id
+        self.text = text
         self.channel = channel
         self.username = username
         self.icon_url = icon_url
@@ -65,11 +67,10 @@ class SlackNotifier(Notifier):
 
     def notify(self, context):
         """Send a message to a Slack Channel"""
-        super().notify(context)
         api_call_params = {
             "channel": self.channel,
             "username": self.username,
-            "text": self.message,
+            "text": self.text,
             "icon_url": self.icon_url,
             "attachments": json.dumps(self.attachments),
             "blocks": json.dumps(self.blocks),

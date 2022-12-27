@@ -29,25 +29,14 @@ if TYPE_CHECKING:
     from airflow import DAG
 
 
-class Notifier(Templater):
-    """
-    Base Notifier class for sending notifications
+class BaseNotifier(Templater):
+    """BaseNotifier class for sending notifications"""
 
-    :param message: The message to send
+    template_fields: Sequence[str] = ()
+    template_ext: Sequence[str] = ()
 
-    The message or template_file can be used to send a notification. If both are set, the message
-    will be used.
-    """
-
-    template_fields: Sequence[str] = ("message",)
-    template_ext: Sequence[str] = (".txt",)
-
-    def __init__(
-        self,
-        message: str | None = "This is a default message",
-    ):
+    def __init__(self):
         super().__init__()
-        self.message = message
         self.resolve_template_files()
 
     def _update_context(self, context: Context) -> Context:
@@ -78,7 +67,6 @@ class Notifier(Templater):
         :param context: Context dict with values to apply on content.
         :param jinja_env: Jinja environment to use for rendering.
         """
-        context = self._update_context(context)
         dag = context["dag"]
         if not jinja_env:
             jinja_env = self.get_template_env(dag=dag)
@@ -89,12 +77,9 @@ class Notifier(Templater):
         """
         Sends a notification
 
-        subclasses should always call super().notify(context) first to ensure
-        that the template is rendered with the context.
-
         :param context: The airflow context
         """
-        self.render_template_fields(context)
+        ...
 
     def __call__(self, context: Context) -> None:
         """
@@ -102,6 +87,8 @@ class Notifier(Templater):
 
         :param context: The airflow context
         """
+        context = self._update_context(context)
+        self.render_template_fields(context)
         try:
             self.notify(context)
         except Exception as e:

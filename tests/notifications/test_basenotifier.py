@@ -20,17 +20,31 @@ from __future__ import annotations
 import jinja2
 import pytest
 
-from airflow.notifications.notifier import Notifier
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.context import Context
 
 
-class TestNotifier:
+class MockNotifier(BaseNotifier):
+    """MockNotifier class for testing"""
+
+    template_fields = ("message",)
+    template_ext = (".txt",)
+
+    def __init__(self, message: str | None = "This is a test message"):
+        super().__init__()
+        self.message = message
+
+    def notify(self, context: Context) -> None:
+        pass
+
+
+class TestBaseNotifier:
     def test_render_message_with_message(self, dag_maker):
         with dag_maker("test_render_message_with_message") as dag:
             EmptyOperator(task_id="test_id")
 
-        notifier = Notifier(message="Hello {{ dag.dag_id }}")
+        notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
         context: Context = {"dag": dag}
         notifier.render_template_fields(context)
         assert notifier.message == "Hello test_render_message_with_message"
@@ -38,7 +52,7 @@ class TestNotifier:
     def test_render_message_with_template(self, dag_maker, caplog):
         with dag_maker("test_render_message_with_template") as dag:
             EmptyOperator(task_id="test_id")
-        notifier = Notifier(message="test.txt")
+        notifier = MockNotifier(message="test.txt")
         context: Context = {"dag": dag}
         with pytest.raises(jinja2.exceptions.TemplateNotFound):
             notifier.render_template_fields(context)
@@ -46,7 +60,7 @@ class TestNotifier:
     def test_render_message_with_template_works(self, dag_maker, caplog):
         with dag_maker("test_render_message_with_template_works") as dag:
             EmptyOperator(task_id="test_id")
-        notifier = Notifier(message="test_notifier.txt")
+        notifier = MockNotifier(message="test_notifier.txt")
         context: Context = {"dag": dag}
         notifier.render_template_fields(context)
         assert notifier.message == "Hello test_render_message_with_template_works"
