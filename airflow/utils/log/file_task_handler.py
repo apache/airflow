@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import os
 import warnings
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
@@ -288,10 +289,10 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
         pod_override = ti.executor_config.get("pod_override")
-        try:
-            return pod_override.metadata.namespace
-        except Exception:
-            return conf.get("kubernetes_executor", "namespace")
+        namespace = None
+        with suppress(Exception):
+            namespace = pod_override.metadata.namespace
+        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
 
     @staticmethod
     def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
