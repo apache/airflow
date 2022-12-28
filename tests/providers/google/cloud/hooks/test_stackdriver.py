@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -81,7 +80,7 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 }
 
 
-class TestStackdriverHookMethods(unittest.TestCase):
+class TestStackdriverHookMethods:
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(CREDENTIALS, PROJECT_ID),
