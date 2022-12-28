@@ -24,8 +24,10 @@ from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 try:
     from airflow.notifications.basenotifier import BaseNotifier
-except ImportError as e:
-    raise AirflowOptionalProviderFeatureException(e)
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
+    )
 
 from airflow.providers.slack.hooks.slack import SlackHook
 
