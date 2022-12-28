@@ -262,7 +262,6 @@ def _run_task_by_local_task_job(args, ti):
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
     "ignore_depends_on_past",
-    "wait_for_past_depends_before_skipping",
     "ignore_dependencies",
     "force",
 ]
