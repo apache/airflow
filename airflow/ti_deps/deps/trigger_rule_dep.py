@@ -105,6 +105,8 @@ class TriggerRuleDep(BaseTIDep):
         :param dep_context: The current dependency context.
         :param session: Database session.
         """
+        from airflow.models.abstractoperator import NotMapped
+        from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.operator import needs_expansion
         from airflow.models.taskinstance import TaskInstance
 
@@ -129,9 +131,13 @@ class TriggerRuleDep(BaseTIDep):
             and at most once for each task (instead of once for each expanded
             task instance of the same task).
             """
+            try:
+                expanded_ti_count = _get_expanded_ti_count()
+            except (NotFullyPopulated, NotMapped):
+                return None
             return ti.get_relevant_upstream_map_indexes(
                 upstream_tasks[upstream_id],
-                _get_expanded_ti_count(),
+                expanded_ti_count,
                 session=session,
             )
 
