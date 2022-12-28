@@ -322,6 +322,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user.is_anonymous:
             roles = user.roles
         else:
+            if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags()) or (
+                permissions.ACTION_CAN_READ in user_actions and self.can_read_all_dags()
+            ):
+                return {dag.dag_id for dag in session.query(DagModel.dag_id)}
             user_query = (
                 session.query(User)
                 .options(
@@ -437,9 +441,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         return (
             self._has_role(["Admin", "Viewer", "Op", "User"], user)
-            or self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
-            or self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
+            or self.can_read_all_dags()
+            or self.can_edit_all_dags()
         )
+
+    def can_edit_all_dags(self):
+        """Has can_edit action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)
+
+    def can_read_all_dags(self):
+        """Has can_read action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)
 
     def clean_perms(self):
         """FAB leaves faulty permissions that need to be cleaned up"""

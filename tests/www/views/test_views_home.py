@@ -221,9 +221,9 @@ def test_home_dag_list_search(working_dags, user_client):
 
 def test_home_dag_edit_permissions(capture_templates, working_dags, client_single_dag_edit):
     with capture_templates() as templates:
-        client_single_dag_edit.get('home', follow_redirects=True)
+        client_single_dag_edit.get("home", follow_redirects=True)
 
-    dags = templates[0].local_context['dags']
+    dags = templates[0].local_context["dags"]
     assert len(dags) > 0
     dag_edit_perm_tuple = [(dag.dag_id, dag.can_edit) for dag in dags]
     assert ("filter_test_1", True) in dag_edit_perm_tuple
