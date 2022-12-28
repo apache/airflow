@@ -33,14 +33,13 @@ class Client(api_client.Client):
     :param _session: A session object to use for making HTTP requests.
     """
 
-    def _request(self, url: str, json=None, method: str = "GET"):
+    def _request(self, url: str, json=None, method: str = "GET") -> dict:
         """Make a request to the Json API server.
 
         :param url: The URL to send the request to.
         :param method: The HTTP method to use (e.g. "GET", "POST", "DELETE").
         :param json: A dictionary containing JSON data to send in the request body.
         :return: A dictionary containing the JSON response from the server.
-        :rtype: dict
         :raises OSError: If the server returns an error status.
         """
         params = {
@@ -56,7 +55,6 @@ class Client(api_client.Client):
             except Exception:
                 data = {}
             raise OSError(data.get("error", "Server error"))
-
         return resp.json()
 
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
@@ -68,7 +66,6 @@ class Client(api_client.Client):
         :param execution_date: The execution date for the DAG run, in the format "YYYY-MM-DDTHH:MM:SS".
         :param replace_microseconds: Whether to replace microseconds in the execution date with zeros.
         :return: A message indicating the status of the DAG run trigger.
-        :rtype: str
         """
         endpoint = f"/api/experimental/dags/{dag_id}/dag_runs"
         url = urljoin(self._api_base_url, endpoint)
@@ -85,7 +82,6 @@ class Client(api_client.Client):
 
         :param dag_id: The ID of the DAG to delete.
         :return: A message indicating the status of the DAG delete operation.
-        :rtype: str
         """
         endpoint = f"/api/experimental/dags/{dag_id}/delete_dag"
         url = urljoin(self._api_base_url, endpoint)
@@ -98,7 +94,6 @@ class Client(api_client.Client):
         :param name: The name of the pool to retrieve information for.
         :return: A tuple containing the name of the pool, the number of
             slots in the pool, and a description of the pool.
-        :rtype: tuple
         """
         endpoint = f"/api/experimental/pools/{name}"
         url = urljoin(self._api_base_url, endpoint)
@@ -110,7 +105,6 @@ class Client(api_client.Client):
 
         :return: A list of tuples, each containing the name of a pool,
             the number of slots in the pool, and a description of the pool.
-        :rtype: list
         """
         endpoint = "/api/experimental/pools"
         url = urljoin(self._api_base_url, endpoint)
@@ -125,7 +119,6 @@ class Client(api_client.Client):
         :param description: A description of the pool.
         :return: A tuple containing the name of the pool, the number of slots in the pool,
             and a description of the pool.
-        :rtype: tuple
         """
         endpoint = "/api/experimental/pools"
         data = {
@@ -142,7 +135,6 @@ class Client(api_client.Client):
         :param name: The name of the pool to delete.
         :return: A tuple containing the name of the pool, the number
             of slots in the pool, and a description of the pool.
-        :rtype: tuple
         """
         endpoint = f"/api/experimental/pools/{name}"
         url = urljoin(self._api_base_url, endpoint)
@@ -155,7 +147,6 @@ class Client(api_client.Client):
         :param dag_id: The ID of the DAG.
         :param execution_date: The execution date of the DAG run, in the format "YYYY-MM-DDTHH:MM:SS".
         :return: A message indicating the status of the lineage request.
-        :rtype: str
         """
         endpoint = f"/api/experimental/lineage/{dag_id}/{execution_date}"
         url = urljoin(self._api_base_url, endpoint)
