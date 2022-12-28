@@ -57,7 +57,7 @@ const TaskName = ({
       )}
     </Text>
     {isGroup && (
-      isOpen ? <FiChevronUp data-testid="closed-group" /> : <FiChevronDown data-testid="open-group" />
+      isOpen ? <FiChevronUp data-testid="close-group" /> : <FiChevronDown data-testid="open-group" />
     )}
   </Flex>
 );
