@@ -195,7 +195,7 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: lis
         # To maintain compat, if we detect the names don't match, we will wrap it with a dynamically created
         # shim function that looks somewhat like this:
         #
-        #  def dag_policy_name_mistmatch_shim(dag):
+        #  def dag_policy_name_mismatch_shim(dag):
         #      airflow_local_settings.dag_policy(dag)
         #
         codestr = textwrap.dedent(
