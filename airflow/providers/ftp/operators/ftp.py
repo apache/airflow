@@ -24,7 +24,7 @@ from typing import Any, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
-from airflow.providers.ftp.hooks.ftp import FTPHook
+from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 
 
 class FTPOperation:
@@ -130,3 +130,20 @@ class FTPFileTransmitOperator(BaseOperator):
                 self.log.info("Starting to transfer file %s", file_msg)
                 self.hook.store_file(remote_filepath, local_filepath)
         return self.local_filepath
+
+
+class FTPSFileTransmitOperator(FTPFileTransmitOperator):
+    """
+    FTPSFileTransmitOperator for transferring files from remote host to local or vice a versa.
+    This operator uses an FTPSHook to open ftps transport channel that serve as basis
+    for file transfer.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:FTPSFileTransmitOperator`
+    """
+
+    @cached_property
+    def hook(self) -> FTPSHook:
+        """Create and return an FTPSHook."""
+        return FTPSHook(ftp_conn_id=self.ftp_conn_id)
