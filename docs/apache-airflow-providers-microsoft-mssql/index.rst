@@ -91,6 +91,8 @@ PIP package                              Version required
 ``pymssql``                              ``>=2.1.5; platform_machine != "aarch64"``
 =======================================  ==========================================
 
+.. note:: ``pip`` version on some Linux distributions might be outdated and not support all the flavors of ``manylinux`` wheels, so upgrading ``pip`` is necessary. More details can be found on `PyPI <https://pypi.org/project/pymssql/>`_.
+
 Cross provider package dependencies
 -----------------------------------
 
