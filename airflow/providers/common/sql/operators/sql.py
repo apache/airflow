@@ -26,7 +26,6 @@ from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
