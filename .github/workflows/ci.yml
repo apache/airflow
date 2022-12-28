@@ -529,6 +529,8 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      - name: "Tests Pytest collection: ${{matrix.python-version}}"
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -820,7 +822,7 @@ jobs:
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_arm_pytest_collection.py"
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -945,7 +947,7 @@ jobs:
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_arm_pytest_collection.py"
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
