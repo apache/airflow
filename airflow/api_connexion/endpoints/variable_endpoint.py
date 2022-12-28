@@ -120,6 +120,7 @@ def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Resp
         prefix=RESOURCE_EVENT_PREFIX,
         permission=permissions.ACTION_CAN_CREATE,
     ),
+    add_json_request_data_to_extra=True,
 )
 def post_variables() -> Response:
     """Create a variable."""

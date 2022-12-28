@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import ast
 from unittest import mock
+
+from sqlalchemy.orm.session import Session
 
 from airflow.models import Log
 
@@ -52,77 +53,8 @@ def check_content_not_in_response(text, resp, resp_code=200):
         assert text not in resp_html
 
 
-def _check_last_log(session, dag_id, event, execution_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.execution_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.execution_date == execution_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    assert logs[0].extra
-    session.query(Log).delete()
-
-
-def _check_last_log_masked_connection(session, dag_id, event, execution_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.execution_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.execution_date == execution_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    extra = ast.literal_eval(logs[0].extra)
-    for k, v in extra:
-        if k == "password":
-            assert v == "***"
-        if k == "extra":
-            assert v == '{"x_secret": "***", "y_secret": "***"}'
-
-
-def _check_last_log_masked_variable(session, dag_id, event, execution_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.execution_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.execution_date == execution_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    extra_dict = ast.literal_eval(logs[0].extra)
-    assert extra_dict == [("key", "x_secret"), ("val", "***")]
+def get_last_log(*, session: Session, **kwargs) -> Log:
+    query = session.query(Log).order_by(Log.dttm.desc())
+    for key, val in kwargs.items():
+        query = query.filter(getattr(Log, key) == val)
+    return query.limit(1).one()

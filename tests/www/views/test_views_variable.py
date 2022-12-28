@@ -24,13 +24,13 @@ import pytest
 
 from airflow.models import Variable
 from airflow.security import permissions
-from airflow.utils.session import create_session
 from tests.test_utils.api_connexion_utils import create_user
+from tests.test_utils.db import clear_db_logs, clear_db_variables
 from tests.test_utils.www import (
-    _check_last_log,
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
+    get_last_log,
 )
 
 VARIABLE = {
@@ -42,9 +42,12 @@ VARIABLE = {
 
 
 @pytest.fixture(autouse=True)
-def clear_variables():
-    with create_session() as session:
-        session.query(Variable).delete()
+def clear_db():
+    clear_db_variables()
+    clear_db_logs()
+    yield
+    clear_db_variables()
+    clear_db_logs()
 
 
 @pytest.fixture(scope="module")
@@ -124,7 +127,8 @@ def test_import_variables_success(session, admin_client):
         "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
     )
     check_content_in_response("4 variable(s) successfully updated.", resp)
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    log = get_last_log(session=session, event="variables.varimport")
+    # assert "str_key" in log.extra
 
 
 def test_import_variables_anon(session, app):
@@ -167,9 +171,7 @@ def variable(session):
     )
     session.add(variable)
     session.commit()
-    yield variable
-    session.query(Variable).filter(Variable.key == VARIABLE["key"]).delete()
-    session.commit()
+    return variable
 
 
 def test_action_export(admin_client, variable):
@@ -192,3 +194,21 @@ def test_action_muldelete(session, admin_client, variable):
     )
     assert resp.status_code == 200
     assert session.query(Variable).filter(Variable.id == var_id).count() == 0
+
+
+def test_add_audit_log(session, admin_client):
+    admin_client.post("/variable/add", data=VARIABLE, follow_redirects=True)
+    log = get_last_log(session=session, event="variable.add")
+    assert VARIABLE["key"] in log.extra
+
+
+def test_edit_audit_log(session, admin_client, variable):
+    admin_client.post(f"/variable/edit/{variable.id}", data=VARIABLE, follow_redirects=True)
+    log = get_last_log(session=session, event="variable.edit")
+    assert VARIABLE["key"] in log.extra
+
+
+def test_delete_audit_log(session, admin_client, variable):
+    admin_client.post(f"/variable/delete/{variable.id}", follow_redirects=True)
+    log = get_last_log(session=session, event="variable.delete")
+    assert VARIABLE["key"] in log.extra

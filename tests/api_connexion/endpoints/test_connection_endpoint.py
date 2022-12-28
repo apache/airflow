@@ -25,7 +25,7 @@ from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections
-from tests.test_utils.www import _check_last_log
+from tests.test_utils.www import get_last_log
 
 
 @pytest.fixture(scope="module")
@@ -81,7 +81,8 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
-        _check_last_log(session, dag_id=None, event="connection.delete", execution_date=None)
+        log = get_last_log(session=session, event="connection.delete")
+        assert "test-connect" in log.extra
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(
@@ -369,7 +370,8 @@ class TestPatchConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="connection.edit", execution_date=None)
+        log = get_last_log(session=session, event="connection.edit")
+        assert "test-connection-id" in log.extra
 
     def test_patch_should_respond_200_with_update_mask(self, session):
         self._create_connection(session)
@@ -533,7 +535,8 @@ class TestPostConnection(TestConnectionEndpoint):
         connection = session.query(Connection).all()
         assert len(connection) == 1
         assert connection[0].conn_id == "test-connection-id"
-        _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+        log = get_last_log(session=session, event="connection.create")
+        assert "test-connection-id" in log.extra
 
     def test_post_should_respond_200_extra_null(self, session):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": None}

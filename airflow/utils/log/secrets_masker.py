@@ -200,10 +200,18 @@ class SecretsMasker(logging.Filter):
             if name and should_hide_value_for_key(name):
                 return self._redact_all(item, depth)
             if isinstance(item, dict):
-                return {
+                redacted_item = {
                     dict_key: self._redact(subval, name=dict_key, depth=(depth + 1))
                     for dict_key, subval in item.items()
                 }
+                # Special case where we have key/value as keys in a dict,
+                # make sure value is redacted based its key
+                if {"key", "value"} <= set(item.keys()):
+                    print(f"in special handler for {item}")
+                    redacted_item["value"] = self._redact(
+                        redacted_item["value"], name=redacted_item["key"], depth=(depth + 1)
+                    )
+                return redacted_item
             elif isinstance(item, str):
                 if self.replacer:
                     # We can't replace specific values, but the key-based redacting

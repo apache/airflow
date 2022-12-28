@@ -26,7 +26,7 @@ from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
-from tests.test_utils.www import _check_last_log
+from tests.test_utils.www import get_last_log
 
 
 @pytest.fixture(scope="module")
@@ -78,7 +78,8 @@ class TestDeleteVariable(TestVariableEndpoint):
         # make sure variable is deleted
         response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        _check_last_log(session, dag_id=None, event="variable.delete", execution_date=None)
+        log = get_last_log(session=session, event="variable.delete")
+        assert "delete_var1" in log.extra
 
     def test_should_respond_404_if_key_does_not_exist(self):
         response = self.client.delete(
@@ -233,7 +234,8 @@ class TestPatchVariable(TestVariableEndpoint):
             "key": "var1",
             "value": "updated",
         }
-        _check_last_log(session, dag_id=None, event="variable.edit", execution_date=None)
+        log = get_last_log(session=session, event="variable.edit")
+        assert "var1" in log.extra
 
     def test_should_reject_invalid_update(self):
         Variable.set("var1", "foo")
@@ -292,7 +294,8 @@ class TestPostVariables(TestVariableEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
+        log = get_last_log(session=session, event="variable.create")
+        assert "var_create" in log.extra
         response = self.client.get("/api/v1/variables/var_create", environ_overrides={"REMOTE_USER": "test"})
         assert response.json == {
             "key": "var_create",
@@ -316,7 +319,9 @@ class TestPostVariables(TestVariableEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.'], 'v': ['Unknown field.']}",
         }
-        _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
+        # This... shouldn't be here?
+        log = get_last_log(session=session, event="variable.create")
+        assert "var_create" in log.extra
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(

@@ -154,6 +154,7 @@ def patch_connection(
         prefix=RESOURCE_EVENT_PREFIX,
         permission=permissions.ACTION_CAN_CREATE,
     ),
+    add_json_request_data_to_extra=True,
 )
 def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create connection entry."""

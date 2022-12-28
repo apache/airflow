@@ -256,6 +256,13 @@ class TestSecretsMasker:
                 {"api_key": "masked based on key name", "other": "foo"},
                 {"api_key": "***", "other": "foo"},
             ),
+            # Test that "value" is redacted based on "key" in a dict, when they are split across keys
+            (
+                set(),
+                "dict",
+                {"key": "api_key", "value": "masked based on key name", "other": "foo"},
+                {"key": "api_key", "value": "***", "other": "foo"},
+            ),
         ],
     )
     def test_redact(self, patterns, name, value, expected):

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import json
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -28,7 +29,8 @@ from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.extensions import init_views
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
-from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
+from tests.test_utils.db import clear_db_connections, clear_db_logs
+from tests.test_utils.www import check_content_in_response, get_last_log
 
 CONNECTION = {
     "conn_id": "test_conn",
@@ -40,30 +42,62 @@ CONNECTION = {
     "password": "admin",
 }
 
-CONNECTION_WITH_EXTRA = CONNECTION.update(
-    {
-        "extra": '{"x_secret": "testsecret","y_secret": "test"}',
-    }
-)
+CONNECTION_WITH_EXTRA = {
+    **CONNECTION,
+    "extra": '{"x_secret": "testsecret","y_secret": "test"}',
+}
 
 
 @pytest.fixture(autouse=True)
-def clear_connections():
+def clear_db():
+    clear_db_connections()
+    clear_db_logs()
+    yield
+    clear_db_connections()
+    clear_db_logs()
+
+
+@pytest.fixture()
+def connection():
+    connection = Connection(
+        conn_id="conn1",
+        conn_type="Conn 1",
+        description="Conn 1 description",
+    )
     with create_session() as session:
-        session.query(Connection).delete()
+        session.add(connection)
+    return connection
 
 
 def test_create_connection(admin_client, session):
     init_views.init_connection_form()
     resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
     check_content_in_response("Added Row", resp)
-    _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+    log = get_last_log(session=session, event="connection.add")
+    assert CONNECTION["conn_id"] in log.extra
 
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
     init_views.init_connection_form()
     admin_client.post("/connection/add", data=CONNECTION_WITH_EXTRA, follow_redirects=True)
-    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
+    log = get_last_log(session=session, event="connection.add")
+    extra = {k: v for k, v in ast.literal_eval(log.extra)}
+    assert extra["password"] == "***"
+    assert extra["extra"] == '{"x_secret": "***", "y_secret": "***"}'
+
+
+def test_edit_connection(admin_client, session, connection):
+    init_views.init_connection_form()
+    resp = admin_client.post(f"/connection/edit/{connection.id}", data=CONNECTION, follow_redirects=True)
+    log = get_last_log(session=session, event="connection.edit")
+    assert CONNECTION["conn_id"] in log.extra
+
+
+def test_delete_connection(admin_client, session, connection):
+    init_views.init_connection_form()
+    resp = admin_client.post(f"/connection/delete/{connection.id}", follow_redirects=True)
+    log = get_last_log(session=session, event="connection.delete")
+    assert connection.conn_id in log.extra
 
 
 def test_prefill_form_null_extra():
@@ -303,20 +337,6 @@ def test_duplicate_connection_error(admin_client):
     assert resp.status_code == 200
     response = {conn[0] for conn in session.query(Connection.conn_id).all()}
     assert expected_result == response
-
-
-@pytest.fixture()
-def connection():
-    connection = Connection(
-        conn_id="conn1",
-        conn_type="Conn 1",
-        description="Conn 1 description",
-    )
-    with create_session() as session:
-        session.add(connection)
-    yield connection
-    with create_session() as session:
-        session.query(Connection).filter(Connection.conn_id == CONNECTION["conn_id"]).delete()
 
 
 def test_connection_muldelete(admin_client, connection):

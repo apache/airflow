@@ -29,7 +29,7 @@ from airflow.utils.types import DagRunType
 from airflow.www import app
 from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs, clear_db_variables
-from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
+from tests.test_utils.www import check_content_in_response, get_last_log
 
 EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -108,12 +108,13 @@ def test_action_logging_get(session, admin_client):
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
-    _check_last_log(
-        session,
+    log = get_last_log(
+        session=session,
         dag_id="example_bash_operator",
         event="graph",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+    assert "example_bash_operator" in log.extra
 
 
 def test_action_logging_get_legacy_view(session, admin_client):
@@ -126,12 +127,13 @@ def test_action_logging_get_legacy_view(session, admin_client):
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
-    _check_last_log(
-        session,
+    log = get_last_log(
+        session=session,
         dag_id="example_bash_operator",
         event="legacy_graph",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+    assert "example_bash_operator" in log.extra
 
 
 def test_action_logging_post(session, admin_client):
@@ -149,12 +151,13 @@ def test_action_logging_post(session, admin_client):
     check_content_in_response(["example_bash_operator", "Wait a minute"], resp)
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
-    _check_last_log(
-        session,
+    log = get_last_log(
+        session=session,
         dag_id="example_bash_operator",
         event="clear",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+    assert "example_bash_operator" in log.extra
 
 
 def delete_variable(session, key):
@@ -166,14 +169,23 @@ def test_action_logging_variables_post(session, admin_client):
     form = dict(key="random", val="random")
     admin_client.post("/variable/add", data=form)
     session.commit()
-    _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
+    log = get_last_log(session=session, event="variable.create")
+    assert "random" in log.extra
 
 
 def test_action_logging_variables_masked_secrets(session, admin_client):
     form = dict(key="x_secret", val="randomval")
     admin_client.post("/variable/add", data=form)
     session.commit()
-    _check_last_log_masked_variable(session, dag_id=None, event="variable.create", execution_date=None)
+    log = get_last_log(session=session, event="variable.create")
+    assert log.extra == "[('key', 'x_secret'), ('val', '***')]"
+
+
+def test_action_logging_variables_masked_secrets_json_payload(session, admin_client):
+    admin_client.post("/api/v1/variables", json={"key": "x_secret", "value": "randomval"})
+    session.commit()
+    log = get_last_log(session=session, event="variable.create")
+    assert log.extra == "[('request_data', {'key': 'x_secret', 'value': '***'})]"
 
 
 def test_calendar(admin_client, dagruns):

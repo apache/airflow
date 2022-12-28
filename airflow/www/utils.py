@@ -18,12 +18,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import textwrap
 import time
+from itertools import chain
 from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import urlencode
 
-from flask import request, url_for
+import pendulum
+from flask import g, request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
@@ -34,19 +37,24 @@ from flask_babel import lazy_gettext
 from markdown_it import MarkdownIt
 from markupsafe import Markup
 from pendulum.datetime import DateTime
+from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import func, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.log import secrets_masker
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
@@ -55,6 +63,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.operators import ColumnOperators
+
+logger = logging.getLogger(__name__)
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -829,3 +839,97 @@ class UIAlert:
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True
+
+
+def _mask_variable_fields(extra_fields):
+    """
+    The variable requests values and args comes in this form:
+    [('key', 'key_content'),('val', 'val_content'), ('description', 'description_content')]
+    So we need to mask the 'val_content' field if 'key_content' is in the mask list.
+    """
+    result = []
+    keyname = None
+    for k, v in extra_fields:
+        if k == "key":
+            keyname = v
+            result.append((k, v))
+        elif keyname and k == "val":
+            x = secrets_masker.redact(v, keyname)
+            result.append((k, x))
+            keyname = None
+        else:
+            result.append((k, v))
+    return result
+
+
+def _mask_connection_fields(extra_fields):
+    """Mask connection fields"""
+    result = []
+    for k, v in extra_fields:
+        if k == "extra":
+            try:
+                extra = json.loads(v)
+                extra = [(k, secrets_masker.redact(v, k)) for k, v in extra.items()]
+                result.append((k, json.dumps(dict(extra))))
+            except json.JSONDecodeError:
+                result.append((k, "Encountered non-JSON in `extra` field"))
+        else:
+            result.append((k, secrets_masker.redact(v, k)))
+    return result
+
+
+@provide_session
+def log_action(
+    *,
+    event: str,
+    extra: dict[str, Any] = {},
+    add_json_request_data_to_extra: bool = False,
+    session: Session = NEW_SESSION,
+) -> None:
+    """
+    Log user actions
+
+    It will add any values and view_args from the request automatically.
+    You can pass `add_json_request_data_to_extra=True` to also add the request data.
+    `extra` is a dict of extra things to add to the logs `extra` list. This can be useful
+    for adding identifying info where it doesn't otherwise exist (e.g. when deleting records).
+    """
+    if g.user.is_anonymous:
+        user = "anonymous"
+    else:
+        user = g.user.username
+
+    fields_skip_logging = {"csrf_token", "_csrf_token"}
+    extra_fields = [
+        (k, secrets_masker.redact(v, k))
+        for k, v in chain(request.values.items(multi=True), request.view_args.items())
+        if k not in fields_skip_logging
+    ]
+    if event and event.startswith("variable."):
+        extra_fields = _mask_variable_fields(extra_fields)
+    if event and event.startswith("connection."):
+        extra_fields = _mask_connection_fields(extra_fields)
+    if add_json_request_data_to_extra:
+        extra_fields.append(("request_data", secrets_masker.redact(get_json_request_dict(), "request_data")))
+    if extra:
+        extra_fields.extend(secrets_masker.redact(extra).items())
+
+    params = {k: v for k, v in chain(request.values.items(), request.view_args.items())}
+
+    log = Log(
+        event=event,
+        task_instance=None,
+        owner=user,
+        extra=str(extra_fields),
+        task_id=params.get("task_id"),
+        dag_id=params.get("dag_id"),
+    )
+
+    if "execution_date" in request.values:
+        execution_date_value = request.values["execution_date"]
+        try:
+            log.execution_date = pendulum.parse(execution_date_value, strict=False)
+        except ParserError:
+            logger.exception("Failed to parse execution_date from the request: %s", execution_date_value)
+
+    session.add(log)

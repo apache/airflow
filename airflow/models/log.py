@@ -71,4 +71,4 @@ class Log(Base):
         self.owner = owner or task_owner
 
     def __str__(self) -> str:
-        return f"Log({self.event}, {self.task_id}, {self.owner}, {self.extra})"
+        return f"Log({self.dttm}, {self.event}, {self.task_id}, {self.owner}, {self.extra})"

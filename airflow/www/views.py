@@ -134,6 +134,7 @@ from airflow.www.forms import (
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
 )
+from airflow.www.utils import log_action
 from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
 
 PAGE_SIZE = conf.getint("webserver", "page_size")
@@ -4016,25 +4017,31 @@ class AirflowModelView(ModelView):
 
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
-    def __getattribute__(self, attr):
-        """Wraps action REST methods with `action_logging` wrapper
-        Overriding enables differentiating resource and generation of event name at the decorator level.
+    @expose("/add", methods=["GET", "POST"])
+    @has_access
+    def add(self):
+        resp = super().add()
+        if request.method == "POST":
+            log_action(event=f"{self.route_base.strip('/')}.add")
+        return resp
 
-        if attr in ["show", "list", "read", "get", "get_list"]:
-            return action_logging(event="RESOURCE_NAME"."action_name")(attr)
-        else:
-            return attr
-        """
-        attribute = object.__getattribute__(self, attr)
-        if (
-            callable(attribute)
-            and hasattr(attribute, "_permission_name")
-            and attribute._permission_name in self.method_permission_name
-        ):
-            permission_str = self.method_permission_name[attribute._permission_name]
-            if permission_str not in ["show", "list", "read", "get", "get_list"]:
-                return action_logging(event=f"{self.route_base.strip('/')}.{permission_str}")(attribute)
-        return attribute
+    @expose("/edit/<pk>", methods=["GET", "POST"])
+    @has_access
+    def edit(self, pk):
+        resp = super().edit(pk)
+        if request.method == "POST":
+            log_action(event=f"{self.route_base.strip('/')}.edit")
+        return resp
+
+    @expose("/delete/<pk>", methods=["GET", "POST"])
+    @has_access
+    def delete(self, pk):
+        item = self.datamodel.get(pk)
+        resp = super().delete(pk)
+        print(item)
+        if request.method == "POST":
+            log_action(event=f"{self.route_base.strip('/')}.delete", extra={"item": str(item)})
+        return resp
 
 
 class AirflowPrivilegeVerifierModelView(AirflowModelView):
