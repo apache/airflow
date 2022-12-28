@@ -170,8 +170,7 @@ jobs:
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -253,8 +252,7 @@ jobs:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
     continue-on-error: true
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
         if: needs.build-info.outputs.canary-run == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
@@ -312,8 +310,7 @@ jobs:
       PLATFORM: "linux/amd64"
     if: needs.build-info.outputs.canary-run == 'true'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -340,8 +337,7 @@ jobs:
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - uses: actions/checkout@v3
         with:
@@ -378,8 +374,7 @@ jobs:
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - uses: actions/checkout@v3
         with:
@@ -406,8 +401,7 @@ jobs:
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info]
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - uses: actions/checkout@v3
         with:
           persist-credentials: false
@@ -427,8 +421,7 @@ jobs:
     needs: [build-info]
     if: needs.build-info.outputs.run-www-tests == 'true'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -455,8 +448,7 @@ jobs:
     needs: [build-info]
     if: needs.build-info.outputs.needs-api-codegen == 'true'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -472,8 +464,7 @@ jobs:
     needs: [build-info]
     if: needs.build-info.outputs.image-build == 'true'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -515,8 +506,7 @@ jobs:
       # Force more parallelism for pull even on public images
       PARALLELISM: 6
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -543,8 +533,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -586,8 +575,7 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -643,8 +631,7 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -698,8 +685,7 @@ jobs:
       USE_AIRFLOW_VERSION: "${{matrix.package-format}}"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -765,8 +751,7 @@ jobs:
       (github.repository == 'apache/airflow' || github.event_name != 'schedule') &&
       needs.build-info.outputs.default-branch == 'main'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -806,9 +791,7 @@ jobs:
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -849,9 +832,7 @@ jobs:
       JOB_ID: "mysql-${{matrix.mysql-version}}-${{matrix.python-version}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -891,9 +872,7 @@ jobs:
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -931,9 +910,7 @@ jobs:
       JOB_ID: "sqlite-${{matrix.python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -968,9 +945,7 @@ jobs:
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1027,9 +1002,7 @@ jobs:
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
@@ -1065,9 +1038,7 @@ jobs:
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1101,8 +1072,7 @@ jobs:
     # Only upload coverage on merges to main
     if: needs.build-info.outputs.run-coverage == 'true'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1135,8 +1105,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1167,8 +1136,7 @@ jobs:
       # Force more parallelism for pull even on public images
       PARALLELISM: 6
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1197,8 +1165,7 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1232,8 +1199,7 @@ jobs:
       needs.build-info.outputs.needs-helm-tests == 'true' ) &&
       needs.build-info.outputs.default-branch == 'main'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1303,8 +1269,7 @@ jobs:
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
     if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1373,8 +1338,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
@@ -1468,8 +1432,7 @@ jobs:
       needs.build-info.outputs.in-workflow-build == 'true' &&
       needs.build-info.outputs.canary-run != 'true'
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}

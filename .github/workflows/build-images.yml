@@ -98,8 +98,7 @@ jobs:
         if: github.event_name == 'pull_request_target'
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - uses: actions/checkout@v3
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
@@ -176,8 +175,7 @@ jobs:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
@@ -232,8 +230,7 @@ jobs:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
@@ -289,8 +286,7 @@ jobs:
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: ./.github/actions/cleanup-workspace
       - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
