@@ -278,7 +278,7 @@ class Connection(Base, LoggingMixin):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
 
-    def get_extra(self) -> dict:
+    def get_extra(self) -> str:
         """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
