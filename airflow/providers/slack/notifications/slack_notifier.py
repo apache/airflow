@@ -20,7 +20,13 @@ from __future__ import annotations
 import json
 
 from airflow.compat.functools import cached_property
-from airflow.notifications.basenotifier import BaseNotifier
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.notifications.basenotifier import BaseNotifier
+except ImportError as e:
+    raise AirflowOptionalProviderFeatureException(e)
+
 from airflow.providers.slack.hooks.slack import SlackHook
 
 
