@@ -914,12 +914,11 @@ repos:
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
-        pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
-        require_serial: true
-        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
+        files: ^airflow/providers/.*/provider.yaml$
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
         language: python

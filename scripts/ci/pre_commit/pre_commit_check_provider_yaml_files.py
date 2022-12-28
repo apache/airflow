@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import sys
 from pathlib import Path
 
@@ -38,6 +39,9 @@ if __name__ == "__main__":
     from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
     from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
 
+    cmd = "python3 /opt/airflow/scripts/in_container/run_provider_yaml_files_check.py"
+    if len(sys.argv) > 1:
+        cmd = cmd + " " + " ".join([shlex.quote(f) for f in sys.argv[1:]])
     airflow_image = get_ci_image_for_pre_commits()
     cmd_result = run_command(
         [
@@ -51,7 +55,7 @@ if __name__ == "__main__":
             "never",
             airflow_image,
             "-c",
-            "python3 /opt/airflow/scripts/in_container/run_provider_yaml_files_check.py",
+            cmd,
         ],
         check=False,
     )
