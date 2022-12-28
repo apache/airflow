@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+7.0.0
+-----
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+TODO: add good description of Secrets Backend breaking changes as implemented in
+https://github.com/apache/airflow/pull/27920
+
+Pandas is now an optional dependency of the provider. The ``SqlToS3Operator`` and ``HiveToDynamoDBOperator``
+require Pandas to be installed (you can install it automatically by adding ``[pandas]`` extra when installing
+the provider.
+
 6.2.0
 .....
 

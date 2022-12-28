@@ -33,11 +33,7 @@ from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-
-try:
-    from airflow.utils.platform import getuser
-except ImportError:
-    from getpass import getuser  # type: ignore[misc]
+from airflow.utils.platform import getuser
 
 TIMEOUT_DEFAULT = 10
 
@@ -290,17 +286,16 @@ class SSHHook(BaseHook):
             known_hosts = os.path.expanduser("~/.ssh/known_hosts")
             if not self.allow_host_key_change and os.path.isfile(known_hosts):
                 client.load_host_keys(known_hosts)
-        else:
-            if self.host_key is not None:
-                client_host_keys = client.get_host_keys()
-                if self.port == SSH_PORT:
-                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
-                else:
-                    client_host_keys.add(
-                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
-                    )
+
+        elif self.host_key is not None:
+            # Get host key from connection extra if it not set or None then we fallback to system host keys
+            client_host_keys = client.get_host_keys()
+            if self.port == SSH_PORT:
+                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
             else:
-                pass  # will fallback to system host keys if none explicitly specified in conn extra
+                client_host_keys.add(
+                    f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                )
 
         connect_kwargs: dict[str, Any] = dict(
             hostname=self.remote_host,
@@ -528,3 +523,12 @@ class SSHHook(BaseHook):
         exit_status = stdout.channel.recv_exit_status()
 
         return exit_status, agg_stdout, agg_stderr
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test the ssh connection by execute remote bash commands"""
+        try:
+            with self.get_conn() as conn:
+                conn.exec_command("pwd")
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)

@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+from random import randrange
 from unittest import mock
 
 import pytest
 from paramiko.client import SSHClient
 
 from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
@@ -198,3 +200,17 @@ class TestSSHOperator:
         self.exec_ssh_client_command.return_value = (1, b"", b"Error here")
         with pytest.raises(AirflowException, match="SSH operator error: exit status = 1"):
             task.execute(None)
+
+    def test_push_ssh_exit_to_xcom(self, request, dag_maker):
+        # Test pulls the value previously pushed to xcom and checks if it's the same
+        command = "not_a_real_command"
+        ssh_exit_code = randrange(1, 100)
+        self.exec_ssh_client_command.return_value = (ssh_exit_code, b"", b"ssh output")
+
+        with dag_maker(dag_id=f"dag_{request.node.name}"):
+            task = SSHOperator(task_id="push_xcom", ssh_hook=self.hook, command=command)
+        dr = dag_maker.create_dagrun(run_id="push_xcom")
+        ti = TaskInstance(task=task, run_id=dr.run_id)
+        with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
+            ti.run()
+        assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code

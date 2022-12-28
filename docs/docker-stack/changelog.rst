@@ -55,6 +55,14 @@ here so that users affected can find the reason for the changes.
 |              |                     |                                         | on 17 Jan 2022         |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 
+Airflow 2.5.1
+~~~~~~~~~~~~~
+
+* 2.5.1
+
+  * The ARM experimental image adds support for MSSQL
+
+
 Airflow 2.5
 ~~~~~~~~~~~
 

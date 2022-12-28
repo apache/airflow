@@ -250,6 +250,49 @@ class TestDagFileProcessor:
         dag_file_processor.manage_slas(dag=dag, session=session)
 
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
+    def test_dag_file_processor_sla_miss_continue_checking_the_task_instances_after_recording_missing_sla(
+        self, mock_stats_incr, dag_maker
+    ):
+        """
+        Test that the dag file processor continue checking subsequent task instances
+        even if the preceding task instance misses the sla ahead
+        """
+        session = settings.Session()
+
+        # Create a dag with a start of 3 days ago and sla of 1 day,
+        # so we have 2 missing slas
+        now = timezone.utcnow()
+        test_start_date = now - datetime.timedelta(days=3)
+        with dag_maker(
+            dag_id="test_sla_miss",
+            default_args={"start_date": test_start_date, "sla": datetime.timedelta(days=1)},
+        ) as dag:
+            task = EmptyOperator(task_id="dummy")
+
+        dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
+
+        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(
+            SlaMiss(task_id=task.task_id, dag_id=dag.dag_id, execution_date=now - datetime.timedelta(days=2))
+        )
+        session.flush()
+
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
+        dag_file_processor.manage_slas(dag=dag, session=session)
+        sla_miss_count = (
+            session.query(SlaMiss)
+            .filter(
+                SlaMiss.dag_id == dag.dag_id,
+                SlaMiss.task_id == task.task_id,
+            )
+            .count()
+        )
+        assert sla_miss_count == 2
+        mock_stats_incr.assert_called_with("sla_missed")
+
+    @mock.patch("airflow.dag_processing.processor.Stats.incr")
     def test_dag_file_processor_sla_miss_callback_exception(self, mock_stats_incr, create_dummy_dag):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
@@ -260,28 +303,34 @@ class TestDagFileProcessor:
         sla_callback = MagicMock(side_effect=RuntimeError("Could not call function"))
 
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
-        dag, task = create_dummy_dag(
-            dag_id="test_sla_miss",
-            task_id="dummy",
-            sla_miss_callback=sla_callback,
-            default_args={"start_date": test_start_date, "sla": datetime.timedelta(hours=1)},
-        )
-        mock_stats_incr.reset_mock()
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+        for i, callback in enumerate([[sla_callback], sla_callback]):
+            dag, task = create_dummy_dag(
+                dag_id=f"test_sla_miss_{i}",
+                task_id="dummy",
+                sla_miss_callback=callback,
+                default_args={"start_date": test_start_date, "sla": datetime.timedelta(hours=1)},
+            )
+            mock_stats_incr.reset_mock()
 
-        # Create an SlaMiss where notification was sent, but email was not
-        session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
+            session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
 
-        # Now call manage_slas and see if the sla_miss callback gets called
-        mock_log = mock.MagicMock()
-        dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock_log)
-        dag_file_processor.manage_slas(dag=dag, session=session)
-        assert sla_callback.called
-        mock_log.exception.assert_called_once_with(
-            "Could not call sla_miss_callback for DAG %s", "test_sla_miss"
-        )
-        mock_stats_incr.assert_called_once_with("sla_callback_notification_failure")
+            # Create an SlaMiss where notification was sent, but email was not
+            session.merge(
+                SlaMiss(task_id="dummy", dag_id=f"test_sla_miss_{i}", execution_date=test_start_date)
+            )
+
+            # Now call manage_slas and see if the sla_miss callback gets called
+            mock_log = mock.MagicMock()
+            dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock_log)
+            dag_file_processor.manage_slas(dag=dag, session=session)
+            assert sla_callback.called
+            mock_log.exception.assert_called_once_with(
+                "Could not call sla_miss_callback(%s) for DAG %s",
+                sla_callback.func_name,  # type: ignore[attr-defined]
+                f"test_sla_miss_{i}",
+            )
+            mock_stats_incr.assert_called_once_with("sla_callback_notification_failure")
 
     @mock.patch("airflow.dag_processing.processor.send_email")
     def test_dag_file_processor_only_collect_emails_from_sla_missed_tasks(

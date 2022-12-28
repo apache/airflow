@@ -45,6 +45,35 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 : "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
 
+function wait_for_asset_compilation() {
+    if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Waiting for asset compilation to complete in the background.${COLOR_RESET}"
+        echo
+        local counter=0
+        while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
+            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            sleep 1
+            ((counter=counter+1))
+            if [[ ${counter} == "30" ]]; then
+                echo
+                echo "${COLOR_YELLOW}The asset compilation is taking too long.${COLOR_YELLOW}"
+                echo """
+If it does not complete soon, you might want to stop it and remove file lock:
+   * press Ctrl-C
+   * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
+"""
+            fi
+            if [[ ${counter} == "60" ]]; then
+                echo
+                echo "${COLOR_RED}The asset compilation is taking too long. Exiting.${COLOR_RED}"
+                echo
+                exit 1
+            fi
+        done
+    fi
+}
+
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
@@ -232,6 +261,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+        wait_for_asset_compilation
         # shellcheck source=scripts/in_container/bin/run_tmux
         exec run_tmux
     fi
@@ -245,6 +275,7 @@ fi
 set -u
 
 export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -259,6 +290,8 @@ EXTRA_PYTEST_ARGS=(
     "--setup-timeout=${TEST_TIMEOUT}"
     "--execution-timeout=${TEST_TIMEOUT}"
     "--teardown-timeout=${TEST_TIMEOUT}"
+    "--output=${WARNINGS_FILE}"
+    "--disable-warnings"
     # Only display summary for non-expected case
     # f - failed
     # E - error
@@ -332,11 +365,13 @@ else
     )
     WWW_TESTS=("tests/www")
     HELM_CHART_TESTS=("tests/charts")
+    INTEGRATION_TESTS=("tests/integration")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
         "${API_TESTS[@]}"
         "${HELM_CHART_TESTS[@]}"
+        "${INTEGRATION_TESTS[@]}"
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
@@ -357,14 +392,15 @@ else
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
+        SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
         find_all_other_tests
         SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
             ${TEST_TYPE} == "Always" || \
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
-            ${TEST_TYPE} == "Long" || \
-            ${TEST_TYPE} == "Integration" ]]; then
+            ${TEST_TYPE} == "Long" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
         SELECTED_TESTS=()
@@ -387,13 +423,7 @@ fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
 
-if [[ -n ${LIST_OF_INTEGRATION_TESTS_TO_RUN=} ]]; then
-    # Integration tests
-    for INT in ${LIST_OF_INTEGRATION_TESTS_TO_RUN}
-    do
-        EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
-    done
-elif [[ ${TEST_TYPE:=""} == "Long" ]]; then
+if [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"

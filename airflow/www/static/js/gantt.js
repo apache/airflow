@@ -33,7 +33,7 @@
 /* global d3, document, moment, data $ */
 
 import tiTooltip from './task_instances';
-import { callModal } from './dag';
+import callModal from './callModal';
 
 const replacements = {
   a: 'ddd',

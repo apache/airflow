@@ -540,13 +540,19 @@ ARG_IGNORE_DEPENDENCIES = Arg(
 )
 ARG_IGNORE_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-depends-on-past"),
-    help="Ignore depends_on_past dependencies (but respect upstream dependencies)",
+    help="Deprecated -- use `--depends-on-past ignore` instead. "
+    "Ignore depends_on_past dependencies (but respect upstream dependencies)",
     action="store_true",
 )
-ARG_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING = Arg(
-    ("-W", "--wait-for-past-depends-before-skipping"),
-    help="Wait for past dependencies before skipping the task when --ignore-depends-on-past is not set",
-    action="store_true",
+ARG_DEPENDS_ON_PAST = Arg(
+    ("-d", "--depends-on-past"),
+    help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
+    "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
+    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
+    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
+    "skipping the task",
+    choices={"check", "ignore", "wait"},
+    default="check",
 )
 ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
@@ -909,6 +915,10 @@ ARG_SECTION = Arg(
 ARG_OPTION = Arg(
     ("option",),
     help="The option name",
+)
+ARG_OPTIONAL_SECTION = Arg(
+    ("--section",),
+    help="The section name",
 )
 
 # kubernetes cleanup-pods
@@ -1327,7 +1337,7 @@ TASKS_COMMANDS = (
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_IGNORE_DEPENDS_ON_PAST,
-            ARG_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+            ARG_DEPENDS_ON_PAST,
             ARG_SHIP_DAG,
             ARG_PICKLE,
             ARG_JOB_ID,
@@ -1829,7 +1839,7 @@ CONFIG_COMMANDS = (
         name="list",
         help="List options for the configuration",
         func=lazy_load_command("airflow.cli.commands.config_command.show_config"),
-        args=(ARG_COLOR, ARG_VERBOSE),
+        args=(ARG_OPTIONAL_SECTION, ARG_COLOR, ARG_VERBOSE),
     ),
 )
 

@@ -24,6 +24,32 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+The ``apache.hive`` provider provides now hive macros that used to be provided by Airflow. As of 5.1.0 version
+of ``apache.hive`` the hive macros are provided by the Provider.
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``hive_cli_params`` from connection were moved to the Hook. If you have extra parameters defined in your
+connections as ``hive_cli_params`` extra, you should move them to the DAG where your HiveOperator is used.
+
+* ``Move hive_cli_params to hook parameters (#28101)``
+
+Features
+~~~~~~~~
+
+* ``Improve filtering for invalid schemas in Hive hook (#27808)``
+
+
 4.1.1
 .....
 

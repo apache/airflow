@@ -21,7 +21,7 @@ import copy
 import datetime
 import json
 import logging
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 import pendulum
 from dateutil import relativedelta
@@ -36,6 +36,9 @@ from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 from airflow import settings
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
+
+if TYPE_CHECKING:
+    from kubernetes.client.models.v1_pod import V1Pod
 
 log = logging.getLogger(__name__)
 
@@ -153,6 +156,93 @@ class ExtendedJSON(TypeDecorator):
         return BaseSerialization.deserialize(value)
 
 
+def sanitize_for_serialization(obj: V1Pod):
+    """
+    Convert pod to dict.... but *safely*.
+
+    When pod objects created with one k8s version are unpickled in a python
+    env with a more recent k8s version (in which the object attrs may have
+    changed) the unpickled obj may throw an error because the attr
+    expected on new obj may not be there on the unpickled obj.
+
+    This function still converts the pod to a dict; the only difference is
+    it populates missing attrs with None. You may compare with
+    https://github.com/kubernetes-client/python/blob/5a96bbcbe21a552cc1f9cda13e0522fafb0dbac8/kubernetes/client/api_client.py#L202
+
+    If obj is None, return None.
+    If obj is str, int, long, float, bool, return directly.
+    If obj is datetime.datetime, datetime.date
+        convert to string in iso8601 format.
+    If obj is list, sanitize each element in the list.
+    If obj is dict, return the dict.
+    If obj is OpenAPI model, return the properties dict.
+
+    :param obj: The data to serialize.
+    :return: The serialized form of data.
+
+    :meta private:
+    """
+    if obj is None:
+        return None
+    elif isinstance(obj, (float, bool, bytes, str, int)):
+        return obj
+    elif isinstance(obj, list):
+        return [sanitize_for_serialization(sub_obj) for sub_obj in obj]
+    elif isinstance(obj, tuple):
+        return tuple(sanitize_for_serialization(sub_obj) for sub_obj in obj)
+    elif isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+
+    if isinstance(obj, dict):
+        obj_dict = obj
+    else:
+        obj_dict = {
+            obj.attribute_map[attr]: getattr(obj, attr)
+            for attr, _ in obj.openapi_types.items()
+            # below is the only line we change, and we just add default=None for getattr
+            if getattr(obj, attr, None) is not None
+        }
+
+    return {key: sanitize_for_serialization(val) for key, val in obj_dict.items()}
+
+
+def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
+    """
+    Convert pod to json and back so that pod is safe.
+
+    The pod_override in executor_config is a V1Pod object.
+    Such objects created with one k8s version, when unpickled in
+    an env with upgraded k8s version, may blow up when
+    `to_dict` is called, because openapi client code gen calls
+    getattr on all attrs in openapi_types for each object, and when
+    new attrs are added to that list, getattr will fail.
+
+    Here we re-serialize it to ensure it is not going to blow up.
+
+    :meta private:
+    """
+    try:
+        # if to_dict works, the pod is fine
+        pod.to_dict()
+        return pod
+    except AttributeError:
+        pass
+    try:
+        from kubernetes.client.models.v1_pod import V1Pod
+    except ImportError:
+        return None
+    if not isinstance(pod, V1Pod):
+        return None
+    try:
+        from airflow.kubernetes.pod_generator import PodGenerator
+
+        # now we actually reserialize / deserialize the pod
+        pod_dict = sanitize_for_serialization(pod)
+        return PodGenerator.deserialize_model_dict(pod_dict)
+    except Exception:
+        return None
+
+
 class ExecutorConfigType(PickleType):
     """
     Adds special handling for K8s executor config. If we unpickle a k8s object that was
@@ -188,9 +278,16 @@ class ExecutorConfigType(PickleType):
             if isinstance(value, dict) and "pod_override" in value:
                 pod_override = value["pod_override"]
 
-                # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
                 if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
+                    # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
                     value["pod_override"] = BaseSerialization.deserialize(pod_override)
+                else:
+                    # backcompat path
+                    # we no longer pickle raw pods but this code may be reached
+                    # when accessing executor configs created in a prior version
+                    new_pod = ensure_pod_is_valid_after_unpickling(pod_override)
+                    if new_pod:
+                        value["pod_override"] = new_pod
             return value
 
         return process

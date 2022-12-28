@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from airflow.models import Connection
 from airflow.providers.redis.hooks.redis import RedisHook
 
@@ -76,19 +74,3 @@ class TestRedisHook:
         hook = RedisHook(redis_conn_id="redis_default")
         hook.get_conn()
         assert hook.password is None
-
-    @pytest.mark.integration("redis")
-    def test_real_ping(self):
-        hook = RedisHook(redis_conn_id="redis_default")
-        redis = hook.get_conn()
-
-        assert redis.ping(), "Connection to Redis with PING works."
-
-    @pytest.mark.integration("redis")
-    def test_real_get_and_set(self):
-        hook = RedisHook(redis_conn_id="redis_default")
-        redis = hook.get_conn()
-
-        assert redis.set("test_key", "test_value"), "Connection to Redis with SET works."
-        assert redis.get("test_key") == b"test_value", "Connection to Redis with GET works."
-        assert redis.delete("test_key") == 1, "Connection to Redis with DELETE works."

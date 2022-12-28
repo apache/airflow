@@ -15,15 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sentry Integration"""
+"""Sentry Integration."""
 from __future__ import annotations
 
 import logging
 from functools import wraps
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.session import find_session_idx, provide_session
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +40,7 @@ class DummySentry:
         """Blank function for tagging."""
 
     @classmethod
-    def add_breadcrumbs(cls, task_instance, session=None):
+    def add_breadcrumbs(cls, task_instance, session: Session | None = None):
         """Blank function for breadcrumbs."""
 
     @classmethod
@@ -150,8 +154,9 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
 
         def enrich_errors(self, func):
             """
+            Decorate errors.
             Wrap TaskInstance._run_raw_task and LocalTaskJob._run_mini_scheduler_on_child_tasks
-             to support task specific tags and breadcrumbs.
+            to support task specific tags and breadcrumbs.
             """
             session_args_idx = find_session_idx(func)
 

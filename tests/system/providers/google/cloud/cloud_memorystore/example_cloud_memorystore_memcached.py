@@ -42,11 +42,16 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "google_project_id")
 
 DAG_ID = "cloud_memorystore_memcached"
 
-MEMORYSTORE_MEMCACHED_INSTANCE_NAME = f"{ENV_ID}-memcached-1"
+MEMORYSTORE_MEMCACHED_INSTANCE_NAME = f"memcached-{ENV_ID}-1"
 LOCATION = "europe-north1"
 
 # [START howto_operator_memcached_instance]
-MEMCACHED_INSTANCE = {"name": "", "node_count": 1, "node_config": {"cpu_count": 1, "memory_size_mb": 1024}}
+MEMCACHED_INSTANCE = {
+    "name": "",
+    "node_count": 1,
+    "node_config": {"cpu_count": 1, "memory_size_mb": 1024},
+    "zones": [LOCATION + "-a"],
+}
 # [END howto_operator_memcached_instance]
 
 

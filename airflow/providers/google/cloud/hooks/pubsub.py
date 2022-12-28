@@ -538,9 +538,9 @@ class PubSubHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         """
         if ack_ids is not None and messages is None:
-            pass
+            pass  # use ack_ids as is
         elif ack_ids is None and messages is not None:
-            ack_ids = [message.ack_id for message in messages]
+            ack_ids = [message.ack_id for message in messages]  # extract ack_ids from messages
         else:
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 

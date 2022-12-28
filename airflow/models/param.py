@@ -21,7 +21,7 @@ import copy
 import json
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, ItemsView, Iterable, MutableMapping, ValuesView
+from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMapping, ValuesView
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils.context import Context
@@ -46,6 +46,8 @@ class Param:
     :param schema: The validation schema of the Param, if not given then all kwargs except
         default & description will form the schema
     """
+
+    __version__: ClassVar[int] = 1
 
     CLASS_IDENTIFIER = "__class"
 
@@ -112,6 +114,16 @@ class Param:
     def has_value(self) -> bool:
         return self.value is not NOTSET
 
+    def serialize(self) -> dict:
+        return {"value": self.value, "description": self.description, "schema": self.schema}
+
+    @staticmethod
+    def deserialize(data: dict[str, Any], version: int) -> Param:
+        if version > Param.__version__:
+            raise TypeError("serialized version > class version")
+
+        return Param(default=data["value"], description=data["description"], schema=data["schema"])
+
 
 class ParamsDict(MutableMapping[str, Any]):
     """
@@ -120,6 +132,7 @@ class ParamsDict(MutableMapping[str, Any]):
     dictionary implicitly and ideally not needed to be used directly.
     """
 
+    __version__: ClassVar[int] = 1
     __slots__ = ["__dict", "suppress_exception"]
 
     def __init__(self, dict_obj: dict | None = None, suppress_exception: bool = False):
@@ -230,6 +243,16 @@ class ParamsDict(MutableMapping[str, Any]):
             raise ParamValidationError(f"Invalid input for param {k}: {ve}") from None
 
         return resolved_dict
+
+    def serialize(self) -> dict[str, Any]:
+        return self.dump()
+
+    @staticmethod
+    def deserialize(data: dict, version: int) -> ParamsDict:
+        if version > ParamsDict.__version__:
+            raise TypeError("serialized version > class version")
+
+        return ParamsDict(data)
 
 
 class DagParam(ResolveMixin):

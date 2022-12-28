@@ -42,6 +42,11 @@ integrations:
     logo: /integration-logos/ftp/FTP.png
     tags: [protocol]
 
+operators:
+  - integration-name: File Transfer Protocol (FTP)
+    python-modules:
+      - airflow.providers.ftp.operators.ftp
+
 sensors:
   - integration-name: File Transfer Protocol (FTP)
     python-modules:

@@ -52,6 +52,7 @@ from airflow.utils.cli import (
     get_dag_by_file_location,
     get_dag_by_pickle,
     get_dags,
+    should_ignore_depends_on_past,
     suppress_logs_and_warning,
 )
 from airflow.utils.dates import timezone
@@ -226,8 +227,8 @@ def _run_task_by_executor(args, dag, ti):
         mark_success=args.mark_success,
         pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
-        wait_for_past_depends_before_skipping=args.wait_for_past_depends_before_skipping,
+        ignore_depends_on_past=should_ignore_depends_on_past(args),
+        wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -243,8 +244,8 @@ def _run_task_by_local_task_job(args, ti):
         mark_success=args.mark_success,
         pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
-        wait_for_past_depends_before_skipping=args.wait_for_past_depends_before_skipping,
+        ignore_depends_on_past=should_ignore_depends_on_past(args),
+        wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -295,7 +296,6 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
 
     """
     modify = not settings.DONOT_MODIFY_HANDLERS
-
     if modify:
         root_logger, task_logger = logging.getLogger(), logging.getLogger("airflow.task")
 
