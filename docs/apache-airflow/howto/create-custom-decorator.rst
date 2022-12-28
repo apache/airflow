@@ -77,7 +77,7 @@ tasks. The steps to create and register ``@task.foo`` are:
                     {
                         "name": "foo",
                         # "Import path" and function name of the `foo_task`
-                        "class-name": ["name.of.python.package.foo_task"],
+                        "class-name": "name.of.python.package.foo_task",
                     }
                 ],
                 # ...
