@@ -239,7 +239,7 @@ There are several areas of resource usage that you should pay attention to:
   but if your problems with performance come from distributed filesystem performance, they might be the
   best approach to follow.
 * Database connections and Database usage might become a problem as you want to increase performance and
-  process more things in parallel. Airflow is known from being "database-connection hungry" - the more DAGs
+  process more things in parallel. Airflow is known for being "database-connection hungry" - the more DAGs
   you have and the more you want to process in parallel, the more database connections will be opened.
   This is generally not a problem for MySQL as its model of handling connections is thread-based, but this
   might be a problem for Postgres, where connection handling is process-based. It is a general consensus
@@ -257,8 +257,8 @@ There are several areas of resource usage that you should pay attention to:
   usage. If you have more CPUs available, you can increase number of processing threads
   :ref:`config:scheduler__parsing_processes`, Also Airflow Scheduler scales almost linearly with
   several instances, so you can also add more Schedulers if your Scheduler's performance is CPU-bound.
-* Airflow might use quite significant amount of memory when you try to get more performance out of it.
-  Often more performance is achieved in Airflow by increasing number of processes handling the load,
+* Airflow might use quite a significant amount of memory when you try to get more performance out of it.
+  Often more performance is achieved in Airflow by increasing the number of processes handling the load,
   and each process requires whole interpreter of Python loaded, a lot of classes imported, temporary
   in-memory storage. A lot of it is optimized by Airflow by using forking and copy-on-write memory used
   but in case new classes are imported after forking this can lead to extra memory pressure.
