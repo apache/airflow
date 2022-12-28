@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 from typing import Sequence
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import _MethodDefault
@@ -45,8 +45,8 @@ TEST_METADATA: Sequence[tuple[str, str]] = ()
 TEST_PARENT: str = "users/test-user"
 
 
-class TestOSLoginHook(TestCase):
-    def setUp(self) -> None:
+class TestOSLoginHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -79,8 +79,8 @@ class TestOSLoginHook(TestCase):
         )
 
 
-class TestOSLoginHookWithDefaultProjectIdHook(TestCase):
-    def setUp(self) -> None:
+class TestOSLoginHookWithDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -113,8 +113,8 @@ class TestOSLoginHookWithDefaultProjectIdHook(TestCase):
         )
 
 
-class TestOSLoginHookWithoutDefaultProjectIdHook(TestCase):
-    def setUp(self) -> None:
+class TestOSLoginHookWithoutDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
@@ -149,8 +149,8 @@ TEST_MESSAGE = re.escape(
 )
 
 
-class TestOSLoginHookMissingProjectIdHook(TestCase):
-    def setUp(self) -> None:
+class TestOSLoginHookMissingProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

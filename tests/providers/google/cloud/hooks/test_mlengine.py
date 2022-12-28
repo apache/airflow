@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from copy import deepcopy
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -33,9 +32,8 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 
-class TestMLEngineHook(unittest.TestCase):
-    def setUp(self) -> None:
-        super().setUp()
+class TestMLEngineHook:
+    def setup_method(self):
         self.hook = hook.MLEngineHook()
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook._authorize")
@@ -849,9 +847,8 @@ class TestMLEngineHook(unittest.TestCase):
         )
 
 
-class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
-    def setUp(self) -> None:
-        super().setUp()
+class TestMLEngineHookWithDefaultProjectId:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.__init__",
             new=mock_base_gcp_hook_default_project_id,

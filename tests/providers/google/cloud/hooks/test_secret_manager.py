@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
 from google.api_core.exceptions import NotFound
@@ -34,7 +33,7 @@ SECRETS_HOOK_PACKAGE = "airflow.providers.google.cloud.hooks.secret_manager."
 INTERNAL_CLIENT_PACKAGE = "airflow.providers.google.cloud._internal_client.secret_manager_client"
 
 
-class TestSecretsManagerHook(unittest.TestCase):
+class TestSecretsManagerHook:
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
     @patch(
         SECRETS_HOOK_PACKAGE + "SecretsManagerHook.get_credentials_and_project_id",

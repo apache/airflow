@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -31,8 +30,8 @@ VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}
 AUDIO_CONFIG = {"audio_encoding": "MP3"}
 
 
-class TestTextToSpeechHook(unittest.TestCase):
-    def setUp(self):
+class TestTextToSpeechHook:
+    def setup_method(self):
         with patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,

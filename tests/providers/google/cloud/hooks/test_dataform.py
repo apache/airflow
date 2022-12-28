@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -53,8 +52,8 @@ FILEPATH = "path/to/file.txt"
 FILE_CONTENTS = b"test content"
 
 
-class TestDataflowHook(unittest.TestCase):
-    def setUp(self):
+class TestDataflowHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"),
             new=mock_base_gcp_hook_default_project_id,

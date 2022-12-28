@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -36,8 +35,8 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GKE_STRING = "airflow.providers.google.cloud.hooks.kubernetes_engine.{}"
 
 
-class TestGKEHookClient(unittest.TestCase):
-    def setUp(self):
+class TestGKEHookClient:
+    def setup_method(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
@@ -50,8 +49,8 @@ class TestGKEHookClient(unittest.TestCase):
         assert self.gke_hook._client == result
 
 
-class TestGKEHookDelete(unittest.TestCase):
-    def setUp(self):
+class TestGKEHookDelete:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -103,8 +102,8 @@ class TestGKEHookDelete(unittest.TestCase):
             wait_mock.assert_not_called()
 
 
-class TestGKEHookCreate(unittest.TestCase):
-    def setUp(self):
+class TestGKEHookCreate:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -176,8 +175,8 @@ class TestGKEHookCreate(unittest.TestCase):
         log_mock.info.assert_any_call("Assuming Success: %s", message)
 
 
-class TestGKEHookGet(unittest.TestCase):
-    def setUp(self):
+class TestGKEHookGet:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -200,8 +199,8 @@ class TestGKEHookGet(unittest.TestCase):
         )
 
 
-class TestGKEHook(unittest.TestCase):
-    def setUp(self):
+class TestGKEHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):

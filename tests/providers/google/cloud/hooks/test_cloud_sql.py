@@ -18,14 +18,12 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
 import httplib2
 import pytest
 from googleapiclient.errors import HttpError
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -36,8 +34,8 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 
-class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
-    def setUp(self):
+class TestGcpSqlHookDefaultProjectId:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -508,8 +506,8 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         )
 
 
-class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
-    def setUp(self):
+class TestGcpSqlHookNoDefaultProjectID:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
@@ -751,7 +749,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         )
 
 
-class TestCloudSqlDatabaseHook(unittest.TestCase):
+class TestCloudSqlDatabaseHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_cloudsql_database_hook_validate_ssl_certs_no_ssl(self, get_connection):
         connection = Connection()
@@ -764,21 +762,22 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         )
         hook.validate_ssl_certs()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "cert_dict",
         [
-            [{}],
-            [{"sslcert": "cert_file.pem"}],
-            [{"sslkey": "cert_key.pem"}],
-            [{"sslrootcert": "root_cert_file.pem"}],
-            [{"sslcert": "cert_file.pem", "sslkey": "cert_key.pem"}],
-            [{"sslrootcert": "root_cert_file.pem", "sslkey": "cert_key.pem"}],
-            [{"sslrootcert": "root_cert_file.pem", "sslcert": "cert_file.pem"}],
-        ]
+            {},
+            {"sslcert": "cert_file.pem"},
+            {"sslkey": "cert_key.pem"},
+            {"sslrootcert": "root_cert_file.pem"},
+            {"sslcert": "cert_file.pem", "sslkey": "cert_key.pem"},
+            {"sslrootcert": "root_cert_file.pem", "sslkey": "cert_key.pem"},
+            {"sslrootcert": "root_cert_file.pem", "sslcert": "cert_file.pem"},
+        ],
     )
     @mock.patch("os.path.isfile")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_cloudsql_database_hook_validate_ssl_certs_missing_cert_params(
-        self, cert_dict, get_connection, mock_is_file
+        self, get_connection, mock_is_file, cert_dict
     ):
         mock_is_file.side_effects = True
         connection = Connection()
@@ -891,19 +890,20 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         )
         hook.validate_socket_path_length()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "uri",
         [
-            ["http://:password@host:80/database"],
-            ["http://user:@host:80/database"],
-            ["http://user:password@/database"],
-            ["http://user:password@host:80/"],
-            ["http://user:password@/"],
-            ["http://host:80/database"],
-            ["http://host:80/"],
-        ]
+            "http://:password@host:80/database",
+            "http://user:@host:80/database",
+            "http://user:password@/database",
+            "http://user:password@host:80/",
+            "http://user:password@/",
+            "http://host:80/database",
+            "http://host:80/",
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
-    def test_cloudsql_database_hook_create_connection_missing_fields(self, uri, get_connection):
+    def test_cloudsql_database_hook_create_connection_missing_fields(self, get_connection, uri):
         connection = Connection(uri=uri)
         params = {
             "location": "test",
@@ -986,11 +986,9 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         assert db_hook is not None
 
 
-class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
+class TestCloudSqlDatabaseQueryHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
-    def setUp(self, m):
-        super().setUp()
-
+    def setup_method(self, method, mock_get_conn):
         self.sql_connection = Connection(
             conn_id="my_gcp_sql_connection",
             conn_type="gcpcloudsql",
@@ -1022,7 +1020,7 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
         conn_extra_json = json.dumps(conn_extra)
         self.connection.set_extra(conn_extra_json)
 
-        m.side_effect = [self.sql_connection, self.connection]
+        mock_get_conn.side_effect = [self.sql_connection, self.connection]
         self.db_hook = CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id="my_gcp_sql_connection", gcp_conn_id="my_gcp_connection"
         )

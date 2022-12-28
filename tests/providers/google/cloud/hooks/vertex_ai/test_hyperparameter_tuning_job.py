@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
 
@@ -41,8 +41,8 @@ HYPERPARAMETER_TUNING_JOB_STRING = (
 )
 
 
-class TestHyperparameterTuningJobWithDefaultProjectIdHook(TestCase):
-    def setUp(self):
+class TestHyperparameterTuningJobWithDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -114,8 +114,8 @@ class TestHyperparameterTuningJobWithDefaultProjectIdHook(TestCase):
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
 
-class TestHyperparameterTuningJobWithoutDefaultProjectIdHook(TestCase):
-    def setUp(self):
+class TestHyperparameterTuningJobWithoutDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
         ):

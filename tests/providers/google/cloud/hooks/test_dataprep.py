@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from unittest import TestCase, mock
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -40,7 +40,7 @@ URL = "https://api.clouddataprep.com/v4/jobGroups"
 
 
 class TestGoogleDataprepHook:
-    def setup(self):
+    def setup_method(self):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
             self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")
@@ -273,10 +273,10 @@ class TestGoogleDataprepHook:
             assert hook._base_url == "abc"
 
 
-class TestGoogleDataprepFlowPathHooks(TestCase):
+class TestGoogleDataprepFlowPathHooks:
     _url = "https://api.clouddataprep.com/v4/flows"
 
-    def setUp(self) -> None:
+    def setup_method(self):
         self._flow_id = 1234567
         self._expected_copy_flow_hook_data = json.dumps(
             {

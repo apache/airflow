@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from copy import deepcopy
 from unittest import mock
 
@@ -50,8 +49,8 @@ TRANSFER_CONFIG_ID = "id1234"
 RUN_ID = "id1234"
 
 
-class BigQueryDataTransferHookTestCase(unittest.TestCase):
-    def setUp(self) -> None:
+class TestBigQueryDataTransferHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.bigquery_dts.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -37,8 +36,8 @@ SOURCE = f"airflow:{version}"
 CONN_EXTRA = {"verify_ssl": "true", "timeout": "120"}
 
 
-class TestLookerHook(unittest.TestCase):
-    def setUp(self):
+class TestLookerHook:
+    def setup_method(self):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = CONN_EXTRA
             self.hook = LookerHook(looker_conn_id="test")
