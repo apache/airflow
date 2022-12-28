@@ -17,6 +17,7 @@
 """Base executor - this is the base class for all the implemented executors."""
 from __future__ import annotations
 
+import logging
 import sys
 import warnings
 from collections import OrderedDict, defaultdict
@@ -37,8 +38,6 @@ from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
-QUEUEING_ATTEMPTS = 5
-
 # Command to execute - list of strings
 # the first element is always "airflow".
 # It should be result of TaskInstance.generate_command method.q
@@ -58,26 +57,43 @@ EventBufferValueType = Tuple[Optional[str], Any]
 # Task tuple to send to be executed
 TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
+log = logging.getLogger(__name__)
+
 
 @dataclass
-class AttemptType:
+class RunningRetryAttemptType:
     """
     For keeping track of attempts to queue again when task still apparently running.
 
-    We don't want to slow down the loop, but we don't want to try more frequently
-    than once per second.  So we keep track of last check time.
+    We don't want to slow down the loop, so we don't block, but we allow it to be
+    re-checked for at least MIN_SECONDS seconds.
     """
 
-    count: int = 0
-    latest_attempt_time: datetime = field(default_factory=lambda: pendulum.now("UTC"))
+    MIN_SECONDS = 5
+    total_tries: int = field(default=0, init=False)
+    tries_after_min: int = field(default=0, init=False)
+    first_attempt_time: datetime = field(default_factory=lambda: pendulum.now("UTC"), init=False)
 
     @property
-    def can_try_again(self):
-        return (pendulum.now("UTC") - self.latest_attempt_time).total_seconds() > 1
+    def elapsed(self):
+        """Seconds since first attempt"""
+        return (pendulum.now("UTC") - self.first_attempt_time).total_seconds()
 
-    def increment(self):
-        self.count += 1
-        self.latest_attempt_time = pendulum.now("UTC")
+    def can_try_again(self):
+        """
+        If there has been at least one try greater than MIN_SECONDS after first attempt,
+        then return False.  Otherwise, return True.
+        """
+        if self.tries_after_min > 0:
+            return False
+
+        self.total_tries += 1
+
+        elapsed = self.elapsed
+        if elapsed > self.MIN_SECONDS:
+            self.tries_after_min += 1
+        log.debug("elapsed=%s tries=%s", elapsed, self.total_tries)
+        return True
 
 
 class BaseExecutor(LoggingMixin):
@@ -102,7 +118,7 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
-        self.attempts: dict[TaskInstanceKey, AttemptType] = defaultdict(AttemptType)
+        self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
@@ -237,21 +253,20 @@ class BaseExecutor(LoggingMixin):
             # removed from the running set in the meantime.
             if key in self.running:
                 attempt = self.attempts[key]
-                if attempt.count < QUEUEING_ATTEMPTS - 1:
-                    if attempt.can_try_again:
-                        attempt.increment()
-                        self.log.info("queued but still running; attempt=%s task=%s", attempt.count, key)
-                    else:
-                        self.log.debug(
-                            "hasn't been enough time to check again; attempt=%s task=%s", attempt.count, key
-                        )
+                if attempt.can_try_again():
+                    # if it hasn't been much time since first check, let it be checked again next time
+                    self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
-
-                # We give up and remove the task from the queue.
-                self.log.error("could not queue task %s (still running after %d attempts)", key, attempt)
-                del self.attempts[key]
-                del self.queued_tasks[key]
+                else:
+                    # Otherwise, we give up and remove the task from the queue.
+                    self.log.error(
+                        "could not queue task %s (still running after %d attempts)", key, attempt.total_tries
+                    )
+                    del self.attempts[key]
+                    del self.queued_tasks[key]
             else:
+                if key in self.attempts:
+                    del self.attempts[key]
                 task_tuples.append((key, command, queue, ti.executor_config))
 
         if task_tuples:
