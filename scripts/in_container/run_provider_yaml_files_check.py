@@ -464,9 +464,8 @@ if __name__ == "__main__":
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
     provider_files_pattern = pathlib.Path(ROOT_DIR).glob("airflow/providers/**/provider.yaml")
     all_provider_files = sorted(str(path) for path in provider_files_pattern)
-
     if len(sys.argv) > 1:
-        paths = sorted(sys.argv[1:])
+        paths = [os.fspath(ROOT_DIR / f) for f in sorted(sys.argv[1:])]
     else:
         paths = all_provider_files
 
@@ -484,13 +483,13 @@ if __name__ == "__main__":
     check_extra_link_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_modules(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
-    check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
     check_providers_have_all_documentation_files(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded
         check_doc_files(all_parsed_yaml_files)
         check_invalid_integration(all_parsed_yaml_files)
+        check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
 
     if errors:
         console.print(f"[red]Found {len(errors)} errors in providers[/]")
