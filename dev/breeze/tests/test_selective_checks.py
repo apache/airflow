@@ -177,7 +177,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "tests/system/providers/airbyte/file.py",
+                    "tests/providers/airbyte/file.py",
                 ),
                 {
                     "all-python-versions": "['3.7']",
@@ -214,10 +214,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers",
+                    "test-types": "Always",
                 },
-                id="Helm tests, all providers as common util system file changed, kubernetes tests and "
-                "docs should run even if unimportant files were added",
+                id="Docs should run even if unimportant files were added",
             )
         ),
         (
@@ -461,7 +460,7 @@ def test_expected_output_full_tests_needed(
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "API Always CLI Core Other WWW",
             },
-            id="All tests except Providers and should run if core file changed in non-main branch",
+            id="All tests except Providers should run if core file changed in non-main branch",
         ),
     ],
 )
@@ -495,6 +494,20 @@ def test_expected_output_pull_request_v2_3(
                 "test-types": "",
             },
             id="Nothing should run if only non-important files changed",
+        ),
+        pytest.param(
+            ("tests/system/any_file.py",),
+            {
+                "all-python-versions": "['3.7']",
+                "all-python-versions-list-as-string": "3.7",
+                "image-build": "true",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "docs-build": "true",
+                "upgrade-to-newer-dependencies": "false",
+                "test-types": "Always",
+            },
+            id="Only Always and docs build should run if only system tests changed",
         ),
         pytest.param(
             (
@@ -531,7 +544,7 @@ def test_expected_output_pull_request_v2_3(
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "API Always CLI Core Other Providers WWW",
             },
-            id="All tests except should run if core file changed",
+            id="All tests should run if core file changed",
         ),
     ],
 )

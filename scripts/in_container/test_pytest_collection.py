@@ -20,15 +20,18 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 from rich.console import Console
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 
-if __name__ == "__main__":
-    console = Console(width=400, color_system="standard")
+console = Console(width=400, color_system="standard")
 
+
+def remove_packages_missing_on_arm():
+    console.print("[bright_blue]Removing packages missing on ARM.")
     provider_dependencies = json.loads(
         (AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text()
     )
@@ -43,11 +46,21 @@ if __name__ == "__main__":
         + "\n"
     )
     subprocess.run(["pip", "uninstall", "-y"] + all_dependencies_to_remove)
+
+
+if __name__ == "__main__":
+    arm = False
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "arm":
+        arm = True
+        remove_packages_missing_on_arm()
     result = subprocess.run(["pytest", "--collect-only", "-qqqq", "--disable-warnings", "tests"], check=False)
     if result.returncode != 0:
-        console.print("\n[red]Test collection in ARM environment failed.")
-        console.print(
-            "[yellow]You should wrap the failing imports in try/except/skip clauses\n"
-            "See similar examples as skipped tests right above.\n"
-        )
+        console.print("\n[red]Test collection failed.")
+        if arm:
+            console.print(
+                "[yellow]You should wrap the failing imports in try/except/skip clauses\n"
+                "See similar examples as skipped tests right above.\n"
+            )
+        else:
+            console.print("[yellow]Please add missing packages\n")
         exit(result.returncode)
