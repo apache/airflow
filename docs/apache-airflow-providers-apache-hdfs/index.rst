@@ -28,6 +28,7 @@ Content
 
     Connection types <connections>
     Operators <operators/index>
+    Logging for Tasks <logging/index>
 
 .. toctree::
     :maxdepth: 1

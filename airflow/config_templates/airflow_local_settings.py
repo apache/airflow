@@ -201,6 +201,7 @@ if REMOTE_LOGGING:
     # Cloudwatch log groups should start with "cloudwatch://"
     # GCS buckets should start with "gs://"
     # WASB buckets should start with "wasb"
+    # WebHDFS paths should start with "webhdfs://"
     # just to help Airflow select correct handler
     REMOTE_BASE_LOG_FOLDER: str = conf.get_mandatory_value("logging", "REMOTE_BASE_LOG_FOLDER")
     REMOTE_TASK_HANDLER_KWARGS = conf.getjson("logging", "REMOTE_TASK_HANDLER_KWARGS", fallback={})
@@ -282,6 +283,17 @@ if REMOTE_LOGGING:
             },
         }
         DEFAULT_LOGGING_CONFIG["handlers"].update(OSS_REMOTE_HANDLERS)
+    elif REMOTE_BASE_LOG_FOLDER.startswith("webhdfs://"):
+        WEBHDFS_REMOTE_HANDLERS = {
+            "task": {
+                "class": "airflow.providers.apache.hdfs.log.webhdfs_task_handler.WebHDFSTaskHandler",
+                "formatter": "airflow",
+                "base_log_folder": os.path.expanduser(BASE_LOG_FOLDER),
+                "webhdfs_log_folder": REMOTE_BASE_LOG_FOLDER,
+                "filename_template": FILENAME_TEMPLATE,
+            }
+        }
+        DEFAULT_LOGGING_CONFIG["handlers"].update(WEBHDFS_REMOTE_HANDLERS)
     elif ELASTICSEARCH_HOST:
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
         ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "frontend")

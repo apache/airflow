@@ -337,3 +337,22 @@ class TestLoggingSettings:
         logger = logging.getLogger("airflow.task")
         assert isinstance(logger.handlers[0], S3TaskHandler)
         assert getattr(logger.handlers[0], "delete_local_copy") is True
+
+    def test_loading_remote_logging_with_webhdfs_handler(self):
+        """Test if logging can be configured successfully for Azure Blob Storage"""
+        from airflow.config_templates import airflow_local_settings
+        from airflow.logging_config import configure_logging
+        from airflow.providers.apache.hdfs.log.webhdfs_task_handler import WebHDFSTaskHandler
+
+        with conf_vars(
+            {
+                ("logging", "remote_logging"): "True",
+                ("logging", "remote_log_conn_id"): "some_webhdfs",
+                ("logging", "remote_base_log_folder"): "webhdfs:///some-folder",
+            }
+        ):
+            importlib.reload(airflow_local_settings)
+            configure_logging()
+
+        logger = logging.getLogger("airflow.task")
+        assert isinstance(logger.handlers[0], WebHDFSTaskHandler)

@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import socket
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 from hdfs import HdfsError, InsecureClient
@@ -52,7 +53,12 @@ class WebHDFSHook(BaseHook):
     :param proxy_user: The user used to authenticate.
     """
 
-    def __init__(self, webhdfs_conn_id: str = "webhdfs_default", proxy_user: str | None = None):
+    conn_name_attr = "webhdfs_conn_id"
+    default_conn_name = "webhdfs_default"
+    conn_type = "webhdfs"
+    hook_name = "WebHDFS"
+
+    def __init__(self, webhdfs_conn_id: str = default_conn_name, proxy_user: str | None = None):
         super().__init__()
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
@@ -153,3 +159,62 @@ class WebHDFSHook(BaseHook):
             hdfs_path=destination, local_path=source, overwrite=overwrite, n_threads=parallelism, **kwargs
         )
         self.log.debug("Uploaded file %s to %s", source, destination)
+
+    @staticmethod
+    def parse_webhdfs_url(webhdfs_url: str) -> str:
+        """
+        Parses a WebHDFS url into a path.
+
+        :param webhdfs_url: The WebHDFS Url to parse.
+        :return: the parsed path
+        """
+        parsed_url = urlsplit(webhdfs_url)
+
+        if not parsed_url.path:
+            raise AirflowException("Please provide a non-empty path")
+
+        if parsed_url.netloc != "" or not parsed_url.path.startswith("/"):
+            raise AirflowException(
+                f'Please provide an absolute path instead of "{parsed_url.netloc}{parsed_url.path}"'
+            )
+
+        return parsed_url.path
+
+    def read_file(self, hdfs_path: str) -> str:
+        """
+        Check for the existence of a path in HDFS by querying FileStatus.
+
+        :param hdfs_path: The path to check.
+        :return: True if the path exists and False if not.
+        """
+        conn = self.get_conn()
+        with conn.read(hdfs_path) as reader:
+            return reader.read().decode()
+
+    def write_file(self, value: str, hdfs_path: str, overwrite: bool = True) -> None:
+        if self.check_for_path(hdfs_path) and not overwrite:
+            raise FileExistsError(f"File {hdfs_path} already exists.")
+
+        conn = self.get_conn()
+        conn.write(hdfs_path, value.encode(), overwrite=overwrite)
+
+    def append_file(self, value: str, hdfs_path: str):
+        if not self.check_for_path(hdfs_path):
+            raise FileNotFoundError(f"File {hdfs_path} not found.")
+
+        conn = self.get_conn()
+        conn.write(hdfs_path, value.encode(), append=True)
+
+    def is_file(self, hdfs_path: str) -> bool:
+        conn = self.get_conn()
+        status = conn.status(hdfs_path, strict=False)
+        return bool(status is not None and status.get("type", None) == "FILE")
+
+    def is_directory(self, hdfs_path: str) -> bool:
+        conn = self.get_conn()
+        status = conn.status(hdfs_path, strict=False)
+        return bool(status is not None and status.get("type", None) == "DIRECTORY")
+
+    def make_directory(self, hdfs_path: str) -> None:
+        conn = self.get_conn()
+        conn.makedirs(hdfs_path)
