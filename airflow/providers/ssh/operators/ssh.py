@@ -66,6 +66,10 @@ class SSHOperator(BaseOperator):
     template_ext: Sequence[str] = (
         ".sh",
         ".bash",
+        ".csh",
+        ".zsh",
+        ".dash",
+        ".ksh",
     )
     template_fields_renderers = {
         "command": "bash",
