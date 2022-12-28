@@ -413,8 +413,8 @@ class BaseOperatorMeta(abc.ABCMeta):
     def __new__(cls, name, bases, namespace, **kwargs):
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
-            # Update the partial descriptor with the class method so it call call the actual function (but let
-            # subclasses override it if they need to)
+            # Update the partial descriptor with the class method, so it calls the actual function
+            # (but let subclasses override it if they need to)
             partial_desc = vars(new_cls)["partial"]
             if isinstance(partial_desc, _PartialDescriptor):
                 partial_desc.class_method = classmethod(partial)
@@ -448,7 +448,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         (e.g. user/person/team/role name) to clarify ownership is recommended.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
-        comma or semi-colon separated string or by passing a list of strings.
+        comma or semicolon separated string or by passing a list of strings.
     :param email_on_retry: Indicates whether email alerts should be sent when a
         task is retried
     :param email_on_failure: Indicates whether email alerts should be sent when
@@ -932,7 +932,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __or__(self, other):
         """
         Called for [This Operator] | [Operator], The inlets of other
-        will be set to pickup the outlets from this operator. Other will
+        will be set to pick up the outlets from this operator. Other will
         be set as a downstream task of this operator.
         """
         if isinstance(other, BaseOperator):
@@ -1124,9 +1124,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def on_kill(self) -> None:
         """
-        Override this method to cleanup subprocesses when a task instance
+        Override this method to clean up subprocesses when a task instance
         gets killed. Any use of the threading, subprocess or multiprocessing
-        module within an operator needs to be cleaned up or it will leave
+        module within an operator needs to be cleaned up, or it will leave
         ghost processes behind.
         """
 
@@ -1172,7 +1172,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This mutates the attributes in-place and is irreversible.
 
         :param context: Context dict with values to apply on content.
-        :param jinja_env: Jinja environment to use for rendering.
+        :param jinja_env: Jinja's environment to use for rendering.
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
@@ -1463,7 +1463,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Used to determine if an Operator is inherited from EmptyOperator"""
         # This looks like `isinstance(self, EmptyOperator) would work, but this also
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
-        # of its sub-classes (which don't inherit from anything but BaseOperator).
+        # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
 
     def defer(
