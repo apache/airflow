@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-28T17:47:13Z
+# This constraints file was automatically generated on 2022-12-28T19:58:42Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -125,7 +125,7 @@ pandas==1.5.2
 partd==1.3.0
 pathspec==0.9.0
 pendulum==2.1.2
-platformdirs==2.6.1
+platformdirs==2.6.2
 pluggy==1.0.0
 plyvel==1.5.0
 prison==0.2.1
