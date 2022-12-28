@@ -882,7 +882,7 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d)
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -916,6 +916,7 @@ else
     WWW_TESTS=("tests/www")
     HELM_CHART_TESTS=("tests/charts")
     INTEGRATION_TESTS=("tests/integration")
+    SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
@@ -926,6 +927,7 @@ else
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
         "${WWW_TESTS[@]}"
+        "${SYSTEM_TESTS[@]}"
     )
 
     if [[ ${TEST_TYPE:=""} == "CLI" ]]; then
