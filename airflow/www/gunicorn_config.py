@@ -18,6 +18,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 import setproctitle
 
 from airflow import settings
@@ -31,6 +33,7 @@ def post_worker_init(_):
     """
     old_title = setproctitle.getproctitle()
     setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+    logging.getLogger("gunicorn.access").setLevel(logging.WARNING)
 
 
 def on_starting(server):
