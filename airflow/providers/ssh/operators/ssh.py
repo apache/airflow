@@ -63,7 +63,10 @@ class SSHOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("command", "environment", "remote_host")
-    template_ext: Sequence[str] = (".sh",)
+    template_ext: Sequence[str] = (
+        ".sh",
+        ".bash",
+    )
     template_fields_renderers = {
         "command": "bash",
         "environment": "python",
