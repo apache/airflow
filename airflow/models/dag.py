@@ -189,7 +189,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     """
     Returns the last dag run for a dag, None if there was none.
-    Last dag run can be any type of run eg. scheduled or backfilled.
+    Last dag run can be any type of run e.g. scheduled or backfilled.
     Overridden DagRuns are ignored.
     """
     DR = DagRun
@@ -276,8 +276,8 @@ class DAG(LoggingMixin):
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :param end_date: A date beyond which your DAG won't run, leave to None
-        for open ended scheduling
-    :param template_searchpath: This list of folders (non relative)
+        for open-ended scheduling
+    :param template_searchpath: This list of folders (non-relative)
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
         default
@@ -807,7 +807,7 @@ class DAG(LoggingMixin):
         schedule if the run does not have an explicit one set, which is possible
         for runs created prior to AIP-39.
 
-        This function is private to Airflow core and should not be depended as a
+        This function is private to Airflow core and should not be depended on as a
         part of the Python API.
 
         :meta private:
@@ -832,7 +832,7 @@ class DAG(LoggingMixin):
         schedule if the run does not have an explicit one set, which is possible for
         runs created prior to AIP-39.
 
-        This function is private to Airflow core and should not be depended as a
+        This function is private to Airflow core and should not be depended on as a
         part of the Python API.
 
         :meta private:
@@ -2808,7 +2808,7 @@ class DAG(LoggingMixin):
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
-        # if there are now *any*, we add them to the above data structures and
+        # if there are now *any*, we add them to the above data structures, and
         # later we'll persist them to the database.
         for dag in dags:
             curr_orm_dag = existing_dags.get(dag.dag_id)
@@ -3498,7 +3498,7 @@ def dag(
         @functools.wraps(f)
         def factory(*args, **kwargs):
             # Generate signature for decorated function and bind the arguments when called
-            # we do this to extract parameters so we can annotate them on the DAG object.
+            # we do this to extract parameters, so we can annotate them on the DAG object.
             # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
             f_sig = signature(f).bind(*args, **kwargs)
             # Apply defaults to capture default values if set.
