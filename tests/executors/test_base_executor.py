@@ -163,7 +163,7 @@ def test_trigger_running_tasks(can_try_mock, dag_maker, can_try_num, change_stat
     if second_exec is True:
         expected_calls += 1
 
-    assert len(executor.execute_async.mock_calls) == expected_calls
+    assert executor.execute_async.call_count == expected_calls
 
 
 def test_validate_airflow_tasks_run_command(dag_maker):
