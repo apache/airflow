@@ -738,8 +738,8 @@ class TestConnection(unittest.TestCase):
 
     def test_get_uri_no_conn_type(self):
         # no conn type --> scheme-relative URI
-        assert Connection().get_uri() == '//'
+        assert Connection().get_uri() == "//"
         # with host, still works
-        assert Connection(host='abc').get_uri() == '//abc'
+        assert Connection(host="abc").get_uri() == "//abc"
         # parsing back as conn still works
-        assert Connection(uri='//abc').host == 'abc'
+        assert Connection(uri="//abc").host == "abc"
