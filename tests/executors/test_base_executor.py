@@ -148,7 +148,7 @@ def test_trigger_running_tasks(can_try_mock, dag_maker, can_try_num, change_stat
         if attempt == change_state_num:
             executor.change_state(ti.key, State.SUCCESS)
             assert ti.key not in executor.running
-    # retry was ok when state changed, ti.key will be in running (for the second time
+    # retry was ok when state changed, ti.key will be in running (for the second time)
     if can_try_num >= change_state_num:
         assert ti.key in executor.running
     else:  # otherwise, it won't be
