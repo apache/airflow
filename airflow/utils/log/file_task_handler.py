@@ -231,13 +231,13 @@ class FileTaskHandler(logging.Handler):
                     return task_log
 
             if task_log is None:
-                log += "Couldn't fetch log from executor. Falling back to fetching log from worker."
+                log += "*** Failed to fetch log from executor. Falling back to fetching log from worker.\n"
                 task_log = self._get_task_log_from_worker(ti, log, log_relative_path=log_relative_path)
 
             if isinstance(task_log, tuple):
                 return task_log
 
-            log += str(task_log)
+            log = str(task_log)
 
         # Process tailing if log is not at it's end
         end_of_log = ti.try_number != try_number or ti.state not in State.running
