@@ -18,7 +18,7 @@
 ################################
 ## Airflow Worker Service
 #################################
-{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") (eq .Values.executor "LocalKubernetesExecutor") }}
 kind: Service
 apiVersion: v1
 metadata:
