@@ -50,7 +50,7 @@ def send_email(
     **kwargs,
 ) -> None:
     """
-    Send an email using the backend specified in the `EMAIL_BACKEND` configuration option.
+    Send an email using the backend specified in the ``EMAIL_BACKEND`` configuration option.
 
     :param to: A list or iterable of email addresses to send the email to.
     :param subject: The subject of the email.
