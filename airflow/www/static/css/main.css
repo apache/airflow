@@ -73,7 +73,6 @@ div.container {
   display: block;
 }
 
-
 /* If a menu remains open due to focus, a menu
   opened via hover will always be displayed on top */
 .navbar-nav li.dropdown:hover > .dropdown-menu {
