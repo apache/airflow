@@ -28,7 +28,7 @@ from kubernetes.client import models as k8s
 from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import (
     ContainerState,
     ContainerStateUndefined,
-    KubernetesCreatePodTrigger,
+    KubernetesPodTrigger,
 )
 from airflow.triggers.base import TriggerEvent
 
@@ -51,7 +51,7 @@ FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 
 @pytest.fixture
 def trigger():
-    return KubernetesCreatePodTrigger(
+    return KubernetesPodTrigger(
         pod_name=POD_NAME,
         pod_namespace=NAMESPACE,
         kubernetes_conn_id=CONN_ID,

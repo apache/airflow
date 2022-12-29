@@ -49,7 +49,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesCreatePodTrigger
+from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
@@ -561,7 +561,7 @@ class KubernetesPodOperator(BaseOperator):
     def go_to_defer_mode(self):
         """Method to easily redefine triggers which are being used in descendants."""
         self.defer(
-            trigger=KubernetesCreatePodTrigger(
+            trigger=KubernetesPodTrigger(
                 pod_name=self.pod.metadata.name,
                 pod_namespace=self.pod.metadata.namespace,
                 kubernetes_conn_id=self.kubernetes_conn_id,
@@ -573,7 +573,7 @@ class KubernetesPodOperator(BaseOperator):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context: Context, event: dict):
+    def execute_complete(self, context: Context, event: dict, **kwargs):
         pod = self.hook.get_pod(
             event["name"],
             event["namespace"],
@@ -596,7 +596,6 @@ class KubernetesPodOperator(BaseOperator):
             if self.get_logs:
                 self.write_logs(pod)
 
-            xcom_sidecar_output = None
             if self.do_xcom_push:
                 xcom_sidecar_output = self.extract_xcom(pod=pod)
                 pod = self.pod_manager.await_pod_completion(pod)

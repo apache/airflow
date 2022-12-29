@@ -21,17 +21,19 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Sequence
 
+from cached_property import cached_property
 from google.cloud.container_v1.types import Cluster
+from kubernetes.client.models import V1Pod
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEClusterHook, GKEPodHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
     KubernetesEnginePodLink,
 )
-from airflow.providers.google.cloud.utils.kubernetes_engine_config import temporary_gke_config_file
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEPodTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -112,7 +114,7 @@ class GKEDeleteClusterOperator(BaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context: Context) -> str | None:
-        hook = GKEHook(
+        hook = GKEClusterHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
@@ -235,14 +237,14 @@ class GKECreateClusterOperator(BaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context: Context) -> str:
-        hook = GKEHook(
+        hook = GKEClusterHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
         create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
         KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=self.body)
-        return create_op
+        return Cluster.to_dict(create_op)
 
 
 class GKEStartPodOperator(KubernetesPodOperator):
@@ -327,6 +329,10 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self.impersonation_chain = impersonation_chain
         self.regional = regional
 
+        self.pod: V1Pod | None = None
+        self._ssl_ca_cert: str | None = None
+        self._cluster_url: str | None = None
+
         if self.gcp_conn_id is None:
             raise AirflowException(
                 "The gcp_conn_id parameter has become required. If you want to use Application Default "
@@ -338,31 +344,58 @@ class GKEStartPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
+    @cached_property
+    def cluster_hook(self):
+        return GKEClusterHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def hook(self) -> GKEPodHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            # TODO: Maybe another exception class for developers
+            raise AirflowException(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+
+        hook = GKEPodHook(
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+        return hook
+
     def execute(self, context: Context) -> None:
         """Look for a pod, if not found then create one and defer"""
-        with temporary_gke_config_file(
-            gcp_conn_id=self.gcp_conn_id,
-            project_id=self.project_id,
-            cluster_name=self.cluster_name,
-            impersonation_chain=self.impersonation_chain,
-            regional=self.regional,
-            location=self.location,
-            use_internal_ip=self.use_internal_ip,
-        ) as config_file:  # type: ignore[arg-type]
-            self.config_file = config_file
-            super().execute(context)
+        self.get_kube_creds()
+        return super().execute(context)
 
-    def execute_complete(self, context: Context, event: dict):
-        # Config file should be set to successfully use Kubernetes API after triggers work
-        with temporary_gke_config_file(
-            gcp_conn_id=self.gcp_conn_id,
+    def get_kube_creds(self) -> tuple[str, str | None]:
+        cluster = self.cluster_hook.get_cluster(
+            name=self.cluster_name,
             project_id=self.project_id,
-            cluster_name=self.cluster_name,
-            impersonation_chain=self.impersonation_chain,
-            regional=self.regional,
-            location=self.location,
-            use_internal_ip=self.use_internal_ip,
-        ) as config_file:
-            self.config_file = config_file
-            result = super().execute_complete(context, event)
-        return result
+        )
+
+        self._cluster_url = f"https://{cluster.endpoint}"
+        self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
+        return self._cluster_url, self._ssl_ca_cert
+
+    def go_to_defer_mode(self):
+        """Method to easily redefine triggers which are being used in descendants."""
+        self.defer(
+            trigger=GKEPodTrigger(
+                pod_name=self.pod.metadata.name,
+                pod_namespace=self.pod.metadata.namespace,
+                cluster_url=self._cluster_url,
+                ssl_ca_cert=self._ssl_ca_cert,
+            ),
+            method_name="execute_complete",
+            kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
+        )
+
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        self._cluster_url = kwargs["cluster_url"]
+        self._ssl_ca_cert = kwargs["ssl_ca_cert"]
+        return super().execute_complete(context, event, **kwargs)

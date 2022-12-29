@@ -23,7 +23,7 @@ import pytest
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEClusterHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -37,7 +37,7 @@ GKE_STRING = "airflow.providers.google.cloud.hooks.kubernetes_engine.{}"
 
 class TestGKEHookClient:
     def setup_method(self):
-        self.gke_hook = GKEHook(location=GKE_ZONE)
+        self.gke_hook = GKEClusterHook(location=GKE_ZONE)
 
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
@@ -54,7 +54,7 @@ class TestGKEHookDelete:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
+            self.gke_hook = GKEClusterHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -107,7 +107,7 @@ class TestGKEHookCreate:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
+            self.gke_hook = GKEClusterHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -180,7 +180,7 @@ class TestGKEHookGet:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
+            self.gke_hook = GKEClusterHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
     def test_get_cluster(self):
@@ -204,7 +204,7 @@ class TestGKEHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
+            self.gke_hook = GKEClusterHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))

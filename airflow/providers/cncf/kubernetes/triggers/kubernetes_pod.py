@@ -44,9 +44,9 @@ class ContainerStateUndefined(BaseException):
     """Exception class to be used when trigger can't define container status."""
 
 
-class KubernetesCreatePodTrigger(BaseTrigger):
+class KubernetesPodTrigger(BaseTrigger):
     """
-    KubernetesCreatePodTrigger run on the trigger worker to check the state of Pod.
+    KubernetesPodTrigger run on the trigger worker to check the state of Pod.
 
     :param pod_name: The name of the pod.
     :param pod_namespace: The namespace of the pod.
@@ -82,7 +82,7 @@ class KubernetesCreatePodTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes KubernetesCreatePodTrigger arguments and classpath."""
         return (
-            "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod.KubernetesCreatePodTrigger",
+            "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod.KubernetesPodTrigger",
             {
                 "pod_name": self.pod_name,
                 "pod_namespace": self.pod_namespace,

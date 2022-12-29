@@ -36,7 +36,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
     KubernetesPodOperator,
     _optionally_suppress,
 )
-from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesCreatePodTrigger
+from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -1171,7 +1171,7 @@ class TestKubernetesPodOperatorAsync:
 
         with pytest.raises(TaskDeferred) as exc:
             k.execute(create_context(k))
-        assert isinstance(exc.value.trigger, KubernetesCreatePodTrigger)
+        assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
     @patch(KUB_OP_PATH.format("cleanup"))
     @patch(HOOK_CLASS)

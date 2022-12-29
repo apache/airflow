@@ -25,29 +25,43 @@ This module contains a Google Kubernetes Engine Hook.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 import warnings
 from typing import Sequence
 
+import google.auth.credentials
+from cached_property import cached_property
+from gcloud.aio.auth import Token
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
+from google.auth.transport import requests as google_requests
 
 # not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
 from google.cloud import container_v1, exceptions  # type: ignore[attr-defined]
 from google.cloud.container_v1 import ClusterManagerClient
 from google.cloud.container_v1.types import Cluster, Operation
+from kubernetes import client
+from kubernetes_asyncio import client as async_client
+from kubernetes_asyncio.client.models import V1Pod
+from kubernetes_asyncio.config.kube_config import FileOrData
 
 from airflow import version
 from airflow.exceptions import AirflowException
+from airflow.kubernetes.pod_generator_deprecated import PodDefaults
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 OPERATIONAL_POLL_INTERVAL = 15
 
 
-class GKEHook(GoogleBaseHook):
+class GKEClusterHook(GoogleBaseHook):
     """
     Hook for Google Kubernetes Engine APIs.
 
@@ -268,12 +282,141 @@ class GKEHook(GoogleBaseHook):
             name,
         )
 
-        return (
-            self.get_cluster_manager_client()
-            .get_cluster(
-                name=f"projects/{project_id}/locations/{self.location}/clusters/{name}",
-                retry=retry,
-                timeout=timeout,
-            )
-            .self_link
+        return self.get_cluster_manager_client().get_cluster(
+            name=f"projects/{project_id}/locations/{self.location}/clusters/{name}",
+            retry=retry,
+            timeout=timeout,
         )
+
+
+class GKEPodHook(GoogleBaseHook):
+    """Hook for managing pods."""
+
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self._cluster_url = cluster_url
+        self._ssl_ca_cert = ssl_ca_cert
+
+    def get_conn(self) -> client.ApiClient:
+        configuration = self._get_config()
+        return client.ApiClient(configuration)
+
+    def _get_config(self) -> client.configuration.Configuration:
+        configuration = client.Configuration(
+            host=self._cluster_url,
+            api_key_prefix={"authorization": "Bearer"},
+            api_key={"authorization": _get_token(self.get_credentials())},
+        )
+        configuration.ssl_ca_cert = FileOrData(
+            {
+                "certificate-authority-data": self._ssl_ca_cert,
+            },
+            file_key_name="certificate-authority",
+        ).as_file()
+        return configuration
+
+    @cached_property
+    def api_client(self) -> client.ApiClient:
+        return self.get_conn()
+
+    @cached_property
+    def core_v1_client(self) -> client.CoreV1Api:
+        return client.CoreV1Api(self.api_client)
+
+    @property
+    def is_in_cluster(self) -> bool:
+        return False
+
+    @staticmethod
+    def get_xcom_sidecar_container_image():
+        """Returns the xcom sidecar image that defined in the connection"""
+        return PodDefaults.SIDECAR_CONTAINER.image
+
+    def get_pod(self, name: str, namespace: str) -> V1Pod:
+        return self.core_v1_client.read_namespaced_pod(
+            name=name,
+            namespace=namespace,
+        )
+
+
+class AsyncGKEPodHook(GoogleBaseAsyncHook):
+    """Hook for asynchronous way to manage GKE pods."""
+
+    sync_hook_class = GKEPodHook
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        **kwargs,
+    ):
+
+        self._cluster_url = cluster_url
+        self._ssl_ca_cert = ssl_ca_cert
+
+        kwargs.update(
+            cluster_url=cluster_url,
+            ssl_ca_cert=ssl_ca_cert,
+        )
+        super().__init__(**kwargs)
+
+    async def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """
+        Gets pod's object.
+
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        """
+        async with Token(scopes=self.scopes) as token:
+            async with self.get_conn(token) as connection:
+                v1_api = async_client.CoreV1Api(connection)
+                pod: V1Pod = await v1_api.read_namespaced_pod(
+                    name=name,
+                    namespace=namespace,
+                )
+            return pod
+
+    @contextlib.asynccontextmanager
+    async def get_conn(self, token: Token) -> async_client.ApiClient:  # type: ignore[override]
+        kube_client = None
+        try:
+            kube_client = await self._load_config(token)
+            yield kube_client
+        finally:
+            if kube_client is not None:
+                await kube_client.close()
+
+    async def _load_config(self, token: Token) -> async_client.ApiClient:
+        configuration = self._get_config()
+        access_token = await token.get()
+        return async_client.ApiClient(
+            configuration,
+            header_name="Authorization",
+            header_value=f"Bearer {access_token}",
+        )
+
+    def _get_config(self) -> async_client.configuration.Configuration:
+        configuration = async_client.Configuration(
+            host=self._cluster_url,
+            ssl_ca_cert=FileOrData(
+                {
+                    "certificate-authority-data": self._ssl_ca_cert,
+                },
+                file_key_name="certificate-authority",
+            ).as_file(),
+        )
+        return configuration
+
+
+def _get_token(creds: google.auth.credentials.Credentials) -> str:
+    if creds.token is None or creds.expired:
+        auth_req = google_requests.Request()
+        creds.refresh(auth_req)
+    return creds.token
