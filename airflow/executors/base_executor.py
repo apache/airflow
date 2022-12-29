@@ -257,13 +257,12 @@ class BaseExecutor(LoggingMixin):
                     # if it hasn't been much time since first check, let it be checked again next time
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
-                else:
-                    # Otherwise, we give up and remove the task from the queue.
-                    self.log.error(
-                        "could not queue task %s (still running after %d attempts)", key, attempt.total_tries
-                    )
-                    del self.attempts[key]
-                    del self.queued_tasks[key]
+                # Otherwise, we give up and remove the task from the queue.
+                self.log.error(
+                    "could not queue task %s (still running after %d attempts)", key, attempt.total_tries
+                )
+                del self.attempts[key]
+                del self.queued_tasks[key]
             else:
                 if key in self.attempts:
                     del self.attempts[key]
