@@ -111,6 +111,13 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
+          {{- if .Values.statsd.env }}
+          env:
+            {{- range $i, $config := .Values.statsd.env }}
+            - name: {{ $config.name }}
+              value: {{ $config.value | quote }}
+            {{- end}}
+          {{- end}}
           volumeMounts:
             - name: config
               mountPath: /etc/statsd-exporter/mappings.yml
