@@ -215,7 +215,7 @@ class Connection(Base, LoggingMixin):
         if self.conn_type:
             uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
         else:
-            uri = '//'
+            uri = "//"
 
         authority_block = ""
         if self.login is not None:
