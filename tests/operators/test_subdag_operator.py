@@ -166,7 +166,7 @@ class TestSubDagOperator:
             external_trigger=True,
         )
 
-        assert 3 == len(subdag_task._get_dagrun.mock_calls)
+        assert 3 == subdag_task._get_dagrun.call_count
 
     def test_execute_create_dagrun_with_conf(self):
         """
@@ -203,7 +203,7 @@ class TestSubDagOperator:
             external_trigger=True,
         )
 
-        assert 3 == len(subdag_task._get_dagrun.mock_calls)
+        assert 3 == subdag_task._get_dagrun.call_count
 
     def test_execute_dagrun_failed(self):
         """
@@ -253,7 +253,7 @@ class TestSubDagOperator:
         subdag_task.post_execute(context=context)
 
         subdag.create_dagrun.assert_not_called()
-        assert 3 == len(subdag_task._get_dagrun.mock_calls)
+        assert 3 == subdag_task._get_dagrun.call_count
 
     def test_rerun_failed_subdag(self, dag_maker):
         """

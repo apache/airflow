@@ -609,7 +609,7 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
             delegate_to=None,
             impersonation_chain=None,
         )
-        # Make sure only 'create_job' is invoked on hook instance
+        # Make sure only 'cancel_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.cancel_job.assert_called_once_with(
             project_id=self.TRAINING_DEFAULT_ARGS["project_id"], job_id=self.TRAINING_DEFAULT_ARGS["job_id"]

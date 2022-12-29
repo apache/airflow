@@ -2569,7 +2569,7 @@ class TestTaskInstance:
         ti.task = task
         with patch.object(TI, "log") as log, pytest.raises(AirflowException):
             ti.run()
-        assert len(log.error.mock_calls) == 1
+        log.error.assert_called_once()
         assert log.error.call_args[0] == ("Task failed with exception",)
         exc_info = log.error.call_args[1]["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename

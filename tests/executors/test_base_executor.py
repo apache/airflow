@@ -101,7 +101,7 @@ def setup_trigger_tasks(dag_maker):
 def test_trigger_queued_tasks(dag_maker, open_slots):
     executor, _ = setup_trigger_tasks(dag_maker)
     executor.trigger_tasks(open_slots)
-    assert len(executor.execute_async.mock_calls) == open_slots
+    assert executor.execute_async.call_count == open_slots
 
 
 @mark.parametrize("change_state_attempt", range(QUEUEING_ATTEMPTS + 2))
