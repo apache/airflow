@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-28T23:33:18Z
+# This constraints file was automatically generated on 2022-12-29T20:33:42Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -23,7 +23,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.4.0
 Flask-WTF==1.0.1
 Flask==2.2.2
-GitPython==3.1.29
+GitPython==3.1.30
 HeapDict==1.0.1
 JPype1==1.4.1
 JayDeBeApi==1.2.3
@@ -173,9 +173,9 @@ billiard==3.6.4.0
 black==23.1a1
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.39
+boto3==1.26.40
 boto==2.49.0
-botocore==1.29.39
+botocore==1.29.40
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -359,7 +359,7 @@ locket==1.0.0
 lockfile==0.12.2
 looker-sdk==22.20.0
 lxml==4.9.2
-lz4==4.0.2
+lz4==4.2.0
 markdown-it-py==2.1.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
@@ -466,7 +466,7 @@ pymssql==2.2.7
 pyodbc==4.0.35
 pyparsing==3.0.9
 pypsrp==0.8.1
-pyrsistent==0.19.2
+pyrsistent==0.19.3
 pyspark==3.3.1
 pyspnego==0.7.0
 pytest-asyncio==0.20.3
