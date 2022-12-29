@@ -50,20 +50,20 @@ def send_email(
     **kwargs,
 ) -> None:
     """
-    Send an email using the backend specified in the ``EMAIL_BACKEND`` configuration option.
+    Send an email using the backend specified in the *EMAIL_BACKEND* configuration option.
 
     :param to: A list or iterable of email addresses to send the email to.
     :param subject: The subject of the email.
     :param html_content: The content of the email in HTML format.
     :param files: A list of paths to files to attach to the email.
-    :param dryrun: If `True`, the email will not actually be sent. Default: `False`.
+    :param dryrun: If *True*, the email will not actually be sent. Default: *False*.
     :param cc: A string or iterable of strings containing email addresses to send a copy of the email to.
     :param bcc: A string or iterable of strings containing email addresses to send a
         blind carbon copy of the email to.
     :param mime_subtype: The subtype of the MIME message. Default: "mixed".
     :param mime_charset: The charset of the email. Default: "utf-8".
     :param conn_id: The connection ID to use for the backend. If not provided, the default connection
-        specified in the ``EMAIL_CONN_ID`` configuration option will be used.
+        specified in the *EMAIL_CONN_ID* configuration option will be used.
     :param custom_headers: A dictionary of additional headers to add to the MIME message.
         No validations are run on these values, and they should be able to be encoded.
     :param kwargs: Additional keyword arguments to pass to the backend.
@@ -217,7 +217,7 @@ def send_mime_email(
     :param e_to: The email address or a list of email addresses of the recipient(s).
     :param mime_msg: The MIME message to send.
     :param conn_id: The ID of the SMTP connection to use.
-    :param dryrun: If `True`, the email will not be sent, but a log message will be generated.
+    :param dryrun: If True, the email will not be sent, but a log message will be generated.
     """
     smtp_host = conf.get_mandatory_value("smtp", "SMTP_HOST")
     smtp_port = conf.getint("smtp", "SMTP_PORT")
@@ -314,5 +314,5 @@ def _get_email_list_from_str(addresses: str) -> list[str]:
     :param addresses: A string containing one or more email addresses.
     :return: A list of email addresses.
     """
-    pattern = r"[,;]\s*"
-    return [address.strip() for address in re.split(pattern, addresses)]
+    pattern = r"\s*[,;]\s*"
+    return [address for address in re.split(pattern, addresses)]
