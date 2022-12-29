@@ -63,7 +63,7 @@ def send_email(
     :param mime_subtype: The subtype of the MIME message. Default: "mixed".
     :param mime_charset: The charset of the email. Default: "utf-8".
     :param conn_id: The connection ID to use for the backend. If not provided, the default connection
-        specified in the `EMAIL_CONN_ID` configuration option will be used.
+        specified in the ``EMAIL_CONN_ID`` configuration option will be used.
     :param custom_headers: A dictionary of additional headers to add to the MIME message.
         No validations are run on these values, and they should be able to be encoded.
     :param kwargs: Additional keyword arguments to pass to the backend.
