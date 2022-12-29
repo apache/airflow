@@ -20,9 +20,12 @@ from __future__ import annotations
 from datetime import timedelta
 from unittest import mock
 
+import pendulum
+import pytest
+import time_machine
 from pytest import mark
 
-from airflow.executors.base_executor import QUEUEING_ATTEMPTS, BaseExecutor
+from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils import timezone
@@ -104,31 +107,63 @@ def test_trigger_queued_tasks(dag_maker, open_slots):
     assert executor.execute_async.call_count == open_slots
 
 
-@mark.parametrize("change_state_attempt", range(QUEUEING_ATTEMPTS + 2))
-def test_trigger_running_tasks(dag_maker, change_state_attempt):
+@pytest.mark.parametrize(
+    "can_try_num, change_state_num, second_exec",
+    [
+        (2, 3, False),
+        (3, 3, True),
+        (4, 3, True),
+    ],
+)
+@mock.patch("airflow.executors.base_executor.RunningRetryAttemptType.can_try_again")
+def test_trigger_running_tasks(can_try_mock, dag_maker, can_try_num, change_state_num, second_exec):
+    can_try_mock.side_effect = [True for _ in range(can_try_num)] + [False]
     executor, dagrun = setup_trigger_tasks(dag_maker)
     open_slots = 100
     executor.trigger_tasks(open_slots)
     expected_calls = len(dagrun.task_instances)  # initially `execute_async` called for each task
-    assert len(executor.execute_async.mock_calls) == expected_calls
+    assert executor.execute_async.call_count == expected_calls
 
     # All the tasks are now "running", so while we enqueue them again here,
     # they won't be executed again until the executor has been notified of a state change.
-    enqueue_tasks(executor, dagrun)
+    ti = dagrun.task_instances[0]
+    assert ti.key in executor.running
+    assert ti.key not in executor.queued_tasks
+    executor.queue_command(ti, ["airflow"])
 
-    for attempt in range(QUEUEING_ATTEMPTS + 2):
-        # On the configured attempt, we notify the executor that the task has succeeded.
-        if attempt == change_state_attempt:
-            executor.change_state(dagrun.task_instances[0].key, State.SUCCESS)
-            # If we have not exceeded QUEUEING_ATTEMPTS, we should expect an additional "execute" call
-            if attempt < QUEUEING_ATTEMPTS:
-                expected_calls += 1
+    # this is the problem we're dealing with: ti.key both queued and running
+    assert ti.key in executor.queued_tasks and ti.key in executor.running
+    assert len(executor.attempts) == 0
+    executor.trigger_tasks(open_slots)
+
+    # first trigger call after queueing again creates an attempt object
+    assert len(executor.attempts) == 1
+    assert ti.key in executor.attempts
+
+    for attempt in range(2, change_state_num + 2):
         executor.trigger_tasks(open_slots)
-        assert len(executor.execute_async.mock_calls) == expected_calls
-    if change_state_attempt < QUEUEING_ATTEMPTS:
-        assert len(executor.execute_async.mock_calls) == len(dagrun.task_instances) + 1
-    else:
-        assert len(executor.execute_async.mock_calls) == len(dagrun.task_instances)
+        if attempt <= min(can_try_num, change_state_num):
+            assert ti.key in executor.queued_tasks and ti.key in executor.running
+        # On the configured attempt, we notify the executor that the task has succeeded.
+        if attempt == change_state_num:
+            executor.change_state(ti.key, State.SUCCESS)
+            assert ti.key not in executor.running
+    # retry was ok when state changed, ti.key will be in running (for the second time)
+    if can_try_num >= change_state_num:
+        assert ti.key in executor.running
+    else:  # otherwise, it won't be
+        assert ti.key not in executor.running
+    # either way, ti.key not in queued -- it was either removed because never left running
+    # or it was moved out when run 2nd time
+    assert ti.key not in executor.queued_tasks
+    assert not executor.attempts
+
+    # we expect one more "execute_async" if TI was marked successful
+    # this would move it out of running set and free the queued TI to be executed again
+    if second_exec is True:
+        expected_calls += 1
+
+    assert executor.execute_async.call_count == expected_calls
 
 
 def test_validate_airflow_tasks_run_command(dag_maker):
@@ -136,3 +171,27 @@ def test_validate_airflow_tasks_run_command(dag_maker):
     tis = dagrun.task_instances
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
     assert dag_id == dagrun.dag_id and task_id == tis[0].task_id
+
+
+@pytest.mark.parametrize("loop_duration, total_tries", [(0.5, 12), (1.0, 7), (1.7, 4), (10, 2)])
+def test_running_retry_attempt_type(loop_duration, total_tries):
+    """
+    Verify can_try_again returns True until at least 5 seconds have passed.
+
+    For faster loops, we total tries will be higher.  If loops take longer than 5 seconds, still should
+    end up trying 2 times.
+    """
+    min_seconds_for_test = 5
+
+    with time_machine.travel(pendulum.now("UTC"), tick=False) as t:
+
+        # set MIN_SECONDS so tests don't break if the value is changed
+        RunningRetryAttemptType.MIN_SECONDS = min_seconds_for_test
+        a = RunningRetryAttemptType()
+        while True:
+            if not a.can_try_again():
+                break
+            t.shift(loop_duration)
+        assert a.elapsed > min_seconds_for_test
+    assert a.total_tries == total_tries
+    assert a.tries_after_min == 1
