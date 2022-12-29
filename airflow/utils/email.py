@@ -107,8 +107,21 @@ def send_email_smtp(
     custom_headers: dict[str, Any] | None = None,
     **kwargs,
 ) -> None:
-    """
-    Send an email with html content
+    """Send an email with html content.
+
+    :param to: Recipient email address or list of addresses.
+    :param subject: Email subject.
+    :param html_content: Email body in HTML format.
+    :param files: List of file paths to attach to the email.
+    :param dryrun: If True, the email will not be sent, but all other actions will be performed.
+    :param cc: Carbon copy recipient email address or list of addresses.
+    :param bcc: Blind carbon copy recipient email address or list of addresses.
+    :param mime_subtype: MIME subtype of the email.
+    :param mime_charset: MIME charset of the email.
+    :param conn_id: Connection ID of the SMTP server.
+    :param from_email: Sender email address.
+    :param custom_headers: Dictionary of custom headers to include in the email.
+    :param kwargs: Additional keyword arguments.
 
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
