@@ -27,7 +27,7 @@ from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
 
 class TestLocalKubernetesExecutor:
     def test_is_local_default_value(self):
-        assert not LocalKubernetesExecutor.is_local
+        assert LocalKubernetesExecutor.is_local
 
     def test_queued_tasks(self):
         local_executor_mock = mock.MagicMock()
