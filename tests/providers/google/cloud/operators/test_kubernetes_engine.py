@@ -21,7 +21,6 @@ import json
 import os
 import unittest
 from unittest import mock
-from unittest.mock import PropertyMock
 
 import pytest
 from parameterized import parameterized
@@ -62,13 +61,13 @@ GCLOUD_COMMAND = "gcloud container clusters get-credentials {} --zone {} --proje
 KUBE_ENV_VAR = "KUBECONFIG"
 FILE_NAME = "/tmp/mock_name"
 KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.{}"
-GKE_HOOK_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook"
+GKE_HOOK_MODULE_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine"
+GKE_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEClusterHook"
 KUB_OPERATOR_EXEC = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute"
-KUB_CONFIG_PATH = "airflow.providers.google.cloud.utils.kubernetes_engine_config.GoogleBaseHook"
-KUB_CONFIG_EXEC_IN_SUBPROCESS_PATH = (
-    "airflow.providers.google.cloud.utils.kubernetes_engine_config.execute_in_subprocess"
-)
 TEMP_FILE = "tempfile.NamedTemporaryFile"
+GKE_OP_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator"
+CLUSTER_URL = "https://test-host"
+SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 
 
 class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
@@ -82,7 +81,8 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
         ]
     )
     @mock.patch(GKE_HOOK_PATH)
-    def test_create_execute(self, body, mock_hook):
+    @mock.patch(f"{GKE_HOOK_MODULE_PATH}.Cluster.to_dict")
+    def test_create_execute(self, body, mock_to_dict, mock_hook):
         operator = GKECreateClusterOperator(
             project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, body=body, task_id=PROJECT_TASK_ID
         )
@@ -210,75 +210,12 @@ class TestGKEPodOperator(unittest.TestCase):
         assert set(KubernetesPodOperator.template_fields).issubset(GKEStartPodOperator.template_fields)
 
     @mock.patch.dict(os.environ, {})
-    @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
-    )
     @mock.patch(KUB_OPERATOR_EXEC)
-    @mock.patch(KUB_CONFIG_PATH)
-    @mock.patch(KUB_CONFIG_EXEC_IN_SUBPROCESS_PATH)
     @mock.patch(TEMP_FILE)
-    def test_execute(self, file_mock, mock_execute_in_subprocess, mock_gcp_hook, exec_mock, get_con_mock):
-        type(file_mock.return_value.__enter__.return_value).name = PropertyMock(
-            side_effect=[FILE_NAME, "/path/to/new-file"]
-        )
-
+    @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
+    def test_execute(self, fetch_cluster_info_mock, file_mock, exec_mock):
         self.gke_op.execute(context=mock.MagicMock())
-
-        mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
-
-        mock_execute_in_subprocess.assert_called_once_with(
-            [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                CLUSTER_NAME,
-                "--project",
-                TEST_GCP_PROJECT_ID,
-                "--zone",
-                PROJECT_LOCATION,
-            ]
-        )
-
-        assert self.gke_op.config_file == FILE_NAME
-
-    @mock.patch.dict(os.environ, {})
-    @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
-    )
-    @mock.patch(KUB_OPERATOR_EXEC)
-    @mock.patch(KUB_CONFIG_PATH)
-    @mock.patch(KUB_CONFIG_EXEC_IN_SUBPROCESS_PATH)
-    @mock.patch(TEMP_FILE)
-    def test_execute_regional(
-        self, file_mock, mock_execute_in_subprocess, mock_gcp_hook, exec_mock, get_con_mock
-    ):
-        self.gke_op.regional = True
-        type(file_mock.return_value.__enter__.return_value).name = PropertyMock(
-            side_effect=[FILE_NAME, "/path/to/new-file"]
-        )
-
-        self.gke_op.execute(context=mock.MagicMock())
-
-        mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
-
-        mock_execute_in_subprocess.assert_called_once_with(
-            [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                CLUSTER_NAME,
-                "--project",
-                TEST_GCP_PROJECT_ID,
-                "--region",
-                PROJECT_LOCATION,
-            ]
-        )
-
-        assert self.gke_op.config_file == FILE_NAME
+        fetch_cluster_info_mock.assert_called_once()
 
     def test_config_file_throws_error(self):
         with pytest.raises(AirflowException):
@@ -299,75 +236,14 @@ class TestGKEPodOperator(unittest.TestCase):
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_OPERATOR_EXEC)
-    @mock.patch(KUB_CONFIG_PATH)
-    @mock.patch(KUB_CONFIG_EXEC_IN_SUBPROCESS_PATH)
     @mock.patch(TEMP_FILE)
-    def test_execute_with_internal_ip(
-        self, file_mock, mock_execute_in_subprocess, mock_gcp_hook, exec_mock, get_con_mock
-    ):
-        self.gke_op.use_internal_ip = True
-        type(file_mock.return_value.__enter__.return_value).name = PropertyMock(
-            side_effect=[FILE_NAME, "/path/to/new-file"]
-        )
-
-        self.gke_op.execute(context=mock.MagicMock())
-
-        mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
-
-        mock_execute_in_subprocess.assert_called_once_with(
-            [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                CLUSTER_NAME,
-                "--project",
-                TEST_GCP_PROJECT_ID,
-                "--zone",
-                PROJECT_LOCATION,
-                "--internal-ip",
-            ]
-        )
-
-        assert self.gke_op.config_file == FILE_NAME
-
-    @mock.patch.dict(os.environ, {})
-    @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
-    )
-    @mock.patch(KUB_OPERATOR_EXEC)
-    @mock.patch(KUB_CONFIG_PATH)
-    @mock.patch(KUB_CONFIG_EXEC_IN_SUBPROCESS_PATH)
-    @mock.patch(TEMP_FILE)
+    @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
     def test_execute_with_impersonation_service_account(
-        self, file_mock, mock_execute_in_subprocess, mock_gcp_hook, exec_mock, get_con_mock
+        self, fetch_cluster_info_mock, file_mock, exec_mock, get_con_mock
     ):
-        type(file_mock.return_value.__enter__.return_value).name = PropertyMock(
-            side_effect=[FILE_NAME, "/path/to/new-file"]
-        )
         self.gke_op.impersonation_chain = "test_account@example.com"
         self.gke_op.execute(context=mock.MagicMock())
-
-        mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
-
-        mock_execute_in_subprocess.assert_called_once_with(
-            [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                CLUSTER_NAME,
-                "--project",
-                TEST_GCP_PROJECT_ID,
-                "--impersonate-service-account",
-                "test_account@example.com",
-                "--zone",
-                PROJECT_LOCATION,
-            ]
-        )
-
-        assert self.gke_op.config_file == FILE_NAME
+        fetch_cluster_info_mock.assert_called_once()
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
@@ -375,59 +251,15 @@ class TestGKEPodOperator(unittest.TestCase):
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_OPERATOR_EXEC)
-    @mock.patch(KUB_CONFIG_PATH)
-    @mock.patch(KUB_CONFIG_EXEC_IN_SUBPROCESS_PATH)
     @mock.patch(TEMP_FILE)
+    @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
     def test_execute_with_impersonation_service_chain_one_element(
-        self, file_mock, mock_execute_in_subprocess, mock_gcp_hook, exec_mock, get_con_mock
+        self, fetch_cluster_info_mock, file_mock, exec_mock, get_con_mock
     ):
-        type(file_mock.return_value.__enter__.return_value).name = PropertyMock(
-            side_effect=[FILE_NAME, "/path/to/new-file"]
-        )
         self.gke_op.impersonation_chain = ["test_account@example.com"]
         self.gke_op.execute(context=mock.MagicMock())
 
-        mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
-
-        mock_execute_in_subprocess.assert_called_once_with(
-            [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                CLUSTER_NAME,
-                "--project",
-                TEST_GCP_PROJECT_ID,
-                "--impersonate-service-account",
-                "test_account@example.com",
-                "--zone",
-                PROJECT_LOCATION,
-            ]
-        )
-
-        assert self.gke_op.config_file == FILE_NAME
-
-    @mock.patch.dict(os.environ, {})
-    @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
-    )
-    @mock.patch(KUB_OPERATOR_EXEC)
-    @mock.patch(KUB_CONFIG_PATH)
-    @mock.patch(KUB_CONFIG_EXEC_IN_SUBPROCESS_PATH)
-    @mock.patch(TEMP_FILE)
-    def test_execute_with_impersonation_service_chain_more_elements(
-        self, file_mock, mock_execute_in_subprocess, mock_gcp_hook, exec_mock, get_con_mock
-    ):
-        type(file_mock.return_value.__enter__.return_value).name = PropertyMock(
-            side_effect=[FILE_NAME, "/path/to/new-file"]
-        )
-        self.gke_op.impersonation_chain = ["test_account@example.com", "test_account1@example.com"]
-        with pytest.raises(
-            AirflowException,
-            match="Chained list of accounts is not supported, please specify only one service account",
-        ):
-            self.gke_op.execute(None)
+        fetch_cluster_info_mock.assert_called_once()
 
 
 class TestGKEPodOperatorAsync(unittest.TestCase):
@@ -446,6 +278,8 @@ class TestGKEPodOperatorAsync(unittest.TestCase):
             name=TASK_NAME,
             namespace=NAMESPACE,
         )
+        self.gke_op._cluster_url = CLUSTER_URL
+        self.gke_op._ssl_ca_cert = SSL_CA_CERT
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(KUB_OP_PATH.format("build_pod_request_obj"))
@@ -454,24 +288,16 @@ class TestGKEPodOperatorAsync(unittest.TestCase):
         "airflow.hooks.base.BaseHook.get_connections",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
-    @mock.patch(KUB_CONFIG_PATH)
-    @mock.patch(KUB_CONFIG_EXEC_IN_SUBPROCESS_PATH)
+    @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
     def test_async_create_pod_should_execute_successfully(
-        self, mock_execute_in_subprocess, mock_gcp_hook, get_con_mock, mocked_pod, mocked_pod_obj
+        self,
+        fetch_cluster_info_mock,
+        get_con_mock,
+        mocked_pod,
+        mocked_pod_obj,
     ):
         with pytest.raises(TaskDeferred):
+            self.gke_op._cluster_url = CLUSTER_URL
+            self.gke_op._ssl_ca_cert = SSL_CA_CERT
             self.gke_op.execute(context=mock.MagicMock())
-        mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
-        mock_execute_in_subprocess.assert_called_once_with(
-            [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                CLUSTER_NAME,
-                "--project",
-                TEST_GCP_PROJECT_ID,
-                "--zone",
-                PROJECT_LOCATION,
-            ]
-        )
+            fetch_cluster_info_mock.assert_called_once()

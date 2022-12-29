@@ -32,7 +32,6 @@ import warnings
 from typing import Sequence
 
 import google.auth.credentials
-from cached_property import cached_property
 from gcloud.aio.auth import Token
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -45,10 +44,12 @@ from google.cloud.container_v1 import ClusterManagerClient
 from google.cloud.container_v1.types import Cluster, Operation
 from kubernetes import client
 from kubernetes_asyncio import client as async_client
+from kubernetes_asyncio.client import ApiException
 from kubernetes_asyncio.client.models import V1Pod
 from kubernetes_asyncio.config.kube_config import FileOrData
 
 from airflow import version
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -303,24 +304,6 @@ class GKEPodHook(GoogleBaseHook):
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
 
-    def get_conn(self) -> client.ApiClient:
-        configuration = self._get_config()
-        return client.ApiClient(configuration)
-
-    def _get_config(self) -> client.configuration.Configuration:
-        configuration = client.Configuration(
-            host=self._cluster_url,
-            api_key_prefix={"authorization": "Bearer"},
-            api_key={"authorization": _get_token(self.get_credentials())},
-        )
-        configuration.ssl_ca_cert = FileOrData(
-            {
-                "certificate-authority-data": self._ssl_ca_cert,
-            },
-            file_key_name="certificate-authority",
-        ).as_file()
-        return configuration
-
     @cached_property
     def api_client(self) -> client.ApiClient:
         return self.get_conn()
@@ -338,7 +321,38 @@ class GKEPodHook(GoogleBaseHook):
         """Returns the xcom sidecar image that defined in the connection"""
         return PodDefaults.SIDECAR_CONTAINER.image
 
+    def get_conn(self) -> client.ApiClient:
+        configuration = self._get_config()
+        return client.ApiClient(configuration)
+
+    def _get_config(self) -> client.configuration.Configuration:
+        configuration = client.Configuration(
+            host=self._cluster_url,
+            api_key_prefix={"authorization": "Bearer"},
+            api_key={"authorization": self._get_token(self.get_credentials())},
+        )
+        configuration.ssl_ca_cert = FileOrData(
+            {
+                "certificate-authority-data": self._ssl_ca_cert,
+            },
+            file_key_name="certificate-authority",
+        ).as_file()
+        return configuration
+
+    @staticmethod
+    def _get_token(creds: google.auth.credentials.Credentials) -> str:
+        if creds.token is None or creds.expired:
+            auth_req = google_requests.Request()
+            creds.refresh(auth_req)
+        return creds.token
+
     def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """
+        Gets pod's object.
+
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        """
         return self.core_v1_client.read_namespaced_pod(
             name=name,
             namespace=namespace,
@@ -366,22 +380,6 @@ class AsyncGKEPodHook(GoogleBaseAsyncHook):
             ssl_ca_cert=ssl_ca_cert,
         )
         super().__init__(**kwargs)
-
-    async def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """
-        Gets pod's object.
-
-        :param name: Name of the pod.
-        :param namespace: Name of the pod's namespace.
-        """
-        async with Token(scopes=self.scopes) as token:
-            async with self.get_conn(token) as connection:
-                v1_api = async_client.CoreV1Api(connection)
-                pod: V1Pod = await v1_api.read_namespaced_pod(
-                    name=name,
-                    namespace=namespace,
-                )
-            return pod
 
     @contextlib.asynccontextmanager
     async def get_conn(self, token: Token) -> async_client.ApiClient:  # type: ignore[override]
@@ -414,9 +412,29 @@ class AsyncGKEPodHook(GoogleBaseAsyncHook):
         )
         return configuration
 
+    async def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """
+        Gets pod's object.
 
-def _get_token(creds: google.auth.credentials.Credentials) -> str:
-    if creds.token is None or creds.expired:
-        auth_req = google_requests.Request()
-        creds.refresh(auth_req)
-    return creds.token
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        """
+        async with Token(scopes=self.scopes) as token:
+            async with self.get_conn(token) as connection:
+                v1_api = async_client.CoreV1Api(connection)
+                pod: V1Pod = await v1_api.read_namespaced_pod(
+                    name=name,
+                    namespace=namespace,
+                )
+            return pod
+
+    async def delete_pod(self, name: str, namespace: str):
+        async with Token(scopes=self.scopes) as token:
+            async with self.get_conn(token) as connection:
+                try:
+                    v1_api = async_client.CoreV1Api(connection)
+                    await v1_api.delete_namespaced_pod(name, namespace, body=client.V1DeleteOptions())
+                except ApiException as e:
+                    # If the pod is already deleted
+                    if e.status != 404:
+                        raise

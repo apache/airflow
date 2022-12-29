@@ -35,7 +35,12 @@ class GKEPodTrigger(KubernetesPodTrigger):
         *args,
         **kwargs,
     ):
-        super().__init__(pod_name, pod_namespace, *args, **kwargs)
+        super().__init__(
+            pod_name,
+            pod_namespace,
+            *args,
+            **kwargs,
+        )
         self.pod_name = pod_name
         self.pod_namespace = pod_namespace
         self._cluster_url = cluster_url
@@ -49,6 +54,8 @@ class GKEPodTrigger(KubernetesPodTrigger):
                 "pod_namespace": self.pod_namespace,
                 "cluster_url": self._cluster_url,
                 "ssl_ca_cert": self._ssl_ca_cert,
+                "startup_timeout": self.startup_timeout,
+                "trigger_start_time": self.trigger_start_time,
             },
         )
 

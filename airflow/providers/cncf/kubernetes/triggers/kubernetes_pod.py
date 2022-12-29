@@ -17,12 +17,16 @@
 from __future__ import annotations
 
 import asyncio
+from asyncio import CancelledError
+from datetime import datetime
 from enum import Enum
 from typing import Any, AsyncIterator
 
+import pytz
 from kubernetes_asyncio.client.models import V1Pod
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 BASE_CONTAINER_NAME = "base"
@@ -38,10 +42,7 @@ class ContainerState(str, Enum):
     RUNNING = "running"
     TERMINATED = "terminated"
     FAILED = "failed"
-
-
-class ContainerStateUndefined(BaseException):
-    """Exception class to be used when trigger can't define container status."""
+    UNDEFINED = "undefined"
 
 
 class KubernetesPodTrigger(BaseTrigger):
@@ -62,20 +63,26 @@ class KubernetesPodTrigger(BaseTrigger):
         self,
         pod_name: str,
         pod_namespace: str,
+        trigger_start_time: datetime,
         kubernetes_conn_id: str | None = None,
         poll_interval: float = 10,
         cluster_context: str | None = None,
         config_dict: dict | None = None,
         in_cluster: bool | None = None,
+        should_delete_pod: bool = True,
+        startup_timeout: int = 120,
     ):
         super().__init__()
-        self.kubernetes_conn_id = kubernetes_conn_id
         self.pod_name = pod_name
         self.pod_namespace = pod_namespace
+        self.trigger_start_time = trigger_start_time
+        self.kubernetes_conn_id = kubernetes_conn_id
         self.poll_interval = poll_interval
         self.cluster_context = cluster_context
         self.config_dict = config_dict
         self.in_cluster = in_cluster
+        self.should_delete_pod = should_delete_pod
+        self.startup_timeout = startup_timeout
 
         self._hook: AsyncKubernetesHook | None = None
 
@@ -91,6 +98,9 @@ class KubernetesPodTrigger(BaseTrigger):
                 "cluster_context": self.cluster_context,
                 "config_dict": self.config_dict,
                 "in_cluster": self.in_cluster,
+                "should_delete_pod": self.should_delete_pod,
+                "startup_timeout": self.startup_timeout,
+                "trigger_start_time": self.trigger_start_time,
             },
         )
 
@@ -104,6 +114,9 @@ class KubernetesPodTrigger(BaseTrigger):
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
+
+                pod_status = pod.status.phase
+                self.log.debug("Pod %s status: %s", self.pod_name, pod_status)
                 container_state = self.define_container_state(pod)
                 self.log.debug("Container %s status: %s", BASE_CONTAINER_NAME, container_state)
 
@@ -114,12 +127,28 @@ class KubernetesPodTrigger(BaseTrigger):
                             "namespace": self.pod_namespace,
                             "status": "success",
                             "message": "All containers inside pod have started successfully.",
-                            "config_dict": self.config_dict,
                         }
                     )
                     return
-                elif container_state == ContainerState.WAITING or container_state == ContainerState.RUNNING:
+                elif self.should_wait(pod_phase=pod_status, container_state=container_state):
                     self.log.info("Container is not completed and still working.")
+
+                    delta = datetime.now(tz=pytz.UTC) - self.trigger_start_time
+                    if delta.total_seconds() >= self.startup_timeout:
+                        message = (
+                            f"Pod took longer than {self.startup_timeout} seconds to start. "
+                            "Check the pod events in kubernetes to determine why."
+                        )
+                        yield TriggerEvent(
+                            {
+                                "name": self.pod_name,
+                                "namespace": self.pod_namespace,
+                                "status": "timeout",
+                                "message": message,
+                            }
+                        )
+                        return
+
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
@@ -129,10 +158,26 @@ class KubernetesPodTrigger(BaseTrigger):
                             "namespace": self.pod_namespace,
                             "status": "failed",
                             "message": pod.status.message,
-                            "config_dict": self.config_dict,
                         }
                     )
                     return
+            except CancelledError:
+                # That means that task was marked as failed
+                if self.should_delete_pod:
+                    self.log.info("Deleting pod...")
+                    await self._get_async_hook().delete_pod(
+                        name=self.pod_name,
+                        namespace=self.pod_namespace,
+                    )
+                yield TriggerEvent(
+                    {
+                        "name": self.pod_name,
+                        "namespace": self.pod_namespace,
+                        "status": "cancelled",
+                        "message": "Pod execution was cancelled",
+                    }
+                )
+                return
             except Exception as e:
                 self.log.exception("Exception occurred while checking pod phase:")
                 yield TriggerEvent(
@@ -141,7 +186,6 @@ class KubernetesPodTrigger(BaseTrigger):
                         "namespace": self.pod_namespace,
                         "status": "error",
                         "message": str(e),
-                        "config_dict": self.config_dict,
                     }
                 )
                 return
@@ -159,6 +203,10 @@ class KubernetesPodTrigger(BaseTrigger):
     @staticmethod
     def define_container_state(pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses
+
+        if pod_containers is None:
+            return ContainerState.UNDEFINED
+
         container = [container for container in pod_containers if container.name == BASE_CONTAINER_NAME][0]
 
         for state in (ContainerState.RUNNING, ContainerState.WAITING, ContainerState.TERMINATED):
@@ -168,6 +216,12 @@ class KubernetesPodTrigger(BaseTrigger):
                     return state
                 else:
                     return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
-        raise ContainerStateUndefined(
-            f"Can not define state of the container. Statuses of the containers are {pod_containers}",
+        return ContainerState.UNDEFINED
+
+    @staticmethod
+    def should_wait(pod_phase: PodPhase, container_state: ContainerState) -> bool:
+        return (
+            container_state == ContainerState.WAITING
+            or container_state == ContainerState.RUNNING
+            or (container_state == ContainerState.UNDEFINED and pod_phase == PodPhase.PENDING)
         )

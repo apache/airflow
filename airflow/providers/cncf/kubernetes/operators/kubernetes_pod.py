@@ -25,8 +25,10 @@ import secrets
 import string
 import warnings
 from contextlib import AbstractContextManager
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
+import pytz
 from kubernetes.client import CoreV1Api, models as k8s
 from slugify import slugify
 from urllib3.exceptions import HTTPError
@@ -57,7 +59,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     get_container_termination_message,
 )
-from airflow.providers.google.cloud.utils.kubernetes_engine_config import KUBE_CONFIG_ENV_VAR
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -69,6 +70,8 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 alphanum_lower = string.ascii_lowercase + string.digits
+
+KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
 def _rand_str(num):
@@ -350,6 +353,8 @@ class KubernetesPodOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
 
+        self._config_dict: dict | None = None
+
     @cached_property
     def _incluster_namespace(self):
         from pathlib import Path
@@ -547,71 +552,72 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
-        self.read_config_file_and_convert_to_dict()
-        self.go_to_defer_mode()
+        self.convert_config_file_to_dict()
+        self.invoke_defer_method()
 
-    def read_config_file_and_convert_to_dict(self):
+    def convert_config_file_to_dict(self):
+        """Converts passed config_file to dict format."""
         config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
         if config_file:
             with open(config_file) as f:
-                self.config_file_in_dict_representation = yaml.safe_load(f)
+                self._config_dict = yaml.safe_load(f)
         else:
-            self.config_file_in_dict_representation = None
+            self._config_dict = None
 
-    def go_to_defer_mode(self):
-        """Method to easily redefine triggers which are being used in descendants."""
+    def invoke_defer_method(self):
+        """Method to easily redefine triggers which are being used in child classes."""
+        trigger_start_time = datetime.now(tz=pytz.UTC)
         self.defer(
             trigger=KubernetesPodTrigger(
                 pod_name=self.pod.metadata.name,
                 pod_namespace=self.pod.metadata.namespace,
+                trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
-                config_dict=self.config_file_in_dict_representation,
+                config_dict=self._config_dict,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
+                should_delete_pod=self.is_delete_operator_pod,
+                startup_timeout=self.startup_timeout_seconds,
             ),
             method_name="execute_complete",
         )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
-        pod = self.hook.get_pod(
-            event["name"],
-            event["namespace"],
-        )
-        # It is done to coincide with the current implementation of the general logic of the cleanup
-        # method. If it's going to be remade in future then it must be changed
-        remote_pod = pod
-
-        if event["status"] == "error":
-            self.cleanup(
-                pod=pod,
-                remote_pod=remote_pod,
+        pod = None
+        remote_pod = None
+        try:
+            pod = self.hook.get_pod(
+                event["name"],
+                event["namespace"],
             )
-            raise AirflowException(event["message"])
-        elif event["status"] == "success":
-            ti = context["ti"]
-            ti.xcom_push(key="pod_name", value=pod.metadata.name)
-            ti.xcom_push(key="pod_namespace", value=pod.metadata.namespace)
+            # It is done to coincide with the current implementation of the general logic of the cleanup
+            # method. If it's going to be remade in future then it must be changed
+            remote_pod = pod
 
-            if self.get_logs:
-                self.write_logs(pod)
+            if event["status"] in ("error", "failed", "timeout"):
+                raise AirflowException(event["message"])
+            elif event["status"] == "success":
+                ti = context["ti"]
+                ti.xcom_push(key="pod_name", value=pod.metadata.name)
+                ti.xcom_push(key="pod_namespace", value=pod.metadata.namespace)
 
-            if self.do_xcom_push:
-                xcom_sidecar_output = self.extract_xcom(pod=pod)
-                pod = self.pod_manager.await_pod_completion(pod)
-                # It is done to coincide with the current implementation of the general logic of the cleanup
-                # method. If it's going to be remade in future then it must be changed
-                remote_pod = pod
+                if self.get_logs:
+                    self.write_logs(pod)
+
+                if self.do_xcom_push:
+                    xcom_sidecar_output = self.extract_xcom(pod=pod)
+                    pod = self.pod_manager.await_pod_completion(pod)
+                    # It is done to coincide with the current implementation of the general logic of
+                    # the cleanup method. If it's going to be remade in future then it must be changed
+                    remote_pod = pod
+                    return xcom_sidecar_output
+        finally:
+            if pod is not None and remote_pod is not None:
                 self.post_complete_action(
                     pod=pod,
                     remote_pod=remote_pod,
                 )
-                return xcom_sidecar_output
-
-            self.post_complete_action(
-                pod=pod,
-                remote_pod=remote_pod,
-            )
 
     def write_logs(self, pod: k8s.V1Pod):
         try:

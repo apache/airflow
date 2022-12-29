@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 import warnings
+from datetime import datetime
 from typing import TYPE_CHECKING, Sequence
 
-from cached_property import cached_property
+import pytz
 from google.cloud.container_v1.types import Cluster
 from kubernetes.client.models import V1Pod
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
@@ -301,11 +303,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
         *,
         location: str,
         cluster_name: str,
-        use_internal_ip: bool = False,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        regional: bool = False,
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
@@ -325,9 +325,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self.location = location
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
-        self.use_internal_ip = use_internal_ip
         self.impersonation_chain = impersonation_chain
-        self.regional = regional
 
         self.pod: V1Pod | None = None
         self._ssl_ca_cert: str | None = None
@@ -345,7 +343,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
     @cached_property
-    def cluster_hook(self):
+    def cluster_hook(self) -> GKEClusterHook:
         return GKEClusterHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -353,10 +351,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
         )
 
     @cached_property
-    def hook(self) -> GKEPodHook:
+    def hook(self) -> GKEPodHook:  # type: ignore[override]
         if self._cluster_url is None or self._ssl_ca_cert is None:
-            # TODO: Maybe another exception class for developers
-            raise AirflowException(
+            raise AttributeError(
                 "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
                 "Try to use self.get_kube_creds method",
             )
@@ -367,12 +364,13 @@ class GKEStartPodOperator(KubernetesPodOperator):
         )
         return hook
 
-    def execute(self, context: Context) -> None:
-        """Look for a pod, if not found then create one and defer"""
-        self.get_kube_creds()
+    def execute(self, context: Context):
+        """Executes process of creating pod and executing provided command inside it."""
+        self.fetch_cluster_info()
         return super().execute(context)
 
-    def get_kube_creds(self) -> tuple[str, str | None]:
+    def fetch_cluster_info(self) -> tuple[str, str | None]:
+        """Fetches cluster info for connecting to it."""
         cluster = self.cluster_hook.get_cluster(
             name=self.cluster_name,
             project_id=self.project_id,
@@ -382,20 +380,26 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
         return self._cluster_url, self._ssl_ca_cert
 
-    def go_to_defer_mode(self):
-        """Method to easily redefine triggers which are being used in descendants."""
+    def invoke_defer_method(self):
+        """Method to easily redefine triggers which are being used in child classes."""
+        trigger_start_time = datetime.now(tz=pytz.UTC)
         self.defer(
             trigger=GKEPodTrigger(
                 pod_name=self.pod.metadata.name,
                 pod_namespace=self.pod.metadata.namespace,
+                trigger_start_time=trigger_start_time,
                 cluster_url=self._cluster_url,
                 ssl_ca_cert=self._ssl_ca_cert,
+                should_delete_pod=self.is_delete_operator_pod,
+                startup_timeout=self.startup_timeout_seconds,
             ),
             method_name="execute_complete",
             kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
         )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
+        # It is required for hook to be initialized
         self._cluster_url = kwargs["cluster_url"]
         self._ssl_ca_cert = kwargs["ssl_ca_cert"]
+
         return super().execute_complete(context, event, **kwargs)

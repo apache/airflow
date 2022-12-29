@@ -26,6 +26,7 @@ from kubernetes import client, config, watch
 from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
+from kubernetes_asyncio.client import ApiException
 from kubernetes_asyncio.config import load_kube_config_from_dict
 
 from airflow.compat.functools import cached_property
@@ -547,3 +548,13 @@ class AsyncKubernetesHook(KubernetesHook):
                 namespace=namespace,
             )
         return pod
+
+    async def delete_pod(self, name: str, namespace: str):
+        async with self.get_conn() as connection:
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                await v1_api.delete_namespaced_pod(name, namespace, body=client.V1DeleteOptions())
+            except ApiException as e:
+                # If the pod is already deleted
+                if e.status != 404:
+                    raise

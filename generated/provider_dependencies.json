@@ -214,9 +214,7 @@
       "kubernetes>=21.7.0,<24",
       "kubernetes_asyncio==24.2.2"
     ],
-    "cross-providers-deps": [
-      "google"
-    ]
+    "cross-providers-deps": []
   },
   "common.sql": {
     "deps": [
