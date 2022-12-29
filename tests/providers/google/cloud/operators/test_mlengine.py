@@ -348,7 +348,7 @@ class TestMLEngineStartTrainingJobOperator:
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
             project_id="test-project", job=self.TRAINING_INPUT, use_existing_job_fn=ANY
         )
@@ -391,7 +391,7 @@ class TestMLEngineStartTrainingJobOperator:
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
             project_id="test-project", job=training_input, use_existing_job_fn=ANY
         )
@@ -435,7 +435,7 @@ class TestMLEngineStartTrainingJobOperator:
             delegate_to=None,
             impersonation_chain=None,
         )
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
             project_id="test-project",
             job=request,
@@ -510,7 +510,7 @@ class TestMLEngineStartTrainingJobOperator:
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
             project_id="test-project", job=training_input, use_existing_job_fn=ANY
         )
@@ -533,7 +533,7 @@ class TestMLEngineStartTrainingJobOperator:
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
             project_id="test-project", job=self.TRAINING_INPUT, use_existing_job_fn=ANY
         )
@@ -557,7 +557,7 @@ class TestMLEngineStartTrainingJobOperator:
             impersonation_chain=None,
         )
         # Make sure only 'create_job' is invoked on hook instance
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.create_job.assert_called_once_with(
             project_id="test-project", job=self.TRAINING_INPUT, use_existing_job_fn=ANY
         )
@@ -587,7 +587,7 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         # Make sure only 'cancel_job' is invoked on hook instance
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.cancel_job.assert_called_once_with(
             project_id=self.TRAINING_DEFAULT_ARGS["project_id"], job_id=self.TRAINING_DEFAULT_ARGS["job_id"]
         )
@@ -610,7 +610,7 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         # Make sure only 'cancel_job' is invoked on hook instance
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.cancel_job.assert_called_once_with(
             project_id=self.TRAINING_DEFAULT_ARGS["project_id"], job_id=self.TRAINING_DEFAULT_ARGS["job_id"]
         )
@@ -775,7 +775,7 @@ class TestMLEngineVersionOperator(unittest.TestCase):
             impersonation_chain=None,
         )
         # Make sure only 'create_version' is invoked on hook instance
-        hook_instance.assert_called_once()
+        assert len(hook_instance.mock_calls) == 1
         hook_instance.create_version.assert_called_once_with(
             project_id="test-project", model_name="test-model", version_spec=TEST_VERSION
         )
