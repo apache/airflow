@@ -26,6 +26,8 @@ from typing import Any
 from colorlog import TTYColoredFormatter
 from colorlog.escape_codes import esc, escape_codes
 
+from airflow.utils.log.timezone_aware import TimezoneAware
+
 DEFAULT_COLORS = {
     "DEBUG": "green",
     "INFO": "",
@@ -38,7 +40,7 @@ BOLD_ON = escape_codes["bold"]
 BOLD_OFF = esc("22")
 
 
-class CustomTTYColoredFormatter(TTYColoredFormatter):
+class CustomTTYColoredFormatter(TTYColoredFormatter, TimezoneAware):
     """
     Custom log formatter which extends `colored.TTYColoredFormatter`
     by adding attributes to message arguments and coloring error
