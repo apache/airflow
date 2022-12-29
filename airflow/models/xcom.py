@@ -723,6 +723,21 @@ class LazyXComAccess(collections.abc.Sequence):
             return all(x == y for x, y in z)
         return NotImplemented
 
+    def __getstate__(self) -> Any:
+        # We don't want to go to the trouble of serializing the entire Query
+        # object, including its filters, hints, etc. (plus SQLAlchemy does not
+        # provide a public API to inspect a query's contents). Converting the
+        # query into a SQL string is the best we can get. Theoratically we can
+        # do the same for count(), but I think it should be performant enough to
+        # calculate only that eagerly.
+        with self._get_bound_query() as query:
+            statement = query.statement.compile(query.session.get_bind())
+            return (str(statement), query.count())
+
+    def __setstate__(self, state: Any) -> None:
+        statement, self._len = state
+        self._query = Query(XCom.value).from_statement(text(statement))
+
     def __len__(self):
         if self._len is None:
             with self._get_bound_query() as query:

@@ -205,7 +205,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
-        configuration = {"query": {"query": self.sql}}
+        configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
 
         return hook.insert_job(
             configuration=configuration,
@@ -319,11 +319,9 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         configuration = {
             "query": {
                 "query": self.sql,
-                "useLegacySql": False,
-            }
+                "useLegacySql": self.use_legacy_sql,
+            },
         }
-        if self.use_legacy_sql:
-            configuration["query"]["useLegacySql"] = self.use_legacy_sql
 
         return hook.insert_job(
             configuration=configuration,
@@ -453,7 +451,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Triggerer."""
-        configuration = {"query": {"query": sql}}
+        configuration = {"query": {"query": sql, "useLegacySql": self.use_legacy_sql}}
         return hook.insert_job(
             configuration=configuration,
             project_id=hook.project_id,
@@ -577,7 +575,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
-        configuration = {"query": {"query": self.sql}}
+        configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
 
         return hook.insert_job(
             configuration=configuration,
@@ -689,7 +687,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
-        configuration = {"query": {"query": self.sql}}
+        configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
 
         return hook.insert_job(
             configuration=configuration,
@@ -1158,7 +1156,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param table_id: The Name of the table to be created. (templated)
     :param table_resource: Table resource as described in documentation:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-        If provided all other parameters are ignored.
+        If provided all other parameters are ignored. (templated)
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
 
@@ -1256,6 +1254,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "table_id",
+        "table_resource",
         "project_id",
         "gcs_schema_object",
         "labels",

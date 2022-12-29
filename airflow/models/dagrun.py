@@ -529,7 +529,7 @@ class DagRun(Base, LoggingMixin):
         of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
-        :param execute_callbacks: Should dag callbacks (success/failure, SLA etc) be invoked
+        :param execute_callbacks: Should dag callbacks (success/failure, SLA etc.) be invoked
             directly (default: true) or recorded as a pending request in the ``returned_callback`` property
         :return: Tuple containing tis that can be scheduled in the current loop & `returned_callback` that
             needs to be executed
@@ -713,7 +713,7 @@ class DagRun(Base, LoggingMixin):
                 session=session,
             )
 
-            # During expansion we may change some tis into non-schedulable
+            # During expansion, we may change some tis into non-schedulable
             # states, so we need to re-compute.
             if expansion_happened:
                 changed_tis = True
@@ -769,7 +769,8 @@ class DagRun(Base, LoggingMixin):
             """Try to expand the ti, if needed.
 
             If the ti needs expansion, newly created task instances are
-            returned. The original ti is modified in-place and assigned the
+            returned as well as the original ti.
+            The original ti is also modified in-place and assigned the
             ``map_index`` of 0.
 
             If the ti does not need expansion, either because the task is not
@@ -782,8 +783,7 @@ class DagRun(Base, LoggingMixin):
             except NotMapped:  # Not a mapped task, nothing needed.
                 return None
             if expanded_tis:
-                assert expanded_tis[0] is ti
-                return expanded_tis[1:]
+                return expanded_tis
             return ()
 
         # Check dependencies.
@@ -799,12 +799,13 @@ class DagRun(Base, LoggingMixin):
             # in the scheduler to ensure that the mapped task is correctly
             # expanded before executed. Also see _revise_map_indexes_if_mapped
             # docstring for additional information.
+            new_tis = None
             if schedulable.map_index < 0:
                 new_tis = _expand_mapped_task_if_needed(schedulable)
                 if new_tis is not None:
                     additional_tis.extend(new_tis)
                     expansion_happened = True
-            if schedulable.state in SCHEDULEABLE_STATES:
+            if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
                 ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
                 ready_tis.append(schedulable)
 
@@ -828,8 +829,8 @@ class DagRun(Base, LoggingMixin):
             ignore_in_reschedule_period=True,
             finished_tis=finished_tis,
         )
-        # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
-        # not ready yet so we set the flags to count them in
+        # there might be runnable tasks that are up for retry and for some reason(retry delay, etc.) are
+        # not ready yet, so we set the flags to count them in
         return (
             any(ut.are_dependencies_met(dep_context=dep_context, session=session) for ut in unfinished_tis),
             dep_context.have_changed_ti_states,
@@ -843,7 +844,7 @@ class DagRun(Base, LoggingMixin):
         is updated to a completed status (either success or failure). The method will find the first
         started task within the DAG and calculate the expected DagRun start time (based on
         dag.execution_date & dag.timetable), and minus these two values to get the delay.
-        The emitted data may contains outlier (e.g. when the first task was cleared, so
+        The emitted data may contain outlier (e.g. when the first task was cleared, so
         the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
         Note, the stat will only be emitted if the DagRun is a scheduler triggered one
@@ -865,7 +866,7 @@ class DagRun(Base, LoggingMixin):
 
             ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
             ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
-            first_start_date = ordered_tis_by_start_date[0].start_date
+            first_start_date = ordered_tis_by_start_date[0].start_date if ordered_tis_by_start_date else None
             if first_start_date:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
@@ -992,7 +993,7 @@ class DagRun(Base, LoggingMixin):
                     )
                     ti.state = State.REMOVED
             else:
-                # Check if the number of mapped literals has changed and we need to mark this TI as removed.
+                # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
                 if ti.map_index >= num_mapped_tis:
                     self.log.debug(
                         "Removing task '%s' as the map_index is longer than the literal mapping list (%s)",

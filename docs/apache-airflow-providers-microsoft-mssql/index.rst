@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/3.0.0/tests/system/providers/microsoft/mssql>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/tests/system/providers/microsoft/mssql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-mssql/>
     Installing from sources <installing-providers-from-sources>
 
@@ -90,6 +90,8 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``pymssql``                              ``>=2.1.5; platform_machine != "aarch64"``
 =======================================  ==========================================
+
+.. note:: ``pip`` version on some Linux distributions might be outdated and not support all the flavors of ``manylinux`` wheels, so upgrading ``pip`` is necessary. More details can be found on `PyPI <https://pypi.org/project/pymssql/>`_.
 
 Cross provider package dependencies
 -----------------------------------

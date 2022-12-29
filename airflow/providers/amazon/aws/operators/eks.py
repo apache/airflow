@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import warnings
 from ast import literal_eval
-from time import sleep
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
+
+from botocore.exceptions import ClientError, WaiterError
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, FargateProfileStates
+from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 if TYPE_CHECKING:
@@ -39,7 +40,6 @@ DEFAULT_FARGATE_PROFILE_NAME = "profile"
 DEFAULT_NAMESPACE_NAME = "default"
 DEFAULT_NODEGROUP_NAME = "nodegroup"
 
-ABORT_MSG = "{compute} are still active after the allocated time limit.  Aborting."
 CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
 MISSING_ARN_MSG = "Creating an {compute} requires {requirement} to be passed in."
 SUCCESS_MSG = "No {compute} remain, deleting cluster."
@@ -77,6 +77,7 @@ class EksCreateClusterOperator(BaseOperator):
     :param compute: The type of compute architecture to generate along with the cluster. (templated)
          Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
     :param create_cluster_kwargs: Optional parameters to pass to the CreateCluster API (templated)
+    :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -117,6 +118,7 @@ class EksCreateClusterOperator(BaseOperator):
         "fargate_pod_execution_role_arn",
         "fargate_selectors",
         "create_fargate_profile_kwargs",
+        "wait_for_completion",
         "aws_conn_id",
         "region",
     )
@@ -135,6 +137,7 @@ class EksCreateClusterOperator(BaseOperator):
         fargate_pod_execution_role_arn: str | None = None,
         fargate_selectors: list | None = None,
         create_fargate_profile_kwargs: dict | None = None,
+        wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
@@ -151,6 +154,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -182,28 +186,21 @@ class EksCreateClusterOperator(BaseOperator):
             **self.create_cluster_kwargs,
         )
 
-        if not self.compute:
+        # Short circuit early if we don't need to wait to attach compute
+        # and the caller hasn't requested to wait for the cluster either.
+        if not self.compute and not self.wait_for_completion:
             return None
 
         self.log.info("Waiting for EKS Cluster to provision.  This will take some time.")
+        client = eks_hook.conn
 
-        countdown = TIMEOUT_SECONDS
-        while eks_hook.get_cluster_state(clusterName=self.cluster_name) != ClusterStates.ACTIVE:
-            if countdown >= CHECK_INTERVAL_SECONDS:
-                countdown -= CHECK_INTERVAL_SECONDS
-                self.log.info(
-                    "Waiting for cluster to start.  Checking again in %d seconds", CHECK_INTERVAL_SECONDS
-                )
-                sleep(CHECK_INTERVAL_SECONDS)
-            else:
-                message = (
-                    "Cluster is still inactive after the allocated time limit.  "
-                    "Failed cluster will be torn down."
-                )
-                self.log.error(message)
-                # If there is something preventing the cluster for activating, tear it down and abort.
-                eks_hook.delete_cluster(name=self.cluster_name)
-                raise RuntimeError(message)
+        try:
+            client.get_waiter("cluster_active").wait(name=self.cluster_name)
+        except (ClientError, WaiterError) as e:
+            self.log.error("Cluster failed to start and will be torn down.\n %s", e)
+            eks_hook.delete_cluster(name=self.cluster_name)
+            client.get_waiter("cluster_deleted").wait(name=self.cluster_name)
+            raise
 
         if self.compute == "nodegroup":
             eks_hook.create_nodegroup(
@@ -213,6 +210,12 @@ class EksCreateClusterOperator(BaseOperator):
                 nodeRole=self.nodegroup_role_arn,
                 **self.create_nodegroup_kwargs,
             )
+            if self.wait_for_completion:
+                self.log.info("Waiting for nodegroup to provision.  This will take some time.")
+                client.get_waiter("nodegroup_active").wait(
+                    clusterName=self.cluster_name,
+                    nodegroupName=self.nodegroup_name,
+                )
         elif self.compute == "fargate":
             eks_hook.create_fargate_profile(
                 clusterName=self.cluster_name,
@@ -221,6 +224,12 @@ class EksCreateClusterOperator(BaseOperator):
                 selectors=self.fargate_selectors,
                 **self.create_fargate_profile_kwargs,
             )
+            if self.wait_for_completion:
+                self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
+                client.get_waiter("fargate_profile_active").wait(
+                    clusterName=self.cluster_name,
+                    fargateProfileName=self.fargate_profile_name,
+                )
 
 
 class EksCreateNodegroupOperator(BaseOperator):
@@ -238,6 +247,7 @@ class EksCreateNodegroupOperator(BaseOperator):
     :param nodegroup_role_arn:
          The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
     :param create_nodegroup_kwargs: Optional parameters to pass to the Create Nodegroup API (templated)
+    :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -254,6 +264,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         "nodegroup_role_arn",
         "nodegroup_name",
         "create_nodegroup_kwargs",
+        "wait_for_completion",
         "aws_conn_id",
         "region",
     )
@@ -265,6 +276,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         nodegroup_role_arn: str,
         nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
         create_nodegroup_kwargs: dict | None = None,
+        wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
@@ -273,6 +285,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.nodegroup_subnets = nodegroup_subnets
@@ -304,6 +317,12 @@ class EksCreateNodegroupOperator(BaseOperator):
             **self.create_nodegroup_kwargs,
         )
 
+        if self.wait_for_completion:
+            self.log.info("Waiting for nodegroup to provision.  This will take some time.")
+            eks_hook.conn.get_waiter("nodegroup_active").wait(
+                clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
+            )
+
 
 class EksCreateFargateProfileOperator(BaseOperator):
     """
@@ -320,6 +339,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
     :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargate Profile API
      (templated)
+    :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
 
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
@@ -336,6 +356,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         "selectors",
         "fargate_profile_name",
         "create_fargate_profile_kwargs",
+        "wait_for_completion",
         "aws_conn_id",
         "region",
     )
@@ -347,6 +368,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         selectors: list,
         fargate_profile_name: str | None = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: dict | None = None,
+        wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
@@ -356,6 +378,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.selectors = selectors
         self.fargate_profile_name = fargate_profile_name
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -374,6 +397,12 @@ class EksCreateFargateProfileOperator(BaseOperator):
             **self.create_fargate_profile_kwargs,
         )
 
+        if self.wait_for_completion:
+            self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
+            eks_hook.conn.get_waiter("fargate_profile_active").wait(
+                clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+            )
+
 
 class EksDeleteClusterOperator(BaseOperator):
     """
@@ -386,6 +415,7 @@ class EksDeleteClusterOperator(BaseOperator):
     :param cluster_name: The name of the Amazon EKS Cluster to delete. (templated)
     :param force_delete_compute: If True, will delete any attached resources. (templated)
          Defaults to False.
+    :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -399,6 +429,7 @@ class EksDeleteClusterOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "cluster_name",
         "force_delete_compute",
+        "wait_for_completion",
         "aws_conn_id",
         "region",
     )
@@ -407,12 +438,14 @@ class EksDeleteClusterOperator(BaseOperator):
         self,
         cluster_name: str,
         force_delete_compute: bool = False,
+        wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
         self.force_delete_compute = force_delete_compute
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -429,34 +462,25 @@ class EksDeleteClusterOperator(BaseOperator):
 
         eks_hook.delete_cluster(name=self.cluster_name)
 
+        if self.wait_for_completion:
+            self.log.info("Waiting for cluster to delete.  This will take some time.")
+            eks_hook.conn.get_waiter("cluster_deleted").wait(name=self.cluster_name)
+
     def delete_any_nodegroups(self, eks_hook) -> None:
         """
         Deletes all Amazon EKS managed node groups for a provided Amazon EKS Cluster.
 
         Amazon EKS managed node groups can be deleted in parallel, so we can send all
-        of the delete commands in bulk and move on once the count of nodegroups is zero.
+        delete commands in bulk and move on once the count of nodegroups is zero.
         """
         nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups:
             self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=len(nodegroups)))
             for group in nodegroups:
                 eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
-
-            # Scaling up the timeout based on the number of nodegroups that are being processed.
-            additional_seconds = 5 * 60
-            countdown = TIMEOUT_SECONDS + (len(nodegroups) * additional_seconds)
-            while eks_hook.list_nodegroups(clusterName=self.cluster_name):
-                if countdown >= CHECK_INTERVAL_SECONDS:
-                    countdown -= CHECK_INTERVAL_SECONDS
-                    sleep(CHECK_INTERVAL_SECONDS)
-                    self.log.info(
-                        "Waiting for the remaining %s nodegroups to delete.  "
-                        "Checking again in %d seconds.",
-                        len(nodegroups),
-                        CHECK_INTERVAL_SECONDS,
-                    )
-                else:
-                    raise RuntimeError(ABORT_MSG.format(compute=NODEGROUP_FULL_NAME))
+            # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
+            self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
+            eks_hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
         self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
 
     def delete_any_fargate_profiles(self, eks_hook) -> None:
@@ -469,30 +493,15 @@ class EksDeleteClusterOperator(BaseOperator):
         fargate_profiles = eks_hook.list_fargate_profiles(clusterName=self.cluster_name)
         if fargate_profiles:
             self.log.info(CAN_NOT_DELETE_MSG.format(compute=FARGATE_FULL_NAME, count=len(fargate_profiles)))
+            self.log.info("Waiting for Fargate profiles to delete.  This will take some time.")
             for profile in fargate_profiles:
                 # The API will return a (cluster) ResourceInUseException if you try
                 # to delete Fargate profiles in parallel the way we can with nodegroups,
                 # so each must be deleted sequentially
                 eks_hook.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
-
-                countdown = TIMEOUT_SECONDS
-                while (
-                    eks_hook.get_fargate_profile_state(
-                        clusterName=self.cluster_name, fargateProfileName=profile
-                    )
-                    != FargateProfileStates.NONEXISTENT
-                ):
-                    if countdown >= CHECK_INTERVAL_SECONDS:
-                        countdown -= CHECK_INTERVAL_SECONDS
-                        sleep(CHECK_INTERVAL_SECONDS)
-                        self.log.info(
-                            "Waiting for the AWS Fargate profile %s to delete.  "
-                            "Checking again in %d seconds.",
-                            profile,
-                            CHECK_INTERVAL_SECONDS,
-                        )
-                    else:
-                        raise RuntimeError(ABORT_MSG.format(compute=FARGATE_FULL_NAME))
+                eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
+                    clusterName=self.cluster_name, fargateProfileName=profile
+                )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
 
@@ -506,6 +515,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
 
     :param cluster_name: The name of the Amazon EKS Cluster associated with your nodegroup. (templated)
     :param nodegroup_name: The name of the nodegroup to delete. (templated)
+    :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used.  If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -519,6 +529,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "cluster_name",
         "nodegroup_name",
+        "wait_for_completion",
         "aws_conn_id",
         "region",
     )
@@ -527,12 +538,14 @@ class EksDeleteNodegroupOperator(BaseOperator):
         self,
         cluster_name: str,
         nodegroup_name: str,
+        wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
         self.nodegroup_name = nodegroup_name
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -544,6 +557,11 @@ class EksDeleteNodegroupOperator(BaseOperator):
         )
 
         eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
+        if self.wait_for_completion:
+            self.log.info("Waiting for nodegroup to delete.  This will take some time.")
+            eks_hook.conn.get_waiter("nodegroup_deleted").wait(
+                clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
+            )
 
 
 class EksDeleteFargateProfileOperator(BaseOperator):
@@ -556,6 +574,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
 
     :param cluster_name: The name of the Amazon EKS cluster associated with your Fargate profile. (templated)
     :param fargate_profile_name: The name of the AWS Fargate profile to delete. (templated)
+    :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used.  If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -568,6 +587,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "cluster_name",
         "fargate_profile_name",
+        "wait_for_completion",
         "aws_conn_id",
         "region",
     )
@@ -576,6 +596,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         self,
         cluster_name: str,
         fargate_profile_name: str,
+        wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
@@ -583,6 +604,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.fargate_profile_name = fargate_profile_name
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
 
@@ -595,6 +617,11 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         eks_hook.delete_fargate_profile(
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
+        if self.wait_for_completion:
+            self.log.info("Waiting for Fargate profile to delete.  This will take some time.")
+            eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
+                clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+            )
 
 
 class EksPodOperator(KubernetesPodOperator):

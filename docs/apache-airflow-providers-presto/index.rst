@@ -44,7 +44,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-presto/3.0.0/tests/system/providers/presto>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-presto/|version|/tests/system/providers/presto>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-presto/>
     Installing from sources <installing-providers-from-sources>
 

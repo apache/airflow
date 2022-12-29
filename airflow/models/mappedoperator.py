@@ -447,20 +447,36 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("resources")
 
     @property
-    def on_execute_callback(self) -> TaskStateChangeCallback | None:
+    def on_execute_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
         return self.partial_kwargs.get("on_execute_callback")
 
+    @on_execute_callback.setter
+    def on_execute_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_execute_callback"] = value
+
     @property
-    def on_failure_callback(self) -> TaskStateChangeCallback | None:
+    def on_failure_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
         return self.partial_kwargs.get("on_failure_callback")
 
-    @property
-    def on_retry_callback(self) -> TaskStateChangeCallback | None:
-        return self.partial_kwargs.get("on_retry_callback")
+    @on_failure_callback.setter
+    def on_failure_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_failure_callback"] = value
 
     @property
-    def on_success_callback(self) -> TaskStateChangeCallback | None:
+    def on_retry_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+        return self.partial_kwargs.get("on_retry_callback")
+
+    @on_retry_callback.setter
+    def on_retry_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_retry_callback"] = value
+
+    @property
+    def on_success_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
         return self.partial_kwargs.get("on_success_callback")
+
+    @on_success_callback.setter
+    def on_success_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_success_callback"] = value
 
     @property
     def run_as_user(self) -> str | None:

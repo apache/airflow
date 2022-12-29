@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -463,11 +464,11 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-        if not bool(keys is None) ^ bool(prefix is None):
+        if not exactly_one(prefix is None, keys is None):
             raise AirflowException("Either keys or prefix should be set.")
 
     def execute(self, context: Context):
-        if not bool(self.keys is None) ^ bool(self.prefix is None):
+        if not exactly_one(self.keys is None, self.prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
         if isinstance(self.keys, (list, str)) and not bool(self.keys):

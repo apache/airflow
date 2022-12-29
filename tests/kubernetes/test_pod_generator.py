@@ -19,14 +19,13 @@ from __future__ import annotations
 import os
 import re
 import sys
-import uuid
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
-from parameterized import parameterized
+from pytest import param
 
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException, PodReconciliationError
@@ -42,7 +41,7 @@ from airflow.kubernetes.secret import Secret
 
 class TestPodGenerator:
     def setup_method(self):
-        self.static_uuid = uuid.UUID("cf4a56d2-8101-4217-b027-2af6216feb48")
+        self.rand_str = "abcd1234"
         self.deserialize_result = {
             "apiVersion": "v1",
             "kind": "Pod",
@@ -92,7 +91,7 @@ class TestPodGenerator:
         }
         self.metadata = {
             "labels": self.labels,
-            "name": "pod_id-" + self.static_uuid.hex,
+            "name": "pod_id-" + self.rand_str,
             "namespace": "namespace",
             "annotations": self.annotations,
         }
@@ -112,7 +111,7 @@ class TestPodGenerator:
             kind="Pod",
             metadata=k8s.V1ObjectMeta(
                 namespace="default",
-                name="myapp-pod-" + self.static_uuid.hex,
+                name="myapp-pod-" + self.rand_str,
                 labels={"app": "myapp"},
             ),
             spec=k8s.V1PodSpec(
@@ -160,14 +159,17 @@ class TestPodGenerator:
             ),
         )
 
-    @mock.patch("uuid.uuid4")
-    def test_gen_pod_extract_xcom(self, mock_uuid):
-        mock_uuid.return_value = self.static_uuid
+    @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
+    def test_gen_pod_extract_xcom(self, mock_rand_str):
+        """
+        Method gen_pod is used nowhere in codebase and is deprecated.
+        This test is only retained for backcompat.
+        """
+        mock_rand_str.return_value = self.rand_str
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
 
         pod_generator = PodGenerator(pod_template_file=path, extract_xcom=True)
         result = pod_generator.gen_pod()
-        result_dict = self.k8s_client.sanitize_for_serialization(result)
         container_two = {
             "name": "airflow-xcom-sidecar",
             "image": "alpine",
@@ -189,7 +191,6 @@ class TestPodGenerator:
         )
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         expected_dict = self.k8s_client.sanitize_for_serialization(self.expected)
-
         assert result_dict == expected_dict
 
     def test_from_obj(self):
@@ -322,18 +323,11 @@ class TestPodGenerator:
             },
         } == result
 
-    @mock.patch("uuid.uuid4")
-    def test_reconcile_pods_empty_mutator_pod(self, mock_uuid):
-        mock_uuid.return_value = self.static_uuid
+    def test_reconcile_pods_empty_mutator_pod(self):
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
-
         pod_generator = PodGenerator(pod_template_file=path, extract_xcom=True)
-        base_pod = pod_generator.gen_pod()
+        base_pod = pod_generator.ud_pod
         mutator_pod = None
-        name = "name1-" + self.static_uuid.hex
-
-        base_pod.metadata.name = name
-
         result = PodGenerator.reconcile_pods(base_pod, mutator_pod)
         assert base_pod == result
 
@@ -341,12 +335,12 @@ class TestPodGenerator:
         result = PodGenerator.reconcile_pods(base_pod, mutator_pod)
         assert base_pod == result
 
-    @mock.patch("uuid.uuid4")
-    def test_reconcile_pods(self, mock_uuid):
-        mock_uuid.return_value = self.static_uuid
+    @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
+    def test_reconcile_pods(self, mock_rand_str):
+        mock_rand_str.return_value = self.rand_str
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
 
-        base_pod = PodGenerator(pod_template_file=path, extract_xcom=False).gen_pod()
+        base_pod = PodGenerator(pod_template_file=path, extract_xcom=False).ud_pod
 
         mutator_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -400,15 +394,13 @@ class TestPodGenerator:
     @pytest.mark.parametrize(
         "config_image, expected_image",
         [
-            pytest.param("my_image:my_tag", "my_image:my_tag", id="image_in_cfg"),
-            pytest.param(None, "busybox", id="no_image_in_cfg"),
+            param("my_image:my_tag", "my_image:my_tag", id="image_in_cfg"),
+            param(None, "busybox", id="no_image_in_cfg"),
         ],
     )
-    @mock.patch("uuid.uuid4")
-    def test_construct_pod(self, mock_uuid, config_image, expected_image):
+    def test_construct_pod(self, config_image, expected_image):
         template_file = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
         worker_config = PodGenerator.deserialize_model_file(template_file)
-        mock_uuid.return_value = self.static_uuid
         executor_config = k8s.V1Pod(
             spec=k8s.V1PodSpec(
                 containers=[
@@ -436,7 +428,7 @@ class TestPodGenerator:
         expected.metadata.labels = self.labels
         expected.metadata.labels["app"] = "myapp"
         expected.metadata.annotations = self.annotations
-        expected.metadata.name = "pod_id-" + self.static_uuid.hex
+        expected.metadata.name = "pod_id"
         expected.metadata.namespace = "test_namespace"
         expected.spec.containers[0].args = ["command"]
         expected.spec.containers[0].image = expected_image
@@ -452,12 +444,9 @@ class TestPodGenerator:
 
         assert expected_dict == result_dict
 
-    @mock.patch("uuid.uuid4")
-    def test_construct_pod_mapped_task(self, mock_uuid):
+    def test_construct_pod_mapped_task(self):
         template_file = sys.path[0] + "/tests/kubernetes/pod_generator_base.yaml"
         worker_config = PodGenerator.deserialize_model_file(template_file)
-        mock_uuid.return_value = self.static_uuid
-
         result = PodGenerator.construct_pod(
             dag_id=self.dag_id,
             task_id=self.task_id,
@@ -478,7 +467,7 @@ class TestPodGenerator:
         expected.metadata.labels["map_index"] = "0"
         expected.metadata.annotations = self.annotations
         expected.metadata.annotations["map_index"] = "0"
-        expected.metadata.name = "pod_id-" + self.static_uuid.hex
+        expected.metadata.name = "pod_id"
         expected.metadata.namespace = "test_namespace"
         expected.spec.containers[0].args = ["command"]
         del expected.spec.containers[0].env_from[1:]
@@ -489,11 +478,9 @@ class TestPodGenerator:
 
         assert expected_dict == result_dict
 
-    @mock.patch("uuid.uuid4")
-    def test_construct_pod_empty_executor_config(self, mock_uuid):
+    def test_construct_pod_empty_executor_config(self):
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
         worker_config = PodGenerator.deserialize_model_file(path)
-        mock_uuid.return_value = self.static_uuid
         executor_config = None
 
         result = PodGenerator.construct_pod(
@@ -515,23 +502,23 @@ class TestPodGenerator:
         worker_config.metadata.annotations = self.annotations
         worker_config.metadata.labels = self.labels
         worker_config.metadata.labels["app"] = "myapp"
-        worker_config.metadata.name = "pod_id-" + self.static_uuid.hex
+        worker_config.metadata.name = "pod_id"
         worker_config.metadata.namespace = "namespace"
         worker_config.spec.containers[0].env.append(
             k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")
         )
         worker_config_result = self.k8s_client.sanitize_for_serialization(worker_config)
-        assert worker_config_result == sanitized_result
+        assert sanitized_result == worker_config_result
 
-    @mock.patch("uuid.uuid4")
-    def test_construct_pod_attribute_error(self, mock_uuid):
+    @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
+    def test_construct_pod_attribute_error(self, mock_rand_str):
         """
         After upgrading k8s library we might get attribute error.
         In this case it should raise PodReconciliationError
         """
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
         worker_config = PodGenerator.deserialize_model_file(path)
-        mock_uuid.return_value = self.static_uuid
+        mock_rand_str.return_value = self.rand_str
         executor_config = MagicMock()
         executor_config.side_effect = AttributeError("error")
 
@@ -550,9 +537,9 @@ class TestPodGenerator:
                 scheduler_job_id="uuid",
             )
 
-    @mock.patch("uuid.uuid4")
-    def test_ensure_max_label_length(self, mock_uuid):
-        mock_uuid.return_value = self.static_uuid
+    @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
+    def test_ensure_max_identifier_length(self, mock_rand_str):
+        mock_rand_str.return_value = self.rand_str
         path = os.path.join(os.path.dirname(__file__), "pod_generator_base_with_secrets.yaml")
         worker_config = PodGenerator.deserialize_model_file(path)
 
@@ -570,7 +557,7 @@ class TestPodGenerator:
             base_worker_pod=worker_config,
         )
 
-        assert result.metadata.name == "a" * 30 + "-" + self.static_uuid.hex
+        assert result.metadata.name == "a" * 244 + "-" + self.rand_str
         for _, v in result.metadata.labels.items():
             assert len(v) <= 63
 
@@ -727,30 +714,33 @@ class TestPodGenerator:
         assert len(caplog.records) == 1
         assert "does not exist" in caplog.text
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "input",
         (
-            ("max_label_length", "a" * 63),
-            ("max_subdomain_length", "a" * 253),
-            (
-                "tiny",
-                "aaa",
-            ),
-        )
+            param("a" * 70, id="max_label_length"),
+            param("a" * 253, id="max_subdomain_length"),
+            param("a" * 95, id="close to max"),
+            param("aaa", id="tiny"),
+        ),
     )
-    def test_pod_name_confirm_to_max_length(self, _, pod_id):
-        name = PodGenerator.make_unique_pod_id(pod_id)
-        assert len(name) <= 253
-        parts = name.split("-")
+    def test_pod_name_confirm_to_max_length(self, input):
+        actual = PodGenerator.make_unique_pod_id(input)
+        assert len(actual) <= 100
+        actual_base, actual_suffix = actual.rsplit("-", maxsplit=1)
+        # we limit pod id length to 100
+        # random suffix is 8 chars plus the '-' separator
+        # so actual pod id base should first 91 chars of requested pod id
+        assert actual_base == input[:91]
+        # suffix should always be 8, the random alphanum
+        assert re.match(r"^[a-z0-9]{8}$", actual_suffix)
 
-        # 63 is the MAX_LABEL_LEN in pod_generator.py
-        # 33 is the length of uuid4 + 1 for the separating '-' (32 + 1)
-        # 30 is the max length of the prefix
-        # so 30 = 63 - (32 + 1)
-        assert len(parts[0]) <= 30
-        assert len(parts[1]) == 32
-
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "pod_id, expected_starts_with",
         (
+            (
+                "somewhat-long-pod-name-maybe-longer-than-previously-supported-with-hyphen-",
+                "somewhat-long-pod-name-maybe-longer-than-previously-supported-with-hyphen",
+            ),
             ("pod-name-with-hyphen-", "pod-name-with-hyphen"),
             ("pod-name-with-double-hyphen--", "pod-name-with-double-hyphen"),
             ("pod0-name", "pod0-name"),
@@ -758,17 +748,22 @@ class TestPodGenerator:
             ("pod-name-with-dot.", "pod-name-with-dot"),
             ("pod-name-with-double-dot..", "pod-name-with-double-dot"),
             ("pod-name-with-hyphen-dot-.", "pod-name-with-hyphen-dot"),
-        )
+        ),
     )
     def test_pod_name_is_valid(self, pod_id, expected_starts_with):
-        name = PodGenerator.make_unique_pod_id(pod_id)
-
+        """
+        `make_unique_pod_id` doesn't actually guarantee that the regex passes for any input.
+        But I guess this test verifies that an otherwise valid pod_id doesn't get _screwed up_.
+        """
+        actual = PodGenerator.make_unique_pod_id(pod_id)
+        assert len(actual) <= 253
+        assert actual == actual.lower(), "not lowercase"
+        # verify using official k8s regex
         regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-        assert (
-            len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
-        ), "pod_id is invalid - fails allowed regex check"
-
-        assert name.rsplit("-", 1)[0] == expected_starts_with
+        assert re.match(regex, actual), "pod_id is invalid - fails allowed regex check"
+        assert actual.rsplit("-", 1)[0] == expected_starts_with
+        # verify ends with 8 char lowercase alphanum string
+        assert re.match(rf"^{expected_starts_with}-[a-z0-9]{{8}}$", actual), "doesn't match expected pattern"
 
     def test_validate_pod_generator(self):
         with pytest.raises(AirflowConfigException):

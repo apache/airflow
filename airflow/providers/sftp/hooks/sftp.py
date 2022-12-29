@@ -305,7 +305,7 @@ class SFTPHook(SSHHook):
     ) -> None:
         """
         Recursively descend, depth first, the directory tree rooted at
-        path, calling discreet callback functions for each regular file,
+        path, calling discrete callback functions for each regular file,
         directory and unknown file type.
 
         :param str path:
@@ -386,12 +386,8 @@ class SFTPHook(SSHHook):
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
         :return: string containing the first found file, or an empty string if none matched
         """
-        files_list = self.list_directory(path)
-
-        for file in files_list:
-            if not fnmatch(file, fnmatch_pattern):
-                pass
-            else:
+        for file in self.list_directory(path):
+            if fnmatch(file, fnmatch_pattern):
                 return file
 
         return ""

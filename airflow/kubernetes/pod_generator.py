@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
+Pod generator.
+
 This module provides an interface between the previous Pod
 API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
@@ -28,7 +30,6 @@ import hashlib
 import logging
 import os
 import re
-import uuid
 import warnings
 from functools import reduce
 
@@ -36,7 +37,13 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
-from airflow.exceptions import AirflowConfigException, PodReconciliationError, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowConfigException,
+    PodMutationHookException,
+    PodReconciliationError,
+    RemovedInAirflow3Warning,
+)
+from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
@@ -48,6 +55,8 @@ MAX_LABEL_LEN = 63
 
 def make_safe_label_value(string: str) -> str:
     """
+    Normalize a provided label to be of valid length and characters.
+
     Valid label values must be 63 characters or less and must be empty or begin and
     end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
     dots (.), and alphanumerics between.
@@ -67,6 +76,8 @@ def make_safe_label_value(string: str) -> str:
 
 def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
     """
+    Transform a datetime string to use as a label.
+
     Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
     not "_" let's
     replace ":" with "_"
@@ -79,6 +90,8 @@ def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
 
 def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
     """
+    Transform a label back to a datetime object.
+
     Kubernetes doesn't permit ":" in labels. ISO datetime format uses ":" but not
     "_", let's
     replace ":" with "_"
@@ -91,7 +104,7 @@ def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
 
 class PodGenerator:
     """
-    Contains Kubernetes Airflow Worker configuration logic
+    Contains Kubernetes Airflow Worker configuration logic.
 
     Represents a kubernetes pod and manages execution of a single pod.
     Any configuration that is container specific gets applied to
@@ -124,10 +137,11 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
-        """Generates pod"""
+        """Generates pod."""
+        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
-        result.metadata.name = self.make_unique_pod_id(result.metadata.name)
+        result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
 
         if self.extract_xcom:
             result = self.add_xcom_sidecar(result)
@@ -136,7 +150,7 @@ class PodGenerator:
 
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar"""
+        """Adds sidecar."""
         warnings.warn(
             "This function is deprecated. "
             "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
@@ -152,7 +166,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> dict | k8s.V1Pod | None:
-        """Converts to pod from obj"""
+        """Converts to pod from obj."""
         if obj is None:
             return None
 
@@ -186,7 +200,7 @@ class PodGenerator:
 
     @staticmethod
     def from_legacy_obj(obj) -> k8s.V1Pod | None:
-        """Converts to pod from obj"""
+        """Converts to pod from obj."""
         if obj is None:
             return None
 
@@ -224,12 +238,14 @@ class PodGenerator:
     @staticmethod
     def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
         """
+        Merge Kubernetes Pod objects.
+
         :param base_pod: has the base attributes which are overwritten if they exist
             in the client pod and remain if they do not exist in the client_pod
         :param client_pod: the pod that the client wants to create.
         :return: the merged pods
 
-        This can't be done recursively as certain fields some overwritten, and some concatenated.
+        This can't be done recursively as certain fields are overwritten and some are concatenated.
         """
         if client_pod is None:
             return base_pod
@@ -244,7 +260,8 @@ class PodGenerator:
     @staticmethod
     def reconcile_metadata(base_meta, client_meta):
         """
-        Merge kubernetes Metadata objects
+        Merge Kubernetes Metadata objects.
+
         :param base_meta: has the base attributes which are overwritten if they exist
             in the client_meta and remain if they do not exist in the client_meta
         :param client_meta: the spec that the client wants to create.
@@ -269,6 +286,8 @@ class PodGenerator:
         base_spec: k8s.V1PodSpec | None, client_spec: k8s.V1PodSpec | None
     ) -> k8s.V1PodSpec | None:
         """
+        Merge Kubernetes PodSpec objects.
+
         :param base_spec: has the base attributes which are overwritten if they exist
             in the client_spec and remain if they do not exist in the client_spec
         :param client_spec: the spec that the client wants to create.
@@ -293,6 +312,8 @@ class PodGenerator:
         base_containers: list[k8s.V1Container], client_containers: list[k8s.V1Container]
     ) -> list[k8s.V1Container]:
         """
+        Merge Kubernetes Container objects.
+
         :param base_containers: has the base attributes which are overwritten if they exist
             in the client_containers and remain if they do not exist in the client_containers
         :param client_containers: the containers that the client wants to create.
@@ -333,13 +354,31 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
+        *,
+        with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
         """
+        Create a Pod.
+
         Construct a pod by gathering and consolidating the configuration from 3 places:
             - airflow.cfg
             - executor_config
             - dynamic arguments
         """
+        if len(pod_id) > 253:
+            warnings.warn(
+                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
+            )
+            pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
+        if len(pod_id) > 63:
+            # because in task handler we get pod name from ti hostname (which truncates
+            # pod_id to 63 characters) we won't be able to find the pod unless it is <= 63 characters.
+            # our code creates pod names shorter than this so this warning should not normally be triggered.
+            warnings.warn(
+                "Supplied pod_id is longer than 63 characters. Due to implementation details, the webserver "
+                "may not be able to stream logs while task is running. Please choose a shorter pod name."
+            )
+
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
@@ -374,7 +413,7 @@ class PodGenerator:
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
                 annotations=annotations,
-                name=PodGenerator.make_unique_pod_id(pod_id),
+                name=pod_id,
                 labels=labels,
             ),
             spec=k8s.V1PodSpec(
@@ -394,15 +433,24 @@ class PodGenerator:
         pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
 
         try:
-            return reduce(PodGenerator.reconcile_pods, pod_list)
+            pod = reduce(PodGenerator.reconcile_pods, pod_list)
         except Exception as e:
             raise PodReconciliationError from e
+
+        if with_mutation_hook:
+            from airflow.settings import pod_mutation_hook
+
+            try:
+                pod_mutation_hook(pod)
+            except Exception as e:
+                raise PodMutationHookException from e
+
+        return pod
 
     @staticmethod
     def serialize_pod(pod: k8s.V1Pod) -> dict:
         """
-
-        Converts a k8s.V1Pod into a jsonified object
+        Convert a k8s.V1Pod into a json serializable dictionary.
 
         :param pod: k8s.V1Pod object
         :return: Serialized version of the pod returned as dict
@@ -413,6 +461,8 @@ class PodGenerator:
     @staticmethod
     def deserialize_model_file(path: str) -> k8s.V1Pod:
         """
+        Generate a Pod from a file.
+
         :param path: Path to the file
         :return: a kubernetes.client.models.V1Pod
         """
@@ -428,7 +478,7 @@ class PodGenerator:
     @staticmethod
     def deserialize_model_dict(pod_dict: dict | None) -> k8s.V1Pod:
         """
-        Deserializes python dictionary to k8s.V1Pod
+        Deserializes a Python dictionary to k8s.V1Pod.
 
         Unfortunately we need access to the private method
         ``_ApiClient__deserialize_model`` from the kubernetes client.
@@ -443,9 +493,11 @@ class PodGenerator:
     @staticmethod
     def make_unique_pod_id(pod_id: str) -> str | None:
         r"""
+        Generate a unique Pod name.
+
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
-        characters. Each label has a maximum length of 63 characters.
+        characters.
 
         Name must pass the following regex for validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
@@ -453,25 +505,28 @@ class PodGenerator:
         For more details, see:
         https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/design/identifiers.md
 
-        :param pod_id: a dag_id with only alphanumeric characters
+        :param pod_id: requested pod name
         :return: ``str`` valid Pod name of appropriate length
         """
+        warnings.warn(
+            "This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
+            RemovedInAirflow3Warning,
+        )
+
         if not pod_id:
             return None
 
-        safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-
-        # Get prefix length after subtracting the uuid length. Clean up '.' and '-' from
-        # end of podID ('.' can't be followed by '-').
-        label_prefix_length = MAX_LABEL_LEN - len(safe_uuid) - 1  # -1 for separator
-        trimmed_pod_id = pod_id[:label_prefix_length].rstrip("-.")
-
-        # previously used a '.' as the separator, but this could create errors in some situations
-        return f"{trimmed_pod_id}-{safe_uuid}"
+        max_pod_id_len = 100  # arbitrarily chosen
+        suffix = rand_str(8)  # 8 seems good enough
+        base_pod_id_len = max_pod_id_len - len(suffix) - 1  # -1 for separator
+        trimmed_pod_id = pod_id[:base_pod_id_len].rstrip("-.")
+        return f"{trimmed_pod_id}-{suffix}"
 
 
 def merge_objects(base_obj, client_obj):
     """
+    Merge objects.
+
     :param base_obj: has the base attributes which are overwritten if they exist
         in the client_obj and remain if they do not exist in the client_obj
     :param client_obj: the object that the client wants to create.
@@ -501,6 +556,8 @@ def merge_objects(base_obj, client_obj):
 
 def extend_object_field(base_obj, client_obj, field_name):
     """
+    Add field values to existing objects.
+
     :param base_obj: an object which has a property `field_name` that is a list
     :param client_obj: an object which has a property `field_name` that is a list.
         A copy of this object is returned with `field_name` modified

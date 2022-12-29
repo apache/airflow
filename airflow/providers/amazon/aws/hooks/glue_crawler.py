@@ -22,6 +22,7 @@ from time import sleep
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 
 
 class GlueCrawlerHook(AwsBaseHook):
@@ -78,16 +79,56 @@ class GlueCrawlerHook(AwsBaseHook):
         crawler_name = crawler_kwargs["Name"]
         current_crawler = self.get_crawler(crawler_name)
 
+        tags_updated = self.update_tags(crawler_name, crawler_kwargs.pop("Tags", {}))
+
         update_config = {
-            key: value for key, value in crawler_kwargs.items() if current_crawler[key] != crawler_kwargs[key]
+            key: value
+            for key, value in crawler_kwargs.items()
+            if current_crawler.get(key, None) != crawler_kwargs.get(key)
         }
-        if update_config != {}:
+        if update_config:
             self.log.info("Updating crawler: %s", crawler_name)
             self.glue_client.update_crawler(**crawler_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
-        else:
-            return False
+        return tags_updated
+
+    def update_tags(self, crawler_name: str, crawler_tags: dict) -> bool:
+        """
+        Updates crawler tags
+
+        :param crawler_name: Name of the crawler for which to update tags
+        :param crawler_tags: Dictionary of new tags. If empty, all tags will be deleted
+        :return: True if tags were updated and false otherwise
+        """
+        account_number = StsHook(aws_conn_id=self.aws_conn_id).get_account_number()
+        crawler_arn = (
+            f"arn:{self.conn_partition}:glue:{self.conn_region_name}:{account_number}:crawler/{crawler_name}"
+        )
+        current_crawler_tags: dict = self.glue_client.get_tags(ResourceArn=crawler_arn)["Tags"]
+
+        update_tags = {}
+        delete_tags = []
+        for key, value in current_crawler_tags.items():
+            wanted_tag_value = crawler_tags.get(key, None)
+            if wanted_tag_value is None:
+                # key is missing from new configuration, mark it for deletion
+                delete_tags.append(key)
+            elif wanted_tag_value != value:
+                update_tags[key] = wanted_tag_value
+
+        updated_tags = False
+        if update_tags:
+            self.log.info("Updating crawler tags: %s", crawler_name)
+            self.glue_client.tag_resource(ResourceArn=crawler_arn, TagsToAdd=update_tags)
+            self.log.info("Updated crawler tags: %s", crawler_name)
+            updated_tags = True
+        if delete_tags:
+            self.log.info("Deleting crawler tags: %s", crawler_name)
+            self.glue_client.untag_resource(ResourceArn=crawler_arn, TagsToRemove=delete_tags)
+            self.log.info("Deleted crawler tags: %s", crawler_name)
+            updated_tags = True
+        return updated_tags
 
     def create_crawler(self, **crawler_kwargs) -> str:
         """
