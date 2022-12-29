@@ -69,7 +69,7 @@ class RunningRetryAttemptType:
     re-checked for at least MIN_SECONDS seconds.
     """
 
-    MIN_SECONDS = 5
+    MIN_SECONDS = 10
     total_tries: int = field(default=0, init=False)
     tries_after_min: int = field(default=0, init=False)
     first_attempt_time: datetime = field(default_factory=lambda: pendulum.now("UTC"), init=False)

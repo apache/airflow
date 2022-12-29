@@ -122,7 +122,7 @@ def test_trigger_running_tasks(can_try_mock, dag_maker, can_try_num, change_stat
     open_slots = 100
     executor.trigger_tasks(open_slots)
     expected_calls = len(dagrun.task_instances)  # initially `execute_async` called for each task
-    assert len(executor.execute_async.mock_calls) == expected_calls
+    assert executor.execute_async.call_count == expected_calls
 
     # All the tasks are now "running", so while we enqueue them again here,
     # they won't be executed again until the executor has been notified of a state change.
@@ -181,12 +181,17 @@ def test_running_retry_attempt_type(loop_duration, total_tries):
     For faster loops, we total tries will be higher.  If loops take longer than 5 seconds, still should
     end up trying 2 times.
     """
+    min_seconds_for_test = 5
+
     with time_machine.travel(pendulum.now("UTC"), tick=False) as t:
+
+        # set MIN_SECONDS so tests don't break if the value is changed
+        RunningRetryAttemptType.MIN_SECONDS = min_seconds_for_test
         a = RunningRetryAttemptType()
         while True:
             if not a.can_try_again():
                 break
             t.shift(loop_duration)
-        assert a.elapsed > 5
+        assert a.elapsed > min_seconds_for_test
     assert a.total_tries == total_tries
     assert a.tries_after_min == 1
