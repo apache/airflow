@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-12-30T14:09:12Z
+# This constraints file was automatically generated on 2022-12-30T17:48:28Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -64,6 +64,7 @@ apache-airflow-providers-apache-beam==4.1.0
 apache-airflow-providers-apache-cassandra==3.1.0
 apache-airflow-providers-apache-drill==2.3.1
 apache-airflow-providers-apache-druid==3.3.1
+apache-airflow-providers-apache-flink==1.0.0rc1
 apache-airflow-providers-apache-hdfs==3.2.0
 apache-airflow-providers-apache-hive==5.0.0
 apache-airflow-providers-apache-kylin==3.1.0
