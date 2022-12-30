@@ -199,7 +199,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
-        to the default value in the ``run`` method in the configured hook.
+        to the default value in the ``run`` method of the configured hook.
     :param return_last: (optional) return the result of only last statement (default: True).
 
     .. seealso::
@@ -253,9 +253,10 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
-        extra_kwargs = {}
         if self.split_statements is not None:
-            extra_kwargs.update(split_statements=self.split_statements)
+            extra_kwargs = {"split_statements": self.split_statements}
+        else:
+            extra_kwargs = {}
         output = hook.run(
             sql=self.sql,
             autocommit=self.autocommit,

@@ -75,7 +75,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         autocommit: bool = ...,
         parameters: Union[Mapping, Iterable, None] = ...,
         handler: Callable[[Any], Any] = ...,
-        split_statements: Union[bool, None] = ...,
+        split_statements: Optional[bool] = ...,
         return_last: bool = ...,
         **kwargs,
     ) -> None: ...
