@@ -81,8 +81,6 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: default hook for this connection
         """
-        # TODO: set method return type to BaseHook class when on 3.7+.
-        #  See https://stackoverflow.com/a/33533514/3066428
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
 
