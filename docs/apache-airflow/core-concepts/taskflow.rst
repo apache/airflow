@@ -77,7 +77,7 @@ To use logging from your task functions, simply import and use Python's logging 
 
 .. code-block:: python
 
-   logger = logging.getlogger("airflow.task")
+   logger = logging.getLogger("airflow.task")
 
 Every logging line created this way will be recorded in the task log.
 
