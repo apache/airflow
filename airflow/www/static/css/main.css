@@ -61,6 +61,13 @@ div.container {
   color: #e2d2e2;
 }
 
+/* If a category has a lot of menu items, we cap it, and
+ add a scroll bar */
+.navbar li.dropdown .dropdown-menu {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
 .navbar-nav li.dropdown:hover > .dropdown-menu,
 .navbar-nav li.dropdown:focus-within > .dropdown-menu {
   display: block;
