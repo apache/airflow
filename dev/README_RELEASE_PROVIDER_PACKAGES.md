@@ -27,6 +27,7 @@
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
+  - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
@@ -160,6 +161,15 @@ branch should be prepared like this:
 breeze release-management prepare-provider-documentation \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
+
+## Open PR with suggested version releases
+
+At this point you should have providers yaml files and changelog updated.
+You should go over the change log and place changes in their relevant section (breaking change, feature, bugs, etc...)
+Once finished you should raise a PR : Prepare docs for MM YYYY wave of Providers
+In the PR we will verify if we want to release a specific package or if the versions chosen are right.
+Only after PR is merged you should proceed to next steps.
+
 
 ## Build provider packages for SVN apache upload
 
