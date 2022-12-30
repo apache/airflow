@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import sys
 from collections import namedtuple
 from datetime import date, timedelta
@@ -90,7 +92,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
-        def identity_tuple(x: int, y: int) -> Tuple[int, int]:
+        def identity_tuple(x: int, y: int) -> tuple[int, int]:
             return x, y
 
         assert identity_tuple(5, 5).operator.multiple_outputs is False
@@ -109,7 +111,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         # The following cases ensure invoking ``@task_decorator.__call__()`` yields the correct inference.
         @task_decorator()
-        def identity_tuple_with_decorator_call(x: int, y: int) -> Tuple[int, int]:
+        def identity_tuple_with_decorator_call(x: int, y: int) -> tuple[int, int]:
             return x, y
 
         assert identity_tuple_with_decorator_call(5, 5).operator.multiple_outputs is False
@@ -128,7 +130,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)
-        def identity2(x: int, y: int) -> Tuple[int, int]:
+        def identity2(x: int, y: int) -> tuple[int, int]:
             return x, y
 
         with self.dag:
@@ -146,7 +148,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     def test_multiple_outputs_ignore_typing(self):
         @task_decorator
-        def identity_tuple(x: int, y: int) -> Tuple[int, int]:
+        def identity_tuple(x: int, y: int) -> tuple[int, int]:
             return x, y
 
         with self.dag:

@@ -25,6 +25,8 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
+from __future__ import annotations
+
 from typing import Any, Collection, Container, Iterable, Mapping, Union, overload
 
 from pendulum import DateTime
