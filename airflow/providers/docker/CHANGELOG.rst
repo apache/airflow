@@ -24,6 +24,20 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add hostname argument to DockerOperator (#27822)``
+* ``Move min airflow version down for Docker Provider to 2.3.0 (#28648)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 3.3.0
 .....
 

@@ -36,6 +36,12 @@ Content
     Operators <operators/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/ftp/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
