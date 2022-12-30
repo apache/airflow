@@ -206,13 +206,16 @@ class Connection(Base, LoggingMixin):
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
-        if "_" in self.conn_type:
+        if self.conn_type and "_" in self.conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
                 self.conn_type,
             )
 
-        uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
+        if self.conn_type:
+            uri = f"{self.conn_type.lower().replace('_', '-')}://"
+        else:
+            uri = "//"
 
         authority_block = ""
         if self.login is not None:
