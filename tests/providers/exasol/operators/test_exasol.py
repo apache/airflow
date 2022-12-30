@@ -34,7 +34,6 @@ class TestExasol:
             parameters=None,
             handler=fetch_all_handler,
             return_last=True,
-            split_statements=False,
         )
 
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
@@ -47,7 +46,6 @@ class TestExasol:
             parameters={"value": 1},
             handler=fetch_all_handler,
             return_last=True,
-            split_statements=False,
         )
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
