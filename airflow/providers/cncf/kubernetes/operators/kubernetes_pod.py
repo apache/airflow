@@ -92,7 +92,7 @@ def _create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
     *,
-    max_length: int = 63,
+    max_length: int = 80,
     unique: bool = True,
 ) -> str:
     """

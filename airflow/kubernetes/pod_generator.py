@@ -339,8 +339,9 @@ class PodGenerator:
             base_containers[1:], client_containers[1:]
         )
 
-    @staticmethod
+    @classmethod
     def construct_pod(
+        cls,
         dag_id: str,
         task_id: str,
         pod_id: str,
@@ -370,15 +371,6 @@ class PodGenerator:
                 "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
             )
             pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
-        if len(pod_id) > 63:
-            # because in task handler we get pod name from ti hostname (which truncates
-            # pod_id to 63 characters) we won't be able to find the pod unless it is <= 63 characters.
-            # our code creates pod names shorter than this so this warning should not normally be triggered.
-            warnings.warn(
-                "Supplied pod_id is longer than 63 characters. Due to implementation details, the webserver "
-                "may not be able to stream logs while task is running. Please choose a shorter pod name."
-            )
-
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
@@ -391,30 +383,27 @@ class PodGenerator:
             "task_id": task_id,
             "try_number": str(try_number),
         }
-        labels = {
-            "airflow-worker": make_safe_label_value(scheduler_job_id),
-            "dag_id": make_safe_label_value(dag_id),
-            "task_id": make_safe_label_value(task_id),
-            "try_number": str(try_number),
-            "airflow_version": airflow_version.replace("+", "-"),
-            "kubernetes_executor": "True",
-        }
         if map_index >= 0:
             annotations["map_index"] = str(map_index)
-            labels["map_index"] = str(map_index)
         if date:
             annotations["execution_date"] = date.isoformat()
-            labels["execution_date"] = datetime_to_label_safe_datestring(date)
         if run_id:
             annotations["run_id"] = run_id
-            labels["run_id"] = make_safe_label_value(run_id)
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
                 annotations=annotations,
                 name=pod_id,
-                labels=labels,
+                labels=cls.build_labels_for_k8s_executor_pod(
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    try_number=try_number,
+                    airflow_worker=scheduler_job_id,
+                    map_index=map_index,
+                    execution_date=date,
+                    run_id=run_id,
+                ),
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -446,6 +435,72 @@ class PodGenerator:
                 raise PodMutationHookException from e
 
         return pod
+
+    @classmethod
+    def build_selector_for_k8s_executor_pod(
+        cls,
+        *,
+        dag_id,
+        task_id,
+        try_number,
+        map_index=None,
+        execution_date=None,
+        run_id=None,
+        airflow_worker=None,
+    ):
+        """
+        Generate selector for kubernetes executor pod
+
+        :meta private:
+        """
+        labels = cls.build_labels_for_k8s_executor_pod(
+            dag_id=dag_id,
+            task_id=task_id,
+            try_number=try_number,
+            map_index=map_index,
+            execution_date=execution_date,
+            run_id=run_id,
+            airflow_worker=airflow_worker,
+        )
+        label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
+        selector = ",".join(label_strings)
+        if not airflow_worker:  # this filters out KPO pods even when we don't know the scheduler job id
+            selector += ",airflow-worker"
+        return selector
+
+    @classmethod
+    def build_labels_for_k8s_executor_pod(
+        cls,
+        *,
+        dag_id,
+        task_id,
+        try_number,
+        airflow_worker=None,
+        map_index=None,
+        execution_date=None,
+        run_id=None,
+    ):
+        """
+        Generate labels for kubernetes executor pod
+
+        :meta private:
+        """
+        labels = {
+            "dag_id": make_safe_label_value(dag_id),
+            "task_id": make_safe_label_value(task_id),
+            "try_number": str(try_number),
+            "kubernetes_executor": "True",
+            "airflow_version": airflow_version.replace("+", "-"),
+        }
+        if airflow_worker is not None:
+            labels["airflow-worker"] = make_safe_label_value(str(airflow_worker))
+        if map_index is not None and map_index >= 0:
+            labels["map_index"] = str(map_index)
+        if execution_date:
+            labels["execution_date"] = datetime_to_label_safe_datestring(execution_date)
+        if run_id:
+            labels["run_id"] = make_safe_label_value(run_id)
+        return labels
 
     @staticmethod
     def serialize_pod(pod: k8s.V1Pod) -> dict:

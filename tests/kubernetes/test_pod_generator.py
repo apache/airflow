@@ -22,6 +22,7 @@ import sys
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
@@ -37,6 +38,8 @@ from airflow.kubernetes.pod_generator import (
     merge_objects,
 )
 from airflow.kubernetes.secret import Secret
+
+now = pendulum.now("UTC")
 
 
 class TestPodGenerator:
@@ -476,7 +479,7 @@ class TestPodGenerator:
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         expected_dict = self.k8s_client.sanitize_for_serialization(expected)
 
-        assert expected_dict == result_dict
+        assert result_dict == expected_dict
 
     def test_construct_pod_empty_executor_config(self):
         path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
@@ -772,3 +775,49 @@ class TestPodGenerator:
             PodGenerator()
         PodGenerator(pod_template_file="tests/kubernetes/pod.yaml")
         PodGenerator(pod=k8s.V1Pod())
+
+    @pytest.mark.parametrize(
+        "extra, extra_expected",
+        [
+            param(dict(), {}, id="base"),
+            param(dict(airflow_worker=2), {"airflow-worker": "2"}, id="worker"),
+            param(dict(map_index=2), {"map_index": "2"}, id="map_index"),
+            param(dict(run_id="2"), {"run_id": "2"}, id="run_id"),
+            param(
+                dict(execution_date=now),
+                {"execution_date": datetime_to_label_safe_datestring(now)},
+                id="date",
+            ),
+            param(
+                dict(airflow_worker=2, map_index=2, run_id="2", execution_date=now),
+                {
+                    "airflow-worker": "2",
+                    "map_index": "2",
+                    "run_id": "2",
+                    "execution_date": datetime_to_label_safe_datestring(now),
+                },
+                id="all",
+            ),
+        ],
+    )
+    def test_build_labels_for_k8s_executor_pod(self, extra, extra_expected):
+        from airflow.version import version as airflow_version
+
+        kwargs = dict(
+            dag_id="dag*",
+            task_id="task*",
+            try_number=1,
+        )
+        expected = dict(
+            dag_id="dag-6b24921d4",
+            task_id="task-b6aca8991",
+            try_number="1",
+            airflow_version=airflow_version,
+            kubernetes_executor="True",
+        )
+        labels = PodGenerator.build_labels_for_k8s_executor_pod(**kwargs, **extra)
+        assert labels == {**expected, **extra_expected}
+        exp_selector = ",".join([f"{k}={v}" for k, v in sorted(labels.items())])
+        if "airflow_worker" not in extra:
+            exp_selector += ",airflow-worker"
+        assert PodGenerator.build_selector_for_k8s_executor_pod(**kwargs, **extra) == exp_selector
