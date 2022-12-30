@@ -19,8 +19,6 @@
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
-from __future__ import annotations
-
 from datetime import timedelta
 from typing import Any, Callable, Iterable, Mapping, Union, overload
 

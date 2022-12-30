@@ -19,8 +19,6 @@
 # This stub exists to work around false linter errors due to python/mypy#10408.
 # TODO: Remove this file after the upstream fix is available in our toolchain.
 
-from __future__ import annotations
-
 from typing import Callable, TypeVar
 
 T = TypeVar("T")

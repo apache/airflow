@@ -17,8 +17,6 @@
 # under the License.
 #
 
-from __future__ import annotations
-
 import sqlalchemy as sa
 
 TIMESTAMP = sa.TIMESTAMP
