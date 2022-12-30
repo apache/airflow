@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from unittest import mock
+import logging
+from unittest.mock import patch
 
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.vertica.operators.vertica import VerticaOperator
+from airflow.utils.log.colored_log import CustomTTYColoredFormatter
 
 
-class TestVerticaOperator:
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
-    def test_execute(self, mock_get_db_hook):
-        sql = "select a, b, c"
-        op = VerticaOperator(task_id="test_task_id", sql=sql)
-        op.execute(None)
-        mock_get_db_hook.return_value.run.assert_called_once_with(
-            sql=sql,
-            autocommit=False,
-            handler=fetch_all_handler,
-            parameters=None,
-            return_last=True,
-        )
+@patch("airflow.utils.log.timezone_aware.TimezoneAware.formatTime")
+def test_format_time_uses_tz_aware(mock_fmt):
+    # get a logger that uses CustomTTYColoredFormatter
+    logger = logging.getLogger("test_format_time")
+    h = logging.StreamHandler()
+    h.setFormatter(CustomTTYColoredFormatter())
+    logger.addHandler(h)
+
+    # verify that it uses TimezoneAware.formatTime
+    logger.info("hi")
+    mock_fmt.assert_called()
