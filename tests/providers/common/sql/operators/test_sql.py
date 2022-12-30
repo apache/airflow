@@ -75,7 +75,6 @@ class TestSQLExecuteQueryOperator:
             handler=fetch_all_handler,
             parameters=None,
             return_last=True,
-            split_statements=False,
         )
 
     @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
@@ -87,7 +86,6 @@ class TestSQLExecuteQueryOperator:
             sql="SELECT 1;",
             autocommit=False,
             parameters=None,
-            split_statements=False,
             handler=None,
             return_last=True,
         )

@@ -35,5 +35,4 @@ class TestVerticaOperator:
             handler=fetch_all_handler,
             parameters=None,
             return_last=True,
-            split_statements=False,
         )
