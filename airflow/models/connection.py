@@ -213,7 +213,7 @@ class Connection(Base, LoggingMixin):
             )
 
         if self.conn_type:
-            uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
+            uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
             uri = "//"
 
