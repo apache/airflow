@@ -29,12 +29,12 @@ from typing import Iterator
 
 import requests
 import urllib3.exceptions
+from docs.exts.docs_build.docs_builder import get_available_providers_packages
+from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 from requests.adapters import DEFAULT_POOLSIZE
 from sphinx.util.inventory import InventoryFileReader
 
 from airflow.utils.helpers import partition
-from docs.exts.docs_build.docs_builder import get_available_providers_packages
-from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir, os.pardir))
