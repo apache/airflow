@@ -165,7 +165,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/PyCQA/isort
-    rev: 5.11.4
+    rev: 5.11.2
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
