@@ -305,22 +305,17 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
         if handler not in logger.handlers:
             logger.addHandler(handler)
 
-    # if there are no task handlers, then we should not do anything
-    # because either the handlers were already moved by the LocalTaskJob
-    # invocation of task_run (which wraps the --raw invocation), or
-    # user is doing something custom / unexpected
+    # nothing to do
     if not ti.log.handlers or settings.DONOT_MODIFY_HANDLERS:
         yield
         return
 
+    # Move task handlers to root and reset task logger and restore original logger settings after exit.
+    # If k8s executor, we need to ensure that root logger has a console handler, so that
+    # task logs propagate to stdout (this is how webserver retrieves them while task is running).
     root_logger = logging.getLogger()
     task_logger = ti.log
     console_handler = get_console_handler(root_logger)
-
-    # Below is the operative section. We move task handlers to root and reset task logger.
-    # After exit, we restore original logger settings.
-    # If k8s executor, we need to ensure that root logger has a console handler, so that
-    # task logs propagate to stdout (this is how webserver retrieves them while task is running).
     with LoggerMutationHelper(root_logger), LoggerMutationHelper(task_logger) as task_helper:
         task_helper.move(root_logger)
         if IS_K8S_EXECUTOR_POD:
