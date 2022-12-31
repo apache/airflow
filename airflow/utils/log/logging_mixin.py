@@ -26,6 +26,8 @@ from io import IOBase
 from logging import Handler, Logger, StreamHandler
 from typing import IO, cast
 
+from airflow.settings import IS_K8S_EXECUTOR_POD
+
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
@@ -165,13 +167,13 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
 
 class RedirectStdHandler(StreamHandler):
     """
-    This class is like a StreamHandler using sys.stderr/stdout, but always uses
+    This class is like a StreamHandler using sys.stderr/stdout, but uses
     whatever sys.stderr/stderr is currently set to rather than the value of
-    sys.stderr/stdout at handler construction time.
+    sys.stderr/stdout at handler construction time, except when running a
+    task in a kubernetes executor pod.
     """
 
     def __init__(self, stream):
-        self.respect_redirection = True
         if not isinstance(stream, str):
             raise Exception(
                 "Cannot use file like objects. Use 'stdout' or 'stderr' as a str and without 'ext://'."
@@ -189,7 +191,7 @@ class RedirectStdHandler(StreamHandler):
     @property
     def stream(self):
         """Returns current stream."""
-        if self.respect_redirection is False:
+        if IS_K8S_EXECUTOR_POD:
             return self._orig_stream
         if self._use_stderr:
             return sys.stderr
