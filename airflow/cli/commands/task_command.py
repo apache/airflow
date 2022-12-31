@@ -313,9 +313,8 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     # If k8s executor, we need to ensure that root logger has a console handler, so that
     # task logs propagate to stdout (this is how webserver retrieves them while task is running).
     root_logger = logging.getLogger()
-    task_logger = ti.log
     console_handler = get_console_handler(root_logger)
-    with LoggerMutationHelper(root_logger), LoggerMutationHelper(task_logger) as task_helper:
+    with LoggerMutationHelper(root_logger), LoggerMutationHelper(ti.log) as task_helper:
         task_helper.move(root_logger)
         if IS_K8S_EXECUTOR_POD:
             ensure_handler(root_logger, console_handler)
