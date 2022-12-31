@@ -191,9 +191,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
     if not isinstance(stat_name, str):
         raise InvalidStatsNameException("The stat_name has to be a string")
     if len(stat_name) > max_length:
-        raise InvalidStatsNameException(
-            f"The stat_name ({stat_name}) has to be less than {max_length} characters."
-        )
+        raise InvalidStatsNameException(f"The stat_name ({stat_name}) has to be less than {max_length} characters.")
     if not all((c in ALLOWED_CHARACTERS) for c in stat_name):
         raise InvalidStatsNameException(
             f"The stat name ({stat_name}) has to be composed of ASCII "
@@ -234,11 +232,7 @@ class AllowListValidator:
     """Class to filter unwanted stats."""
 
     def __init__(self, allow_list=None):
-        if allow_list:
-
-            self.allow_list = tuple(item.strip().lower() for item in allow_list.split(","))
-        else:
-            self.allow_list = None
+        self.allow_list = tuple(item.strip().lower() for item in allow_list.split(",")) if allow_list else None
 
     def test(self, stat):
         """Test if stat is in the Allow List."""
