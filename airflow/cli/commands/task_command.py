@@ -314,7 +314,7 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     root_logger_helper = LoggerMutationHelper(root_logger)
     console_handler = get_console_handler(root_logger)
 
-    # below is operative section
+    # below is the operative section
     # we move task handlers to root and reset task logger
     # after exit, we restore original logger settings
     task_logger_helper.move(root_logger)
