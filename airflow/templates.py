@@ -49,37 +49,31 @@ class SandboxedEnvironment(_AirflowEnvironmentMixin, jinja2.sandbox.SandboxedEnv
 
 def ds_filter(value: datetime.date | datetime.time | None) -> str | None:
     """Date filter."""
-    if value is None:
-        return None
-    return value.strftime("%Y-%m-%d")
+    return value.strftime("%Y-%m-%d") if value else None
 
 
 def ds_nodash_filter(value: datetime.date | datetime.time | None) -> str | None:
     """Date filter without dashes."""
-    if value is None:
-        return None
-    return value.strftime("%Y%m%d")
+    return value.strftime("%Y%m%d") if value else None
+
 
 
 def ts_filter(value: datetime.date | datetime.time | None) -> str | None:
     """Timestamp filter."""
-    if value is None:
-        return None
-    return value.isoformat()
+    return value.isoformat() if value else None
+
 
 
 def ts_nodash_filter(value: datetime.date | datetime.time | None) -> str | None:
     """Timestamp filter without dashes."""
-    if value is None:
-        return None
-    return value.strftime("%Y%m%dT%H%M%S")
+    return value.strftime("%Y%m%dT%H%M%S") if value else None
+
 
 
 def ts_nodash_with_tz_filter(value: datetime.date | datetime.time | None) -> str | None:
     """Timestamp filter with timezone."""
-    if value is None:
-        return None
-    return value.isoformat().replace("-", "").replace(":", "")
+    return value.isoformat().replace("-", "").replace(":", "") if value else None
+
 
 
 FILTERS = {
