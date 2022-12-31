@@ -299,6 +299,12 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
             if h.name == "console":
                 return h
 
+    def add_handler_if_not_exists(logger, handler):
+        if not handler:
+            return
+        if handler not in logger.handlers:
+            logger.addHandler(handler)
+
     # if there are no task handlers, then we should not do anything
     # because either the handlers were already moved by the LocalTaskJob
     # invocation of task_run (which wraps the --raw invocation), or
@@ -317,9 +323,8 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     # task logs propagate to stdout (this is how webserver retrieves them while task is running).
     with LoggerMutationHelper(task_logger) as task_logger_helper, LoggerMutationHelper(root_logger):
         task_logger_helper.move(root_logger)
-        if console_handler and IS_K8S_EXECUTOR_POD:
-            if console_handler not in root_logger.handlers:
-                root_logger.addHandler(console_handler)
+        if IS_K8S_EXECUTOR_POD:
+            add_handler_if_not_exists(root_logger, console_handler)
         yield
 
 
