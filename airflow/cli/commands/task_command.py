@@ -284,47 +284,6 @@ def _extract_external_executor_id(args) -> str | None:
     return os.environ.get("external_executor_id", None)
 
 
-class LoggerAttrs:
-    """
-    Helper for moving and resetting handlers and other logger attrs.
-
-    :meta private:
-    """
-
-    def __init__(self, logger):
-        self.handlers = logger.handlers[:]
-        self.level = logger.level
-        self.propagate = logger.propagate
-        self.source_logger = logger
-
-    def apply(self, logger, replace=True):
-        """
-        Set ``logger`` with attrs stored on instance.
-
-        If ``logger`` is root logger, don't change propagate.
-        """
-        if replace:
-            logger.handlers[:] = self.handlers
-        else:
-            for h in self.handlers:
-                if h not in logger.handlers:
-                    logger.addHandler(h)
-        logger.level = self.level
-        if logger is not logging.getLogger():
-            logger.propagate = self.propagate
-
-    def move(self, logger, replace=True):
-        """
-        Replace ``logger`` attrs with those from source.
-
-        :param logger: target logger
-        :param replace: if True, remove all handlers from target first; otherwise add if not present.
-        """
-        self.apply(logger, replace=replace)
-        self.source_logger.propagate = True
-        self.source_logger.handlers[:] = []
-
-
 @contextmanager
 def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]:
     """
@@ -718,3 +677,44 @@ def task_clear(args):
         include_subdags=not args.exclude_subdags,
         include_parentdag=not args.exclude_parentdag,
     )
+
+
+class LoggerAttrs:
+    """
+    Helper for moving and resetting handlers and other logger attrs.
+
+    :meta private:
+    """
+
+    def __init__(self, logger):
+        self.handlers = logger.handlers[:]
+        self.level = logger.level
+        self.propagate = logger.propagate
+        self.source_logger = logger
+
+    def apply(self, logger, replace=True):
+        """
+        Set ``logger`` with attrs stored on instance.
+
+        If ``logger`` is root logger, don't change propagate.
+        """
+        if replace:
+            logger.handlers[:] = self.handlers
+        else:
+            for h in self.handlers:
+                if h not in logger.handlers:
+                    logger.addHandler(h)
+        logger.level = self.level
+        if logger is not logging.getLogger():
+            logger.propagate = self.propagate
+
+    def move(self, logger, replace=True):
+        """
+        Replace ``logger`` attrs with those from source.
+
+        :param logger: target logger
+        :param replace: if True, remove all handlers from target first; otherwise add if not present.
+        """
+        self.apply(logger, replace=replace)
+        self.source_logger.propagate = True
+        self.source_logger.handlers[:] = []
