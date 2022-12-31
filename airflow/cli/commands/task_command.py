@@ -284,6 +284,47 @@ def _extract_external_executor_id(args) -> str | None:
     return os.environ.get("external_executor_id", None)
 
 
+class LoggerAttrs:
+    """
+    Helper for moving and resetting handlers and other logger attrs.
+
+    :meta private:
+    """
+
+    def __init__(self, logger):
+        self.handlers = logger.handlers[:]
+        self.level = logger.level
+        self.propagate = logger.propagate
+        self.source_logger = logger
+
+    def apply(self, logger, replace=True):
+        """
+        Set ``logger`` with attrs stored on instance.
+
+        If ``logger`` is root logger, don't change propagate.
+        """
+        if replace:
+            logger.handlers[:] = self.handlers
+        else:
+            for h in self.handlers:
+                if h not in logger.handlers:
+                    logger.addHandler(h)
+        logger.level = self.level
+        if logger is not logging.getLogger():
+            logger.propagate = self.propagate
+
+    def move(self, logger, replace=True):
+        """
+        Replace ``logger`` attrs with those from source.
+
+        :param logger: target logger
+        :param replace: if True, remove all handlers from target first; otherwise add if not present.
+        """
+        self.apply(logger, replace=replace)
+        self.source_logger.propagate = True
+        self.source_logger.handlers[:] = []
+
+
 @contextmanager
 def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]:
     """
@@ -306,30 +347,25 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     if not ti.log.handlers or settings.DONOT_MODIFY_HANDLERS:
         yield
         return
+
     root_logger = logging.getLogger()
     task_logger = ti.log
-    orig_task_propagate = task_logger.propagate
-    orig_task_handlers = task_logger.handlers.copy()
-    orig_root_handlers = root_logger.handlers.copy()
-    orig_root_level = root_logger.level
+
+    task_logger_attrs = LoggerAttrs(task_logger)
+    root_logger_attrs = LoggerAttrs(root_logger)
     console_handler = get_console_handler(root_logger)
 
-    # these are already copied to root logger, so remove and propagate
-    # (this ensures they are not handled more than they need to be)
-    # we'll add them back later
-    task_logger.handlers[:] = []
-    task_logger.propagate = True
-    root_logger.setLevel(task_logger.level)
-    root_logger.handlers[:] = orig_task_handlers
+    # below is operative section
+    # we move task handlers to root and reset task logger
+    # after exit, we restore original logger settings
+    task_logger_attrs.move(root_logger)
     if console_handler and IS_K8S_EXECUTOR_POD:
         root_logger.addHandler(console_handler)
     try:
         yield
     finally:
-        task_logger.propagate = orig_task_propagate
-        task_logger.handlers[:] = orig_task_handlers
-        root_logger.handlers[:] = orig_root_handlers
-        root_logger.level = orig_root_level
+        task_logger_attrs.apply(task_logger)
+        root_logger_attrs.apply(root_logger)
 
 
 @contextmanager

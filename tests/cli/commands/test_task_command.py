@@ -29,6 +29,7 @@ from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from unittest import mock
+from unittest.mock import sentinel
 
 import pendulum
 import pytest
@@ -38,6 +39,7 @@ from parameterized import parameterized
 from airflow import DAG
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
+from airflow.cli.commands.task_command import LoggerAttrs
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
@@ -824,3 +826,54 @@ def test_context_with_run():
         text == "_AIRFLOW_PARSING_CONTEXT_DAG_ID=test_parsing_context\n"
         "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
     )
+
+
+class TestLoggerAttrs:
+    @pytest.mark.parametrize("target_name", ["test_apply_target", None])
+    def test_apply(self, target_name):
+        """
+        Handlers, level and propagate should be applied on target.
+        """
+        src = logging.getLogger(f"test_apply_source_{target_name}")
+        src.propagate = False
+        src.addHandler(sentinel.handler)
+        src.setLevel(-1)
+        obj = LoggerAttrs(src)
+        tgt = logging.getLogger("test_apply_target")
+        obj.apply(tgt)
+        assert tgt.handlers == [sentinel.handler]
+        assert tgt.propagate is False if target_name else True  # root propagate unchanged
+        assert tgt.level == -1
+
+    def test_apply_no_replace(self):
+        """
+        Handlers, level and propagate should be applied on target.
+        """
+        src = logging.getLogger("test_apply_source_no_repl")
+        tgt = logging.getLogger("test_apply_target_no_repl")
+        h1 = logging.Handler()
+        h1.name = "h1"
+        h2 = logging.Handler()
+        h2.name = "h2"
+        h3 = logging.Handler()
+        h3.name = "h3"
+        src.handlers[:] = [h1, h2]
+        tgt.handlers[:] = [h2, h3]
+        LoggerAttrs(src).apply(tgt, replace=False)
+        assert tgt.handlers == [h2, h3, h1]
+
+    def test_move(self):
+        """Move should apply plus remove source handler, set propagate to True"""
+        src = logging.getLogger("test_move_source")
+        src.propagate = False
+        src.addHandler(sentinel.handler)
+        src.setLevel(-1)
+        obj = LoggerAttrs(src)
+        tgt = logging.getLogger("test_apply_target")
+        obj.move(tgt)
+        assert tgt.handlers == [sentinel.handler]
+        assert tgt.propagate is False
+        assert tgt.level == -1
+        assert src.propagate is True and obj.propagate is False
+        assert src.level == obj.level
+        assert src.handlers == [] and obj.handlers == tgt.handlers
