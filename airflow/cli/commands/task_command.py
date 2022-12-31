@@ -310,21 +310,21 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     root_logger = logging.getLogger()
     task_logger = ti.log
 
-    task_logger_attrs = LoggerAttrs(task_logger)
-    root_logger_attrs = LoggerAttrs(root_logger)
+    task_logger_helper = LoggerMutationHelper(task_logger)
+    root_logger_helper = LoggerMutationHelper(root_logger)
     console_handler = get_console_handler(root_logger)
 
     # below is operative section
     # we move task handlers to root and reset task logger
     # after exit, we restore original logger settings
-    task_logger_attrs.move(root_logger)
+    task_logger_helper.move(root_logger)
     if console_handler and IS_K8S_EXECUTOR_POD:
         root_logger.addHandler(console_handler)
     try:
         yield
     finally:
-        task_logger_attrs.apply(task_logger)
-        root_logger_attrs.apply(root_logger)
+        task_logger_helper.reset()
+        root_logger_helper.reset()
 
 
 @contextmanager
@@ -679,7 +679,7 @@ def task_clear(args):
     )
 
 
-class LoggerAttrs:
+class LoggerMutationHelper:
     """
     Helper for moving and resetting handlers and other logger attrs.
 
@@ -718,3 +718,6 @@ class LoggerAttrs:
         self.apply(logger, replace=replace)
         self.source_logger.propagate = True
         self.source_logger.handlers[:] = []
+
+    def reset(self):
+        self.apply(self.source_logger)

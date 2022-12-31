@@ -39,7 +39,7 @@ from parameterized import parameterized
 from airflow import DAG
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
-from airflow.cli.commands.task_command import LoggerAttrs
+from airflow.cli.commands.task_command import LoggerMutationHelper
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
@@ -828,7 +828,7 @@ def test_context_with_run():
     )
 
 
-class TestLoggerAttrs:
+class TestLoggerMutationHelper:
     @pytest.mark.parametrize("target_name", ["test_apply_target", None])
     def test_apply(self, target_name):
         """
@@ -838,7 +838,7 @@ class TestLoggerAttrs:
         src.propagate = False
         src.addHandler(sentinel.handler)
         src.setLevel(-1)
-        obj = LoggerAttrs(src)
+        obj = LoggerMutationHelper(src)
         tgt = logging.getLogger("test_apply_target")
         obj.apply(tgt)
         assert tgt.handlers == [sentinel.handler]
@@ -859,7 +859,7 @@ class TestLoggerAttrs:
         h3.name = "h3"
         src.handlers[:] = [h1, h2]
         tgt.handlers[:] = [h2, h3]
-        LoggerAttrs(src).apply(tgt, replace=False)
+        LoggerMutationHelper(src).apply(tgt, replace=False)
         assert tgt.handlers == [h2, h3, h1]
 
     def test_move(self):
@@ -868,7 +868,7 @@ class TestLoggerAttrs:
         src.propagate = False
         src.addHandler(sentinel.handler)
         src.setLevel(-1)
-        obj = LoggerAttrs(src)
+        obj = LoggerMutationHelper(src)
         tgt = logging.getLogger("test_apply_target")
         obj.move(tgt)
         assert tgt.handlers == [sentinel.handler]
@@ -877,3 +877,17 @@ class TestLoggerAttrs:
         assert src.propagate is True and obj.propagate is False
         assert src.level == obj.level
         assert src.handlers == [] and obj.handlers == tgt.handlers
+
+    def test_reset(self):
+        src = logging.getLogger("test_move_reset")
+        src.propagate = True
+        src.addHandler(sentinel.h1)
+        src.setLevel(-1)
+        obj = LoggerMutationHelper(src)
+        src.propagate = False
+        src.addHandler(sentinel.h2)
+        src.setLevel(-2)
+        obj.reset()
+        assert src.propagate == True
+        assert src.handlers == [sentinel.h1]
+        assert src.level == -1
