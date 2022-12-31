@@ -317,7 +317,7 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     task_logger = ti.log
     console_handler = get_console_handler(root_logger)
 
-    # Below is the operative section we move task handlers to root and reset task logger.
+    # Below is the operative section. We move task handlers to root and reset task logger.
     # After exit, we restore original logger settings.
     # If k8s executor, we need to ensure that root logger has a console handler, so that
     # task logs propagate to stdout (this is how webserver retrieves them while task is running).
