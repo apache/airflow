@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
+from airflow import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -60,7 +61,10 @@ class JenkinsBuildSensor(BaseSensorOperator):
         if is_building:
             self.log.info("Build still ongoing!")
             return False
+
+        build_result = hook.get_build_result(self.job_name, build_number)
+        self.log.info(f"Build is finished, result is {build_result}.")
+        if build_result in self.target_states:
+            return True
         else:
-            build_result = hook.get_build_result(self.job_name, build_number)
-            self.log.info(f"Build is finished, result is {build_result}.")
-            return build_result in self.target_states
+            raise AirflowException("The build result does not meet the target states.")
