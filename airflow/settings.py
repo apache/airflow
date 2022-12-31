@@ -111,7 +111,6 @@ STATE_COLORS = {
 def _get_rich_console(file):
     # Delay imports until we need it
     import rich.console
-
     return rich.console.Console(file=file)
 
 
@@ -251,7 +250,7 @@ def configure_vars():
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
-
+    
     PLUGINS_FOLDER = conf.get("core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins"))
 
     # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
