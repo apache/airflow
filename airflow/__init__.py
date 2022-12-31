@@ -83,10 +83,7 @@ def __getattr__(name: str):
     import importlib
 
     mod = importlib.import_module(module_path, __name__)
-    if attr_name:
-        val = getattr(mod, attr_name)
-    else:
-        val = mod
+    val = getattr(mod, attr_name) if attr_name else mod
 
     # Store for next time
     globals()[name] = val
