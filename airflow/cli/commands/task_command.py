@@ -44,6 +44,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
+from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
@@ -320,7 +321,7 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     task_logger.propagate = True
     root_logger.setLevel(task_logger.level)
     root_logger.handlers[:] = orig_task_handlers
-    if console_handler:
+    if console_handler and IS_K8S_EXECUTOR_POD:
         root_logger.addHandler(console_handler)
     try:
         yield
