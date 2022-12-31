@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import pkgutil
 from importlib import import_module
+from types import ModuleType
+from typing import Callable
 
 
-def import_string(dotted_path):
+def import_string(dotted_path: str):
     """
     Import a dotted module path and return the attribute/class designated by the
     last name in the path. Raise ImportError if the import failed.
@@ -38,6 +41,24 @@ def import_string(dotted_path):
         raise ImportError(f'Module "{module_path}" does not define a "{class_name}" attribute/class')
 
 
-def as_importable_string(thing) -> str:
-    """Convert an attribute/class to a string importable by ``import_string``."""
-    return f"{thing.__module__}.{thing.__name__}"
+def qualname(o: object | Callable) -> str:
+    """Convert an attribute/class/function to a string importable by ``import_string``."""
+    if callable(o):
+        return f"{o.__module__}.{o.__name__}"
+
+    cls = o
+
+    if not isinstance(cls, type):  # instance or class
+        cls = type(cls)
+
+    name = cls.__qualname__
+    module = cls.__module__
+
+    if module and module != "__builtin__":
+        return f"{module}.{name}"
+
+    return name
+
+
+def iter_namespace(ns: ModuleType):
+    return pkgutil.iter_modules(ns.__path__, ns.__name__ + ".")

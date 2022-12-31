@@ -310,6 +310,6 @@ Here's the list of all the Database Migrations that are executed via when you ru
 
  .. End of auto-generated table
 
-.. spelling::
+.. spelling:word-list::
     branchpoint
     mergepoint

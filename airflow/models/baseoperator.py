@@ -84,6 +84,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
+from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -210,10 +211,10 @@ def partial(
     weight_rule: str = DEFAULT_WEIGHT_RULE,
     sla: timedelta | None = None,
     max_active_tis_per_dag: int | None = None,
-    on_execute_callback: TaskStateChangeCallback | None = None,
-    on_failure_callback: TaskStateChangeCallback | None = None,
-    on_success_callback: TaskStateChangeCallback | None = None,
-    on_retry_callback: TaskStateChangeCallback | None = None,
+    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
     run_as_user: str | None = None,
     executor_config: dict | None = None,
     inlets: Any | None = None,
@@ -340,25 +341,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             if param.default == param.empty and name != "task_id"
         }
 
-        class autostacklevel_warn:
-            def __init__(self):
-                self.warnings = __import__("warnings")
-
-            def __getattr__(self, name):
-                return getattr(self.warnings, name)
-
-            def __dir__(self):
-                return dir(self.warnings)
-
-            def warn(self, message, category=None, stacklevel=1, source=None):
-                self.warnings.warn(message, category, stacklevel + 2, source)
-
-        if func.__globals__.get("warnings") is sys.modules["warnings"]:
-            # Yes, this is slightly hacky, but it _automatically_ sets the right
-            # stacklevel parameter to `warnings.warn` to ignore the decorator. Now
-            # that the decorator is applied automatically, this makes the needed
-            # stacklevel parameter less confusing.
-            func.__globals__["warnings"] = autostacklevel_warn()
+        fixup_decorator_warning_stack(func)
 
         @functools.wraps(func)
         def apply_defaults(self: BaseOperator, *args: Any, **kwargs: Any) -> Any:
@@ -430,8 +413,8 @@ class BaseOperatorMeta(abc.ABCMeta):
     def __new__(cls, name, bases, namespace, **kwargs):
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
-            # Update the partial descriptor with the class method so it call call the actual function (but let
-            # subclasses override it if they need to)
+            # Update the partial descriptor with the class method, so it calls the actual function
+            # (but let subclasses override it if they need to)
             partial_desc = vars(new_cls)["partial"]
             if isinstance(partial_desc, _PartialDescriptor):
                 partial_desc.class_method = classmethod(partial)
@@ -465,7 +448,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         (e.g. user/person/team/role name) to clarify ownership is recommended.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
-        comma or semi-colon separated string or by passing a list of strings.
+        comma or semicolon separated string or by passing a list of strings.
     :param email_on_retry: Indicates whether email alerts should be sent when a
         task is retried
     :param email_on_failure: Indicates whether email alerts should be sent when
@@ -555,7 +538,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         notification are sent once and only once for each task instance.
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
-    :param on_failure_callback: a function to be called when a task instance
+    :param on_failure_callback: a function or list of functions to be called when a task instance
         of this task fails. a context dictionary is passed as a single
         parameter to this function. Context contains references to related
         objects to the task instance and is documented under the macros
@@ -723,10 +706,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
-        on_execute_callback: TaskStateChangeCallback | None = None,
-        on_failure_callback: TaskStateChangeCallback | None = None,
-        on_success_callback: TaskStateChangeCallback | None = None,
-        on_retry_callback: TaskStateChangeCallback | None = None,
+        on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         pre_execute: TaskPreExecuteHook | None = None,
         post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
@@ -949,7 +932,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __or__(self, other):
         """
         Called for [This Operator] | [Operator], The inlets of other
-        will be set to pickup the outlets from this operator. Other will
+        will be set to pick up the outlets from this operator. Other will
         be set as a downstream task of this operator.
         """
         if isinstance(other, BaseOperator):
@@ -1141,9 +1124,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def on_kill(self) -> None:
         """
-        Override this method to cleanup subprocesses when a task instance
+        Override this method to clean up subprocesses when a task instance
         gets killed. Any use of the threading, subprocess or multiprocessing
-        module within an operator needs to be cleaned up or it will leave
+        module within an operator needs to be cleaned up, or it will leave
         ghost processes behind.
         """
 
@@ -1189,7 +1172,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This mutates the attributes in-place and is irreversible.
 
         :param context: Context dict with values to apply on content.
-        :param jinja_env: Jinja environment to use for rendering.
+        :param jinja_env: Jinja's environment to use for rendering.
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
@@ -1480,7 +1463,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Used to determine if an Operator is inherited from EmptyOperator"""
         # This looks like `isinstance(self, EmptyOperator) would work, but this also
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
-        # of its sub-classes (which don't inherit from anything but BaseOperator).
+        # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
 
     def defer(
@@ -1580,12 +1563,12 @@ def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
 
     .. code-block:: python
 
-        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, t2())
+        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, x3())
 
     is equivalent to::
 
           / "branch one" -> x1 \
-        t1                      -> t2 -> x3
+        t1                      -> task_group1 -> x3
           \ "branch two" -> x2 /
 
     .. code-block:: python

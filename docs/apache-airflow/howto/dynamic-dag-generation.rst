@@ -20,14 +20,25 @@
 Dynamic DAG Generation
 ======================
 
-To have a task repeated based on the output/result of a previous task see :doc:`/concepts/dynamic-task-mapping`.
+This document describes creation of DAGs that have a structure generated dynamically, but where the number of
+tasks in the DAG does not change between DAG Runs. If you want to implement a DAG where number of Tasks (or
+Task Groups as of Airflow 2.6) can change based on the output/result of previous tasks, see
+:doc:`/authoring-and-scheduling/dynamic-task-mapping`.
+
+.. note:: Consistent sequence of generating tasks and task groups
+
+    In all cases where you generate DAGs dynamically, you should make sure that Tasks and Task Groups
+    are generated with consistent sequence every time the DAG is generated, otherwise you might end up with
+    Tasks and Task Groups changing their sequence in the Grid View every time you refresh the page.
+    This can be achieved for example by using a stable sorting mechanism in your Database queries or by using
+    ``sorted()`` function in Python.
 
 Dynamic DAGs with environment variables
 .......................................
 
 If you want to use variables to configure your code, you should always use
 `environment variables <https://wiki.archlinux.org/title/environment_variables>`_ in your
-top-level code rather than :doc:`Airflow Variables </concepts/variables>`. Using Airflow Variables
+top-level code rather than :doc:`Airflow Variables </core-concepts/variables>`. Using Airflow Variables
 at top-level code creates a connection to metadata DB of Airflow to fetch the value, which can slow
 down parsing and place extra load on the DB. See the `Airflow Variables <_best_practices/airflow_variables>`_
 on how to make best use of Airflow Variables in your DAGs using Jinja templates .

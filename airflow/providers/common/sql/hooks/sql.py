@@ -35,19 +35,20 @@ def return_single_query_results(sql: str | Iterable[str], return_last: bool, spl
     Determines when results of single query only should be returned.
 
     For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
-    In cases, when multiple queries are run, the return values will be an iterable (list) of results
-    - one for each query. However, in certain cases, when single query is run - the results will be just
-    the results of that single query without wrapping the results in a list.
+    In some cases, when multiple queries are run, the return value will be an iterable (list) of results
+    -- one for each query. However, in other cases, when single query is run, the return value will be just
+    the result of that single query without wrapping the results in a list.
 
-    The cases when single query results are returned without wrapping them in a list are when:
+    The cases when single query results are returned without wrapping them in a list are as follows:
 
-    a) sql is string and last_statement is True (regardless what split_statement value is)
-    b) sql is string and split_statement is False
+    a) sql is string and ``return_last`` is True (regardless what ``split_statements`` value is)
+    b) sql is string and ``split_statements`` is False
 
-    In all other cases, the results are wrapped in a list, even if there is only one statement to process:
+    In all other cases, the results are wrapped in a list, even if there is only one statement to process.
+    In particular, the return value will be a list of query results in the following circumstances:
 
-    a) always when sql is an iterable of string statements (regardless what last_statement value is)
-    b) when sql is string, split_statement is True and last_statement is False
+    a) when ``sql`` is an iterable of string statements (regardless what ``return_last`` value is)
+    b) when ``sql`` is string, ``split_statements`` is True and ``return_last`` is False
 
     :param sql: sql to run (either string or list of strings)
     :param return_last: whether last statement output should only be returned
@@ -272,33 +273,33 @@ class DbApiHook(BaseForDbApiHook):
         where each element in the list are results of one of the queries (typically list of list of rows :D)
 
         For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
-        In cases, when multiple queries are run, the return values will be an iterable (list) of results
-        - one for each query. However, in certain cases, when single query is run - the results will be just
-        the results of that query without wrapping the results in a list.
+        In some cases, when multiple queries are run, the return value will be an iterable (list) of results
+        -- one for each query. However, in other cases, when single query is run, the return value will
+        be the result of that single query without wrapping the results in a list.
 
-        The cases when single query results are returned without wrapping them in a list are when:
+        The cases when single query results are returned without wrapping them in a list are as follows:
 
-        a) sql is string and last_statement is True (regardless what split_statement value is)
-        b) sql is string and split_statement is False
+        a) sql is string and ``return_last`` is True (regardless what ``split_statements`` value is)
+        b) sql is string and ``split_statements`` is False
 
-        In all other cases, the results are wrapped in a list, even if there is only one statement to process:
+        In all other cases, the results are wrapped in a list, even if there is only one statement to process.
+        In particular, the return value will be a list of query results in the following circumstances:
 
-        a) always when sql is an iterable of string statements (regardless what last_statement value is)
-        b) when sql is string, split_statement is True and last_statement is False
+        a) when ``sql`` is an iterable of string statements (regardless what ``return_last`` value is)
+        b) when ``sql`` is string, ``split_statements`` is True and ``return_last`` is False
 
+        After ``run`` is called, you may access the following properties on the hook object:
 
-        In any of those cases, however you can access the following properties of the Hook after running it:
+          * ``descriptions``: an array of cursor descriptions. If ``return_last`` is True, this will be
+             a one-element array containing the cursor ``description`` for the last statement.
+             Otherwise, it will contain the cursor description for each statement executed.
+          * ``last_description``: the description for the last statement executed
 
-          * descriptions - has an array of cursor descriptions - each statement executed contain the list
-            of descriptions executed. If ``return_last`` is used, this is always a one-element array
-          * last_description - description of the last statement executed
-
-        Note that return value from the hook will ONLY be actually returned when handler is provided. Setting
-        the ``handler`` to None, results in this method returning None.
+        Note that query result will ONLY be actually returned when a handler is provided; if
+        ``handler`` is None, this method will return None.
 
         Handler is a way to process the rows from cursor (Iterator) into a value that is suitable to be
-        returned to XCom and generally fit in memory. As an optimization, handler is usually not executed
-        by the SQLExecuteQuery operator if `do_xcom_push` is not specified.
+        returned to XCom and generally fit in memory.
 
         You can use pre-defined handles (`fetch_all_handler``, ''fetch_one_handler``) or implement your
         own handler.
@@ -311,7 +312,7 @@ class DbApiHook(BaseForDbApiHook):
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
         :param return_last: Whether to return result for only last statement or for all after split
-        :return: return only result of the ALL SQL expressions if handler was provided.
+        :return: if handler provided, returns query results (may be list of results depending on params)
         """
         self.descriptions = []
 

@@ -115,6 +115,20 @@ class TestScheduler:
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "test-volume" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
+        assert "test-volume" in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -394,18 +408,22 @@ class TestScheduler:
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
+        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={"airflowLocalSettings": "# Well hello!"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert {
+        volume_mount = {
             "name": "config",
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
         "executor, persistence, update_strategy, expected_update_strategy",

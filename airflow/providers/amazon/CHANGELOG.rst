@@ -24,6 +24,26 @@
 Changelog
 ---------
 
+7.0.0
+-----
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+JSON secrets in the 'SecretsManagerBackend' are never interpreted as urlencoded. In ``5.x`` and ``6.x``, the
+code would infer whether the JSON secret values were urlencoded based on context clues; now the unaltered
+values are *always* used to construct ``Connection`` objects.
+
+Pandas is now an optional dependency of the provider. The ``SqlToS3Operator`` and ``HiveToDynamoDBOperator``
+require Pandas to be installed (you can install it automatically by adding ``[pandas]`` extra when installing
+the provider.
+
+Features
+~~~~~~~~
+
+* ``Deprecate 'full_url_mode' for SecretsManagerBackend; whether a secret is a JSON or URL is inferred (#27920)``
+
+
 6.2.0
 .....
 
