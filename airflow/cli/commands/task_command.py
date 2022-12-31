@@ -293,6 +293,10 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     If running in a k8s executor pod, also keep the stream handler on root logger
     so that logs are still emitted to stdout.
     """
+    # nothing to do
+    if not ti.log.handlers or settings.DONOT_MODIFY_HANDLERS:
+        yield
+        return
 
     def get_console_handler(logger):
         for h in logger.handlers:
@@ -304,11 +308,6 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
             return
         if handler not in logger.handlers:
             logger.addHandler(handler)
-
-    # nothing to do
-    if not ti.log.handlers or settings.DONOT_MODIFY_HANDLERS:
-        yield
-        return
 
     # Move task handlers to root and reset task logger and restore original logger settings after exit.
     # If k8s executor, we need to ensure that root logger has a console handler, so that
