@@ -30,18 +30,15 @@ from airflow.operators.bash import BashOperator
 
 
 @task(task_id="run_this")
-def my_py_command(params, test_mode=None, task=None):
+def my_py_command(foo, test_mode=None):
     """
     Print out the "foo" param passed in via
     `airflow tasks test example_passing_params_via_test_command run_this <date>
     -t '{"foo":"bar"}'`
     """
-    if test_mode:
-        print(
-            f" 'foo' was passed in via test={test_mode} command : kwargs[params][foo] = {task.params['foo']}"
-        )
-    # Print out the value of "miff", passed in below via the Python Operator
-    print(f" 'miff' was passed in via task params = {params['miff']}")
+    print(
+        f" 'foo' was passed in via test={test_mode} command : kwargs[foo] = {foo}"
+    )
     return 1
 
 
@@ -65,7 +62,7 @@ with DAG(
     dagrun_timeout=datetime.timedelta(minutes=4),
     tags=["example"],
 ) as dag:
-    run_this = my_py_command(params={"miff": "agg"})
+    run_this = my_py_command(foo="bar")
 
     my_command = dedent(
         """

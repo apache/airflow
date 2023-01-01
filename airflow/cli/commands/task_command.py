@@ -34,6 +34,7 @@ from sqlalchemy.orm.session import Session
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
+from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.local_task_job import LocalTaskJob
@@ -560,6 +561,9 @@ def task_test(args, dag=None):
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
         task.params.update(passed_in_params)
+        if isinstance(task, DecoratedOperator):
+            task.op_args = []
+            task.op_kwargs.update(passed_in_params)
 
     if task.params:
         task.params.validate()

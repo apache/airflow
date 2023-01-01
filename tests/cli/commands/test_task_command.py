@@ -285,7 +285,21 @@ class TestCliTasks:
         with pytest.raises(DagRunNotFound):
             task_command.task_run(self.parser.parse_args(args0), dag=dag)
 
-    def test_cli_test_with_params(self):
+    def test_cli_test_python_operator_with_params(self, capsys):
+        task_command.task_test(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "test",
+                    "example_passing_params_via_test_command",
+                    "run_this",
+                    DEFAULT_DATE.isoformat(),
+                ]
+            )
+        )
+        captured = capsys.readouterr()
+        assert f"'foo' was passed in via test=True command : kwargs[foo] = bar" in captured.out
+
         task_command.task_test(
             self.parser.parse_args(
                 [
@@ -295,10 +309,14 @@ class TestCliTasks:
                     "run_this",
                     DEFAULT_DATE.isoformat(),
                     "--task-params",
-                    '{"foo":"bar"}',
+                    '{"foo":"quux"}',
                 ]
             )
         )
+        captured = capsys.readouterr()
+        assert f"'foo' was passed in via test=True command : kwargs[foo] = quux" in captured.out
+
+    def test_cli_test_bash_operator_with_params(self):
         task_command.task_test(
             self.parser.parse_args(
                 [
