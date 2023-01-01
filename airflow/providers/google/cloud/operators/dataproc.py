@@ -1002,6 +1002,7 @@ class DataprocJobBaseOperator(BaseOperator):
         if job_state == JobStatus.State.CANCELLED:
             raise AirflowException(f"Job was cancelled:\n{job_id}")
         self.log.info("%s completed successfully.", self.task_id)
+        return job_id
 
     def on_kill(self) -> None:
         """
@@ -1899,7 +1900,6 @@ class DataprocSubmitJobOperator(BaseOperator):
                 job_id=new_job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
             )
             self.log.info("Job %s completed successfully.", new_job_id)
-
         return self.job_id
 
     def execute_complete(self, context, event=None) -> None:
@@ -1915,6 +1915,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         if job_state == JobStatus.State.CANCELLED:
             raise AirflowException(f"Job was cancelled:\n{job_id}")
         self.log.info("%s completed successfully.", self.task_id)
+        return job_id
 
     def on_kill(self):
         if self.job_id and self.cancel_on_kill:
