@@ -56,10 +56,16 @@ def check_system_test_entry_hidden(provider_index: Path):
 """
     index_text = provider_index.read_text()
     system_tests_path = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers" / provider_path
+    index_text_manual = index_text.split(
+        ".. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!"
+    )[0]
     if system_tests_path.exists():
-        if expected_text not in index_text:
+        if expected_text not in index_text_manual:
             console.print(f"[red]The {provider_index} does not contain System Tests TOC.\n")
-            console.print(f"[yellow]Make sure to add those lines to {provider_index}:\n")
+            console.print(
+                f"[yellow]Make sure to add those lines to {provider_index} BEFORE (!) the line "
+                f"starting with  '.. THE REMINDER OF THE FILE':\n"
+            )
             console.print(expected_text, markup=False)
             errors.append(provider_index)
         else:
