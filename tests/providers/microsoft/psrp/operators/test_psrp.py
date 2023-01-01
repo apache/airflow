@@ -58,10 +58,13 @@ class TestPsrpOperator:
         [
             # These tuples map the command parameter to an execution method and parameter set.
             pytest.param(
-                ExecuteParameter("command", call.add_script("cmd.exe /c @'\nfoo\n'@"), None, None), id="command"
+                ExecuteParameter("command", call.add_script("cmd.exe /c @'\nfoo\n'@"), None, None),
+                id="command",
             ),
             pytest.param(ExecuteParameter("powershell", call.add_script("foo"), None, None), id="powershell"),
-            pytest.param(ExecuteParameter("cmdlet", call.add_cmdlet("foo"), ["abc"], {"bar": "baz"}), id="cmdlet"),
+            pytest.param(
+                ExecuteParameter("cmdlet", call.add_cmdlet("foo"), ["abc"], {"bar": "baz"}), id="cmdlet"
+            ),
         ],
     )
     @patch(f"{PsrpOperator.__module__}.PsrpHook")
