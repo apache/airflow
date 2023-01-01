@@ -382,7 +382,7 @@ class TestExternalTaskSensor:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_external_dag_sensor_log(self):
+    def test_external_dag_sensor_log(self, caplog):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
         other_dag.create_dagrun(
             run_id="test", start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.SUCCESS
@@ -392,12 +392,10 @@ class TestExternalTaskSensor:
             external_dag_id="other_dag",
             dag=self.dag,
         )
-        with self.assertLogs(op.log, level=logging.INFO) as cm:
+        with caplog.at_level(logging.INFO, logger=op.log.name):
+            caplog.clear()
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-            assert (
-                f"INFO:airflow.task.operators:Poking for "
-                f"dag 'other_dag' on {DEFAULT_DATE.isoformat()} ... " in cm.output
-            )
+            assert (f"Poking for dag 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
 
     def test_external_dag_sensor_soft_fail_as_skipped(self):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
