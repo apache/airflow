@@ -380,11 +380,24 @@ You will need to change it manually to see the docs
 **NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
 apache-airflow with doc extra:
 
-* `pip install apache-airflow[doc]`
+* `pip install 'apache-airflow[doc_gen]'`
+
+If you don't have virtual env set you can do:
+
+```shell script
+cd <path_you_want_to_save_your_virtual_env>
+virtualenv providers
+
+source venv/providers/bin/activate
+
+pip install 'apache-airflow[doc_gen]'
+```
 
 All providers (including overriding documentation for doc-only changes):
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
@@ -396,6 +409,8 @@ cd "${AIRFLOW_SITE_DIRECTORY}"
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 ```
 
