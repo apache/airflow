@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.2.1
+.....
+
+Latest change: 2022-12-24
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`c0a7bf2434 <https://github.com/apache/airflow/commit/c0a7bf243461bf5e546367094e46eaab41e3831e>`_  2022-12-24   ``Update codespell and fix typos (#28568)``
+`4a3a429658 <https://github.com/apache/airflow/commit/4a3a42965801823c39baaccfa96c5e4cffae4012>`_  2022-12-03   ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+=================================================================================================  ===========  =============================================================
+
 4.2.0
 .....
 
-Latest change: 2022-10-27
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
 `662a8aaac3 <https://github.com/apache/airflow/commit/662a8aaac302aae9e1768c7c55e15aa8c539208e>`_  2022-10-25   ``SFTP Provider: Fix default folder permissions  (#26593)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``

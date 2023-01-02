@@ -24,6 +24,17 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add test_connection to SalesforceHook (#27921)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.2.0
 .....
 

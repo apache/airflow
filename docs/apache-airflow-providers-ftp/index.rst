@@ -36,6 +36,12 @@ Content
     Operators <operators/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/ftp/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
@@ -51,11 +57,13 @@ Content
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
+
 .. toctree::
     :maxdepth: 1
     :caption: Commits
 
     Detailed list of commits <commits>
+
 
 Package apache-airflow-providers-ftp
 ------------------------------------------------------
@@ -63,7 +71,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 3.2.0
+Release: 3.3.0
 
 Provider package
 ----------------

@@ -38,11 +38,48 @@ Pandas is now an optional dependency of the provider. The ``SqlToS3Operator`` an
 require Pandas to be installed (you can install it automatically by adding ``[pandas]`` extra when installing
 the provider.
 
+* ``Make pandas dependency optional for Amazon Provider (#28505)``
+
 Features
 ~~~~~~~~
 
 * ``Deprecate 'full_url_mode' for SecretsManagerBackend; whether a secret is a JSON or URL is inferred (#27920)``
+* ``Add execution role parameter to AddStepsOperator (#28484)``
+* ``Add AWS SageMaker operator to register a model's version (#28024)``
+* ``Add link for EMR Steps Sensor logs (#28180)``
+* ``Add Amazon Elastic Container Registry (ECR) Hook (#28279)``
+* ``Add EMR Notebook operators (#28312)``
+* ``Create 'LambdaCreateFunctionOperator' and sensor (#28241)``
+* ``Better support for Boto Waiters (#28236)``
+* ``Amazon Provider Package user agent (#27823)``
+* ``Allow waiter to be configured via EmrServerless Operators (#27784)``
+* ``Add operators + sensor for aws sagemaker pipelines (#27786)``
+* ``Update RdsHook docstrings to match correct argument names (#28108)``
+* ``add some important log in aws athena hook (#27917)``
+* ``Lambda hook: make runtime and handler optional (#27778)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EmrAddStepsOperature wait_for_completion parameter is not working (#28052)``
+* ``Correctly template Glue Jobs 'create_job_kwargs' arg (#28403)``
+* ``Fix template rendered bucket_key in S3KeySensor (#28340)``
+* ``Fix Type Error while using DynamoDBToS3Operator (#28158)``
+* ``AWSGlueJobHook updates job configuration if it exists (#27893)``
+* ``Fix GlueCrawlerOperature failure when using tags (#28005)``
+
+Misc
+~~~~
+
+* ``Fix S3KeySensor documentation (#28297)``
+* ``Improve docstrings for 'AwsLambdaInvokeFunctionOperator' (#28233)``
+* ``Remove outdated compat imports/code from providers (#28507)``
+* ``add description of breaking changes (#28582)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+* ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 6.2.0
 .....

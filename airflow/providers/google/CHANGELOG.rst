@@ -23,6 +23,43 @@
 Changelog
 ---------
 
+8.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add table_resource to template fields for BigQueryCreateEmptyTableOperator (#28235)``
+* ``Add retry param in GCSObjectExistenceSensor (#27943)``
+* ``Add preserveAsciiControlCharacters to src_fmt_configs (#27679)``
+* ``Add deferrable mode to CloudBuildCreateBuildOperator (#27783)``
+* ``GCSToBigQueryOperator allows autodetect None and infers schema (#28564)``
+* ``Improve memory usage in Dataproc deferrable operators (#28117)``
+* ``Push job_id in xcom for dataproc submit job op (#28639)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix for issue with reading schema fields for JSON files in GCSToBigQueryOperator (#28284)``
+* ``Fix GCSToBigQueryOperator not respecting schema_obj (#28444)``
+* ``Fix GCSToGCSOperator copying list of objects without wildcard (#28111)``
+* ``Fix: re-enable use of parameters in gcs_to_bq which had been disabled (#27961)``
+* ``Set bigquery ''use_legacy_sql'' param in job config correctly (#28522)``
+
+Misc
+~~~~
+* ``Remove 'pylint' messages control instructions (#28555)``
+* ``Remove deprecated AIPlatformConsoleLinkk from google/provider.yaml (#28449)``
+* ``Use object instead of array in config.yml for config template (#28417)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+* ``Change log level to DEBUG when secret not found for google secret manager (#27856)``
+* ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
+
 8.6.0
 .....
 

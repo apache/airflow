@@ -24,6 +24,17 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Misc
+~~~~
+* ``Limit Telegram to < 20.0.0 (#28671)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 3.1.0
 .....
 

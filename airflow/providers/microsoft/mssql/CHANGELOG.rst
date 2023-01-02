@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+3.3.2
+.....
+
+Misc
+~~~~
+* ``Re-enable 'pymsql' on ARM as it now builds cleanly (#28530)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.3.1
 .....
 

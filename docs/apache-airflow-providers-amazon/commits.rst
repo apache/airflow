@@ -28,6 +28,43 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.0.0
+.....
+
+Latest change: 2022-12-30
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`3ce7cbbda1 <https://github.com/apache/airflow/commit/3ce7cbbda178799c6a07bed9ca695957affdff98>`_  2022-12-30   ``add description of breaking changes (#28582)``
+`297aa7480e <https://github.com/apache/airflow/commit/297aa7480e1ffd9bf1be1b89aea29b7e721cd64d>`_  2022-12-23   ``Add execution role parameter to AddStepsOperator (#28484)``
+`38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
+`d9ae90fc64 <https://github.com/apache/airflow/commit/d9ae90fc6478133767e29774920ed797175146bc>`_  2022-12-21   ``Make pandas dependency optional for Amazon Provider (#28505)``
+`39abd5e065 <https://github.com/apache/airflow/commit/39abd5e0652159607dcb9aed516d73131ce69d33>`_  2022-12-21   ``Add AWS SageMaker operator to register a model's version (#28024)``
+`fefcb1d567 <https://github.com/apache/airflow/commit/fefcb1d567d8d605f7ec9b7d408831d656736541>`_  2022-12-20   ``Add link for EMR Steps Sensor logs (#28180)``
+`e377e869da <https://github.com/apache/airflow/commit/e377e869da9f0e42ac1e0a615347cf7cd6565d54>`_  2022-12-19   ``Fix EmrAddStepsOperature wait_for_completion parameter is not working (#28052)``
+`21f0600f69 <https://github.com/apache/airflow/commit/21f0600f698e9763b6bceb27245bb5639a5d3a86>`_  2022-12-18   ``Correctly template Glue Jobs 'create_job_kwargs' arg (#28403)``
+`8e0df8881f <https://github.com/apache/airflow/commit/8e0df8881f22dd5c4c0ea71e7a9cd35b32889f47>`_  2022-12-17   ``Add Amazon Elastic Container Registry (ECR) Hook (#28279)``
+`29f574301a <https://github.com/apache/airflow/commit/29f574301aebc8752490ca4612b83a58215226a1>`_  2022-12-15   ``Add EMR Notebook operators (#28312)``
+`381160c0f6 <https://github.com/apache/airflow/commit/381160c0f63a15957a631da9db875f98bb8e9d64>`_  2022-12-14   ``Fix template rendered bucket_key in S3KeySensor (#28340)``
+`9d9b15989a <https://github.com/apache/airflow/commit/9d9b15989a02042a9041ff86bc7e304bb06caa15>`_  2022-12-14   ``Create 'LambdaCreateFunctionOperator' and sensor (#28241)``
+`27569a8b37 <https://github.com/apache/airflow/commit/27569a8b374a2f7a019f1f08b18a33be84d61693>`_  2022-12-13   ``Better support for Boto Waiters (#28236)``
+`fb5182bb2f <https://github.com/apache/airflow/commit/fb5182bb2f749119f471c3da35179afd3a584775>`_  2022-12-12   ``Fix S3KeySensor documentation (#28297)``
+`1eaedc8ae8 <https://github.com/apache/airflow/commit/1eaedc8ae85dbbfaaa402f9936304be51de98f88>`_  2022-12-08   ``Improve docstrings for 'AwsLambdaInvokeFunctionOperator' (#28233)``
+`a6315c2f4e <https://github.com/apache/airflow/commit/a6315c2f4ed68c822d0109f9609c1518e0bde94e>`_  2022-12-08   ``Amazon Provider Package user agent (#27823)``
+`0d90c62bac <https://github.com/apache/airflow/commit/0d90c62bac49de9aef6a31ee3e62d02e458b0d33>`_  2022-12-06   ``Fix Type Error while using DynamoDBToS3Operator (#28158)``
+`b609ab9001 <https://github.com/apache/airflow/commit/b609ab9001102b67a047b3078dc0b67fbafcc1e1>`_  2022-12-06   ``AWSGlueJobHook updates job configuration if it exists (#27893)``
+`3ee5c404b7 <https://github.com/apache/airflow/commit/3ee5c404b7a0284fc1f3474519b3833975aaa644>`_  2022-12-06   ``Fix GlueCrawlerOperature failure when using tags (#28005)``
+`0da004838f <https://github.com/apache/airflow/commit/0da004838ffdd3b74bc28837135d845f568ab2a1>`_  2022-12-06   ``Allow waiter to be configured via EmrServerless Operators (#27784)``
+`0ef8d934f2 <https://github.com/apache/airflow/commit/0ef8d934f2a62606090483dc72a9dd66e8348a0e>`_  2022-12-06   ``Add operators + sensor for aws sagemaker pipelines (#27786)``
+`7398853c86 <https://github.com/apache/airflow/commit/7398853c86f4972b0b7139a905e52d6ecc62fdec>`_  2022-12-06   ``Update RdsHook docstrings to match correct argument names (#28108)``
+`8f0265d0d9 <https://github.com/apache/airflow/commit/8f0265d0d9079a8abbd7b895ada418908d8b9909>`_  2022-12-05   ``AWS Secrets Manager Backend - major update (#27920)``
+`8cf6dca36b <https://github.com/apache/airflow/commit/8cf6dca36b0cfc16763cb1d4c96ab04d1fe5ec14>`_  2022-12-05   ``add some important log in aws athena hook (#27917)``
+`4a3a429658 <https://github.com/apache/airflow/commit/4a3a42965801823c39baaccfa96c5e4cffae4012>`_  2022-12-03   ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+`527b948856 <https://github.com/apache/airflow/commit/527b948856584320f74d385f58477af79506834d>`_  2022-12-03   ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+`0cd969c9c1 <https://github.com/apache/airflow/commit/0cd969c9c14179b7e79d34b61d7a43f2bfbdd93e>`_  2022-12-02   ``Lambda hook: make runtime and handler optional (#27778)``
+=================================================================================================  ===========  ===================================================================================
+
 6.2.0
 .....
 
@@ -36,6 +73,7 @@ Latest change: 2022-11-26
 =================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
 `2ab5c1fdf0 <https://github.com/apache/airflow/commit/2ab5c1fdf045f928148931ffddff094374e57173>`_  2022-11-26   ``Add retry option in RedshiftDeleteClusterOperator to retry when an operation is running in the cluster (#27820)``
 `2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
 `80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``

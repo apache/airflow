@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+4.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Support restricted index patterns in Elasticsearch log handler (#23888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.3.1
 .....
 

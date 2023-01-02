@@ -22,6 +22,7 @@ description: |
     `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 versions:
+  - 3.3.0
   - 3.2.0
   - 3.1.0
   - 3.0.0
