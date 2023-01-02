@@ -43,20 +43,19 @@ Content
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ftp/>
     Installing from sources <installing-providers-from-sources>
 
-.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. toctree::
+    :hidden:
+    :caption: System tests
 
+    System Tests <_api/tests/system/providers/ftp/index>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 .. toctree::
     :maxdepth: 1
     :caption: Commits
 
     Detailed list of commits <commits>
-
-.. toctree::
-    :hidden:
-    :caption: System tests
-
-    System Tests <_api/tests/system/providers/ftp/index>
 
 Package apache-airflow-providers-ftp
 ------------------------------------------------------
