@@ -708,7 +708,7 @@
   "telegram": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "python-telegram-bot>=13.0"
+      "python-telegram-bot>=13.0,<20.0.0"
     ],
     "cross-providers-deps": []
   },
