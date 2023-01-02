@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-02T14:05:23Z
+# This constraints file was automatically generated on 2023-01-02T20:06:00Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -204,7 +204,7 @@ colorama==0.4.6
 colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.14.1
-coverage==7.0.1
+coverage==7.0.2
 crcmod==1.7
 cron-descriptor==1.2.32
 croniter==1.3.8
@@ -347,7 +347,7 @@ jsonpointer==2.3
 jsonschema==4.17.3
 junit-xml==1.9
 jupyter_client==7.4.8
-jupyter_core==5.1.1
+jupyter_core==5.1.2
 keyring==23.13.1
 kombu==5.2.4
 krb5==0.4.1
