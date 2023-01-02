@@ -23,6 +23,7 @@ import os
 import platform
 import subprocess
 import sys
+from enum import Enum
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -124,16 +125,17 @@ class PiiAnonymizer(Anonymizer):
         return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
 
 
-class OperatingSystem:
+class OperatingSystem(Enum):
     """Operating system."""
 
     WINDOWS = "Windows"
     LINUX = "Linux"
     MACOSX = "Mac OS"
     CYGWIN = "Cygwin"
+    UNKNOWN = "Unknown"
 
     @staticmethod
-    def get_current() -> str | None:
+    def get_current() -> OperatingSystem:
         """Get current operating system."""
         if os.name == "nt":
             return OperatingSystem.WINDOWS
@@ -143,24 +145,26 @@ class OperatingSystem:
             return OperatingSystem.MACOSX
         elif "cygwin" in sys.platform:
             return OperatingSystem.CYGWIN
-        return None
+        return OperatingSystem.UNKNOWN
 
 
-class Architecture:
+class Architecture(Enum):
     """Compute architecture."""
 
     X86_64 = "x86_64"
     X86 = "x86"
     PPC = "ppc"
     ARM = "arm"
+    UNKNOWN = "unknown"
 
     @staticmethod
-    def get_current():
+    def get_current() -> Architecture:
         """Get architecture."""
-        return _MACHINE_TO_ARCHITECTURE.get(platform.machine().lower())
+        current_architecture = _MACHINE_TO_ARCHITECTURE.get(platform.machine().lower())
+        return current_architecture if current_architecture else Architecture.UNKNOWN
 
 
-_MACHINE_TO_ARCHITECTURE = {
+_MACHINE_TO_ARCHITECTURE: dict[str, Architecture] = {
     "amd64": Architecture.X86_64,
     "x86_64": Architecture.X86_64,
     "i686-64": Architecture.X86_64,
@@ -259,8 +263,8 @@ class AirflowInfo:
         python_version = sys.version.replace("\n", " ")
 
         return [
-            ("OS", operating_system or "NOT AVAILABLE"),
-            ("architecture", arch or "NOT AVAILABLE"),
+            ("OS", operating_system.value),
+            ("architecture", arch.value),
             ("uname", str(uname)),
             ("locale", str(_locale)),
             ("python_version", python_version),
