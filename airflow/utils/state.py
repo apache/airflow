@@ -137,25 +137,6 @@ class State:
             return "white"
         return "black"
 
-    waiting: frozenset[TaskInstanceState] = frozenset(
-        [TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE]
-    )
-    """
-    A list of states indicating that a task is sensing or deferred
-    """
-
-    pending: frozenset[TaskInstanceState] = frozenset(
-        [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE]
-    )
-    """
-    Running tasks + sensing tasks (task reschedules makes up_for_reschedule act a little differently)
-    """
-
-    running: frozenset[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
-    """
-    A list of states indicating that a task is being executed.
-    """
-
     finished: frozenset[TaskInstanceState] = frozenset(
         [
             TaskInstanceState.SUCCESS,

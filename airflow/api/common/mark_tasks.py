@@ -156,7 +156,7 @@ def set_state(
         for task_instance in tis_altered:
             # The try_number was decremented when setting to up_for_reschedule and deferred.
             # Increment it back when changing the state again
-            if task_instance.state in State.waiting:
+            if task_instance.state in [State.DEFERRED, State.UP_FOR_RESCHEDULE]:
                 task_instance._try_number += 1
             task_instance.set_state(state, session=session)
         session.flush()
@@ -470,7 +470,7 @@ def set_dag_run_state_to_failed(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.task_id.in_(task_ids),
-        TaskInstance.state.in_(State.pending),
+        TaskInstance.state.in_([State.RUNNING, State.DEFERRED, State.UP_FOR_RESCHEDULE]),
     )
     task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
 
@@ -486,7 +486,7 @@ def set_dag_run_state_to_failed(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.state.not_in(State.finished),
-        TaskInstance.state.not_in(State.pending),
+        TaskInstance.state.not_in([State.RUNNING, State.DEFERRED, State.UP_FOR_RESCHEDULE]),
     )
 
     tis = [ti for ti in tis]
