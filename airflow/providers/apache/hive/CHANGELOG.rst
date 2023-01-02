@@ -33,6 +33,11 @@ Features
 The ``apache.hive`` provider provides now hive macros that used to be provided by Airflow. As of 5.1.0 version
 of ``apache.hive`` the hive macros are provided by the Provider.
 
+* ``Move Hive macros to the provider (#28538)``
+* ``Make pandas dependency optional for Amazon Provider (#28505)``
+
+.. Review and move the new changes to one of the sections above:
+
 5.0.0
 .....
 
