@@ -33,6 +33,7 @@ Features
 * ``Add Flink on K8s Operator  (#28512)``
 * ``Add volume-related nested template fields for KPO (#27719)``
 * ``Allow longer pod names for k8s executor / KPO (#27736)``
+* ``Use labels instead of pod name for pod log read in k8s exec (#28546)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -50,6 +51,8 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated docs for RC3 wave of providers (#27937)``
    * ``Prepare for follow-up relase for November providers (#27774)``
+
+.. Review and move the new changes to one of the sections above:
 
 5.0.0
 .....

@@ -35,6 +35,7 @@ Features
 * ``Add deferrable mode to CloudBuildCreateBuildOperator (#27783)``
 * ``GCSToBigQueryOperator allows autodetect None and infers schema (#28564)``
 * ``Improve memory usage in Dataproc deferrable operators (#28117)``
+* ``Push job_id in xcom for dataproc submit job op (#28639)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -56,6 +57,8 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
 
 8.6.0
 .....

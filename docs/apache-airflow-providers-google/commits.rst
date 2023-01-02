@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.7.0
 .....
 
-Latest change: 2022-12-28
+Latest change: 2023-01-01
 
 =================================================================================================  ===========  =============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================
+`fec1460eb7 <https://github.com/apache/airflow/commit/fec1460eb7896da6bfad69e95c92b8e531e35485>`_  2023-01-01   ``Push job_id in xcom for dataproc submit job op (#28639)``
 `0fae6a0c9e <https://github.com/apache/airflow/commit/0fae6a0c9e6e303f4b897a79829f119b44550e01>`_  2022-12-28   ``Add table_resource to template fields for BigQueryCreateEmptyTableOperator (#28235)``
 `d7f5f6d737 <https://github.com/apache/airflow/commit/d7f5f6d737cf06cc8e216f523534aeaf48065793>`_  2022-12-24   ``GCSToBigQueryOperator allows autodetect None and infers schema (#28564)``
 `034039beb2 <https://github.com/apache/airflow/commit/034039beb2568850d29b34390d3dc1e2a91b8367>`_  2022-12-24   ``Remove 'pylint' messages control instructions (#28555)``
