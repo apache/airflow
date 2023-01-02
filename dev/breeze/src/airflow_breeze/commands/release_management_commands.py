@@ -809,14 +809,14 @@ def generate_issue_content(
         all_prs: set[int] = set()
         provider_prs: dict[str, list[int]] = {}
         if only_available_in_dist:
-            files_in_dist = os.listdir(str(APACHE_AIRFLOW_GITHUB_REPOSITORY / "dist"))
+            files_in_dist = os.listdir(str(AIRFLOW_SOURCES_ROOT / "dist"))
         prepared_package_ids = []
         for package_id in packages:
             if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
                 get_console().print(f"Extracting PRs for provider {package_id}")
                 prepared_package_ids.append(package_id)
             else:
-                get_console.print(
+                get_console().print(
                     f"Skipping extracting PRs for provider {package_id} as it is missing in dist"
                 )
                 continue
