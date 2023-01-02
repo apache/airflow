@@ -35,7 +35,10 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
-  - python-telegram-bot>=13.0
+  # The telegram bot 20.0.0 is not yet compatible with our provider as documented in
+  # https://github.com/apache/airflow/issues/28670. This limit should be removed (and likely replaced
+  # with >=20.0.0) once the issue is fixed.
+  - python-telegram-bot>=13.0,<20.0.0
 
 integrations:
   - integration-name: Telegram
