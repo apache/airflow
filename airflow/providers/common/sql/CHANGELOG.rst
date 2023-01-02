@@ -24,6 +24,25 @@
 Changelog
 ---------
 
+1.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fIx isort problems introduced by recent isort release (#28434)``
+* ``Fix template rendering for Common SQL operators (#28202)``
+* ``Defer to hook setting for split_statements in SQLExecuteQueryOperator (#28635)``
+
+Misc
+~~~~
+
+* ``Clarify docstrings for updated DbApiHook (#27966)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commits preventing accidental API changes in common.sql (#27962)``
+
 1.3.1
 .....
 
