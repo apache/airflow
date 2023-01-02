@@ -51,7 +51,7 @@ Package apache-airflow-providers-atlassian-jira
 `Atlassian Jira <https://www.atlassian.com/>`__
 
 
-Release: 1.1.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -69,11 +69,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.3.0``
-``JIRA``            ``>1.0.7``
-==================  ==================
+========================  ==================
+PIP package               Version required
+========================  ==================
+``apache-airflow``        ``>=2.3.0``
+``atlassian-python-api``  ``>=1.14.2``
+========================  ==================
 
 .. include:: ../../airflow/providers/atlassian/jira/CHANGELOG.rst
