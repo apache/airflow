@@ -20,7 +20,7 @@
 .panel-heading #alerts-accordion-toggle::after {
   /* symbol for "opening" panels */
   font-family: FontAwesome;/* stylelint-disable-line font-family-no-missing-generic-family-keyword */
-  content: "\f078";
+  content: "\f077";
   float: right;
   color: grey;
 }
@@ -28,7 +28,7 @@
 .panel-heading #alerts-accordion-toggle.collapsed::after {
   /* symbol for "closing" panels */
   font-family: FontAwesome;/* stylelint-disable-line font-family-no-missing-generic-family-keyword */
-  content: "\f054";
+  content: "\f078";
   float: right;
   color: grey;
 }
@@ -53,7 +53,7 @@
 .dag-import-error::after {
   /* symbol for "opening" panels */
   font-family: FontAwesome;/* stylelint-disable-line font-family-no-missing-generic-family-keyword */
-  content: "\f054";
+  content: "\f078";
   float: right;
   color: #e43921;
   position: absolute;
@@ -63,5 +63,5 @@
 
 .dag-import-error.expanded-error::after {
   /* symbol for "closing" panels */
-  content: "\f078";
+  content: "\f077";
 }
