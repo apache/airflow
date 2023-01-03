@@ -48,31 +48,22 @@ class JenkinsHook(BaseHook):
         return self.jenkins_server
 
     def get_latest_build_number(self, job_name) -> int:
-        try:
-            self.log.info("Build number not specified, getting latest build info from Jenkins")
-            job_info = self.jenkins_server.get_job_info(job_name)
-            return job_info["lastBuild"]["number"]
-        except jenkins.JenkinsException as err:
-            raise AirflowException(f"Jenkins call failed with error : {err}")
+        self.log.info("Build number not specified, getting latest build info from Jenkins")
+        job_info = self.jenkins_server.get_job_info(job_name)
+        return job_info["lastBuild"]["number"]
 
     def get_build_result(self, job_name: str, build_number) -> bool:
-        try:
-            build_info = self.jenkins_server.get_build_info(job_name, build_number)
-            return build_info["result"]
-        except jenkins.JenkinsException as err:
-            raise AirflowException(f"Jenkins call failed with error : {err}")
+        build_info = self.jenkins_server.get_build_info(job_name, build_number)
+        return build_info["result"]
 
     def get_build_building_state(self, job_name: str, build_number: int | None) -> bool:
-        """Get build building state"""
-        try:
-            if not build_number:
-                build_number_to_check = self.get_latest_build_number(job_name)
-            else:
-                build_number_to_check = build_number
+        if not build_number:
+            build_number_to_check = self.get_latest_build_number(job_name)
+        else:
+            build_number_to_check = build_number
 
-            self.log.info("Getting build info for %s build number: #%s", job_name, build_number_to_check)
-            build_info = self.jenkins_server.get_build_info(job_name, build_number_to_check)
-            building = build_info["building"]
-            return building
-        except jenkins.JenkinsException as err:
-            raise AirflowException(f"Jenkins call failed with error : {err}")
+        self.log.info("Getting build info for %s build number: #%s", job_name, build_number_to_check)
+        build_info = self.jenkins_server.get_build_info(job_name, build_number_to_check)
+        building = build_info["building"]
+        return building
+

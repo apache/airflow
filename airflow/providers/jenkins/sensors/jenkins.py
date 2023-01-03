@@ -67,4 +67,5 @@ class JenkinsBuildSensor(BaseSensorOperator):
         if build_result in self.target_states:
             return True
         else:
-            raise AirflowException("The build result does not meet the target states.")
+            raise AirflowException(f"Build {build_number} finished with a result {build_result}, "
+                                   f"which does not meet the target state {self.target_states}.")
