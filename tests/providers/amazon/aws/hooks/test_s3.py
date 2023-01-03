@@ -884,11 +884,13 @@ def test_unify_and_provide_bucket_name_combination(mock_base, expected, request)
 
     else:
 
-        class MyHook(S3Hook):
-            @provide_bucket_name
-            @unify_bucket_name_and_key
-            def do_something(self, bucket_name=None, key=None):
-                return bucket_name, key
+        with pytest.warns(Warning, match="first"):
+
+            class MyHook(S3Hook):
+                @provide_bucket_name
+                @unify_bucket_name_and_key
+                def do_something(self, bucket_name=None, key=None):
+                    return bucket_name, key
 
     hook = MyHook()
     if expected == "__fail__":
@@ -907,12 +909,12 @@ def test_unify_and_provide_bucket_name_combination(mock_base, expected, request)
         # no conn - with bucket - full key
         param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="no_conn-with_bucket-full_key"),
         # with conn - no bucket - full key
-        param(["conn_bucket", "s3://key_bucket/key.txt"], id="with_conn-no_bucket-full_key"),
+        param(["key_bucket", "key.txt"], id="with_conn-no_bucket-full_key"),
         # with conn - with bucket - full key
         param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="with_conn-with_bucket-full_key"),
         # rel key
         # no conn - no bucket - rel key
-        param("__fail__", id="no_conn-no_bucket-rel_key"),
+        param([None, "key.txt"], id="no_conn-no_bucket-rel_key"),
         # no conn - with bucket - rel key
         param(["kwargs_bucket", "key.txt"], id="no_conn-with_bucket-rel_key"),
         # with conn - no bucket - rel key
@@ -941,9 +943,21 @@ def test_s3_head_object_decorated_behavior(mock_conn, request, expected):
     hook = S3Hook()
     mock = MagicMock()
     hook.get_conn = mock
-    if expected == "__fail__":
-        with pytest.raises(Exception, match='Please provide a bucket name using a valid format: "key.txt"'):
-            hook.head_object(**kwargs)
-    else:
-        hook.head_object(**kwargs)
-        assert list(mock.mock_calls[1][2].values()) == expected
+    hook.head_object(**kwargs)
+    assert list(mock.mock_calls[1][2].values()) == expected
+
+
+def test_unify_and_provide_ordered_properly(caplog):
+    from importlib import reload
+
+    from airflow.providers.amazon.aws.hooks import s3
+
+    caplog.set_level("WARNING", logger="airflow.providers.amazon.aws.hooks.s3")
+    reload(s3)
+    ordering_warnings = [
+        x
+        for x in caplog.records
+        if x.levelname == "WARNING"
+        and x.message == "`unify_bucket_name_and_key` should wrap `provide_bucket_name`."
+    ]
+    assert ordering_warnings == []
