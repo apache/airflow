@@ -133,21 +133,22 @@ class KubernetesPodTrigger(BaseTrigger):
                 elif self.should_wait(pod_phase=pod_status, container_state=container_state):
                     self.log.info("Container is not completed and still working.")
 
-                    delta = datetime.now(tz=pytz.UTC) - self.trigger_start_time
-                    if delta.total_seconds() >= self.startup_timeout:
-                        message = (
-                            f"Pod took longer than {self.startup_timeout} seconds to start. "
-                            "Check the pod events in kubernetes to determine why."
-                        )
-                        yield TriggerEvent(
-                            {
-                                "name": self.pod_name,
-                                "namespace": self.pod_namespace,
-                                "status": "timeout",
-                                "message": message,
-                            }
-                        )
-                        return
+                    if pod_status == PodPhase.PENDING and container_state == ContainerState.UNDEFINED:
+                        delta = datetime.now(tz=pytz.UTC) - self.trigger_start_time
+                        if delta.total_seconds() >= self.startup_timeout:
+                            message = (
+                                f"Pod took longer than {self.startup_timeout} seconds to start. "
+                                "Check the pod events in kubernetes to determine why."
+                            )
+                            yield TriggerEvent(
+                                {
+                                    "name": self.pod_name,
+                                    "namespace": self.pod_namespace,
+                                    "status": "timeout",
+                                    "message": message,
+                                }
+                            )
+                            return
 
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
