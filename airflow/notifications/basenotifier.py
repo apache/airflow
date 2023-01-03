@@ -45,14 +45,12 @@ class BaseNotifier(Templater):
 
         :param context: The airflow context
         """
-        additional_context = {}
-        for field in self.template_fields:
-            additional_context[field] = getattr(self, field)
+        additional_context = ((f, getattr(self, f)) for f in self.template_fields)
         context_merge(context, additional_context)
         return context
 
     def _render(self, template, context, dag: DAG | None = None):
-        dag = context["dag"] if dag is None else dag
+        dag = dag or context["dag"]
         return super()._render(template, context, dag)
 
     def render_template_fields(
