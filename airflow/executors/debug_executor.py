@@ -120,7 +120,7 @@ class DebugExecutor(BaseExecutor):
         :param open_slots: Number of open slots
         """
         if not self.queued_tasks:
-            # wait a bit if there is no task ready to be executed to avoid spinning too fast in the void
+            # wait a bit if there are no tasks ready to be executed to avoid spinning too fast in the void
             time.sleep(0.5)
             return
 
