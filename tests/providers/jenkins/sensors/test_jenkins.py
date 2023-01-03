@@ -110,9 +110,9 @@ class TestJenkinsBuildSensor:
             if result not in sensor.target_states:
                 with pytest.raises(AirflowException):
                     sensor.poke(None)
-                    jenkins_mock.get_build_info.assert_called_twice_with("a_job_on_jenkins", target_build_number)
+                    assert jenkins_mock.get_build_info.call_count == 2
             else:
                 output = sensor.poke(None)
                 assert output == (not build_state)
                 assert jenkins_mock.get_job_info.call_count == 0 if build_number else 1
-                jenkins_mock.get_build_info.assert_called_twice_with("a_job_on_jenkins", target_build_number)
+                assert jenkins_mock.get_build_info.call_count == 2
