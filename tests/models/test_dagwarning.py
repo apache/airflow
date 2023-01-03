@@ -17,36 +17,55 @@
 
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock
 
 from sqlalchemy.exc import OperationalError
 
+from airflow.models import DagModel
 from airflow.models.dagwarning import DagWarning
+from tests.test_utils.db import clear_db_dags
 
 
-class TestDagWarning(unittest.TestCase):
-    def setUp(self):
-        self.session_mock = MagicMock()
-        self.delete_mock = MagicMock()
-        self.session_mock.query.return_value.filter.return_value.delete = self.delete_mock
+class TestDagWarning:
+    def setup_method(self):
+        clear_db_dags()
 
-    def test_purge_inactive_dag_warnings(self):
+    def test_purge_inactive_dag_warnings(self, session):
         """
-        Test that the purge_inactive_dag_warnings method calls the delete method once
+        Test that the purge_inactive_dag_warnings method deletes inactive dag warnings
         """
-        DagWarning.purge_inactive_dag_warnings(self.session_mock)
 
-        self.delete_mock.assert_called_once()
+        dags = [DagModel(dag_id="dag_1", is_active=False), DagModel(dag_id="dag_2", is_active=True)]
+        for dag in dags:
+            session.add(dag)
+        session.commit()
+
+        dag_warnings = [
+            DagWarning("dag_1", "non-existent pool", "non-existent pool"),
+            DagWarning("dag_2", "non-existent pool", "non-existent pool"),
+        ]
+        for dag_warning in dag_warnings:
+            session.add(dag_warning)
+        session.commit()
+
+        DagWarning.purge_inactive_dag_warnings(session)
+
+        remaining_dag_warnings = session.query(DagWarning).all()
+        assert len(remaining_dag_warnings) == 1
+        assert remaining_dag_warnings[0].dag_id == "dag_2"
 
     def test_retry_purge_inactive_dag_warnings(self):
         """
         Test that the purge_inactive_dag_warnings method calls the delete method twice
         if the query throws an operationalError on the first call and works on the second attempt
         """
+        self.session_mock = MagicMock()
+        self.delete_mock = MagicMock()
+        self.session_mock.query.return_value.filter.return_value.delete = self.delete_mock
+
         self.delete_mock.side_effect = [OperationalError(None, None, "database timeout"), None]
 
         DagWarning.purge_inactive_dag_warnings(self.session_mock)
 
         # Assert that the delete method was called twice
-        self.assertEqual(self.delete_mock.call_count, 2)
+        assert self.delete_mock.call_count == 2
