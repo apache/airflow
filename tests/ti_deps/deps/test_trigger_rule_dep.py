@@ -22,6 +22,7 @@ from typing import Iterator
 
 import pytest
 
+from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -947,3 +948,32 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
     tis["tg.t2", 1].run()
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("t3", -1)]
+
+
+def test_mapped_task_check_before_expand(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def t(x):
+            return x
+
+        @task_group
+        def tg(a):
+            b = t.override(task_id="t2")(a)
+            c = t.override(task_id="t3")(b)
+            return c
+
+        tg.expand(a=t([1, 2, 3]))
+
+    dr: DagRun = dag_maker.create_dagrun()
+    result_iterator = TriggerRuleDep()._evaluate_trigger_rule(
+        # t3 depends on t2, which depends on t1 for expansion. Since t1 has not
+        # yet run, t2 has not expanded yet, and we need to guarantee this lack
+        # of expansion does not fail the dependency-checking logic.
+        ti=next(ti for ti in dr.task_instances if ti.task_id == "tg.t3" and ti.map_index == -1),
+        dep_context=DepContext(),
+        session=session,
+    )
+    results = list(result_iterator)
+    assert len(results) == 1
+    assert results[0].passed is False

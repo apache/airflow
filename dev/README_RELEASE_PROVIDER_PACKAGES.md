@@ -27,6 +27,7 @@
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
+  - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
@@ -160,6 +161,15 @@ branch should be prepared like this:
 breeze release-management prepare-provider-documentation \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
+
+## Open PR with suggested version releases
+
+At this point you should have providers yaml files and changelog updated.
+You should go over the change log and place changes in their relevant section (breaking change, feature, bugs, etc...)
+Once finished you should raise a PR : Prepare docs for MM YYYY wave of Providers
+In the PR we will verify if we want to release a specific package or if the versions chosen are right.
+Only after PR is merged you should proceed to next steps.
+
 
 ## Build provider packages for SVN apache upload
 
@@ -370,11 +380,24 @@ You will need to change it manually to see the docs
 **NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
 apache-airflow with doc extra:
 
-* `pip install apache-airflow[doc]`
+* `pip install 'apache-airflow[doc_gen]'`
+
+If you don't have virtual env set you can do:
+
+```shell script
+cd <path_you_want_to_save_your_virtual_env>
+virtualenv providers
+
+source venv/providers/bin/activate
+
+pip install 'apache-airflow[doc_gen]'
+```
 
 All providers (including overriding documentation for doc-only changes):
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
@@ -386,6 +409,8 @@ cd "${AIRFLOW_SITE_DIRECTORY}"
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 ```
 
@@ -762,28 +787,32 @@ We also need to archive older releases before copying the new ones
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT="$(pwd)"
-cd ..
 
-# Go the folder where you have checked out the release repo
-cd "<ROOT_OF_YOUR_RELEASE_REPO>"
+# Go the folder where you have checked out the release repo from SVN
+# Make sure this is direct directory and a symbolic link
+# Otherwise 'svn mv' errors out if it is with "E200033: Another process is blocking the working copy database
+cd "<ROOT_WHERE_YOUR_ASF_DIST_IS_CREATED>"
+
+export ASF_DIST_PARENT="$(pwd)"
+
 # or clone it if it's not done yet
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 # Update to latest version
 svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
 
-SOURCE_DIR="${PWD}/asf-dist/dev/airflow/providers"
+SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/providers"
+
+# If some packages have been excluded, remove them now
+# Check the packages are there (replace <provider> with the name of the provider that you remove
+ls ${SOURCE_DIR}/*<provider>*
+# Remove them
+svn rm ${SOURCE_DIR}/*<provider>*
 
 # Create providers folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
 cd asf-dist/release/airflow
 mkdir -pv providers
 cd providers
-
-# If some packages have been excluded, remove them now
-# Check the packages
-ls *<provider>*
-# Remove them
-svn rm *<provider>*
 
 # Copy your providers with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
@@ -801,7 +830,8 @@ python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --direc
 # Remove those packages
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory . --execute
 
-
+# You need to do go to the asf-dist directory in order to commit both dev and release together
+cd ${ASF_DIST_PARENT}/asf-dist
 # Commit to SVN
 svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n")"
 ```
@@ -871,8 +901,8 @@ set tags for the providers in the repo.
 
 ## Notify developers of release
 
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
-the artifacts have been published:
+Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
+the artifacts have been published.
 
 Subject:
 
@@ -904,6 +934,13 @@ Cheers,
 <your name>
 EOF
 ```
+
+Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+Note If you choose sending it with your email client make sure the email is set to plain text mode.
+Trying to send HTML content will result in failure.
 
 ## Add release data to Apache Committee Report Helper
 

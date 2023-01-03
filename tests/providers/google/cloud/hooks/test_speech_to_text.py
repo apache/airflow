@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -31,8 +30,8 @@ CONFIG = {"encryption": "LINEAR16"}
 AUDIO = {"uri": "gs://bucket/object"}
 
 
-class TestTextToSpeechOperator(unittest.TestCase):
-    def setUp(self):
+class TestTextToSpeechOperator:
+    def setup_method(self):
         with patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,

@@ -133,6 +133,7 @@ class EmrHook(AwsBaseHook):
         wait_for_completion: bool = False,
         waiter_delay: int | None = None,
         waiter_max_attempts: int | None = None,
+        execution_role_arn: str | None = None,
     ) -> list[str]:
         """
         Add new steps to a running cluster.
@@ -142,8 +143,12 @@ class EmrHook(AwsBaseHook):
         :param wait_for_completion: If True, wait for the steps to be completed. Default is False
         :param waiter_delay: The amount of time in seconds to wait between attempts. Default is 5
         :param waiter_max_attempts: The maximum number of attempts to be made. Default is 100
+        :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
         """
-        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
+        config = {}
+        if execution_role_arn:
+            config["ExecutionRoleArn"] = execution_role_arn
+        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps, **config)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Adding steps failed: {response}")

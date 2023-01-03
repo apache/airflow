@@ -154,7 +154,7 @@ class DagBag(LoggingMixin):
 
     @property
     def store_serialized_dags(self) -> bool:
-        """Whether or not to read dags from DB"""
+        """Whether to read dags from DB"""
         warnings.warn(
             "The store_serialized_dags property has been deprecated. Use read_dags_from_db instead.",
             RemovedInAirflow3Warning,
@@ -176,7 +176,7 @@ class DagBag(LoggingMixin):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
-        :param dag_id: DAG Id
+        :param dag_id: DAG ID
         """
         # Avoid circular import
         from airflow.models.dag import DagModel

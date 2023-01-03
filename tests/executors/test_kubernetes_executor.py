@@ -303,7 +303,7 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
-    @mock.patch("airflow.executors.kubernetes_executor.pod_mutation_hook")
+    @mock.patch("airflow.settings.pod_mutation_hook")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_run_next_pmh_error(self, mock_get_kube_client, mock_pmh):
         """
@@ -335,7 +335,7 @@ class TestKubernetesExecutor:
             # The task is not re-queued and there is the failed record in event_buffer
             assert kubernetes_executor.task_queue.empty()
             assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
-            assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == exception_in_pmh
+            assert kubernetes_executor.event_buffer[task_instance_key][1].__cause__ == exception_in_pmh
         finally:
             kubernetes_executor.end()
 
@@ -1249,12 +1249,13 @@ class TestKubernetesJobWatcher:
             try:
                 # self.watcher._run() is mocked and return "500" as last resource_version
                 self.watcher.run()
+                assert False, "Should have raised Exception"
             except Exception as e:
                 assert e.args == ("sentinel",)
 
             # both resource_version should be 0 after _run raises an exception
             assert self.watcher.resource_version == "0"
-            assert ResourceVersion().resource_version == {self.test_namespace: "0"}
+            assert ResourceVersion().resource_version[self.test_namespace] == "0"
 
             # check that in the next run, _run is invoked with resource_version = 0
             mock_underscore_run.reset_mock()

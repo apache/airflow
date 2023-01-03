@@ -71,6 +71,13 @@ install_requires = {{ INSTALL_REQUIREMENTS }}
 [options.entry_points]
 apache_airflow_provider=
     provider_info=airflow.providers.{{ PROVIDER_PACKAGE_ID }}.get_provider_info:get_provider_info
+{%- if PLUGINS %}
+airflow.plugins=
+{%- for plugin in PLUGINS %}
+    {{ plugin.name }}={{ plugin.package_name }}:{{ plugin.class_name }}
+{%- endfor %}
+{%- endif %}
+
 
 [files]
 packages = airflow.providers.{{ PROVIDER_PACKAGE_ID }}
