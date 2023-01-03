@@ -28,6 +28,7 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter import get_state, waiter
+from airflow.utils.helpers import prune_dict
 
 
 class EmrHook(AwsBaseHook):
@@ -130,8 +131,8 @@ class EmrHook(AwsBaseHook):
         job_flow_id: str,
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
-        waiter_delay: int = 5,
-        waiter_max_attempts: int = 100,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
     ) -> list[str]:
         """
         Add new steps to a running cluster.
@@ -154,10 +155,12 @@ class EmrHook(AwsBaseHook):
                 waiter.wait(
                     ClusterId=job_flow_id,
                     StepId=step_id,
-                    WaiterConfig={
-                        "Delay": waiter_delay,
-                        "MaxAttempts": waiter_max_attempts,
-                    },
+                    WaiterConfig=prune_dict(
+                        {
+                            "Delay": waiter_delay,
+                            "MaxAttempts": waiter_max_attempts,
+                        }
+                    ),
                 )
         return response["StepIds"]
 

@@ -71,8 +71,8 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
-        waiter_delay: int = 5,
-        waiter_max_attempts: int = 100,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
