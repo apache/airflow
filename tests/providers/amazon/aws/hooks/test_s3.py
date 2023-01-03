@@ -857,6 +857,10 @@ class TestAwsS3Hook:
     ],
 )
 def test_unify_and_provide_bucket_name_combination(mock_base, expected, request):
+    """
+    Verify what is the outcome when the unify_bucket_name_and_key and provide_bucket_name
+    decorators are combined.
+    """
     tokens = request.node.callspec.id.split("-")
     assert len(tokens) == 4
     if "with_conn" in tokens:
