@@ -29,6 +29,7 @@
   - [Prepare new release branches and cache - optional when first minor version is released](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
+  - [Prepare API clients RC packages](#prepare-api-clients-rc-packages)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
@@ -523,6 +524,36 @@ When you trigger it you need to pass:
 
 The manual building is described in [MANUALLY_BUILDING_IMAGES.md](MANUALLY_BUILDING_IMAGES.md).
 
+## Prepare API clients RC packages
+
+### API Clients versioning policy
+
+For major/minor version release, always release new versions of the API clients.
+
+- [Python client](https://github.com/apache/airflow-client-python)
+- [Go client](https://github.com/apache/airflow-client-go)
+
+For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
+
+> The patch version of each API client is not necessarily in sync with the patch that you are releasing. You need to check for
+> each client what is the next patch version to be released.
+
+### Prepare the vote artifacts
+
+If API clients are released in this airflow version:
+
+- Set environment variables (useful for the rest of the process)
+
+    ```shell script
+    # Set Version
+    export GO_API_CLIENT_VERSION=2.1.3
+    export PYTHON_API_CLIENT_VERSION=2.1.1
+    ```
+
+- Follow the specific release process of each API client to generate the artifacts and push to PyPI a
+    release candidate client packages.
+
+
 ## Prepare issue for testing status of rc
 
 For now this part works for bugfix releases only, for major/minor ones we will experiment and
@@ -586,6 +617,11 @@ https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
+
+TODO:REMOVE PARAGRAPH IF NOT RELEVANT
+New API clients were generated:
+- Python ${PYTHON_API_CLIENT_VERSION}
+- GO ${GO_API_CLIENT_VERSION}
 
 Please vote accordingly:
 
@@ -967,15 +1003,9 @@ At this point we release an official package:
 
 ## Manually release API clients
 
-For major/minor version release, always release new versions of the API clients.
+If API clients are part of the release, publish new versions of the clients to PyPI without the rc suffix
+based on the vote artifacts.
 
-- [Python client](https://github.com/apache/airflow-client-python)
-- [Go client](https://github.com/apache/airflow-client-go)
-
-For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
-
-> The patch version of each API client is not necessarily in sync with the patch that you are releasing. You need to check for
-> each client what is the next patch version to be released.
 
 ## Manually prepare production Docker Image
 
