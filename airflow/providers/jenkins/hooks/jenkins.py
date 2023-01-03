@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import jenkins
-from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.strings import to_boolean
 
@@ -52,7 +51,7 @@ class JenkinsHook(BaseHook):
         job_info = self.jenkins_server.get_job_info(job_name)
         return job_info["lastBuild"]["number"]
 
-    def get_build_result(self, job_name: str, build_number) -> bool:
+    def get_build_result(self, job_name: str, build_number) -> str:
         build_info = self.jenkins_server.get_build_info(job_name, build_number)
         return build_info["result"]
 

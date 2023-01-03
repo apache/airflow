@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow import AirflowException
-
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
