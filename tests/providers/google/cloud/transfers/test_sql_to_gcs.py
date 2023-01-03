@@ -352,16 +352,19 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         mock_query.assert_called_once()
         assert mock_flush.call_count == 3
         assert mock_close.call_count == 3
-        mock_upload.assert_has_calls([
-            mock.call(
-                BUCKET,
-                f"column_b={row[1]}/column_c={row[2]}/test_results_{i}.csv",
-                TMP_FILE_NAME,
-                mime_type="application/octet-stream",
-                gzip=False,
-                metadata=None
-            ) for i, row in enumerate(INPUT_DATA)
-        ])
+        mock_upload.assert_has_calls(
+            [
+                mock.call(
+                    BUCKET,
+                    f"column_b={row[1]}/column_c={row[2]}/test_results_{i}.csv",
+                    TMP_FILE_NAME,
+                    mime_type="application/octet-stream",
+                    gzip=False,
+                    metadata=None,
+                )
+                for i, row in enumerate(INPUT_DATA)
+            ]
+        )
 
         mock_query.reset_mock()
         mock_flush.reset_mock()
