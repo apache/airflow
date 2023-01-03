@@ -280,7 +280,7 @@ When you know what your resource usage is, the improvements that you can conside
   parsed continuously so optimizing that code might bring tremendous improvements, especially if you try
   to reach out to some external databases etc. while parsing DAGs (this should be avoided at all cost).
   The :ref:`best_practices/top_level_code` explains what are the best practices for writing your top-level
-  Python code. The :ref:`best_practices/reducing_dag_complexity` document provides some ares that you might
+  Python code. The :ref:`best_practices/reducing_dag_complexity` document provides some areas that you might
   look at when you want to reduce complexity of your code.
 * improve utilization of your resources. This is when you have a free capacity in your system that
   seems underutilized (again CPU, memory I/O, networking are the prime candidates) - you can take
