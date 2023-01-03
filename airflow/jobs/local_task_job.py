@@ -75,6 +75,7 @@ class LocalTaskJob(BaseJob):
         task_instance: TaskInstance,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
@@ -88,6 +89,7 @@ class LocalTaskJob(BaseJob):
         self.dag_id = task_instance.dag_id
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
+        self.wait_for_past_depends_before_skipping = wait_for_past_depends_before_skipping
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
         self.pool = pool
@@ -138,6 +140,7 @@ class LocalTaskJob(BaseJob):
             mark_success=self.mark_success,
             ignore_all_deps=self.ignore_all_deps,
             ignore_depends_on_past=self.ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=self.wait_for_past_depends_before_skipping,
             ignore_task_deps=self.ignore_task_deps,
             ignore_ti_state=self.ignore_ti_state,
             job_id=self.id,
