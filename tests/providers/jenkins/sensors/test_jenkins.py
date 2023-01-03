@@ -49,7 +49,7 @@ class TestJenkinsBuildSensor:
             ),
             (
                 4,
-                True,
+                False,
                 "FAILED",
             ),
         ],
