@@ -151,6 +151,7 @@ class SchedulerJob(BaseJob):
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+        self._is_dag_processor_activated = conf.getint("scheduler", "dag_dir_list_interval") >= 0
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
@@ -593,7 +594,11 @@ class SchedulerJob(BaseJob):
 
     def _process_executor_events(self, session: Session) -> int:
         """Respond to executor events."""
-        if not self._standalone_dag_processor and not self.processor_agent:
+        if (
+            self._is_dag_processor_activated
+            and not self._standalone_dag_processor
+            and not self.processor_agent
+        ):
             raise ValueError("Processor agent is not started.")
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = self.executor.get_event_buffer()
@@ -731,7 +736,7 @@ class SchedulerJob(BaseJob):
 
         processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
-        if not self._standalone_dag_processor:
+        if self._is_dag_processor_activated and not self._standalone_dag_processor:
             self.processor_agent = DagFileProcessorAgent(
                 dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,
@@ -839,7 +844,11 @@ class SchedulerJob(BaseJob):
         .. image:: ../docs/apache-airflow/img/scheduler_loop.jpg
 
         """
-        if not self.processor_agent and not self._standalone_dag_processor:
+        if (
+            self._is_dag_processor_activated
+            and not self.processor_agent
+            and not self._standalone_dag_processor
+        ):
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean("core", "unit_test_mode")
 
