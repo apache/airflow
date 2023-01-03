@@ -581,31 +581,49 @@ exit 0
 
     def test_external_task_sensor_with_xcom_arg_does_not_fail_on_init(self):
         self.add_time_sensor()
-
         op1 = MockOperator(task_id="op1", dag=self.dag)
-        op2 = MockOperator(task_id="op2", dag=self.dag)
-        op3 = ExternalTaskSensor(
+        op2 = ExternalTaskSensor(
             task_id="test_external_task_sensor_with_xcom_arg_does_not_fail_on_init",
             external_dag_id=TEST_DAG_ID,
-            external_task_ids=[XComArg(op1), XComArg(op2)],
+            external_task_ids=XComArg(op1),
             allowed_states=["success"],
             dag=self.dag,
         )
-        assert all(map(lambda tid: isinstance(tid, XComArg), op3.external_task_ids))
+        assert isinstance(op2.external_task_ids, XComArg)
 
     def test_catch_duplicate_task_ids(self):
         self.add_time_sensor()
-        # Test By passing same task_id multiple times
+        op1 = ExternalTaskSensor(
+            task_id="test_external_task_duplicate_task_ids",
+            external_dag_id=TEST_DAG_ID,
+            external_task_ids=[TEST_TASK_ID, TEST_TASK_ID],
+            allowed_states=["success"],
+            dag=self.dag,
+        )
         with pytest.raises(ValueError):
-            ExternalTaskSensor(
-                task_id="test_external_task_duplicate_task_ids",
-                external_dag_id=TEST_DAG_ID,
-                external_task_ids=[TEST_TASK_ID, TEST_TASK_ID],
-                allowed_states=["success"],
-                dag=self.dag,
-            )
+            op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_catch_duplicate_task_ids_with_xcom_arg(self):
+        self.add_time_sensor()
+        op1 = PythonOperator(
+            python_callable=lambda: ["dupe_value", "dupe_value"],
+            task_id="op1",
+            do_xcom_push=True,
+            dag=self.dag,
+        )
+
+        op2 = ExternalTaskSensor(
+            task_id="test_external_task_duplicate_task_ids_with_xcom_arg",
+            external_dag_id=TEST_DAG_ID,
+            external_task_ids=XComArg(op1),
+            allowed_states=["success"],
+            dag=self.dag,
+        )
+        with pytest.raises(ValueError):
+            op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_catch_duplicate_task_ids_with_multiple_xcom_args(self):
         self.add_time_sensor()
 
         op1 = PythonOperator(
