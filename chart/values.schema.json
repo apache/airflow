@@ -4274,7 +4274,7 @@
                     "default": false
                 },
                 "annotations": {
-                    "description": "Annotations to add to the pgbouncer deployment",
+                    "description": "Annotations to add to the PgBouncer deployment",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {

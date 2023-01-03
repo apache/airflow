@@ -1427,7 +1427,7 @@ pgbouncer:
   auth_type: md5
   auth_file: /etc/pgbouncer/users.txt
 
-  # annotations to be added to the pgbouncer deployment
+  # annotations to be added to the PgBouncer deployment
   annotations: {}
 
   # Create ServiceAccount
