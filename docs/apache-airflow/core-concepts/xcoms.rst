@@ -30,7 +30,7 @@ XComs are explicitly "pushed" and "pulled" to/from their storage using the ``xco
 ``xcom_pull`` defaults to using this key if no key is passed to it, meaning it's possible to write code like this::
 
     # Pulls the return_value XCOM from "pushing_task"
-    value = task_instance.xcom_pull(task_ids='pushing_task')
+    value = task_instance.xcom_pull(task_ids=['pushing_task'])
 
 You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
