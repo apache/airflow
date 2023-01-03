@@ -23,11 +23,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import AirflowException
+
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
 
-class TestJenkinsBuildSensor(unittest.TestCase):
+class TestJenkinsBuildSensor:
     @pytest.mark.parametrize(
         "build_number, build_state, result",
         [
@@ -54,15 +55,12 @@ class TestJenkinsBuildSensor(unittest.TestCase):
         ],
     )
     @patch("jenkins.Jenkins")
-    def test_poke(self, mock_jenkins, build_number, build_state, result):
+    def test_poke(mock_jenkins, build_number, build_state, result):
         target_build_number = build_number if build_number else 10
 
         jenkins_mock = MagicMock()
         jenkins_mock.get_job_info.return_value = {"lastBuild": {"number": target_build_number}}
-        jenkins_mock.get_build_info.return_value = {
-            "building": build_state,
-            "result": result
-        }
+        jenkins_mock.get_build_info.return_value = {"building": build_state, "result": result}
         mock_jenkins.return_value = jenkins_mock
 
         with patch.object(JenkinsHook, "get_connection") as mock_get_connection:
@@ -78,7 +76,7 @@ class TestJenkinsBuildSensor(unittest.TestCase):
             )
 
             if result == "FAILED":
-                with self.assertRaises(AirflowException) as context:
+                with pytest.raises(AirflowException):
                     sensor.poke(None)
 
             else:
