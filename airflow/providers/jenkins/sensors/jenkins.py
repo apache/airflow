@@ -43,7 +43,7 @@ class JenkinsBuildSensor(BaseSensorOperator):
         jenkins_connection_id: str,
         job_name: str,
         build_number: int | None = None,
-        target_states: Iterable[str],
+        target_states: Iterable[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
