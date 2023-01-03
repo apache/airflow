@@ -2289,6 +2289,12 @@ export interface components {
      */
     OnlyActive: boolean;
     /**
+     * @description Only filter unpaused DAGs.
+     *
+     * *New in version 2.5.1*
+     */
+    OnlyUnpaused: boolean;
+    /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
      * extensibility, because the format of encrypted data may change.
@@ -2471,6 +2477,12 @@ export interface operations {
          * *New in version 2.1.1*
          */
         only_active?: components["parameters"]["OnlyActive"];
+        /**
+         * Only filter unpaused DAGs.
+         *
+         * *New in version 2.5.1*
+         */
+        only_unpaused?: components["parameters"]["OnlyUnpaused"];
         /** If set, only return DAGs with dag_ids matching this pattern. */
         dag_id_pattern?: string;
       };
