@@ -65,6 +65,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_RETRY_DELAY,
     DEFAULT_TASK_EXECUTION_TIMEOUT,
     DEFAULT_TRIGGER_RULE,
+    DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     TaskStateChangeCallback,
@@ -198,6 +199,7 @@ def partial(
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
     ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     wait_for_downstream: bool = False,
     retries: int | None = DEFAULT_RETRIES,
     queue: str = DEFAULT_QUEUE,
@@ -257,6 +259,7 @@ def partial(
     partial_kwargs.setdefault("trigger_rule", trigger_rule)
     partial_kwargs.setdefault("depends_on_past", depends_on_past)
     partial_kwargs.setdefault("ignore_first_depends_on_past", ignore_first_depends_on_past)
+    partial_kwargs.setdefault("wait_for_past_depends_before_skipping", wait_for_past_depends_before_skipping)
     partial_kwargs.setdefault("wait_for_downstream", wait_for_downstream)
     partial_kwargs.setdefault("retries", retries)
     partial_kwargs.setdefault("queue", queue)
@@ -483,6 +486,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param depends_on_past: when set to true, task instances will run
         sequentially and only if the previous instance has succeeded or has been skipped.
         The task instance for the start_date is allowed to run.
+    :param wait_for_past_depends_before_skipping: when set to true, if the task instance
+        should be marked as skipped, and depends_on_past is true, the ti will stay on None state
+        waiting the task of the previous run
     :param wait_for_downstream: when set to true, an instance of task
         X will wait for tasks immediately downstream of the previous instance
         of task X to finish successfully or be skipped before it runs. This is useful if the
@@ -695,6 +701,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         end_date: datetime | None = None,
         depends_on_past: bool = False,
         ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+        wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
         dag: DAG | None = None,
         params: dict | None = None,
@@ -822,6 +829,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
+        self.wait_for_past_depends_before_skipping: bool = wait_for_past_depends_before_skipping
         self.wait_for_downstream: bool = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
@@ -1241,6 +1249,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         ignore_first_depends_on_past: bool = True,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
@@ -1287,6 +1296,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             ti.run(
                 mark_success=mark_success,
                 ignore_depends_on_past=ignore_depends_on_past,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_ti_state=ignore_ti_state,
                 test_mode=test_mode,
                 session=session,
