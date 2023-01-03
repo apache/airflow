@@ -59,7 +59,7 @@ class TestSlackNotifier:
                 "channel": "#general",
                 "username": "Airflow",
                 "text": "test",
-                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static"
+                "icon_url": "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/www/static"
                 "/pin_100.png",
                 "attachments": "[]",
                 "blocks": "[]",
@@ -78,7 +78,7 @@ class TestSlackNotifier:
                 "channel": "#general",
                 "username": "Airflow",
                 "text": "test",
-                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static"
+                "icon_url": "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/www/static"
                 "/pin_100.png",
                 "attachments": "[]",
                 "blocks": "[]",
@@ -103,7 +103,7 @@ class TestSlackNotifier:
                 "channel": "#test-test_slack_notifier",
                 "username": "Airflow",
                 "text": "test Airflow",
-                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static"
+                "icon_url": "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/www/static"
                 "/pin_100.png",
                 "attachments": '[{"image_url": "test_slack_notifier.png"}]',
                 "blocks": "[]",

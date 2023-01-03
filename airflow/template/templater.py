@@ -33,7 +33,11 @@ if TYPE_CHECKING:
 
 
 class Templater(LoggingMixin):
-    """This renders the template fields of object."""
+    """
+    This renders the template fields of object.
+
+    :meta private:
+    """
 
     # For derived classes to define which fields will get jinjaified.
     template_fields: Collection[str]

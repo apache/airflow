@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from typing import Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -30,6 +31,8 @@ except ImportError:
     )
 
 from airflow.providers.slack.hooks.slack import SlackHook
+
+ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/www/static/pin_100.png"
 
 
 class SlackNotifier(BaseNotifier):
@@ -54,10 +57,9 @@ class SlackNotifier(BaseNotifier):
         text: str = "This is a default message",
         channel: str = "#general",
         username: str = "Airflow",
-        icon_url: str = "https://raw.githubusercontent.com/apache/"
-        "airflow/main/airflow/www/static/pin_100.png",
-        attachments: list | None = None,
-        blocks: list | None = None,
+        icon_url: str = ICON_URL,
+        attachments: Sequence = (),
+        blocks: Sequence = (),
     ):
         super().__init__()
         self.slack_conn_id = slack_conn_id
@@ -65,8 +67,8 @@ class SlackNotifier(BaseNotifier):
         self.channel = channel
         self.username = username
         self.icon_url = icon_url
-        self.attachments = attachments or []
-        self.blocks = blocks or []
+        self.attachments = attachments
+        self.blocks = blocks
 
     @cached_property
     def hook(self) -> SlackHook:
