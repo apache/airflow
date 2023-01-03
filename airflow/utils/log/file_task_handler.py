@@ -63,6 +63,9 @@ class FileTaskHandler(logging.Handler):
                 stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
         self.maintain_propagate: bool = False
+        """If true, overrides default behavior of setting propagate=False
+        :meta private:
+        """
 
     def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
         """
