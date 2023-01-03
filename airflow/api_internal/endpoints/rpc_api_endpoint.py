@@ -25,6 +25,7 @@ from typing import Any, Callable
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
+from airflow.models import DagModel
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ def _initialize_map() -> dict[str, Callable]:
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
+        DagModel.get_paused_dag_ids,
     ]
     return {f"{func.__module__}.{func.__name__}": func for func in functions}
 
