@@ -238,7 +238,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 Sensors
 ^^^^^^^
 
-When start pipeline is triggered asynchronously sensors may be used to run checks and verify that the pipeline in in correct state.
+When start pipeline is triggered asynchronously sensors may be used to run checks and verify that the pipeline is in correct state.
 
 :class:`~airflow.providers.google.cloud.sensors.datafusion.CloudDataFusionPipelineStateSensor`.
 
