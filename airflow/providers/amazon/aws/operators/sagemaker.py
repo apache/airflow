@@ -1001,8 +1001,6 @@ class SageMakerAutoMLOperator(SageMakerBaseOperator):
         "time_limit",
         "autodeploy_endpoint_name",
         "extras",
-        "wait_for_completion",
-        "check_interval",
     )
 
     def __init__(
