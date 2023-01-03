@@ -832,82 +832,46 @@ class TestAwsS3Hook:
 @pytest.mark.parametrize(
     "expected",
     [
-        # no conn no bucket
-        param(["key_bucket", "key.txt"], id="unify-no_conn-no_bucket"),
-        param(["key_bucket", "key.txt"], id="provide-no_conn-no_bucket"),
-        # no conn with bucket
-        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="unify-no_conn-with_bucket"),
-        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="provide-no_conn-with_bucket"),
-        # with conn no bucket
-        param(["conn_bucket", "s3://key_bucket/key.txt"], id="provide-with_conn-no_bucket"),
-        param(["key_bucket", "key.txt"], id="unify-with_conn-no_bucket"),
-        # with conn with bucket
-        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="provide-with_conn-with_bucket"),
-        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="unify-with_conn-with_bucket"),
+        # full key
+        # no conn - no bucket - full key
+        param(["key_bucket", "key.txt"], id="unify-no_conn-no_bucket-full_key"),
+        param(["key_bucket", "key.txt"], id="provide-no_conn-no_bucket-full_key"),
+        # no conn - with bucket - full key
+        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="unify-no_conn-with_bucket-full_key"),
+        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="provide-no_conn-with_bucket-full_key"),
+        # with conn - no bucket - full key
+        param(["conn_bucket", "s3://key_bucket/key.txt"], id="provide-with_conn-no_bucket-full_key"),
+        param(["key_bucket", "key.txt"], id="unify-with_conn-no_bucket-full_key"),
+        # with conn - with bucket - full key
+        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="provide-with_conn-with_bucket-full_key"),
+        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="unify-with_conn-with_bucket-full_key"),
+        # rel key
+        # no conn - no bucket - rel key
+        param("__fail__", id="unify-no_conn-no_bucket-rel_key"),
+        param("__fail__", id="provide-no_conn-no_bucket-rel_key"),
+        # no conn - with bucket - rel key
+        param(["kwargs_bucket", "key.txt"], id="unify-no_conn-with_bucket-rel_key"),
+        param(["kwargs_bucket", "key.txt"], id="provide-no_conn-with_bucket-rel_key"),
+        # with conn - no bucket - rel key
+        param(["conn_bucket", "key.txt"], id="provide-with_conn-no_bucket-rel_key"),
+        param("__fail__", id="unify-with_conn-no_bucket-rel_key"),
+        # with conn - with bucket - rel key
+        param(["kwargs_bucket", "key.txt"], id="provide-with_conn-with_bucket-rel_key"),
+        param(["kwargs_bucket", "key.txt"], id="unify-with_conn-with_bucket-rel_key"),
     ],
 )
 def test_dec_no_get_connection_call(mock_base, expected, request):
     tokens = request.node.callspec.id.split("-")
-    assert len(tokens) == 3
+    assert len(tokens) == 4
     if "with_conn" in tokens:
         c = Connection(schema="conn_bucket")
     else:
         c = Connection(schema=None)
+    key = "key.txt" if "rel_key" in tokens else "s3://key_bucket/key.txt"
     if "with_bucket" in tokens:
-        kwargs = {"bucket_name": "kwargs_bucket", "key": "s3://key_bucket/key.txt"}
+        kwargs = {"bucket_name": "kwargs_bucket", "key": key}
     else:
-        kwargs = {"key": "s3://key_bucket/key.txt"}
-
-    mock_base.return_value = c
-    if "unify" in tokens:  # unify to be processed before provide
-
-        class MyHook(S3Hook):
-            @unify_bucket_name_and_key
-            @provide_bucket_name
-            def do_something(self, bucket_name=None, key=None):
-                return bucket_name, key
-
-    else:
-
-        class MyHook(S3Hook):
-            @provide_bucket_name
-            @unify_bucket_name_and_key
-            def do_something(self, bucket_name=None, key=None):
-                return bucket_name, key
-
-    hook = MyHook()
-    assert list(hook.do_something(**kwargs)) == expected
-
-
-@patch("airflow.hooks.base.BaseHook.get_connection")
-@pytest.mark.parametrize(
-    "expected",
-    [
-        # no conn no bucket
-        param("__fail__", id="unify-no_conn-no_bucket"),
-        param("__fail__", id="provide-no_conn-no_bucket"),
-        # no conn with bucket
-        param(["kwargs_bucket", "key.txt"], id="unify-no_conn-with_bucket"),
-        param(["kwargs_bucket", "key.txt"], id="provide-no_conn-with_bucket"),
-        # with conn no bucket
-        param(["conn_bucket", "key.txt"], id="provide-with_conn-no_bucket"),
-        param("__fail__", id="unify-with_conn-no_bucket"),
-        # with conn with bucket
-        param(["kwargs_bucket", "key.txt"], id="provide-with_conn-with_bucket"),
-        param(["kwargs_bucket", "key.txt"], id="unify-with_conn-with_bucket"),
-    ],
-)
-def test_dec_no_get_connection_call_relative_key(mock_base, expected, request):
-    tokens = request.node.callspec.id.split("-")
-    assert len(tokens) == 3
-    if "with_conn" in tokens:
-        c = Connection(schema="conn_bucket")
-    else:
-        c = Connection(schema=None)
-    if "with_bucket" in tokens:
-        kwargs = {"bucket_name": "kwargs_bucket", "key": "key.txt"}
-    else:
-        kwargs = {"key": "key.txt"}
+        kwargs = {"key": key}
 
     mock_base.return_value = c
     if "unify" in tokens:  # unify to be processed before provide
