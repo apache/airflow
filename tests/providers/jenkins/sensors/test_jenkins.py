@@ -34,22 +34,22 @@ class TestJenkinsBuildSensor(unittest.TestCase):
             (
                 1,
                 False,
-                "SUCCESS"
+                "SUCCESS",
             ),
             (
                 None,
                 True,
-                "SUCCESS"
+                "SUCCESS",
             ),
             (
                 3,
                 True,
-                "SUCCESS"
+                "SUCCESS",
             ),
             (
                 4,
                 True,
-                "FAILED"
+                "FAILED",
             ),
         ],
     )
