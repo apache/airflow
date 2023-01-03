@@ -29,7 +29,7 @@ from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
 class TestJenkinsBuildSensor(unittest.TestCase):
     @pytest.mark.parametrize(
-        "build_number, build_state", "result",
+        "build_number, build_state, result",
         [
             (
                 1,
