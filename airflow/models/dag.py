@@ -189,7 +189,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     """
     Returns the last dag run for a dag, None if there was none.
-    Last dag run can be any type of run eg. scheduled or backfilled.
+    Last dag run can be any type of run e.g. scheduled or backfilled.
     Overridden DagRuns are ignored.
     """
     DR = DagRun
@@ -276,8 +276,8 @@ class DAG(LoggingMixin):
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :param end_date: A date beyond which your DAG won't run, leave to None
-        for open ended scheduling
-    :param template_searchpath: This list of folders (non relative)
+        for open-ended scheduling
+    :param template_searchpath: This list of folders (non-relative)
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
         default
@@ -309,7 +309,7 @@ class DAG(LoggingMixin):
     :param dagrun_timeout: specify how long a DagRun should be up before
         timing out / failing, so that new DagRuns can be created. The timeout
         is only enforced for scheduled DagRuns.
-    :param sla_miss_callback: specify a function to call when reporting SLA
+    :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
         passed to the callback.
@@ -317,7 +317,7 @@ class DAG(LoggingMixin):
                                                    gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
-    :param on_failure_callback: A function to be called when a DagRun of this dag fails.
+    :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
@@ -396,12 +396,12 @@ class DAG(LoggingMixin):
         max_active_tasks: int = conf.getint("core", "max_active_tasks_per_dag"),
         max_active_runs: int = conf.getint("core", "max_active_runs_per_dag"),
         dagrun_timeout: timedelta | None = None,
-        sla_miss_callback: SLAMissCallback | None = None,
+        sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
         default_view: str = conf.get_mandatory_value("webserver", "dag_default_view").lower(),
         orientation: str = conf.get_mandatory_value("webserver", "dag_orientation"),
         catchup: bool = conf.getboolean("scheduler", "catchup_by_default"),
-        on_success_callback: DagStateChangeCallback | None = None,
-        on_failure_callback: DagStateChangeCallback | None = None,
+        on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
         params: dict | None = None,
         access_control: dict | None = None,
@@ -807,7 +807,7 @@ class DAG(LoggingMixin):
         schedule if the run does not have an explicit one set, which is possible
         for runs created prior to AIP-39.
 
-        This function is private to Airflow core and should not be depended as a
+        This function is private to Airflow core and should not be depended on as a
         part of the Python API.
 
         :meta private:
@@ -832,7 +832,7 @@ class DAG(LoggingMixin):
         schedule if the run does not have an explicit one set, which is possible for
         runs created prior to AIP-39.
 
-        This function is private to Airflow core and should not be depended as a
+        This function is private to Airflow core and should not be depended on as a
         part of the Python API.
 
         :meta private:
@@ -1313,19 +1313,21 @@ class DAG(LoggingMixin):
         :param reason: Completion reason
         :param session: Database session
         """
-        callback = self.on_success_callback if success else self.on_failure_callback
-        if callback:
-            self.log.info("Executing dag callback function: %s", callback)
+        callbacks = self.on_success_callback if success else self.on_failure_callback
+        if callbacks:
+            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
             tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
             context.update({"reason": reason})
-            try:
-                callback(context)
-            except Exception:
-                self.log.exception("failed to invoke dag state update callback")
-                Stats.incr("dag.callback_exceptions")
+            for callback in callbacks:
+                self.log.info("Executing dag callback function: %s", callback)
+                try:
+                    callback(context)
+                except Exception:
+                    self.log.exception("failed to invoke dag state update callback")
+                    Stats.incr("dag.callback_exceptions")
 
     def get_active_runs(self):
         """
@@ -2806,7 +2808,7 @@ class DAG(LoggingMixin):
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
-        # if there are now *any*, we add them to the above data structures and
+        # if there are now *any*, we add them to the above data structures, and
         # later we'll persist them to the database.
         for dag in dags:
             curr_orm_dag = existing_dags.get(dag.dag_id)
@@ -3468,12 +3470,12 @@ def dag(
     max_active_tasks: int = conf.getint("core", "max_active_tasks_per_dag"),
     max_active_runs: int = conf.getint("core", "max_active_runs_per_dag"),
     dagrun_timeout: timedelta | None = None,
-    sla_miss_callback: SLAMissCallback | None = None,
+    sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
     default_view: str = conf.get_mandatory_value("webserver", "dag_default_view").lower(),
     orientation: str = conf.get_mandatory_value("webserver", "dag_orientation"),
     catchup: bool = conf.getboolean("scheduler", "catchup_by_default"),
-    on_success_callback: DagStateChangeCallback | None = None,
-    on_failure_callback: DagStateChangeCallback | None = None,
+    on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+    on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
     params: dict | None = None,
     access_control: dict | None = None,
@@ -3496,7 +3498,7 @@ def dag(
         @functools.wraps(f)
         def factory(*args, **kwargs):
             # Generate signature for decorated function and bind the arguments when called
-            # we do this to extract parameters so we can annotate them on the DAG object.
+            # we do this to extract parameters, so we can annotate them on the DAG object.
             # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
             f_sig = signature(f).bind(*args, **kwargs)
             # Apply defaults to capture default values if set.

@@ -20,7 +20,18 @@
 Dynamic DAG Generation
 ======================
 
-To have a task repeated based on the output/result of a previous task see :doc:`/authoring-and-scheduling/dynamic-task-mapping`.
+This document describes creation of DAGs that have a structure generated dynamically, but where the number of
+tasks in the DAG does not change between DAG Runs. If you want to implement a DAG where number of Tasks (or
+Task Groups as of Airflow 2.6) can change based on the output/result of previous tasks, see
+:doc:`/authoring-and-scheduling/dynamic-task-mapping`.
+
+.. note:: Consistent sequence of generating tasks and task groups
+
+    In all cases where you generate DAGs dynamically, you should make sure that Tasks and Task Groups
+    are generated with consistent sequence every time the DAG is generated, otherwise you might end up with
+    Tasks and Task Groups changing their sequence in the Grid View every time you refresh the page.
+    This can be achieved for example by using a stable sorting mechanism in your Database queries or by using
+    ``sorted()`` function in Python.
 
 Dynamic DAGs with environment variables
 .......................................

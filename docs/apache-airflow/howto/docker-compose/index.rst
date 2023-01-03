@@ -72,7 +72,7 @@ This file contains several service definitions:
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
 
-Optionally, you can enable flower by adding ``--profile flower`` option, e.g. ``docker-compose --profile flower up``, or by explicitly specifying it on the command line e.g. ``docker-compose up flower``.
+Optionally, you can enable flower by adding ``--profile flower`` option, e.g. ``docker compose --profile flower up``, or by explicitly specifying it on the command line e.g. ``docker compose up flower``.
 
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
 
@@ -147,7 +147,7 @@ up and restart from scratch.
 
 The best way to do this is to:
 
-* Run ``docker-compose down --volumes --remove-orphans`` command in the directory you downloaded the
+* Run ``docker compose down --volumes --remove-orphans`` command in the directory you downloaded the
   ``docker-compose.yaml`` file
 * Remove the entire directory where you downloaded the ``docker-compose.yaml`` file
   ``rm -rf '<DIRECTORY>'``
@@ -160,7 +160,7 @@ Now you can start all services:
 
 .. code-block:: bash
 
-    docker-compose up
+    docker compose up
 
 In a second terminal you can check the condition of the containers and make sure that no containers are in an unhealthy condition:
 
@@ -191,7 +191,7 @@ You can also run :doc:`CLI commands <../usage-cli>`, but you have to do it in on
 
 .. code-block:: bash
 
-    docker-compose run airflow-worker airflow info
+    docker compose run airflow-worker airflow info
 
 If you have Linux or Mac OS, you can make your work easier and download a optional wrapper scripts that will allow you to run commands with a simpler command.
 
@@ -252,7 +252,7 @@ To stop and delete containers, delete volumes with database data and download im
 
 .. code-block:: bash
 
-    docker-compose down --volumes --rmi all
+    docker compose down --volumes --rmi all
 
 Using custom images
 ===================
@@ -260,9 +260,9 @@ Using custom images
 When you want to run Airflow locally, you might want to use an extended image, containing some additional dependencies - for
 example you might add new python packages, or upgrade airflow providers to a later version. This can be done very easily
 by specifying ``build: .`` in your ``docker-compose.yaml`` and placing a custom Dockerfile alongside your
-``docker-compose.yaml``. Then you can use ``docker-compose build`` command
-to build your image (you need to do it only once). You can also add the ``--build`` flag to your ``docker-compose`` commands
-to rebuild the images on-the-fly when you run other ``docker-compose`` commands.
+``docker-compose.yaml``. Then you can use ``docker compose build`` command
+to build your image (you need to do it only once). You can also add the ``--build`` flag to your ``docker compose`` commands
+to rebuild the images on-the-fly when you run other ``docker compose`` commands.
 
 Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.

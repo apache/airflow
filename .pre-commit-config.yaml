@@ -153,17 +153,24 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.3.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.12.0', 'jinja2']
+        pass_filenames: false
+        require_serial: true
+      - id: update-black-version
+        name: Update black versions everywhere
+        entry: ./scripts/ci/pre_commit/pre_commit_update_black_version.py
+        language: python
+        files: ^.pre-commit-config.yaml$
+        additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/PyCQA/isort
-    rev: 5.11.4
+    rev: 5.11.2
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
-  # Keep version of black in sync wit blacken-docs, pre-commit-hook-names, update-common-sql-api-stubs
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 22.12.0
     hooks:
       - id: black
         name: Run black (python formatter)
@@ -181,7 +188,7 @@ repos:
           - --target-version=py39
           - --target-version=py310
         alias: black
-        additional_dependencies: [black==22.3.0]
+        additional_dependencies: [black==22.12.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
@@ -225,7 +232,7 @@ repos:
         pass_filenames: true
   # TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.32.1
+    rev: v3.3.1
     hooks:
       - id: pyupgrade
         name: Upgrade Python code automatically
@@ -269,7 +276,7 @@ repos:
           ^airflow/_vendor/
         additional_dependencies: ['toml']
   - repo: https://github.com/asottile/yesqa
-    rev: v1.3.0
+    rev: v1.4.0
     hooks:
       - id: yesqa
         name: Remove unnecessary noqa statements
@@ -278,7 +285,7 @@ repos:
           ^airflow/_vendor/
         additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
-    rev: '0.76'
+    rev: '0.77'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -292,7 +299,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.1.0
+    rev: v2.2.2
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
@@ -664,7 +671,7 @@ repos:
           - --max-length=64
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'tabulate', 'rich>=12.4.4']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.12.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
@@ -907,12 +914,11 @@ repos:
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
-        pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
-        require_serial: true
-        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
+        files: ^airflow/providers/.*/provider.yaml$
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
         language: python

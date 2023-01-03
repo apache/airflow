@@ -53,10 +53,17 @@ class EmrAddStepsOperator(BaseOperator):
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
+    :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     """
 
-    template_fields: Sequence[str] = ("job_flow_id", "job_flow_name", "cluster_states", "steps")
+    template_fields: Sequence[str] = (
+        "job_flow_id",
+        "job_flow_name",
+        "cluster_states",
+        "steps",
+        "execution_role_arn",
+    )
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"steps": "json"}
     ui_color = "#f9c915"
@@ -71,6 +78,7 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
+        execution_role_arn: str | None = None,
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -84,6 +92,7 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
         self.wait_for_completion = wait_for_completion
+        self.execution_role_arn = execution_role_arn
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -111,12 +120,13 @@ class EmrAddStepsOperator(BaseOperator):
         # steps may arrive as a string representing a list
         # e.g. if we used XCom or a file then: steps="[{ step1 }, { step2 }]"
         steps = self.steps
-        wait_for_completion = self.wait_for_completion
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
-
         return emr_hook.add_job_flow_steps(
-            job_flow_id=job_flow_id, steps=steps, wait_for_completion=wait_for_completion
+            job_flow_id=job_flow_id,
+            steps=steps,
+            wait_for_completion=self.wait_for_completion,
+            execution_role_arn=self.execution_role_arn,
         )
 
 

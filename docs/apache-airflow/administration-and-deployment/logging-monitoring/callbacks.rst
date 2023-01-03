@@ -80,5 +80,10 @@ In the following example, failures in any task call the ``task_failure_alert`` f
 
         task1 = EmptyOperator(task_id="task1")
         task2 = EmptyOperator(task_id="task2")
-        task3 = EmptyOperator(task_id="task3", on_success_callback=dag_success_alert)
+        task3 = EmptyOperator(task_id="task3", on_success_callback=[dag_success_alert])
         task1 >> task2 >> task3
+
+.. note::
+    As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions
+    to be executed in the desired event. Simply pass a list of callback functions to the callback args when defining your DAG/task
+    callbacks: e.g ``on_failure_callback=[callback_func_1, callback_func_2]``

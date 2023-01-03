@@ -43,5 +43,4 @@ class TestRedshiftSQLOperator:
             parameters=test_parameters,
             handler=fetch_all_handler,
             return_last=True,
-            split_statements=False,
         )
