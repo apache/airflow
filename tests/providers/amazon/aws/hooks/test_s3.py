@@ -22,12 +22,13 @@ import os
 import tempfile
 from pathlib import Path
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import boto3
 import pytest
 from botocore.exceptions import ClientError
 from moto import mock_s3
+from pytest import param
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -825,3 +826,109 @@ class TestAwsS3Hook:
 
         with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
             hook.get_bucket_tagging(bucket_name="new_bucket")
+
+
+@patch("airflow.hooks.base.BaseHook.get_connection")
+@pytest.mark.parametrize(
+    "expected",
+    [
+        # no conn no bucket
+        param(["key_bucket", "key.txt"], id="unify-no_conn-no_bucket"),
+        param(["key_bucket", "key.txt"], id="provide-no_conn-no_bucket"),
+        # no conn with bucket
+        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="unify-no_conn-with_bucket"),
+        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="provide-no_conn-with_bucket"),
+        # with conn no bucket
+        param(["conn_bucket", "s3://key_bucket/key.txt"], id="provide-with_conn-no_bucket"),
+        param(["key_bucket", "key.txt"], id="unify-with_conn-no_bucket"),
+        # with conn with bucket
+        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="provide-with_conn-with_bucket"),
+        param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="unify-with_conn-with_bucket"),
+    ],
+)
+def test_dec_no_get_connection_call(mock_base, expected, request):
+    tokens = request.node.callspec.id.split("-")
+    assert len(tokens) == 3
+    if "with_conn" in tokens:
+        c = Connection(schema="conn_bucket")
+    else:
+        c = Connection(schema=None)
+    if "with_bucket" in tokens:
+        kwargs = {"bucket_name": "kwargs_bucket", "key": "s3://key_bucket/key.txt"}
+    else:
+        kwargs = {"key": "s3://key_bucket/key.txt"}
+
+    mock_base.return_value = c
+    if "unify" in tokens:  # unify to be processed before provide
+
+        class MyHook(S3Hook):
+            @unify_bucket_name_and_key
+            @provide_bucket_name
+            def do_something(self, bucket_name=None, key=None):
+                return bucket_name, key
+
+    else:
+
+        class MyHook(S3Hook):
+            @provide_bucket_name
+            @unify_bucket_name_and_key
+            def do_something(self, bucket_name=None, key=None):
+                return bucket_name, key
+
+    hook = MyHook()
+    assert list(hook.do_something(**kwargs)) == expected
+
+
+@patch("airflow.hooks.base.BaseHook.get_connection")
+@pytest.mark.parametrize(
+    "expected",
+    [
+        # no conn no bucket
+        param("__fail__", id="unify-no_conn-no_bucket"),
+        param("__fail__", id="provide-no_conn-no_bucket"),
+        # no conn with bucket
+        param(["kwargs_bucket", "key.txt"], id="unify-no_conn-with_bucket"),
+        param(["kwargs_bucket", "key.txt"], id="provide-no_conn-with_bucket"),
+        # with conn no bucket
+        param(["conn_bucket", "key.txt"], id="provide-with_conn-no_bucket"),
+        param("__fail__", id="unify-with_conn-no_bucket"),
+        # with conn with bucket
+        param(["kwargs_bucket", "key.txt"], id="provide-with_conn-with_bucket"),
+        param(["kwargs_bucket", "key.txt"], id="unify-with_conn-with_bucket"),
+    ],
+)
+def test_dec_no_get_connection_call_relative_key(mock_base, expected, request):
+    tokens = request.node.callspec.id.split("-")
+    assert len(tokens) == 3
+    if "with_conn" in tokens:
+        c = Connection(schema="conn_bucket")
+    else:
+        c = Connection(schema=None)
+    if "with_bucket" in tokens:
+        kwargs = {"bucket_name": "kwargs_bucket", "key": "key.txt"}
+    else:
+        kwargs = {"key": "key.txt"}
+
+    mock_base.return_value = c
+    if "unify" in tokens:  # unify to be processed before provide
+
+        class MyHook(S3Hook):
+            @unify_bucket_name_and_key
+            @provide_bucket_name
+            def do_something(self, bucket_name=None, key=None):
+                return bucket_name, key
+
+    else:
+
+        class MyHook(S3Hook):
+            @provide_bucket_name
+            @unify_bucket_name_and_key
+            def do_something(self, bucket_name=None, key=None):
+                return bucket_name, key
+
+    hook = MyHook()
+    if expected == "__fail__":
+        with pytest.raises(Exception, match='Please provide a bucket name using a valid format: "key.txt"'):
+            hook.do_something(**kwargs)
+    else:
+        assert list(hook.do_something(**kwargs)) == expected
