@@ -872,13 +872,16 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_scheduler
 
         self.log.info("Shutting down Kubernetes executor")
-        self.log.debug("Flushing task_queue...")
-        self._flush_task_queue()
-        self.log.debug("Flushing result_queue...")
-        self._flush_result_queue()
-        # Both queues should be empty...
-        self.task_queue.join()
-        self.result_queue.join()
+        try:
+            self.log.debug("Flushing task_queue...")
+            self._flush_task_queue()
+            self.log.debug("Flushing result_queue...")
+            self._flush_result_queue()
+            # Both queues should be empty...
+            self.task_queue.join()
+            self.result_queue.join()
+        except ConnectionResetError:
+            self.log.exception("Connection Reset error while flushing task_queue and result_queue.")
         if self.kube_scheduler:
             self.kube_scheduler.terminate()
         self._manager.shutdown()
