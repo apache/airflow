@@ -17,23 +17,39 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+import json
+from typing import TYPE_CHECKING, Any
 
-from docker import APIClient  # type: ignore[attr-defined]
-from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
-from docker.errors import APIError  # type: ignore[attr-defined]
+from docker import APIClient, TLSConfig
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
+from docker.errors import APIError
 
-from airflow.exceptions import AirflowException
+from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
-class DockerHook(BaseHook, LoggingMixin):
+class DockerHook(BaseHook):
     """
-    Interact with a Docker Daemon or Registry.
+    Interact with a Docker Daemon and Container Registry.
 
-    :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
-        where credentials and extra configuration are stored
+    This class provide a thin wrapper around the ``docker.APIClient``.
+
+    .. seealso::
+        - :ref:`Docker Connection <howto/connection:docker>`
+        - `Docker SDK: Low-level API <https://docker-py.readthedocs.io/en/stable/api.html?low-level-api>`_
+
+    :param docker_conn_id: :ref:`Docker connection id <howto/connection:docker>` where stored credentials
+         to Docker Registry. If set to ``None`` or empty then hook does not login to Container Registry.
+    :param base_url: URL to the Docker server.
+    :param version: The version of the API to use. Use ``auto`` or ``None`` for automatically detect
+        the server's version.
+    :param tls: Is connection required TLS, for enable pass ``True`` for use with default options,
+        or pass a `docker.tls.TLSConfig` object to use custom configurations.
+    :param timeout: Default timeout for API calls, in seconds.
     """
 
     conn_name_attr = "docker_conn_id"
@@ -41,8 +57,115 @@ class DockerHook(BaseHook, LoggingMixin):
     conn_type = "docker"
     hook_name = "Docker"
 
+    def __init__(
+        self,
+        docker_conn_id: str | None = default_conn_name,
+        base_url: str | None = None,
+        version: str | None = None,
+        tls: TLSConfig | bool | None = None,
+        timeout: int = DEFAULT_TIMEOUT_SECONDS,
+    ) -> None:
+        super().__init__()
+        if not base_url:
+            raise AirflowException("URL to the Docker server not provided.")
+        elif tls:
+            if base_url.startswith("tcp://"):
+                base_url = base_url.replace("tcp://", "https://")
+                self.log.debug("Change `base_url` schema from 'tcp://' to 'https://'.")
+            if not base_url.startswith("https://"):
+                self.log.warning("When `tls` specified then `base_url` expected 'https://' schema.")
+
+        self.docker_conn_id = docker_conn_id
+        self.__base_url = base_url
+        self.__version = version
+        self.__tls = tls or False
+        self.__timeout = timeout
+        self._client_created = False
+
     @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    def construct_tls_config(
+        ca_cert: str | None = None,
+        client_cert: str | None = None,
+        client_key: str | None = None,
+        assert_hostname: str | bool | None = None,
+        ssl_version: str | None = None,
+    ) -> TLSConfig | bool:
+        """
+        Construct TLSConfig object from parts.
+
+        :param ca_cert: Path to a PEM-encoded CA (Certificate Authority) certificate file.
+        :param client_cert: Path to PEM-encoded certificate file.
+        :param client_key: Path to PEM-encoded key file.
+        :param assert_hostname: Hostname to match against the docker server certificate
+            or ``False`` to disable the check.
+        :param ssl_version: Version of SSL to use when communicating with docker daemon.
+        """
+        if ca_cert and client_cert and client_key:
+            # Ignore type error on SSL version here.
+            # It is deprecated and type annotation is wrong, and it should be string.
+            return TLSConfig(
+                ca_cert=ca_cert,
+                client_cert=(client_cert, client_key),
+                verify=True,
+                ssl_version=ssl_version,
+                assert_hostname=assert_hostname,
+            )
+        return False
+
+    @cached_property
+    def api_client(self) -> APIClient:
+        """Create connection to docker host and return ``docker.APIClient`` (cached)."""
+        client = APIClient(
+            base_url=self.__base_url, version=self.__version, tls=self.__tls, timeout=self.__timeout
+        )
+        if self.docker_conn_id:
+            # Obtain connection and try to login to Container Registry only if ``docker_conn_id`` set.
+            self.__login(client, self.get_connection(self.docker_conn_id))
+
+        self._client_created = True
+        return client
+
+    @property
+    def client_created(self) -> bool:
+        """Is api_client created or not."""
+        return self._client_created
+
+    def get_conn(self) -> APIClient:
+        """Create connection to docker host and return ``docker.APIClient`` (cached)."""
+        return self.api_client
+
+    def __login(self, client, conn: Connection) -> None:
+        if not conn.host:
+            raise AirflowNotFoundException("No Docker Registry URL provided.")
+        if not conn.login:
+            raise AirflowNotFoundException("No Docker Registry username provided.")
+
+        registry = f"{conn.host}:{conn.port}" if conn.port else conn.host
+
+        # Parse additional optional parameters
+        email = conn.extra_dejson.get("email") or None
+        reauth = conn.extra_dejson.get("reauth", True)
+        if isinstance(reauth, str):
+            reauth = reauth.lower()
+            if reauth in ("y", "yes", "t", "true", "on", "1"):
+                reauth = True
+            elif reauth in ("n", "no", "f", "false", "off", "0"):
+                reauth = False
+            else:
+                raise ValueError(f"Unable parse `reauth` value {reauth!r} to bool.")
+
+        try:
+            self.log.info("Login into Docker Registry: %s", registry)
+            client.login(
+                username=conn.login, password=conn.password, registry=registry, email=email, reauth=reauth
+            )
+            self.log.debug("Login successful")
+        except APIError:
+            self.log.error("Login failed")
+            raise
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["schema"],
@@ -50,64 +173,12 @@ class DockerHook(BaseHook, LoggingMixin):
                 "host": "Registry URL",
                 "login": "Username",
             },
+            "placeholders": {
+                "extra": json.dumps(
+                    {
+                        "reauth": False,
+                        "email": "Jane.Doe@example.org",
+                    }
+                )
+            },
         }
-
-    def __init__(
-        self,
-        docker_conn_id: str | None = default_conn_name,
-        base_url: str | None = None,
-        version: str | None = None,
-        tls: str | None = None,
-        timeout: int = DEFAULT_TIMEOUT_SECONDS,
-    ) -> None:
-        super().__init__()
-        if not base_url:
-            raise AirflowException("No Docker base URL provided")
-        if not version:
-            raise AirflowException("No Docker API version provided")
-
-        if not docker_conn_id:
-            raise AirflowException("No Docker connection id provided")
-
-        conn = self.get_connection(docker_conn_id)
-
-        if not conn.host:
-            raise AirflowException("No Docker URL provided")
-        if not conn.login:
-            raise AirflowException("No username provided")
-        extra_options = conn.extra_dejson
-
-        self.__base_url = base_url
-        self.__version = version
-        self.__tls = tls
-        self.__timeout = timeout
-        if conn.port:
-            self.__registry = f"{conn.host}:{conn.port}"
-        else:
-            self.__registry = conn.host
-        self.__username = conn.login
-        self.__password = conn.password
-        self.__email = extra_options.get("email")
-        self.__reauth = extra_options.get("reauth") != "no"
-
-    def get_conn(self) -> APIClient:
-        client = APIClient(
-            base_url=self.__base_url, version=self.__version, tls=self.__tls, timeout=self.__timeout
-        )
-        self.__login(client)
-        return client
-
-    def __login(self, client) -> None:
-        self.log.debug("Logging into Docker")
-        try:
-            client.login(
-                username=self.__username,
-                password=self.__password,
-                registry=self.__registry,
-                email=self.__email,
-                reauth=self.__reauth,
-            )
-            self.log.debug("Login successful")
-        except APIError as docker_error:
-            self.log.error("Docker login failed: %s", str(docker_error))
-            raise AirflowException(f"Docker login failed: {docker_error}")

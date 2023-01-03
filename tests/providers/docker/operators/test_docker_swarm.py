@@ -22,15 +22,15 @@ from unittest import mock
 import pytest
 from docker import APIClient, types
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
+from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 
 class TestDockerSwarmOperator:
-    @mock.patch("airflow.providers.docker.operators.docker.APIClient")
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
-    def test_execute(self, types_mock, client_class_mock):
+    def test_execute(self, types_mock, docker_api_client_patcher):
 
         mock_obj = mock.Mock()
 
@@ -54,7 +54,7 @@ class TestDockerSwarmOperator:
         types_mock.RestartPolicy.return_value = mock_obj
         types_mock.Resources.return_value = mock_obj
 
-        client_class_mock.return_value = client_mock
+        docker_api_client_patcher.return_value = client_mock
 
         operator = DockerSwarmOperator(
             api_version="1.19",
@@ -65,7 +65,7 @@ class TestDockerSwarmOperator:
             user="unittest",
             task_id="unittest",
             mounts=[types.Mount(source="/host/path", target="/container/path", type="bind")],
-            auto_remove=True,
+            auto_remove="success",
             tty=True,
             configs=[types.ConfigReference(config_id="dummy_cfg_id", config_name="dummy_cfg_name")],
             secrets=[types.SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
@@ -95,8 +95,8 @@ class TestDockerSwarmOperator:
         types_mock.RestartPolicy.assert_called_once_with(condition="none")
         types_mock.Resources.assert_called_once_with(mem_limit="128m")
 
-        client_class_mock.assert_called_once_with(
-            base_url="unix://var/run/docker.sock", tls=None, version="1.19", timeout=DEFAULT_TIMEOUT_SECONDS
+        docker_api_client_patcher.assert_called_once_with(
+            base_url="unix://var/run/docker.sock", tls=False, version="1.19", timeout=DEFAULT_TIMEOUT_SECONDS
         )
 
         client_mock.service_logs.assert_called_once_with(
@@ -112,9 +112,8 @@ class TestDockerSwarmOperator:
         assert client_mock.tasks.call_count == 5
         client_mock.remove_service.assert_called_once_with("some_id")
 
-    @mock.patch("airflow.providers.docker.operators.docker.APIClient")
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
-    def test_auto_remove(self, types_mock, client_class_mock):
+    def test_auto_remove(self, types_mock, docker_api_client_patcher):
 
         mock_obj = mock.Mock()
 
@@ -128,16 +127,17 @@ class TestDockerSwarmOperator:
         types_mock.RestartPolicy.return_value = mock_obj
         types_mock.Resources.return_value = mock_obj
 
-        client_class_mock.return_value = client_mock
+        docker_api_client_patcher.return_value = client_mock
 
-        operator = DockerSwarmOperator(image="", auto_remove=True, task_id="unittest", enable_logging=False)
+        operator = DockerSwarmOperator(
+            image="", auto_remove="success", task_id="unittest", enable_logging=False
+        )
         operator.execute(None)
 
         client_mock.remove_service.assert_called_once_with("some_id")
 
-    @mock.patch("airflow.providers.docker.operators.docker.APIClient")
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
-    def test_no_auto_remove(self, types_mock, client_class_mock):
+    def test_no_auto_remove(self, types_mock, docker_api_client_patcher):
 
         mock_obj = mock.Mock()
 
@@ -151,19 +151,20 @@ class TestDockerSwarmOperator:
         types_mock.RestartPolicy.return_value = mock_obj
         types_mock.Resources.return_value = mock_obj
 
-        client_class_mock.return_value = client_mock
+        docker_api_client_patcher.return_value = client_mock
 
-        operator = DockerSwarmOperator(image="", auto_remove=False, task_id="unittest", enable_logging=False)
+        operator = DockerSwarmOperator(
+            image="", auto_remove="never", task_id="unittest", enable_logging=False
+        )
         operator.execute(None)
 
         assert (
             client_mock.remove_service.call_count == 0
-        ), "Docker service being removed even when `auto_remove` set to `False`"
+        ), "Docker service being removed even when `auto_remove` set to `never`"
 
     @pytest.mark.parametrize("status", ["failed", "shutdown", "rejected", "orphaned", "remove"])
-    @mock.patch("airflow.providers.docker.operators.docker.APIClient")
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
-    def test_non_complete_service_raises_error(self, types_mock, client_class_mock, status):
+    def test_non_complete_service_raises_error(self, types_mock, docker_api_client_patcher, status):
 
         mock_obj = mock.Mock()
 
@@ -177,21 +178,38 @@ class TestDockerSwarmOperator:
         types_mock.RestartPolicy.return_value = mock_obj
         types_mock.Resources.return_value = mock_obj
 
-        client_class_mock.return_value = client_mock
+        docker_api_client_patcher.return_value = client_mock
 
-        operator = DockerSwarmOperator(image="", auto_remove=False, task_id="unittest", enable_logging=False)
+        operator = DockerSwarmOperator(
+            image="", auto_remove="never", task_id="unittest", enable_logging=False
+        )
         msg = "Service did not complete: {'ID': 'some_id'}"
         with pytest.raises(AirflowException) as ctx:
             operator.execute(None)
         assert str(ctx.value) == msg
 
-    def test_on_kill(self):
-        client_mock = mock.Mock(spec=APIClient)
+    @pytest.mark.parametrize("service_exists", [True, False])
+    def test_on_kill_client_created(self, docker_api_client_patcher, service_exists):
+        """Test operator on_kill method if APIClient created."""
+        op = DockerSwarmOperator(image="", task_id="test_on_kill")
+        op.service = {"ID": "some_id"} if service_exists else None
 
-        operator = DockerSwarmOperator(image="", auto_remove=False, task_id="unittest", enable_logging=False)
-        operator.cli = client_mock
-        operator.service = {"ID": "some_id"}
+        op.hook.get_conn()  # Try to create APIClient
+        op.on_kill()
+        if service_exists:
+            docker_api_client_patcher.return_value.remove_service.assert_called_once_with("some_id")
+        else:
+            docker_api_client_patcher.return_value.remove_service.assert_not_called()
 
-        operator.on_kill()
+    def test_on_kill_client_not_created(self, docker_api_client_patcher):
+        """Test operator on_kill method if APIClient not created in case of error."""
+        docker_api_client_patcher.side_effect = APIError("Fake Client Error")
+        op = DockerSwarmOperator(image="", task_id="test_on_kill")
+        mock_service = mock.MagicMock()
+        op.service = mock_service
 
-        client_mock.remove_service.assert_called_once_with("some_id")
+        with pytest.raises(APIError, match="Fake Client Error"):
+            op.hook.get_conn()
+        op.on_kill()
+        docker_api_client_patcher.return_value.remove_service.assert_not_called()
+        mock_service.assert_not_called()

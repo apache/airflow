@@ -23,19 +23,120 @@ from unittest.mock import call
 
 import pytest
 from docker import APIClient
-from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount
 
 from airflow.exceptions import AirflowException
-from airflow.providers.docker.hooks.docker import DockerHook
 from airflow.providers.docker.operators.docker import DockerOperator
+
+TEST_CONN_ID = "docker_test_connection"
+TEST_DOCKER_URL = "unix://var/run/docker.test.sock"
+TEST_API_VERSION = "1.19"  # Keep it as low version might prevent call non-mocked docker api
+TEST_IMAGE = "apache/airflow:latest"
+TEST_CONTAINER_HOSTNAME = "test.container.host"
+TEST_HOST_TEMP_DIRECTORY = "/tmp/host/dir"
+TEST_AIRFLOW_TEMP_DIRECTORY = "/tmp/airflow/dir"
+TEST_ENTRYPOINT = '["sh", "-c"]'
 
 TEMPDIR_MOCK_RETURN_VALUE = "/mkdtemp"
 
 
+@pytest.mark.parametrize("docker_conn_id", [pytest.param(None, id="empty-conn-id"), TEST_CONN_ID])
+@pytest.mark.parametrize(
+    "tls_params",
+    [
+        pytest.param({}, id="empty-tls-params"),
+        pytest.param(
+            {
+                "tls_ca_cert": "foo",
+                "tls_client_cert": "bar",
+                "tls_client_key": "spam",
+                "tls_hostname": "egg",
+                "tls_ssl_version": "super-secure",
+            },
+            id="all-tls-params",
+        ),
+    ],
+)
+def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
+    """Test that operator use DockerHook."""
+    docker_hook_patcher.construct_tls_config.return_value = "MOCK-TLS-VALUE"
+    expected_tls_call_args = {
+        "ca_cert": tls_params.get("tls_ca_cert"),
+        "client_cert": tls_params.get("tls_client_cert"),
+        "client_key": tls_params.get("tls_client_key"),
+        "assert_hostname": tls_params.get("tls_hostname"),
+        "ssl_version": tls_params.get("tls_ssl_version"),
+    }
+
+    op = DockerOperator(
+        task_id="test_hook_usage_without_tls",
+        api_version=TEST_API_VERSION,
+        docker_conn_id=docker_conn_id,
+        image=TEST_IMAGE,
+        docker_url=TEST_DOCKER_URL,
+        timeout=42,
+        **tls_params,
+    )
+    hook = op.hook
+    assert hook is op.get_hook()
+
+    docker_hook_patcher.assert_called_once_with(
+        docker_conn_id=docker_conn_id,
+        base_url=TEST_DOCKER_URL,
+        version=TEST_API_VERSION,
+        tls="MOCK-TLS-VALUE",
+        timeout=42,
+    )
+    docker_hook_patcher.construct_tls_config.assert_called_once_with(**expected_tls_call_args)
+
+    # Check that ``DockerOperator.cli`` property return the same object as ``hook.api_client``.
+    assert op.cli is hook.api_client
+
+
+@pytest.mark.parametrize(
+    "env_str, expected",
+    [
+        pytest.param("FOO=BAR\nSPAM=EGG", {"FOO": "BAR", "SPAM": "EGG"}, id="parsable-string"),
+        pytest.param("", {}, id="empty-string"),
+    ],
+)
+def test_unpack_environment_variables(env_str, expected):
+    assert DockerOperator.unpack_environment_variables(env_str) == expected
+
+
+@pytest.mark.parametrize("container_exists", [True, False])
+def test_on_kill_client_created(docker_api_client_patcher, container_exists):
+    """Test operator on_kill method if APIClient created."""
+    op = DockerOperator(image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill")
+    op.container = {"Id": "some_id"} if container_exists else None
+
+    op.hook.get_conn()  # Try to create APIClient
+    op.on_kill()
+    if container_exists:
+        docker_api_client_patcher.return_value.stop.assert_called_once_with("some_id")
+    else:
+        docker_api_client_patcher.return_value.stop.assert_not_called()
+
+
+def test_on_kill_client_not_created(docker_api_client_patcher):
+    """Test operator on_kill method if APIClient not created in case of error."""
+    docker_api_client_patcher.side_effect = APIError("Fake Client Error")
+    mock_container = mock.MagicMock()
+
+    op = DockerOperator(image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill")
+    op.container = mock_container
+
+    with pytest.raises(APIError, match="Fake Client Error"):
+        op.hook.get_conn()
+    op.on_kill()
+    docker_api_client_patcher.return_value.stop.assert_not_called()
+    mock_container.assert_not_called()
+
+
 class TestDockerOperator:
-    def setup_method(self):
+    @pytest.fixture(autouse=True, scope="function")
+    def setup_patchers(self, docker_api_client_patcher):
         self.tempdir_patcher = mock.patch("airflow.providers.docker.operators.docker.TemporaryDirectory")
         self.tempdir_mock = self.tempdir_patcher.start()
         self.tempdir_mock.return_value.__enter__.return_value = TEMPDIR_MOCK_RETURN_VALUE
@@ -56,11 +157,7 @@ class TestDockerOperator:
             else iter(self.log_messages)
         )
 
-        self.client_class_patcher = mock.patch(
-            "airflow.providers.docker.operators.docker.APIClient",
-            return_value=self.client_mock,
-        )
-        self.client_class_mock = self.client_class_patcher.start()
+        docker_api_client_patcher.return_value = self.client_mock
 
         def dotenv_mock_return_value(**kwargs):
             env_dict = {}
@@ -74,9 +171,9 @@ class TestDockerOperator:
         self.dotenv_mock = self.dotenv_patcher.start()
         self.dotenv_mock.side_effect = dotenv_mock_return_value
 
-    def teardown_method(self) -> None:
+        yield
+
         self.tempdir_patcher.stop()
-        self.client_class_patcher.stop()
         self.dotenv_patcher.stop()
 
     def test_execute(self):
@@ -85,55 +182,52 @@ class TestDockerOperator:
         stringio_mock.side_effect = lambda *args: args[0]
 
         operator = DockerOperator(
-            api_version="1.19",
+            api_version=TEST_API_VERSION,
             command="env",
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
             env_file="ENV=FILE\nVAR=VALUE",
-            image="ubuntu:latest",
+            image=TEST_IMAGE,
             network_mode="bridge",
             owner="unittest",
             task_id="unittest",
             mounts=[Mount(source="/host/path", target="/container/path", type="bind")],
-            entrypoint='["sh", "-c"]',
+            entrypoint=TEST_ENTRYPOINT,
             working_dir="/container/path",
             shm_size=1000,
-            host_tmp_dir="/host/airflow",
+            tmp_dir=TEST_AIRFLOW_TEMP_DIRECTORY,
+            host_tmp_dir=TEST_HOST_TEMP_DIRECTORY,
             container_name="test_container",
             tty=True,
-            hostname="test.container.host",
+            hostname=TEST_CONTAINER_HOSTNAME,
             device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
             log_opts_max_file="5",
             log_opts_max_size="10m",
         )
         operator.execute(None)
 
-        self.client_class_mock.assert_called_once_with(
-            base_url="unix://var/run/docker.sock", tls=None, version="1.19", timeout=DEFAULT_TIMEOUT_SECONDS
-        )
-
         self.client_mock.create_container.assert_called_once_with(
             command="env",
             name="test_container",
             environment={
-                "AIRFLOW_TMP_DIR": "/tmp/airflow",
+                "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
                 "UNIT": "TEST",
                 "PRIVATE": "MESSAGE",
                 "ENV": "FILE",
                 "VAR": "VALUE",
             },
             host_config=self.client_mock.create_host_config.return_value,
-            image="ubuntu:latest",
+            image=TEST_IMAGE,
             user=None,
             entrypoint=["sh", "-c"],
             working_dir="/container/path",
             tty=True,
-            hostname="test.container.host",
+            hostname=TEST_CONTAINER_HOSTNAME,
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
                 Mount(source="/host/path", target="/container/path", type="bind"),
-                Mount(source="/mkdtemp", target="/tmp/airflow", type="bind"),
+                Mount(source="/mkdtemp", target=TEST_AIRFLOW_TEMP_DIRECTORY, type="bind"),
             ],
             network_mode="bridge",
             shm_size=1000,
@@ -149,16 +243,14 @@ class TestDockerOperator:
             log_config=LogConfig(config={"max-size": "10m", "max-file": "5"}),
             ipc_mode=None,
         )
-        self.tempdir_mock.assert_called_once_with(dir="/host/airflow", prefix="airflowtmp")
-        self.client_mock.images.assert_called_once_with(name="ubuntu:latest")
+        self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
+        self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
         self.client_mock.attach.assert_called_once_with(
             container="some_id", stdout=True, stderr=True, stream=True
         )
-        self.client_mock.pull.assert_called_once_with("ubuntu:latest", stream=True, decode=True)
+        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with("some_id")
-        assert (
-            operator.cli.pull("ubuntu:latest", stream=True, decode=True) == self.client_mock.pull.return_value
-        )
+        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
         stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
@@ -174,37 +266,33 @@ class TestDockerOperator:
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
             env_file="ENV=FILE\nVAR=VALUE",
-            image="ubuntu:latest",
+            image=TEST_IMAGE,
             network_mode="bridge",
             owner="unittest",
             task_id="unittest",
             mounts=[Mount(source="/host/path", target="/container/path", type="bind")],
             mount_tmp_dir=False,
-            entrypoint='["sh", "-c"]',
+            entrypoint=TEST_ENTRYPOINT,
             working_dir="/container/path",
             shm_size=1000,
-            host_tmp_dir="/host/airflow",
+            host_tmp_dir=TEST_HOST_TEMP_DIRECTORY,
             container_name="test_container",
-            hostname="test.container.host",
+            hostname=TEST_CONTAINER_HOSTNAME,
             tty=True,
         )
         operator.execute(None)
-
-        self.client_class_mock.assert_called_once_with(
-            base_url="unix://var/run/docker.sock", tls=None, version="1.19", timeout=DEFAULT_TIMEOUT_SECONDS
-        )
 
         self.client_mock.create_container.assert_called_once_with(
             command="env",
             name="test_container",
             environment={"UNIT": "TEST", "PRIVATE": "MESSAGE", "ENV": "FILE", "VAR": "VALUE"},
             host_config=self.client_mock.create_host_config.return_value,
-            image="ubuntu:latest",
+            image=TEST_IMAGE,
             user=None,
             entrypoint=["sh", "-c"],
             working_dir="/container/path",
             tty=True,
-            hostname="test.container.host",
+            hostname=TEST_CONTAINER_HOSTNAME,
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
@@ -225,22 +313,20 @@ class TestDockerOperator:
             ipc_mode=None,
         )
         self.tempdir_mock.assert_not_called()
-        self.client_mock.images.assert_called_once_with(name="ubuntu:latest")
+        self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
         self.client_mock.attach.assert_called_once_with(
             container="some_id", stdout=True, stderr=True, stream=True
         )
-        self.client_mock.pull.assert_called_once_with("ubuntu:latest", stream=True, decode=True)
+        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with("some_id")
-        assert (
-            operator.cli.pull("ubuntu:latest", stream=True, decode=True) == self.client_mock.pull.return_value
-        )
+        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
         stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
 
     def test_execute_fallback_temp_dir(self, caplog):
         self.client_mock.create_container.side_effect = [
-            APIError(message="wrong path: " + TEMPDIR_MOCK_RETURN_VALUE),
+            APIError(message=f"wrong path: {TEMPDIR_MOCK_RETURN_VALUE}"),
             {"Id": "some_id"},
         ]
 
@@ -254,16 +340,17 @@ class TestDockerOperator:
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
             env_file="ENV=FILE\nVAR=VALUE",
-            image="ubuntu:latest",
+            image=TEST_IMAGE,
             network_mode="bridge",
             owner="unittest",
             task_id="unittest",
             mounts=[Mount(source="/host/path", target="/container/path", type="bind")],
             mount_tmp_dir=True,
-            entrypoint='["sh", "-c"]',
+            entrypoint=TEST_ENTRYPOINT,
             working_dir="/container/path",
             shm_size=1000,
-            host_tmp_dir="/host/airflow",
+            host_tmp_dir=TEST_HOST_TEMP_DIRECTORY,
+            tmp_dir=TEST_AIRFLOW_TEMP_DIRECTORY,
             container_name="test_container",
             tty=True,
         )
@@ -277,23 +364,20 @@ class TestDockerOperator:
             )
             assert warning_message in caplog.messages
 
-        self.client_class_mock.assert_called_once_with(
-            base_url="unix://var/run/docker.sock", tls=None, version="1.19", timeout=DEFAULT_TIMEOUT_SECONDS
-        )
         self.client_mock.create_container.assert_has_calls(
             [
                 call(
                     command="env",
                     name="test_container",
                     environment={
-                        "AIRFLOW_TMP_DIR": "/tmp/airflow",
+                        "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
                         "UNIT": "TEST",
                         "PRIVATE": "MESSAGE",
                         "ENV": "FILE",
                         "VAR": "VALUE",
                     },
                     host_config=self.client_mock.create_host_config.return_value,
-                    image="ubuntu:latest",
+                    image=TEST_IMAGE,
                     user=None,
                     entrypoint=["sh", "-c"],
                     working_dir="/container/path",
@@ -305,7 +389,7 @@ class TestDockerOperator:
                     name="test_container",
                     environment={"UNIT": "TEST", "PRIVATE": "MESSAGE", "ENV": "FILE", "VAR": "VALUE"},
                     host_config=self.client_mock.create_host_config.return_value,
-                    image="ubuntu:latest",
+                    image=TEST_IMAGE,
                     user=None,
                     entrypoint=["sh", "-c"],
                     working_dir="/container/path",
@@ -319,7 +403,7 @@ class TestDockerOperator:
                 call(
                     mounts=[
                         Mount(source="/host/path", target="/container/path", type="bind"),
-                        Mount(source="/mkdtemp", target="/tmp/airflow", type="bind"),
+                        Mount(source="/mkdtemp", target=TEST_AIRFLOW_TEMP_DIRECTORY, type="bind"),
                     ],
                     network_mode="bridge",
                     shm_size=1000,
@@ -355,23 +439,21 @@ class TestDockerOperator:
                 ),
             ]
         )
-        self.tempdir_mock.assert_called_once_with(dir="/host/airflow", prefix="airflowtmp")
-        self.client_mock.images.assert_called_once_with(name="ubuntu:latest")
+        self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
+        self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
         self.client_mock.attach.assert_called_once_with(
             container="some_id", stdout=True, stderr=True, stream=True
         )
-        self.client_mock.pull.assert_called_once_with("ubuntu:latest", stream=True, decode=True)
+        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with("some_id")
-        assert (
-            operator.cli.pull("ubuntu:latest", stream=True, decode=True) == self.client_mock.pull.return_value
-        )
+        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
         stringio_mock.assert_called_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
 
     def test_private_environment_is_private(self):
         operator = DockerOperator(
-            private_environment={"PRIVATE": "MESSAGE"}, image="ubuntu:latest", task_id="unittest"
+            private_environment={"PRIVATE": "MESSAGE"}, image=TEST_IMAGE, task_id="unittest"
         )
         assert operator._private_environment == {
             "PRIVATE": "MESSAGE"
@@ -385,11 +467,12 @@ class TestDockerOperator:
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
             env_file="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE",
-            image="ubuntu:latest",
+            image=TEST_IMAGE,
             task_id="unittest",
-            entrypoint='["sh", "-c"]',
+            entrypoint=TEST_ENTRYPOINT,
             working_dir="/container/path",
-            host_tmp_dir="/host/airflow",
+            host_tmp_dir=TEST_HOST_TEMP_DIRECTORY,
+            tmp_dir=TEST_AIRFLOW_TEMP_DIRECTORY,
             container_name="test_container",
             tty=True,
         )
@@ -398,13 +481,13 @@ class TestDockerOperator:
             command="env",
             name="test_container",
             environment={
-                "AIRFLOW_TMP_DIR": "/tmp/airflow",
+                "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
                 "UNIT": "TEST",
                 "PRIVATE": "MESSAGE",
                 "VAR": "VALUE",
             },
             host_config=self.client_mock.create_host_config.return_value,
-            image="ubuntu:latest",
+            image=TEST_IMAGE,
             user=None,
             entrypoint=["sh", "-c"],
             working_dir="/container/path",
@@ -414,45 +497,17 @@ class TestDockerOperator:
         stringio_mock.assert_called_once_with("UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
 
-    @mock.patch("airflow.providers.docker.operators.docker.tls.TLSConfig")
-    def test_execute_tls(self, tls_class_mock):
-        tls_mock = mock.Mock()
-        tls_class_mock.return_value = tls_mock
-
-        operator = DockerOperator(
-            docker_url="tcp://127.0.0.1:2376",
-            image="ubuntu",
-            owner="unittest",
-            task_id="unittest",
-            tls_client_cert="cert.pem",
-            tls_ca_cert="ca.pem",
-            tls_client_key="key.pem",
-        )
-        operator.execute(None)
-
-        tls_class_mock.assert_called_once_with(
-            assert_hostname=None,
-            ca_cert="ca.pem",
-            client_cert=("cert.pem", "key.pem"),
-            ssl_version=None,
-            verify=True,
-        )
-
-        self.client_class_mock.assert_called_once_with(
-            base_url="https://127.0.0.1:2376", tls=tls_mock, version=None, timeout=DEFAULT_TIMEOUT_SECONDS
-        )
-
     def test_execute_unicode_logs(self):
         self.client_mock.attach.return_value = ["unicode container log 😁"]
 
-        originalRaiseExceptions = logging.raiseExceptions
+        original_raise_exceptions = logging.raiseExceptions
         logging.raiseExceptions = True
 
-        operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest")
+        operator = DockerOperator(image=TEST_IMAGE, owner="unittest", task_id="unittest")
 
         with mock.patch("traceback.print_exception") as print_exception_mock:
             operator.execute(None)
-            logging.raiseExceptions = originalRaiseExceptions
+            logging.raiseExceptions = original_raise_exceptions
             print_exception_mock.assert_not_called()
 
     def test_execute_container_fails(self):
@@ -474,59 +529,12 @@ class TestDockerOperator:
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}
-        operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest", auto_remove=True)
+        operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest", auto_remove="success")
         operator.container = {"Id": "some_id"}
         with pytest.raises(AirflowException):
             operator.execute(None)
 
         self.client_mock.remove_container.assert_called_once_with("some_id")
-
-    @staticmethod
-    def test_on_kill():
-        client_mock = mock.Mock(spec=APIClient)
-
-        operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest")
-        operator.cli = client_mock
-        operator.container = {"Id": "some_id"}
-
-        operator.on_kill()
-
-        client_mock.stop.assert_called_once_with("some_id")
-
-    def test_execute_no_docker_conn_id_no_hook(self):
-        # Create the DockerOperator
-        operator = DockerOperator(image="publicregistry/someimage", owner="unittest", task_id="unittest")
-
-        # Mock out the DockerHook
-        hook_mock = mock.Mock(name="DockerHook mock", spec=DockerHook)
-        hook_mock.get_conn.return_value = self.client_mock
-        operator.get_hook = mock.Mock(
-            name="DockerOperator.get_hook mock", spec=DockerOperator.get_hook, return_value=hook_mock
-        )
-
-        operator.execute(None)
-        assert operator.get_hook.call_count == 0, "Hook called though no docker_conn_id configured"
-
-    @mock.patch("airflow.providers.docker.operators.docker.DockerHook")
-    def test_execute_with_docker_conn_id_use_hook(self, hook_class_mock):
-        # Create the DockerOperator
-        operator = DockerOperator(
-            image="publicregistry/someimage",
-            owner="unittest",
-            task_id="unittest",
-            docker_conn_id="some_conn_id",
-        )
-
-        # Mock out the DockerHook
-        hook_mock = mock.Mock(name="DockerHook mock", spec=DockerHook)
-        hook_mock.get_conn.return_value = self.client_mock
-        hook_class_mock.return_value = hook_mock
-
-        operator.execute(None)
-
-        assert self.client_class_mock.call_count == 0, "Client was called on the operator instead of the hook"
-        assert hook_class_mock.call_count == 1, "Hook was not called although docker_conn_id configured"
-        assert self.client_mock.pull.call_count == 1, "Image was not pulled using operator client"
 
     def test_execute_xcom_behavior(self):
         self.client_mock.pull.return_value = [b'{"status":"pull log"}']

@@ -105,7 +105,6 @@ class DockerSwarmOperator(DockerOperator):
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
-
         self.enable_logging = enable_logging
         self.service = None
         self.configs = configs
@@ -115,16 +114,11 @@ class DockerSwarmOperator(DockerOperator):
         self.placement = placement
 
     def execute(self, context: Context) -> None:
-        self.cli = self._get_cli()
-
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
-
         return self._run_service()
 
     def _run_service(self) -> None:
         self.log.info("Starting docker service from image %s", self.image)
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
         self.service = self.cli.create_service(
             types.TaskTemplate(
                 container_spec=types.ContainerSpec(
@@ -173,8 +167,6 @@ class DockerSwarmOperator(DockerOperator):
             self.cli.remove_service(self.service["ID"])
 
     def _service_status(self) -> str | None:
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
         if not self.service:
             raise Exception("The 'service' should be initialized before!")
         return self.cli.tasks(filters={"service": self.service["ID"]})[0]["Status"]["State"]
@@ -184,8 +176,6 @@ class DockerSwarmOperator(DockerOperator):
         return status in ["complete", "failed", "shutdown", "rejected", "orphaned", "remove"]
 
     def _stream_logs_to_output(self) -> None:
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
         if not self.service:
             raise Exception("The 'service' should be initialized before!")
         logs = self.cli.service_logs(
@@ -213,6 +203,6 @@ class DockerSwarmOperator(DockerOperator):
             self.log.info(line)
 
     def on_kill(self) -> None:
-        if self.cli is not None and self.service is not None:
+        if self.hook.client_created and self.service is not None:
             self.log.info("Removing docker service: %s", self.service["ID"])
             self.cli.remove_service(self.service["ID"])
