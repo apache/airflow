@@ -856,7 +856,7 @@ class TestAwsS3Hook:
         param(["kwargs_bucket", "key.txt"], id="unify-with_conn-with_bucket-rel_key"),
     ],
 )
-def test_dec_no_get_connection_call(mock_base, expected, request):
+def test_unify_and_provide_bucket_name_combination(mock_base, expected, request):
     tokens = request.node.callspec.id.split("-")
     assert len(tokens) == 4
     if "with_conn" in tokens:
@@ -926,7 +926,9 @@ def test_s3_head_object_decorated_behavior(mock_conn, request, expected):
     else:
         c = Connection(schema=None)
     mock_conn.return_value = c
-    key = "key.txt" if "rel_key" in tokens else "s3://key_bucket/key.txt"
+    rel_key = "key.txt"
+    full_key = f"s3://key_bucket/{rel_key}"
+    key = rel_key if "rel_key" in tokens else full_key
     if "with_bucket" in tokens:
         kwargs = {"bucket_name": "kwargs_bucket", "key": key}
     else:
