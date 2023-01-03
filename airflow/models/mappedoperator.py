@@ -41,6 +41,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
     DEFAULT_TRIGGER_RULE,
+    DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
@@ -388,6 +389,13 @@ class MappedOperator(AbstractOperator):
     @property
     def ignore_first_depends_on_past(self) -> bool:
         value = self.partial_kwargs.get("ignore_first_depends_on_past", DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST)
+        return bool(value)
+
+    @property
+    def wait_for_past_depends_before_skipping(self) -> bool:
+        value = self.partial_kwargs.get(
+            "wait_for_past_depends_before_skipping", DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING
+        )
         return bool(value)
 
     @property

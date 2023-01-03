@@ -92,6 +92,7 @@ class DebugExecutor(BaseExecutor):
         pickle_id: str | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         pool: str | None = None,

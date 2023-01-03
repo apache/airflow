@@ -112,6 +112,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         pickle_id: str | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         pool: str | None = None,
@@ -123,15 +124,16 @@ class LocalKubernetesExecutor(LoggingMixin):
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )
         executor.queue_task_instance(
-            task_instance,
-            mark_success,
-            pickle_id,
-            ignore_all_deps,
-            ignore_depends_on_past,
-            ignore_task_deps,
-            ignore_ti_state,
-            pool,
-            cfg_path,
+            task_instance=task_instance,
+            mark_success=mark_success,
+            pickle_id=pickle_id,
+            ignore_all_deps=ignore_all_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
+            pool=pool,
+            cfg_path=cfg_path,
         )
 
     def has_task(self, task_instance: TaskInstance) -> bool:

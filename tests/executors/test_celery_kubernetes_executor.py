@@ -120,18 +120,18 @@ class TestCeleryKubernetesExecutor:
             pickle_id=None,
             ignore_all_deps=False,
             ignore_depends_on_past=False,
+            wait_for_past_depends_before_skipping=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
             pool=None,
             cfg_path=None,
         )
-        kwarg_values = kwargs.values()
         cke.queue_task_instance(**kwargs)
         if test_queue == KUBERNETES_QUEUE:
-            k8s_executor_mock.queue_task_instance.assert_called_once_with(*kwarg_values)
+            k8s_executor_mock.queue_task_instance.assert_called_once_with(**kwargs)
             celery_executor_mock.queue_task_instance.assert_not_called()
         else:
-            celery_executor_mock.queue_task_instance.assert_called_once_with(*kwarg_values)
+            celery_executor_mock.queue_task_instance.assert_called_once_with(**kwargs)
             k8s_executor_mock.queue_task_instance.assert_not_called()
 
     @parameterized.expand(

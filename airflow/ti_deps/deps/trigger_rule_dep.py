@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Iterator, NamedTuple
 
 from sqlalchemy import and_, func, or_
 
+from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep, TIDepStatus
 from airflow.utils.state import TaskInstanceState
@@ -222,45 +223,58 @@ class TriggerRuleDep(BaseTIDep):
         upstream_done = done >= upstream
 
         changed = False
+        new_state = None
         if dep_context.flag_upstream_failed:
             if trigger_rule == TR.ALL_SUCCESS:
                 if upstream_failed or failed:
-                    changed = ti.set_state(TaskInstanceState.UPSTREAM_FAILED, session)
+                    new_state = TaskInstanceState.UPSTREAM_FAILED
                 elif skipped:
-                    changed = ti.set_state(TaskInstanceState.SKIPPED, session)
+                    new_state = TaskInstanceState.SKIPPED
                 elif removed and success and ti.map_index > -1:
                     if ti.map_index >= success:
-                        changed = ti.set_state(TaskInstanceState.REMOVED, session)
+                        new_state = TaskInstanceState.REMOVED
             elif trigger_rule == TR.ALL_FAILED:
                 if success or skipped:
-                    changed = ti.set_state(TaskInstanceState.SKIPPED, session)
+                    new_state = TaskInstanceState.SKIPPED
             elif trigger_rule == TR.ONE_SUCCESS:
                 if upstream_done and done == skipped:
                     # if upstream is done and all are skipped mark as skipped
-                    changed = ti.set_state(TaskInstanceState.SKIPPED, session)
+                    new_state = TaskInstanceState.SKIPPED
                 elif upstream_done and success <= 0:
                     # if upstream is done and there are no success mark as upstream failed
-                    changed = ti.set_state(TaskInstanceState.UPSTREAM_FAILED, session)
+                    new_state = TaskInstanceState.UPSTREAM_FAILED
             elif trigger_rule == TR.ONE_FAILED:
                 if upstream_done and not (failed or upstream_failed):
-                    changed = ti.set_state(TaskInstanceState.SKIPPED, session)
+                    new_state = TaskInstanceState.SKIPPED
             elif trigger_rule == TR.ONE_DONE:
                 if upstream_done and not (failed or success):
-                    changed = ti.set_state(TaskInstanceState.SKIPPED, session)
+                    new_state = TaskInstanceState.SKIPPED
             elif trigger_rule == TR.NONE_FAILED:
                 if upstream_failed or failed:
-                    changed = ti.set_state(TaskInstanceState.UPSTREAM_FAILED, session)
+                    new_state = TaskInstanceState.UPSTREAM_FAILED
             elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
                 if upstream_failed or failed:
-                    changed = ti.set_state(TaskInstanceState.UPSTREAM_FAILED, session)
+                    new_state = TaskInstanceState.UPSTREAM_FAILED
                 elif skipped == upstream:
-                    changed = ti.set_state(TaskInstanceState.SKIPPED, session)
+                    new_state = TaskInstanceState.SKIPPED
             elif trigger_rule == TR.NONE_SKIPPED:
                 if skipped:
-                    changed = ti.set_state(TaskInstanceState.SKIPPED, session)
+                    new_state = TaskInstanceState.SKIPPED
             elif trigger_rule == TR.ALL_SKIPPED:
                 if success or failed:
-                    changed = ti.set_state(TaskInstanceState.SKIPPED, session)
+                    new_state = TaskInstanceState.SKIPPED
+
+        if new_state is not None:
+            if new_state == TaskInstanceState.SKIPPED and dep_context.wait_for_past_depends_before_skipping:
+                past_depends_met = ti.xcom_pull(
+                    task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
+                )
+                if not past_depends_met:
+                    yield self._failing_status(
+                        reason=("Task should be skipped but the the past depends are not met")
+                    )
+                    return
+            changed = ti.set_state(new_state, session)
 
         if changed:
             dep_context.have_changed_ti_states = True
