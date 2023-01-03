@@ -585,12 +585,12 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             if self.go_file.lower().startswith("gs://"):
                 gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
 
-                with tempfile.TemporaryDirectory(prefix="apache-beam-go") as tmp_dir:
-                    tmp_gcs_file = exit_stack.enter_context(
-                        gcs_hook.provide_file(object_url=self.go_file, dir=tmp_dir)
-                    )
-                    self.go_file = tmp_gcs_file.name
-                    self.should_init_go_module = True
+                tmp_dir = exit_stack.enter_context(tempfile.TemporaryDirectory(prefix="apache-beam-go"))
+                tmp_gcs_file = exit_stack.enter_context(
+                    gcs_hook.provide_file(object_url=self.go_file, dir=tmp_dir)
+                )
+                self.go_file = tmp_gcs_file.name
+                self.should_init_go_module = True
 
             if is_dataflow and self.dataflow_hook:
                 with self.dataflow_hook.provide_authorized_gcloud():
