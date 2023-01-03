@@ -164,8 +164,20 @@ class DockerHook(BaseHook):
             self.log.error("Login failed")
             raise
 
+    @staticmethod
+    def get_connection_form_widgets() -> dict[str, Any]:
+        """Returns connection form widgets"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField, StringField
+
+        return {
+            "reauth": BooleanField(lazy_gettext("Disable SSL")),
+            "email": StringField(lazy_gettext("Email"), widget=BS3TextFieldWidget()),
+        }
+
     @classmethod
-    def get_connection_form_widgets(cls) -> dict[str, Any]:
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["schema"],
