@@ -63,6 +63,7 @@ class TestJenkinsBuildSensor:
                 task_id="sensor_test",
                 job_name="a_job_on_jenkins",
                 build_number=target_build_number,
+                target_states=["SUCCESS"],
             )
 
             output = sensor.poke(None)
