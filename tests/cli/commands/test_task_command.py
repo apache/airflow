@@ -41,6 +41,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -389,6 +390,67 @@ class TestCliTasks:
 
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
+
+    def test_mapped_task_render(self):
+        """
+        tasks render should render and displays templated fields for a given mapping task
+        """
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "0",
+                    ]
+                )
+            )
+        # the dag test_mapped_classic has op_args=[[1], [2], [3]], so the first mapping task should have
+        # op_args=[1]
+        output = stdout.getvalue()
+        assert "[1]" in output
+        assert "[2]" not in output
+        assert "[3]" not in output
+        assert "property: op_args" in output
+
+    def test_mapped_task_render_with_template(self, dag_maker):
+        """
+        tasks render should render and displays templated fields for a given mapping task
+        """
+        with dag_maker() as dag:
+            templated_command = """
+            {% for i in range(5) %}
+                echo "{{ ds }}"
+                echo "{{ macros.ds_add(ds, 7)}}"
+            {% endfor %}
+            """
+            commands = [templated_command, "echo 1"]
+
+            BashOperator.partial(task_id="some_command").expand(bash_command=commands)
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_dag",
+                        "some_command",
+                        "2022-01-01",
+                        "--map-index",
+                        "0",
+                    ]
+                ),
+                dag=dag,
+            )
+
+        output = stdout.getvalue()
+        assert 'echo "2022-01-01"' in output
+        assert 'echo "2022-01-08"' in output
 
     def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
         """
