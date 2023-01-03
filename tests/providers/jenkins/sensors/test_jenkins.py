@@ -55,7 +55,7 @@ class TestJenkinsBuildSensor:
         ],
     )
     @patch("jenkins.Jenkins")
-    def test_poke(mock_jenkins, build_number, build_state, result):
+    def test_poke(self, mock_jenkins, build_number, build_state, result):
         target_build_number = build_number if build_number else 10
 
         jenkins_mock = MagicMock()
