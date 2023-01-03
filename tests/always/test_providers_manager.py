@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sys
 from unittest.mock import patch
 
 import pytest
@@ -157,8 +158,12 @@ class TestProviderManager:
                 provider_manager = ProvidersManager()
                 connections_list = list(provider_manager.hooks.keys())
                 assert len(connections_list) > 60
+        if len(self._caplog.records) != 0:
+            for record in self._caplog.records:
+                print(record.message, file=sys.stderr)
+                print(record.exc_info, file=sys.stderr)
+            raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
-        assert len(self._caplog.records) == 0
 
     def test_hook_values(self):
         with pytest.warns(expected_warning=None) as warning_records:
@@ -166,8 +171,12 @@ class TestProviderManager:
                 provider_manager = ProvidersManager()
                 connections_list = list(provider_manager.hooks.values())
                 assert len(connections_list) > 60
+        if len(self._caplog.records) != 0:
+            for record in self._caplog.records:
+                print(record.message, file=sys.stderr)
+                print(record.exc_info, file=sys.stderr)
+            raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
-        assert len(self._caplog.records) == 0
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
