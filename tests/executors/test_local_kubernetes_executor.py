@@ -32,6 +32,9 @@ class TestLocalKubernetesExecutor:
     def test_supports_sentry(self):
         assert not LocalKubernetesExecutor.supports_sentry
 
+    def test_is_local_default_value(self):
+        assert not LocalKubernetesExecutor.is_local
+
     def test_queued_tasks(self):
         local_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
