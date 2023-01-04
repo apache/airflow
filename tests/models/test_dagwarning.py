@@ -36,16 +36,14 @@ class TestDagWarning:
         """
 
         dags = [DagModel(dag_id="dag_1", is_active=False), DagModel(dag_id="dag_2", is_active=True)]
-        for dag in dags:
-            session.add(dag)
+        session.add_all(dags)
         session.commit()
 
         dag_warnings = [
             DagWarning("dag_1", "non-existent pool", "non-existent pool"),
             DagWarning("dag_2", "non-existent pool", "non-existent pool"),
         ]
-        for dag_warning in dag_warnings:
-            session.add(dag_warning)
+        session.add_all(dag_warnings)
         session.commit()
 
         DagWarning.purge_inactive_dag_warnings(session)
