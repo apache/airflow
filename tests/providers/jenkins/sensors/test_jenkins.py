@@ -69,7 +69,6 @@ class TestJenkinsBuildSensor:
             assert jenkins_mock.get_job_info.call_count == 0 if build_number else 1
             jenkins_mock.get_build_info.assert_called_once_with("a_job_on_jenkins", target_build_number)
 
-
     @pytest.mark.parametrize(
         "build_number, build_state, result",
         [
