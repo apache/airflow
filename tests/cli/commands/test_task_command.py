@@ -888,6 +888,6 @@ class TestLoggerMutationHelper:
         src.addHandler(sentinel.h2)
         src.setLevel(-2)
         obj.reset()
-        assert src.propagate == True
+        assert src.propagate is True
         assert src.handlers == [sentinel.h1]
         assert src.level == -1
