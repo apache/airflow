@@ -63,7 +63,7 @@ class JenkinsBuildSensor(BaseSensorOperator):
             return False
 
         build_result = hook.get_build_result(self.job_name, build_number)
-        self.log.info(f"Build is finished, result is {build_result}.")
+        self.log.info("Build is finished, result is %s", "build_result")
         if build_result in self.target_states:
             return True
         else:
