@@ -43,6 +43,7 @@ from typing_extensions import overload
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowConfigException
+from airflow.executors.executor_constants import DEBUG_EXECUTOR, SEQUENTIAL_EXECUTOR
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
@@ -434,8 +435,8 @@ class AirflowConfigParser(ConfigParser):
         or system-level limitations and requirements.
         """
         is_executor_without_sqlite_support = self.get("core", "executor") not in (
-            "DebugExecutor",
-            "SequentialExecutor",
+            DEBUG_EXECUTOR,
+            SEQUENTIAL_EXECUTOR,
         )
         is_sqlite = "sqlite" in self.get("database", "sql_alchemy_conn")
         if is_sqlite and is_executor_without_sqlite_support:

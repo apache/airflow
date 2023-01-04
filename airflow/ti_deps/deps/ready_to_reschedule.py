@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from airflow.configuration import conf
+from airflow.executors.executor_constants import DEBUG_EXECUTOR
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
@@ -45,7 +46,7 @@ class ReadyToRescheduleDep(BaseTIDep):
         from airflow.models.mappedoperator import MappedOperator
 
         is_mapped = isinstance(ti.task, MappedOperator)
-        is_debug_executor = conf.get("core", "executor") == "DebugExecutor"
+        is_debug_executor = conf.get("core", "executor") == DEBUG_EXECUTOR
         if not is_mapped and not getattr(ti.task, "reschedule", False) and not is_debug_executor:
             # Mapped sensors don't have the reschedule property (it can only
             # be calculated after unmapping), so we don't check them here.

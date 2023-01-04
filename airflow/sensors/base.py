@@ -32,6 +32,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
 )
+from airflow.executors.executor_constants import DEBUG_EXECUTOR
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
@@ -260,7 +261,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         # Sensors in `poke` mode can block execution of DAGs when running
         # with single process executor, thus we change the mode to`reschedule`
         # to allow parallel task being scheduled and executed
-        if conf.get("core", "executor") == "DebugExecutor":
+        if conf.get("core", "executor") == DEBUG_EXECUTOR:
             self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
             task.mode = "reschedule"
         return task
