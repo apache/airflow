@@ -223,7 +223,7 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 Installation
 ============
 
-Set your working directory to root of (this) cloned airflow repository.
+Set your working directory to root of (this) cloned repository.
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
