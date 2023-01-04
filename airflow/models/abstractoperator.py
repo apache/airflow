@@ -31,6 +31,7 @@ from airflow.utils.helpers import render_template_as_native, render_template_to_
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -55,6 +56,7 @@ DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
     "scheduler", "ignore_first_depends_on_past_by_default"
 )
+DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING: bool = False
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
@@ -550,13 +552,15 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
         # Any (old) task instances with inapplicable indexes (>= the total
         # number we need) are set to "REMOVED".
-        session.query(TaskInstance).filter(
+        query = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
-        ).update({TaskInstance.state: TaskInstanceState.REMOVED})
-
+        )
+        to_update = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        for ti in to_update:
+            ti.state = TaskInstanceState.REMOVED
         session.flush()
         return all_expanded_tis, total_expanded_ti_count - 1
 

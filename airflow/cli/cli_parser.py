@@ -548,8 +548,10 @@ ARG_DEPENDS_ON_PAST = Arg(
     ("-d", "--depends-on-past"),
     help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
     "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
-    "them, if `ignore` is provided, the past dependencies will be ignored.",
-    choices={"check", "ignore"},
+    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
+    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
+    "skipping the task",
+    choices={"check", "ignore", "wait"},
     default="check",
 )
 ARG_SHIP_DAG = Arg(
@@ -663,7 +665,7 @@ ARG_DEBUG = Arg(
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get("webserver", "ACCESS_LOGFILE"),
-    help="The logfile to store the webserver access log. Use '-' to print to stderr",
+    help="The logfile to store the webserver access log. Use '-' to print to stdout",
 )
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
