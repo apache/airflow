@@ -301,19 +301,26 @@ def connections_delete(args):
 def connections_import(args):
     """Imports connections from a file."""
     if os.path.exists(args.file):
-        _import_helper(args.file)
+        _import_helper(args.file, args.overwrite)
     else:
         raise SystemExit("Missing connections file.")
 
 
-def _import_helper(file_path):
-    """Load connections from a file and save them to the DB. On collision, skip."""
+def _import_helper(file_path, overwrite):
+    """
+    Load connections from a file and save them to the DB.
+    If `overwrite` is set to true, overwrite on collision.
+    """
     connections_dict = load_connections_dict(file_path)
     with create_session() as session:
         for conn_id, conn in connections_dict.items():
-            if session.query(Connection).filter(Connection.conn_id == conn_id).first():
+            conn_id_already_exists = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+            if not overwrite and conn_id_already_exists:
                 print(f"Could not import connection {conn_id}: connection already exists.")
                 continue
+            if overwrite and conn_id_already_exists:
+                session.delete(conn_id_already_exists)
+                session.flush()
 
             session.add(conn)
             session.commit()
