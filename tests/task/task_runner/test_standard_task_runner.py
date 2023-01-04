@@ -23,6 +23,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
+from unittest.mock import patch
 
 import psutil
 import pytest
@@ -89,7 +90,9 @@ class TestStandardTaskRunner:
         clear_db_runs()
         get_listener_manager().clear()
 
-    def test_start_and_terminate(self):
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
+    def test_start_and_terminate(self, mock_init):
+        mock_init.return_value = "/tmp/any"
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
@@ -163,7 +166,9 @@ class TestStandardTaskRunner:
             assert f.readline() == "on_starting\n"
             assert f.readline() == "before_stopping\n"
 
-    def test_start_and_terminate_run_as_user(self):
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
+    def test_start_and_terminate_run_as_user(self, mock_init):
+        mock_init.return_value = "/tmp/any"
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.task_id = "task_id"
@@ -197,12 +202,14 @@ class TestStandardTaskRunner:
         assert runner.return_code() is not None
 
     @propagate_task_logger()
-    def test_early_reap_exit(self, caplog):
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
+    def test_early_reap_exit(self, mock_init, caplog):
         """
         Tests that when a child process running a task is killed externally
         (e.g. by an OOM error, which we fake here), then we get return code
         -9 and a log message.
         """
+        mock_init.return_value = "/tmp/any"
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.task_id = "task_id"
