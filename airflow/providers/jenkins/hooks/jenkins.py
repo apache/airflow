@@ -65,4 +65,3 @@ class JenkinsHook(BaseHook):
         build_info = self.jenkins_server.get_build_info(job_name, build_number_to_check)
         building = build_info["building"]
         return building
-
