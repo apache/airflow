@@ -26,6 +26,7 @@ Content
     :caption: System tests
 
     System Tests <_api/tests/system/providers/slack/index>
+
 .. toctree::
     :maxdepth: 1
     :caption: Guides
@@ -37,6 +38,8 @@ Content
     :caption: Guides
 
     SqlToSlackOperator types <operators/sql_to_slack>
+    Slack Notifications <notifications/slack_notifier_howto_guide>
+
 
 .. toctree::
     :maxdepth: 1

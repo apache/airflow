@@ -33,6 +33,8 @@ from warnings import WarningMessage
 
 from rich.console import Console
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
 console = Console(width=400, color_system="standard")
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
@@ -361,6 +363,9 @@ def import_all_classes(
                             imported_classes.append(class_name)
                 if w:
                     all_warnings.extend(w)
+            except AirflowOptionalProviderFeatureException:
+                # We ignore optional features
+                ...
             except Exception:
                 exception_str = traceback.format_exc()
                 tracebacks.append((modinfo.name, exception_str))
