@@ -843,20 +843,20 @@ class TestAwsS3Hook:
         param(["kwargs_bucket", "s3://key_bucket/key.txt"], id="unify-with_conn-with_bucket-full_key"),
         # rel key
         # no conn - no bucket - rel key
-        param("__fail__", id="unify-no_conn-no_bucket-rel_key"),
-        param("__fail__", id="provide-no_conn-no_bucket-rel_key"),
+        param([None, "key.txt"], id="unify-no_conn-no_bucket-rel_key"),
+        param([None, "key.txt"], id="provide-no_conn-no_bucket-rel_key"),
         # no conn - with bucket - rel key
         param(["kwargs_bucket", "key.txt"], id="unify-no_conn-with_bucket-rel_key"),
         param(["kwargs_bucket", "key.txt"], id="provide-no_conn-with_bucket-rel_key"),
         # with conn - no bucket - rel key
         param(["conn_bucket", "key.txt"], id="provide-with_conn-no_bucket-rel_key"),
-        param("__fail__", id="unify-with_conn-no_bucket-rel_key"),
+        param(["conn_bucket", "key.txt"], id="unify-with_conn-no_bucket-rel_key"),
         # with conn - with bucket - rel key
         param(["kwargs_bucket", "key.txt"], id="provide-with_conn-with_bucket-rel_key"),
         param(["kwargs_bucket", "key.txt"], id="unify-with_conn-with_bucket-rel_key"),
     ],
 )
-def test_unify_and_provide_bucket_name_combination(mock_base, expected, request):
+def test_unify_and_provide_bucket_name_combination(mock_base, expected, request, caplog):
     """
     Verify what is the outcome when the unify_bucket_name_and_key and provide_bucket_name
     decorators are combined.
@@ -884,7 +884,7 @@ def test_unify_and_provide_bucket_name_combination(mock_base, expected, request)
 
     else:
 
-        with pytest.warns(Warning, match="first"):
+        with caplog.at_level("WARNING"):
 
             class MyHook(S3Hook):
                 @provide_bucket_name
@@ -892,6 +892,7 @@ def test_unify_and_provide_bucket_name_combination(mock_base, expected, request)
                 def do_something(self, bucket_name=None, key=None):
                     return bucket_name, key
 
+        assert caplog.records[0].message == "`unify_bucket_name_and_key` should wrap `provide_bucket_name`."
     hook = MyHook()
     if expected == "__fail__":
         with pytest.raises(Exception, match='Please provide a bucket name using a valid format: "key.txt"'):
