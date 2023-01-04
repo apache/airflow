@@ -594,21 +594,22 @@ def task_test(args, dag=None):
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
-def task_render(args):
+def task_render(args, dag=None):
     """Renders and displays templated fields for a given task."""
-    dag = get_dag(args.subdir, args.dag_id)
+    if not dag:
+        dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
     )
     ti.render_templates()
-    for attr in task.__class__.template_fields:
+    for attr in task.template_fields:
         print(
             textwrap.dedent(
                 f"""        # ----------------------------------------------------------
         # property: {attr}
         # ----------------------------------------------------------
-        {getattr(task, attr)}
+        {getattr(ti.task, attr)}
         """
             )
         )
