@@ -153,31 +153,22 @@ class TestBackfillJob:
 
         assert State.SUCCESS == dag_run.state
 
-    @pytest.mark.xfail(condition=True, reason="This test is flaky")
     @pytest.mark.backend("postgres", "mysql")
     def test_trigger_controller_dag(self):
         dag = self.dagbag.get_dag("example_trigger_controller_dag")
         target_dag = self.dagbag.get_dag("example_trigger_target_dag")
         target_dag.sync_to_db()
 
-        # dag_file_processor = DagFileProcessor(dag_ids=[], log=Mock())
-        task_instances_list = []
-        # task_instances_list = dag_file_processor._process_task_instances(
-        #    target_dag,
-        #    dag_runs=DagRun.find(dag_id='example_trigger_target_dag')
-        # )
-        assert not task_instances_list
+        target_dag_run = target_dag.get_last_dagrun()
+        assert not target_dag_run
 
         job = BackfillJob(
             dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_first_depends_on_past=True
         )
         job.run()
 
-        task_instances_list = []
-        # task_instances_list = dag_file_processor._process_task_instances(
-        #    target_dag,
-        #    dag_runs=DagRun.find(dag_id='example_trigger_target_dag')
-        # )
+        dag_run = dag.get_last_dagrun()
+        task_instances_list = job._task_instances_for_dag_run(dag=dag, dag_run=dag_run)
 
         assert task_instances_list
 
