@@ -55,7 +55,7 @@ def provide_bucket_name(func: T) -> T:
     in case no bucket name has been passed to the function.
     """
     if getattr(func, "_unify_bucket_name_and_key_wrapped", False) is True:
-        logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.", stacklevel=2)
+        logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
     function_signature = signature(func)
 
     @wraps(func)
@@ -98,7 +98,7 @@ def unify_bucket_name_and_key(func: T) -> T:
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    wrapper._unify_bucket_name_and_key_wrapped = True
+    wrapper._unify_bucket_name_and_key_wrapped = True  # type: ignore[attr-defined]
     return cast(T, wrapper)
 
 
