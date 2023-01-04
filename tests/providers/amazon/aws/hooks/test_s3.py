@@ -472,13 +472,9 @@ class TestAwsS3Hook:
             def test_function(self, bucket_name=None):
                 return bucket_name
 
-        fake_s3_hook = FakeS3Hook()
-
-        test_bucket_name = fake_s3_hook.test_function()
-        assert test_bucket_name == mock_get_connection.return_value.schema
-
-        test_bucket_name = fake_s3_hook.test_function(bucket_name="bucket")
-        assert test_bucket_name == "bucket"
+        hook = FakeS3Hook()
+        assert hook.test_function() == "test_bucket"
+        assert hook.test_function(bucket_name="bucket") == "bucket"
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.
