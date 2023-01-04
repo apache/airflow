@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import jenkins
+
 from airflow.hooks.base import BaseHook
 from airflow.utils.strings import to_boolean
 
