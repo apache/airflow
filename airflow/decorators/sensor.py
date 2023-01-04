@@ -56,7 +56,7 @@ class DecoratedSensorOperator(PythonSensor):
         kwargs["task_id"] = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
         super().__init__(**kwargs)
 
-    def poke(self, context: Context) -> PokeReturnValue:
+    def poke(self, context: Context) -> PokeReturnValue | bool:
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 

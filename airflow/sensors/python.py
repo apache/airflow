@@ -65,7 +65,7 @@ class PythonSensor(BaseSensorOperator):
         self.op_kwargs = op_kwargs or {}
         self.templates_dict = templates_dict
 
-    def poke(self, context: Context) -> PokeReturnValue:
+    def poke(self, context: Context) -> PokeReturnValue | bool:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
