@@ -894,11 +894,7 @@ def test_unify_and_provide_bucket_name_combination(mock_base, expected, request,
 
         assert caplog.records[0].message == "`unify_bucket_name_and_key` should wrap `provide_bucket_name`."
     hook = MyHook()
-    if expected == "__fail__":
-        with pytest.raises(Exception, match='Please provide a bucket name using a valid format: "key.txt"'):
-            hook.do_something(**kwargs)
-    else:
-        assert list(hook.do_something(**kwargs)) == expected
+    assert list(hook.do_something(**kwargs)) == expected
 
 
 @pytest.mark.parametrize(
