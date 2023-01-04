@@ -32,8 +32,7 @@
 
 /* global d3, document, moment, data $ */
 
-import tiTooltip from './task_instances';
-import { taskQueuedStateTooltip } from './task_instances';
+import tiTooltip, { taskQueuedStateTooltip } from './task_instances';
 import callModal from './callModal';
 
 const replacements = {
@@ -121,7 +120,7 @@ d3.gantt = () => {
   let tickFormat = '%H:%M';
 
   const keyFunction = (d) => d.start_date + d.task_id + d.end_date;
-  const filterTaskWithValidQueuedDttm = (tasks) => tasks.filter(d => !!d.queued_dttm);
+  const filterTaskWithValidQueuedDttm = (tasks) => tasks.filter((d) => !!d.queued_dttm);
 
   let x = d3
     .time
@@ -175,9 +174,8 @@ d3.gantt = () => {
       timeDomainStart = moment.min(tasks.map((a) => {
         if (a.queued_dttm) {
           return moment.min([a.queued_dttm, a.start_date]);
-        } else {
-          return a.start_date;
         }
+        return a.start_date;
       })).valueOf();
     }
   };
@@ -231,7 +229,7 @@ d3.gantt = () => {
           mapIndex: d.map_index,
         });
       })
-      .attr('class',(d) => (d.state || 'null') + ' all-tasks')
+      .attr('class', (d) => `${d.state || 'null'} all-tasks`)
       .attr('y', 0)
       .attr('transform', rectTransform)
       .attr('height', () => y.rangeBand())
@@ -246,7 +244,7 @@ d3.gantt = () => {
       .attr('y', 0)
       .attr('transform', queuedRectTransform)
       .attr('height', () => y.rangeBand())
-      .attr('width', (d) => d3.max([x(d.start_date.valueOf()) - x(d.queued_dttm.valueOf()), 1]));;
+      .attr('width', (d) => d3.max([x(d.start_date.valueOf()) - x(d.queued_dttm.valueOf()), 1]));
 
     svg.append('g')
       .attr('class', 'x axis')

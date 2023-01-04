@@ -157,7 +157,7 @@ export function taskQueuedStateTooltip(ti) {
   if (ti.start_date && ti.queued_dttm) {
     const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
     const queuedDate = ti.queued_dttm instanceof moment ? ti.queued_dttm : moment(ti.queued_dttm);
-    let duration = startDate.diff(queuedDate, 'second', true);  // Set the floating point result flag to true.
+    const duration = startDate.diff(queuedDate, 'second', true); // Set the floating point result flag to true.
     tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(duration))}<br>`;
     // dagTZ has been defined in dag.html
     tt += generateTooltipDateTimes(ti.queued_dttm, ti.start_date, dagTZ || 'UTC');
