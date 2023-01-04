@@ -2289,11 +2289,11 @@ export interface components {
      */
     OnlyActive: boolean;
     /**
-     * @description Only filter unpaused DAGs.
+     * @description Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
      *
-     * *New in version 2.5.1*
+     * *New in version 2.6.0*
      */
-    OnlyUnpaused: boolean;
+    Paused: boolean;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -2478,11 +2478,11 @@ export interface operations {
          */
         only_active?: components["parameters"]["OnlyActive"];
         /**
-         * Only filter unpaused DAGs.
+         * Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
          *
-         * *New in version 2.5.1*
+         * *New in version 2.6.0*
          */
-        only_unpaused?: components["parameters"]["OnlyUnpaused"];
+        paused?: components["parameters"]["Paused"];
         /** If set, only return DAGs with dag_ids matching this pattern. */
         dag_id_pattern?: string;
       };

@@ -409,7 +409,7 @@ paths:
         - $ref: '#/components/parameters/OrderBy'
         - $ref: '#/components/parameters/FilterTags'
         - $ref: '#/components/parameters/OnlyActive'
-        - $ref: '#/components/parameters/OnlyUnpaused'
+        - $ref: '#/components/parameters/Paused'
         - name: dag_id_pattern
           in: query
           schema:
@@ -4921,17 +4921,16 @@ components:
 
         *New in version 2.1.1*
 
-    OnlyUnpaused:
+    Paused:
       in: query
-      name: only_unpaused
+      name: paused
       schema:
         type: boolean
-        default: false
       required: false
       description: |
-        Only filter unpaused DAGs.
+        Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
 
-        *New in version 2.5.1*
+        *New in version 2.6.0*
 
     # Other parameters
     FileToken:
