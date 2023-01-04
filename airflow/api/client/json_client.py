@@ -28,9 +28,6 @@ class Client(api_client.Client):
 
     This client is used to interact with a Json API server and perform various actions
     such as triggering DAG runs,deleting DAGs, interacting with pools, and getting lineage information.
-
-    :param api_base_url: The base URL for the Json API server.
-    :param session: A session object to use for making HTTP requests.
     """
 
     def _request(self, url: str, json=None, method: str = "GET") -> dict:
