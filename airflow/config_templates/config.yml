@@ -2025,7 +2025,7 @@ scheduler:
     dag_dir_list_interval:
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
-        Setting to negative value will disable the dag processor.
+        Setting this to a negative value disables the DAG processor.
       version_added: ~
       type: string
       example: ~
