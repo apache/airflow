@@ -57,10 +57,8 @@ def provide_bucket_name(func: T) -> T:
 
         if "bucket_name" not in bound_args.arguments:
             self = args[0]
-            if self.aws_conn_id:
-                connection = self.get_connection(self.aws_conn_id)
-                if connection.schema:
-                    bound_args.arguments["bucket_name"] = connection.schema
+            if self.conn_config and self.conn_config.schema:
+                bound_args.arguments["bucket_name"] = self.conn_config.schema
 
         return func(*bound_args.args, **bound_args.kwargs)
 

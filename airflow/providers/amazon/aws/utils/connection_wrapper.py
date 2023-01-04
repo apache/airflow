@@ -103,6 +103,7 @@ class AwsConnectionWrapper(LoggingMixin):
     conn_type: str | None = field(init=False, default=None)
     login: str | None = field(init=False, repr=False, default=None)
     password: str | None = field(init=False, repr=False, default=None)
+    schema: str | None = field(init=False, repr=False, default=None)
     extra_config: dict[str, Any] = field(init=False, repr=False, default_factory=dict)
 
     # AWS Credentials from connection.
@@ -156,6 +157,7 @@ class AwsConnectionWrapper(LoggingMixin):
         self.conn_type = conn.conn_type or "aws"
         self.login = conn.login
         self.password = conn.password
+        self.schema = conn.schema or None
         self.extra_config = deepcopy(conn.extra_dejson)
 
         if self.conn_type.lower() == "s3":

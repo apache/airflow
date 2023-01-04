@@ -89,10 +89,10 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.extra_config is not mock_conn.extra_dejson
         # `extra_config` is a same object that return by `extra_dejson`
         assert wrap_conn.extra_config is wrap_conn.extra_dejson
+        assert wrap_conn.schema == "mock-schema"
 
         # Check that not assigned other attributes from airflow.models.Connection to wrapper
         assert not hasattr(wrap_conn, "host")
-        assert not hasattr(wrap_conn, "schema")
         assert not hasattr(wrap_conn, "port")
 
         # Check that Wrapper is True if assign connection
