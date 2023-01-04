@@ -354,6 +354,7 @@ However you can also look at other non-performance-related scheduler configurati
 
 - :ref:`config:scheduler__dag_dir_list_interval`
   How often (in seconds) to scan the DAGs directory for new files.
+  Setting this to a negative value disables the DAG processor.
 
 - :ref:`config:scheduler__file_parsing_sort_mode`
   The scheduler will list and sort the DAG files to decide the parsing order.
