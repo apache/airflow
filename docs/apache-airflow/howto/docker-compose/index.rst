@@ -160,7 +160,7 @@ Now you can start all services:
 
 .. code-block:: bash
 
-    docker-compose up
+    docker compose up
 
 In a second terminal you can check the condition of the containers and make sure that no containers are in an unhealthy condition:
 
