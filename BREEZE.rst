@@ -223,6 +223,7 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 Installation
 ============
 
+Set your working directory to root of (this) cloned repository.
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
@@ -239,7 +240,7 @@ Those are all available commands for Breeze and details about the commands are d
   :width: 100%
   :alt: Breeze commands
 
-Breeze installed this way is linked to your checked out sources of Airflow so Breeze will
+Breeze installed this way is linked to your checked out sources of Airflow, so Breeze will
 automatically use latest version of sources from ``./dev/breeze``. Sometimes, when dependencies are
 updated ``breeze`` commands with offer you to run self-upgrade.
 
