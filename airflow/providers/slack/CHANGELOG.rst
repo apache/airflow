@@ -41,6 +41,7 @@ Features
 ~~~~~~~~
 
 * ``Implements SqlToSlackApiFileOperator (#26374)``
+* ``Added SlackNotifier (#28569)``
 
 Bug Fixes
 ~~~~~~~~~
