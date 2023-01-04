@@ -524,6 +524,7 @@ When you trigger it you need to pass:
 
 The manual building is described in [MANUALLY_BUILDING_IMAGES.md](MANUALLY_BUILDING_IMAGES.md).
 
+
 ## Prepare API clients RC packages
 
 ### API Clients versioning policy
@@ -534,6 +535,9 @@ For major/minor version release, always release new versions of the API clients.
 - [Go client](https://github.com/apache/airflow-client-go)
 
 For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
+A patch is considered relevant to the clients if it updates the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml).
+There are other external reasons for which we might want to release a patch version for clients only, but they are not
+tied to an airflow release and therefore out of scope.
 
 > The patch version of each API client is not necessarily in sync with the patch that you are releasing. You need to check for
 > each client what is the next patch version to be released.
@@ -551,7 +555,10 @@ If API clients are released in this airflow version:
     ```
 
 - Follow the specific release process of each API client to generate the artifacts and push to PyPI a
-    release candidate client packages.
+    release candidate client package:
+
+    - [Python client](https://github.com/apache/airflow-client-python#release-process)
+    - [Go client](https://github.com/apache/airflow-client-go#release-process)
 
 
 ## Prepare issue for testing status of rc
