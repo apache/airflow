@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from ssl import CERT_NONE
 from types import TracebackType
+from urllib.parse import quote, quote_plus
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
@@ -89,12 +90,18 @@ class MongoHook(BaseHook):
     def create_uri(self) -> str:
         """
         Create URI string from the given credentials.
-
         :return: URI string.
         """
         srv = self.extras.pop("srv", False)
         scheme = "mongodb+srv" if srv else "mongodb"
-        creds = f"{self.connection.login}:{self.connection.password}@" if self.connection.login else ""
+        login = self.connection.login
+        password = self.connection.password
+        if login is not None and password is not None:
+            login = login.encode()
+            password = password.encode()
+            creds = f"{quote_plus(login)}:{quote_plus(password)}@"
+        else:
+            creds = ""
         port = f":{self.connection.port}" if self.connection.port else ""
         return f"{scheme}://{creds}{self.connection.host}{port}/{self.connection.schema}"
 
