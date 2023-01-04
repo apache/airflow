@@ -54,7 +54,7 @@ def provide_bucket_name(func: T) -> T:
     Function decorator that provides a bucket name taken from the connection
     in case no bucket name has been passed to the function.
     """
-    if getattr(func, "_unify_bucket_name_and_key_wrapped", False) is True:
+    if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
     function_signature = signature(func)
 
