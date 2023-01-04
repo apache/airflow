@@ -182,6 +182,15 @@ for deserialization ensure that ``deserialize(data: dict, version: int)`` is spe
 
   Note: Typing of ``__version__`` is required and needs to be ``ClassVar[int]``
 
+
+Sensors and the TaskFlow API
+--------------------------------------
+
+.. versionadded:: 2.5.0
+
+For an example of writing a Sensor using the TaskFlow API, see
+:ref:`Using the TaskFlow API with Sensor operators <taskflow/task_sensor_example>`.
+
 History
 -------
 
