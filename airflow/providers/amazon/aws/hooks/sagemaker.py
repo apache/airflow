@@ -1163,3 +1163,85 @@ class SageMakerHook(AwsBaseHook):
             else:
                 self.log.error("Error when trying to create Model Package Group: %s", e)
                 raise
+
+    def _describe_auto_ml_job(self, job_name: str):
+        res = self.conn.describe_auto_ml_job(AutoMLJobName=job_name)
+        self.log.info("%s's current step: %s", job_name, res["AutoMLJobSecondaryStatus"])
+        return res
+
+    def create_auto_ml_job(
+        self,
+        job_name: str,
+        s3_input: str,
+        target_attribute: str,
+        s3_output: str,
+        role_arn: str,
+        compressed_input: bool = False,
+        time_limit: int | None = None,
+        autodeploy_endpoint_name: str | None = None,
+        extras: dict | None = None,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+    ) -> dict | None:
+        """
+        Creates an auto ML job, learning to predict the given column from the data provided through S3.
+        The learning output is written to the specified S3 location.
+
+        :param job_name: Name of the job to create, needs to be unique within the account.
+        :param s3_input: The S3 location (folder or file) where to fetch the data.
+            By default, it expects csv with headers.
+        :param target_attribute: The name of the column containing the values to predict.
+        :param s3_output: The S3 folder where to write the model artifacts. Must be 128 characters or fewer.
+        :param role_arn: The ARN or the IAM role to use when interacting with S3.
+            Must have read access to the input, and write access to the output folder.
+        :param compressed_input: Set to True if the input is gzipped.
+        :param time_limit: The maximum amount of time in seconds to spend training the model(s).
+        :param autodeploy_endpoint_name: If specified, the best model will be deployed to an endpoint with
+            that name. No deployment made otherwise.
+        :param extras: Use this dictionary to set any variable input variable for job creation that is not
+            offered through the parameters of this function. The format is described in:
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_auto_ml_job
+        :param wait_for_completion: Whether to wait for the job to finish before returning. Defaults to True.
+        :param check_interval: Interval in seconds between 2 status checks when waiting for completion.
+
+        :returns: Only if waiting for completion, a dictionary detailing the best model. The structure is that
+            of the "BestCandidate" key in:
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.describe_auto_ml_job
+        """
+        input_data = [
+            {
+                "DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": s3_input}},
+                "TargetAttributeName": target_attribute,
+            },
+        ]
+        params_dict = {
+            "AutoMLJobName": job_name,
+            "InputDataConfig": input_data,
+            "OutputDataConfig": {"S3OutputPath": s3_output},
+            "RoleArn": role_arn,
+        }
+        if compressed_input:
+            input_data[0]["CompressionType"] = "Gzip"
+        if time_limit:
+            params_dict.update(
+                {"AutoMLJobConfig": {"CompletionCriteria": {"MaxAutoMLJobRuntimeInSeconds": time_limit}}}
+            )
+        if autodeploy_endpoint_name:
+            params_dict.update({"ModelDeployConfig": {"EndpointName": autodeploy_endpoint_name}})
+        if extras:
+            params_dict.update(extras)
+
+        # returns the job ARN, but we don't need it because we access it by its name
+        self.conn.create_auto_ml_job(**params_dict)
+
+        if wait_for_completion:
+            res = self.check_status(
+                job_name,
+                "AutoMLJobStatus",
+                # cannot pass the function directly because the parameter needs to be named
+                self._describe_auto_ml_job,
+                check_interval,
+            )
+            if "BestCandidate" in res:
+                return res["BestCandidate"]
+        return None

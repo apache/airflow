@@ -460,7 +460,7 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
-    architecture = Architecture().get_current()
+    architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
     provider_files_pattern = pathlib.Path(ROOT_DIR).glob("airflow/providers/**/provider.yaml")
     all_provider_files = sorted(str(path) for path in provider_files_pattern)

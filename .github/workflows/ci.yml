@@ -103,6 +103,7 @@ jobs:
             "milton0825",
             "mistercrunch",
             "msumit",
+            "o-nikolas",
             "pierrejeambrun",
             "pingzh",
             "potiuk",
@@ -724,6 +725,10 @@ jobs:
       - name: "Verify sdist packages with twine"
         run: pipx install twine && twine check dist/*.tar.gz
         if: matrix.package-format == 'sdist'
+      - name: "Test issue generation automatically"
+        run: >
+          breeze release-management generate-issue-content --only-available-in-dist --disable-progress
+        if: matrix.package-format == 'wheel'
       - name: "Install and test provider packages and airflow via ${{matrix.package-format}} files"
         run: breeze release-management verify-provider-packages --use-packages-from-dist
         env:
