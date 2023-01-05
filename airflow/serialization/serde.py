@@ -262,11 +262,7 @@ def _convert(old: dict) -> dict:
 
 
 def _match(classname: str) -> bool:
-    for p in _patterns:
-        if p.match(classname):
-            return True
-
-    return False
+    return any(p.match(classname) is not None for p in _patterns)
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
