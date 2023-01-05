@@ -78,6 +78,8 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         execution_role_arn: str | None = None,
         **kwargs,
     ):
@@ -92,6 +94,8 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.execution_role_arn = execution_role_arn
 
     def execute(self, context: Context) -> list[str]:
@@ -126,6 +130,8 @@ class EmrAddStepsOperator(BaseOperator):
             job_flow_id=job_flow_id,
             steps=steps,
             wait_for_completion=self.wait_for_completion,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
             execution_role_arn=self.execution_role_arn,
         )
 

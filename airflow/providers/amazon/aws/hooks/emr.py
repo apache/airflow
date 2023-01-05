@@ -28,6 +28,7 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter import get_state, waiter
+from airflow.utils.helpers import prune_dict
 
 
 class EmrHook(AwsBaseHook):
@@ -130,6 +131,8 @@ class EmrHook(AwsBaseHook):
         job_flow_id: str,
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         execution_role_arn: str | None = None,
     ) -> list[str]:
         """
@@ -138,6 +141,8 @@ class EmrHook(AwsBaseHook):
         :param job_flow_id: The id of the job flow to which the steps are being added
         :param steps: A list of the steps to be executed by the job flow
         :param wait_for_completion: If True, wait for the steps to be completed. Default is False
+        :param waiter_delay: The amount of time in seconds to wait between attempts. Default is 5
+        :param waiter_max_attempts: The maximum number of attempts to be made. Default is 100
         :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
         """
         config = {}
@@ -155,10 +160,12 @@ class EmrHook(AwsBaseHook):
                 waiter.wait(
                     ClusterId=job_flow_id,
                     StepId=step_id,
-                    WaiterConfig={
-                        "Delay": 5,
-                        "MaxAttempts": 100,
-                    },
+                    WaiterConfig=prune_dict(
+                        {
+                            "Delay": waiter_delay,
+                            "MaxAttempts": waiter_max_attempts,
+                        }
+                    ),
                 )
         return response["StepIds"]
 
