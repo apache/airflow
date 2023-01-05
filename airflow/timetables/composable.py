@@ -30,17 +30,14 @@ def compose_timetable(
     interval_strategy_cls: type[IntervalStrategy],
     manual_strategy_cls: type[ManualStrategy],
 ):
+    """
+    This method allows you to compose timetables out of three parts: a RunStrategy that determines
+    when DAG Runs are scheduled, an IntervalStrategy for determining regularly scheduled intervals,
+    and a ManualStrategy for setting the interval when a manual DAG Run is triggered.
+    """
     class ComposedTimetable(Timetable):
-        """Timetable that triggers DAG runs according to a cron expression.
-
-        This is different from ``CronDataIntervalTimetable``, where the cron
-        expression specifies the *data interval* of a DAG run. With this timetable,
-        the data intervals are specified independently from the cron expression.
-        Also for the same reason, this timetable kicks off a DAG run immediately at
-        the start of the period (similar to POSIX cron), instead of needing to wait
-        for one data interval to pass.
-
-        Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+        """
+        A Timetable assembled from a RunStrategy, IntervalStrategy, and ManualStrategy
         """
 
         def __init__(self, run_args, interval_args, manual_args):
