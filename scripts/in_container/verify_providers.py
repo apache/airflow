@@ -33,6 +33,8 @@ from warnings import WarningMessage
 
 from rich.console import Console
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
 console = Console(width=400, color_system="standard")
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
@@ -183,16 +185,6 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
     ),
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "dbt"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "jdbc"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "azure"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "qubole"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "winrm"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "dbt"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "jdbc"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "azure"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "qubole"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "winrm"),
     (
         "'nteract-scrapbook' package has been renamed to `scrapbook`. No new releases are "
         "going out for this old package name.",
@@ -361,6 +353,9 @@ def import_all_classes(
                             imported_classes.append(class_name)
                 if w:
                     all_warnings.extend(w)
+            except AirflowOptionalProviderFeatureException:
+                # We ignore optional features
+                ...
             except Exception:
                 exception_str = traceback.format_exc()
                 tracebacks.append((modinfo.name, exception_str))
