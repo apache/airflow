@@ -54,16 +54,16 @@ def waiter(
     :param check_interval_seconds: Number of seconds waiter should wait before attempting
         to retry get_state_callable. Defaults to 60 seconds.
     """
-    response = get_state_callable(**get_state_args)
-    state: str = get_state(response, parse_response)
-    while state not in desired_state:
+    while True:
+        state = get_state(get_state_callable(**get_state_args), parse_response)
+        if state in desired_state:
+            break
         if state in failure_states:
             raise AirflowException(f"{object_type.title()} reached failure state {state}.")
-        if countdown >= check_interval_seconds:
+        if countdown > check_interval_seconds:
             countdown -= check_interval_seconds
             log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
             time.sleep(check_interval_seconds)
-            state = get_state(get_state_callable(**get_state_args), parse_response)
         else:
             message = f"{object_type.title()} still not {action.lower()} after the allocated time limit."
             log.error(message)
