@@ -35,6 +35,7 @@ from parameterized import parameterized
 
 from airflow.configuration import conf
 from airflow.executors import celery_executor
+from airflow.executors.celery_executor import CeleryExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -97,6 +98,12 @@ class TestCeleryExecutor:
     def teardown_method(self) -> None:
         db.clear_db_runs()
         db.clear_db_jobs()
+
+    def test_supports_pickling(self):
+        assert CeleryExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert CeleryExecutor.supports_sentry
 
     @pytest.mark.quarantined
     @pytest.mark.backend("mysql", "postgres")

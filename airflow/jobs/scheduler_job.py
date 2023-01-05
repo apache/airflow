@@ -41,7 +41,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackR
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -720,8 +720,10 @@ class SchedulerJob(BaseJob):
 
         self.log.info("Starting the scheduler")
 
+        executor_class, _ = ExecutorLoader.import_default_executor_cls()
+
         # DAGs can be pickled for easier remote execution by some executors
-        pickle_dags = self.do_pickle and self.executor_class not in UNPICKLEABLE_EXECUTORS
+        pickle_dags = self.do_pickle and executor_class.supports_pickling
 
         self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 

@@ -39,6 +39,9 @@ class CeleryKubernetesExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_pickling: bool = True
+    supports_sentry: bool = False
+
     callback_sink: BaseCallbackSink | None = None
 
     KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")

@@ -106,6 +106,8 @@ class BaseExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = False
+    supports_pickling: bool = True
+    supports_sentry: bool = False
 
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None

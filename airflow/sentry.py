@@ -23,6 +23,7 @@ from functools import wraps
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.session import find_session_idx, provide_session
 from airflow.utils.state import State
 
@@ -82,14 +83,15 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
         def __init__(self):
             """Initialize the Sentry SDK."""
             ignore_logger("airflow.task")
-            executor_name = conf.get("core", "EXECUTOR")
 
             sentry_flask = FlaskIntegration()
 
             # LoggingIntegration is set by default.
             integrations = [sentry_flask]
 
-            if executor_name == "CeleryExecutor":
+            executor_class, _ = ExecutorLoader.import_default_executor_cls()
+
+            if executor_class.supports_sentry:
                 from sentry_sdk.integrations.celery import CeleryIntegration
 
                 sentry_celery = CeleryIntegration()

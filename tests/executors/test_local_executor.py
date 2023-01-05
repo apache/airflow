@@ -31,6 +31,12 @@ class TestLocalExecutor:
 
     TEST_SUCCESS_COMMANDS = 5
 
+    def test_supports_pickling(self):
+        assert not LocalExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert not LocalExecutor.supports_sentry
+
     def test_is_local_default_value(self):
         assert LocalExecutor.is_local
 
