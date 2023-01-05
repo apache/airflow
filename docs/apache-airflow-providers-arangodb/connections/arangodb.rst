@@ -24,10 +24,11 @@ The ArangoDB connection provides credentials for accessing the ArangoDB.
 Configuring the Connection
 --------------------------
 ArangoDB Host (required)
-    Specify ArangoDB Host URL or  comma separated list of URLs (coordinators in a cluster) `eg. "http://127.0.0.1:8529"` or `"http://127.0.0.1:8529,http://127.0.0.1:8530 so on.`
+    Specify ArangoDB Host URL or comma separated list of URLs (coordinators in a cluster),
+    e.g. ``http://127.0.0.1:8529`` or ``http://127.0.0.1:8529,http://127.0.0.1:8530``.
 ArangoDB Database/Schema (required)
-    Specify `Database/Schema` for the ArangoDB. eg. `_system`
+    Specify **Database/Schema** for the ArangoDB. eg. ``_system``.
 ArangoDB Username (required)
-    Specify `username` for the ArangoDB, eg. `root`
+    Specify **username** for the ArangoDB, e.g. ``root``.
 ArangoDB Password (required)
-    Specify `password` for the ArangoDB
+    Specify **password** for the ArangoDB

@@ -29,8 +29,8 @@ WebHdfsSensor
 Waits for a file or folder to land in HDFS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The :class:`~airflow.providers.apache.hdfs.sensors.web_hdfs.WebHdfsSensor`. is used to check for a file or folder
-to land in HDFS
+The :class:`~airflow.providers.apache.hdfs.sensors.web_hdfs.WebHdfsSensor` is used to check for a file or folder
+to land in HDFS.
 
 Use the ``filepath`` parameter to poke until the provided file is found.
 

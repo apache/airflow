@@ -35,8 +35,10 @@ Schema (optional)
 
         If you want to define a default database schema:
 
-        * using ``PostgresOperator`` see :ref:`Passing Server Configuration Parameters into PostgresOperator <howto/operators:postgres>`
-        * using ``PostgresHook`` see `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>_`
+        * using :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`
+          see :ref:`Passing Server Configuration Parameters into PostgresOperator <howto/operators:postgres>`
+        * using :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook`
+          see `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>`_
 
 Login (required)
     Specify the user name to connect.
@@ -88,7 +90,7 @@ Extra (optional)
       `Amazon Aurora <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html>`__
       or `Amazon Redshift <https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html>`__.
     * ``aws_conn_id`` - AWS Connection ID which use for authentication via AWS IAM,
-      if not specified then **aws_conn_id** is used.
+      if not specified then **aws_default** is used.
     * ``redshift`` - Used when AWS IAM database authentication enabled.
       If set to ``True`` than authenticate to Amazon Redshift Cluster, otherwise to Amazon RDS or Amazon Aurora.
     * ``cluster-identifier`` - The unique identifier of the Amazon Redshift Cluster that contains the database

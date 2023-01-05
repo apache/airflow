@@ -20,12 +20,16 @@
 Operators
 =========
 
-Use the :class:`~airflow.providers.github.operators.GithubOperator` to execute
+Use the :class:`~airflow.providers.github.operators.github.GithubOperator` to execute
 Operations in a `GitHub <https://www.github.com/>`__.
 
-You can build your own operator using :class:`~airflow.providers.github.operators.GithubOperator`
-and passing **github_method** and **github_method_args** from top level `PyGithub <https://pygithub.readthedocs.io/>`__ methods.
-You can further process the result using **result_processor** Callable as you like.
+You can build your own operator using :class:`~airflow.providers.github.operators.github.GithubOperator`
+and passing :class:`github_method <airflow.providers.github.operators.github.GithubOperator>`
+and :class:`github_method_args <airflow.providers.github.operators.github.GithubOperator>`
+from top level `PyGithub <https://pygithub.readthedocs.io/>`__ methods.
+
+You can further process the result using
+:class:`result_processor <airflow.providers.github.operators.github.GithubOperator>` Callable as you like.
 
 An example of Listing all Repositories owned by a user, **client.get_user().get_repos()** can be implemented as following:
 
@@ -55,7 +59,7 @@ You can also implement your own sensor on Repository using :class:`~airflow.prov
 an example of this is :class:`~airflow.providers.github.sensors.GithubTagSensor`
 
 
-Use the :class:`~airflow.providers.github.sensors.GithubTagSensor` to wait for creation of
+Use the :class:`~airflow.providers.github.sensors.github.GithubTagSensor` to wait for creation of
 a Tag in `GitHub <https://www.github.com/>`__.
 
 An example for tag **v1.0**:
@@ -66,7 +70,8 @@ An example for tag **v1.0**:
     :start-after: [START howto_tag_sensor_github]
     :end-before: [END howto_tag_sensor_github]
 
-Similar Functionality can be achieved by directly using :class:`~airflow.providers.github.sensors.GithubSensor` ,
+Similar Functionality can be achieved by directly using
+:class:`~from airflow.providers.github.sensors.github.GithubSensor`.
 
 .. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python

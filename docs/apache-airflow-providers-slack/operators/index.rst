@@ -17,16 +17,12 @@
 
 
 
-Apache Pig Operators
-====================
+Slack Operators
+===============
 
-Apache Pig is a platform for analyzing large data sets that consists of a high-level language
-for expressing data analysis programs, coupled with infrastructure for evaluating these programs.
-Pig programs are amenable to substantial parallelization, which in turns enables them to handle very large data sets.
 
-Use the :class:`~airflow.providers.apache.pig.operators.pig.PigOperator` to execute a pig script.
+.. toctree::
+    :maxdepth: 1
+    :glob:
 
-.. exampleinclude:: /../../tests/system/providers/apache/pig/example_pig.py
-    :language: python
-    :start-after: [START create_pig]
-    :end-before: [END create_pig]
+    *

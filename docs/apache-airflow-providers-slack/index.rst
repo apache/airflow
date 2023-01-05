@@ -31,21 +31,14 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    How-to Guide <operators/slack_operator_howto_guide>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Guides
-
-    SqlToSlackOperator types <operators/sql_to_slack>
+    Connection Types <connections/index>
+    Operators <operators/index>
     Slack Notifications <notifications/slack_notifier_howto_guide>
-
 
 .. toctree::
     :maxdepth: 1
     :caption: References
 
-    Connection Types <connections/index>
     Python API <_api/airflow/providers/slack/index>
     Example DAGs <https://github.com/apache/airflow/tree/providers-slack/|version|/tests/system/providers/slack>
 
