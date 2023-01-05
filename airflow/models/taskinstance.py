@@ -550,7 +550,7 @@ class TaskInstance(Base, LoggingMixin):
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        if self.state in State.running:
+        if self.state == State.RUNNING:
             return self._try_number
         return self._try_number + 1
 
