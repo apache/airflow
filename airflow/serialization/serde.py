@@ -57,10 +57,8 @@ _deserializers: dict[str, ModuleType] = {}
 _extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
-_iterables = (list, set, tuple)
+_collections = (list, set, tuple)  # dict is treated specially.
 _patterns: list[re.Pattern] = []
-
-_reverse_cache: dict[int, tuple[ModuleType, str, int]] = {}
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
@@ -72,89 +70,104 @@ def decode(d: dict[str, str | int | T]) -> tuple:
     return d[CLASSNAME], d[VERSION], d.get(DATA, None)
 
 
-def serialize(o: object, depth: int = 0) -> U | None:
+@dataclasses.dataclass()
+class _Serializer:
+    """Implementation for ``serialize()``.
+
+    This private class exists to pass down ``ensure_json_compatible`` and keep
+    track of recursion depth to avoid blowing up the call stack.
     """
-    Recursively serializes objects into a primitive. Primitives (int, float, int, bool)
-    are returned as is. Tuples and dicts are iterated over, where it is assumed that keys
-    for dicts can be represented as str. Values that are not primitives are serialized if
-    a serializer is found for them. The order in which serializers are used
-    is 1) a serialize function provided by the object 2) a registered serializer in
-    the namespace of airflow.serialization.serializers and 3) an attr or dataclass annotations.
-    If a serializer cannot be found a TypeError is raised.
+
+    ensure_json_compatible: bool
+
+    def serialize(self, o: object, depth: int) -> U | None:
+        if depth == MAX_RECURSION_DEPTH:
+            raise RecursionError("maximum recursion depth reached for serialization")
+
+        # None remains None
+        if o is None:
+            return o
+
+        # primitive types are returned as is
+        if isinstance(o, _primitives):
+            if isinstance(o, enum.Enum):
+                return o.value
+            return o
+
+        if isinstance(o, dict):
+            if CLASSNAME in o or SCHEMA_ID in o:
+                raise AttributeError(f"reserved key {CLASSNAME} or {SCHEMA_ID} found in dict to serialize")
+            return {str(k): self.serialize(v, depth=depth + 1) for k, v in o.items()}
+
+        # tuples and plain dicts are iterated over recursively
+        if isinstance(o, _collections):
+            s = (self.serialize(d, depth + 1) for d in o)
+            if self.ensure_json_compatible:
+                return list(s)
+            return type(o)(s)
+
+        cls = type(o)
+        qn = qualname(o)
+
+        # custom serializers
+        dct = {
+            CLASSNAME: qn,
+            VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
+        }
+
+        # if there is a builtin serializer available use that
+        if qn in _serializers:
+            data, classname, version, is_serialized = _serializers[qn].serialize(o)
+            if is_serialized:
+                return encode(classname, version, self.serialize(data, depth + 1))
+
+        # object / class brings their own
+        if hasattr(o, "serialize"):
+            data = getattr(o, "serialize")()
+
+            # if we end up with a structure, ensure its values are serialized
+            if isinstance(data, dict):
+                data = self.serialize(data, depth + 1)
+
+            dct[DATA] = data
+            return dct
+
+        # dataclasses
+        if dataclasses.is_dataclass(cls):
+            data = dataclasses.asdict(o)
+            dct[DATA] = self.serialize(data, depth + 1)
+            return dct
+
+        # attr annotated
+        if attr.has(cls):
+            # Only include attributes which we can pass back to the classes constructor
+            data = attr.asdict(o, recurse=True, filter=lambda a, v: a.init)  # type: ignore[arg-type]
+            dct[DATA] = self.serialize(data, depth + 1)
+            return dct
+
+        raise TypeError(f"cannot serialize object of type {cls}")
+
+
+def serialize(o: object, *, ensure_json_compatible: bool = False) -> U | None:
+    """Recursively serializes objects into a primitive.
+
+    Primitives (int, float, bool, str) are returned as-is. Iterables are
+    iterated over, where it is assumed that keys in a mapping can be represented
+    as str.
+
+    Values that are not of a built-in type are serialized if a serializer is
+    found for them. The order in which serializers are used is 1) a serialize
+    function provided by the object 2) a registered serializer in the namespace
+    of ``airflow.serialization.serializers``, and 3) an attr or dataclass
+    annotations. If a serializer cannot be found, a TypeError is raised.
 
     :param o: object to serialize
-    :param depth: private
+    :param ensure_json_compatible: if True, the returned object is guaranteed to
+        be JSON-serializable. Otherwise this may return a non-JSON-serializable
+        built-in type (e.g. set).
     :return: a primitive
     """
-    if depth == MAX_RECURSION_DEPTH:
-        raise RecursionError("maximum recursion depth reached for serialization")
-
-    # None remains None
-    if o is None:
-        return o
-
-    # primitive types are returned as is
-    if isinstance(o, _primitives):
-        if isinstance(o, enum.Enum):
-            return o.value
-
-        return o
-
-    # tuples and plain dicts are iterated over recursively
-    if isinstance(o, _iterables):
-        s = [serialize(d, depth + 1) for d in o]
-        if isinstance(o, tuple):
-            return tuple(s)
-        if isinstance(o, set):
-            return set(s)
-        return s
-
-    if isinstance(o, dict):
-        if CLASSNAME in o or SCHEMA_ID in o:
-            raise AttributeError(f"reserved key {CLASSNAME} or {SCHEMA_ID} found in dict to serialize")
-
-        return {str(k): serialize(v, depth + 1) for k, v in o.items()}
-
-    cls = type(o)
-    qn = qualname(o)
-
-    # custom serializers
-    dct = {
-        CLASSNAME: qn,
-        VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
-    }
-
-    # if there is a builtin serializer available use that
-    if qn in _serializers:
-        data, classname, version, is_serialized = _serializers[qn].serialize(o)
-        if is_serialized:
-            return encode(classname, version, serialize(data, depth + 1))
-
-    # object / class brings their own
-    if hasattr(o, "serialize"):
-        data = getattr(o, "serialize")()
-
-        # if we end up with a structure, ensure its values are serialized
-        if isinstance(data, dict):
-            data = serialize(data, depth + 1)
-
-        dct[DATA] = data
-        return dct
-
-    # dataclasses
-    if dataclasses.is_dataclass(cls):
-        data = dataclasses.asdict(o)
-        dct[DATA] = serialize(data, depth + 1)
-        return dct
-
-    # attr annotated
-    if attr.has(cls):
-        # Only include attributes which we can pass back to the classes constructor
-        data = attr.asdict(o, recurse=True, filter=lambda a, v: a.init)  # type: ignore[arg-type]
-        dct[DATA] = serialize(data, depth + 1)
-        return dct
-
-    raise TypeError(f"cannot serialize object of type {cls}")
+    return _Serializer(ensure_json_compatible).serialize(o, depth=0)
 
 
 def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
@@ -176,11 +189,11 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if isinstance(o, _primitives):
         return o
 
-    if isinstance(o, _iterables):
+    if isinstance(o, _collections):
         return [deserialize(d) for d in o]
 
     if not isinstance(o, dict):
-        raise TypeError()
+        raise TypeError("not deserializable")
 
     o = _convert(o)
 
@@ -260,12 +273,12 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
     s = f"{classname}@version={version}("
     if isinstance(value, _primitives):
         s += f"{value})"
-    elif isinstance(value, _iterables):
-        s += ",".join(str(serialize(value, False)))
     elif isinstance(value, dict):
         for k, v in value.items():
-            s += f"{k}={str(serialize(v, False))},"
+            s += f"{k}={str(serialize(v))},"
         s = s[:-1] + ")"
+    elif isinstance(value, _collections):
+        s += ",".join(str(serialize(value)))
 
     return s
 

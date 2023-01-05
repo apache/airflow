@@ -56,12 +56,12 @@ class WebEncoder(json.JSONEncoder):
             return o.strftime("%Y-%m-%d")
 
         if isinstance(o, Decimal):
-            data = serialize(o)
+            data = serialize(o, ensure_json_compatible=True)
             if isinstance(data, dict) and DATA in data:
                 return data[DATA]
 
         try:
-            data = serialize(o)
+            data = serialize(o, ensure_json_compatible=True)
             if isinstance(data, dict) and CLASSNAME in data:
                 # this is here for backwards compatibility
                 if (
@@ -79,7 +79,7 @@ class XComEncoder(json.JSONEncoder):
 
     def default(self, o: object) -> Any:
         try:
-            return serialize(o)
+            return serialize(o, ensure_json_compatible=True)
         except TypeError:
             return super().default(o)
 
