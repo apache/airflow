@@ -140,21 +140,21 @@ class ExternalTaskSensor(BaseSensorOperator):
                 f"`{self.allowed_states}` and failed states `{self.failed_states}`"
             )
 
-        if external_task_id and external_task_ids:
+        if external_task_id is not None and external_task_ids is not None:
             raise ValueError(
                 "Only one of `external_task_id` or `external_task_ids` may "
                 "be provided to ExternalTaskSensor; "
                 "Use external_task_id or external_task_ids or external_task_group_id."
             )
 
-        if external_task_group_id and external_task_id:
+        if external_task_group_id is not None and external_task_id is not None:
             raise ValueError(
                 "Only one of `external_task_group_id` or `external_task_id` may "
                 "be provided to ExternalTaskSensor; "
                 "Use external_task_id or external_task_ids or external_task_group_id."
             )
 
-        if external_task_group_id and external_task_ids:
+        if external_task_group_id is not None and external_task_ids is not None:
             raise ValueError(
                 "Only one of `external_task_group_id` or `external_task_ids` may "
                 "be provided to ExternalTaskSensor; "
