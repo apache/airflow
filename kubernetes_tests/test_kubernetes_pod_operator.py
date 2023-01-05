@@ -1142,3 +1142,23 @@ class TestKubernetesPodOperatorSystem:
                 do_xcom_push=False,
                 resources=resources,
             )
+
+    def test_changing_base_container_name(self):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            hostnetwork=True,
+            base_container_name="apple-sauce",
+        )
+        assert k.base_container_name == "apple-sauce"
+        context = create_context(k)
+        k.execute(context)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["name"] == "apple-sauce"
+        assert self.expected_pod["spec"] == actual_pod["spec"]
