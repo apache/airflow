@@ -20,7 +20,7 @@
  * Created by janomar on 23/07/15.
  */
 
-/* global document, DOMParser, $ */
+/* global document, DOMParser, $, CodeMirror */
 import { getMetaValue } from './utils';
 
 const restApiEnabled = getMetaValue('rest_api_enabled') === 'True';
@@ -125,11 +125,11 @@ function handleTestConnection(connectionType, testableConnections) {
   const testConnEnabled = testableConnections.includes(connectionType);
 
   if (testConnEnabled) {
-  // If connection type can be tested in via REST API, enable button and clear toolip.
+    // If connection type can be tested in via REST API, enable button and clear toolip.
     $(testButton).prop('disabled', false).removeAttr('title');
   } else {
-  // If connection type can NOT be tested via REST API, disable button and display toolip
-  // alerting the user.
+    // If connection type can NOT be tested via REST API, disable button and display toolip
+    // alerting the user.
     $(testButton).prop('disabled', true)
       .attr('title', 'This connection type does not currently support testing via '
         + 'Airflow REST API.');
@@ -205,7 +205,7 @@ $(document).ready(() => {
       alertBox.show();
     } else {
       alertBox = $(`<div class="alert ${alertClass}">\n`
-                   + `<button type="button" class="close" data-dismiss="alert">×</button>\n${message}</div>`);
+        + `<button type="button" class="close" data-dismiss="alert">×</button>\n${message}</div>`);
 
       $('.container .row').prepend(alertBox).show();
     }
@@ -261,7 +261,7 @@ $(document).ready(() => {
           Object.entries(extra).forEach(([key, val]) => {
             extrasObj[key] = val;
           });
-        // Check if field is a custom form field.
+          // Check if field is a custom form field.
         } else if (this.name.startsWith('extra__')) {
           // prior to Airflow 2.3 custom fields were stored in the extra dict with prefix
           // post-2.3 we allow to use with no prefix
@@ -305,4 +305,19 @@ $(document).ready(() => {
 
   // Initialize the form by setting a connection type.
   changeConnType(connTypeElem.value);
+
+  // Change conn.extra TextArea widget to CodeMirror
+  const textArea = document.getElementById('extra');
+  const editor = CodeMirror.fromTextArea(textArea, {
+    mode: { name: 'javascript', json: true },
+    gutters: ['CodeMirror-lint-markers'],
+    lineWrapping: true,
+    lint: true,
+  });
+
+  // beautify JSON
+  const jsonData = editor.getValue();
+  const data = JSON.parse(jsonData);
+  const formattedData = JSON.stringify(data, null, 2);
+  editor.setValue(formattedData);
 });
