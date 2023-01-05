@@ -839,6 +839,8 @@ svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n")"
 Verify that the packages appear in
 [providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
+You are expected to see all latest versions of providers.
+The ones you are about to release (with new version) and the ones that are not part of the current release.
 
 ## Publish the packages to PyPI
 
@@ -848,6 +850,11 @@ By that time the packages should be in your dist folder.
 cd ${AIRFLOW_REPO_ROOT}
 git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 ```
+
+example `git checkout providers-amazon/7.0.0rc2`
+
+Note you probably will see message `You are in 'detached HEAD' state.`
+This is expected, the RC tag is most likely behind the main branch.
 
 * Verify the artifacts that would be uploaded:
 
