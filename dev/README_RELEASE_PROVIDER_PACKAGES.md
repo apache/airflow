@@ -854,7 +854,7 @@ git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 example `git checkout providers-amazon/7.0.0rc2`
 
 Note you probably will see message `You are in 'detached HEAD' state.`
-This is expected. the RC tag is most likely behind main branch.
+This is expected, the RC tag is most likely behind the main branch.
 
 * Verify the artifacts that would be uploaded:
 
