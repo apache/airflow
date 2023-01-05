@@ -278,7 +278,7 @@ class FileTaskHandler(logging.Handler):
                 return log, {"end_of_log": True}
 
         # Process tailing if log is not at it's end
-        end_of_log = ti.try_number != try_number or ti.state not in State.running
+        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
         log_pos = len(log)
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]

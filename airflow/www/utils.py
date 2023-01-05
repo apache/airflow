@@ -83,6 +83,10 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
+def get_try_count(try_number: int, state: State):
+    return try_number + 1 if state in [State.DEFERRED, State.UP_FOR_RESCHEDULE] else try_number
+
+
 priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,
     TaskInstanceState.UPSTREAM_FAILED,
@@ -117,12 +121,6 @@ def get_mapped_summary(parent_instance, task_instances):
         max((ti.end_date for ti in task_instances if ti.end_date), default=None)
     )
 
-    try_count = (
-        parent_instance._try_number
-        if parent_instance._try_number != 0 or parent_instance.state in State.running
-        else parent_instance._try_number + 1
-    )
-
     return {
         "task_id": parent_instance.task_id,
         "run_id": parent_instance.run_id,
@@ -130,7 +128,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": try_count,
+        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
     }
 
 

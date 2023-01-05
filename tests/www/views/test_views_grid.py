@@ -240,7 +240,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "note": None,
                             "state": "success",
                             "task_id": "task1",
-                            "try_number": 1,
+                            "try_number": 0,
                         },
                         {
                             "run_id": "run_2",
@@ -249,7 +249,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "note": None,
                             "state": "success",
                             "task_id": "task1",
-                            "try_number": 1,
+                            "try_number": 0,
                         },
                     ],
                     "is_mapped": False,

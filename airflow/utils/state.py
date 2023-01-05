@@ -137,11 +137,6 @@ class State:
             return "white"
         return "black"
 
-    running: frozenset[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
-    """
-    A list of states indicating that a task is being executed.
-    """
-
     finished: frozenset[TaskInstanceState] = frozenset(
         [
             TaskInstanceState.SUCCESS,
