@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 
 class SsmHook(AwsBaseHook):
@@ -37,9 +38,11 @@ class SsmHook(AwsBaseHook):
         kwargs["client_type"] = "ssm"
         super().__init__(*args, **kwargs)
 
-        self.ParameterNotFoundException = self.conn.exceptions.ParameterNotFound
+    @property
+    def ParameterNotFoundException(self):
+        return self.conn.exceptions.ParameterNotFound
 
-    def get_parameter_value(self, parameter: str, **kwargs) -> str:
+    def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
         """
         Returns the value of the provided Parameter or an optional default.
 
@@ -49,9 +52,6 @@ class SsmHook(AwsBaseHook):
         try:
             return self.conn.get_parameter(Name=parameter)["Parameter"]["Value"]
         except self.ParameterNotFoundException as ex:
-            try:
-                # None may be a valid default value, so pulling it from kwargs
-                # if available instead of setting it as an optional parameter.
-                return kwargs["default"]
-            except KeyError:
+            if isinstance(default, ArgNotSet):
                 raise ex
+            return default
