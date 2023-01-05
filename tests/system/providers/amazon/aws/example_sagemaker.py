@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.operators.sagemaker import (
+    SageMakerAutoMLOperator,
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
     SageMakerProcessingOperator,
@@ -46,6 +47,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerTuningOperator,
 )
 from airflow.providers.amazon.aws.sensors.sagemaker import (
+    SageMakerAutoMLSensor,
     SageMakerPipelineSensor,
     SageMakerTrainingSensor,
     SageMakerTransformSensor,
@@ -71,18 +73,7 @@ KNN_IMAGES_BY_REGION = {
     "us-west-2": "174872318107.dkr.ecr.us-west-2.amazonaws.com/knn:1",
 }
 
-# For this example we are using a subset of Fischer's Iris Data Set.
-# The full dataset can be found at UC Irvine's machine learning repository:
-# https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data
-DATASET = """
-        5.1,3.5,1.4,0.2,Iris-setosa
-        4.9,3.0,1.4,0.2,Iris-setosa
-        7.0,3.2,4.7,1.4,Iris-versicolor
-        6.4,3.2,4.5,1.5,Iris-versicolor
-        4.9,2.5,4.5,1.7,Iris-virginica
-        7.3,2.9,6.3,1.8,Iris-virginica
-        """
-SAMPLE_SIZE = DATASET.count("\n") - 1
+SAMPLE_SIZE = 600
 
 # This script will be the entrypoint for the docker image which will handle preprocessing the raw data
 # NOTE:  The following string must remain dedented as it is being written to a file.
@@ -92,34 +83,28 @@ import numpy as np
 import pandas as pd
 
 def main():
-    # Load the Iris dataset from {input_path}/input.csv, split it into train/test
+    # Load the dataset from {input_path}/input.csv, split it into train/test
     # subsets, and write them to {output_path}/ for the Processing Operator.
 
-    columns = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width', 'species']
-    iris = pd.read_csv('{input_path}/input.csv', names=columns)
-
-    # Process data
-    iris['species'] = iris['species'].replace({{'Iris-virginica': 0, 'Iris-versicolor': 1, 'Iris-setosa': 2}})
-    iris = iris[['species', 'sepal_length', 'sepal_width', 'petal_length', 'petal_width']]
+    data = pd.read_csv('{input_path}/input.csv')
 
     # Split into test and train data
-    iris_train, iris_test = np.split(
-        iris.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(iris))]
+    data_train, data_test = np.split(
+        data.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(data))]
     )
 
     # Remove the "answers" from the test set
-    iris_test.drop(['species'], axis=1, inplace=True)
+    data_test.drop(['class'], axis=1, inplace=True)
 
     # Write the splits to disk
-    iris_train.to_csv('{output_path}/train.csv', index=False, header=False)
-    iris_test.to_csv('{output_path}/test.csv', index=False, header=False)
+    data_train.to_csv('{output_path}/train.csv', index=False, header=False)
+    data_test.to_csv('{output_path}/test.csv', index=False, header=False)
 
     print('Preprocessing Done.')
 
 if __name__ == "__main__":
     main()
-
-    """
+"""
 
 
 def _create_ecr_repository(repo_name):
@@ -195,6 +180,14 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
             )
 
 
+def generate_data() -> str:
+    """generates a very simple csv dataset with headers"""
+    content = "class,x,y\n"  # headers
+    for i in range(SAMPLE_SIZE):
+        content += f"{i%100},{i},{SAMPLE_SIZE-i}\n"
+    return content
+
+
 @task
 def set_up(env_id, role_arn):
     bucket_name = f"{env_id}-sagemaker-example"
@@ -206,6 +199,7 @@ def set_up(env_id, role_arn):
     tuning_job_name = f"{env_id}-tune"
     model_package_group_name = f"{env_id}-group"
     pipeline_name = f"{env_id}-pipe"
+    auto_ml_job_name = f"{env_id}-automl"
 
     input_data_S3_key = f"{env_id}/processed-input-data"
     prediction_output_s3_key = f"{env_id}/transform"
@@ -240,6 +234,7 @@ def set_up(env_id, role_arn):
         "InstanceType": "ml.m5.large",
         "VolumeSizeInGB": 1,
     }
+    input_data_uri = f"s3://{bucket_name}/{raw_data_s3_key}"
     processing_config = {
         "ProcessingJobName": processing_job_name,
         "ProcessingInputs": [
@@ -247,7 +242,7 @@ def set_up(env_id, role_arn):
                 "InputName": "input",
                 "AppManaged": False,
                 "S3Input": {
-                    "S3Uri": f"s3://{bucket_name}/{raw_data_s3_key}",
+                    "S3Uri": input_data_uri,
                     "LocalPath": processing_local_input_path,
                     "S3DataType": "S3Prefix",
                     "S3InputMode": "File",
@@ -297,7 +292,7 @@ def set_up(env_id, role_arn):
         },
         "HyperParameters": {
             "predictor_type": "classifier",
-            "feature_dim": "4",
+            "feature_dim": "2",
             "k": "3",
             "sample_size": str(SAMPLE_SIZE),
         },
@@ -357,7 +352,7 @@ def set_up(env_id, role_arn):
         "TrainingJobDefinition": {
             "StaticHyperParameters": {
                 "predictor_type": "classifier",
-                "feature_dim": "4",
+                "feature_dim": "2",
             },
             "AlgorithmSpecification": {"TrainingImage": knn_image_uri, "TrainingInputMode": "File"},
             "InputDataConfig": [
@@ -407,10 +402,13 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="raw_data_s3_key", value=raw_data_s3_key)
     ti.xcom_push(key="ecr_repository_name", value=ecr_repository_name)
     ti.xcom_push(key="processing_config", value=processing_config)
+    ti.xcom_push(key="input_data_uri", value=input_data_uri)
+    ti.xcom_push(key="output_data_uri", value=f"s3://{bucket_name}/{training_output_s3_key}")
     ti.xcom_push(key="training_config", value=training_config)
     ti.xcom_push(key="training_job_name", value=training_job_name)
     ti.xcom_push(key="model_package_group_name", value=model_package_group_name)
     ti.xcom_push(key="pipeline_name", value=pipeline_name)
+    ti.xcom_push(key="auto_ml_job_name", value=auto_ml_job_name)
     ti.xcom_push(key="model_config", value=model_config)
     ti.xcom_push(key="model_name", value=model_name)
     ti.xcom_push(key="inference_code_image", value=knn_image_uri)
@@ -499,9 +497,26 @@ with DAG(
         task_id="upload_dataset",
         s3_bucket=test_setup["bucket_name"],
         s3_key=test_setup["raw_data_s3_key"],
-        data=DATASET,
+        data=generate_data(),
         replace=True,
     )
+
+    # [START howto_operator_sagemaker_auto_ml]
+    automl = SageMakerAutoMLOperator(
+        task_id="auto_ML",
+        job_name=test_setup["auto_ml_job_name"],
+        s3_input=test_setup["input_data_uri"],
+        target_attribute="class",
+        s3_output=test_setup["output_data_uri"],
+        role_arn=test_context[ROLE_ARN_KEY],
+        time_limit=30,  # will stop the job before it can do anything, but it's not the point here
+    )
+    # [END howto_operator_sagemaker_auto_ml]
+    automl.wait_for_completion = False  # just to be able to test the sensor next
+
+    # [START howto_sensor_sagemaker_auto_ml]
+    await_automl = SageMakerAutoMLSensor(job_name=test_setup["auto_ml_job_name"], task_id="await_auto_ML")
+    # [END howto_sensor_sagemaker_auto_ml]
 
     # [START howto_operator_sagemaker_start_pipeline]
     start_pipeline1 = SageMakerStartPipelineOperator(
@@ -625,6 +640,8 @@ with DAG(
         create_bucket,
         upload_dataset,
         # TEST BODY
+        automl,
+        await_automl,
         start_pipeline1,
         start_pipeline2,
         stop_pipeline1,

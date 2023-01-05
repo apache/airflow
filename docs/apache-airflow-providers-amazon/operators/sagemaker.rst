@@ -192,6 +192,22 @@ You can use this operator to add a new version and model package to the group fo
     :start-after: [START howto_operator_sagemaker_register]
     :end-before: [END howto_operator_sagemaker_register]
 
+.. _howto/operator:SageMakerAutoMLOperator:
+
+Launch an AutoML experiment
+===========================
+
+To launch an AutoML experiment, a.k.a. SageMaker Autopilot, you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerAutoMLOperator`.
+An AutoML experiment will take some input data in CSV and the column it should learn to predict,
+and train models on it without needing human supervision.
+The output is placed in an S3 bucket, and automatically deployed if configured for it.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_auto_ml]
+    :end-before: [END howto_operator_sagemaker_auto_ml]
+
 Sensors
 -------
 
@@ -264,6 +280,20 @@ you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerPip
     :dedent: 4
     :start-after: [START howto_sensor_sagemaker_pipeline]
     :end-before: [END howto_sensor_sagemaker_pipeline]
+
+.. _howto/sensor:SageMakerAutoMLSensor:
+
+Wait on an Amazon SageMaker AutoML experiment state
+===================================================
+
+To check the state of an Amazon Sagemaker AutoML job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerAutoMLSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_auto_ml]
+    :end-before: [END howto_operator_sagemaker_auto_ml]
 
 Reference
 ---------
