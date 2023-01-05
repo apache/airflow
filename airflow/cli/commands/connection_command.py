@@ -306,10 +306,10 @@ def connections_import(args):
         raise SystemExit("Missing connections file.")
 
 
-def _import_helper(file_path, overwrite):
-    """
-    Load connections from a file and save them to the DB.
-    If `overwrite` is set to true, overwrite on collision.
+def _import_helper(file_path: str, overwrite: bool) -> None:
+    """Load connections from a file and save them to the DB.
+
+    :param overwrite: Whether to skip or overwrite on collision.
     """
     connections_dict = load_connections_dict(file_path)
     with create_session() as session:
