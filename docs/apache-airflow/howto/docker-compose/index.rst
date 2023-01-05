@@ -72,7 +72,7 @@ This file contains several service definitions:
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
 
-Optionally, you can enable flower by adding ``--profile flower`` option, e.g. ``docker compose --profile flower up``, or by explicitly specifying it on the command line e.g. ``docker compose up flower``.
+Optionally, you can enable flower by adding ``--profile flower`` option, e.g. ``docker-compose --profile flower up``, or by explicitly specifying it on the command line e.g. ``docker-compose up flower``.
 
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
 
@@ -125,7 +125,7 @@ On **all operating systems**, you need to run database migrations and create the
 
 .. code-block:: bash
 
-    docker compose up airflow-init
+    docker-compose up airflow-init
 
 After initialization is complete, you should see a message like this:
 
