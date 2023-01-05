@@ -185,16 +185,6 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
     ),
     ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
     ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "dbt"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "jdbc"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "azure"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "qubole"),
-    ("This module is deprecated. Please use `airflow.operators.empty`.", "winrm"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "dbt"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "jdbc"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "azure"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "qubole"),
-    ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "winrm"),
     (
         "'nteract-scrapbook' package has been renamed to `scrapbook`. No new releases are "
         "going out for this old package name.",
