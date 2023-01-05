@@ -159,7 +159,8 @@ class TestBackfillJob:
         target_dag = self.dagbag.get_dag("example_trigger_target_dag")
         target_dag.sync_to_db()
 
-        target_dag_run = target_dag.get_last_dagrun()
+        session = settings.Session()
+        target_dag_run = session.query(DagRun).filter(DagRun.dag_id == target_dag.dag_id).one_or_none()
         assert not target_dag_run
 
         job = BackfillJob(
@@ -167,7 +168,9 @@ class TestBackfillJob:
         )
         job.run()
 
-        dag_run = dag.get_last_dagrun()
+        dag_run = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one_or_none()
+        assert dag_run
+
         task_instances_list = job._task_instances_for_dag_run(dag=dag, dag_run=dag_run)
 
         assert task_instances_list
@@ -1784,7 +1787,6 @@ class TestBackfillJob:
 
     def test_mapped_dag_unexpandable(self, dag_maker, session):
         with dag_maker(session=session) as dag:
-
             @dag.task
             def get_things():
                 return [1, 2]
