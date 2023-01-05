@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-05T13:32:43Z
+# This constraints file was automatically generated on 2023-01-05T19:29:35Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -59,14 +59,14 @@ ansiwrap==0.8.4
 anyio==3.6.2
 apache-airflow-providers-airbyte==3.2.0
 apache-airflow-providers-alibaba==2.2.0
-apache-airflow-providers-amazon==6.2.0
+apache-airflow-providers-amazon==7.0.0
 apache-airflow-providers-apache-beam==4.1.0
 apache-airflow-providers-apache-cassandra==3.1.0
 apache-airflow-providers-apache-drill==2.3.1
 apache-airflow-providers-apache-druid==3.3.1
-apache-airflow-providers-apache-flink==1.0.0rc2
+apache-airflow-providers-apache-flink==1.0.0
 apache-airflow-providers-apache-hdfs==3.2.0
-apache-airflow-providers-apache-hive==5.0.0
+apache-airflow-providers-apache-hive==5.1.0
 apache-airflow-providers-apache-kylin==3.1.0
 apache-airflow-providers-apache-livy==3.2.0
 apache-airflow-providers-apache-pig==4.0.0
@@ -75,56 +75,56 @@ apache-airflow-providers-apache-spark==4.0.0
 apache-airflow-providers-apache-sqoop==3.1.0
 apache-airflow-providers-arangodb==2.1.0
 apache-airflow-providers-asana==2.1.0
-apache-airflow-providers-atlassian-jira==1.1.0
+apache-airflow-providers-atlassian-jira==2.0.0
 apache-airflow-providers-celery==3.1.0
 apache-airflow-providers-cloudant==3.1.0
-apache-airflow-providers-cncf-kubernetes==5.0.0
+apache-airflow-providers-cncf-kubernetes==5.1.0
 apache-airflow-providers-databricks==4.0.0
 apache-airflow-providers-datadog==3.1.0
 apache-airflow-providers-dbt-cloud==2.3.0
 apache-airflow-providers-dingding==3.1.0
 apache-airflow-providers-discord==3.1.0
-apache-airflow-providers-docker==3.3.0
-apache-airflow-providers-elasticsearch==4.3.1
+apache-airflow-providers-docker==3.4.0
+apache-airflow-providers-elasticsearch==4.3.2
 apache-airflow-providers-exasol==4.1.2
 apache-airflow-providers-facebook==3.1.0
 apache-airflow-providers-github==2.2.0
-apache-airflow-providers-google==8.6.0
+apache-airflow-providers-google==8.7.0
 apache-airflow-providers-grpc==3.1.0
 apache-airflow-providers-hashicorp==3.2.0
 apache-airflow-providers-influxdb==2.1.0
 apache-airflow-providers-jdbc==3.3.0
 apache-airflow-providers-jenkins==3.1.0
-apache-airflow-providers-microsoft-azure==5.0.1
-apache-airflow-providers-microsoft-mssql==3.3.1
-apache-airflow-providers-microsoft-winrm==3.1.0
+apache-airflow-providers-microsoft-azure==5.0.2
+apache-airflow-providers-microsoft-mssql==3.3.2
+apache-airflow-providers-microsoft-winrm==3.1.1
 apache-airflow-providers-mongo==3.1.0
 apache-airflow-providers-mysql==3.4.0
 apache-airflow-providers-neo4j==3.2.1
 apache-airflow-providers-odbc==3.2.1
 apache-airflow-providers-openfaas==3.1.0
 apache-airflow-providers-opsgenie==5.0.0
-apache-airflow-providers-oracle==3.5.1
+apache-airflow-providers-oracle==3.6.0
 apache-airflow-providers-pagerduty==3.1.0
 apache-airflow-providers-papermill==3.1.0
 apache-airflow-providers-plexus==3.1.0
-apache-airflow-providers-postgres==5.3.1
-apache-airflow-providers-presto==4.2.0
+apache-airflow-providers-postgres==5.4.0
+apache-airflow-providers-presto==4.2.1
 apache-airflow-providers-qubole==3.3.1
 apache-airflow-providers-redis==3.1.0
-apache-airflow-providers-salesforce==5.2.0
+apache-airflow-providers-salesforce==5.3.0
 apache-airflow-providers-samba==4.1.0
 apache-airflow-providers-segment==3.1.0
 apache-airflow-providers-sendgrid==3.1.0
-apache-airflow-providers-sftp==4.2.0
+apache-airflow-providers-sftp==4.2.1
 apache-airflow-providers-singularity==3.1.0
-apache-airflow-providers-slack==7.1.0
+apache-airflow-providers-slack==7.1.1
 apache-airflow-providers-snowflake==4.0.2
-apache-airflow-providers-ssh==3.3.0
+apache-airflow-providers-ssh==3.4.0
 apache-airflow-providers-tableau==4.0.0
 apache-airflow-providers-tabular==1.1.0
-apache-airflow-providers-telegram==3.1.0
-apache-airflow-providers-trino==4.3.0
+apache-airflow-providers-telegram==3.1.1
+apache-airflow-providers-trino==4.3.1
 apache-airflow-providers-vertica==3.3.1
 apache-airflow-providers-yandex==3.2.0
 apache-airflow-providers-zendesk==4.2.0
@@ -147,7 +147,7 @@ aws-sam-translator==1.55.0
 aws-xray-sdk==2.11.0
 azure-batch==13.0.0
 azure-common==1.1.28
-azure-core==1.26.1
+azure-core==1.26.2
 azure-cosmos==4.3.0
 azure-datalake-store==0.0.52
 azure-identity==1.12.0
@@ -164,6 +164,7 @@ azure-nspkg==3.0.2
 azure-servicebus==7.8.1
 azure-storage-blob==12.14.1
 azure-storage-common==2.1.0
+azure-storage-file-datalake==12.9.1
 azure-storage-file==2.1.0
 azure-synapse-spark==0.7.0
 backcall==0.2.0
@@ -179,7 +180,7 @@ boto==2.49.0
 botocore==1.29.43
 bowler==0.9.0
 cachelib==0.9.0
-cachetools==5.2.0
+cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==22.2.0
 celery==5.2.7
@@ -346,7 +347,7 @@ jsonpickle==3.0.1
 jsonpointer==2.3
 jsonschema==4.17.3
 junit-xml==1.9
-jupyter_client==7.4.8
+jupyter-client==7.3.4
 jupyter_core==5.1.2
 keyring==23.13.1
 kombu==5.2.4
@@ -423,7 +424,7 @@ pickleshare==0.7.5
 pinotdb==0.4.12
 pipdeptree==2.3.3
 pipx==1.1.0
-pkginfo==1.9.3
+pkginfo==1.9.4
 platformdirs==2.6.2
 pluggy==1.0.0
 ply==3.11
@@ -438,7 +439,6 @@ proto-plus==1.19.6
 protobuf==3.20.0
 psutil==5.9.4
 psycopg2-binary==2.9.5
-psycopg2==2.9.5
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
@@ -489,7 +489,7 @@ python-jose==3.3.0
 python-ldap==3.4.3
 python-nvd3==0.15.0
 python-slugify==7.0.0
-python-telegram-bot==20.0
+python-telegram-bot==13.15
 pytz-deprecation-shim==0.1.0.post0
 pytz==2022.7
 pytzdata==2020.1
@@ -574,7 +574,7 @@ time-machine==2.9.0
 toml==0.10.2
 tomli==2.0.1
 toolz==0.12.0
-tornado==6.2
+tornado==6.1
 towncrier==22.12.0
 tqdm==4.64.1
 traitlets==5.8.0
@@ -594,7 +594,7 @@ types-protobuf==4.21.0.2
 types-python-dateutil==2.8.19.5
 types-python-slugify==7.0.0.1
 types-pytz==2022.7.0.0
-types-redis==4.3.21.7
+types-redis==4.4.0.0
 types-requests==2.28.11.7
 types-setuptools==65.6.0.3
 types-tabulate==0.9.0.0
