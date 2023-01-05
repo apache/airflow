@@ -68,13 +68,13 @@ class MongoHook(BaseHook):
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        if self.client:
+        if self.client is not None:
             self.client.close()
             self.client = None
 
     def get_conn(self) -> MongoClient:
         """Fetches PyMongo Client"""
-        if self.client:
+        if self.client is not None:
             return self.client
 
         # Mongo Connection Options dict that is unpacked when passed to MongoClient
