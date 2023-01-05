@@ -1025,7 +1025,6 @@ class TestKubernetesPodOperatorSystem:
                 do_xcom_push=False,
             )
 
-    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion", new=MagicMock)
     def test_on_kill(self):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
@@ -1045,8 +1044,20 @@ class TestKubernetesPodOperatorSystem:
             termination_grace_period=0,
         )
         context = create_context(k)
-        with pytest.raises(AirflowException):
-            k.execute(context)
+
+        class ShortCircuitException(Exception):
+            pass
+
+        # use this mock to short circuit and NOT wait for container completion
+        with mock.patch.object(
+            k.pod_manager, "await_container_completion", side_effect=ShortCircuitException()
+        ):
+            # cleanup will be upset since the pod should not be completed.. so skip it
+            with mock.patch.object(k, "cleanup"):
+                with pytest.raises(ShortCircuitException):
+                    k.execute(context)
+
+        # when we get here, the pod should still be running
         name = k.pod.metadata.name
         pod = client.read_namespaced_pod(name=name, namespace=namespace)
         assert pod.status.phase == "Running"
@@ -1169,6 +1180,11 @@ class TestKubernetesPodOperatorSystem:
         assert self.expected_pod["spec"] == actual_pod["spec"]
 
     def test_changing_base_container_name_no_logs(self):
+        """
+        This test checks BOTH a modified base container name AND the get_logs=False flow..
+          and as a result, also checks that the flow works with fast containers
+          See #26796
+        """
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -1191,6 +1207,36 @@ class TestKubernetesPodOperatorSystem:
         assert mock_await_container_completion.call_args[1]["container_name"] == "apple-sauce"
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
+        assert self.expected_pod["spec"] == actual_pod["spec"]
+
+    def test_changing_base_container_name_no_logs_long(self):
+        """
+        Similar to test_changing_base_container_name_no_logs, but ensures that
+        pods running longer than 1 second work too. See #26796
+        """
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["sleep 3"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            get_logs=False,
+            base_container_name="apple-sauce",
+        )
+        assert k.base_container_name == "apple-sauce"
+        context = create_context(k)
+        with mock.patch.object(
+            k.pod_manager, "await_container_completion", wraps=k.pod_manager.await_container_completion
+        ) as mock_await_container_completion:
+            k.execute(context)
+
+        assert mock_await_container_completion.call_args[1]["container_name"] == "apple-sauce"
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
+        self.expected_pod["spec"]["containers"][0]["args"] = ["sleep 3"]
         assert self.expected_pod["spec"] == actual_pod["spec"]
 
     def test_changing_base_container_name_failure(self):
