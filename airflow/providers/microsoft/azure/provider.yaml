@@ -67,6 +67,7 @@ dependencies:
   - azure-servicebus>=7.6.1
   - azure-synapse-spark
   - adal>=1.2.7
+  - azure-storage-file-datalake>=12.9.1
 
 integrations:
   - integration-name: Microsoft Azure Batch
@@ -123,6 +124,10 @@ integrations:
     external-doc-url: https://azure.microsoft.com/en-us/services/synapse-analytics/
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-azure/operators/azure_synapse.rst
+    tags: [azure]
+  - integration-name: Microsoft Azure Data Lake Storage Client Gen2
+    external-doc-url: https://azure.microsoft.com/en-us/products/storage/data-lake-storage/
+    logo: /integration-logos/azure/Data Lake Storage.svg
     tags: [azure]
 
 operators:
@@ -198,6 +203,9 @@ hooks:
   - integration-name: Microsoft Azure Service Bus
     python-modules:
       - airflow.providers.microsoft.azure.hooks.asb
+  - integration-name: Microsoft Azure Data Lake Storage Client Gen2
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.data_lake
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
@@ -252,6 +260,8 @@ connection-types:
     connection-type: azure_service_bus
   - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook
     connection-type: azure_synapse
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
+    connection-type: adls
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
