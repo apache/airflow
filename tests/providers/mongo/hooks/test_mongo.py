@@ -217,13 +217,13 @@ class TestMongoHook:
         self.hook.connection.host = "test_host"
         self.hook.connection.port = 1234
         self.hook.connection.schema = "test_db"
-        assert self.hook.create_uri() == "mongodb://test_user:test_password@test_host:1234/test_db"
+        assert self.hook._create_uri() == "mongodb://test_user:test_password@test_host:1234/test_db"
 
     def test_create_uri_no_creds(self):
         self.hook.connection.login = None
         self.hook.connection.password = None
         self.hook.connection.port = None
-        assert self.hook.create_uri() == "mongodb://mongo/None"
+        assert self.hook._create_uri() == "mongodb://mongo/None"
 
     def test_create_uri_srv_true(self):
         self.hook.extras["srv"] = True
@@ -232,7 +232,7 @@ class TestMongoHook:
         self.hook.connection.host = "test_host"
         self.hook.connection.port = 1234
         self.hook.connection.schema = "test_db"
-        assert self.hook.create_uri() == "mongodb+srv://test_user:test_password@test_host:1234/test_db"
+        assert self.hook._create_uri() == "mongodb+srv://test_user:test_password@test_host:1234/test_db"
 
     def test_delete_one(self):
         collection = mongomock.MongoClient().db.collection

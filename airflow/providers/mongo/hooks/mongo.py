@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from ssl import CERT_NONE
 from types import TracebackType
-from urllib.parse import quote, quote_plus
+from urllib.parse import quote_plus
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
@@ -57,7 +57,7 @@ class MongoHook(BaseHook):
         self.connection = self.get_connection(conn_id)
         self.extras = self.connection.extra_dejson.copy()
         self.client = None
-        self.uri = self.create_uri()
+        self.uri = self._create_uri()
 
     def __enter__(self):
         return self
