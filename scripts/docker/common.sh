@@ -70,3 +70,15 @@ function common::show_pip_version_and_location() {
    echo "pip on path: $(which pip)"
    echo "Using pip: $(pip --version)"
 }
+
+function common::install_pip_version() {
+    echo
+    echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
+    echo
+    if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
+        pip install --disable-pip-version-check --no-cache-dir "pip @ ${AIRFLOW_PIP_VERSION}"
+    else
+        pip install --disable-pip-version-check --no-cache-dir "pip==${AIRFLOW_PIP_VERSION}"
+    fi
+    mkdir -p "${HOME}/.local/bin"
+}

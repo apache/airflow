@@ -353,7 +353,12 @@ function setup_provider_packages() {
 
 
 function install_supported_pip_version() {
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+    if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
+        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
+    else
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+    fi
+
 }
 
 function filename_to_python_module() {

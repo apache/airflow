@@ -34,7 +34,8 @@ function prepare_airflow_packages() {
     rm -rf -- *egg-info*
     rm -rf -- build
 
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+    install_supported_pip_version
+    pip install "wheel==${WHEEL_VERSION}"
 
     local packages=()
 
