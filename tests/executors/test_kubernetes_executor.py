@@ -1133,7 +1133,6 @@ class TestKubernetesExecutor:
         executor = KubernetesExecutor()
         log = executor.get_task_log(ti=ti, log="test_init_log")
 
-        print(log)
         mock_kube_client.read_namespaced_pod_log.assert_called_once()
         assert "test_init_log" in log
         assert "Trying to get logs (last 100 lines) from worker pod" in log
