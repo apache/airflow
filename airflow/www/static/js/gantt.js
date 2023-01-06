@@ -164,10 +164,8 @@ d3.gantt = () => {
         if (!(a.end_date instanceof moment)) {
           a.end_date = moment(a.end_date);
         }
-        if (a.queued_dttm) {
-          if (!(a.queued_dttm instanceof moment)) {
-            a.queued_dttm = moment(a.queued_dttm);
-          }
+        if (a.queued_dttm && !(a.queued_dttm instanceof moment)) {
+          a.queued_dttm = moment(a.queued_dttm);
         }
       });
       timeDomainEnd = moment.max(tasks.map((a) => a.end_date)).valueOf();
@@ -215,6 +213,7 @@ d3.gantt = () => {
       .attr('height', height + margin.top + margin.bottom)
       .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
+    // Draw all task instances with their corresponding states as boxes in gantt chart.
     svg.selectAll('.chart')
       .data(tasks, keyFunction).enter()
       .append('rect')
@@ -235,6 +234,7 @@ d3.gantt = () => {
       .attr('height', () => y.rangeBand())
       .attr('width', (d) => d3.max([x(d.end_date.valueOf()) - x(d.start_date.valueOf()), 1]));
 
+    // Draw queued states of task instances with valid queued date time as boxes in gantt chart.
     svg.selectAll('.chart')
       .data(filterTaskWithValidQueuedDttm(tasks), keyFunction).enter()
       .append('rect')
@@ -268,7 +268,7 @@ d3.gantt = () => {
 
     const ganttChartGroup = svg.select('.gantt-chart');
     const rect = ganttChartGroup.selectAll('.all-tasks').data(tasks, keyFunction);
-
+    // Redraw all task instances with their corresponding states as boxes in gantt chart.
     rect.enter()
       .insert('rect', ':first-child')
       .attr('rx', 5)
@@ -281,6 +281,7 @@ d3.gantt = () => {
       .attr('width', (d) => d3.max([x(d.end_date.valueOf()) - x(d.start_date.valueOf()), 1]));
 
     const queuedStateRect = ganttChartGroup.selectAll('.tasks-with-queued-dttm').data(filterTaskWithValidQueuedDttm(tasks), keyFunction);
+    // Redraw queued states of task instances with valid queued date time as boxes in gantt chart.
     queuedStateRect.enter()
       .insert('rect', ':first-child')
       .attr('rx', 5)
