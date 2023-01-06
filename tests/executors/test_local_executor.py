@@ -38,7 +38,7 @@ class TestLocalExecutor:
         assert not LocalExecutor.supports_sentry
 
     def test_is_local_default_value(self):
-        assert not LocalExecutor.is_local
+        assert LocalExecutor.is_local
 
     def test_serve_logs_default_value(self):
         assert LocalExecutor.serve_logs
