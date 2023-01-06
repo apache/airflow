@@ -1059,6 +1059,8 @@ class TestKubernetesPodOperatorSystem:
 
         # when we get here, the pod should still be running
         name = k.pod.metadata.name
+        pod = client.read_namespaced_pod(name=name, namespace=namespace)
+        assert pod.status.phase == "Running"
         k.on_kill()
         with pytest.raises(ApiException, match=r'pods \\"test.[a-z0-9]+\\" not found'):
             client.read_namespaced_pod(name=name, namespace=namespace)
