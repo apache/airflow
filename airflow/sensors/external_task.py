@@ -144,21 +144,21 @@ class ExternalTaskSensor(BaseSensorOperator):
             raise ValueError(
                 "Only one of `external_task_id` or `external_task_ids` may "
                 "be provided to ExternalTaskSensor; "
-                "Use external_task_id or external_task_ids or external_task_group_id."
+                "use external_task_id or external_task_ids or external_task_group_id."
             )
 
         if external_task_group_id is not None and external_task_id is not None:
             raise ValueError(
                 "Only one of `external_task_group_id` or `external_task_id` may "
                 "be provided to ExternalTaskSensor; "
-                "Use external_task_id or external_task_ids or external_task_group_id."
+                "use external_task_id or external_task_ids or external_task_group_id."
             )
 
         if external_task_group_id is not None and external_task_ids is not None:
             raise ValueError(
                 "Only one of `external_task_group_id` or `external_task_ids` may "
                 "be provided to ExternalTaskSensor; "
-                "Use external_task_id or external_task_ids or external_task_group_id."
+                "use external_task_id or external_task_ids or external_task_group_id."
             )
 
         if external_task_id is not None:
@@ -228,7 +228,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_dag_id and not self.external_task_group_id and not self.external_task_ids:
             self.log.info(
-                "Poking for dag '%s' on %s ... ",
+                "Poking for DAG '%s' on %s ... ",
                 self.external_dag_id,
                 serialized_dttm_filter,
             )

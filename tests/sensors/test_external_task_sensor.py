@@ -156,7 +156,7 @@ class TestExternalTaskSensor:
         assert (
             str(ctx.value) == "Only one of `external_task_id` or `external_task_ids` may "
             "be provided to ExternalTaskSensor; "
-            "Use external_task_id or external_task_ids or external_task_group_id."
+            "use external_task_id or external_task_ids or external_task_group_id."
         )
 
     def test_raise_with_external_task_sensor_task_group_and_task_id(self):
@@ -171,7 +171,7 @@ class TestExternalTaskSensor:
         assert (
             str(ctx.value) == "Only one of `external_task_group_id` or `external_task_id` may "
             "be provided to ExternalTaskSensor; "
-            "Use external_task_id or external_task_ids or external_task_group_id."
+            "use external_task_id or external_task_ids or external_task_group_id."
         )
 
     def test_raise_with_external_task_sensor_task_group_and_task_ids(self):
@@ -186,7 +186,7 @@ class TestExternalTaskSensor:
         assert (
             str(ctx.value) == "Only one of `external_task_group_id` or `external_task_ids` may "
             "be provided to ExternalTaskSensor; "
-            "Use external_task_id or external_task_ids or external_task_group_id."
+            "use external_task_id or external_task_ids or external_task_group_id."
         )
 
     # by default i.e. check_existence=False, if task_group doesn't exist, the sensor will run till timeout,
@@ -395,7 +395,7 @@ class TestExternalTaskSensor:
         with caplog.at_level(logging.INFO, logger=op.log.name):
             caplog.clear()
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-            assert (f"Poking for dag 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
+            assert (f"Poking for DAG 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
 
     def test_external_dag_sensor_soft_fail_as_skipped(self):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
