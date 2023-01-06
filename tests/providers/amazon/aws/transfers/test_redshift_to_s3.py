@@ -30,7 +30,7 @@ from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 class TestRedshiftToS3Transfer:
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
-    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
@@ -89,7 +89,7 @@ class TestRedshiftToS3Transfer:
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
-    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
@@ -158,7 +158,7 @@ class TestRedshiftToS3Transfer:
             [None, True, "key"],
         ],
     )
-    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
@@ -216,7 +216,7 @@ class TestRedshiftToS3Transfer:
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
-    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
