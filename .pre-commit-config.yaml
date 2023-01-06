@@ -577,6 +577,14 @@ repos:
         files: \.*example_dags.*\.py$
         exclude: ^airflow/_vendor/
         pass_filenames: true
+      - id: check-xfail-usage-in-test-code
+        language: pygrep
+        name: HELLO Don't use xfail in tests
+        description: xfail is not recommended
+        entry: "@pytest.mark.xfail"
+        pass_filenames: true
+        files: ^tests/.*\.py$
+        exclude: ^airflow/|^docs/
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/pre_commit/pre_commit_check_license.py
