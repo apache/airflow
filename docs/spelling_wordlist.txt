@@ -154,6 +154,7 @@ Beauchemin
 Behaviour
 behaviour
 behaviours
+BestCandidate
 Bigquery
 bigquery
 BigQueryHook
@@ -1269,6 +1270,7 @@ SearchResultGenerator
 SecretManagerClient
 secretRef
 secretRefs
+SecretsManagerBackend
 securable
 securecookie
 securestring
