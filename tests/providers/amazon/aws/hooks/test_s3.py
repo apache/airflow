@@ -826,39 +826,29 @@ class TestAwsS3Hook:
 
 
 @pytest.mark.parametrize(
-    "precedence, has_conn, has_bucket, key_kind, expected",
+    "key_kind, has_conn, has_bucket, precedence, expected",
     [
-        # full key
-        # no conn - no bucket - full key
-        ("unify", "no_conn", "no_bucket", "full_key", ["key_bucket", "key.txt"]),
-        ("provide", "no_conn", "no_bucket", "full_key", ["key_bucket", "key.txt"]),
-        # no conn - with bucket - full key
-        ("unify", "no_conn", "with_bucket", "full_key", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        ("provide", "no_conn", "with_bucket", "full_key", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        # with conn - no bucket - full key
-        ("provide", "with_conn", "no_bucket", "full_key", ["conn_bucket", "s3://key_bucket/key.txt"]),
-        ("unify", "with_conn", "no_bucket", "full_key", ["key_bucket", "key.txt"]),
-        # with conn - with bucket - full key
-        ("provide", "with_conn", "with_bucket", "full_key", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        ("unify", "with_conn", "with_bucket", "full_key", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        # rel key
-        # no conn - no bucket - rel key
-        ("unify", "no_conn", "no_bucket", "rel_key", [None, "key.txt"]),
-        ("provide", "no_conn", "no_bucket", "rel_key", [None, "key.txt"]),
-        # no conn - with bucket - rel key
-        ("unify", "no_conn", "with_bucket", "rel_key", ["kwargs_bucket", "key.txt"]),
-        ("provide", "no_conn", "with_bucket", "rel_key", ["kwargs_bucket", "key.txt"]),
-        # with conn - no bucket - rel key
-        ("provide", "with_conn", "no_bucket", "rel_key", ["conn_bucket", "key.txt"]),
-        ("unify", "with_conn", "no_bucket", "rel_key", ["conn_bucket", "key.txt"]),
-        # with conn - with bucket - rel key
-        ("provide", "with_conn", "with_bucket", "rel_key", ["kwargs_bucket", "key.txt"]),
-        ("unify", "with_conn", "with_bucket", "rel_key", ["kwargs_bucket", "key.txt"]),
+        ("full_key", "no_conn", "no_bucket", "unify", ["key_bucket", "key.txt"]),
+        ("full_key", "no_conn", "no_bucket", "provide", ["key_bucket", "key.txt"]),
+        ("full_key", "no_conn", "with_bucket", "unify", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "no_conn", "with_bucket", "provide", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "no_bucket", "unify", ["key_bucket", "key.txt"]),
+        ("full_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "with_bucket", "unify", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("rel_key", "no_conn", "no_bucket", "unify", [None, "key.txt"]),
+        ("rel_key", "no_conn", "no_bucket", "provide", [None, "key.txt"]),
+        ("rel_key", "no_conn", "with_bucket", "unify", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "no_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "no_bucket", "unify", ["conn_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "with_bucket", "unify", ["kwargs_bucket", "key.txt"]),
     ],
 )
 @patch("airflow.hooks.base.BaseHook.get_connection")
 def test_unify_and_provide_bucket_name_combination(
-    mock_base, precedence, has_conn, has_bucket, key_kind, expected, caplog
+    mock_base, key_kind, has_conn, has_bucket, precedence, expected, caplog
 ):
     """
     Verify what is the outcome when the unify_bucket_name_and_key and provide_bucket_name
@@ -899,26 +889,16 @@ def test_unify_and_provide_bucket_name_combination(
 
 
 @pytest.mark.parametrize(
-    "has_conn, has_bucket, key_kind, expected",
+    "key_kind, has_conn, has_bucket, expected",
     [
-        # full key
-        # no conn - no bucket - full key
-        ("no_conn", "no_bucket", "full_key", ["key_bucket", "key.txt"]),
-        # no conn - with bucket - full key
-        ("no_conn", "with_bucket", "full_key", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        # with conn - no bucket - full key
-        ("with_conn", "no_bucket", "full_key", ["key_bucket", "key.txt"]),
-        # with conn - with bucket - full key
-        ("with_conn", "with_bucket", "full_key", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        # rel key
-        # no conn - no bucket - rel key
-        ("no_conn", "no_bucket", "rel_key", [None, "key.txt"]),
-        # no conn - with bucket - rel key
-        ("no_conn", "with_bucket", "rel_key", ["kwargs_bucket", "key.txt"]),
-        # with conn - no bucket - rel key
-        ("with_conn", "no_bucket", "rel_key", ["conn_bucket", "key.txt"]),
-        # with conn - with bucket - rel key
-        ("with_conn", "with_bucket", "rel_key", ["kwargs_bucket", "key.txt"]),
+        ("full_key", "no_conn", "no_bucket", ["key_bucket", "key.txt"]),
+        ("full_key", "no_conn", "with_bucket", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "no_bucket", ["key_bucket", "key.txt"]),
+        ("full_key", "with_conn", "with_bucket", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("rel_key", "no_conn", "no_bucket", [None, "key.txt"]),
+        ("rel_key", "no_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "no_bucket", ["conn_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
     ],
 )
 @patch("airflow.hooks.base.BaseHook.get_connection")
@@ -928,19 +908,17 @@ def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_
     else:
         c = Connection(schema=None)
     mock_conn.return_value = c
-    rel_key = "key.txt"
-    full_key = f"s3://key_bucket/{rel_key}"
-    key = rel_key if key_kind == "rel_key" else full_key
+    key = "key.txt" if key_kind == "rel_key" else "s3://key_bucket/key.txt"
     if has_bucket == "with_bucket":
         kwargs = {"bucket_name": "kwargs_bucket", "key": key}
     else:
         kwargs = {"key": key}
 
     hook = S3Hook()
-    mock = MagicMock()
-    hook.get_conn = mock
+    m = MagicMock()
+    hook.get_conn = m
     hook.head_object(**kwargs)
-    assert list(mock.mock_calls[1][2].values()) == expected
+    assert list(m.mock_calls[1][2].values()) == expected
 
 
 def test_unify_and_provide_ordered_properly():
