@@ -580,7 +580,7 @@ repos:
       - id: check-xfail-usage-in-test-code
         language: pygrep
         name: Don't use xfail in tests
-        description: xfail is not recommended
+        description: xfail is not recommended as a test meant to fail is generally not meaningful
         entry: "@pytest.mark.xfail"
         pass_filenames: true
         files: ^tests/.*\.py$
