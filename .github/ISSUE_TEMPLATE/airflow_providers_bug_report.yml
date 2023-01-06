@@ -33,6 +33,7 @@ body:
         - apache-flink
         - apache-hdfs
         - apache-hive
+        - apache-impala
         - apache-kylin
         - apache-livy
         - apache-pig
