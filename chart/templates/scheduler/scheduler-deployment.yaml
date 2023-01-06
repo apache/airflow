@@ -51,6 +51,10 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+  {{- if .Values.scheduler.annotations }}
+  annotations:
+    {{- toYaml .Values.scheduler.annotations | nindent 4 }}
+  {{- end }}
 spec:
 {{- if $stateful }}
   serviceName: {{ .Release.Name }}-scheduler
