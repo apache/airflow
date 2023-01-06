@@ -314,17 +314,14 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
     connections_dict = load_connections_dict(file_path)
     with create_session() as session:
         for conn_id, conn in connections_dict.items():
-            existing_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+            existing_conn_id = session.query(Connection.id).filter(Connection.conn_id == conn_id).scalar()
+            if existing_conn_id is not None:
+                if not overwrite:
+                    print(f"Could not import connection {conn_id}: connection already exists.")
+                    continue
 
-            # Don't overwrite existing connections if overwrite is falsey
-            if not overwrite and existing_conn:
-                print(f"Could not import connection {conn_id}: connection already exists.")
-                continue
-
-            # Do overwrite existing connections
-            if overwrite and existing_conn:
                 # The conn_ids match, but the PK of the new entry must also be the same as the old
-                conn.id = existing_conn.id
+                conn.id = existing_conn_id
 
             session.merge(conn)
             session.commit()
