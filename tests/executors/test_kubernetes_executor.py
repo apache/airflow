@@ -718,19 +718,41 @@ class TestKubernetesExecutor:
         pod_ids = {ti_key: {}}
 
         executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
-        assert mock_kube_client.patch_namespaced_pod.call_args[1] == {
-            "body": {
-                "metadata": {
-                    "labels": {"airflow-worker": "modified"},
-                    "annotations": annotations,
-                    "name": "foo",
-                }
-            },
-            "name": "foo",
-            "namespace": None,
-        }
+        mock_kube_client.patch_namespaced_pod.assert_called_once_with(
+            body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+            name="foo",
+            namespace=None,
+        )
         assert pod_ids == {}
         assert executor.running == {ti_key}
+
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_adopt_completed_pods(self, mock_kube_client):
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        executor.kube_client = mock_kube_client
+        executor.kube_config.kube_namespace = "somens"
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="foo",
+                labels={"airflow-worker": "bar"},
+                annotations={"some_annotation": "hello"},
+                namespace="somens",
+            )
+        )
+        mock_kube_client.list_namespaced_pod.return_value.items = [pod]
+
+        executor._adopt_completed_pods(mock_kube_client)
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            namespace="somens",
+            field_selector="status.phase=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker!=modified",
+        )
+        mock_kube_client.patch_namespaced_pod.assert_called_once_with(
+            body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+            name="foo",
+            namespace="somens",
+        )
 
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):
