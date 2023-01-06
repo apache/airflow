@@ -792,3 +792,83 @@ class TestCliImportConnections:
 
         # The existing connection's description should not have changed
         assert current_conns_as_dicts["new3"]["description"] == "original description"
+
+    @provide_session
+    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @mock.patch("os.path.exists")
+    def test_cli_connections_import_should_overwrite_existing_connections(
+        self, mock_exists, mock_parse_secret_file, session=None
+    ):
+        mock_exists.return_value = True
+
+        # Add a pre-existing connection "new3"
+        merge_conn(
+            Connection(
+                conn_id="new3",
+                conn_type="mysql",
+                description="original description",
+                host="mysql",
+                login="root",
+                password="password",
+                schema="airflow",
+            ),
+            session=session,
+        )
+
+        # Sample connections to import, including a collision with "new3"
+        expected_connections = {
+            "new2": {
+                "conn_type": "postgres",
+                "description": "new2 description",
+                "host": "host",
+                "login": "airflow",
+                "password": "password",
+                "port": 5432,
+                "schema": "airflow",
+                "extra": "test",
+            },
+            "new3": {
+                "conn_type": "mysql",
+                "description": "updated description",
+                "host": "host",
+                "login": "airflow",
+                "password": "new password",
+                "port": 3306,
+                "schema": "airflow",
+                "extra": "test",
+            },
+        }
+
+        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
+        mock_parse_secret_file.return_value = expected_connections
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", "sample.json", "--overwrite"])
+            )
+
+            assert "Could not import connection new3: connection already exists." not in stdout.getvalue()
+
+        # Verify that the imported connections match the expected, sample connections
+        current_conns = session.query(Connection).all()
+
+        comparable_attrs = [
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            "login",
+            "password",
+            "port",
+            "schema",
+            "extra",
+        ]
+
+        current_conns_as_dicts = {
+            current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+            for current_conn in current_conns
+        }
+        assert current_conns_as_dicts["new2"] == expected_connections["new2"]
+
+        # The existing connection should have been overwritten
+        assert current_conns_as_dicts["new3"] == expected_connections["new3"]
