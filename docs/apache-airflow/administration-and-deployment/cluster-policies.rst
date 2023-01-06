@@ -18,10 +18,60 @@
 Cluster Policies
 ================
 
+If you want to check or mutate DAGs or Tasks on a cluster-wide level, then a Cluster Policy will let you do
+that. They have three main purposes:
+
+* Checking that DAGs/Tasks meet a certain standard
+* Setting default arguments on DAGs/Tasks
+* Performing custom routing logic
+
+There are three main types of cluster policy:
+
+* ``dag_policy``: Takes a :class:`~airflow.models.dag.DAG` parameter called ``dag``. Runs at load time of the
+  DAG from DagBag :class:`~airflow.models.dagbag.DagBag`.
+* ``task_policy``: Takes a :class:`~airflow.models.baseoperator.BaseOperator` parameter called ``task``. The
+  policy gets executed when the task is created during parsing of the task from DagBag at load time. This
+  means that the whole task definition can be altered in the task policy. It does not relate to a specific
+  task running in a DagRun. The ``task_policy`` defined is applied to all the task instances that will be
+  executed in the future.
+* ``task_instance_mutation_hook``: Takes a :class:`~airflow.models.taskinstance.TaskInstance` parameter called
+  ``task_instance``. The ``task_instance_mutation`` applies not to a task but to the instance of a task that
+  relates to a particular DagRun. It is executed in a "worker", not in the dag file processor, just before the
+  task instance is executed. The policy is only applied to the currently executed run (i.e. instance) of that
+  task.
+
+The DAG and Task cluster policies can raise the  :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
+exception to indicate that the dag/task they were passed is not compliant and should not be loaded.
+
+Any extra attributes set by a cluster policy take priority over those defined in your DAG file; for example,
+if you set an ``sla`` on your Task in the DAG file, and then your cluster policy also sets an ``sla``, the
+cluster policy's value will take precedence.
+
+
+How do define a policy function
+-------------------------------
+
+There are two ways to configure cluster policies:
+
+1. create an ``airflow_local_settings.py`` file somewhere in the python search path (the ``config/`` folder
+   under your $AIRFLOW_HOME is a good "default" location) and then add callables to the file matching one or more
+   of the cluster policy names above (e.g. ``dag_policy``).
+
+2. By using a setuptools entrypoint in a custom module
+
+   .. versionadded:: 2.6
+
+   .. note:: |experimental|
+
+One important thing to note (for either means of defining policy functions) is that the argument names must
+exactly match as documented below.
+
+Available Policy Functions
+--------------------------
 
 .. autoapimodule:: airflow.policies
   :no-members:
-  :members: task_policy, dag_policy, task_instance_mutation_hook, pod_mutation_hook
+  :members: task_policy, dag_policy, task_instance_mutation_hook, pod_mutation_hook, get_airflow_context_vars
   :member-order: bysource
 
 
