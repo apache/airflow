@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/asana>
-    Operators <operators/asana>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1

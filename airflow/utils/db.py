@@ -360,6 +360,7 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
     merge_conn(
         Connection(
             conn_id="kubernetes_default",

@@ -106,6 +106,8 @@ class BaseExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = False
+    supports_pickling: bool = True
+    supports_sentry: bool = False
 
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None
@@ -147,6 +149,7 @@ class BaseExecutor(LoggingMixin):
         pickle_id: str | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         pool: str | None = None,
@@ -164,6 +167,7 @@ class BaseExecutor(LoggingMixin):
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
             pool=pool,
