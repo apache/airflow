@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from ssl import CERT_NONE
 from types import TracebackType
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlunsplit
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
@@ -96,14 +96,13 @@ class MongoHook(BaseHook):
         scheme = "mongodb+srv" if srv else "mongodb"
         login = self.connection.login
         password = self.connection.password
+        netloc = self.connection.host
         if login is not None and password is not None:
-            login = login.encode()
-            password = password.encode()
-            creds = f"{quote_plus(login)}:{quote_plus(password)}@"
-        else:
-            creds = ""
-        port = f":{self.connection.port}" if self.connection.port else ""
-        return f"{scheme}://{creds}{self.connection.host}{port}/{self.connection.schema}"
+            netloc = f"{quote_plus(login)}:{quote_plus(password)}@{netloc}"
+        if self.connection.port:
+            netloc = f"{netloc}:{self.connection.port}"
+        path = f"/{self.connection.schema}"
+        return urlunsplit((scheme, netloc, path, "", ""))
 
     def get_collection(
         self, mongo_collection: str, mongo_db: str | None = None
