@@ -1268,6 +1268,7 @@ schedulable
 schedulername
 schemas
 sdk
+sdks
 searchpath
 SearchResultGenerator
 SecretManagerClient
