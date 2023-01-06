@@ -544,7 +544,7 @@ tied to an airflow release and therefore out of scope.
 
 ### Prepare the vote artifacts
 
-If API clients are released in this airflow version:
+If API clients are to be released in this airflow version:
 
 - Set environment variables (useful for the rest of the process)
 
