@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-06T10:30:58Z
+# This constraints file was automatically generated on 2023-01-06T17:30:39Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -448,7 +448,7 @@ requests==2.28.1
 responses==0.22.0
 rfc3986==1.5.0
 rich-click==1.6.0
-rich==13.0.0
+rich==13.0.1
 rsa==4.9
 s3transfer==0.6.0
 sarif-om==1.0.4
