@@ -37,6 +37,10 @@ send_email_test = mock.MagicMock()
 
 
 class TestEmail:
+    def setup_method(self):
+        conf.remove_option("email", "EMAIL_BACKEND")
+        conf.remove_option("email", "EMAIL_CONN_ID")
+
     def test_get_email_address_single_email(self):
         emails_string = "test1@example.com"
 
@@ -73,10 +77,6 @@ class TestEmail:
 
         with pytest.raises(TypeError):
             email.get_email_address_list(emails_list)
-
-    def setUp(self):
-        conf.remove_option("email", "EMAIL_BACKEND")
-        conf.remove_option("email", "EMAIL_CONN_ID")
 
     @mock.patch("airflow.utils.email.send_email")
     def test_default_backend(self, mock_send_email):
