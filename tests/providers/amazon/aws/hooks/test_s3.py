@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import gzip as gz
+import inspect
 import os
+import re
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -941,17 +943,8 @@ def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_
     assert list(mock.mock_calls[1][2].values()) == expected
 
 
-def test_unify_and_provide_ordered_properly(caplog):
-    from importlib import reload
-
-    from airflow.providers.amazon.aws.hooks import s3
-
-    caplog.set_level("WARNING", logger="airflow.providers.amazon.aws.hooks.s3")
-    reload(s3)
-    ordering_warnings = [
-        x
-        for x in caplog.records
-        if x.levelname == "WARNING"
-        and x.message == "`unify_bucket_name_and_key` should wrap `provide_bucket_name`."
-    ]
-    assert ordering_warnings == []
+def test_unify_and_provide_ordered_properly():
+    code = inspect.getsource(S3Hook)
+    matches = re.findall(r"@provide_bucket_name\s+@unify_bucket_name_and_key", code, re.MULTILINE)
+    if matches:
+        pytest.fail("@unify_bucket_name_and_key should be applied before @provide_bucket_name in S3Hook")
