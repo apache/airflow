@@ -832,18 +832,18 @@ class TestAwsS3Hook:
         ("full_key", "no_conn", "no_bucket", "provide", ["key_bucket", "key.txt"]),
         ("full_key", "no_conn", "with_bucket", "unify", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
         ("full_key", "no_conn", "with_bucket", "provide", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
-        ("full_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "s3://key_bucket/key.txt"]),
         ("full_key", "with_conn", "no_bucket", "unify", ["key_bucket", "key.txt"]),
-        ("full_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "s3://key_bucket/key.txt"]),
         ("full_key", "with_conn", "with_bucket", "unify", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
         ("rel_key", "no_conn", "no_bucket", "unify", [None, "key.txt"]),
         ("rel_key", "no_conn", "no_bucket", "provide", [None, "key.txt"]),
         ("rel_key", "no_conn", "with_bucket", "unify", ["kwargs_bucket", "key.txt"]),
         ("rel_key", "no_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
-        ("rel_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "key.txt"]),
         ("rel_key", "with_conn", "no_bucket", "unify", ["conn_bucket", "key.txt"]),
-        ("rel_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "key.txt"]),
         ("rel_key", "with_conn", "with_bucket", "unify", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
     ],
 )
 @patch("airflow.hooks.base.BaseHook.get_connection")
@@ -853,6 +853,15 @@ def test_unify_and_provide_bucket_name_combination(
     """
     Verify what is the outcome when the unify_bucket_name_and_key and provide_bucket_name
     decorators are combined.
+
+    The one case (at least in this test) where the order makes a difference is when
+    user provides a full s3 key, and also has a connection with a bucket defined,
+    and does not provide a bucket in the method call.  In this case, if we unify
+    first, then we (desirably) get the bucket from the key.  If we provide bucket first,
+    something undesirable happens.  The bucket from the connection is used, which means
+    we don't respect the full key provided. Further, the full key is not made relative,
+    which would cause the actual request to fail. For this reason we want to put unify
+    first.
     """
     if has_conn == "with_conn":
         c = Connection(schema="conn_bucket")
@@ -922,6 +931,13 @@ def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_
 
 
 def test_unify_and_provide_ordered_properly():
+    """
+    If we unify first, then we (desirably) get the bucket from the key.  If we provide bucket first,
+    something undesirable happens.  The bucket from the connection is used, which means
+    we don't respect the full key provided. Further, the full key is not made relative,
+    which would cause the actual request to fail. For this reason we want to put unify
+    first.
+    """
     code = inspect.getsource(S3Hook)
     matches = re.findall(r"@provide_bucket_name\s+@unify_bucket_name_and_key", code, re.MULTILINE)
     if matches:

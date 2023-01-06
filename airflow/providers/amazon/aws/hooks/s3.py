@@ -98,6 +98,10 @@ def unify_bucket_name_and_key(func: T) -> T:
 
         return func(*bound_args.args, **bound_args.kwargs)
 
+    # set attr _unify_bucket_name_and_key_wrapped so that we can check at
+    # class definition that unify is the first decorator applied
+    # if provide_bucket_name is applied first, and there's a bucket defined in conn
+    # then if user supplies full key, bucket in key is not respected
     wrapper._unify_bucket_name_and_key_wrapped = True  # type: ignore[attr-defined]
     return cast(T, wrapper)
 
