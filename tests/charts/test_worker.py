@@ -680,6 +680,18 @@ class TestWorker:
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestWorkerKedaAutoScaler:
     def test_should_add_component_specific_labels(self):
