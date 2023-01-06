@@ -30,6 +30,7 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceSensor,
+    GCSObjectExistenceSensorAsync,
     GCSObjectsWithPrefixExistenceSensor,
     GCSObjectUpdateSensor,
     GCSUploadSessionCompleteSensor,
@@ -115,6 +116,14 @@ with models.DAG(
     )
     # [END howto_sensor_object_exists_task]
 
+    # [START howto_sensor_object_exists_task_async]
+    gcs_object_exists_async = GCSObjectExistenceSensorAsync(
+        bucket=BUCKET_NAME,
+        object=FILE_NAME,
+        task_id="gcs_object_exists_task_async",
+    )
+    # [END howto_sensor_object_exists_task_async]
+
     # [START howto_sensor_object_with_prefix_exists_task]
     gcs_object_with_prefix_exists = GCSObjectsWithPrefixExistenceSensor(
         bucket=BUCKET_NAME,
@@ -135,7 +144,7 @@ with models.DAG(
         sleep,
         upload_file,
         # TEST BODY
-        [gcs_object_exists, gcs_object_with_prefix_exists],
+        [gcs_object_exists, gcs_object_exists_async, gcs_object_with_prefix_exists],
         # TEST TEARDOWN
         delete_bucket,
     )
