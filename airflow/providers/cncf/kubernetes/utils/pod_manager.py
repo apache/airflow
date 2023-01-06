@@ -270,7 +270,6 @@ class PodManager(LoggingMixin):
 
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
-        :return:
         """
         while self.container_is_running(pod=pod, container_name=container_name):
             time.sleep(1)
