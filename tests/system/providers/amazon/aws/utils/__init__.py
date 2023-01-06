@@ -101,7 +101,7 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError as e:
         log.info("No boto credentials found: %s", e)
-    except hook.ParameterNotFoundException as e:
+    except hook.conn.exceptions.ParameterNotFound as e:
         log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
         log.info("SSM contains one parameter for this test, but not the requested value: %s", e)

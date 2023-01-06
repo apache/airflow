@@ -38,10 +38,6 @@ class SsmHook(AwsBaseHook):
         kwargs["client_type"] = "ssm"
         super().__init__(*args, **kwargs)
 
-    @property
-    def ParameterNotFoundException(self):
-        return self.conn.exceptions.ParameterNotFound
-
     def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
         """
         Returns the value of the provided Parameter or an optional default.
@@ -51,7 +47,7 @@ class SsmHook(AwsBaseHook):
         """
         try:
             return self.conn.get_parameter(Name=parameter)["Parameter"]["Value"]
-        except self.ParameterNotFoundException as ex:
+        except self.conn.exceptions.ParameterNotFound:
             if isinstance(default, ArgNotSet):
-                raise ex
+                raise
             return default
