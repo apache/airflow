@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from airflow import AirflowException
+
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 
@@ -42,3 +44,7 @@ class EcsOperatorError(Exception):
 
     def __reduce__(self):
         return EcsOperatorError, (self.failures, self.message)
+
+
+class S3HookUriParseFailure(AirflowException):
+    """When parse_s3_url fails to parse URL, this error is thrown."""

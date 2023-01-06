@@ -28,6 +28,7 @@ import logging
 import multiprocessing
 import time
 from collections import defaultdict
+from contextlib import suppress
 from datetime import timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
@@ -750,21 +751,42 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.debug("Could not find key: %s", str(key))
         self.event_buffer[key] = state, None
 
-    def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
+    @staticmethod
+    def _get_pod_namespace(ti: TaskInstance):
         pod_override = ti.executor_config.get("pod_override")
-        if pod_override and pod_override.metadata and pod_override.metadata.namespace:
+        namespace = None
+        with suppress(Exception):
             namespace = pod_override.metadata.namespace
-        else:
-            namespace = conf.get("kubernetes_executor", "namespace")
+        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
+
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
 
         try:
+            from airflow.kubernetes.kube_client import get_kube_client
+            from airflow.kubernetes.pod_generator import PodGenerator
 
-            kube_client = get_kube_client()
+            client = get_kube_client()
 
             log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
-
-            res = kube_client.read_namespaced_pod_log(
-                name=ti.hostname,
+            selector = PodGenerator.build_selector_for_k8s_executor_pod(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                run_id=ti.run_id,
+                airflow_worker=ti.queued_by_job_id,
+            )
+            namespace = self._get_pod_namespace(ti)
+            pod_list = client.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=selector,
+            ).items
+            if not pod_list:
+                raise RuntimeError("Cannot find pod for ti %s", ti)
+            elif len(pod_list) > 1:
+                raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
+            res = client.read_namespaced_pod_log(
+                name=pod_list[0].metadata.name,
                 namespace=namespace,
                 container="base",
                 follow=False,
@@ -904,13 +926,16 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_scheduler
 
         self.log.info("Shutting down Kubernetes executor")
-        self.log.debug("Flushing task_queue...")
-        self._flush_task_queue()
-        self.log.debug("Flushing result_queue...")
-        self._flush_result_queue()
-        # Both queues should be empty...
-        self.task_queue.join()
-        self.result_queue.join()
+        try:
+            self.log.debug("Flushing task_queue...")
+            self._flush_task_queue()
+            self.log.debug("Flushing result_queue...")
+            self._flush_result_queue()
+            # Both queues should be empty...
+            self.task_queue.join()
+            self.result_queue.join()
+        except ConnectionResetError:
+            self.log.exception("Connection Reset error while flushing task_queue and result_queue.")
         if self.kube_scheduler:
             self.kube_scheduler.terminate()
         self._manager.shutdown()

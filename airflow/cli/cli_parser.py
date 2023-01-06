@@ -548,8 +548,10 @@ ARG_DEPENDS_ON_PAST = Arg(
     ("-d", "--depends-on-past"),
     help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
     "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
-    "them, if `ignore` is provided, the past dependencies will be ignored.",
-    choices={"check", "ignore"},
+    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
+    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
+    "skipping the task",
+    choices={"check", "ignore", "wait"},
     default="check",
 )
 ARG_SHIP_DAG = Arg(
@@ -663,7 +665,7 @@ ARG_DEBUG = Arg(
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get("webserver", "ACCESS_LOGFILE"),
-    help="The logfile to store the webserver access log. Use '-' to print to stderr",
+    help="The logfile to store the webserver access log. Use '-' to print to stdout",
 )
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
@@ -813,6 +815,12 @@ ARG_CONN_SERIALIZATION_FORMAT = Arg(
     choices=["json", "uri"],
 )
 ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
+ARG_CONN_OVERWRITE = Arg(
+    ("--overwrite",),
+    help="Overwrite existing entries if a conflict occurs",
+    required=False,
+    action="store_true",
+)
 
 # providers
 ARG_PROVIDER_NAME = Arg(
@@ -1600,6 +1608,7 @@ CONNECTIONS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_import"),
         args=(
             ARG_CONN_IMPORT,
+            ARG_CONN_OVERWRITE,
             ARG_VERBOSE,
         ),
     ),
