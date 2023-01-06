@@ -56,6 +56,7 @@ IP_PERMISSION = {
 
 S3_KEY = "s3_key"
 S3_KEY_2 = "s3_key_2"
+S3_KEY_PREFIX = "s3_"
 REDSHIFT_TABLE = "test_table"
 
 SQL_CREATE_TABLE = f"""
@@ -207,6 +208,18 @@ with DAG(
     )
     # [END howto_transfer_s3_to_redshift]
 
+    # [START howto_transfer_s3_to_redshift_multiple_keys]
+    transfer_s3_to_redshift_multiple = S3ToRedshiftOperator(
+        task_id="transfer_s3_to_redshift_multiple",
+        redshift_conn_id=conn_id_name,
+        s3_bucket=bucket_name,
+        s3_key=S3_KEY_PREFIX,
+        schema="PUBLIC",
+        table=REDSHIFT_TABLE,
+        copy_options=["csv"],
+    )
+    # [END howto_transfer_s3_to_redshift_multiple_keys]
+
     drop_table = RedshiftSQLOperator(
         task_id="drop_table",
         redshift_conn_id=conn_id_name,
@@ -246,6 +259,7 @@ with DAG(
         transfer_redshift_to_s3,
         check_if_key_exists,
         transfer_s3_to_redshift,
+        transfer_s3_to_redshift_multiple,
         # TEST TEARDOWN
         drop_table,
         delete_cluster,
