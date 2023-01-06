@@ -46,11 +46,10 @@ def assert_equal_ignore_multiple_spaces(case: TestCase | None, first, second, ms
             FutureWarning,
             stacklevel=3,
         )
-
-    if not msg:
-        assert _trim(first) == _trim(second)
-    else:
-        assert _trim(first) == _trim(second), msg
+    first_trim = _trim(first)
+    second_trim = _trim(second)
+    msg = msg or f"{first_trim} != {second_trim}"
+    assert first_trim == second_trim, msg
 
 
 class CountQueries:
