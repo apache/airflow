@@ -18,10 +18,9 @@
 """Unit tests for SerializedDagModel."""
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
-from parameterized import parameterized, parameterized_class
+import pytest
 
 from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
@@ -29,6 +28,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
+from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 
 
@@ -39,33 +39,21 @@ def make_example_dags(module):
     return dagbag.dags
 
 
-def clear_db_serialized_dags():
-    with create_session() as session:
-        session.query(SDM).delete()
-
-
-@parameterized_class(
-    [
-        {"compress_serialized_dags": "False"},
-        {"compress_serialized_dags": "True"},
-    ]
-)
-class SerializedDagModelTest(unittest.TestCase):
+class TestSerializedDagModel:
     """Unit tests for SerializedDagModel."""
 
-    compress_serialized_dags = "False"
-
-    def setUp(self):
-        self.patcher = mock.patch(
-            "airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", self.compress_serialized_dags
-        )
-        self.patcher.start()
-
-        clear_db_serialized_dags()
-
-    def tearDown(self):
-        self.patcher.stop()
-        clear_db_serialized_dags()
+    @pytest.fixture(
+        autouse=True,
+        params=[
+            pytest.param(False, id="raw-serialized_dags"),
+            pytest.param(True, id="compress-serialized_dags"),
+        ],
+    )
+    def setup_test_cases(self, request, monkeypatch):
+        db.clear_db_serialized_dags()
+        with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
+            yield
+        db.clear_db_serialized_dags()
 
     def test_dag_fileloc_hash(self):
         """Verifies the correctness of hashing file path."""
@@ -193,7 +181,7 @@ class SerializedDagModelTest(unittest.TestCase):
         with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)
 
-    @parameterized.expand([({"dag_dependencies": None},), ({},)])
+    @pytest.mark.parametrize("dag_dependencies_fields", [{"dag_dependencies": None}, {}])
     def test_get_dag_dependencies_default_to_empty(self, dag_dependencies_fields):
         """Test a pre-2.1.0 serialized DAG can deserialize DAG dependencies."""
         example_dags = make_example_dags(example_dags_module)
