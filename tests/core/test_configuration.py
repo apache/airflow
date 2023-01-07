@@ -24,7 +24,6 @@ import os
 import re
 import tempfile
 import textwrap
-import unittest
 import warnings
 from collections import OrderedDict
 from unittest import mock
@@ -61,7 +60,7 @@ def restore_env():
         yield
 
 
-@unittest.mock.patch.dict(
+@mock.patch.dict(
     "os.environ",
     {
         "AIRFLOW__TESTSECTION__TESTKEY": "testvalue",
@@ -72,23 +71,23 @@ def restore_env():
 )
 class TestConf:
     def test_airflow_home_default(self):
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             if "AIRFLOW_HOME" in os.environ:
                 del os.environ["AIRFLOW_HOME"]
             assert get_airflow_home() == expand_env_var("~/airflow")
 
     def test_airflow_home_override(self):
-        with unittest.mock.patch.dict("os.environ", AIRFLOW_HOME="/path/to/airflow"):
+        with mock.patch.dict("os.environ", AIRFLOW_HOME="/path/to/airflow"):
             assert get_airflow_home() == "/path/to/airflow"
 
     def test_airflow_config_default(self):
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             if "AIRFLOW_CONFIG" in os.environ:
                 del os.environ["AIRFLOW_CONFIG"]
             assert get_airflow_config("/home/airflow") == expand_env_var("/home/airflow/airflow.cfg")
 
     def test_airflow_config_override(self):
-        with unittest.mock.patch.dict("os.environ", AIRFLOW_CONFIG="/path/to/airflow/airflow.cfg"):
+        with mock.patch.dict("os.environ", AIRFLOW_CONFIG="/path/to/airflow/airflow.cfg"):
             assert get_airflow_config("/home//airflow") == "/path/to/airflow/airflow.cfg"
 
     @conf_vars({("core", "percent"): "with%%inside"})
@@ -102,7 +101,7 @@ class TestConf:
     def test_config_as_dict(self):
         """Test that getting config as dict works even if
         environment has non-legal env vars"""
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             os.environ["AIRFLOW__VAR__broken"] = "not_ok"
             asdict = conf.as_dict(raw=True, display_sensitive=True)
         assert asdict.get("VAR") is None
@@ -117,7 +116,7 @@ class TestConf:
 
         assert conf.has_option("testsection", "testkey")
 
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested"
         ):
             opt = conf.get("kubernetes_environment_variables", "AIRFLOW__TESTSECTION__TESTKEY")
@@ -583,7 +582,7 @@ notacommand = OK
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             # AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD maps to ('testcmdenv', 'itsacommand') in
             # sensitive_config_values and therefore should return 'OK' from the environment variable's
             # echo command, and must not return 'NOT OK' from the configuration
@@ -598,7 +597,7 @@ notacommand = OK
 
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             asdict = test_cmdenv_conf.as_dict(True, display_sensitive)
             assert asdict["testcmdenv"]["itsacommand"] == (result, "cmd")
 
@@ -960,7 +959,7 @@ sql_alchemy_conn=sqlite://test
         new_env_var = test_conf._env_var_name(new_section, new_key)
 
         with pytest.warns(FutureWarning):
-            with unittest.mock.patch.dict("os.environ", **{old_env_var: old_value}):
+            with mock.patch.dict("os.environ", **{old_env_var: old_value}):
                 # Can't start with the new env var existing...
                 os.environ.pop(new_env_var, None)
 
@@ -1000,15 +999,13 @@ sql_alchemy_conn=sqlite://test
             return test_conf
 
         with pytest.warns(FutureWarning):
-            with unittest.mock.patch.dict(
-                "os.environ", AIRFLOW__CORE__HOSTNAME_CALLABLE="airflow.utils.net:getfqdn"
-            ):
+            with mock.patch.dict("os.environ", AIRFLOW__CORE__HOSTNAME_CALLABLE="airflow.utils.net:getfqdn"):
                 test_conf = make_config()
                 assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
 
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:
-                with unittest.mock.patch.dict(
+                with mock.patch.dict(
                     "os.environ",
                     AIRFLOW__CORE__HOSTNAME_CALLABLE="CarrierPigeon",
                 ):

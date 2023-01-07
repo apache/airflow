@@ -21,9 +21,11 @@ from __future__ import annotations
 import fnmatch
 import gzip as gz
 import io
+import logging
 import re
 import shutil
 import warnings
+from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from functools import wraps
@@ -38,12 +40,14 @@ from uuid import uuid4
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import chunks
 
 T = TypeVar("T", bound=Callable)
+
+logger = logging.getLogger(__name__)
 
 
 def provide_bucket_name(func: T) -> T:
@@ -51,6 +55,8 @@ def provide_bucket_name(func: T) -> T:
     Function decorator that provides a bucket name taken from the connection
     in case no bucket name has been passed to the function.
     """
+    if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
+        logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
     function_signature = signature(func)
 
     @wraps(func)
@@ -59,13 +65,14 @@ def provide_bucket_name(func: T) -> T:
 
         if "bucket_name" not in bound_args.arguments:
             self = args[0]
-            
+
             if "bucket_name" in self.service_config:
                 bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
             elif self.conn_config and self.conn_config.schema:
                 warnings.warn(
-                    "s3 conn_type, and the associated schema field, is deprecated"
-                    "Please use aws conn_type instead, and specify `bucket_name` in `service_config.s3` within `extras`.",
+                    "s3 conn_type, and the associated schema field, is deprecated."
+                    " Please use aws conn_type instead, and specify `bucket_name`"
+                    " in `service_config.s3` within `extras`.",
                     DeprecationWarning,
                     stacklevel=2,
                 )
@@ -74,6 +81,7 @@ def provide_bucket_name(func: T) -> T:
         return func(*bound_args.args, **bound_args.kwargs)
 
     return cast(T, wrapper)
+
 
 def unify_bucket_name_and_key(func: T) -> T:
     """
@@ -94,12 +102,18 @@ def unify_bucket_name_and_key(func: T) -> T:
             raise ValueError("Missing key parameter!")
 
         if "bucket_name" not in bound_args.arguments:
-            bound_args.arguments["bucket_name"], bound_args.arguments[key_name] = S3Hook.parse_s3_url(
-                bound_args.arguments[key_name]
-            )
+            with suppress(S3HookUriParseFailure):
+                bound_args.arguments["bucket_name"], bound_args.arguments[key_name] = S3Hook.parse_s3_url(
+                    bound_args.arguments[key_name]
+                )
 
         return func(*bound_args.args, **bound_args.kwargs)
 
+    # set attr _unify_bucket_name_and_key_wrapped so that we can check at
+    # class definition that unify is the first decorator applied
+    # if provide_bucket_name is applied first, and there's a bucket defined in conn
+    # then if user supplies full key, bucket in key is not respected
+    wrapper._unify_bucket_name_and_key_wrapped = True  # type: ignore[attr-defined]
     return cast(T, wrapper)
 
 
@@ -163,7 +177,7 @@ class S3Hook(AwsBaseHook):
         if re.match(r"s3[na]?:", format[0], re.IGNORECASE):
             parsed_url = urlsplit(s3url)
             if not parsed_url.netloc:
-                raise AirflowException(f'Please provide a bucket name using a valid format: "{s3url}"')
+                raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
 
             bucket_name = parsed_url.netloc
             key = parsed_url.path.lstrip("/")
@@ -177,7 +191,7 @@ class S3Hook(AwsBaseHook):
                 bucket_name = temp_split[0]
                 key = "/".join(format[1].split("/")[1:])
         else:
-            raise AirflowException(f'Please provide a bucket name using a valid format: "{s3url}"')
+            raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
         return bucket_name, key
 
     @staticmethod
@@ -447,8 +461,8 @@ class S3Hook(AwsBaseHook):
                 files += page["Contents"]
         return files
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def head_object(self, key: str, bucket_name: str | None = None) -> dict | None:
         """
         Retrieves metadata of an object
@@ -465,8 +479,8 @@ class S3Hook(AwsBaseHook):
             else:
                 raise e
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def check_for_key(self, key: str, bucket_name: str | None = None) -> bool:
         """
         Checks if a key exists in a bucket
@@ -478,8 +492,8 @@ class S3Hook(AwsBaseHook):
         obj = self.head_object(key, bucket_name)
         return obj is not None
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def get_key(self, key: str, bucket_name: str | None = None) -> S3Transfer:
         """
         Returns a boto3.s3.Object
@@ -498,8 +512,8 @@ class S3Hook(AwsBaseHook):
         obj.load()
         return obj
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def read_key(self, key: str, bucket_name: str | None = None) -> str:
         """
         Reads a key from S3
@@ -511,8 +525,8 @@ class S3Hook(AwsBaseHook):
         obj = self.get_key(key, bucket_name)
         return obj.get()["Body"].read().decode("utf-8")
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def select_key(
         self,
         key: str,
@@ -558,8 +572,8 @@ class S3Hook(AwsBaseHook):
             event["Records"]["Payload"] for event in response["Payload"] if "Records" in event
         ).decode("utf-8")
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def check_for_wildcard_key(
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> bool:
@@ -576,8 +590,8 @@ class S3Hook(AwsBaseHook):
             is not None
         )
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def get_wildcard_key(
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> S3Transfer:
@@ -596,8 +610,8 @@ class S3Hook(AwsBaseHook):
             return self.get_key(key_matches[0], bucket_name)
         return None
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def load_file(
         self,
         filename: Path | str,
@@ -642,8 +656,8 @@ class S3Hook(AwsBaseHook):
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def load_string(
         self,
         string_data: str,
@@ -692,8 +706,8 @@ class S3Hook(AwsBaseHook):
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
         file_obj.close()
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def load_bytes(
         self,
         bytes_data: bytes,
@@ -723,8 +737,8 @@ class S3Hook(AwsBaseHook):
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
         file_obj.close()
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def load_file_obj(
         self,
         file_obj: BytesIO,
@@ -870,8 +884,8 @@ class S3Hook(AwsBaseHook):
                 errors_keys = [x["Key"] for x in response.get("Errors", [])]
                 raise AirflowException(f"Errors when deleting: {errors_keys}")
 
-    @provide_bucket_name
     @unify_bucket_name_and_key
+    @provide_bucket_name
     def download_file(
         self,
         key: str,
