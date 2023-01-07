@@ -466,8 +466,6 @@ class TestAwsS3Hook:
             assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
 
-    from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
-
     @mock.patch.object(
         S3Hook,
         "get_connection",

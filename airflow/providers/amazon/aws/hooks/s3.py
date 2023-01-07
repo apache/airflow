@@ -23,6 +23,7 @@ import gzip as gz
 import io
 import re
 import shutil
+import warnings
 from copy import deepcopy
 from datetime import datetime
 from functools import wraps
@@ -37,6 +38,7 @@ from uuid import uuid4
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import chunks
@@ -57,19 +59,21 @@ def provide_bucket_name(func: T) -> T:
 
         if "bucket_name" not in bound_args.arguments:
             self = args[0]
-            if self.aws_conn_id:
-                conn_args = self.get_connection(self.aws_conn_id).extra_dejson
-                if (
-                    "service_config" in conn_args
-                    and "s3" in conn_args["service_config"]
-                    and "bucket_name" in conn_args["service_config"]["s3"]
-                ):
-                    bound_args.arguments["bucket_name"] = conn_args["service_config"]["s3"]["bucket_name"]
+            
+            if "bucket_name" in self.service_config:
+                bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
+            elif self.conn_config and self.conn_config.schema:
+                warnings.warn(
+                    "s3 conn_type, and the associated schema field, is deprecated"
+                    "Please use aws conn_type instead, and specify `bucket_name` in `service_config.s3` within `extras`.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                bound_args.arguments["bucket_name"] = self.conn_config.schema
 
         return func(*bound_args.args, **bound_args.kwargs)
 
     return cast(T, wrapper)
-
 
 def unify_bucket_name_and_key(func: T) -> T:
     """

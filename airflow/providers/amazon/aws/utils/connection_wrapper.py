@@ -120,10 +120,13 @@ class AwsConnectionWrapper(LoggingMixin):
     role_arn: str | None = field(init=False, default=None)
     assume_role_method: str | None = field(init=False, default=None)
     assume_role_kwargs: dict[str, Any] = field(init=False, default_factory=dict)
-
+     
     @cached_property
     def conn_repr(self):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
+
+    def get_service_config(self, service_name):
+        return self.extra_dejson.get("service_config", {}).get(service_name, {})
 
     def __post_init__(self, conn: Connection):
         if isinstance(conn, type(self)):
