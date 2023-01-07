@@ -180,6 +180,12 @@ class TestAttrRenderer:
         rendered = self.attr_renderer["doc_md"](None)
         assert rendered is None
 
+    def test_get_dag_run_conf(self):
+        dag_run_conf = {"1": "string", "2": b"bytes", "3": 123, "4": "à".encode("latin")}
+        expected_encoded_dag_run_conf = '{"1": "string", "2": "bytes", "3": 123, "4": "b\'\\\\xe0\'"}'
+        encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(dag_run_conf)
+        assert expected_encoded_dag_run_conf == encoded_dag_run_conf
+
 
 class TestWrappedMarkdown:
     def test_wrapped_markdown_with_docstring_curly_braces(self):
