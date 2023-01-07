@@ -225,14 +225,14 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "triggerer_job": None,
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor_config, expected_config",
         [
-            ("Exception serialization", _BadExecutorConfig(), "{}"),
-            ("Dict serialization", {"foo": "bar"}, "{'foo': 'bar'}"),
+            pytest.param(_BadExecutorConfig(), "{}", id="Exception serialization"),
+            pytest.param({"foo": "bar"}, "{'foo': 'bar'}", id="Dict serialization"),
         ],
     )
-    @provide_session
-    def test_task_instance_executor_config_exception(self, _, executor_config, expected_config, session):
+    def test_task_instance_executor_config_exception(self, executor_config, expected_config, session):
         tis = self.create_task_instances(session)
         print_the_context = next(ti for ti in tis if ti.task_id == "print_the_context")
         print_the_context.executor_config = executor_config
@@ -251,6 +251,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0,
             "operator": "_PythonDecoratedOperator",
+            "note": "placeholder-note",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
