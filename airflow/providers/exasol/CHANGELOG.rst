@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+4.1.2
+.....
+
+Features
+~~~~~~~~
+
+* ``Update Exasol to common DBApiHook semantics and add tests (#28009)``
+
+
+* ``Fix wrapping of run() method result of exasol and snoflake DB hooks (#27997)``
+
+
 4.1.1
 .....
 

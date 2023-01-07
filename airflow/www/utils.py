@@ -53,6 +53,7 @@ from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
+    from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.operators import ColumnOperators
 
 
@@ -82,7 +83,11 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-priority = [
+def get_try_count(try_number: int, state: State):
+    return try_number + 1 if state in [State.DEFERRED, State.UP_FOR_RESCHEDULE] else try_number
+
+
+priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,
     TaskInstanceState.UPSTREAM_FAILED,
     TaskInstanceState.UP_FOR_RETRY,
@@ -116,12 +121,6 @@ def get_mapped_summary(parent_instance, task_instances):
         max((ti.end_date for ti in task_instances if ti.end_date), default=None)
     )
 
-    try_count = (
-        parent_instance._try_number
-        if parent_instance._try_number != 0 or parent_instance.state in State.running
-        else parent_instance._try_number + 1
-    )
-
     return {
         "task_id": parent_instance.task_id,
         "run_id": parent_instance.run_id,
@@ -129,21 +128,28 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": try_count,
+        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
     }
+
+
+def get_dag_run_conf(dag_run_conf: Any) -> tuple[str | None, bool]:
+    conf: str | None = None
+
+    conf_is_json: bool = False
+    if isinstance(dag_run_conf, str):
+        conf = dag_run_conf
+    elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
+        conf = json.dumps(dag_run_conf, sort_keys=True)
+        conf_is_json = True
+
+    return conf, conf_is_json
 
 
 def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
-    conf: str | None = None
-    conf_is_json: bool = False
-    if isinstance(dag_run.conf, str):
-        conf = dag_run.conf
-    elif isinstance(dag_run.conf, (dict, list)) and any(dag_run.conf):
-        conf = json.dumps(dag_run.conf, sort_keys=True)
-        conf_is_json = True
+    conf, conf_is_json = get_dag_run_conf(dag_run.conf)
 
     return {
         "run_id": dag_run.run_id,
@@ -706,7 +712,7 @@ class CustomSQLAInterface(SQLAInterface):
 
     """
 
-    def __init__(self, obj, session=None):
+    def __init__(self, obj, session: Session | None = None):
         super().__init__(obj, session=session)
 
         def clean_column_names():

@@ -140,6 +140,17 @@ def set_forced_answer_for_upgrade_check():
         set_forced_answer("quit")
 
 
+def process_breeze_readme(breeze_sources: Path, sources_hash: str):
+    breeze_readme = breeze_sources / "README.md"
+    lines = breeze_readme.read_text().splitlines(keepends=True)
+    result_lines = []
+    for line in lines:
+        if line.startswith("Package config hash:"):
+            line = f"Package config hash: {sources_hash}\n"
+        result_lines.append(line)
+    breeze_readme.write_text("".join(result_lines))
+
+
 def reinstall_if_setup_changed() -> bool:
     """
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
@@ -162,6 +173,7 @@ def reinstall_if_setup_changed() -> bool:
         if installation_sources is not None:
             breeze_sources = installation_sources / "dev" / "breeze"
             warn_dependencies_changed()
+            process_breeze_readme(breeze_sources, sources_hash)
             set_forced_answer_for_upgrade_check()
             reinstall_breeze(breeze_sources)
             set_forced_answer(None)
@@ -251,6 +263,9 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
+WWW_CACHE_DIR = BUILD_CACHE_DIR / "www"
+WWW_ASSET_COMPILE_LOCK = WWW_CACHE_DIR / ".asset_compile.lock"
+WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
 DAGS_DIR = AIRFLOW_SOURCES_ROOT / "dags"
 FILES_DIR = AIRFLOW_SOURCES_ROOT / "files"
 HOOKS_DIR = AIRFLOW_SOURCES_ROOT / "hooks"

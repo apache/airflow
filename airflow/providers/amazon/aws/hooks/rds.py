@@ -229,7 +229,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         Get the current state of a DB instance.
 
-        :param snapshot_id: The ID of the target DB instance.
+        :param db_instance_id: The ID of the target DB instance.
         :return: Returns the status of the DB instance as a string (eg. "available")
         :rtype: str
         :raises AirflowNotFoundException: If the DB instance does not exist.
@@ -278,7 +278,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         Get the current state of a DB cluster.
 
-        :param snapshot_id: The ID of the target DB cluster.
+        :param db_cluster_id: The ID of the target DB cluster.
         :return: Returns the status of the DB cluster as a string (eg. "available")
         :rtype: str
         :raises AirflowNotFoundException: If the DB cluster does not exist.

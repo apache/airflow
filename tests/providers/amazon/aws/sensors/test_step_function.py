@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
@@ -36,8 +34,8 @@ AWS_CONN_ID = "aws_non_default"
 REGION_NAME = "us-west-2"
 
 
-class TestStepFunctionExecutionSensor(unittest.TestCase):
-    def setUp(self):
+class TestStepFunctionExecutionSensor:
+    def setup_method(self):
         self.mock_context = MagicMock()
 
     def test_init(self):
@@ -50,9 +48,9 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
         assert AWS_CONN_ID == sensor.aws_conn_id
         assert REGION_NAME == sensor.region_name
 
-    @parameterized.expand([("FAILED",), ("TIMED_OUT",), ("ABORTED",)])
+    @pytest.mark.parametrize("mock_status", ["FAILED", "TIMED_OUT", "ABORTED"])
     @mock.patch("airflow.providers.amazon.aws.sensors.step_function.StepFunctionHook")
-    def test_exceptions(self, mock_status, mock_hook):
+    def test_exceptions(self, mock_hook, mock_status):
         hook_response = {"status": mock_status}
 
         hook_instance = mock_hook.return_value

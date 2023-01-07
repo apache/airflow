@@ -24,7 +24,6 @@
       "mypy-boto3-appflow>=1.24.0",
       "mypy-boto3-rds>=1.24.0",
       "mypy-boto3-redshift-data>=1.24.0",
-      "pandas>=0.17.1",
       "redshift_connector>=2.0.888",
       "sqlalchemy_redshift>=0.8.6",
       "watchtower~=2.0.1"
@@ -79,6 +78,16 @@
       "common.sql"
     ]
   },
+  "apache.flink": {
+    "deps": [
+      "apache-airflow>=2.3.0",
+      "cryptography>=2.0.0",
+      "kubernetes>=21.7.0,<24"
+    ],
+    "cross-providers-deps": [
+      "cncf.kubernetes"
+    ]
+  },
   "apache.hdfs": {
     "deps": [
       "apache-airflow>=2.3.0",
@@ -105,6 +114,15 @@
       "presto",
       "samba",
       "vertica"
+    ]
+  },
+  "apache.impala": {
+    "deps": [
+      "apache-airflow>=2.3.0",
+      "impyla>=0.18.0,<1.0"
+    ],
+    "cross-providers-deps": [
+      "common.sql"
     ]
   },
   "apache.kylin": {
@@ -168,8 +186,8 @@
   },
   "atlassian.jira": {
     "deps": [
-      "JIRA>1.0.7",
-      "apache-airflow>=2.3.0"
+      "apache-airflow>=2.3.0",
+      "atlassian-python-api>=1.14.2"
     ],
     "cross-providers-deps": []
   },
@@ -250,7 +268,7 @@
   },
   "docker": {
     "deps": [
-      "apache-airflow>=2.4.0",
+      "apache-airflow>=2.3.0",
       "docker>=5.0.3",
       "python-dotenv>=0.21.0"
     ],
@@ -440,9 +458,10 @@
       "azure-mgmt-datafactory>=1.0.0,<2.0",
       "azure-mgmt-datalake-store>=0.5.0",
       "azure-mgmt-resource>=2.2.0",
-      "azure-servicebus>=7.6.1; platform_machine != \"aarch64\"",
+      "azure-servicebus>=7.6.1",
       "azure-storage-blob>=12.14.0",
       "azure-storage-common>=2.1.0",
+      "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file>=2.1.0",
       "azure-synapse-spark"
     ],
@@ -456,7 +475,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
-      "pymssql>=2.1.5; platform_machine != \"aarch64\""
+      "pymssql>=2.1.5"
     ],
     "cross-providers-deps": [
       "common.sql"
@@ -564,7 +583,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
-      "psycopg2>=2.8.0"
+      "psycopg2-binary>=2.8.0"
     ],
     "cross-providers-deps": [
       "amazon",
@@ -699,7 +718,7 @@
   "telegram": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "python-telegram-bot>=13.0"
+      "python-telegram-bot>=13.0,<20.0.0"
     ],
     "cross-providers-deps": []
   },

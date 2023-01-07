@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -26,8 +25,8 @@ from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.sensors.dms import DmsTaskCompletedSensor
 
 
-class TestDmsTaskCompletedSensor(unittest.TestCase):
-    def setUp(self):
+class TestDmsTaskCompletedSensor:
+    def setup_method(self):
         self.sensor = DmsTaskCompletedSensor(
             task_id="test_dms_sensor",
             aws_conn_id="aws_default",

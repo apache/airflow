@@ -27,6 +27,8 @@ from botocore.exceptions import ClientError
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.waiter import get_state, waiter
+from airflow.utils.helpers import prune_dict
 
 
 class EmrHook(AwsBaseHook):
@@ -125,7 +127,13 @@ class EmrHook(AwsBaseHook):
         return response
 
     def add_job_flow_steps(
-        self, job_flow_id: str, steps: list[dict] | str | None = None, wait_for_completion: bool = False
+        self,
+        job_flow_id: str,
+        steps: list[dict] | str | None = None,
+        wait_for_completion: bool = False,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
+        execution_role_arn: str | None = None,
     ) -> list[str]:
         """
         Add new steps to a running cluster.
@@ -133,8 +141,14 @@ class EmrHook(AwsBaseHook):
         :param job_flow_id: The id of the job flow to which the steps are being added
         :param steps: A list of the steps to be executed by the job flow
         :param wait_for_completion: If True, wait for the steps to be completed. Default is False
+        :param waiter_delay: The amount of time in seconds to wait between attempts. Default is 5
+        :param waiter_max_attempts: The maximum number of attempts to be made. Default is 100
+        :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
         """
-        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
+        config = {}
+        if execution_role_arn:
+            config["ExecutionRoleArn"] = execution_role_arn
+        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps, **config)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Adding steps failed: {response}")
@@ -146,10 +160,12 @@ class EmrHook(AwsBaseHook):
                 waiter.wait(
                     ClusterId=job_flow_id,
                     StepId=step_id,
-                    WaiterConfig={
-                        "Delay": 5,
-                        "MaxAttempts": 100,
-                    },
+                    WaiterConfig=prune_dict(
+                        {
+                            "Delay": waiter_delay,
+                            "MaxAttempts": waiter_max_attempts,
+                        }
+                    ),
                 )
         return response["StepIds"]
 
@@ -260,27 +276,32 @@ class EmrServerlessHook(AwsBaseHook):
         :param check_interval_seconds: Number of seconds waiter should wait before attempting
             to retry get_state_callable. Defaults to 60 seconds.
         """
-        response = get_state_callable(**get_state_args)
-        state: str = self.get_state(response, parse_response)
-        while state not in desired_state:
-            if state in failure_states:
-                raise AirflowException(f"{object_type.title()} reached failure state {state}.")
-            if countdown >= check_interval_seconds:
-                countdown -= check_interval_seconds
-                self.log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
-                sleep(check_interval_seconds)
-                state = self.get_state(get_state_callable(**get_state_args), parse_response)
-            else:
-                message = f"{object_type.title()} still not {action.lower()} after the allocated time limit."
-                self.log.error(message)
-                raise RuntimeError(message)
+        warnings.warn(
+            """This method is deprecated.
+            Please use `airflow.providers.amazon.aws.utils.waiter.waiter`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        waiter(
+            get_state_callable=get_state_callable,
+            get_state_args=get_state_args,
+            parse_response=parse_response,
+            desired_state=desired_state,
+            failure_states=failure_states,
+            object_type=object_type,
+            action=action,
+            countdown=countdown,
+            check_interval_seconds=check_interval_seconds,
+        )
 
     def get_state(self, response, keys) -> str:
-        value = response
-        for key in keys:
-            if value is not None:
-                value = value.get(key, None)
-        return value
+        warnings.warn(
+            """This method is deprecated.
+            Please use `airflow.providers.amazon.aws.utils.waiter.get_state`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return get_state(response=response, keys=keys)
 
 
 class EmrContainerHook(AwsBaseHook):

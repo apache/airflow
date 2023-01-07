@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import os
 import warnings
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
@@ -132,6 +133,24 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
+    @staticmethod
+    def _should_check_k8s(queue):
+        """
+        If the task is running through kubernetes executor, return True.
+
+        When logs aren't available locally, in this case we read from k8s pod logs.
+        """
+        executor = conf.get("core", "executor")
+        if executor == "KubernetesExecutor":
+            return True
+        elif executor == "LocalKubernetesExecutor":
+            if queue == conf.get("local_kubernetes_executor", "kubernetes_queue"):
+                return True
+        elif executor == "CeleryKubernetesExecutor":
+            if queue == conf.get("celery_kubernetes_executor", "kubernetes_queue"):
+                return True
+        return False
+
     def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
@@ -163,7 +182,6 @@ class FileTaskHandler(logging.Handler):
         location = os.path.join(self.local_base, log_relative_path)
 
         log = ""
-
         if os.path.exists(location):
             try:
                 with open(location, encoding="utf-8", errors="surrogateescape") as file:
@@ -173,31 +191,34 @@ class FileTaskHandler(logging.Handler):
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
-        elif conf.get("core", "executor") == "KubernetesExecutor":
+        elif self._should_check_k8s(ti.queue):
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
+                from airflow.kubernetes.pod_generator import PodGenerator
 
-                kube_client = get_kube_client()
-
-                if len(ti.hostname) >= 63:
-                    # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
-                    # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
-                    # on any label of a FQDN.
-                    pod_list = kube_client.list_namespaced_pod(conf.get("kubernetes_executor", "namespace"))
-                    matches = [
-                        pod.metadata.name
-                        for pod in pod_list.items
-                        if pod.metadata.name.startswith(ti.hostname)
-                    ]
-                    if len(matches) == 1:
-                        if len(matches[0]) > len(ti.hostname):
-                            ti.hostname = matches[0]
+                client = get_kube_client()
 
                 log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
-
-                res = kube_client.read_namespaced_pod_log(
-                    name=ti.hostname,
-                    namespace=conf.get("kubernetes_executor", "namespace"),
+                selector = PodGenerator.build_selector_for_k8s_executor_pod(
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    try_number=ti.try_number,
+                    map_index=ti.map_index,
+                    run_id=ti.run_id,
+                    airflow_worker=ti.queued_by_job_id,
+                )
+                namespace = self._get_pod_namespace(ti)
+                pod_list = client.list_namespaced_pod(
+                    namespace=namespace,
+                    label_selector=selector,
+                ).items
+                if not pod_list:
+                    raise RuntimeError("Cannot find pod for ti %s", ti)
+                elif len(pod_list) > 1:
+                    raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
+                res = client.read_namespaced_pod_log(
+                    name=pod_list[0].metadata.name,
+                    namespace=namespace,
                     container="base",
                     follow=False,
                     tail_lines=100,
@@ -257,13 +278,21 @@ class FileTaskHandler(logging.Handler):
                 return log, {"end_of_log": True}
 
         # Process tailing if log is not at it's end
-        end_of_log = ti.try_number != try_number or ti.state not in State.running
+        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
         log_pos = len(log)
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             log = log[previous_chars:]  # Cut off previously passed log test as new tail
 
         return log, {"end_of_log": end_of_log, "log_pos": log_pos}
+
+    @staticmethod
+    def _get_pod_namespace(ti: TaskInstance):
+        pod_override = ti.executor_config.get("pod_override")
+        namespace = None
+        with suppress(Exception):
+            namespace = pod_override.metadata.namespace
+        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
 
     @staticmethod
     def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
@@ -311,6 +340,35 @@ class FileTaskHandler(logging.Handler):
 
         return logs, metadata_array
 
+    def _prepare_log_folder(self, directory: Path):
+        """
+        Prepare the log folder and ensure its mode is 777.
+
+        To handle log writing when tasks are impersonated, the log files need to
+        be writable by the user that runs the Airflow command and the user
+        that is impersonated. This is mainly to handle corner cases with the
+        SubDagOperator. When the SubDagOperator is run, all of the operators
+        run under the impersonated user and create appropriate log files
+        as the impersonated user. However, if the user manually runs tasks
+        of the SubDagOperator through the UI, then the log files are created
+        by the user that runs the Airflow command. For example, the Airflow
+        run command may be run by the `airflow_sudoable` user, but the Airflow
+        tasks may be run by the `airflow` user. If the log files are not
+        writable by both users, then it's possible that re-running a task
+        via the UI (or vice versa) results in a permission error as the task
+        tries to write to a log file created by the other user.
+
+        Create the log file and give it group writable permissions
+        TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
+        operator is not compatible with impersonation (e.g. if a Celery executor is used
+        for a SubDag operator and the SubDag operator has a different owner than the
+        parent DAG)
+        """
+        mode = 0o777
+        directory.mkdir(mode=mode, parents=True, exist_ok=True)
+        if directory.stat().st_mode != mode:
+            directory.chmod(mode)
+
     def _init_file(self, ti):
         """
         Create log directory and give it correct permissions.
@@ -333,13 +391,7 @@ class FileTaskHandler(logging.Handler):
         # tries to write to a log file created by the other user.
         relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, relative_path)
-        directory = os.path.dirname(full_path)
-        # Create the log file and give it group writable permissions
-        # TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
-        # operator is not compatible with impersonation (e.g. if a Celery executor is used
-        # for a SubDag operator and the SubDag operator has a different owner than the
-        # parent DAG)
-        Path(directory).mkdir(mode=0o777, parents=True, exist_ok=True)
+        self._prepare_log_folder(Path(full_path).parent)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
