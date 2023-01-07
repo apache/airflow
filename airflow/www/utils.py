@@ -133,13 +133,22 @@ def get_mapped_summary(parent_instance, task_instances):
 
 
 def get_dag_run_conf(dag_run_conf: Any) -> tuple[str | None, bool]:
+    class DagRunConfEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, bytes):
+                try:
+                    return obj.decode()
+                except Exception:
+                    return str(obj)
+            return json.JSONEncoder.default(self, obj)
+
     conf: str | None = None
 
     conf_is_json: bool = False
     if isinstance(dag_run_conf, str):
         conf = dag_run_conf
     elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
-        conf = json.dumps(dag_run_conf, sort_keys=True)
+        conf = json.dumps(dag_run_conf, sort_keys=True, cls=DagRunConfEncoder)
         conf_is_json = True
 
     return conf, conf_is_json
