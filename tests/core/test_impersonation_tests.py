@@ -120,7 +120,6 @@ class BaseImpersonationTest:
         assert ti.state == State.SUCCESS
 
 
-@pytest.mark.quarantined
 class TestImpersonation(BaseImpersonationTest):
     @classmethod
     def setup_class(cls):
@@ -156,7 +155,6 @@ class TestImpersonation(BaseImpersonationTest):
         self.run_backfill("impersonation_subdag", "test_subdag_operation")
 
 
-@pytest.mark.quarantined
 class TestImpersonationWithCustomPythonPath(BaseImpersonationTest):
     @pytest.fixture(autouse=True)
     def setup_dagbag(self, monkeypatch):
