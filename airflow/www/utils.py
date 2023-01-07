@@ -140,7 +140,10 @@ def get_dag_run_conf(dag_run_conf: Any) -> tuple[str | None, bool]:
                     return obj.decode()
                 except Exception:
                     return str(obj)
-            return json.JSONEncoder.default(self, obj)
+            try:
+                return json.JSONEncoder.default(self, obj)
+            except Exception:
+                return str(obj)
 
     conf: str | None = None
 
