@@ -40,6 +40,7 @@ from airflow.providers.docker.exceptions import (
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
+from airflow.providers.docker.protocols.docker_registry import DockerRegistryAuthProtocol
 
 if TYPE_CHECKING:
     from docker import APIClient
@@ -166,6 +167,9 @@ class DockerOperator(BaseOperator):
         dictionary of value where the key indicates the port to open inside the container
         and value indicates the host port that binds to the container port.
         Incompatible with ``host`` in ``network_mode``.
+    :param registry_auth: Object which use for auth to Docker Registry, should implement
+        class:`airflow.providers.docker.utils.docker_registry_auth.DockerRegistryAuthProtocol`,
+        if set to ``None`` then auto-assign object depend on value of ``docker_conn_id``.
     """
 
     template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
@@ -225,6 +229,7 @@ class DockerOperator(BaseOperator):
         skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
+        registry_auth: DockerRegistryAuthProtocol | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -304,6 +309,7 @@ class DockerOperator(BaseOperator):
         self.port_bindings = port_bindings or {}
         if self.port_bindings and self.network_mode == "host":
             raise ValueError("Port bindings is not supported in the host network mode")
+        self.registry_auth = registry_auth
 
     @cached_property
     def hook(self) -> DockerHook:
@@ -322,6 +328,7 @@ class DockerOperator(BaseOperator):
             version=self.api_version,
             tls=tls_config,
             timeout=self.timeout,
+            registry_auth=self.registry_auth,
         )
 
     def get_hook(self) -> DockerHook:

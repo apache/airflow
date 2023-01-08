@@ -25,8 +25,15 @@ from docker import APIClient, TLSConfig
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.docker.protocols.docker_registry import (
+    AirflowConnectionDockerRegistryAuth,
+    DockerRegistryAuthProtocol,
+    DockerRegistryCredentials,
+    NoDockerRegistryAuth,
+    RefreshableDockerRegistryAuthProtocol,
+)
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -50,6 +57,9 @@ class DockerHook(BaseHook):
     :param tls: Is connection required TLS, for enable pass ``True`` for use with default options,
         or pass a `docker.tls.TLSConfig` object to use custom configurations.
     :param timeout: Default timeout for API calls, in seconds.
+    :param registry_auth: Object which use for auth to Docker Registry, should implement
+        class:`airflow.providers.docker.utils.docker_registry_auth.DockerRegistryAuthProtocol`,
+        if set to ``None`` then auto-assign object depend on value of ``docker_conn_id``.
     """
 
     conn_name_attr = "docker_conn_id"
@@ -64,6 +74,7 @@ class DockerHook(BaseHook):
         version: str | None = None,
         tls: TLSConfig | bool | None = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
+        registry_auth: DockerRegistryAuthProtocol | None = None,
     ) -> None:
         super().__init__()
         if not base_url:
@@ -81,6 +92,21 @@ class DockerHook(BaseHook):
         self.__tls = tls or False
         self.__timeout = timeout
         self._client_created = False
+
+        if registry_auth is None:
+            # Set registry_auth based on `docker_conn_id` value
+            if self.docker_conn_id:
+                registry_auth = AirflowConnectionDockerRegistryAuth()
+            else:
+                registry_auth = NoDockerRegistryAuth()
+        elif not isinstance(registry_auth, DockerRegistryAuthProtocol):
+            raise TypeError(
+                "'registry_auth' expected DockerRegistryAuthProtocol, "
+                f"but got {type(registry_auth).__name__}."
+            )
+
+        self._registry_auth: DockerRegistryAuthProtocol = registry_auth
+        self._api_client: APIClient | None = None
 
     @staticmethod
     def construct_tls_config(
@@ -115,17 +141,52 @@ class DockerHook(BaseHook):
         return False
 
     @cached_property
-    def api_client(self) -> APIClient:
-        """Create connection to docker host and return ``docker.APIClient`` (cached)."""
-        client = APIClient(
-            base_url=self.__base_url, version=self.__version, tls=self.__tls, timeout=self.__timeout
-        )
-        if self.docker_conn_id:
-            # Obtain connection and try to login to Container Registry only if ``docker_conn_id`` set.
-            self.__login(client, self.get_connection(self.docker_conn_id))
+    def _airflow_connection(self) -> Connection | None:
+        """Return Airflow connection associated with `docker_conn_id` (cached)."""
+        if not self.docker_conn_id:
+            return None
+        return self.get_connection(self.docker_conn_id)
 
-        self._client_created = True
-        return client
+    @property
+    def api_client(self) -> APIClient:
+        """Create connection to docker host and return ``docker.APIClient``."""
+        if not self._api_client:
+            # Create client only once
+            self._api_client = APIClient(
+                base_url=self.__base_url, version=self.__version, tls=self.__tls, timeout=self.__timeout
+            )
+            self._login(
+                self._api_client,
+                self._registry_auth.get_credentials(conn=self._airflow_connection),
+            )
+            self._client_created = True
+        elif (
+            isinstance(self._registry_auth, RefreshableDockerRegistryAuthProtocol)
+            and self._registry_auth.need_refresh
+        ):
+            self._login(
+                self._api_client,
+                self._registry_auth.refresh_credentials(conn=self._airflow_connection),
+                reauth=True,
+            )
+
+        return self._api_client
+
+    def _login(self, client: APIClient, credentials: list[DockerRegistryCredentials], reauth=False) -> None:
+        for rc in credentials:
+            try:
+                self.log.info("Login into Docker Registry: %s", rc.registry)
+                client.login(
+                    username=rc.username,
+                    password=rc.password,
+                    registry=rc.registry,
+                    email=rc.email,
+                    reauth=reauth or rc.reauth,  # Force reauth on refresh credentials
+                )
+            except APIError:
+                self.log.error("Login failed to registry: %s", rc.registry)
+                raise
+            self.log.debug("Login successful to registry: %s", rc.registry)
 
     @property
     def client_created(self) -> bool:
@@ -136,38 +197,8 @@ class DockerHook(BaseHook):
         """Create connection to docker host and return ``docker.APIClient`` (cached)."""
         return self.api_client
 
-    def __login(self, client, conn: Connection) -> None:
-        if not conn.host:
-            raise AirflowNotFoundException("No Docker Registry URL provided.")
-        if not conn.login:
-            raise AirflowNotFoundException("No Docker Registry username provided.")
-
-        registry = f"{conn.host}:{conn.port}" if conn.port else conn.host
-
-        # Parse additional optional parameters
-        email = conn.extra_dejson.get("email") or None
-        reauth = conn.extra_dejson.get("reauth", True)
-        if isinstance(reauth, str):
-            reauth = reauth.lower()
-            if reauth in ("y", "yes", "t", "true", "on", "1"):
-                reauth = True
-            elif reauth in ("n", "no", "f", "false", "off", "0"):
-                reauth = False
-            else:
-                raise ValueError(f"Unable parse `reauth` value {reauth!r} to bool.")
-
-        try:
-            self.log.info("Login into Docker Registry: %s", registry)
-            client.login(
-                username=conn.login, password=conn.password, registry=registry, email=email, reauth=reauth
-            )
-            self.log.debug("Login successful")
-        except APIError:
-            self.log.error("Login failed")
-            raise
-
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection form widgets."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext

@@ -27,6 +27,10 @@ from docker.errors import APIError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.docker.hooks.docker import DockerHook
+from tests.providers.docker.protocols.test_docker_registry import (
+    FakeDockerRegistryAuth,
+    FakeRefreshableDockerRegistryAuth,
+)
 
 TEST_CONN_ID = "docker_test_connection"
 TEST_BASE_URL = "unix://var/run/docker.sock"
@@ -185,6 +189,80 @@ def test_success_login_to_registry(hook_conn, docker_api_client_patcher, expecte
     mock_login.assert_called_once_with(**expected)
 
 
+@pytest.mark.parametrize("total_credentials", [0, 1, 42])
+def test_registry_auth(total_credentials, docker_api_client_patcher):
+    """Test DockerRegistryAuth backend."""
+    mock_login = mock.MagicMock()
+    docker_api_client_patcher.return_value.login = mock_login
+
+    hook = DockerHook(
+        docker_conn_id=None,
+        base_url=TEST_BASE_URL,
+        registry_auth=FakeDockerRegistryAuth(registries=total_credentials),
+    )
+
+    orig_login = hook._login
+
+    def login(*args, **kwargs):
+        if "reauth" in kwargs:
+            raise AssertionError("'reauth' not expected")
+        return orig_login(*args, **kwargs)
+
+    with mock.patch.object(DockerHook, "_login", side_effect=login) as m:
+        hook.get_conn()
+        assert m.call_count == 1
+        assert mock_login.call_count == total_credentials
+
+
+@pytest.mark.parametrize("total_credentials", [0, 1, 42])
+def test_refreshed_registry_auth(total_credentials, docker_api_client_patcher):
+    """Test RefreshableDockerRegistryAuth backend."""
+    mock_login = mock.MagicMock()
+    docker_api_client_patcher.return_value.login = mock_login
+
+    fake_registry_auth = FakeRefreshableDockerRegistryAuth(registries=total_credentials)
+    fake_registry_auth.need_refresh = True
+    hook = DockerHook(docker_conn_id=None, base_url=TEST_BASE_URL, registry_auth=fake_registry_auth)
+
+    with mock.patch.object(DockerHook, "_login", side_effect=hook._login) as m:
+        hook.get_conn()
+        # Initialise client and login
+        assert m.call_count == 1
+        assert mock_login.call_count == total_credentials
+
+        mock_login.reset_mock()
+        m.reset_mock()
+        fake_registry_auth.need_refresh = False
+        hook.get_conn()
+        # No need to refresh in case of need_refresh set to False
+        mock_login.assert_not_called()
+        m.assert_not_called()
+
+        mock_login.reset_mock()
+        m.reset_mock()
+        fake_registry_auth.need_refresh = True
+        hook.get_conn()
+        assert mock_login.call_count == total_credentials
+        assert m.call_count == 1
+        mock_login.assert_has_calls(
+            [
+                mock.call(
+                    username=mock.ANY,
+                    password=mock.ANY,
+                    registry=mock.ANY,
+                    email=mock.ANY,
+                    reauth=True,
+                )
+                for _ in range(total_credentials)
+            ]
+        )
+
+
+def test_wrong_registry_auth():
+    with pytest.raises(TypeError, match="'registry_auth' expected DockerRegistryAuthProtocol"):
+        DockerHook(base_url=TEST_BASE_URL, docker_conn_id=None, registry_auth="aws_ecr_conn_id")
+
+
 def test_failed_login_to_registry(hook_conn, docker_api_client_patcher, caplog):
     """Test error during Docker Registry login."""
     caplog.set_level(logging.ERROR, logger=HOOK_LOGGER_NAME)
@@ -193,44 +271,7 @@ def test_failed_login_to_registry(hook_conn, docker_api_client_patcher, caplog):
     hook = DockerHook(docker_conn_id=TEST_CONN_ID, base_url=TEST_BASE_URL)
     with pytest.raises(APIError, match="Fake Error"):
         hook.get_conn()
-    assert "Login failed" in caplog.messages
-
-
-@pytest.mark.parametrize(
-    "hook_conn, ex, error_message",
-    [
-        pytest.param(
-            {k: v for k, v in TEST_CONN.items() if k != "login"},
-            AirflowNotFoundException,
-            r"No Docker Registry username provided\.",
-            id="missing-username",
-        ),
-        pytest.param(
-            {k: v for k, v in TEST_CONN.items() if k != "host"},
-            AirflowNotFoundException,
-            r"No Docker Registry URL provided\.",
-            id="missing-registry-host",
-        ),
-        pytest.param(
-            {**TEST_CONN, **{"extra": {"reauth": "enabled"}}},
-            ValueError,
-            r"Unable parse `reauth` value '.*' to bool\.",
-            id="wrong-reauth",
-        ),
-        pytest.param(
-            {**TEST_CONN, **{"extra": {"reauth": "disabled"}}},
-            ValueError,
-            r"Unable parse `reauth` value '.*' to bool\.",
-            id="wrong-noreauth",
-        ),
-    ],
-    indirect=["hook_conn"],
-)
-def test_invalid_conn_parameters(hook_conn, docker_api_client_patcher, ex, error_message):
-    """Test invalid/missing connection parameters."""
-    hook = DockerHook(docker_conn_id=TEST_CONN_ID, base_url=TEST_BASE_URL)
-    with pytest.raises(ex, match=error_message):
-        hook.get_conn()
+    assert "Login failed" in caplog.messages[0]
 
 
 @pytest.mark.parametrize(

@@ -28,14 +28,7 @@ import dill
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.docker.operators.docker import DockerOperator
-
-try:
-    from airflow.utils.decorators import remove_task_decorator
-
-    # This can be removed after we move to Airflow 2.4+
-except ImportError:
-    from airflow.utils.python_virtualenv import remove_task_decorator
-
+from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.python_virtualenv import write_python_script
 
 if TYPE_CHECKING:

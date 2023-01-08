@@ -90,6 +90,7 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
         version=TEST_API_VERSION,
         tls="MOCK-TLS-VALUE",
         timeout=42,
+        registry_auth=mock.ANY,
     )
     docker_hook_patcher.construct_tls_config.assert_called_once_with(**expected_tls_call_args)
 
