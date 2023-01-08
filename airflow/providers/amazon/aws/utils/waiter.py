@@ -34,7 +34,7 @@ def waiter(
     failure_states: set,
     object_type: str,
     action: str,
-    countdown: int = 25 * 60,
+    countdown: int | None = 25 * 60,
     check_interval_seconds: int = 60,
 ) -> None:
     """
@@ -60,7 +60,7 @@ def waiter(
             break
         if state in failure_states:
             raise AirflowException(f"{object_type.title()} reached failure state {state}.")
-        if countdown > check_interval_seconds:
+        if countdown and countdown > check_interval_seconds:
             countdown -= check_interval_seconds
             log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
             time.sleep(check_interval_seconds)
