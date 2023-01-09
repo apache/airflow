@@ -65,7 +65,7 @@ class FileTaskHandler(logging.Handler):
         self.maintain_propagate: bool = False
         """
         If true, overrides default behavior of setting propagate=False
-        
+
         :meta private:
         """
 
