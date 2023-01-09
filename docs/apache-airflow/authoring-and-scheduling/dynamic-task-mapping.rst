@@ -433,7 +433,7 @@ There are a couple of things to note:
 Combining upstream data (aka "zipping")
 =======================================
 
-It is also to want to combine multiple input sources into one task mapping iterable. This is generally known as "zipping" (like Python's built-in ``zip()`` function), and is also performed as pre-processing of the downstream task.
+It is also common to want to combine multiple input sources into one task mapping iterable. This is generally known as "zipping" (like Python's built-in ``zip()`` function), and is also performed as pre-processing of the downstream task.
 
 This is especially useful for conditional logic in task mapping. For example, if you want to download files from S3, but rename those files, something like this would be possible:
 
