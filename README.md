@@ -259,8 +259,12 @@ packages:
   Chart to depend on minimal Airflow version.
 * **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR versions of Airflow.
   The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
-  all clients. The clients then can release their own PATCH releases with bugfixes,
-  independently of Airflow PATCH releases.
+  all clients. An airflow PATCH X.Y.Z release can be followed by a PATCH release of API clients, only
+  if this PATCH is relevant to the clients.
+  The clients then can release their own PATCH releases with bugfixes, independently of Airflow PATCH releases.
+  As a consequence, each API client will have its own PATCH version that may or may not be in sync with the Airflow
+  PATCH version. For a specific MAJOR/MINOR Airflow version, users should favor the latest PATCH version of clients
+  independently of their Airflow PATCH version.
 
 ## Version Life Cycle
 
