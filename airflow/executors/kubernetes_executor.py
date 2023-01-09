@@ -799,7 +799,7 @@ class KubernetesExecutor(BaseExecutor):
 
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
         """
-        Patch completed pod so that the KubernetesJobWatcher can delete it.
+        Patch completed pods so that the KubernetesJobWatcher can delete them.
 
         :param kube_client: kubernetes client for speaking to kube API
         """
