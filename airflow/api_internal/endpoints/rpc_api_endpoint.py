@@ -24,6 +24,7 @@ from flask import Response
 
 from airflow.api_connexion.types import APIResponse
 from airflow.dag_processing.processor import DagFileProcessor
+from airflow.models import Variable
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -36,6 +37,9 @@ def _build_methods_map(list) -> dict:
 METHODS_MAP = _build_methods_map(
     [
         DagFileProcessor.update_import_errors,
+        Variable.set,
+        Variable.update,
+        Variable.delete,
     ]
 )
 
@@ -44,7 +48,7 @@ def internal_airflow_api(
     body: dict,
 ) -> APIResponse:
     """Handler for Internal API /internal_api/v1/rpcapi endpoint."""
-    log.debug("Got request")
+    log.info("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
         log.error("Not jsonrpc-2.0 request.")

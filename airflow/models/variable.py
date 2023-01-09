@@ -33,6 +33,7 @@ from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
+from airflow.api_internal.internal_api_call import internal_api_call
 
 log = logging.getLogger(__name__)
 
@@ -148,10 +149,10 @@ class Variable(Base, LoggingMixin):
                 mask_secret(var_val, key)
                 return var_val
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def set(
-        cls,
         key: str,
         value: Any,
         description: str | None = None,
@@ -169,7 +170,7 @@ class Variable(Base, LoggingMixin):
         :param session: SQL Alchemy Sessions
         """
         # check if the secret exists in the custom secrets backend.
-        cls.check_for_write_conflict(key)
+        Variable.check_for_write_conflict(key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
@@ -181,6 +182,7 @@ class Variable(Base, LoggingMixin):
 
     @classmethod
     @provide_session
+    @internal_api_call
     def update(
         cls,
         key: str,
@@ -196,27 +198,28 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Session
         """
-        cls.check_for_write_conflict(key)
+        Variable.check_for_write_conflict(key)
 
-        if cls.get_variable_from_secrets(key=key) is None:
+        if Variable.get_variable_from_secrets(key=key) is None:
             raise KeyError(f"Variable {key} does not exist")
 
-        obj = session.query(cls).filter(cls.key == key).first()
+        obj = session.query(Variable).filter(Variable.key == key).first()
         if obj is None:
             raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 
-        cls.set(key, value, description=obj.description, serialize_json=serialize_json)
+        Variable.set(key, value, description=obj.description, serialize_json=serialize_json)
 
-    @classmethod
+    @staticmethod
     @provide_session
-    def delete(cls, key: str, session: Session = None) -> int:
+    @internal_api_call
+    def delete(key: str, session: Session = None) -> int:
         """
         Delete an Airflow Variable for a given key
 
         :param key: Variable Key
         :param session: SQL Alchemy Sessions
         """
-        return session.query(cls).filter(cls.key == key).delete()
+        return session.query(Variable).filter(Variable.key == key).delete()
 
     def rotate_fernet_key(self):
         """Rotate Fernet Key"""
@@ -275,3 +278,4 @@ class Variable(Base, LoggingMixin):
                     type(secrets_backend).__name__,
                 )
         return None
+
