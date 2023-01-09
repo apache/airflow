@@ -1558,6 +1558,14 @@
                         }
                     ]
                 },
+                "annotations": {
+                    "description": "Annotations to add to the worker deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the worker pods.",
                     "type": "object",
@@ -1949,6 +1957,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "annotations": {
+                    "description": "Annotations to add to the scheduler deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the scheduler pods.",
                     "type": "object",
@@ -2325,6 +2341,14 @@
                     "type": "integer",
                     "default": 60
                 },
+                "annotations": {
+                    "description": "Annotations to add to the triggerer deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the triggerer pods.",
                     "type": "object",
@@ -2641,6 +2665,14 @@
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
                     "default": 60
+                },
+                "annotations": {
+                    "description": "Annotations to add to the dag processor deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to the dag processor pods.",
@@ -3602,6 +3634,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "annotations": {
+                    "description": "Annotations to add to the webserver deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the webserver pods.",
                     "type": "object",
@@ -3981,6 +4021,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "annotations": {
+                    "description": "Annotations to add to the flower deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the Flower pods.",
                     "type": "object",
@@ -4224,6 +4272,14 @@
                     "type": "boolean",
                     "x-docsSection": "Common",
                     "default": false
+                },
+                "annotations": {
+                    "description": "Annotations to add to the PgBouncer deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "replicas": {
                     "description": "Number of PgBouncer replicas to run in Deployment.",

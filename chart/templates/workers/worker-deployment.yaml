@@ -39,6 +39,10 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+{{- if .Values.workers.annotations }}
+  annotations:
+    {{- toYaml .Values.workers.annotations | nindent 4 }}
+{{- end }}
 spec:
 {{- if $persistence }}
   serviceName: {{ .Release.Name }}-worker

@@ -83,6 +83,41 @@ are also images published from branches but they are used mainly for development
 See `Airflow Git Branching <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#airflow-git-branches>`_
 for details.
 
+Fixing images at release time
+=============================
+
+The released "versioned" reference images are mostly ``fixed`` when we release Airflow version and we only
+update them in exceptional circumstances. For example when we find out that there are dependency errors
+that might prevent important Airflow or embedded provider's functionalities working. In normal circumstances,
+the images are not going to change after release, even if new version of Airflow dependencies are released -
+not even when those versions contain critical security fixes. The process of Airflow releases is designed
+around upgrading dependencies automatically where applicable but only when we release a new version of Airflow,
+not for already released versions.
+
+If you want to make sure that Airflow dependencies are upgraded to the latest released versions containing
+latest security fixes in the image you use, you should implement your own process to upgrade
+those yourself when you build custom image based on the Airflow reference one. Airflow usually does not
+upper-bound versions of its dependencies via requirements, so you should be able to upgrade them to the
+latest versions - usually without any problems. And you can follow the process described in
+:ref:`Building the image <build:build_image>` to do it (even in automated way).
+
+Obviously - since we have no control over what gets released in new versions of the dependencies, we
+cannot give any guarantees that tests and functionality of those dependencies will be compatible with
+Airflow after you upgrade them - testing if Airflow still works with those is in your hands,
+and in case of any problems, you should raise issue with the authors of the dependencies that are problematic.
+You can also - in such cases - look at the `Airflow issues <https://github.com/apache/airflow/issues>`_
+`Airflow Pull Requests <https://github.com/apache/airflow/pulls>`_ and
+`Airflow Discussions <https://github.com/apache/airflow/discussions>`_, searching for similar
+problems to see if there are any fixes or workarounds found in the ``main`` version of Airflow and apply them
+to your custom image.
+
+The easiest way to keep-up with the latest released dependencies is however, to upgrade to the latest released
+Airflow version via switching to newly released images as base for your images, when a new version of
+Airflow is released. Whenever we release a new version of Airflow, we upgrade all dependencies to the latest
+applicable versions and test them together, so if you want to keep up with those tests - staying up-to-date
+with latest version of Airflow is the easiest way to update those dependencies.
+
+
 Support
 =======
 

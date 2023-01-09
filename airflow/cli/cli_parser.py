@@ -815,6 +815,12 @@ ARG_CONN_SERIALIZATION_FORMAT = Arg(
     choices=["json", "uri"],
 )
 ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
+ARG_CONN_OVERWRITE = Arg(
+    ("--overwrite",),
+    help="Overwrite existing entries if a conflict occurs",
+    required=False,
+    action="store_true",
+)
 
 # providers
 ARG_PROVIDER_NAME = Arg(
@@ -1602,6 +1608,7 @@ CONNECTIONS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_import"),
         args=(
             ARG_CONN_IMPORT,
+            ARG_CONN_OVERWRITE,
             ARG_VERBOSE,
         ),
     ),
