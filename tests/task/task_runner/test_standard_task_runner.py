@@ -152,7 +152,7 @@ class TestStandardTaskRunner:
         runner = StandardTaskRunner(job1)
         runner.start()
 
-        # Wait until process sets its pgid to be equal to pid
+        # Wait until process makes itself the leader of it's own process group
         with timeout(seconds=1):
             while True:
                 runner_pgid = os.getpgid(runner.process.pid)
