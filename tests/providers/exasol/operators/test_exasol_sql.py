@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.exasol.hooks.exasol import exasol_fetch_all_handler
 from airflow.providers.exasol.operators.exasol import ExasolOperator
 
 DATE = "2017-04-20"
@@ -143,7 +143,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
         dbapi_hook.run.assert_called_once_with(
             sql=sql,
             parameters=None,
-            handler=fetch_all_handler,
+            handler=exasol_fetch_all_handler,
             autocommit=False,
             return_last=return_last,
             split_statements=split_statement,

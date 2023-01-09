@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import Sequence
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.exasol.hooks.exasol import exasol_fetch_all_handler
 
 
 class ExasolOperator(SQLExecuteQueryOperator):
@@ -35,6 +35,7 @@ class ExasolOperator(SQLExecuteQueryOperator):
         (default value: False)
     :param parameters: (optional) the parameters to render the SQL query with.
     :param schema: (optional) name of the schema which overwrite defined one in connection
+    :param handler: (optional) handler to process the results of the query
     """
 
     template_fields: Sequence[str] = ("sql",)
@@ -43,16 +44,14 @@ class ExasolOperator(SQLExecuteQueryOperator):
     ui_color = "#ededed"
 
     def __init__(
-        self, *, exasol_conn_id: str = "exasol_default", schema: str | None = None, **kwargs
+        self,
+        *,
+        exasol_conn_id: str = "exasol_default",
+        schema: str | None = None,
+        handler=exasol_fetch_all_handler,
+        **kwargs,
     ) -> None:
         if schema is not None:
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {"schema": schema, **hook_params}
-
-        super().__init__(conn_id=exasol_conn_id, **kwargs)
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        super().__init__(conn_id=exasol_conn_id, handler=handler, **kwargs)
