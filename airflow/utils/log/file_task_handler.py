@@ -30,13 +30,13 @@ from airflow.configuration import AirflowConfigException, conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.utils.log.logging_mixin import SetContextPropagate
 
 
 class FileTaskHandler(logging.Handler):
@@ -62,10 +62,22 @@ class FileTaskHandler(logging.Handler):
                 # handler, not the one that calls super()__init__.
                 stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
+        self.maintain_propagate: bool = False
+        """
+        If true, overrides default behavior of setting propagate=False
+
+        :meta private:
+        """
 
     def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
+
+        Generally speaking returns None.  But if attr `maintain_propagate` has
+        been set to propagate, then returns sentinel MAINTAIN_PROPAGATE. This
+        has the effect of overriding the default behavior to set `propagate`
+        to False whenever set_context is called.  At time of writing, this
+        functionality is only used in unit testing.
 
         :param ti: task instance object
         """
@@ -74,7 +86,7 @@ class FileTaskHandler(logging.Handler):
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
-        return None
+        return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
     def emit(self, record):
         if self.handler:
@@ -92,16 +104,17 @@ class FileTaskHandler(logging.Handler):
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
-        str_tpl, jinja_tpl = parse_template_string(template)
+            str_tpl, jinja_tpl = parse_template_string(template)
 
-        if jinja_tpl:
-            if hasattr(ti, "task"):
-                context = ti.get_template_context()
-            else:
-                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-            context["try_number"] = try_number
-            return render_template_to_string(jinja_tpl, context)
-        elif str_tpl:
+            if jinja_tpl:
+                if hasattr(ti, "task"):
+                    context = ti.get_template_context(session=session)
+                else:
+                    context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
+                context["try_number"] = try_number
+                return render_template_to_string(jinja_tpl, context)
+
+        if str_tpl:
             try:
                 dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.
