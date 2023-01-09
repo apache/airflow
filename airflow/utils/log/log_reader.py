@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Iterator
 
 from sqlalchemy.orm.session import Session
@@ -83,6 +84,7 @@ class TaskLogReader:
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
                     yield "\n".join([host or "", log]) + "\n"
+                time.sleep(0.5)
 
     @cached_property
     def log_handler(self):
