@@ -22,7 +22,7 @@ from typing import Any, AsyncIterator
 
 from aiohttp import ClientSession
 
-from airflow.providers.google.cloud.hooks.gcs import GCSHookAsync
+from airflow.providers.google.cloud.hooks.gcs import GCSAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -79,10 +79,10 @@ class GCSBlobTrigger(BaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
             return
 
-    def _get_async_hook(self) -> GCSHookAsync:
-        return GCSHookAsync(gcp_conn_id=self.google_cloud_conn_id, **self.hook_params)
+    def _get_async_hook(self) -> GCSAsyncHook:
+        return GCSAsyncHook(gcp_conn_id=self.google_cloud_conn_id, **self.hook_params)
 
-    async def _object_exists(self, hook: GCSHookAsync, bucket_name: str, object_name: str) -> str:
+    async def _object_exists(self, hook: GCSAsyncHook, bucket_name: str, object_name: str) -> str:
         """
         Checks for the existence of a file in Google Cloud Storage.
 

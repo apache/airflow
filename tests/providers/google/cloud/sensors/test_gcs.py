@@ -27,8 +27,8 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.google.cloud.sensors.gcs import (
+    GCSObjectExistenceAsyncSensor,
     GCSObjectExistenceSensor,
-    GCSObjectExistenceSensorAsync,
     GCSObjectsWithPrefixExistenceSensor,
     GCSObjectUpdateSensor,
     GCSUploadSessionCompleteSensor,
@@ -103,9 +103,9 @@ class TestGoogleCloudStorageObjectSensorAsync(TestCase):
     def test_gcs_object_existence_sensor_async(self):
         """
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
-        when the GCSObjectExistenceSensorAsync is executed.
+        when the GCSObjectExistenceAsyncSensor is executed.
         """
-        task = GCSObjectExistenceSensorAsync(
+        task = GCSObjectExistenceAsyncSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
@@ -117,7 +117,7 @@ class TestGoogleCloudStorageObjectSensorAsync(TestCase):
 
     def test_gcs_object_existence_sensor_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
-        task = GCSObjectExistenceSensorAsync(
+        task = GCSObjectExistenceAsyncSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
@@ -128,7 +128,7 @@ class TestGoogleCloudStorageObjectSensorAsync(TestCase):
 
     def test_gcs_object_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        task = GCSObjectExistenceSensorAsync(
+        task = GCSObjectExistenceAsyncSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,

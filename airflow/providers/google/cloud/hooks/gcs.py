@@ -1179,8 +1179,8 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     return bucket, blob
 
 
-class GCSHookAsync(GoogleBaseAsyncHook):
-    """GCSHookAsync run on the trigger worker, inherits from GoogleBaseHookAsync"""
+class GCSAsyncHook(GoogleBaseAsyncHook):
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync"""
 
     sync_hook_class = GCSHook
 
