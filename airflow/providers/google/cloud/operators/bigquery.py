@@ -611,7 +611,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-        failed_tests(
+        failed_tests.extend(
             f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
             for col, checks in self.column_mapping.items()
             for check, check_values in checks.items()
