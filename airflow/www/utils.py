@@ -823,10 +823,11 @@ class UIAlert:
         self.message = Markup(message) if html else message
 
     def should_show(self, securitymanager: SecurityManager) -> bool:
-        """
-        Determine if the user should see the message based on their role membership.
-        If the user is anonymous and AUTH_ROLE_PUBLIC is set in webserver_config.py,
-        provide that user with the AUTH_ROLE_PUBLIC role.
+        """Determine if the user should see the message.
+        
+        The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
+        set in ``webserver_config.py``, An anonymous user would have the
+        ``AUTH_ROLE_PUBLIC`` role.
         """
         if self.roles:
             current_user = securitymanager.current_user
