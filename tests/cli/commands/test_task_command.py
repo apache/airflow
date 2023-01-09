@@ -33,7 +33,6 @@ from unittest.mock import sentinel
 
 import pendulum
 import pytest
-import time_machine
 from parameterized import parameterized
 
 from airflow import DAG
