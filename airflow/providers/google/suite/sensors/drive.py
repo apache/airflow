@@ -47,6 +47,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param include_trashed: Whether to include objects in trash or not, default True as in Google API.
     """
 
     template_fields: Sequence[str] = (
@@ -66,6 +67,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        include_trashed: bool = True
         **kwargs,
     ) -> None:
 
@@ -76,6 +78,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.include_trashed = include_trashed
 
     def poke(self, context: Context) -> bool:
         self.log.info("Sensor is checking for the file %s in the folder %s", self.file_name, self.folder_id)
@@ -84,4 +87,4 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.exists(folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id)
+        return hook.exists(folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id, include_trashed=self.include_trashed)
