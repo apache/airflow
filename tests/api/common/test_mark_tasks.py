@@ -49,7 +49,7 @@ def dagbag():
     from airflow.models.dagbag import DagBag
 
     # Ensure the DAGs we are looking at from the DB are up-to-date
-    non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
+    non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=True)
     non_serialized_dagbag.sync_to_db()
     return DagBag(read_dags_from_db=True)
 
