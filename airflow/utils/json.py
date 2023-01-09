@@ -113,5 +113,20 @@ class XComDecoder(json.JSONDecoder):
         return deserialize(dct, False)
 
 
+class DagRunConfEncoder(WebEncoder):
+    """This encodes DagRunConf values into a web understandable format. There is no deserializer"""
+
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except Exception:
+            if isinstance(obj, bytes):
+                try:
+                    return obj.decode()
+                except Exception:
+                    return obj.__repr__()
+            return obj.__repr__()
+
+
 # backwards compatibility
 AirflowJsonEncoder = WebEncoder

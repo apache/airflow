@@ -23,6 +23,7 @@ from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
 
+from airflow.utils import json as utils_json
 from airflow.www import utils
 from airflow.www.utils import wrapped_markdown
 
@@ -189,9 +190,11 @@ class TestAttrRenderer:
             "5": datetime(2023, 1, 1),
         }
         expected_encoded_dag_run_conf = (
-            '{"1": "string", "2": "bytes", "3": 123, "4": "b\'\\\\xe0\'", "5": "2023-01-01 00:00:00"}'
+            '{"1": "string", "2": "bytes", "3": 123, "4": "b\'\\\\xe0\'", "5": "2023-01-01T00:00:00+00:00"}'
         )
-        encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(dag_run_conf)
+        encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(
+            dag_run_conf, json_encoder=utils_json.DagRunConfEncoder
+        )
         assert expected_encoded_dag_run_conf == encoded_dag_run_conf
 
 
