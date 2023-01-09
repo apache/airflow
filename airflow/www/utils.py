@@ -824,7 +824,7 @@ class UIAlert:
 
     def should_show(self, securitymanager: SecurityManager) -> bool:
         """Determine if the user should see the message.
-        
+
         The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
         set in ``webserver_config.py``, An anonymous user would have the
         ``AUTH_ROLE_PUBLIC`` role.
