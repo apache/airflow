@@ -24,6 +24,7 @@ from mypy_boto3_rds.type_defs import TagTypeDef
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
+from airflow.providers.amazon.aws.utils.boto import format_kv_as_array
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 
 if TYPE_CHECKING:
@@ -64,7 +65,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
     :param db_type: Type of the DB - either "instance" or "cluster"
     :param db_identifier: The identifier of the instance or cluster that you want to create the snapshot of
     :param db_snapshot_identifier: The identifier for the DB snapshot
-    :param tags: A list of tags in format `[{"Key": "something", "Value": "something"},]
+    :param tags: A dictionary of tags or a list of tags in format `[{"Key": "...", "Value": "..."},]`
         `USER Tagging <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html>`__
     :param wait_for_completion:  If True, waits for creation of the DB snapshot to complete. (default: True)
     """
@@ -77,7 +78,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         db_type: str,
         db_identifier: str,
         db_snapshot_identifier: str,
-        tags: Sequence[TagTypeDef] | None = None,
+        tags: Sequence[TagTypeDef] | dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_conn_id",
         **kwargs,
@@ -86,7 +87,10 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         self.db_type = RdsDbType(db_type)
         self.db_identifier = db_identifier
         self.db_snapshot_identifier = db_snapshot_identifier
-        self.tags = tags or []
+        if isinstance(tags, dict):
+            self.tags = format_kv_as_array(tags)
+        else:
+            self.tags = tags or []
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
@@ -132,7 +136,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
     :param source_db_snapshot_identifier: The identifier of the source snapshot
     :param target_db_snapshot_identifier: The identifier of the target snapshot
     :param kms_key_id: The AWS KMS key identifier for an encrypted DB snapshot
-    :param tags: A list of tags in format `[{"Key": "something", "Value": "something"},]
+    :param tags: A dictionary of tags or a list of tags in format `[{"Key": "...", "Value": "..."},]`
         `USER Tagging <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html>`__
     :param copy_tags: Whether to copy all tags from the source snapshot to the target snapshot (default False)
     :param pre_signed_url: The URL that contains a Signature Version 4 signed request
@@ -159,7 +163,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         source_db_snapshot_identifier: str,
         target_db_snapshot_identifier: str,
         kms_key_id: str = "",
-        tags: Sequence[TagTypeDef] | None = None,
+        tags: Sequence[TagTypeDef] | dict | None = None,
         copy_tags: bool = False,
         pre_signed_url: str = "",
         option_group_name: str = "",
@@ -175,7 +179,10 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         self.source_db_snapshot_identifier = source_db_snapshot_identifier
         self.target_db_snapshot_identifier = target_db_snapshot_identifier
         self.kms_key_id = kms_key_id
-        self.tags = tags or []
+        if isinstance(tags, dict):
+            self.tags = format_kv_as_array(tags)
+        else:
+            self.tags = tags or []
         self.copy_tags = copy_tags
         self.pre_signed_url = pre_signed_url
         self.option_group_name = option_group_name
@@ -403,7 +410,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         `USER Events <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.Messages.html>`__
     :param source_ids: The list of identifiers of the event sources for which events are returned
     :param enabled: A value that indicates whether to activate the subscription (default True)l
-    :param tags: A list of tags in format `[{"Key": "something", "Value": "something"},]
+    :param tags: A dictionary of tags or a list of tags in format `[{"Key": "...", "Value": "..."},]`
         `USER Tagging <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html>`__
     :param wait_for_completion:  If True, waits for creation of the subscription to complete. (default: True)
     """
@@ -426,7 +433,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         event_categories: Sequence[str] | None = None,
         source_ids: Sequence[str] | None = None,
         enabled: bool = True,
-        tags: Sequence[TagTypeDef] | None = None,
+        tags: Sequence[TagTypeDef] | dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
@@ -439,7 +446,10 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         self.event_categories = event_categories or []
         self.source_ids = source_ids or []
         self.enabled = enabled
-        self.tags = tags or []
+        if isinstance(tags, dict):
+            self.tags = format_kv_as_array(tags)
+        else:
+            self.tags = tags or []
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:

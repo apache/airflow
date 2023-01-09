@@ -24,6 +24,7 @@ import io
 import logging
 import re
 import shutil
+import warnings
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -42,6 +43,7 @@ from botocore.exceptions import ClientError
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.boto import format_kv_as_array
 from airflow.utils.helpers import chunks
 
 T = TypeVar("T", bound=Callable)
@@ -991,29 +993,48 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def put_bucket_tagging(
         self,
-        tag_set: list[dict[str, str]] | None = None,
-        key: str | None = None,
-        value: str | None = None,
+        tag_set: list[dict[str, str]] | None = None,  # deprecated
+        key: str | None = None,  # deprecated
+        value: str | None = None,  # deprecated
         bucket_name: str | None = None,
+        tags: dict | None = None,
     ) -> None:
         """
         Overwrites the existing TagSet with provided tags.  Must provide either a TagSet or a key/value pair.
 
-        :param tag_set: A List containing the key/value pairs for the tags.
-        :param key: The Key for the new TagSet entry.
-        :param value: The Value for the new TagSet entry.
+        :param tag_set: DEPRECATED, use tags instead.
+        :param key: DEPRECATED, use tags instead.
+        :param value: DEPRECATED, use tags instead.
         :param bucket_name: The name of the bucket.
+        :param tags: The tags to add to the bucket.
         :return: None
         """
-        self.log.info("S3 Bucket Tag Info:\tKey: %s\tValue: %s\tSet: %s", key, value, tag_set)
+        if tag_set:
+            warnings.warn("Parameter `tag_set` is deprecated, Please use `tags` instead.", DeprecationWarning)
+        if key or value:
+            warnings.warn(
+                "Parameters `key` and `value` are deprecated, Please use `tags` instead.",
+                DeprecationWarning,
+            )
+        if tags and (tag_set or key or value):
+            raise AirflowException("If providing `tags`, then deprecated parameters should be removed.")
+
+        if tags:
+            tag_set = format_kv_as_array(tags)
+
         if not tag_set:
             tag_set = []
         if key and value:
             tag_set.append({"Key": key, "Value": value})
-        elif not tag_set or (key or value):
-            message = "put_bucket_tagging() requires either a predefined TagSet or a key/value pair."
+        elif key or value:
+            message = (
+                "Key and Value must be specified as a pair. "
+                f"Only one of the two had a value (key: '{key}', value: '{value}')"
+            )
             self.log.error(message)
             raise ValueError(message)
+
+        self.log.info("Tagging S3 Bucket %s with %s", bucket_name, tag_set)
 
         try:
             s3_client = self.get_conn()

@@ -159,16 +159,15 @@ class S3PutBucketTaggingOperator(BaseOperator):
         :ref:`howto/operator:S3PutBucketTaggingOperator`
 
     :param bucket_name: The name of the bucket to add tags to.
-    :param key: The key portion of the key/value pair for a tag to be added.
-        If a key is provided, a value must be provided as well.
-    :param value: The value portion of the key/value pair for a tag to be added.
-        If a value is provided, a key must be provided as well.
-    :param tag_set: A List of key/value pairs.
+    :param key: DEPRECATED, use tags instead.
+    :param value: DEPRECATED, use tags instead.
+    :param tag_set: DEPRECATED, use tags instead.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then the default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param tags: The tags to add to the bucket.
     """
 
     template_fields: Sequence[str] = ("bucket_name",)
@@ -181,12 +180,14 @@ class S3PutBucketTaggingOperator(BaseOperator):
         value: str | None = None,
         tag_set: list[dict[str, str]] | None = None,
         aws_conn_id: str | None = "aws_default",
+        tags: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.key = key
         self.value = value
         self.tag_set = tag_set
+        self.tags = tags
         self.bucket_name = bucket_name
         self.aws_conn_id = aws_conn_id
 
@@ -196,7 +197,11 @@ class S3PutBucketTaggingOperator(BaseOperator):
         if s3_hook.check_for_bucket(self.bucket_name):
             self.log.info("Putting tags for bucket %s", self.bucket_name)
             return s3_hook.put_bucket_tagging(
-                key=self.key, value=self.value, tag_set=self.tag_set, bucket_name=self.bucket_name
+                key=self.key,
+                value=self.value,
+                tags=self.tags,
+                tag_set=self.tag_set,
+                bucket_name=self.bucket_name,
             )
         else:
             self.log.warning(BUCKET_DOES_NOT_EXIST_MSG, self.bucket_name)

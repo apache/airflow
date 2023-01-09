@@ -35,6 +35,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils.boto import format_kv_as_array
 from airflow.utils import timezone
 
 
@@ -1053,9 +1054,7 @@ class SageMakerHook(AwsBaseHook):
 
         :return: the ARN of the pipeline execution launched.
         """
-        if pipeline_params is None:
-            pipeline_params = {}
-        formatted_params = [{"Name": kvp[0], "Value": kvp[1]} for kvp in pipeline_params.items()]
+        formatted_params = format_kv_as_array(pipeline_params, key_label="Name")
 
         try:
             res = self.conn.start_pipeline_execution(
