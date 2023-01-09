@@ -189,12 +189,12 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSe
     :end-before: [END howto_sensor_object_exists_task]
 
 
-.. _howto/sensor:GCSObjectExistenceSensorAsync:
+.. _howto/sensor:GCSObjectExistenceAsyncSensor:
 
-GCSObjectExistenceSensorAsync
+GCSObjectExistenceAsyncSensor
 -----------------------------
 
-Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensorAsync`
+Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceAsyncSensor`
 (deferrable version) if you would like to free up the worker slots while the sensor is running.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py

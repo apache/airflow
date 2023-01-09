@@ -95,7 +95,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         return hook.exists(self.bucket, self.object, self.retry)
 
 
-class GCSObjectExistenceSensorAsync(GCSObjectExistenceSensor):
+class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
     Checks for the existence of a file in Google Cloud Storage.
 
