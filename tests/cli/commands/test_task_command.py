@@ -72,15 +72,6 @@ def move_back(old_path, new_path):
     shutil.move(new_path, old_path)
 
 
-@pytest.fixture()
-def freeze_time():
-    timestamp = "2022-06-10T12:02:44+00:00"
-    freezer = time_machine.travel(timestamp, tick=False)
-    freezer.start()
-    yield
-    freezer.stop()
-
-
 # TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliTasks:
     run_id = "TEST_RUN_ID"
