@@ -52,7 +52,7 @@ def session():
         yield session
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dagbag():
     from airflow.models import DagBag
 

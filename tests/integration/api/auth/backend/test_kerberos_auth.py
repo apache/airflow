@@ -46,11 +46,9 @@ def app_for_kerberos():
         yield app.create_app(testing=True)
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def dagbag_to_db():
-    dagbag = DagBag(include_examples=True)
-    for dag in dagbag.dags.values():
-        dag.sync_to_db()
+    DagBag(include_examples=True).sync_to_db()
     yield
     clear_db_dags()
 
@@ -58,7 +56,7 @@ def dagbag_to_db():
 @pytest.mark.integration("kerberos")
 class TestApiKerberos:
     @pytest.fixture(autouse=True)
-    def _set_attrs(self, app_for_kerberos):
+    def _set_attrs(self, app_for_kerberos, dagbag_to_db):
         self.app = app_for_kerberos
 
     def test_trigger_dag(self):
