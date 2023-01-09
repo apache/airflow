@@ -48,7 +48,7 @@ def internal_airflow_api(
     body: dict,
 ) -> APIResponse:
     """Handler for Internal API /internal_api/v1/rpcapi endpoint."""
-    log.info("Got request")
+    log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
         log.error("Not jsonrpc-2.0 request.")
