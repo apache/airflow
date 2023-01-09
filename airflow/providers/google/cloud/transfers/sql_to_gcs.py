@@ -81,7 +81,7 @@ class BaseSQLToGCSOperator(BaseOperator):
     :param partition_columns: list of columns to use for file partitioning. In order to use
         this parameter, you must sort your dataset by partition_columns. Do this by
         passing an ORDER BY clause to the sql query. Files are uploaded to GCS as objects
-        with a hive style partitioning directory structure.
+        with a hive style partitioning directory structure (templated).
     """
 
     template_fields: Sequence[str] = (
