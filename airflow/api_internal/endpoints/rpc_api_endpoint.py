@@ -21,11 +21,8 @@ import functools
 import json
 import logging
 from typing import Any, Callable
-
 from flask import Response
-
 from airflow.api_connexion.types import APIResponse
-from airflow.models.dag import DagModel
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -34,6 +31,7 @@ log = logging.getLogger(__name__)
 @functools.lru_cache()
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.models.dag import DagModel
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
