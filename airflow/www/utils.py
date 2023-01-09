@@ -831,8 +831,6 @@ class UIAlert:
         """
         if self.roles:
             current_user = securitymanager.current_user
-            user_roles = set()
-
             if current_user:
                 user_roles = {r.name for r in securitymanager.current_user.roles}
             elif current_user is None and "AUTH_ROLE_PUBLIC" in securitymanager.appbuilder.get_app.config:
