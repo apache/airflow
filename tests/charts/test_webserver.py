@@ -180,6 +180,36 @@ class TestWebserverDeployment:
             "spec.template.spec.containers[0].env", docs[0]
         )
 
+    def test_should_add_extra_volume_and_extra_volume_mount(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
+                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[-1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1].name", docs[0]
+        )
+
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[-1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1].name", docs[0]
+        )
+
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={
@@ -519,18 +549,22 @@ class TestWebserverDeployment:
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
+        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={"airflowLocalSettings": "# Well hello!"},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert {
+        volume_mount = {
             "name": "config",
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     def test_default_command_and_args(self):
         docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
@@ -638,6 +672,18 @@ class TestWebserverDeployment:
         # No gitsync sidecar or init container
         assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
         assert 1 == len(jmespath.search("spec.template.spec.initContainers", docs[0]))
+
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
 
 class TestWebserverService:
@@ -752,6 +798,18 @@ class TestWebserverService:
 class TestWebserverConfigmap:
     def test_no_webserver_config_configmap_by_default(self):
         docs = render_chart(show_only=["templates/configmaps/webserver-configmap.yaml"])
+        assert 0 == len(docs)
+
+    def test_no_webserver_config_configmap_with_configmap_name(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "webserverConfigConfigMapName": "my-configmap",
+                }
+            },
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
         assert 0 == len(docs)
 
     def test_webserver_config_configmap(self):

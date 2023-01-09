@@ -18,9 +18,13 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
+import boto3
+
 from airflow import DAG
+from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.emr import (
     EmrAddStepsOperator,
@@ -33,6 +37,16 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_emr"
+CONFIG_NAME = "EMR Runtime Role Security Configuration"
+EXECUTION_ROLE_ARN_KEY = "EXECUTION_ROLE_ARN"
+
+SECURITY_CONFIGURATION = {
+    "AuthorizationConfiguration": {
+        "IAMConfiguration": {
+            "EnableApplicationScopedIAMRole": True,
+        },
+    },
+}
 
 # [START howto_operator_emr_steps_config]
 SPARK_STEPS = [
@@ -48,7 +62,7 @@ SPARK_STEPS = [
 
 JOB_FLOW_OVERRIDES = {
     "Name": "PiCalc",
-    "ReleaseLabel": "emr-5.29.0",
+    "ReleaseLabel": "emr-6.7.0",
     "Applications": [{"Name": "Spark"}],
     "Instances": {
         "InstanceGroups": [
@@ -69,7 +83,23 @@ JOB_FLOW_OVERRIDES = {
 }
 # [END howto_operator_emr_steps_config]
 
-sys_test_context_task = SystemTestContextBuilder().build()
+
+@task
+def configure_security_config(config_name: str):
+    boto3.client("emr").create_security_configuration(
+        Name=config_name,
+        SecurityConfiguration=json.dumps(SECURITY_CONFIGURATION),
+    )
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_security_config(config_name: str):
+    boto3.client("emr").delete_security_configuration(
+        Name=config_name,
+    )
+
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(EXECUTION_ROLE_ARN_KEY).build()
 
 with DAG(
     dag_id=DAG_ID,
@@ -80,6 +110,11 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
+    config_name = f"{CONFIG_NAME}-{env_id}"
+    execution_role_arn = test_context[EXECUTION_ROLE_ARN_KEY]
+    JOB_FLOW_OVERRIDES["SecurityConfiguration"] = config_name
+
+    create_security_configuration = configure_security_config(config_name)
 
     # [START howto_operator_emr_create_job_flow]
     create_job_flow = EmrCreateJobFlowOperator(
@@ -100,6 +135,7 @@ with DAG(
         job_flow_id=create_job_flow.output,
         steps=SPARK_STEPS,
         wait_for_completion=True,
+        execution_role_arn=execution_role_arn,
     )
     # [END howto_operator_emr_add_steps]
 
@@ -115,9 +151,12 @@ with DAG(
     check_job_flow = EmrJobFlowSensor(task_id="check_job_flow", job_flow_id=create_job_flow.output)
     # [END howto_sensor_emr_job_flow]
 
+    delete_security_configuration = delete_security_config(config_name)
+
     chain(
         # TEST SETUP
         test_context,
+        create_security_configuration,
         # TEST BODY
         create_job_flow,
         modify_cluster,
@@ -125,6 +164,7 @@ with DAG(
         # TEST TEARDOWN
         remove_cluster,
         check_job_flow,
+        delete_security_configuration,
     )
 
     from tests.system.utils.watcher import watcher

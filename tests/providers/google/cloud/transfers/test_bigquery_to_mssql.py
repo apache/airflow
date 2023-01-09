@@ -20,7 +20,13 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+import pytest
+
+try:
+    from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+except ImportError:
+    pytest.skip("MSSQL not available", allow_module_level=True)
+
 
 TASK_ID = "test-bq-create-table-operator"
 TEST_PROJECT_ID = "test-project"
@@ -29,6 +35,7 @@ TEST_TABLE_ID = "test-table-id"
 TEST_DAG_ID = "test-bigquery-operators"
 
 
+@pytest.mark.backend("mssql")
 class TestBigQueryToMsSqlOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook):

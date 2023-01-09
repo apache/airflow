@@ -31,6 +31,7 @@ from airflow.executors.executor_constants import (
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
     LOCAL_KUBERNETES_EXECUTOR,
+    MOCK_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
 )
 from airflow.utils.module_loading import import_string
@@ -63,7 +64,18 @@ class ExecutorLoader:
         DASK_EXECUTOR: "airflow.executors.dask_executor.DaskExecutor",
         KUBERNETES_EXECUTOR: "airflow.executors.kubernetes_executor.KubernetesExecutor",
         DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
+        MOCK_EXECUTOR: "tests.test_utils.mock_executor.MockExecutor",
     }
+
+    @classmethod
+    def get_default_executor_name(cls) -> str:
+        """Returns the default executor name from Airflow configuration.
+
+        :return: executor name from Airflow configuration
+        """
+        from airflow.configuration import conf
+
+        return conf.get_mandatory_value("core", "EXECUTOR")
 
     @classmethod
     def get_default_executor(cls) -> BaseExecutor:
@@ -71,12 +83,7 @@ class ExecutorLoader:
         if cls._default_executor is not None:
             return cls._default_executor
 
-        from airflow.configuration import conf
-
-        executor_name = conf.get_mandatory_value("core", "EXECUTOR")
-        cls._default_executor = cls.load_executor(executor_name)
-
-        return cls._default_executor
+        return cls.load_executor(cls.get_default_executor_name())
 
     @classmethod
     def load_executor(cls, executor_name: str) -> BaseExecutor:
@@ -135,6 +142,17 @@ class ExecutorLoader:
         return import_string(executor_name), ConnectorSource.CUSTOM_PATH
 
     @classmethod
+    def import_default_executor_cls(cls) -> tuple[type[BaseExecutor], ConnectorSource]:
+        """
+        Imports the default executor class.
+
+        :return: executor class and executor import source
+        """
+        executor_name = cls.get_default_executor_name()
+
+        return cls.import_executor_cls(executor_name)
+
+    @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
         celery_executor = import_string(cls.executors[CELERY_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
@@ -151,6 +169,8 @@ class ExecutorLoader:
         return local_kubernetes_executor_cls(local_executor, kubernetes_executor)
 
 
+# This tuple is deprecated due to AIP-51 and is no longer used in core Airflow.
+# TODO: Remove in Airflow 3.0
 UNPICKLEABLE_EXECUTORS = (
     LOCAL_EXECUTOR,
     SEQUENTIAL_EXECUTOR,

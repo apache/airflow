@@ -38,7 +38,7 @@ from types import ModuleType
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
-from airflow.utils.module_loading import as_importable_string
+from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
@@ -67,7 +67,8 @@ operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
 registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
-"""Mapping of class names to class of OperatorLinks registered by plugins.
+"""
+Mapping of class names to class of OperatorLinks registered by plugins.
 
 Used by the DAG serialization code to only allow specific classes to be created
 during deserialization
@@ -184,8 +185,7 @@ class AirflowPlugin:
 
 def is_valid_plugin(plugin_obj):
     """
-    Check whether a potential object is a subclass of
-    the AirflowPlugin class.
+    Check whether a potential object is a subclass of the AirflowPlugin class.
 
     :param plugin_obj: potential subclass of AirflowPlugin
     :return: Whether or not the obj is a valid subclass of
@@ -205,7 +205,7 @@ def is_valid_plugin(plugin_obj):
 
 def register_plugin(plugin_instance):
     """
-    Start plugin load and register it after success initialization
+    Start plugin load and register it after success initialization.
 
     :param plugin_instance: subclass of AirflowPlugin
     """
@@ -239,7 +239,7 @@ def load_entrypoint_plugins():
 
 
 def load_plugins_from_plugin_directory():
-    """Load and register Airflow Plugins from plugins directory"""
+    """Load and register Airflow Plugins from plugins directory."""
     global import_errors
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
@@ -317,7 +317,7 @@ def ensure_plugins_loaded():
 
 
 def initialize_web_ui_plugins():
-    """Collect extension points for WEB UI"""
+    """Collect extension points for WEB UI."""
     global plugins
     global flask_blueprints
     global flask_appbuilder_views
@@ -357,7 +357,7 @@ def initialize_web_ui_plugins():
 
 
 def initialize_ti_deps_plugins():
-    """Creates modules for loaded extension from custom task instance dependency rule plugins"""
+    """Create modules for loaded extension from custom task instance dependency rule plugins."""
     global registered_ti_dep_classes
     if registered_ti_dep_classes is not None:
         return
@@ -373,12 +373,12 @@ def initialize_ti_deps_plugins():
 
     for plugin in plugins:
         registered_ti_dep_classes.update(
-            {as_importable_string(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
+            {qualname(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
         )
 
 
 def initialize_extra_operators_links_plugins():
-    """Creates modules for loaded extension from extra operators links plugins"""
+    """Create modules for loaded extension from extra operators links plugins."""
     global global_operator_extra_links
     global operator_extra_links
     global registered_operator_link_classes
@@ -406,7 +406,7 @@ def initialize_extra_operators_links_plugins():
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
         registered_operator_link_classes.update(
-            {as_importable_string(link.__class__): link.__class__ for link in plugin.operator_extra_links}
+            {qualname(link.__class__): link.__class__ for link in plugin.operator_extra_links}
         )
 
 
@@ -425,7 +425,7 @@ def initialize_timetables_plugins():
     log.debug("Initialize extra timetables plugins")
 
     timetable_classes = {
-        as_importable_string(timetable_class): timetable_class
+        qualname(timetable_class): timetable_class
         for plugin in plugins
         for timetable_class in plugin.timetables
     }
@@ -492,6 +492,7 @@ def integrate_macros_plugins() -> None:
 
 
 def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
+    """Add listeners from plugins."""
     global plugins
 
     ensure_plugins_loaded()
@@ -507,7 +508,7 @@ def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
 
 def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str, Any]]:
     """
-    Dump plugins attributes
+    Dump plugins attributes.
 
     :param attrs_to_dump: A list of plugin attributes to dump
     """
@@ -524,25 +525,20 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             info: dict[str, Any] = {"name": plugin.name}
             for attr in attrs_to_dump:
                 if attr in ("global_operator_extra_links", "operator_extra_links"):
-                    info[attr] = [
-                        f"<{as_importable_string(d.__class__)} object>" for d in getattr(plugin, attr)
-                    ]
+                    info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
                 elif attr in ("macros", "timetables", "hooks", "executors"):
-                    info[attr] = [as_importable_string(d) for d in getattr(plugin, attr)]
+                    info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
                     # listeners are always modules
                     info[attr] = [d.__name__ for d in getattr(plugin, attr)]
                 elif attr == "appbuilder_views":
                     info[attr] = [
-                        {**d, "view": as_importable_string(d["view"].__class__) if "view" in d else None}
+                        {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
                         for d in getattr(plugin, attr)
                     ]
                 elif attr == "flask_blueprints":
                     info[attr] = [
-                        (
-                            f"<{as_importable_string(d.__class__)}: "
-                            f"name={d.name!r} import_name={d.import_name!r}>"
-                        )
+                        f"<{qualname(d.__class__)}: name={d.name!r} import_name={d.import_name!r}>"
                         for d in getattr(plugin, attr)
                     ]
                 else:

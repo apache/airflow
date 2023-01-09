@@ -21,7 +21,7 @@ import json
 import math
 import time
 import warnings
-from contextlib import closing
+from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, cast
@@ -85,12 +85,10 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 
 
 def get_container_termination_message(pod: V1Pod, container_name: str):
-    try:
+    with suppress(AttributeError, TypeError):
         container_statuses = pod.status.container_statuses
         container_status = next((x for x in container_statuses if x.name == container_name), None)
         return container_status.state.terminated.message if container_status else None
-    except (AttributeError, TypeError):
-        return None
 
 
 @dataclass
@@ -267,7 +265,13 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
-        while not self.container_is_running(pod=pod, container_name=container_name):
+        """
+        Waits for the given container in the given pod to be completed
+
+        :param pod: pod spec that will be monitored
+        :param container_name: name of the container within the pod to monitor
+        """
+        while self.container_is_running(pod=pod, container_name=container_name):
             time.sleep(1)
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:

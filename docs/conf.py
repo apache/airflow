@@ -172,6 +172,13 @@ elif PACKAGE_NAME == "helm-chart":
 elif PACKAGE_NAME == "docker-stack":
     # No extra extensions
     pass
+elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
+    extensions.extend(
+        [
+            "extra_provider_files_with_substitutions",
+            "autoapi.extension",
+        ]
+    )
 else:
     extensions.append("autoapi.extension")
 # List of patterns, relative to source directory, that match files and
@@ -298,7 +305,8 @@ if PACKAGE_NAME == "apache-airflow":
         "installation/installing-from-pypi.html",
         "installation/installing-from-sources.html",
     ]
-
+if PACKAGE_NAME.startswith("apache-airflow-providers"):
+    manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
     # Replace "|version|" inside ```` quotes
     manual_substitutions_in_generated_html = ["build.html"]
@@ -389,15 +397,15 @@ if PACKAGE_NAME == "apache-airflow":
     # the config has been templated, not before
     # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
     keys_to_format = ["default", "example"]
-    for conf_section in configs:
-        for option in conf_section["options"]:
+    for conf_name, conf_section in configs.items():
+        for option_name, option in conf_section["options"].items():
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
                     option[key] = option[key].replace("{{", "{").replace("}}", "}")
     # Sort options, config and deprecated options for JINJA variables to display
-    for config in configs:
-        config["options"] = sorted(config["options"], key=lambda o: o["name"])
-    configs = sorted(configs, key=lambda l: l["name"])
+    for section_name, config in configs.items():
+        config["options"] = {k: v for k, v in sorted(config["options"].items())}
+    configs = {k: v for k, v in sorted(configs.items())}
     for section in deprecated_options:
         deprecated_options[section] = {k: v for k, v in sorted(deprecated_options[section].items())}
 

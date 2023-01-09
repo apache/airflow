@@ -52,6 +52,7 @@ from airflow.utils.cli import (
     get_dag_by_file_location,
     get_dag_by_pickle,
     get_dags,
+    should_ignore_depends_on_past,
     suppress_logs_and_warning,
 )
 from airflow.utils.dates import timezone
@@ -226,7 +227,8 @@ def _run_task_by_executor(args, dag, ti):
         mark_success=args.mark_success,
         pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_depends_on_past=should_ignore_depends_on_past(args),
+        wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -242,7 +244,8 @@ def _run_task_by_local_task_job(args, ti):
         mark_success=args.mark_success,
         pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_depends_on_past=should_ignore_depends_on_past(args),
+        wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -292,7 +295,6 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
 
     """
     modify = not settings.DONOT_MODIFY_HANDLERS
-
     if modify:
         root_logger, task_logger = logging.getLogger(), logging.getLogger("airflow.task")
 
@@ -592,21 +594,22 @@ def task_test(args, dag=None):
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
-def task_render(args):
+def task_render(args, dag=None):
     """Renders and displays templated fields for a given task."""
-    dag = get_dag(args.subdir, args.dag_id)
+    if not dag:
+        dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
     )
     ti.render_templates()
-    for attr in task.__class__.template_fields:
+    for attr in task.template_fields:
         print(
             textwrap.dedent(
                 f"""        # ----------------------------------------------------------
         # property: {attr}
         # ----------------------------------------------------------
-        {getattr(task, attr)}
+        {getattr(ti.task, attr)}
         """
             )
         )

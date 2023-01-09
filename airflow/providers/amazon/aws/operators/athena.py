@@ -48,6 +48,8 @@ class AthenaOperator(BaseOperator):
     :param max_tries: Deprecated - use max_polling_attempts instead.
     :param max_polling_attempts: Number of times to poll for query state before function exits
         To limit task execution time, use execution_timeout.
+    :param log_query: Whether to log athena query and other execution params when it's executed.
+        Defaults to *True*.
     """
 
     ui_color = "#44b5e2"
@@ -69,6 +71,7 @@ class AthenaOperator(BaseOperator):
         sleep_time: int = 30,
         max_tries: int | None = None,
         max_polling_attempts: int | None = None,
+        log_query: bool = True,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -83,6 +86,7 @@ class AthenaOperator(BaseOperator):
         self.sleep_time = sleep_time
         self.max_polling_attempts = max_polling_attempts
         self.query_execution_id: str | None = None
+        self.log_query: bool = log_query
 
         if max_tries:
             warnings.warn(
@@ -99,7 +103,7 @@ class AthenaOperator(BaseOperator):
     @cached_property
     def hook(self) -> AthenaHook:
         """Create and return an AthenaHook."""
-        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
+        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time, log_query=self.log_query)
 
     def execute(self, context: Context) -> str | None:
         """Run Presto Query on Athena"""
@@ -135,13 +139,14 @@ class AthenaOperator(BaseOperator):
         """Cancel the submitted athena query"""
         if self.query_execution_id:
             self.log.info("Received a kill signal.")
-            self.log.info("Stopping Query with executionId - %s", self.query_execution_id)
             response = self.hook.stop_query(self.query_execution_id)
             http_status_code = None
             try:
                 http_status_code = response["ResponseMetadata"]["HTTPStatusCode"]
-            except Exception as ex:
-                self.log.error("Exception while cancelling query: %s", ex)
+            except Exception:
+                self.log.exception(
+                    "Exception while cancelling query. Query execution id: %s", self.query_execution_id
+                )
             finally:
                 if http_status_code is None or http_status_code != 200:
                     self.log.error("Unable to request query cancel on athena. Exiting")

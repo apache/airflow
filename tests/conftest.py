@@ -22,9 +22,10 @@ import subprocess
 import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
-import freezegun
 import pytest
+import time_machine
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -45,6 +46,9 @@ from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
     trace_queries,
 )
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 @pytest.fixture()
@@ -158,7 +162,7 @@ def pytest_addoption(parser):
         action="append",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
-        "[cassandra,kerberos,mongo,openldap,rabbitmq,redis,statsd,trino]. ",
+        "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
     )
     group.addoption(
         "--backend",
@@ -396,7 +400,7 @@ def pytest_runtest_setup(item):
 @pytest.fixture
 def frozen_sleep(monkeypatch):
     """
-    Use freezegun to "stub" sleep, so that it takes no time, but that
+    Use time-machine to "stub" sleep, so that it takes no time, but that
     ``datetime.now()`` appears to move forwards
 
     If your module under test does ``import time`` and then ``time.sleep``::
@@ -412,21 +416,21 @@ def frozen_sleep(monkeypatch):
             monkeypatch.setattr('my_mod.sleep', frozen_sleep)
             my_mod.fn_under_test()
     """
-    freezegun_control = None
+    traveller = None
 
     def fake_sleep(seconds):
-        nonlocal freezegun_control
+        nonlocal traveller
         utcnow = datetime.utcnow()
-        if freezegun_control is not None:
-            freezegun_control.stop()
-        freezegun_control = freezegun.freeze_time(utcnow + timedelta(seconds=seconds))
-        freezegun_control.start()
+        if traveller is not None:
+            traveller.stop()
+        traveller = time_machine.travel(utcnow + timedelta(seconds=seconds))
+        traveller.start()
 
     monkeypatch.setattr("time.sleep", fake_sleep)
     yield fake_sleep
 
-    if freezegun_control is not None:
-        freezegun_control.stop()
+    if traveller is not None:
+        traveller.stop()
 
 
 @pytest.fixture(scope="session")
@@ -741,7 +745,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_type=None,
         data_interval=None,
         **kwargs,
-    ):
+    ) -> TaskInstance:
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -775,7 +779,7 @@ def create_task_instance_of_operator(dag_maker):
         execution_date=None,
         session=None,
         **operator_kwargs,
-    ):
+    ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, session=session):
             operator_class(**operator_kwargs)
         if execution_date is None:

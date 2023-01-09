@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.4.3"
+defaultAirflowTag: "2.5.0"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.4.3"
+airflowVersion: "2.5.0"
 
 # Images
 images:
@@ -242,6 +242,12 @@ allowPodLaunching: true
 env: []
 # - name: ""
 #   value: ""
+
+# Volumes for all airflow containers
+volumes: []
+
+# VolumeMounts for all airflow containers
+volumeMounts: []
 
 # Secrets for all airflow containers
 secret: []
@@ -594,6 +600,9 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  # annotations for the worker resource
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to workers objects and pods
@@ -711,6 +720,9 @@ scheduler:
   topologySpreadConstraints: []
 
   priorityClassName: ~
+
+  # annotations for scheduler deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -970,8 +982,10 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
+  # This string (can be templated) will be mounted into the Airflow Webserver
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
@@ -981,6 +995,7 @@ webserver:
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
+  webserverConfigConfigMapName: ~
 
   service:
     type: ClusterIP
@@ -1020,6 +1035,9 @@ webserver:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
+
+  # annotations for webserver deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -1119,6 +1137,9 @@ triggerer:
 
   priorityClassName: ~
 
+  # annotations for the triggerer deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to triggerer objects and pods
@@ -1216,6 +1237,9 @@ dagProcessor:
   topologySpreadConstraints: []
 
   priorityClassName: ~
+
+  # annotations for the dag processor deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -1319,6 +1343,9 @@ flower:
 
   priorityClassName: ~
 
+  # annotations for the flower deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to flower objects and pods
@@ -1330,6 +1357,9 @@ statsd:
   enabled: true
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
+
+  # Arguments for StatsD exporter command.
+  args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
 
   # Create ServiceAccount
   serviceAccount:
@@ -1396,6 +1426,9 @@ pgbouncer:
   args: ~
   auth_type: md5
   auth_file: /etc/pgbouncer/users.txt
+
+  # annotations to be added to the PgBouncer deployment
+  annotations: {}
 
   # Create ServiceAccount
   serviceAccount:

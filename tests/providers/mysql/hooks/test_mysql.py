@@ -23,12 +23,19 @@ import uuid
 from contextlib import closing
 from unittest import mock
 
-import MySQLdb.cursors
 import pytest
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+try:
+    import MySQLdb.cursors
+
+    from airflow.providers.mysql.hooks.mysql import MySqlHook
+except ImportError:
+    pytest.skip("MySQL not available", allow_module_level=True)
+
+
 from airflow.utils import timezone
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 

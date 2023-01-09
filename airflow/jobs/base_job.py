@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from time import sleep
 
-from sqlalchemy import Column, Index, Integer, String
+from sqlalchemy import Column, Index, Integer, String, case
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
@@ -49,10 +49,11 @@ def _resolve_dagrun_model():
 
 class BaseJob(Base, LoggingMixin):
     """
-    Abstract class to be derived for jobs. Jobs are processing items with state
-    and duration that aren't task instances. For instance a BackfillJob is
-    a collection of task instance runs, but should have its own state, start
-    and end time.
+    Abstract class to be derived for jobs.
+
+    Jobs are processing items with state and duration that aren't task instances.
+    For instance a BackfillJob is a collection of task instance runs,
+    but should have its own state, start and end time.
     """
 
     __tablename__ = "job"
@@ -122,15 +123,25 @@ class BaseJob(Base, LoggingMixin):
     @provide_session
     def most_recent_job(cls, session=None) -> BaseJob | None:
         """
-        Return the most recent job of this type, if any, based on last
-        heartbeat received.
+        Return the most recent job of this type, if any, based on last heartbeat received.
 
+        Jobs in "running" state take precedence over others to make sure alive
+        job is returned if it is available.
         This method should be called on a subclass (i.e. on SchedulerJob) to
         return jobs of that type.
 
         :param session: Database session
         """
-        return session.query(cls).order_by(cls.latest_heartbeat.desc()).limit(1).first()
+        return (
+            session.query(cls)
+            .order_by(
+                # Put "running" jobs at the front.
+                case({State.RUNNING: 0}, value=cls.state, else_=1),
+                cls.latest_heartbeat.desc(),
+            )
+            .limit(1)
+            .first()
+        )
 
     def is_alive(self, grace_multiplier=2.1):
         """
@@ -162,9 +173,10 @@ class BaseJob(Base, LoggingMixin):
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
-        """Will be called when an external kill command is received"""
+        """Will be called when an external kill command is received."""
 
-    def heartbeat_callback(self, session=None):
+    @provide_session
+    def heartbeat_callback(self, session=None) -> None:
         """Callback that is called during heartbeat. This method should be overwritten."""
 
     def heartbeat(self, only_if_necessary: bool = False):

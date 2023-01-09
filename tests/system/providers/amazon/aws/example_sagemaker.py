@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import subprocess
 from datetime import datetime
 from tempfile import NamedTemporaryFile
@@ -34,14 +35,20 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.operators.sagemaker import (
+    SageMakerAutoMLOperator,
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
     SageMakerProcessingOperator,
+    SageMakerRegisterModelVersionOperator,
+    SageMakerStartPipelineOperator,
+    SageMakerStopPipelineOperator,
     SageMakerTrainingOperator,
     SageMakerTransformOperator,
     SageMakerTuningOperator,
 )
 from airflow.providers.amazon.aws.sensors.sagemaker import (
+    SageMakerAutoMLSensor,
+    SageMakerPipelineSensor,
     SageMakerTrainingSensor,
     SageMakerTransformSensor,
     SageMakerTuningSensor,
@@ -66,18 +73,7 @@ KNN_IMAGES_BY_REGION = {
     "us-west-2": "174872318107.dkr.ecr.us-west-2.amazonaws.com/knn:1",
 }
 
-# For this example we are using a subset of Fischer's Iris Data Set.
-# The full dataset can be found at UC Irvine's machine learning repository:
-# https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data
-DATASET = """
-        5.1,3.5,1.4,0.2,Iris-setosa
-        4.9,3.0,1.4,0.2,Iris-setosa
-        7.0,3.2,4.7,1.4,Iris-versicolor
-        6.4,3.2,4.5,1.5,Iris-versicolor
-        4.9,2.5,4.5,1.7,Iris-virginica
-        7.3,2.9,6.3,1.8,Iris-virginica
-        """
-SAMPLE_SIZE = DATASET.count("\n") - 1
+SAMPLE_SIZE = 600
 
 # This script will be the entrypoint for the docker image which will handle preprocessing the raw data
 # NOTE:  The following string must remain dedented as it is being written to a file.
@@ -87,34 +83,28 @@ import numpy as np
 import pandas as pd
 
 def main():
-    # Load the Iris dataset from {input_path}/input.csv, split it into train/test
+    # Load the dataset from {input_path}/input.csv, split it into train/test
     # subsets, and write them to {output_path}/ for the Processing Operator.
 
-    columns = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width', 'species']
-    iris = pd.read_csv('{input_path}/input.csv', names=columns)
-
-    # Process data
-    iris['species'] = iris['species'].replace({{'Iris-virginica': 0, 'Iris-versicolor': 1, 'Iris-setosa': 2}})
-    iris = iris[['species', 'sepal_length', 'sepal_width', 'petal_length', 'petal_width']]
+    data = pd.read_csv('{input_path}/input.csv')
 
     # Split into test and train data
-    iris_train, iris_test = np.split(
-        iris.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(iris))]
+    data_train, data_test = np.split(
+        data.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(data))]
     )
 
     # Remove the "answers" from the test set
-    iris_test.drop(['species'], axis=1, inplace=True)
+    data_test.drop(['class'], axis=1, inplace=True)
 
     # Write the splits to disk
-    iris_train.to_csv('{output_path}/train.csv', index=False, header=False)
-    iris_test.to_csv('{output_path}/test.csv', index=False, header=False)
+    data_train.to_csv('{output_path}/train.csv', index=False, header=False)
+    data_test.to_csv('{output_path}/test.csv', index=False, header=False)
 
     print('Preprocessing Done.')
 
 if __name__ == "__main__":
     main()
-
-    """
+"""
 
 
 def _create_ecr_repository(repo_name):
@@ -190,6 +180,14 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
             )
 
 
+def generate_data() -> str:
+    """generates a very simple csv dataset with headers"""
+    content = "class,x,y\n"  # headers
+    for i in range(SAMPLE_SIZE):
+        content += f"{i%100},{i},{SAMPLE_SIZE-i}\n"
+    return content
+
+
 @task
 def set_up(env_id, role_arn):
     bucket_name = f"{env_id}-sagemaker-example"
@@ -199,6 +197,9 @@ def set_up(env_id, role_arn):
     training_job_name = f"{env_id}-train"
     transform_job_name = f"{env_id}-transform"
     tuning_job_name = f"{env_id}-tune"
+    model_package_group_name = f"{env_id}-group"
+    pipeline_name = f"{env_id}-pipe"
+    auto_ml_job_name = f"{env_id}-automl"
 
     input_data_S3_key = f"{env_id}/processed-input-data"
     prediction_output_s3_key = f"{env_id}/transform"
@@ -218,11 +219,22 @@ def set_up(env_id, role_arn):
             f"the directions at the top of the system testfile "
         )
 
+    # Json definition for a dummy pipeline of 30 chained "conditional step" checking that 3 < 6
+    # Each step takes roughly 1 second to execute, so the pipeline runtimes is ~30 seconds, which should be
+    # enough to test stopping and awaiting without race conditions.
+    # Built using sagemaker sdk, and using json.loads(pipeline.definition())
+    pipeline_json_definition = """{"Version": "2020-12-01", "Metadata": {}, "Parameters": [], "PipelineExperimentConfig": {"ExperimentName": {"Get": "Execution.PipelineName"}, "TrialName": {"Get": "Execution.PipelineExecutionId"}}, "Steps": [{"Name": "DummyCond29", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond28", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond27", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond26", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond25", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond24", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond23", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond22", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond21", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond20", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond19", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond18", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond17", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond16", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond15", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond14", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond13", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond12", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond11", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond10", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond9", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond8", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond7", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond6", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond5", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond4", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond3", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond2", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond1", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond0", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [{"Name": "DummyCond", "Type": "Condition", "Arguments": {"Conditions": [{"Type": "LessThanOrEqualTo", "LeftValue": 3.0, "RightValue": 6.0}], "IfSteps": [], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}], "ElseSteps": []}}]}"""  # noqa: E501
+    sgmk_client = boto3.client("sagemaker")
+    sgmk_client.create_pipeline(
+        PipelineName=pipeline_name, PipelineDefinition=pipeline_json_definition, RoleArn=role_arn
+    )
+
     resource_config = {
         "InstanceCount": 1,
         "InstanceType": "ml.m5.large",
         "VolumeSizeInGB": 1,
     }
+    input_data_uri = f"s3://{bucket_name}/{raw_data_s3_key}"
     processing_config = {
         "ProcessingJobName": processing_job_name,
         "ProcessingInputs": [
@@ -230,7 +242,7 @@ def set_up(env_id, role_arn):
                 "InputName": "input",
                 "AppManaged": False,
                 "S3Input": {
-                    "S3Uri": f"s3://{bucket_name}/{raw_data_s3_key}",
+                    "S3Uri": input_data_uri,
                     "LocalPath": processing_local_input_path,
                     "S3DataType": "S3Prefix",
                     "S3InputMode": "File",
@@ -255,7 +267,7 @@ def set_up(env_id, role_arn):
         "ProcessingResources": {
             "ClusterConfig": resource_config,
         },
-        "StoppingCondition": {"MaxRuntimeInSeconds": 300},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         "AppSpecification": {
             "ImageUri": ecr_repository_uri,
         },
@@ -280,7 +292,7 @@ def set_up(env_id, role_arn):
         },
         "HyperParameters": {
             "predictor_type": "classifier",
-            "feature_dim": "4",
+            "feature_dim": "2",
             "k": "3",
             "sample_size": str(SAMPLE_SIZE),
         },
@@ -293,16 +305,19 @@ def set_up(env_id, role_arn):
         "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
-        "StoppingCondition": {"MaxRuntimeInSeconds": 6000},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         "TrainingJobName": training_job_name,
     }
+    model_trained_weights = (
+        f"s3://{bucket_name}/{training_output_s3_key}/{training_job_name}/output/model.tar.gz"
+    )
     model_config = {
         "ExecutionRoleArn": role_arn,
         "ModelName": model_name,
         "PrimaryContainer": {
             "Mode": "SingleModel",
             "Image": knn_image_uri,
-            "ModelDataUrl": f"s3://{bucket_name}/{training_output_s3_key}/{training_job_name}/output/model.tar.gz",  # noqa: E501
+            "ModelDataUrl": model_trained_weights,
         },
     }
     tuning_config = {
@@ -314,9 +329,8 @@ def set_up(env_id, role_arn):
                 "Type": "Maximize",
             },
             "ResourceLimits": {
-                # You would bump these up in production as appropriate.
-                "MaxNumberOfTrainingJobs": 2,
-                "MaxParallelTrainingJobs": 2,
+                "MaxNumberOfTrainingJobs": 10,
+                "MaxParallelTrainingJobs": 10,
             },
             "ParameterRanges": {
                 "CategoricalParameterRanges": [],
@@ -338,7 +352,7 @@ def set_up(env_id, role_arn):
         "TrainingJobDefinition": {
             "StaticHyperParameters": {
                 "predictor_type": "classifier",
-                "feature_dim": "4",
+                "feature_dim": "2",
             },
             "AlgorithmSpecification": {"TrainingImage": knn_image_uri, "TrainingInputMode": "File"},
             "InputDataConfig": [
@@ -354,7 +368,7 @@ def set_up(env_id, role_arn):
             "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}"},
             "ResourceConfig": resource_config,
             "RoleArn": role_arn,
-            "StoppingCondition": {"MaxRuntimeInSeconds": 60000},
+            "StoppingCondition": {"MaxRuntimeInSeconds": 60},
         },
     }
     transform_config = {
@@ -383,14 +397,22 @@ def set_up(env_id, role_arn):
     _build_and_upload_docker_image(preprocess_script, ecr_repository_uri)
 
     ti = get_current_context()["ti"]
+    ti.xcom_push(key="docker_image", value=ecr_repository_uri)
     ti.xcom_push(key="bucket_name", value=bucket_name)
     ti.xcom_push(key="raw_data_s3_key", value=raw_data_s3_key)
     ti.xcom_push(key="ecr_repository_name", value=ecr_repository_name)
     ti.xcom_push(key="processing_config", value=processing_config)
+    ti.xcom_push(key="input_data_uri", value=input_data_uri)
+    ti.xcom_push(key="output_data_uri", value=f"s3://{bucket_name}/{training_output_s3_key}")
     ti.xcom_push(key="training_config", value=training_config)
     ti.xcom_push(key="training_job_name", value=training_job_name)
+    ti.xcom_push(key="model_package_group_name", value=model_package_group_name)
+    ti.xcom_push(key="pipeline_name", value=pipeline_name)
+    ti.xcom_push(key="auto_ml_job_name", value=auto_ml_job_name)
     ti.xcom_push(key="model_config", value=model_config)
     ti.xcom_push(key="model_name", value=model_name)
+    ti.xcom_push(key="inference_code_image", value=knn_image_uri)
+    ti.xcom_push(key="model_trained_weights", value=model_trained_weights)
     ti.xcom_push(key="tuning_config", value=tuning_config)
     ti.xcom_push(key="tuning_job_name", value=tuning_job_name)
     ti.xcom_push(key="transform_config", value=transform_config)
@@ -421,6 +443,37 @@ def delete_logs(env_id):
     purge_logs(generated_logs)
 
 
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_model_group(group_name, model_version_arn):
+    sgmk_client = boto3.client("sagemaker")
+    # need to destroy model registered in group first
+    sgmk_client.delete_model_package(ModelPackageName=model_version_arn)
+    sgmk_client.delete_model_package_group(ModelPackageGroupName=group_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_pipeline(pipeline_name):
+    sgmk_client = boto3.client("sagemaker")
+    sgmk_client.delete_pipeline(PipelineName=pipeline_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_docker_image(image_name):
+    docker_build = subprocess.Popen(
+        f"docker rmi {image_name}",
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    _, stderr = docker_build.communicate()
+    if docker_build.returncode != 0:
+        logging.error(
+            "Failed to delete local docker image. "
+            "Run 'docker images' to see if you need to clean it yourself.\n"
+            f"error message: {stderr}"
+        )
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -444,9 +497,52 @@ with DAG(
         task_id="upload_dataset",
         s3_bucket=test_setup["bucket_name"],
         s3_key=test_setup["raw_data_s3_key"],
-        data=DATASET,
+        data=generate_data(),
         replace=True,
     )
+
+    # [START howto_operator_sagemaker_auto_ml]
+    automl = SageMakerAutoMLOperator(
+        task_id="auto_ML",
+        job_name=test_setup["auto_ml_job_name"],
+        s3_input=test_setup["input_data_uri"],
+        target_attribute="class",
+        s3_output=test_setup["output_data_uri"],
+        role_arn=test_context[ROLE_ARN_KEY],
+        time_limit=30,  # will stop the job before it can do anything, but it's not the point here
+    )
+    # [END howto_operator_sagemaker_auto_ml]
+    automl.wait_for_completion = False  # just to be able to test the sensor next
+
+    # [START howto_sensor_sagemaker_auto_ml]
+    await_automl = SageMakerAutoMLSensor(job_name=test_setup["auto_ml_job_name"], task_id="await_auto_ML")
+    # [END howto_sensor_sagemaker_auto_ml]
+
+    # [START howto_operator_sagemaker_start_pipeline]
+    start_pipeline1 = SageMakerStartPipelineOperator(
+        task_id="start_pipeline1",
+        pipeline_name=test_setup["pipeline_name"],
+    )
+    # [END howto_operator_sagemaker_start_pipeline]
+
+    # [START howto_operator_sagemaker_stop_pipeline]
+    stop_pipeline1 = SageMakerStopPipelineOperator(
+        task_id="stop_pipeline1",
+        pipeline_exec_arn=start_pipeline1.output,
+    )
+    # [END howto_operator_sagemaker_stop_pipeline]
+
+    start_pipeline2 = SageMakerStartPipelineOperator(
+        task_id="start_pipeline2",
+        pipeline_name=test_setup["pipeline_name"],
+    )
+
+    # [START howto_sensor_sagemaker_pipeline]
+    await_pipeline2 = SageMakerPipelineSensor(
+        task_id="await_pipeline2",
+        pipeline_exec_arn=start_pipeline2.output,
+    )
+    # [END howto_sensor_sagemaker_pipeline]
 
     # [START howto_operator_sagemaker_processing]
     preprocess_raw_data = SageMakerProcessingOperator(
@@ -478,6 +574,15 @@ with DAG(
         config=test_setup["model_config"],
     )
     # [END howto_operator_sagemaker_model]
+
+    # [START howto_operator_sagemaker_register]
+    register_model = SageMakerRegisterModelVersionOperator(
+        task_id="register_model",
+        image_uri=test_setup["inference_code_image"],
+        model_url=test_setup["model_trained_weights"],
+        package_group_name=test_setup["model_package_group_name"],
+    )
+    # [END howto_operator_sagemaker_register]
 
     # [START howto_operator_sagemaker_tuning]
     tune_model = SageMakerTuningOperator(
@@ -535,19 +640,29 @@ with DAG(
         create_bucket,
         upload_dataset,
         # TEST BODY
+        automl,
+        await_automl,
+        start_pipeline1,
+        start_pipeline2,
+        stop_pipeline1,
+        await_pipeline2,
         preprocess_raw_data,
         train_model,
         await_training,
         create_model,
+        register_model,
         tune_model,
         await_tuning,
         test_model,
         await_transform,
         # TEST TEARDOWN
         delete_ecr_repository(test_setup["ecr_repository_name"]),
+        delete_model_group(test_setup["model_package_group_name"], register_model.output),
         delete_model,
         delete_bucket,
         delete_logs(test_context[ENV_ID_KEY]),
+        delete_pipeline(test_setup["pipeline_name"]),
+        delete_docker_image(test_setup["docker_image"]),
     )
 
     from tests.system.utils.watcher import watcher

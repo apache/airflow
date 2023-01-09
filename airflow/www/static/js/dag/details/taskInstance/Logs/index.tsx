@@ -18,14 +18,13 @@
  */
 
 import React, {
-  useRef, useState, useEffect, useMemo,
+  useState, useEffect, useMemo,
 } from 'react';
 import {
   Text,
   Box,
   Flex,
   Divider,
-  Code,
   Button,
   Checkbox,
 } from '@chakra-ui/react';
@@ -36,12 +35,12 @@ import LinkButton from 'src/components/LinkButton';
 import { useTimezone } from 'src/context/timezone';
 import type { Dag, DagRun, TaskInstance } from 'src/types';
 import MultiSelect from 'src/components/MultiSelect';
-import useOffsetHeight from 'src/utils/useOffsetHeight';
 
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 
 import LogLink from './LogLink';
 import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
+import LogBlock from './LogBlock';
 
 interface LogLevelOption {
   label: LogLevel;
@@ -108,10 +107,9 @@ const Logs = ({
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
-  const logBoxRef = useRef<HTMLPreElement>(null);
 
   const taskTryNumber = selectedTryNumber || tryNumber || 1;
-  const { data, isSuccess } = useTaskLog({
+  const { data } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
@@ -120,8 +118,6 @@ const Logs = ({
     fullContent: shouldRequestFullContent,
     state,
   });
-
-  const offsetHeight = useOffsetHeight(logBoxRef, data);
 
   const params = new URLSearchParamsWrapper({
     task_id: taskId,
@@ -141,14 +137,6 @@ const Logs = ({
     ),
     [data, fileSourceFilters, logLevelFilters, timezone],
   );
-
-  const codeBlockBottomDiv = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (codeBlockBottomDiv.current && parsedLogs) {
-      codeBlockBottomDiv.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
-  }, [wrap, parsedLogs]);
 
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
@@ -257,26 +245,13 @@ const Logs = ({
               </Flex>
             </Flex>
           </Box>
-          <Code
-            ref={logBoxRef}
-            height="100%"
-            maxHeight={offsetHeight}
-            overflowY="auto"
-            p={3}
-            pb={0}
-            display="block"
-            whiteSpace={wrap ? 'pre-wrap' : 'pre'}
-            border="1px solid"
-            borderRadius={3}
-            borderColor="blue.500"
-          >
-            {isSuccess && (
-              <>
-                {parsedLogs}
-                <div ref={codeBlockBottomDiv} />
-              </>
-            )}
-          </Code>
+          {!!parsedLogs && (
+            <LogBlock
+              parsedLogs={parsedLogs}
+              wrap={wrap}
+              tryNumber={taskTryNumber}
+            />
+          )}
         </>
       )}
       {externalLogName && externalIndexes.length > 0 && (
