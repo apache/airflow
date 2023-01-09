@@ -615,7 +615,7 @@ class TestLogsfromTaskRunCommand:
     @pytest.mark.parametrize("is_k8s", ["true", ""])
     def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s):
         """
-        When running task --local as k8l executor pod, all logging should make it to stdout.
+        When running task --local as k8s executor pod, all logging should make it to stdout.
         Otherwise, all logging after "running TI" is redirected to logs (and the actual log
         file content is tested elsewhere in this module).
 
