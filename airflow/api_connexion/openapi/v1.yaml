@@ -4938,6 +4938,8 @@ components:
 
         This can be combined with updated_at_gte parameter to receive only the selected period.
 
+        *New in version 2.6.0*
+
     FilterUpdatedAtGTE:
       in: query
       name: updated_at_gte
@@ -4949,6 +4951,8 @@ components:
         Returns objects greater or equal the specified date.
 
         This can be combined with updated_at_lte parameter to receive only the selected period.
+
+        *New in version 2.6.0*
 
     # Other parameters
     FileToken:
