@@ -53,6 +53,7 @@ class AppflowBaseOperator(BaseOperator):
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
+    :param wait_for_completion: whether to wait for the run to end to return
     """
 
     ui_color = "#2bccbd"
@@ -67,6 +68,7 @@ class AppflowBaseOperator(BaseOperator):
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
+        wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -80,6 +82,7 @@ class AppflowBaseOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.flow_update = flow_update
+        self.wait_for_completion = wait_for_completion
 
     @cached_property
     def hook(self) -> AppflowHook:
@@ -106,7 +109,11 @@ class AppflowBaseOperator(BaseOperator):
         self.hook.update_flow_filter(flow_name=self.flow_name, filter_tasks=[], set_trigger_ondemand=True)
 
     def _run_flow(self, context) -> str:
-        execution_id = self.hook.run_flow(flow_name=self.flow_name, poll_interval=self.poll_interval)
+        execution_id = self.hook.run_flow(
+            flow_name=self.flow_name,
+            poll_interval=self.poll_interval,
+            wait_for_completion=self.wait_for_completion,
+        )
         task_instance = context["task_instance"]
         task_instance.xcom_push("execution_id", execution_id)
         return execution_id
@@ -125,6 +132,7 @@ class AppflowRunOperator(AppflowBaseOperator):
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
+    :param wait_for_completion: whether to wait for the run to end to return
     """
 
     def __init__(
@@ -134,6 +142,7 @@ class AppflowRunOperator(AppflowBaseOperator):
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
+        wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
@@ -147,6 +156,7 @@ class AppflowRunOperator(AppflowBaseOperator):
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
+            wait_for_completion=wait_for_completion,
             **kwargs,
         )
 
@@ -164,6 +174,7 @@ class AppflowRunFullOperator(AppflowBaseOperator):
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
+    :param wait_for_completion: whether to wait for the run to end to return
     """
 
     def __init__(
@@ -173,6 +184,7 @@ class AppflowRunFullOperator(AppflowBaseOperator):
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
+        wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
@@ -186,6 +198,7 @@ class AppflowRunFullOperator(AppflowBaseOperator):
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
+            wait_for_completion=wait_for_completion,
             **kwargs,
         )
 
@@ -205,6 +218,7 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
+    :param wait_for_completion: whether to wait for the run to end to return
     """
 
     template_fields = ("filter_date",)
@@ -218,6 +232,7 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
+        wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
         if not filter_date:
@@ -235,6 +250,7 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
+            wait_for_completion=wait_for_completion,
             **kwargs,
         )
 
@@ -272,6 +288,7 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
+    :param wait_for_completion: whether to wait for the run to end to return
     """
 
     template_fields = ("filter_date",)
@@ -285,6 +302,7 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
+        wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
         if not filter_date:
@@ -300,6 +318,7 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
+            wait_for_completion=wait_for_completion,
             **kwargs,
         )
 
@@ -337,6 +356,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
+    :param wait_for_completion: whether to wait for the run to end to return
     """
 
     template_fields = ("filter_date",)
@@ -350,6 +370,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
+        wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
         if not filter_date:
@@ -365,6 +386,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
+            wait_for_completion=wait_for_completion,
             **kwargs,
         )
 
