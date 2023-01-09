@@ -794,7 +794,7 @@ class KubernetesExecutor(BaseExecutor):
             self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
             return
 
-        pod_ids.pop(pod_id)
+        del pod_ids[pod_id]
         self.running.add(pod_id)
 
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
