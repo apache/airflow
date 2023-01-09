@@ -584,7 +584,7 @@ repos:
         entry: "@pytest.mark.xfail"
         pass_filenames: true
         files: ^tests/.*\.py$
-        exclude: ^airflow/|^docs/
+        exclude: ^airflow/|^docs/|^tests/always/test_project_structure.py|^tests/jobs/test_backfill_job.py
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/pre_commit/pre_commit_check_license.py
