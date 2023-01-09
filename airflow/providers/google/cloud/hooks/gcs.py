@@ -32,7 +32,7 @@ from tempfile import NamedTemporaryFile
 from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
-from aiohttp import ClientSession as ClientSession
+from aiohttp import ClientSession
 from gcloud.aio.storage import Storage
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
