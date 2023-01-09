@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-09T14:13:14Z
+# This constraints file was automatically generated on 2023-01-09T17:53:47Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -396,7 +396,7 @@ mysql-connector-python==8.0.31
 mysqlclient==2.1.1
 nbclient==0.7.2
 nbformat==5.7.1
-neo4j==5.3.0
+neo4j==5.4.0
 nest-asyncio==1.5.6
 networkx==2.8.8
 nodeenv==1.7.0
@@ -459,7 +459,7 @@ pycparser==2.21
 pycryptodome==3.16.0
 pycryptodomex==3.16.0
 pydantic==1.10.4
-pydata-google-auth==1.4.0
+pydata-google-auth==1.5.0
 pydot==1.4.2
 pydruid==0.6.5
 pyenchant==3.2.2
@@ -485,7 +485,7 @@ pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
 pytest-xdist==3.1.0
 pytest==6.2.5
-python-arango==7.5.4
+python-arango==7.5.5
 python-daemon==2.3.2
 python-dateutil==2.8.2
 python-dotenv==0.21.0
