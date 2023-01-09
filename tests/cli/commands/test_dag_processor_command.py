@@ -42,16 +42,17 @@ class TestDagProcessorCommand:
             ("core", "load_examples"): "False",
         }
     )
-    @mock.patch("airflow.cli.commands.dag_processor_command.DagFileProcessorManager")
+    @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJob")
     @pytest.mark.skipif(
         conf.get_mandatory_value("database", "sql_alchemy_conn").lower().startswith("sqlite"),
         reason="Standalone Dag Processor doesn't support sqlite.",
     )
-    def test_start_manager(
+    def test_start_job(
         self,
-        mock_dag_manager,
+        mock_dag_job,
     ):
         """Ensure that DagFileProcessorManager is started"""
-        args = self.parser.parse_args(["dag-processor"])
-        dag_processor_command.dag_processor(args)
-        mock_dag_manager.return_value.start.assert_called()
+        with conf_vars({("scheduler", "standalone_dag_processor"): "True"}):
+            args = self.parser.parse_args(["dag-processor"])
+            dag_processor_command.dag_processor(args)
+            mock_dag_job.return_value.run.assert_called()
