@@ -27,6 +27,7 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils.aws_api import format_tags
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.utils.json import AirflowJsonEncoder
 
@@ -1078,17 +1079,14 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
         *,
         name: str,
         description: str | None = None,
-        tags: dict | None = None,
+        tags: dict | list | None = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         **kwargs,
     ):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
         self.name = name
         self.description = description
-        if tags:
-            self.tags_set = [{"Key": kvp[0], "Value": kvp[1]} for kvp in tags.items()]
-        else:
-            self.tags_set = []
+        self.tags_set = format_tags(tags)
 
     def execute(self, context: Context) -> str:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
