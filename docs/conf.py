@@ -633,41 +633,6 @@ intersphinx_mapping = {
         "sqlalchemy",
     ]
 }
-if PACKAGE_NAME in ("apache-airflow-providers-google", "apache-airflow"):
-    intersphinx_mapping.update(
-        {
-            pkg_name: (
-                f"{THIRD_PARTY_INDEXES[pkg_name]}/",
-                (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",),
-            )
-            for pkg_name in [
-                "google-api-core",
-                "google-cloud-automl",
-                "google-cloud-bigquery",
-                "google-cloud-bigquery-datatransfer",
-                "google-cloud-bigquery-storage",
-                "google-cloud-bigtable",
-                "google-cloud-container",
-                "google-cloud-core",
-                "google-cloud-datacatalog",
-                "google-cloud-datastore",
-                "google-cloud-dlp",
-                "google-cloud-kms",
-                "google-cloud-language",
-                "google-cloud-monitoring",
-                "google-cloud-pubsub",
-                "google-cloud-redis",
-                "google-cloud-spanner",
-                "google-cloud-speech",
-                "google-cloud-storage",
-                "google-cloud-tasks",
-                "google-cloud-texttospeech",
-                "google-cloud-translate",
-                "google-cloud-videointelligence",
-                "google-cloud-vision",
-            ]
-        }
-    )
 
 # -- Options for sphinx.ext.viewcode -------------------------------------------
 # See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html
