@@ -32,6 +32,8 @@ from tempfile import NamedTemporaryFile
 from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
+from aiohttp import ClientSession
+from gcloud.aio.storage import Storage
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 
@@ -39,11 +41,12 @@ from google.api_core.retry import Retry
 from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.storage.retry import DEFAULT_RETRY
+from requests import Session
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
 
@@ -1174,3 +1177,14 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     # Remove leading '/' but NOT trailing one
     blob = parsed_url.path.lstrip("/")
     return bucket, blob
+
+
+class GCSAsyncHook(GoogleBaseAsyncHook):
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync"""
+
+    sync_hook_class = GCSHook
+
+    async def get_storage_client(self, session: ClientSession) -> Storage:
+        """Returns a Google Cloud Storage service object."""
+        with await self.service_file_as_context() as file:
+            return Storage(service_file=file, session=cast(Session, session))
