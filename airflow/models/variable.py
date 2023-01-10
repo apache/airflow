@@ -26,6 +26,7 @@ from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Session, reconstructor, synonym
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
@@ -33,7 +34,6 @@ from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
-from airflow.api_internal.internal_api_call import internal_api_call
 
 log = logging.getLogger(__name__)
 
@@ -278,4 +278,3 @@ class Variable(Base, LoggingMixin):
                     type(secrets_backend).__name__,
                 )
         return None
-
