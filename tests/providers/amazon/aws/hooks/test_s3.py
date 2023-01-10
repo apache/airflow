@@ -721,8 +721,17 @@ class TestAwsS3Hook:
     def test_put_bucket_tagging_with_valid_set(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
-        tags = {"Color": "Green"}
-        hook.put_bucket_tagging(bucket_name="new_bucket", tags=tags)
+        tag_set = [{"Key": "Color", "Value": "Green"}]
+        hook.put_bucket_tagging(bucket_name="new_bucket", tag_set=tag_set)
+
+        assert hook.get_bucket_tagging(bucket_name="new_bucket") == tag_set
+
+    @mock_s3
+    def test_put_bucket_tagging_with_dict(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name="new_bucket")
+        tag_set = {"Color": "Green"}
+        hook.put_bucket_tagging(bucket_name="new_bucket", tag_set=tag_set)
 
         assert hook.get_bucket_tagging(bucket_name="new_bucket") == [{"Key": "Color", "Value": "Green"}]
 
@@ -730,21 +739,22 @@ class TestAwsS3Hook:
     def test_put_bucket_tagging_with_pair(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
+        tag_set = [{"Key": "Color", "Value": "Green"}]
         key = "Color"
         value = "Green"
         hook.put_bucket_tagging(bucket_name="new_bucket", key=key, value=value)
 
-        assert hook.get_bucket_tagging(bucket_name="new_bucket") == [{"Key": "Color", "Value": "Green"}]
+        assert hook.get_bucket_tagging(bucket_name="new_bucket") == tag_set
 
     @mock_s3
     def test_put_bucket_tagging_with_pair_and_set(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
         expected = [{"Key": "Color", "Value": "Green"}, {"Key": "Fruit", "Value": "Apple"}]
-        tags = {"Color": "Green"}
+        tag_set = [{"Key": "Color", "Value": "Green"}]
         key = "Fruit"
         value = "Apple"
-        hook.put_bucket_tagging(bucket_name="new_bucket", tags=tags, key=key, value=value)
+        hook.put_bucket_tagging(bucket_name="new_bucket", tag_set=tag_set, key=key, value=value)
 
         result = hook.get_bucket_tagging(bucket_name="new_bucket")
         assert len(result) == 2
@@ -771,42 +781,42 @@ class TestAwsS3Hook:
     def test_put_bucket_tagging_with_key_and_set_raises_error(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
-        tags = {"Color": "Green"}
+        tag_set = [{"Key": "Color", "Value": "Green"}]
         key = "Color"
         with pytest.raises(ValueError):
-            hook.put_bucket_tagging(bucket_name="new_bucket", key=key, tags=tags)
+            hook.put_bucket_tagging(bucket_name="new_bucket", key=key, tag_set=tag_set)
 
     @mock_s3
     def test_put_bucket_tagging_with_value_and_set_raises_error(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
-        tags = {"Color": "Green"}
+        tag_set = [{"Key": "Color", "Value": "Green"}]
         value = "Green"
         with pytest.raises(ValueError):
-            hook.put_bucket_tagging(bucket_name="new_bucket", value=value, tags=tags)
+            hook.put_bucket_tagging(bucket_name="new_bucket", value=value, tag_set=tag_set)
 
     @mock_s3
     def test_put_bucket_tagging_when_tags_exist_overwrites(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
-        initial_tags = {"Color": "Green"}
-        hook.put_bucket_tagging(bucket_name="new_bucket", tags=initial_tags)
+        initial_tag_set = [{"Key": "Color", "Value": "Green"}]
+        hook.put_bucket_tagging(bucket_name="new_bucket", tag_set=initial_tag_set)
         assert len(hook.get_bucket_tagging(bucket_name="new_bucket")) == 1
-        assert hook.get_bucket_tagging(bucket_name="new_bucket") == [{"Key": "Color", "Value": "Green"}]
+        assert hook.get_bucket_tagging(bucket_name="new_bucket") == initial_tag_set
 
-        new_tags = {"Fruit": "Apple"}
-        hook.put_bucket_tagging(bucket_name="new_bucket", tags=new_tags)
+        new_tag_set = [{"Key": "Fruit", "Value": "Apple"}]
+        hook.put_bucket_tagging(bucket_name="new_bucket", tag_set=new_tag_set)
 
         result = hook.get_bucket_tagging(bucket_name="new_bucket")
         assert len(result) == 1
-        assert result == [{"Key": "Fruit", "Value": "Apple"}]
+        assert result == new_tag_set
 
     @mock_s3
     def test_delete_bucket_tagging(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
-        tags = {"Color": "Green"}
-        hook.put_bucket_tagging(bucket_name="new_bucket", tags=tags)
+        tag_set = [{"Key": "Color", "Value": "Green"}]
+        hook.put_bucket_tagging(bucket_name="new_bucket", tag_set=tag_set)
         hook.get_bucket_tagging(bucket_name="new_bucket")
 
         hook.delete_bucket_tagging(bucket_name="new_bucket")

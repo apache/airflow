@@ -24,7 +24,7 @@ from mypy_boto3_rds.type_defs import TagTypeDef
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
-from airflow.providers.amazon.aws.utils.boto import format_kv_as_array
+from airflow.providers.amazon.aws.utils.aws_api import format_tags
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 
 if TYPE_CHECKING:
@@ -87,10 +87,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         self.db_type = RdsDbType(db_type)
         self.db_identifier = db_identifier
         self.db_snapshot_identifier = db_snapshot_identifier
-        if isinstance(tags, dict):
-            self.tags = format_kv_as_array(tags)
-        else:
-            self.tags = tags or []
+        self.tags = format_tags(tags)
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
@@ -179,10 +176,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         self.source_db_snapshot_identifier = source_db_snapshot_identifier
         self.target_db_snapshot_identifier = target_db_snapshot_identifier
         self.kms_key_id = kms_key_id
-        if isinstance(tags, dict):
-            self.tags = format_kv_as_array(tags)
-        else:
-            self.tags = tags or []
+        self.tags = format_tags(tags)
         self.copy_tags = copy_tags
         self.pre_signed_url = pre_signed_url
         self.option_group_name = option_group_name
@@ -446,10 +440,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         self.event_categories = event_categories or []
         self.source_ids = source_ids or []
         self.enabled = enabled
-        if isinstance(tags, dict):
-            self.tags = format_kv_as_array(tags)
-        else:
-            self.tags = tags or []
+        self.tags = format_tags(tags)
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
