@@ -28,14 +28,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.0
+.....
+
+Latest change: 2022-12-30
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`c22fc000b6 <https://github.com/apache/airflow/commit/c22fc000b6c0075429b9d1e51c9ee3d384141ff3>`_  2022-12-30   ``Use labels instead of pod name for pod log read in k8s exec (#28546)``
+`681835a67c <https://github.com/apache/airflow/commit/681835a67c89784944f41fce86099bcb2c3a0614>`_  2022-12-21   ``Add Flink on K8s Operator  (#28512)``
+`38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
+`401fc57e8b <https://github.com/apache/airflow/commit/401fc57e8ba1dddb041e0d777bb0277a09f227db>`_  2022-12-16   ``Restructure Docs  (#27235)``
+`bdc3d2e647 <https://github.com/apache/airflow/commit/bdc3d2e6474f7f23f75683fd072b4a07ef5aaeaa>`_  2022-12-08   ``Keep pod name for k8s executor under 63 characters (#28237)``
+`d93240696b <https://github.com/apache/airflow/commit/d93240696beeca7d28542d0fe0b53871b3d6612c>`_  2022-12-05   ``Allow longer pod names for k8s executor / KPO (#27736)``
+`33c445d92f <https://github.com/apache/airflow/commit/33c445d92f1386ca0167356a9514cfd8a27e360e>`_  2022-12-03   ``Add volume-related nested template fields for KPO (#27719)``
+`ebd7b67dcb <https://github.com/apache/airflow/commit/ebd7b67dcb9ac0864fbc5c1aefe5d7a4531df5fe>`_  2022-12-02   ``Patch "checked" when pod not successful (#27845)``
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
+=================================================================================================  ===========  ========================================================================
+
 5.0.0
 .....
 
-Latest change: 2022-11-11
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `52593b061c <https://github.com/apache/airflow/commit/52593b061c32d071243c46fe45784a78b57a04b6>`_  2022-11-11   ``Enable template rendering for env_vars field for the @task.kubernetes decorator (#27433)``
 `47a2b9ee7f <https://github.com/apache/airflow/commit/47a2b9ee7f1ff2cc1cc1aa1c3d1b523c88ba29fb>`_  2022-11-09   ``Add container_resources as KubernetesPodOperator templatable (#27457)``
 `aefadb8c5b <https://github.com/apache/airflow/commit/aefadb8c5b9272613d5806b054a1b46edf29d82e>`_  2022-11-08   ``Allow xcom sidecar container image to be configurable in KPO (#26766)``

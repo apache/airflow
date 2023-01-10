@@ -162,6 +162,9 @@ Now you can start all services:
 
     docker compose up
 
+.. note::
+  docker-compose is old syntax. Please check `Stackoverflow <https://stackoverflow.com/questions/66514436/difference-between-docker-compose-and-docker-compose>`__.
+
 In a second terminal you can check the condition of the containers and make sure that no containers are in an unhealthy condition:
 
 .. code-block:: text

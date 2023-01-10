@@ -64,7 +64,7 @@ Package apache-airflow-providers-common-sql
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.3.1
+Release: 1.3.2
 
 Provider package
 ----------------

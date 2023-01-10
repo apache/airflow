@@ -264,18 +264,18 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
+            TaskInstance._try_number,
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
             func.min(TaskInstance.start_date).label("start_date"),
             func.max(TaskInstance.end_date).label("end_date"),
-            func.max(TaskInstance._try_number).label("_try_number"),
         )
         .join(TaskInstance.task_instance_note, isouter=True)
         .filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         )
-        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state)
+        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance._try_number)
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
@@ -285,19 +285,13 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
         if isinstance(item, AbstractOperator):
 
             def _get_summary(task_instance):
-                try_count = (
-                    task_instance._try_number
-                    if task_instance._try_number != 0 or task_instance.state in State.running
-                    else task_instance._try_number + 1
-                )
-
                 return {
                     "task_id": task_instance.task_id,
                     "run_id": task_instance.run_id,
                     "state": task_instance.state,
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
-                    "try_number": try_count,
+                    "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
                     "note": task_instance.note,
                 }
 
@@ -1596,10 +1590,7 @@ class Airflow(AirflowBaseView):
 
         num_logs = 0
         if ti is not None:
-            num_logs = ti.next_try_number - 1
-            if ti.state in (State.UP_FOR_RESCHEDULE, State.DEFERRED):
-                # Tasks in reschedule state decremented the try number
-                num_logs += 1
+            num_logs = wwwutils.get_try_count(ti._try_number, ti.state)
         logs = [""] * num_logs
         root = request.args.get("root", "")
         return self.render_template(

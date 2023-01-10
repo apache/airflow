@@ -707,6 +707,18 @@ class TestScheduler:
         assert 1 == len(docs)
         assert executor == docs[0]["metadata"]["labels"].get("executor")
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestSchedulerNetworkPolicy:
     def test_should_add_component_specific_labels(self):

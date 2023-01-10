@@ -1200,6 +1200,7 @@ class TestStringifiedDAGs:
             "task_id": "10",
             "trigger_rule": "all_success",
             "wait_for_downstream": False,
+            "wait_for_past_depends_before_skipping": False,
             "weight_rule": "downstream",
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

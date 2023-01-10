@@ -44,6 +44,7 @@ class SequentialExecutor(BaseExecutor):
     SequentialExecutor alongside sqlite as you first install it.
     """
 
+    supports_pickling: bool = False
     is_local: bool = True
 
     serve_logs: bool = True

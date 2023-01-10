@@ -1025,7 +1025,6 @@ class TestKubernetesPodOperatorSystem:
                 do_xcom_push=False,
             )
 
-    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion", new=MagicMock)
     def test_on_kill(self):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
@@ -1045,8 +1044,20 @@ class TestKubernetesPodOperatorSystem:
             termination_grace_period=0,
         )
         context = create_context(k)
-        with pytest.raises(AirflowException):
-            k.execute(context)
+
+        class ShortCircuitException(Exception):
+            pass
+
+        # use this mock to short circuit and NOT wait for container completion
+        with mock.patch.object(
+            k.pod_manager, "await_container_completion", side_effect=ShortCircuitException()
+        ):
+            # cleanup will be upset since the pod should not be completed.. so skip it
+            with mock.patch.object(k, "cleanup"):
+                with pytest.raises(ShortCircuitException):
+                    k.execute(context)
+
+        # when we get here, the pod should still be running
         name = k.pod.metadata.name
         pod = client.read_namespaced_pod(name=name, namespace=namespace)
         assert pod.status.phase == "Running"

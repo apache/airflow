@@ -206,6 +206,9 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
+    supports_pickling: bool = False
+
+    serve_logs: bool = True
 
     serve_logs: bool = True
 
