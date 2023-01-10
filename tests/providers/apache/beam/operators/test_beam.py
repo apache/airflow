@@ -327,6 +327,25 @@ class TestBeamRunGoPipelineOperator:
         operator = BeamRunGoPipelineOperator(
             task_id=TASK_ID,
             go_binary=GO_BINARY,
+            default_pipeline_options=DEFAULT_OPTIONS,
+            pipeline_options=ADDITIONAL_OPTIONS,
+        )
+
+        assert operator.task_id == TASK_ID
+        assert operator.go_file == ""
+        assert operator.go_binary == GO_BINARY
+        assert operator.worker_binary == GO_BINARY
+        assert operator.runner == DEFAULT_RUNNER
+        assert operator.default_pipeline_options == DEFAULT_OPTIONS
+        assert operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
+
+    def test_init_with_go_binary_and_worker_binary(self):
+        """
+        Test BeamRunGoPipelineOperator instance is properly initialized with go_binary and worker_binary.
+        """
+        operator = BeamRunGoPipelineOperator(
+            task_id=TASK_ID,
+            go_binary=GO_BINARY,
             worker_binary=WORKER_BINARY,
             default_pipeline_options=DEFAULT_OPTIONS,
             pipeline_options=ADDITIONAL_OPTIONS,
@@ -430,7 +449,7 @@ class TestBeamRunGoPipelineOperator:
         )
         operator.execute({})
 
-        expected_launcher_binary = f"{tmp_path}/apache-beam-go/launcher-main"
+        expected_binary = f"{tmp_path}/apache-beam-go/launcher-main"
         expected_options = {
             "project": "test",
             "staging_location": "gs://test/staging",
@@ -442,13 +461,13 @@ class TestBeamRunGoPipelineOperator:
         gcs_download_method.assert_called_once_with(
             bucket_name="bucket",
             object_name="path/to/main",
-            filename=expected_launcher_binary,
+            filename=expected_binary,
         )
-        assert os.access(expected_launcher_binary, os.X_OK)
+        assert os.access(expected_binary, os.X_OK)
         start_go_pipeline_method.assert_called_once_with(
             variables=expected_options,
-            launcher_binary=expected_launcher_binary,
-            worker_binary="",
+            launcher_binary=expected_binary,
+            worker_binary=expected_binary,
             process_line_callback=None,
         )
 
@@ -487,11 +506,13 @@ class TestBeamRunGoPipelineOperator:
         )
         operator.execute({})
 
+        expected_binary = "/local/path/to/main"
+
         mock_beam_hook.assert_called_once_with(runner=DEFAULT_RUNNER)
         start_go_pipeline_method.assert_called_once_with(
             variables={"labels": {"airflow-version": TEST_VERSION}},
-            launcher_binary="/local/path/to/main",
-            worker_binary="",
+            launcher_binary=expected_binary,
+            worker_binary=expected_binary,
             process_line_callback=None,
         )
 

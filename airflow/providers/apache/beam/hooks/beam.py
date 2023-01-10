@@ -351,7 +351,7 @@ class BeamHook(BaseHook):
         self,
         variables: dict,
         launcher_binary: str,
-        worker_binary: str = "",
+        worker_binary: str,
         process_line_callback: Callable[[str], None] | None = None,
     ) -> None:
         """
@@ -359,7 +359,7 @@ class BeamHook(BaseHook):
 
         :param variables: Variables passed to the job.
         :param launcher_binary: Path to the binary compiled for the launching platform.
-        :param worker_binary: (optional) Path to the binary compiled for the worker platform.
+        :param worker_binary: Path to the binary compiled for the worker platform.
         :param process_line_callback: (optional) Callback that can be used to process each line of
             the stdout and stderr file descriptors.
         """
@@ -368,8 +368,7 @@ class BeamHook(BaseHook):
         if "labels" in job_variables:
             job_variables["labels"] = json.dumps(job_variables["labels"], separators=(",", ":"))
 
-        if worker_binary:
-            job_variables["worker_binary"] = worker_binary
+        job_variables["worker_binary"] = worker_binary
 
         command_prefix = [launcher_binary]
 

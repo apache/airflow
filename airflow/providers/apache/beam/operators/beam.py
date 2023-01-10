@@ -23,8 +23,9 @@ import os
 import stat
 import tempfile
 from abc import ABC, ABCMeta, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
+from functools import partial
 from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow import AirflowException
@@ -534,7 +535,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
     :param worker_binary: Reference to the Apache Beam pipeline Go binary compiled for the worker platform,
         e.g. /local/path/to/worker-main or gs://bucket/path/to/worker-main.
         Needed if the OS or architecture of the workers running the pipeline is different from that
-        of the platform launching the pipeline.
+        of the platform launching the pipeline. If not set, will default to the value of go_binary.
         For more information, see the Apache Beam documentation for Go cross compilation:
         https://beam.apache.org/documentation/sdks/go-cross-compilation/
     """
@@ -587,7 +588,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
         self.go_file = go_file
         self.go_binary = go_binary
-        self.worker_binary = worker_binary
+        self.worker_binary = worker_binary or go_binary
 
         self.pipeline_options.setdefault("labels", {}).update(
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
@@ -703,7 +704,7 @@ class _GoFile(_GoArtifact):
 
 
 class _GoBinary(_GoArtifact):
-    def __init__(self, launcher: str, worker: str = "") -> None:
+    def __init__(self, launcher: str, worker: str) -> None:
         self.launcher = launcher
         self.worker = worker
 
@@ -711,24 +712,32 @@ class _GoBinary(_GoArtifact):
         return any(_object_is_located_on_gcs(path) for path in (self.launcher, self.worker))
 
     def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None:
-        def download_fn(binary: str) -> None:
-            path = getattr(self, binary)
-            if not _object_is_located_on_gcs(path):
-                return
+        binaries_are_equal = self.launcher == self.worker
 
-            tmp_path = _download_object_from_gcs(
-                gcs_hook=gcs_hook,
-                uri=path,
-                tmp_dir=tmp_dir,
-                tmp_prefix=f"{binary}-",
-            )
+        binaries_to_download = []
 
-            _make_executable(tmp_path)
-            setattr(self, binary, tmp_path)
+        if _object_is_located_on_gcs(self.launcher):
+            binaries_to_download.append("launcher")
 
-        with ThreadPoolExecutor() as executor:
-            for _ in executor.map(download_fn, ("launcher", "worker")):
-                pass
+        if not binaries_are_equal and _object_is_located_on_gcs(self.worker):
+            binaries_to_download.append("worker")
+
+        download_fn = partial(_download_object_from_gcs, gcs_hook=gcs_hook, tmp_dir=tmp_dir)
+
+        with ThreadPoolExecutor(max_workers=len(binaries_to_download)) as executor:
+            futures = {
+                executor.submit(download_fn, uri=getattr(self, binary), tmp_prefix=f"{binary}-"): binary
+                for binary in binaries_to_download
+            }
+
+            for future in as_completed(futures):
+                binary = futures[future]
+                tmp_path = future.result()
+                _make_executable(tmp_path)
+                setattr(self, binary, tmp_path)
+
+        if binaries_are_equal:
+            self.worker = self.launcher
 
     def start_pipeline(
         self,
