@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 import textwrap
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from google.api_core.retry import Retry
 from google.cloud.storage.retry import DEFAULT_RETRY
@@ -132,7 +132,7 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str]) -> str:
+    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
         """
         Callback for when the trigger fires - returns immediately.
         Relies on trigger to throw an exception, otherwise it assumes execution was
