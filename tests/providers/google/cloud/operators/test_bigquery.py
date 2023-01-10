@@ -1725,7 +1725,7 @@ def test_bigquery_column_check_operator_succeeds(mock_job, mock_hook, check_type
 @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
 def test_bigquery_column_check_operator_fails(mock_job, mock_hook, check_type, check_value, check_result):
     mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
-        {"col_name": ["col1"], "check_type": ["min"], "check_result": [1]}
+        {"col_name": ["col1"], "check_type": ["min"], "check_result": [check_result]}
     )
     mock_hook.return_value.insert_job.return_value = mock_job
 
@@ -1734,7 +1734,7 @@ def test_bigquery_column_check_operator_fails(mock_job, mock_hook, check_type, c
         table=TEST_TABLE_ID,
         use_legacy_sql=False,
         column_mapping={
-            "col1": {"min": {"equal_to": 0}},
+            "col1": {"min": {check_type: check_value}},
         },
     )
     with pytest.raises(AirflowException):
