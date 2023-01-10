@@ -130,7 +130,7 @@ class TestInternalApiCall:
             {
                 "jsonrpc": "2.0",
                 "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
-                          "fake_method_with_params",
+                "fake_method_with_params",
                 "params": json.dumps(
                     BaseSerialization.serialize(
                         {
