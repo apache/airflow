@@ -56,6 +56,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.operators import ColumnOperators
 
+    from airflow.www.fab_security.sqla.manager import SecurityManager
+
 
 def datetime_to_string(value: DateTime | None) -> str | None:
     if value is None:
@@ -820,10 +822,24 @@ class UIAlert:
         self.html = html
         self.message = Markup(message) if html else message
 
-    def should_show(self, securitymanager) -> bool:
-        """Determine if the user should see the message based on their role membership"""
+    def should_show(self, securitymanager: SecurityManager) -> bool:
+        """Determine if the user should see the message.
+
+        The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
+        set in ``webserver_config.py``, An anonymous user would have the
+        ``AUTH_ROLE_PUBLIC`` role.
+        """
         if self.roles:
-            user_roles = {r.name for r in securitymanager.current_user.roles}
+            current_user = securitymanager.current_user
+            if current_user is not None:
+                user_roles = {r.name for r in securitymanager.current_user.roles}
+            elif "AUTH_ROLE_PUBLIC" in securitymanager.appbuilder.get_app.config:
+                # If the current_user is anonymous, assign AUTH_ROLE_PUBLIC role (if it exists) to them
+                user_roles = {securitymanager.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}
+            else:
+                # Unable to obtain user role - default to not showing
+                return False
+
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True

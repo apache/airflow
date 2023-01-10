@@ -203,6 +203,11 @@ def test_home_robots_header_in_response(user_client):
 @pytest.mark.parametrize(
     "client, flash_message, expected",
     [
+        ("anonymous_client", UIAlert("hello world"), True),
+        ("anonymous_client", UIAlert("hello world", roles=["Viewer"]), True),
+        ("anonymous_client", UIAlert("hello world", roles=["User"]), False),
+        ("anonymous_client", UIAlert("hello world", roles=["Viewer", "User"]), True),
+        ("anonymous_client", UIAlert("hello world", roles=["Admin"]), False),
         ("user_client", UIAlert("hello world"), True),
         ("user_client", UIAlert("hello world", roles=["User"]), True),
         ("user_client", UIAlert("hello world", roles=["User", "Admin"]), True),
