@@ -61,14 +61,13 @@ class TestArangoDBHook:
     )
     def test_query(self, arango_mock):
         arangodb_hook = ArangoDBHook()
-        arangodb_hook.db_conn = Mock(name="arangodb_database_for_test")
+        with patch.object(arangodb_hook, "db_conn"):
+            arangodb_query = "FOR doc IN students RETURN doc"
+            arangodb_hook.query(arangodb_query)
 
-        arangodb_query = "FOR doc IN students RETURN doc"
-        arangodb_hook.query(arangodb_query)
-
-        assert arango_mock.called
-        assert isinstance(arangodb_hook.client, Mock)
-        assert arango_mock.return_value.db.called
+            assert arango_mock.called
+            assert isinstance(arangodb_hook.client, Mock)
+            assert arango_mock.return_value.db.called
 
     @patch(
         "airflow.providers.arangodb.hooks.arangodb.ArangoDBClient",

@@ -41,7 +41,6 @@ class AQLOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("query",)
-
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
 

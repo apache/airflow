@@ -18,13 +18,19 @@
 """This module allows connecting to a ArangoDB."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
-from arango.result import Result
 
 from airflow import AirflowException
+from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from arango.cursor import Cursor
+    from arango.database import StandardDatabase
+
+    from airflow.models import Connection
 
 
 class ArangoDBHook(BaseHook):
@@ -43,41 +49,60 @@ class ArangoDBHook(BaseHook):
 
     def __init__(self, arangodb_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.hosts = None
-        self.database = None
-        self.username = None
-        self.password = None
-        self.db_conn = None
         self.arangodb_conn_id = arangodb_conn_id
-        self.client: ArangoDBClient | None = None
-        self.get_conn()
+
+    @cached_property
+    def client(self) -> ArangoDBClient:
+        """Initiates a new ArangoDB connection (cached)."""
+        return ArangoDBClient(hosts=self.hosts)
+
+    @cached_property
+    def db_conn(self) -> StandardDatabase:
+        """Connect to an ArangoDB database and return the database API wrapper."""
+        return self.client.db(name=self.database, username=self.username, password=self.password)
+
+    @cached_property
+    def _conn(self) -> Connection:
+        return self.get_connection(self.arangodb_conn_id)
+
+    @property
+    def hosts(self) -> list[str]:
+        if not self._conn.host:
+            raise AirflowException(f"No ArangoDB Host(s) provided in connection: {self.arangodb_conn_id!r}.")
+        return self._conn.host.split(",")
+
+    @property
+    def database(self) -> str:
+        if not self._conn.schema:
+            raise AirflowException(f"No ArangoDB Database provided in connection: {self.arangodb_conn_id!r}.")
+        return self._conn.schema
+
+    @property
+    def username(self) -> str:
+        if not self._conn.login:
+            raise AirflowException(f"No ArangoDB Username provided in connection: {self.arangodb_conn_id!r}.")
+        return self._conn.login
+
+    @property
+    def password(self) -> str:
+        return self._conn.password or ""
 
     def get_conn(self) -> ArangoDBClient:
-        """Function that initiates a new ArangoDB connection"""
-        if self.client is not None:
-            return self.client
-
-        conn = self.get_connection(self.arangodb_conn_id)
-        self.hosts = conn.host.split(",")
-        self.database = conn.schema
-        self.username = conn.login
-        self.password = conn.password
-
-        self.client = ArangoDBClient(hosts=self.hosts)
-        self.db_conn = self.client.db(name=self.database, username=self.username, password=self.password)
+        """Function that initiates a new ArangoDB connection (cached)."""
         return self.client
 
-    def query(self, query, **kwargs) -> Result:
+    def query(self, query, **kwargs) -> Cursor:
         """
-        Function to create a arangodb session
+        Function to create an ArangoDB session
         and execute the AQL query in the session.
 
         :param query: AQL query
-        :return: Result
         """
         try:
             if self.db_conn:
                 result = self.db_conn.aql.execute(query, **kwargs)
+                if TYPE_CHECKING:
+                    assert isinstance(result, Cursor)
                 return result
             else:
                 raise AirflowException(
