@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Text,
@@ -28,6 +28,7 @@ import {
   Tab,
   TabPanels,
   TabPanel,
+  Tooltip,
 } from '@chakra-ui/react';
 
 import { useGridData, useTaskInstance } from 'src/api';
@@ -36,6 +37,8 @@ import useOffsetHeight from 'src/utils/useOffsetHeight';
 import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
 import type { SelectionProps } from 'src/dag/useSelection';
 import NotesAccordion from 'src/dag/details/NotesAccordion';
+import { useContainerRef } from 'src/context/containerRef';
+import TabWithTooltip from 'src/components/TabWithTooltip';
 
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
@@ -61,7 +64,8 @@ const TaskInstance = ({
 }: Props) => {
   const isMapIndexDefined = !(mapIndex === undefined);
   const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
-  const { data: { dagRuns, groups } } = useGridData();
+  const { data: { dagRuns, groups, readerSupportsTriggerer } } = useGridData();
+  const containerRef = useContainerRef();
   const detailsRef = useRef<HTMLDivElement>(null);
   const offsetHeight = useOffsetHeight(detailsRef);
 
@@ -92,6 +96,32 @@ const TaskInstance = ({
     setPreferedTabIndex(index);
   };
 
+  let triggerLogsTooltipProps;
+  if (!readerSupportsTriggerer) {
+    triggerLogsTooltipProps = {
+      label: 'The configured log handler does not support reading trigger logs.',
+      isDisabled: false,
+    };
+  } else if (!instance?.hasDeferred) {
+    triggerLogsTooltipProps = {
+      label: 'This task has no deferrals.',
+      isDisabled: false,
+    };
+  } else {
+    triggerLogsTooltipProps = {
+      label: '',
+      isDisabled: true,
+    };
+  }
+  const disableTriggerLogs = !(readerSupportsTriggerer && instance?.hasDeferred === true);
+
+  useEffect(() => {
+    // Reset preferred tab if it is disabled
+    if (disableTriggerLogs && preferedTabIndex === 2) {
+      setPreferedTabIndex(1);
+    }
+  }, [disableTriggerLogs, preferedTabIndex]);
+
   if (!group || !run || !instance) return null;
 
   let isPreferedTabDisplayed = false;
@@ -101,6 +131,9 @@ const TaskInstance = ({
       isPreferedTabDisplayed = true;
       break;
     case 1:
+      isPreferedTabDisplayed = !isGroup || (isGroup && !!isMapped);
+      break;
+    case 2: // triggerer logs
       isPreferedTabDisplayed = !isGroup || (isGroup && !!isMapped);
       break;
     default:
@@ -148,6 +181,19 @@ const TaskInstance = ({
             <Tab>
               <Text as="strong">Logs</Text>
             </Tab>
+          )}
+
+          {!isGroupOrMappedTaskSummary && (
+          <Tooltip
+            {...triggerLogsTooltipProps}
+            placement="top-end"
+            portalProps={{ containerRef }}
+            hasArrow
+          >
+            <TabWithTooltip isDisabled={disableTriggerLogs}>
+              <Text fontSize="lg" as="strong">Triggerer logs</Text>
+            </TabWithTooltip>
+          </Tooltip>
           )}
         </TabList>
 
@@ -216,19 +262,36 @@ const TaskInstance = ({
             </TabPanel>
           )}
 
+          {/* Triggerer Logs Tab */}
+          {!isGroupOrMappedTaskSummary && (
+            <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
+              {instance?.hasDeferred === true && (
+              <Logs
+                dagId={dagId}
+                dagRunId={runId}
+                taskId={taskId!}
+                mapIndex={mapIndex}
+                executionDate={executionDate}
+                tryNumber={instance?.tryNumber}
+                state={instance?.state}
+                logType="trigger"
+              />
+              )}
+            </TabPanel>
+          )}
+
           {/* Mapped Task Instances Tab */}
-          {
-            isMappedTaskSummary && !isGroup && (
-              <TabPanel>
-                <MappedInstances
-                  dagId={dagId}
-                  runId={runId}
-                  taskId={taskId}
-                  onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
-                />
-              </TabPanel>
-            )
-          }
+          {isMappedTaskSummary && !isGroup && (
+            <TabPanel>
+              <MappedInstances
+                dagId={dagId}
+                runId={runId}
+                taskId={taskId}
+                onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
+              />
+            </TabPanel>
+          )}
+
         </TabPanels>
       </Tabs>
     </Box>

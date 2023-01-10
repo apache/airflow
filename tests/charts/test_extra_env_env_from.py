@@ -59,7 +59,7 @@ PARAMS = [
         ),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-triggerer"),
+        ("StatefulSet", f"{RELEASE_NAME}-triggerer"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
@@ -114,6 +114,7 @@ class TestExtraEnvEnvFrom:
                   name: {RELEASE_NAME}-some-secret
             """
         ).lstrip()
+        print(k8s_obj_key)
         k8s_object = self.k8s_objects_by_key[k8s_obj_key]
         for path in env_paths:
             env = jmespath.search(f"{path}.env", k8s_object)

@@ -38,7 +38,7 @@ class TaskLogReader:
     """Time to sleep between loops while waiting for more logs"""
 
     def read_log_chunks(
-        self, ti: TaskInstance, try_number: int | None, metadata
+        self, ti: TaskInstance, try_number: int | None, metadata, *, log_type=None
     ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
         """
         Reads chunks of Task Instance logs.
@@ -47,6 +47,7 @@ class TaskLogReader:
         :param try_number: If provided, logs for the given try will be returned.
             Otherwise, logs from all attempts are returned.
         :param metadata: A dictionary containing information about how to read the task log
+        :param log_type: Either trigger or worker, to determine where to read logs from.
 
         The following is an example of how to use this method to read log:
 
@@ -59,11 +60,14 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
+        kwargs = {"log_type": log_type} if self.supports_triggerer else {}
+        logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata, **kwargs)
         metadata = metadatas[0]
         return logs, metadata
 
-    def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
+    def read_log_stream(
+        self, ti: TaskInstance, try_number: int | None, metadata: dict, *, log_type=None
+    ) -> Iterator[str]:
         """
         Used to continuously read log to the end
 
@@ -82,7 +86,8 @@ class TaskLogReader:
             metadata.pop("offset", None)
             metadata.pop("log_pos", None)
             while True:
-                logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
+                kwargs = {"log_type": log_type} if self.supports_triggerer else {}
+                logs, metadata = self.read_log_chunks(ti, current_try_number, metadata, **kwargs)
                 for host, log in logs[0]:
                     yield "\n".join([host or "", log]) + "\n"
                 if "end_of_log" not in metadata or (
@@ -107,6 +112,10 @@ class TaskLogReader:
     def supports_read(self):
         """Checks if a read operation is supported by a current log handler."""
         return hasattr(self.log_handler, "read")
+
+    @property
+    def supports_triggerer(self):
+        return getattr(self.log_handler, "supports_triggerer", False)
 
     @property
     def supports_external_link(self) -> bool:

@@ -70,6 +70,11 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return None
 
+    @cached_property
+    def supports_triggerer(self):
+        """Not implemented yet."""
+        return False
+
     def set_context(self, ti) -> None:
         super().set_context(ti)
         # Local location and remote location is needed to open and
@@ -105,7 +110,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.closed = True
 
     def _read(
-        self, ti, try_number: int, metadata: dict[str, Any] | None = None
+        self, ti, try_number: int, metadata: dict[str, Any] | None = None, *, log_type=None
     ) -> tuple[str, dict[str, bool]]:
         """
         Read logs of given task instance and try_number from Wasb remote storage.
@@ -113,8 +118,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
-        :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
+        :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
+        :param log_type: Currently unused. In future will control whether to retrieve
+            logs from triggerer or worker.
         """
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in

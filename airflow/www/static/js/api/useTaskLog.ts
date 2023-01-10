@@ -32,7 +32,7 @@ interface Props extends API.GetLogVariables {
 }
 
 const useTaskLog = ({
-  dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent, state,
+  dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent, state, logType,
 }: Props) => {
   let url: string = '';
   const [isPreviousStatePending, setPrevState] = useState(true);
@@ -55,14 +55,14 @@ const useTaskLog = ({
   const expectingLogs = isStatePending || isPreviousStatePending;
 
   return useQuery(
-    ['taskLogs', dagId, dagRunId, taskId, mapIndex, taskTryNumber, fullContent],
+    ['taskLogs', dagId, dagRunId, taskId, mapIndex, taskTryNumber, fullContent, logType],
     () => {
       setPrevState(isStatePending);
       return axios.get<AxiosResponse, string>(
         url,
         {
           headers: { Accept: 'text/plain' },
-          params: { map_index: mapIndex, full_content: fullContent },
+          params: { map_index: mapIndex, full_content: fullContent, log_type: logType },
         },
       );
     },

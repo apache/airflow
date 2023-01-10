@@ -18,15 +18,18 @@
 """File logging handler for tasks."""
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import warnings
 from contextlib import suppress
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-from airflow.configuration import AirflowConfigException, conf
+from airflow.compat.functools import cached_property
+from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
@@ -37,6 +40,37 @@ from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+
+
+class LogType(str, Enum):
+    """
+    Type of service from which we retrieve logs.
+
+    :meta private:
+    """
+
+    TRIGGER = "trigger"
+    WORKER = "worker"
+
+
+def _fetch_logs_from_service(url, log_relative_path):
+    import httpx
+
+    from airflow.utils.jwt_signer import JWTSigner
+
+    timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
+    signer = JWTSigner(
+        secret_key=conf.get("webserver", "secret_key"),
+        expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
+        audience="task-instance-logs",
+    )
+    response = httpx.get(
+        url,
+        timeout=timeout,
+        headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+    )
+    response.encoding = "utf-8"
+    return response
 
 
 class FileTaskHandler(logging.Handler):
@@ -88,6 +122,32 @@ class FileTaskHandler(logging.Handler):
         self.handler.setLevel(self.level)
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
+    @staticmethod
+    def add_triggerer_suffix(full_path, job_id=None):
+        """
+        Helper for deriving trigger log filename from task log filename.
+
+        E.g. given /path/to/file.log returns /path/to/file.log.trigger.123.log, where 123
+        is the triggerer id.  We use the triggerer ID instead of trigger ID to distinguish
+        the files because, rarely, the same trigger could get picked up by two different
+        triggerer instances.
+        """
+        full_path = Path(full_path).as_posix()
+        full_path += f".{LogType.TRIGGER}"
+        if job_id:
+            full_path += f".{job_id}.log"
+        return full_path
+
+    @cached_property
+    def supports_triggerer(self):
+        """
+        If true, this handler has been updated to support individual logging as implemented
+        in triggerer_job.
+
+        :meta private:
+        """
+        return "log_type" in inspect.signature(self._read).parameters.keys()
+
     def emit(self, record):
         if self.handler:
             self.handler.emit(record)
@@ -101,6 +161,7 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
+        """Returns the worker log filename."""
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
@@ -164,7 +225,14 @@ class FileTaskHandler(logging.Handler):
                 return True
         return False
 
-    def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
+    def _read(
+        self,
+        ti: TaskInstance,
+        try_number: int,
+        metadata: dict[str, Any] | None = None,
+        *,
+        log_type: LogType | None = LogType.WORKER,
+    ):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
@@ -178,7 +246,7 @@ class FileTaskHandler(logging.Handler):
                                   which was retrieved in previous calls, this
                                   part will be skipped and only following test
                                   returned to be added to tail.
-
+        :param log_type: controls whether to fetch worker or trigger logs for task
         :return: log message as a string and metadata.
                  Following attributes are used in metadata:
                  end_of_log: Boolean, True if end of log is reached or False
@@ -186,25 +254,24 @@ class FileTaskHandler(logging.Handler):
                              This is determined by the status of the TaskInstance
                  log_pos: (absolute) Char position to which the log is retrieved
         """
-        from airflow.utils.jwt_signer import JWTSigner
-
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
-        log_relative_path = self._render_filename(ti, try_number)
-        location = os.path.join(self.local_base, log_relative_path)
+        worker_log_rel_path = self._render_filename(ti, try_number)
+        worker_log_full_path = Path(self.local_base, worker_log_rel_path)
 
+        local_log_files = self._get_local_log_files(worker_log_path=worker_log_full_path, log_type=log_type)
         log = ""
-        if os.path.exists(location):
+        if local_log_files:
             try:
-                with open(location, encoding="utf-8", errors="surrogateescape") as file:
-                    log += f"*** Reading local file: {location}\n"
-                    log += "".join(file.readlines())
+                for file in local_log_files:
+                    log += f"*** Reading local file: {file}\n"
+                    log += Path(file).read_text()
             except Exception as e:
-                log = f"*** Failed to load local log file: {location}\n"
+                log = f"*** Failed to load local log files: {local_log_files}\n"
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
-        elif self._should_check_k8s(ti.queue):
+        elif self._should_check_k8s(ti.queue) and log_type != LogType.TRIGGER:
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
                 from airflow.kubernetes.pod_generator import PodGenerator
@@ -245,49 +312,25 @@ class FileTaskHandler(logging.Handler):
                 log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
                 return log, {"end_of_log": True}
         else:
-            import httpx
-
-            url = self._get_log_retrieval_url(ti, log_relative_path)
-            log += f"*** Log file does not exist: {location}\n"
-            log += f"*** Fetching from: {url}\n"
+            log += "*** Logs not found locally\n"
             try:
-                timeout = None  # No timeout
-                try:
-                    timeout = conf.getint("webserver", "log_fetch_timeout_sec")
-                except (AirflowConfigException, ValueError):
-                    pass
-
-                signer = JWTSigner(
-                    secret_key=conf.get("webserver", "secret_key"),
-                    expiration_time_in_seconds=conf.getint(
-                        "webserver", "log_request_clock_grace", fallback=30
-                    ),
-                    audience="task-instance-logs",
-                )
-                response = httpx.get(
-                    url,
-                    timeout=timeout,
-                    headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
-                )
-                response.encoding = "utf-8"
-
+                url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
+                log += f"*** Fetching from: {url}\n"
+                response = _fetch_logs_from_service(url, rel_path)
                 if response.status_code == 403:
                     log += (
                         "*** !!!! Please make sure that all your Airflow components (e.g. "
-                        "schedulers, webservers and workers) have "
+                        "schedulers, webservers, workers and triggerer) have "
                         "the same 'secret_key' configured in 'webserver' section and "
                         "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
-                    )
-                    log += (
                         "*** See more at https://airflow.apache.org/docs/apache-airflow/"
                         "stable/configurations-ref.html#secret-key\n***"
                     )
                 # Check if the resource was properly fetched
                 response.raise_for_status()
-
                 log += "\n" + response.text
             except Exception as e:
-                log += f"*** Failed to fetch log file from worker. {str(e)}\n"
+                log += f"*** Failed to fetch log file from {log_type}. {str(e)}\n"
                 return log, {"end_of_log": True}
 
         # Process tailing if log is not at it's end
@@ -296,8 +339,20 @@ class FileTaskHandler(logging.Handler):
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             log = log[previous_chars:]  # Cut off previously passed log test as new tail
-
         return log, {"end_of_log": end_of_log, "log_pos": log_pos}
+
+    def _get_local_log_files(self, worker_log_path: Path, log_type: str | None = None):
+        """
+        If trigger log type, get sublogs. Otherwise, get requested path.
+
+        We take worker log path because the trigger logs are always named the same as
+        the worker logs but with an additional suffix appended.
+        """
+        if log_type == LogType.TRIGGER:
+            prefix = self.add_triggerer_suffix(worker_log_path.name, job_id=None)
+            return list(worker_log_path.parent.rglob(prefix + "*.*"))
+        elif worker_log_path.exists():
+            return [worker_log_path]
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -307,30 +362,39 @@ class FileTaskHandler(logging.Handler):
             namespace = pod_override.metadata.namespace
         return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
 
-    @staticmethod
-    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
-        url = urljoin(
-            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
+    def _get_log_retrieval_url(
+        self, ti: TaskInstance, log_relative_path: str, log_type: LogType | None = None
+    ) -> tuple[str, str]:
+        """Given TI, generate URL with which to fetch logs from service log server."""
+        if log_type == LogType.TRIGGER:
+            if not ti.triggerer_job:
+                raise RuntimeError("Could not build triggerer log URL; no triggerer job.")
+            config_key = "triggerer_log_server_port"
+            hostname = ti.triggerer_job.hostname
+            log_relative_path = self.add_triggerer_suffix(log_relative_path, job_id=ti.triggerer_job.id)
+        else:
+            hostname = ti.hostname
+            config_key = "worker_log_server_port"
+        return (
+            urljoin(f"http://{hostname}:{conf.get('logging', config_key)}/log/", log_relative_path),
             log_relative_path,
         )
-        return url
 
-    def read(self, task_instance, try_number=None, metadata=None):
+    def read(self, task_instance, try_number=None, metadata=None, log_type=None):
         """
         Read logs of given task instance from local machine.
 
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from. If None
                            it returns all logs separated by try_number
-        :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
+        :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
+        :param log_type: Whether to retrieve logs for triggerer or worker.
         :return: a list of listed tuples which order log string by host
         """
         # Task instance increments its try number when it starts to run.
         # So the log for a particular task try will only show up when
         # try number gets incremented in DB, i.e logs produced the time
         # after cli run and before try_number + 1 in DB will not be displayed.
-
         if try_number is None:
             next_try = task_instance.next_try_number
             try_numbers = list(range(1, next_try))
@@ -344,8 +408,11 @@ class FileTaskHandler(logging.Handler):
 
         logs = [""] * len(try_numbers)
         metadata_array = [{}] * len(try_numbers)
+
+        # subclasses implement _read and may not have log_type, which was added recently
+        kwargs = {"log_type": log_type} if log_type == LogType.TRIGGER else {}
         for i, try_number_element in enumerate(try_numbers):
-            log, out_metadata = self._read(task_instance, try_number_element, metadata)
+            log, out_metadata = self._read(task_instance, try_number_element, metadata, **kwargs)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
             logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
@@ -389,21 +456,12 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         :return: relative log path of the given task instance
         """
-        # To handle log writing when tasks are impersonated, the log files need to
-        # be writable by the user that runs the Airflow command and the user
-        # that is impersonated. This is mainly to handle corner cases with the
-        # SubDagOperator. When the SubDagOperator is run, all of the operators
-        # run under the impersonated user and create appropriate log files
-        # as the impersonated user. However, if the user manually runs tasks
-        # of the SubDagOperator through the UI, then the log files are created
-        # by the user that runs the Airflow command. For example, the Airflow
-        # run command may be run by the `airflow_sudoable` user, but the Airflow
-        # tasks may be run by the `airflow` user. If the log files are not
-        # writable by both users, then it's possible that re-running a task
-        # via the UI (or vice versa) results in a permission error as the task
-        # tries to write to a log file created by the other user.
-        relative_path = self._render_filename(ti, ti.try_number)
-        full_path = os.path.join(self.local_base, relative_path)
+        local_relative_path = self._render_filename(ti, ti.try_number)
+        full_path = os.path.join(self.local_base, local_relative_path)
+        if ti.is_trigger_log_context is True:
+            # if this is true, we're invoked via set_context in the context of
+            # setting up individual trigger logging. return trigger log path.
+            full_path = self.add_triggerer_suffix(full_path=full_path, job_id=ti.triggerer_job.id)
         self._prepare_log_folder(Path(full_path).parent)
 
         if not os.path.exists(full_path):

@@ -493,6 +493,7 @@ export interface paths {
          * If passed, it will specify the location from which the download should be continued.
          */
         token?: components["parameters"]["ContinuationToken"];
+        log_type?: string;
       };
     };
   };
@@ -3791,6 +3792,7 @@ export interface operations {
          * If passed, it will specify the location from which the download should be continued.
          */
         token?: components["parameters"]["ContinuationToken"];
+        log_type?: string;
       };
     };
     responses: {

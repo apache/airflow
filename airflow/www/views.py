@@ -145,6 +145,8 @@ LINECHART_X_AXIS_TICKFORMAT = (
     "} else {xLabel = d3.time.format('%H:%M, %d %b')(new Date(parseInt(d)));} return xLabel;}"
 )
 
+task_log_reader = TaskLogReader()
+
 
 def truncate_task_duration(task_duration):
     """
@@ -264,6 +266,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
+            func.max(case((TaskInstance.next_kwargs.is_not(None), 1), else_=0)).label("has_deferred"),
             TaskInstance._try_number,
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
@@ -293,6 +296,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     "end_date": task_instance.end_date,
                     "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
                     "note": task_instance.note,
+                    "has_deferred": bool(task_instance.has_deferred),
                 }
 
             def _mapped_summary(ti_summaries):
@@ -3617,6 +3621,7 @@ class Airflow(AirflowBaseView):
                 "groups": dag_to_grid(dag, dag_runs, session),
                 "dag_runs": encoded_runs,
                 "ordering": dag.timetable.run_ordering,
+                "reader_supports_triggerer": task_log_reader.supports_triggerer,
             }
         # avoid spaces to reduce payload size
         return (

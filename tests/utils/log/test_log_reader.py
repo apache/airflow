@@ -74,11 +74,11 @@ class TestLogView:
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         logging_config["handlers"]["task"]["base_log_folder"] = log_dir
         logging_config["handlers"]["task"]["filename_template"] = self.FILENAME_TEMPLATE
-        settings_file = os.path.join(settings_folder, "airflow_local_settings.py")
+        settings_file = os.path.join(settings_folder, "airflow_local_settings_test.py")
         with open(settings_file, "w") as handle:
             new_logging_file = f"LOGGING_CONFIG = {logging_config}"
             handle.writelines(new_logging_file)
-        with conf_vars({("logging", "logging_config_class"): "airflow_local_settings.LOGGING_CONFIG"}):
+        with conf_vars({("logging", "logging_config_class"): "airflow_local_settings_test.LOGGING_CONFIG"}):
             settings.configure_logging()
         yield
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -206,9 +206,9 @@ class TestLogView:
 
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 1, metadata={"end_of_log": False}),
+                mock.call(self.ti, 1, metadata={}, log_type=None),
+                mock.call(self.ti, 1, metadata={}, log_type=None),
+                mock.call(self.ti, 1, metadata={"end_of_log": False}, log_type=None),
             ],
             any_order=False,
         )
@@ -227,9 +227,9 @@ class TestLogView:
 
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 2, metadata={}),
-                mock.call(self.ti, 3, metadata={}),
+                mock.call(self.ti, 1, metadata={}, log_type=None),
+                mock.call(self.ti, 2, metadata={}, log_type=None),
+                mock.call(self.ti, 3, metadata={}, log_type=None),
             ],
             any_order=False,
         )

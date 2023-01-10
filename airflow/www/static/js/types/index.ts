@@ -72,6 +72,7 @@ interface TaskInstance {
   tryNumber?: number;
   triggererJob?: Job;
   trigger?: Trigger;
+  hasDeferred?: boolean | null; // comes from grid_data not API
   note: string | null;
 }
 

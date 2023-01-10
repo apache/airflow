@@ -98,6 +98,7 @@ def test_no_runs(admin_client, dag_without_runs):
     assert resp.status_code == 200, resp.json
     assert resp.json == {
         "dag_runs": [],
+        "reader_supports_triggerer": True,
         "groups": {
             "children": [
                 {
@@ -226,6 +227,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "state": "running",
             },
         ],
+        "reader_supports_triggerer": True,
         "groups": {
             "children": [
                 {
@@ -241,6 +243,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "state": "success",
                             "task_id": "task1",
                             "try_number": 0,
+                            "has_deferred": False,
                         },
                         {
                             "run_id": "run_2",
@@ -250,6 +253,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "state": "success",
                             "task_id": "task1",
                             "try_number": 0,
+                            "has_deferred": False,
                         },
                     ],
                     "is_mapped": False,
@@ -403,6 +407,7 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
     assert resp.status_code == 200, resp.json
     assert resp.json == {
         "dag_runs": [],
+        "reader_supports_triggerer": True,
         "groups": {
             "children": [
                 _expected_task_details("task1", False),

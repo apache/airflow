@@ -439,7 +439,7 @@ class TaskInstance(Base, LoggingMixin):
         viewonly=True,
     )
 
-    trigger = relationship("Trigger", uselist=False)
+    trigger = relationship("Trigger", uselist=False, back_populates="task_instance")
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
@@ -511,6 +511,26 @@ class TaskInstance(Base, LoggingMixin):
         self.raw = False
         # can be changed when calling 'run'
         self.test_mode = False
+
+        self._is_trigger_log_context: bool = False
+        """
+        Flag to indicate to FileTaskHandler that logging context should be set up for
+        trigger logging.
+        """
+
+    @property
+    def is_trigger_log_context(self):
+        """
+        Flag to indicate to FileTaskHandler that logging context should be set up for
+        trigger logging.
+
+        :meta private:
+        """
+        return getattr(self, "_is_trigger_log_context", False)
+
+    @is_trigger_log_context.setter
+    def is_trigger_log_context(self, value):
+        self._is_trigger_log_context = value
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:

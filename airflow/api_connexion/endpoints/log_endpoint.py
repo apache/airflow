@@ -21,6 +21,7 @@ from typing import Any
 from flask import Response, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
 from airflow.api_connexion import security
@@ -31,6 +32,7 @@ from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.log.file_task_handler import LogType
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -52,6 +54,7 @@ def get_log(
     full_content: bool = False,
     map_index: int = -1,
     token: str | None = None,
+    log_type: LogType | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get logs for specific task instance."""
@@ -73,6 +76,9 @@ def get_log(
         metadata["download_logs"] = False
 
     task_log_reader = TaskLogReader()
+    if log_type == LogType.TRIGGER and not task_log_reader.supports_triggerer:
+        raise BadRequest("Task log handler does not support trigger logging.")
+
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
     ti = (
@@ -84,6 +90,8 @@ def get_log(
             TaskInstance.map_index == map_index,
         )
         .join(TaskInstance.dag_run)
+        .options(joinedload("trigger"))
+        .options(joinedload("trigger.triggerer_job"))
         .one_or_none()
     )
     if ti is None:
@@ -102,12 +110,12 @@ def get_log(
     # return_type would be either the above two or None
     logs: Any
     if return_type == "application/json" or return_type is None:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
+        logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata, log_type=log_type)
         logs = logs[0] if task_try_number is not None else logs
         # we must have token here, so we can safely ignore it
         token = URLSafeSerializer(key).dumps(metadata)  # type: ignore[assignment]
         return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
     # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
+    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata, log_type=log_type)
 
     return Response(logs, headers={"Content-Type": return_type})

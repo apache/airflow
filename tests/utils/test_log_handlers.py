@@ -21,13 +21,16 @@ import logging
 import logging.config
 import os
 import re
+import tempfile
 from unittest.mock import patch
 
+import pendulum
 import pytest
 from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.jobs.triggerer_job import TriggererJob
+from airflow.models import DAG, DagRun, TaskInstance, Trigger
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import set_context
@@ -294,6 +297,34 @@ class TestFileTaskLogHandler:
             _preload_content=False,
         )
 
+    def test_add_triggerer_suffix(self):
+        sample = "any/path/to/thing.txt"
+        assert FileTaskHandler.add_triggerer_suffix(sample) == sample + ".trigger"
+        assert FileTaskHandler.add_triggerer_suffix(sample, job_id=None) == sample + ".trigger"
+        assert FileTaskHandler.add_triggerer_suffix(sample, job_id=123) == sample + ".trigger.123.log"
+        assert FileTaskHandler.add_triggerer_suffix(sample, job_id="123") == sample + ".trigger.123.log"
+
+    @pytest.mark.parametrize("is_a_trigger", [True, False])
+    def test_set_context_trigger(self, create_dummy_dag, dag_maker, is_a_trigger, session):
+        create_dummy_dag(dag_id="test_fth", task_id="dummy")
+        (ti,) = dag_maker.create_dagrun(execution_date=pendulum.datetime(2023, 1, 1, tz="UTC")).task_instances
+        assert isinstance(ti, TaskInstance)
+        if is_a_trigger:
+            ti.is_trigger_log_context = True
+            job = TriggererJob()
+            t = Trigger("", {})
+            t.triggerer_job = job
+            ti.triggerer = t
+            t.task_instance = ti
+        with tempfile.TemporaryDirectory() as td:
+            h = FileTaskHandler(base_log_folder=td)
+            h.set_context(ti)
+            expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=1.log"
+            if is_a_trigger:
+                expected += f".trigger.{job.id}.log"
+            actual = h.handler.baseFilename
+            assert actual.replace(td + "/", "") == expected
+
 
 class TestFilenameRendering:
     def test_python_formatting(self, create_log_template, create_task_instance):
@@ -340,8 +371,8 @@ class TestLogUrl:
             execution_date=DEFAULT_DATE,
         )
         log_url_ti.hostname = "hostname"
-        url = FileTaskHandler._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
-        assert url == "http://hostname:8793/log/DYNAMIC_PATH"
+        ret = FileTaskHandler("")._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
+        assert ret == ("http://hostname:8793/log/DYNAMIC_PATH", "DYNAMIC_PATH")
 
 
 @pytest.mark.parametrize(
