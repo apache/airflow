@@ -745,7 +745,6 @@ class TestSchedulerService:
             ("CeleryKubernetesExecutor", False),
             ("KubernetesExecutor", False),
             ("LocalKubernetesExecutor", True),
-            ("SequentialExecutor", True),
         ],
     )
     def test_should_create_scheduler_service_for_specific_executors(self, executor, creates_service):
