@@ -60,3 +60,7 @@ The sole purpose of this yaml file is it to check the values file is consistent 
     {{- end }}
 
   {{- end }}
+
+  {{- if and .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
+    {{ required "The combination of dags persistence and gitSync has serious performance and atomicity issues. Choose either gitSync or dags persistence but not the two of them together." nil }}
+  {{- end }}

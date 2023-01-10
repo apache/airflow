@@ -1813,6 +1813,7 @@ dags:
     ## optional subpath for dag volume mount
     subPath: ~
   gitSync:
+    # Enable git sync sidecar for dags. Cannot be set to True together with dags.persistence.enabled = True
     enabled: false
 
     # git repo clone url
