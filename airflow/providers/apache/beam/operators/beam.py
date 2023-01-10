@@ -37,7 +37,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
-from airflow.utils.helpers import convert_camel_to_snake
+from airflow.utils.helpers import convert_camel_to_snake, exactly_one
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -582,7 +582,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             )
         self.dataflow_support_impersonation = False
 
-        if not bool(go_file) ^ bool(go_binary):
+        if not exactly_one(go_file, go_binary):
             raise ValueError("Exactly one of `go_file` and `go_binary` must be set")
 
         self.go_file = go_file
