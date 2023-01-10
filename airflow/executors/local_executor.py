@@ -210,8 +210,6 @@ class LocalExecutor(BaseExecutor):
 
     serve_logs: bool = True
 
-    serve_logs: bool = True
-
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
         if self.parallelism < 0:
