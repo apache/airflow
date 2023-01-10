@@ -778,26 +778,28 @@ class KubernetesExecutor(BaseExecutor):
             assert self.scheduler_job_id
 
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
-        pod.metadata.labels["airflow-worker"] = pod_generator.make_safe_label_value(self.scheduler_job_id)
         pod_id = annotations_to_key(pod.metadata.annotations)
         if pod_id not in pod_ids:
             self.log.error("attempting to adopt taskinstance which was not specified by database: %s", pod_id)
             return
 
+        new_worker_id_label = pod_generator.make_safe_label_value(self.scheduler_job_id)
         try:
             kube_client.patch_namespaced_pod(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                body=PodGenerator.serialize_pod(pod),
+                body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
             )
-            pod_ids.pop(pod_id)
-            self.running.add(pod_id)
         except ApiException as e:
             self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            return
+
+        del pod_ids[pod_id]
+        self.running.add(pod_id)
 
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
         """
-        Patch completed pod so that the KubernetesJobWatcher can delete it.
+        Patch completed pods so that the KubernetesJobWatcher can delete them.
 
         :param kube_client: kubernetes client for speaking to kube API
         """
@@ -812,12 +814,11 @@ class KubernetesExecutor(BaseExecutor):
         pod_list = self._list_pods(query_kwargs)
         for pod in pod_list:
             self.log.info("Attempting to adopt pod %s", pod.metadata.name)
-            pod.metadata.labels["airflow-worker"] = new_worker_id_label
             try:
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
-                    body=PodGenerator.serialize_pod(pod),
+                    body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
