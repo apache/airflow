@@ -34,6 +34,8 @@ class GCSBlobTrigger(BaseTrigger):
     :param object_name: the file or folder present in the bucket
     :param google_cloud_conn_id: reference to the Google Connection
     :param poke_interval: polling period in seconds to check for file/folder
+    :param hook_params: Extra config params to be passed to the underlying GCSAsyncHook.
+        Should match the desired hook constructor params.
     """
 
     def __init__(
