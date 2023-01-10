@@ -18,13 +18,11 @@
 from __future__ import annotations
 
 """Publish message to SNS queue"""
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SnsPublishOperator(BaseOperator):

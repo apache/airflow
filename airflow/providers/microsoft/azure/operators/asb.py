@@ -21,11 +21,10 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from azure.servicebus.management._models import AuthorizationRule
-
-    from airflow.utils.context import Context
 
 
 class AzureServiceBusCreateQueueOperator(BaseOperator):

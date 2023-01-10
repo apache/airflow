@@ -21,7 +21,7 @@ import json
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import pytz
 from google.api_core.exceptions import AlreadyExists
@@ -38,9 +38,7 @@ from airflow.providers.google.cloud.links.workflows import (
     WorkflowsListOfWorkflowsLink,
     WorkflowsWorkflowDetailsLink,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class WorkflowsCreateWorkflowOperator(BaseOperator):

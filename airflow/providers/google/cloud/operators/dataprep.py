@@ -18,14 +18,12 @@
 """This module contains a Google Dataprep operator."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 from airflow.providers.google.cloud.links.dataprep import DataprepFlowLink, DataprepJobGroupLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class DataprepGetJobsForJobGroupOperator(BaseOperator):

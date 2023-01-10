@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Collection, Sequence
+from typing import Any, Collection, Sequence
 
 from jsonpath_ng import parse
 from typing_extensions import Literal
@@ -28,9 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SqsSensor(BaseSensorOperator):

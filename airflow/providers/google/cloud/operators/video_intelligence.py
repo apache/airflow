@@ -18,7 +18,7 @@
 """This module contains Google Cloud Vision operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -28,9 +28,7 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):

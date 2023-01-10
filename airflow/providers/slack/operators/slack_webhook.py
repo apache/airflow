@@ -18,15 +18,13 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SlackWebhookOperator(BaseOperator):

@@ -18,13 +18,9 @@
 """This module contains Google Spanner links."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 SPANNER_BASE_LINK = "/spanner/instances"
 SPANNER_INSTANCE_LINK = SPANNER_BASE_LINK + "/{instance_id}/details/databases?project={project_id}"

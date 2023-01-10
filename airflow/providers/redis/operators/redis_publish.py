@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.redis.hooks.redis import RedisHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class RedisPublishOperator(BaseOperator):

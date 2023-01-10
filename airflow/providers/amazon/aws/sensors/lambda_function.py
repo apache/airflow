@@ -17,17 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
-
-from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
-from airflow.providers.amazon.aws.utils import trim_none_values
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from typing import Any, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class LambdaFunctionStateSensor(BaseSensorOperator):

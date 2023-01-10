@@ -23,7 +23,7 @@ import re
 import warnings
 from contextlib import ExitStack
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -34,10 +34,8 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
+from airflow.utils.context import Context
 from airflow.version import version
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class CheckJobRunning(Enum):

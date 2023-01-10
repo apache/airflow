@@ -17,16 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import attr
 import papermill as pm
 
 from airflow.lineage.entities import File
 from airflow.models import BaseOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 @attr.s(auto_attribs=True)

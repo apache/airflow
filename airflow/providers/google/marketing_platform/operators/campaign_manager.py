@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import tempfile
 import uuid
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from googleapiclient import http
 
@@ -29,9 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class GoogleCampaignManagerDeleteReportOperator(BaseOperator):

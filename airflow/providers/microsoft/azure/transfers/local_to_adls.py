@@ -17,14 +17,12 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class LocalFilesystemToADLSOperator(BaseOperator):

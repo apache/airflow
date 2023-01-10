@@ -19,15 +19,13 @@ from __future__ import annotations
 
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 from urllib.parse import urlsplit
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 _DEPRECATION_MSG = (
     "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."

@@ -19,16 +19,14 @@ from __future__ import annotations
 
 import re
 import warnings
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import oracledb
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class OracleOperator(SQLExecuteQueryOperator):

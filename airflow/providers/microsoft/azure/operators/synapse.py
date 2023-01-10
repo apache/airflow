@@ -16,15 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from azure.synapse.spark.models import SparkBatchJobOptions
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class AzureSynapseRunSparkBatchOperator(BaseOperator):

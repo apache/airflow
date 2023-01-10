@@ -17,13 +17,11 @@
 """This module contains the Apache Livy sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class LivySensor(BaseSensorOperator):

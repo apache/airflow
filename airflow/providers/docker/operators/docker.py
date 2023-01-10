@@ -35,12 +35,11 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from docker import APIClient
     from docker.types import DeviceRequest
-
-    from airflow.utils.context import Context
 
 
 def stringify(line: str | bytes):

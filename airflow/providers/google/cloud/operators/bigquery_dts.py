@@ -18,7 +18,7 @@
 """This module contains Google BigQuery Data Transfer Service operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -27,9 +27,7 @@ from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsRespons
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 def _get_transfer_config_details(config_transfer_name: str):

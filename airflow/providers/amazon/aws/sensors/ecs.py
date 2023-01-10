@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import boto3
 
@@ -29,9 +29,7 @@ from airflow.providers.amazon.aws.hooks.ecs import (
     EcsTaskStates,
 )
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 DEFAULT_CONN_ID: str = "aws_default"
 

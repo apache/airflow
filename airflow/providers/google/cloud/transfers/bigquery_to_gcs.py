@@ -18,7 +18,7 @@
 """This module contains Google BigQuery to Google Cloud Storage operator."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
@@ -29,9 +29,7 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BigQueryToGCSOperator(BaseOperator):

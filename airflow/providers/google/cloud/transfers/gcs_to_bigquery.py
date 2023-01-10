@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from google.api_core.exceptions import BadRequest, Conflict
 from google.api_core.retry import Retry
@@ -40,9 +40,7 @@ from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQuery
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 ALLOWED_FORMATS = [
     "CSV",

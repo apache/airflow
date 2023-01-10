@@ -18,7 +18,7 @@
 """This module contains Google Cloud Language operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence, Tuple
+from typing import Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -28,10 +28,7 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 MetaData = Sequence[Tuple[str, str]]
 

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from google.api_core import exceptions
 from google.api_core.retry import Retry
@@ -36,9 +36,7 @@ from airflow.providers.google.cloud.links.compute import (
 )
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class ComputeEngineBaseOperator(BaseOperator):

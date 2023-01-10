@@ -33,7 +33,8 @@ isort:skip_file
 """
 from _typeshed import Incomplete
 from airflow.sensors.base import BaseSensorOperator
-from typing import Any, Sequence
+from airflow.utils.context import Context
+from typing import Sequence
 
 class SqlSensor(BaseSensorOperator):
     template_fields: Sequence[str]
@@ -58,4 +59,4 @@ class SqlSensor(BaseSensorOperator):
         hook_params: Incomplete | None = ...,
         **kwargs,
     ) -> None: ...
-    def poke(self, context: Any): ...
+    def poke(self, context: Context): ...

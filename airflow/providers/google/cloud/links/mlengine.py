@@ -18,13 +18,8 @@
 """This module contains Google ML Engine links."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 MLENGINE_BASE_LINK = "https://console.cloud.google.com/ai-platform"
 MLENGINE_MODEL_DETAILS_LINK = MLENGINE_BASE_LINK + "/models/{model_id}/versions?project={project_id}"

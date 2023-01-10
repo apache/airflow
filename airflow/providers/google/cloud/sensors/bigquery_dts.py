@@ -18,7 +18,7 @@
 """This module contains a Google BigQuery Data Transfer Service sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -27,9 +27,7 @@ from google.cloud.bigquery_datatransfer_v1 import TransferState
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):

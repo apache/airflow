@@ -17,13 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.models import BaseOperator
 from airflow.providers.asana.hooks.asana import AsanaHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class AsanaCreateTaskOperator(BaseOperator):

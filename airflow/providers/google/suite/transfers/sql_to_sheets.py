@@ -20,10 +20,11 @@ import datetime
 import logging
 import numbers
 from contextlib import closing
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.utils.context import Context
 
 
 class SQLToGoogleSheetsOperator(BaseSQLOperator):
@@ -110,7 +111,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
             yield [field[0] for field in cur.description]
             yield from self._data_prep(cur.fetchall())
 
-    def execute(self, context: Any) -> None:
+    def execute(self, context: Context) -> None:
         self.log.info("Getting data")
         values = list(self._get_data())
 

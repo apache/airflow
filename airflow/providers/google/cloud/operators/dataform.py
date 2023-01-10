@@ -16,16 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
-
-from airflow.providers.google.cloud.links.dataform import (
-    DataformRepositoryLink,
-    DataformWorkflowInvocationLink,
-    DataformWorkspaceLink,
-)
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -41,6 +32,12 @@ from google.cloud.dataform_v1beta1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
+from airflow.providers.google.cloud.links.dataform import (
+    DataformRepositoryLink,
+    DataformWorkflowInvocationLink,
+    DataformWorkspaceLink,
+)
+from airflow.utils.context import Context
 
 
 class DataformCreateCompilationResultOperator(BaseOperator):

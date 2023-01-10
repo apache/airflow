@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Any, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.utils.context import Context
 
 
 class GCSToGoogleSheetsOperator(BaseOperator):
@@ -81,7 +82,7 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Any) -> None:
+    def execute(self, context: Context) -> None:
         sheet_hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

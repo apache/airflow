@@ -17,15 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from typing import Any, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class AthenaSensor(BaseSensorOperator):

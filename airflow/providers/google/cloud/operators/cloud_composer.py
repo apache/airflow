@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -32,9 +32,7 @@ from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHoo
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environments"
 CLOUD_COMPOSER_DETAILS_LINK = (

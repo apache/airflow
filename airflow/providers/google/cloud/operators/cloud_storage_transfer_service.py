@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, time
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -61,9 +61,7 @@ from airflow.providers.google.cloud.links.cloud_storage_transfer import (
     CloudStorageTransferListLink,
 )
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class TransferJobPreprocessor:

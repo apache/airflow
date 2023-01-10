@@ -21,16 +21,13 @@ from __future__ import annotations
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.utils.context import Context
 from airflow.utils.helpers import exactly_one
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 
 BUCKET_DOES_NOT_EXIST_MSG = "Bucket with name: %s doesn't exist"
 

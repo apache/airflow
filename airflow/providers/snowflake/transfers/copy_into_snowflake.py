@@ -20,11 +20,12 @@ COPY INTO <TABLE> SQL in Snowflake
 """
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.common import enclose_param
+from airflow.utils.context import Context
 
 
 class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
@@ -110,7 +111,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         self.copy_options = copy_options
         self.validation_mode = validation_mode
 
-    def execute(self, context: Any) -> None:
+    def execute(self, context: Context) -> None:
         snowflake_hook = SnowflakeHook(
             snowflake_conn_id=self.snowflake_conn_id,
             warehouse=self.warehouse,

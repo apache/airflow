@@ -18,19 +18,17 @@
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
+from airflow.utils.context import Context
 
 try:
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
 except ImportError:
     from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # type: ignore[no-redef]
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class S3ToGCSOperator(S3ListOperator):

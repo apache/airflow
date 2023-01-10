@@ -20,14 +20,12 @@ from __future__ import annotations
 
 import os
 import signal
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SqoopOperator(BaseOperator):

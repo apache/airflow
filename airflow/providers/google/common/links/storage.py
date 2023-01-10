@@ -17,17 +17,13 @@
 """This module contains a link for GCS Storage assets."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.utils.context import Context
 
 BASE_LINK = "https://console.cloud.google.com"
 GCS_STORAGE_LINK = BASE_LINK + "/storage/browser/{uri};tab=objects?project={project_id}"
 GCS_FILE_DETAILS_LINK = BASE_LINK + "/storage/browser/_details/{uri};tab=live_object?project={project_id}"
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class StorageLink(BaseGoogleLink):

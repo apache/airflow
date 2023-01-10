@@ -16,12 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 BIGTABLE_BASE_LINK = "/bigtable"
 BIGTABLE_INSTANCE_LINK = BIGTABLE_BASE_LINK + "/instances/{instance_id}/overview?project={project_id}"

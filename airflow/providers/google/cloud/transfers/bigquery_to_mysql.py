@@ -18,15 +18,13 @@
 """This module contains Google BigQuery to MySQL operator."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BigQueryToMySqlOperator(BaseOperator):

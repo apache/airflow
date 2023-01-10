@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
@@ -27,9 +27,7 @@ from google.cloud.dataproc_v1.types import JobStatus
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class DataprocJobSensor(BaseSensorOperator):

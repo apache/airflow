@@ -19,15 +19,13 @@
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.samba.hooks.samba import SambaHook
+from airflow.utils.context import Context
 from airflow.utils.operator_helpers import context_to_airflow_vars
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class HiveToSambaOperator(BaseOperator):

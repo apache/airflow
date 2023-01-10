@@ -20,11 +20,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import BaseOperatorLink, XCom
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.context import Context
 
 
 BASE_AWS_CONSOLE_LINK = "https://console.{aws_domain}"

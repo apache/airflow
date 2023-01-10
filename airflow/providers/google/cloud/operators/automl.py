@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import ast
-from typing import TYPE_CHECKING, Sequence, Tuple
+from typing import Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -34,9 +34,7 @@ from google.cloud.automl_v1beta1 import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 MetaData = Sequence[Tuple[str, str]]
 

@@ -17,16 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 from urllib.parse import urlsplit
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class OSSKeySensor(BaseSensorOperator):

@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class Neo4jOperator(BaseOperator):

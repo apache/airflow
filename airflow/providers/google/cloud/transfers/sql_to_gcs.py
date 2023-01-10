@@ -22,7 +22,7 @@ import abc
 import json
 import os
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -30,9 +30,7 @@ import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BaseSQLToGCSOperator(BaseOperator):

@@ -17,14 +17,12 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class RedshiftCreateClusterOperator(BaseOperator):

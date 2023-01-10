@@ -26,15 +26,13 @@ from copy import copy
 from decimal import Decimal
 from os.path import getsize
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
+from typing import IO, Any, Callable, Sequence
 from uuid import uuid4
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class JSONEncoder(json.JSONEncoder):

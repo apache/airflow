@@ -28,6 +28,7 @@ import dill
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.utils.context import Context
 
 try:
     from airflow.utils.decorators import remove_task_decorator
@@ -40,7 +41,6 @@ from airflow.utils.python_virtualenv import write_python_script
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
-    from airflow.utils.context import Context
 
 
 def _generate_decode_command(env_var, file, python_command):

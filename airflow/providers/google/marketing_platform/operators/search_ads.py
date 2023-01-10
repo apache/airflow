@@ -20,15 +20,13 @@ from __future__ import annotations
 
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class GoogleSearchAdsInsertReportOperator(BaseOperator):

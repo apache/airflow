@@ -20,16 +20,14 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class VerticaToHiveOperator(BaseOperator):

@@ -26,7 +26,7 @@ import time
 import uuid
 import warnings
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -52,9 +52,7 @@ from airflow.providers.google.cloud.links.dataproc import (
 )
 from airflow.providers.google.cloud.triggers.dataproc import DataprocBaseTrigger
 from airflow.utils import timezone
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class ClusterGenerator:

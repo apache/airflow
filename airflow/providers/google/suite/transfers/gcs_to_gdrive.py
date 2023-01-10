@@ -19,16 +19,13 @@
 from __future__ import annotations
 
 import tempfile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 WILDCARD = "*"
 

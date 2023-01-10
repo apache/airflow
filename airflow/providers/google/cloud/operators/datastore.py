@@ -18,7 +18,7 @@
 """This module contains Google Datastore operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -29,9 +29,7 @@ from airflow.providers.google.cloud.links.datastore import (
     CloudDatastoreImportExportLink,
 )
 from airflow.providers.google.common.links.storage import StorageLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CloudDatastoreExportEntitiesOperator(BaseOperator):

@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.providers.http.operators.http import SimpleHttpOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class DiscordWebhookOperator(SimpleHttpOperator):

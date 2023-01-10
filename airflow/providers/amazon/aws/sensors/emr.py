@@ -17,18 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import Any, Iterable, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.emr import EmrLogsLink
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
-from airflow.compat.functools import cached_property
+from airflow.utils.context import Context
 
 
 class EmrBaseSensor(BaseSensorOperator):

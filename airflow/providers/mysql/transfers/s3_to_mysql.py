@@ -17,14 +17,12 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class S3ToMySqlOperator(BaseOperator):

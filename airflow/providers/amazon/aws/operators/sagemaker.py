@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -27,10 +27,8 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
+from airflow.utils.context import Context
 from airflow.utils.json import AirflowJsonEncoder
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 DEFAULT_CONN_ID: str = "aws_default"
 CHECK_INTERVAL_SECOND: int = 30

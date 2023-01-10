@@ -21,12 +21,13 @@ from __future__ import annotations
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.utils.context import Context
 
 
 class SFTPOperation:
@@ -145,7 +146,7 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook = SFTPHook(ssh_hook=self.ssh_hook)
 
-    def execute(self, context: Any) -> str | list[str] | None:
+    def execute(self, context: Context) -> str | list[str] | None:
         file_msg = None
         try:
             if self.ssh_conn_id:

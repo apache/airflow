@@ -56,13 +56,12 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 )
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
+from airflow.utils.context import Context
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
     import jinja2
-
-    from airflow.utils.context import Context
 
 alphanum_lower = string.ascii_lowercase + string.digits
 

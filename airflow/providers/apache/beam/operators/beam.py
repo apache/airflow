@@ -22,7 +22,7 @@ import copy
 import tempfile
 from abc import ABC, ABCMeta
 from contextlib import ExitStack
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import Callable, Sequence
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -34,11 +34,9 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
+from airflow.utils.context import Context
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.version import version
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class BeamDataflowMixin(metaclass=ABCMeta):

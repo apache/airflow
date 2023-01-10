@@ -18,14 +18,12 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SalesforceToGcsOperator(BaseOperator):

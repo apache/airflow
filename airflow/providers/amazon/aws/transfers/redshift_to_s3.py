@@ -18,15 +18,13 @@
 """Transfers data from AWS Redshift into a S3 Bucket."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class RedshiftToS3Operator(BaseOperator):

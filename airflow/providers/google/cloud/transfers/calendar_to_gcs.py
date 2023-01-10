@@ -24,6 +24,7 @@ from typing import Any, Sequence
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.calendar import GoogleCalendarHook
+from airflow.utils.context import Context
 
 
 class GoogleCalendarToGCSOperator(BaseOperator):
@@ -164,7 +165,7 @@ class GoogleCalendarToGCSOperator(BaseOperator):
             )
         return dest_file_name
 
-    def execute(self, context):
+    def execute(self, context: Context):
         calendar_hook = GoogleCalendarHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,

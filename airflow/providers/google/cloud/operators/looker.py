@@ -18,14 +18,10 @@
 """This module contains Google Cloud Looker operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.looker import LookerHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class LookerStartPdtBuildOperator(BaseOperator):

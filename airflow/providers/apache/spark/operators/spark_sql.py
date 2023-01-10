@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SparkSqlOperator(BaseOperator):

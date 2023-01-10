@@ -18,7 +18,7 @@
 """This module contains Google Cloud SQL operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from googleapiclient.errors import HttpError
 
@@ -32,10 +32,7 @@ from airflow.providers.google.common.hooks.base_google import get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 SETTINGS = "settings"
 SETTINGS_VERSION = "settingsVersion"

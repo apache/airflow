@@ -28,7 +28,7 @@
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -43,9 +43,7 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIEndpointListLink,
     VertexAIModelLink,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CreateEndpointOperator(BaseOperator):

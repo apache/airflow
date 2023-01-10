@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import MySQLdb
 import unicodecsv as csv
@@ -27,9 +27,7 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class VerticaToMySqlOperator(BaseOperator):

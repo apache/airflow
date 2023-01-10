@@ -18,15 +18,13 @@
 """Operators that interact with Google Cloud Life Sciences service."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
 from airflow.providers.google.cloud.links.life_sciences import LifeSciencesLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class LifeSciencesRunPipelineOperator(BaseOperator):

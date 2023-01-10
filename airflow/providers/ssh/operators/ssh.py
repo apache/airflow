@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from paramiko.client import SSHClient
@@ -159,7 +160,7 @@ class SSHOperator(BaseOperator):
         self.raise_for_status(exit_status, agg_stderr, context=context)
         return agg_stdout
 
-    def execute(self, context=None) -> bytes | str:
+    def execute(self, context: Context) -> bytes | str:
         result: bytes | str
         if self.command is None:
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")

@@ -16,13 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class DbtCloudJobRunSensor(BaseSensorOperator):

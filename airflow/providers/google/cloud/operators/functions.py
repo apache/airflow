@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from googleapiclient.errors import HttpError
 
@@ -34,10 +34,8 @@ from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
 )
+from airflow.utils.context import Context
 from airflow.version import version
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 def _validate_available_memory_in_mb(value):

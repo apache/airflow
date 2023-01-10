@@ -19,16 +19,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 from airflow.utils.timezone import convert_to_utc
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SFTPSensor(BaseSensorOperator):

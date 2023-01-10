@@ -18,15 +18,13 @@
 """This module contains a Google PubSub sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import Any, Callable, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class PubSubPullSensor(BaseSensorOperator):

@@ -20,6 +20,7 @@ from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.utils.context import Context
 
 
 class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
@@ -66,7 +67,7 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Any) -> dict[str, Any]:
+    def execute(self, context: Context) -> dict[str, Any]:
         hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

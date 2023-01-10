@@ -18,13 +18,11 @@
 """This module contains a Google Cloud Task sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class TaskQueueEmptySensor(BaseSensorOperator):

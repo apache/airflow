@@ -18,14 +18,12 @@
 from __future__ import annotations
 
 import tempfile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class AzureBlobStorageToGCSOperator(BaseOperator):

@@ -21,14 +21,12 @@ from __future__ import annotations
 import csv
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import Iterable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.presto.hooks.presto import PrestoHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class GCSToPrestoOperator(BaseOperator):

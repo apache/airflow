@@ -18,14 +18,9 @@
 """This module contains Google Cloud SQL links."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 CLOUD_SQL_BASE_LINK = "/sql"
 CLOUD_SQL_INSTANCE_LINK = CLOUD_SQL_BASE_LINK + "/instances/{instance}/overview?project={project_id}"

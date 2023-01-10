@@ -18,7 +18,7 @@
 """This module contains a Google Cloud Dataflow sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -27,9 +27,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowJobStatus,
 )
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class DataflowJobStatusSensor(BaseSensorOperator):

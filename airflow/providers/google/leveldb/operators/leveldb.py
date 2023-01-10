@@ -16,13 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class LevelDBOperator(BaseOperator):

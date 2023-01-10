@@ -21,16 +21,14 @@ from __future__ import annotations
 import os
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from typing import Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
+from airflow.utils.context import Context
 
 WILDCARD = "*"
 SftpFile = namedtuple("SftpFile", "sftp_file_path, blob_name")

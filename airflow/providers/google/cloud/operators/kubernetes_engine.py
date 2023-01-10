@@ -22,7 +22,7 @@ import os
 import tempfile
 import warnings
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Generator, Sequence
+from typing import Generator, Sequence
 
 from google.cloud.container_v1.types import Cluster
 
@@ -35,10 +35,8 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEnginePodLink,
 )
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.utils.context import Context
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GKEDeleteClusterOperator(BaseOperator):

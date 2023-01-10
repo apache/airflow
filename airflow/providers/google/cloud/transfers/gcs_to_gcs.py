@@ -18,16 +18,14 @@
 """This module contains a Google Cloud Storage operator."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.utils.context import Context
 
 WILDCARD = "*"
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GCSToGCSOperator(BaseOperator):

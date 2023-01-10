@@ -34,10 +34,10 @@ from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.common.links.storage import StorageLink
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.context import Context
 
 
 BASE_LINK = "https://console.cloud.google.com"

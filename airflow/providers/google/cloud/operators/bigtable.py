@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import Iterable, Sequence
 
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
@@ -33,9 +33,7 @@ from airflow.providers.google.cloud.links.bigtable import (
     BigtableInstanceLink,
     BigtableTablesLink,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BigtableValidationMixin:

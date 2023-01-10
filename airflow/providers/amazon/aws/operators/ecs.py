@@ -21,7 +21,7 @@ import re
 import sys
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import boto3
 
@@ -40,10 +40,8 @@ from airflow.providers.amazon.aws.hooks.ecs import (
     should_retry_eni,
 )
 from airflow.providers.amazon.aws.sensors.ecs import EcsClusterStateSensor, EcsTaskDefinitionStateSensor
+from airflow.utils.context import Context
 from airflow.utils.session import provide_session
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 DEFAULT_CONN_ID = "aws_default"
 

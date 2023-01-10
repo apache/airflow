@@ -17,13 +17,11 @@
 """Publish message to SQS queue"""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SqsPublishOperator(BaseOperator):

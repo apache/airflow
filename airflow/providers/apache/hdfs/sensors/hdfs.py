@@ -20,14 +20,12 @@ from __future__ import annotations
 import logging
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Pattern, Sequence
+from typing import Any, Pattern, Sequence
 
 from airflow import settings
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 log = logging.getLogger(__name__)
 

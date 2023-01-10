@@ -16,15 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class GCSToLocalFilesystemOperator(BaseOperator):

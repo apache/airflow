@@ -18,15 +18,13 @@
 from __future__ import annotations
 
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.utils import trim_none_values
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class RedshiftDataOperator(BaseOperator):

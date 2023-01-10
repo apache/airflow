@@ -18,13 +18,11 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import Iterable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 @dataclass

@@ -18,13 +18,9 @@
 """This module contains Google Workflows links."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 WORKFLOWS_BASE_LINK = "workflows"
 WORKFLOW_LINK = WORKFLOWS_BASE_LINK + "/workflow/{location_id}/{workflow_id}/executions?project={project_id}"

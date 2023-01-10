@@ -22,7 +22,7 @@ import pickle
 import uuid
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import Callable, Sequence
 
 from kubernetes.client import models as k8s
 
@@ -32,9 +32,7 @@ from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     remove_task_decorator,
     write_python_script,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 _PYTHON_SCRIPT_ENV = "__PYTHON_SCRIPT"
 

@@ -26,7 +26,7 @@ from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Iterable, NewType, Sequence
+from typing import Any, Iterable, NewType, Sequence
 from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
@@ -35,9 +35,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 NotSetType = NewType("NotSetType", object)
 NOT_SET = NotSetType(object())

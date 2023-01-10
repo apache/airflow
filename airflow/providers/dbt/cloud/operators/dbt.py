@@ -17,13 +17,11 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):

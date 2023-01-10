@@ -25,7 +25,7 @@ Operators for Google Cloud Memorystore service.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -44,9 +44,7 @@ from airflow.providers.google.cloud.links.cloud_memorystore import (
     RedisInstanceDetailsLink,
     RedisInstanceListLink,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CloudMemorystoreCreateInstanceOperator(BaseOperator):

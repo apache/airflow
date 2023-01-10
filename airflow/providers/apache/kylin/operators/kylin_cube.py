@@ -19,16 +19,14 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from kylinpy import kylinpy
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class KylinCubeOperator(BaseOperator):

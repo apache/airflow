@@ -18,13 +18,9 @@
 """This module contains Cloud Memorystore links."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 BASE_LINK = "/memorystore"
 MEMCACHED_LINK = (

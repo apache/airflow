@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.trino.hooks.trino import TrinoHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class TrinoToMySqlOperator(BaseOperator):

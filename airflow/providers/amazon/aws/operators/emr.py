@@ -19,20 +19,17 @@ from __future__ import annotations
 
 import ast
 import warnings
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 from uuid import uuid4
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
 from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.utils.context import Context
 from airflow.utils.helpers import exactly_one
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
-from airflow.compat.functools import cached_property
 
 
 class EmrAddStepsOperator(BaseOperator):

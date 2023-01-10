@@ -19,16 +19,14 @@ from __future__ import annotations
 
 import os
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 from airflow.providers.oracle.hooks.oracle import OracleHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class OracleToAzureDataLakeOperator(BaseOperator):

@@ -18,14 +18,12 @@
 from __future__ import annotations
 
 from time import sleep
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class LivyOperator(BaseOperator):

@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
+from typing import Iterable
 
 from airflow import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class JenkinsBuildSensor(BaseSensorOperator):

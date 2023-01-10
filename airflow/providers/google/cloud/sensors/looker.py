@@ -18,14 +18,10 @@
 """This module contains Google Cloud Looker sensors."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.looker import JobStatus, LookerHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class LookerCheckPdtBuildSensor(BaseSensorOperator):

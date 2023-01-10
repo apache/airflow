@@ -16,12 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 DATASTORE_BASE_LINK = "/datastore"
 DATASTORE_IMPORT_EXPORT_LINK = DATASTORE_BASE_LINK + "/import-export?project={project_id}"

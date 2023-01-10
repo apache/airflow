@@ -21,15 +21,13 @@ import fnmatch
 import os
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Sequence
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from typing import Callable, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
+from airflow.utils.context import Context
 
 
 class S3KeySensor(BaseSensorOperator):

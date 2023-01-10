@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class OpsgenieCreateAlertOperator(BaseOperator):

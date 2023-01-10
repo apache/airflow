@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Sequence
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class SqlSensor(BaseSensorOperator):
@@ -85,7 +86,7 @@ class SqlSensor(BaseSensorOperator):
             )
         return hook
 
-    def poke(self, context: Any):
+    def poke(self, context: Context):
         hook = self._get_hook()
 
         self.log.info("Poking: %s (with parameters %s)", self.sql, self.parameters)

@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.tableau.hooks.tableau import (
@@ -25,10 +23,7 @@ from airflow.providers.tableau.hooks.tableau import (
     TableauJobFailedException,
     TableauJobFinishCode,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 RESOURCES_METHODS = {
     "datasources": ["delete", "refresh"],

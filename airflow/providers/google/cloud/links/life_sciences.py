@@ -16,12 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 BASE_LINK = "https://console.cloud.google.com/lifesciences"
 LIFESCIENCES_LIST_LINK = BASE_LINK + "/pipelines?project={project_id}"

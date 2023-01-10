@@ -18,15 +18,13 @@
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class AzureFileShareToGCSOperator(BaseOperator):

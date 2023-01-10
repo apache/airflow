@@ -20,11 +20,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
+from airflow.utils.context import Context
 
 
 class FTPOperation:
@@ -112,7 +113,7 @@ class FTPFileTransmitOperator(BaseOperator):
         """Create and return an FTPHook."""
         return FTPHook(ftp_conn_id=self.ftp_conn_id)
 
-    def execute(self, context: Any) -> str | list[str] | None:
+    def execute(self, context: Context) -> str | list[str] | None:
         file_msg = None
         for local_filepath, remote_filepath in zip(self.local_filepath, self.remote_filepath):
             if self.operation.lower() == FTPOperation.GET:

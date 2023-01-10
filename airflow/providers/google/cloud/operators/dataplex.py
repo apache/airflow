@@ -19,10 +19,7 @@
 from __future__ import annotations
 
 from time import sleep
-from typing import TYPE_CHECKING, Any, Sequence
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from typing import Any, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
@@ -36,6 +33,7 @@ from airflow.providers.google.cloud.links.dataplex import (
     DataplexTaskLink,
     DataplexTasksLink,
 )
+from airflow.utils.context import Context
 
 
 class DataplexCreateTaskOperator(BaseOperator):

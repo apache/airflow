@@ -24,7 +24,7 @@ This module contains Google PubSub operators.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -41,9 +41,7 @@ from google.cloud.pubsub_v1.types import (
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class PubSubCreateTopicOperator(BaseOperator):

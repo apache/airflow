@@ -19,15 +19,13 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryTableExistenceTrigger
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BigQueryTableExistenceSensor(BaseSensorOperator):

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from logging import DEBUG
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from jinja2.nativetypes import NativeEnvironment
 from pypsrp.powershell import Command
@@ -28,10 +28,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 from airflow.settings import json
+from airflow.utils.context import Context
 from airflow.utils.helpers import exactly_one
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class PsrpOperator(BaseOperator):

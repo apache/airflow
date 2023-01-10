@@ -19,11 +19,12 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.common import enclose_param
+from airflow.utils.context import Context
 
 
 class S3ToSnowflakeOperator(BaseOperator):
@@ -113,7 +114,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
 
-    def execute(self, context: Any) -> None:
+    def execute(self, context: Context) -> None:
         snowflake_hook = SnowflakeHook(
             snowflake_conn_id=self.snowflake_conn_id,
             warehouse=self.warehouse,

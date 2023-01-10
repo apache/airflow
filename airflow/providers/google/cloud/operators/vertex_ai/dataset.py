@@ -18,7 +18,7 @@
 """This module contains Google Vertex AI operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -29,9 +29,7 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
 from airflow.providers.google.cloud.links.vertex_ai import VertexAIDatasetLink, VertexAIDatasetListLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CreateDatasetOperator(BaseOperator):

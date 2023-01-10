@@ -18,14 +18,12 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class LambdaCreateFunctionOperator(BaseOperator):

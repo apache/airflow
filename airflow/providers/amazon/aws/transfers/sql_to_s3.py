@@ -20,7 +20,7 @@ from __future__ import annotations
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 try:
     import numpy as np
@@ -36,9 +36,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class FILE_FORMAT(enum.Enum):

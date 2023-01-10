@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import re
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 from urllib.parse import unquote, urlsplit
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -40,11 +40,8 @@ from airflow.providers.google.cloud.links.cloud_build import (
 from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.utils import yaml
+from airflow.utils.context import Context
 from airflow.utils.helpers import exactly_one
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 
 REGEX_REPO_PATH = re.compile(r"^/(?P<project_id>[^/]+)/(?P<repo_name>[^/]+)[\+/]*(?P<branch_name>[^:]+)?")
 

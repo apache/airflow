@@ -19,16 +19,14 @@ from __future__ import annotations
 
 import os
 import re
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils import operator_helpers
+from airflow.utils.context import Context
 from airflow.utils.operator_helpers import context_to_airflow_vars
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class HiveOperator(BaseOperator):

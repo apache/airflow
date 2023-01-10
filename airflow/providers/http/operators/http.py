@@ -17,16 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import Any, Callable, Sequence
 
 from requests.auth import AuthBase, HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SimpleHttpOperator(BaseOperator):

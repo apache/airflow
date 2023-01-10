@@ -18,13 +18,9 @@
 """This module contains Alibaba Cloud OSS operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.models import BaseOperator
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class OSSCreateBucketOperator(BaseOperator):

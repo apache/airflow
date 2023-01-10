@@ -30,11 +30,11 @@ from airflow.providers.qubole.hooks.qubole import (
     QuboleHook,
     flatten_list,
 )
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.context import Context
 
 
 class QDSLink(BaseOperatorLink):

@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SparkJDBCOperator(SparkSubmitOperator):

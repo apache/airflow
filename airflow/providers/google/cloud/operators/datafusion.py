@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from time import sleep
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
@@ -26,10 +26,7 @@ from googleapiclient.errors import HttpError
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 BASE_LINK = "https://console.cloud.google.com/data-fusion"
 DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"

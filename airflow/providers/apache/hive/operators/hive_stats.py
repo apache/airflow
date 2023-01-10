@@ -20,16 +20,14 @@ from __future__ import annotations
 import json
 import warnings
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class HiveStatsCollectionOperator(BaseOperator):

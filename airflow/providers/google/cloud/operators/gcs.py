@@ -23,13 +23,9 @@ import subprocess
 import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import pendulum
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
 
@@ -38,6 +34,7 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
+from airflow.utils.context import Context
 
 
 class GCSCreateBucketOperator(BaseOperator):

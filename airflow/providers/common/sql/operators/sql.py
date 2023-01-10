@@ -19,16 +19,14 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
+from typing import Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs, cast
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 def _convert_to_float_if_possible(s: str) -> float | str:
@@ -250,7 +248,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         """
         return results
 
-    def execute(self, context):
+    def execute(self, context: Context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
         if self.split_statements is not None:
@@ -265,12 +263,16 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             return_last=self.return_last,
             **extra_kwargs,
         )
-        if return_single_query_results(self.sql, self.return_last, self.split_statements):
+        if return_single_query_results(
+            self.sql,
+            self.return_last,
+            self.split_statements,  # type: ignore[arg-type]
+        ):
             # For simplicity, we pass always list as input to _process_output, regardless if
             # single query results are going to be returned, and we return the first element
             # of the list in this case from the (always) list returned by _process_output
             return self._process_output([output], hook.descriptions)[-1]
-        return self._process_output(output, hook.descriptions)
+        return self._process_output(cast(list, output), hook.descriptions)
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""

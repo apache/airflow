@@ -18,7 +18,7 @@
 """This module contains a Google Cloud Transfer sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     COUNTERS,
@@ -28,9 +28,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
 )
 from airflow.providers.google.cloud.links.cloud_storage_transfer import CloudStorageTransferJobLink
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):

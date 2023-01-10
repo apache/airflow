@@ -20,14 +20,12 @@ from __future__ import annotations
 
 import csv
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.analytics import GoogleAnalyticsHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class GoogleAnalyticsListAccountsOperator(BaseOperator):

@@ -185,7 +185,7 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             command="ls",
         )
-        task.execute()
+        task.execute(context=mock.MagicMock())
         self.hook.get_conn.assert_called_once()
         self.hook.get_conn.return_value.__exit__.assert_called_once()
 
@@ -199,7 +199,7 @@ class TestSSHOperator:
         )
         self.exec_ssh_client_command.return_value = (1, b"", b"Error here")
         with pytest.raises(AirflowException, match="SSH operator error: exit status = 1"):
-            task.execute(None)
+            task.execute(context=mock.MagicMock())
 
     def test_push_ssh_exit_to_xcom(self, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same

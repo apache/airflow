@@ -18,14 +18,12 @@
 """This module contains a Google Cloud Data Fusion sensors."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CloudDataFusionPipelineStateSensor(BaseSensorOperator):

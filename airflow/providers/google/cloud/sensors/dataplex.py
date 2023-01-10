@@ -17,10 +17,7 @@
 """This module contains Google Dataplex sensors."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -28,6 +25,7 @@ from google.api_core.retry import Retry
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataplex import DataplexHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class TaskState:

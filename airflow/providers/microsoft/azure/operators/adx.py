@@ -18,16 +18,14 @@
 """This module contains Azure Data Explorer operators"""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from azure.kusto.data._models import KustoResultTable
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class AzureDataExplorerQueryOperator(BaseOperator):

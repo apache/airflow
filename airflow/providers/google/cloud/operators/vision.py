@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Sequence, Tuple
+from typing import Any, Sequence, Tuple
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -35,10 +35,7 @@ from google.cloud.vision_v1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 MetaData = Sequence[Tuple[str, str]]
 

@@ -18,13 +18,11 @@
 """This module allows you to poke for attachments on a mail server."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class ImapAttachmentSensor(BaseSensorOperator):

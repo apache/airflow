@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import warnings
 from ast import literal_eval
-from typing import TYPE_CHECKING, Any, List, Sequence, cast
+from typing import Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
 
@@ -27,10 +27,7 @@ from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60

@@ -25,7 +25,7 @@ An Airflow operator for AWS Batch services
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -38,9 +38,7 @@ from airflow.providers.amazon.aws.links.batch import (
 )
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
 from airflow.providers.amazon.aws.utils import trim_none_values
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BatchOperator(BaseOperator):

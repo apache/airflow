@@ -23,16 +23,14 @@ import json
 import shutil
 import tempfile
 import urllib.request
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class GoogleDisplayVideo360CreateReportOperator(BaseOperator):

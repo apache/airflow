@@ -18,13 +18,11 @@
 """This module contains CloudFormation create/delete stack operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CloudFormationCreateStackOperator(BaseOperator):

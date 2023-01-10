@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import Callable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class AQLOperator(BaseOperator):

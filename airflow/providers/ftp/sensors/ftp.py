@@ -19,13 +19,11 @@ from __future__ import annotations
 
 import ftplib
 import re
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class FTPSensor(BaseSensorOperator):

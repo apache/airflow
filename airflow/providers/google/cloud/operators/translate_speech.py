@@ -18,7 +18,7 @@
 """This module contains a Google Cloud Translate Speech operator."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from google.protobuf.json_format import MessageToDict
@@ -28,9 +28,7 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
 from airflow.providers.google.common.links.storage import FileDetailsLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class CloudTranslateSpeechOperator(BaseOperator):

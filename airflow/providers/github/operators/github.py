@@ -17,16 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any, Callable
 
 from github import GithubException
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.github.hooks.github import GithubHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class GithubOperator(BaseOperator):

@@ -18,13 +18,11 @@
 """This module contains Google Drive sensors."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class GoogleDriveFileExistenceSensor(BaseSensorOperator):

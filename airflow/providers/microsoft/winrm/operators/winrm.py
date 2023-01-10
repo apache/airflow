@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from base64 import b64encode
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
@@ -27,9 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 # Hide the following error message in urllib3 when making WinRM connections:
 # requests.packages.urllib3.exceptions.HeaderParsingError: [StartBoundaryNotFoundDefect(),

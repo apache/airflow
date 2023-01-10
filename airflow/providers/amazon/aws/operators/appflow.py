@@ -25,6 +25,7 @@ from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.type_defs import (
@@ -32,8 +33,6 @@ if TYPE_CHECKING:
         ExecutionRecordTypeDef,
         TaskTypeDef,
     )
-
-    from airflow.utils.context import Context
 
 
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}

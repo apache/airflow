@@ -22,11 +22,11 @@ from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperatorLink, XCom
 from airflow.providers.google.cloud.links.base import BASE_LINK
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.context import Context
 
 DATAPROC_BASE_LINK = BASE_LINK + "/dataproc"
 DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{resource}?region={region}&project={project_id}"

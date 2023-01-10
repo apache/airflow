@@ -18,15 +18,13 @@
 """This module contains Google Spanner operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from airflow.providers.google.cloud.links.spanner import SpannerDatabaseLink, SpannerInstanceLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SpannerDeployInstanceOperator(BaseOperator):

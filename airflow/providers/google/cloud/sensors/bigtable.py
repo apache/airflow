@@ -18,7 +18,7 @@
 """This module contains Google Cloud Bigtable sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import google.api_core.exceptions
 from google.cloud.bigtable.table import ClusterState
@@ -28,9 +28,7 @@ from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.links.bigtable import BigtableTablesLink
 from airflow.providers.google.cloud.operators.bigtable import BigtableValidationMixin
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValidationMixin):

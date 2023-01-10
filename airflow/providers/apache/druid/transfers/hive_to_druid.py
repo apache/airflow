@@ -18,14 +18,12 @@
 """This module contains operator to move data from Hive to Druid."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000

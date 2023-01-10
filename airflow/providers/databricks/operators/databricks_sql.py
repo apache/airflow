@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import csv
 import json
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from databricks.sql.utils import ParamEscaper
 
@@ -28,9 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):

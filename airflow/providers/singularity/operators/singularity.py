@@ -20,15 +20,13 @@ from __future__ import annotations
 import ast
 import os
 import shutil
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from spython.main import Client
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class SingularityOperator(BaseOperator):

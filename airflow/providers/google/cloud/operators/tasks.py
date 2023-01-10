@@ -22,7 +22,7 @@ Cloud Tasks queues/tasks.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence, Tuple
+from typing import Sequence, Tuple
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -33,10 +33,7 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.providers.google.cloud.links.cloud_tasks import CloudTasksLink, CloudTasksQueueLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.utils.context import Context
 
 MetaData = Sequence[Tuple[str, str]]
 

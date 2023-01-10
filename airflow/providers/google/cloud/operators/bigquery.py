@@ -49,10 +49,10 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryIntervalCheckTrigger,
     BigQueryValueCheckTrigger,
 )
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.context import Context
 
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"

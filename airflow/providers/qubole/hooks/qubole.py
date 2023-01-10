@@ -44,11 +44,11 @@ from qds_sdk.qubole import Qubole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.utils.context import Context
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.utils.context import Context
 
 
 log = logging.getLogger(__name__)

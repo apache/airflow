@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from pandas import DataFrame
 from tabulate import tabulate
@@ -29,9 +29,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.slack.utils import parse_filename
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class BaseSqlToSlackOperator(BaseOperator):

@@ -17,14 +17,12 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class StepFunctionExecutionSensor(BaseSensorOperator):

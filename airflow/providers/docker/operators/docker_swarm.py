@@ -17,16 +17,12 @@
 """Run ephemeral Docker Swarm services"""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from docker import types
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.utils.context import Context
 from airflow.utils.strings import get_random_string
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class DockerSwarmOperator(DockerOperator):

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
@@ -25,9 +25,7 @@ from qds_sdk.sensors import FileSensor, PartitionSensor
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 
 class QuboleSensor(BaseSensorOperator):

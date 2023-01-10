@@ -25,6 +25,7 @@ import requests
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.plexus.hooks.plexus import PlexusHook
+from airflow.utils.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class PlexusJobOperator(BaseOperator):
         self.job_params.update({"billing_account_id": None})
         self.is_service = None
 
-    def execute(self, context: Any) -> Any:
+    def execute(self, context: Context) -> Any:
         hook = PlexusHook()
         params = self.construct_job_params(hook)
         if self.is_service is True:
