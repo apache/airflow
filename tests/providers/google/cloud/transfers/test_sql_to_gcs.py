@@ -62,6 +62,7 @@ APP_JSON = "application/json"
 OUTPUT_DF = pd.DataFrame([["convert_type_return_value"] * 3] * 3, columns=COLUMNS)
 
 EXCLUDE_COLUMNS = set("column_c")
+PARTITION_COLUMNS = ["column_b", "column_c"]
 NEW_COLUMNS = [c for c in COLUMNS if c not in EXCLUDE_COLUMNS]
 OUTPUT_DF_WITH_EXCLUDE_COLUMNS = pd.DataFrame(
     [["convert_type_return_value"] * len(NEW_COLUMNS)] * 3, columns=NEW_COLUMNS
@@ -305,6 +306,74 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         )
         mock_close.assert_called_once()
 
+        mock_query.reset_mock()
+        mock_flush.reset_mock()
+        mock_upload.reset_mock()
+        mock_close.reset_mock()
+        cursor_mock.reset_mock()
+
+        cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
+
+        # Test partition columns
+        operator = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            export_format="parquet",
+            schema=SCHEMA,
+            partition_columns=PARTITION_COLUMNS,
+        )
+        result = operator.execute(context=dict())
+
+        assert result == {
+            "bucket": "TEST-BUCKET-1",
+            "total_row_count": 3,
+            "total_files": 3,
+            "files": [
+                {
+                    "file_name": "test_results_0.csv",
+                    "file_mime_type": "application/octet-stream",
+                    "file_row_count": 1,
+                },
+                {
+                    "file_name": "test_results_1.csv",
+                    "file_mime_type": "application/octet-stream",
+                    "file_row_count": 1,
+                },
+                {
+                    "file_name": "test_results_2.csv",
+                    "file_mime_type": "application/octet-stream",
+                    "file_row_count": 1,
+                },
+            ],
+        }
+
+        mock_query.assert_called_once()
+        assert mock_flush.call_count == 3
+        assert mock_close.call_count == 3
+        mock_upload.assert_has_calls(
+            [
+                mock.call(
+                    BUCKET,
+                    f"column_b={row[1]}/column_c={row[2]}/test_results_{i}.csv",
+                    TMP_FILE_NAME,
+                    mime_type="application/octet-stream",
+                    gzip=False,
+                    metadata=None,
+                )
+                for i, row in enumerate(INPUT_DATA)
+            ]
+        )
+
+        mock_query.reset_mock()
+        mock_flush.reset_mock()
+        mock_upload.reset_mock()
+        mock_close.reset_mock()
+        cursor_mock.reset_mock()
+
+        cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
+
         # Test null marker
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
         mock_convert_type.return_value = None
@@ -423,3 +492,31 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         file.flush()
         df = pd.read_json(file.name, orient="records", lines=True)
         assert df.equals(OUTPUT_DF_WITH_EXCLUDE_COLUMNS)
+
+    def test__write_local_data_files_parquet_with_partition_columns(self):
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="parquet",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id="google_cloud_default",
+            partition_columns=PARTITION_COLUMNS,
+        )
+        cursor = MagicMock()
+        cursor.__iter__.return_value = INPUT_DATA
+        cursor.description = CURSOR_DESCRIPTION
+
+        local_data_files = op._write_local_data_files(cursor)
+        concat_dfs = []
+        for local_data_file in local_data_files:
+            file = local_data_file["file_handle"]
+            file.flush()
+            df = pd.read_parquet(file.name)
+            concat_dfs.append(df)
+
+        concat_df = pd.concat(concat_dfs, ignore_index=True)
+        assert concat_df.equals(OUTPUT_DF)
