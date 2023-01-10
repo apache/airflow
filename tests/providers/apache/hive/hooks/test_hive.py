@@ -19,17 +19,20 @@ from __future__ import annotations
 
 import datetime
 import itertools
+import sys
 from collections import OrderedDict, namedtuple
-from unittest import mock
+from unittest.mock import PropertyMock
 
 import pandas as pd
 import pytest
 from hmsclient import HMSClient
+from impala.hiveserver2 import HiveServer2Connection, HiveServer2Cursor
 
+from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
-from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook, HiveServer2Hook
+from airflow.providers.apache.hive.hooks.hive import HiveCliAsyncHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
@@ -42,9 +45,21 @@ from tests.providers.apache.hive import (
 )
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
+if sys.version_info < (3, 8):
+    from asynctest import mock
+    from asynctest.mock import CoroutineMock as AsyncMock
+else:
+    from unittest import mock
+    from unittest.mock import AsyncMock
+
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
+TEST_TABLE = "test_table"
+TEST_SCHEMA = "test_schema"
+TEST_POLLING_INTERVAL = 5
+TEST_PARTITION = "state='FL'"
+TEST_METASTORE_CONN_ID = "test_conn_id"
 
 
 class EmptyMockConnectionCursor(BaseMockConnectionCursor):
@@ -74,7 +89,6 @@ class TestHiveCliHook:
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
-
             hook = MockHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
@@ -198,7 +212,6 @@ class TestHiveCliHook:
                 dag_run_id_ctx_var_name: "test_dag_run_id",
             },
         ):
-
             hook = MockHiveCliHook()
             mock_popen.return_value = MockSubProcess(output=mock_output)
 
@@ -458,7 +471,6 @@ class TestHiveMetastoreHook:
         )
 
     def test_check_for_named_partition(self):
-
         # Check for existing partition.
 
         partition = f"{self.partition_by}={DEFAULT_DATE_DS}"
@@ -482,7 +494,6 @@ class TestHiveMetastoreHook:
         )
 
     def test_get_table(self):
-
         self.hook.metastore.__enter__().get_table = mock.MagicMock()
         self.hook.get_table(db=self.database, table_name=self.table)
         self.hook.metastore.__enter__().get_table.assert_called_with(
@@ -851,3 +862,103 @@ class TestHiveCli:
 
         # Verify
         assert "hive.server2.proxy.user=a_user_proxy" in result[2]
+
+
+@mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliAsyncHook.get_connection")
+@mock.patch("airflow.configuration.AirflowConfigParser.get")
+@mock.patch("impala.hiveserver2.connect")
+def test_get_hive_client_with_conf(mock_get_connect, mock_get_conf, mock_get_connection):
+    """Checks the connection to hive client"""
+    mock_get_connect.return_value = AsyncMock(HiveServer2Connection)
+    mock_get_conf.return_value = "kerberos"
+    mock_get_connection.return_value = models.Connection(
+        conn_id="metastore_default",
+        conn_type="metastore",
+        port=10000,
+        host="localhost",
+    )
+    hook = HiveCliAsyncHook(TEST_METASTORE_CONN_ID)
+    result = hook.get_hive_client()
+    assert isinstance(result, HiveServer2Connection)
+
+
+@mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliAsyncHook.get_connection")
+@mock.patch("impala.hiveserver2.connect")
+def test_get_hive_client(mock_get_connect, mock_get_connection):
+    """Checks the connection to hive client"""
+    mock_get_connect.return_value = AsyncMock(HiveServer2Connection)
+    mock_get_connection.return_value = models.Connection(
+        conn_id="metastore_default",
+        conn_type="metastore",
+        port=10000,
+        host="localhost",
+    )
+    hook = HiveCliAsyncHook(TEST_METASTORE_CONN_ID)
+    result = hook.get_hive_client()
+    assert isinstance(result, HiveServer2Connection)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "result,response",
+    [
+        (["123"], "success"),
+    ],
+)
+@mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliAsyncHook.get_connection")
+@mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliAsyncHook.get_hive_client")
+async def test_partition_exists(mock_get_client, mock_get_conn, result, response):
+    """
+    Tests to check if a partition in given table in hive
+    is found or not
+    """
+    hook = HiveCliAsyncHook(metastore_conn_id=TEST_METASTORE_CONN_ID)
+    hiveserver_connection = AsyncMock(HiveServer2Connection)
+    mock_get_client.return_value = hiveserver_connection
+    cursor = AsyncMock(HiveServer2Cursor)
+    hiveserver_connection.cursor.return_value = cursor
+    cursor.is_executing = PropertyMock(side_effect=[True, False])
+    cursor.fetchall.return_value = result
+    res = await hook.partition_exists(TEST_TABLE, TEST_SCHEMA, TEST_PARTITION, TEST_POLLING_INTERVAL)
+    assert res == response
+
+
+@pytest.mark.parametrize(
+    "partition,expected",
+    [
+        ("user_profile/city=delhi", ("default", "user_profile", "city=delhi")),
+        ("user.user_profile/city=delhi", ("user", "user_profile", "city=delhi")),
+    ],
+)
+def test_parse_partition_name_success(partition, expected):
+    """Assert that `parse_partition_name` correctly parse partition string"""
+    actual = HiveCliAsyncHook.parse_partition_name(partition)
+    assert actual == expected
+
+
+def test_parse_partition_name_exception():
+    """Assert that `parse_partition_name` throw exception if partition string not correct"""
+    with pytest.raises(ValueError):
+        HiveCliAsyncHook.parse_partition_name("user_profile.city=delhi")
+
+
+@pytest.mark.parametrize(
+    "result,expected",
+    [
+        (["123"], True),
+        ([], False),
+    ],
+)
+@mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliAsyncHook.get_connection")
+@mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliAsyncHook.get_hive_client")
+def test_check_partition_exists(mock_get_client, mock_get_connection, result, expected):
+    """Assert that `check_partition_exists` return True if partition found else return False."""
+    hook = HiveCliAsyncHook(metastore_conn_id=TEST_METASTORE_CONN_ID)
+    hiveserver_connection = AsyncMock(HiveServer2Connection)
+    mock_get_client.return_value = hiveserver_connection
+    cursor = AsyncMock(HiveServer2Cursor)
+    hiveserver_connection.cursor.return_value = cursor
+    cursor.is_executing.return_value = False
+    cursor.fetchall.return_value = result
+    actual = hook.check_partition_exists(TEST_SCHEMA, TEST_TABLE, TEST_PARTITION)
+    assert actual == expected
