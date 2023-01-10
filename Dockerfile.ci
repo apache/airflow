@@ -1030,7 +1030,7 @@ ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="6"
+ARG DEPENDENCIES_EPOCH_NUMBER="7"
 
 # Make sure noninteractive debian install is used and language variables set
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \

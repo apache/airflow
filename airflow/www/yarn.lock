@@ -10462,6 +10462,11 @@ svgo@^2.7.0:
     picocolors "^1.0.0"
     stable "^0.1.8"
 
+swagger-ui-dist@3.52.0:
+  version "3.52.0"
+  resolved "https://registry.yarnpkg.com/swagger-ui-dist/-/swagger-ui-dist-3.52.0.tgz#cb16ec6dcdf134ff47cbfe57cba7be7748429142"
+  integrity sha512-SGfhW8FCih00QG59PphdeAUtTNw7HS5k3iPqDZowerPw9mcbhKchUb12kbROk99c1X6RTWW1gB1kqgfnYGuCSg==
+
 swagger2openapi@^7.0.6:
   version "7.0.6"
   resolved "https://registry.yarnpkg.com/swagger2openapi/-/swagger2openapi-7.0.6.tgz#20a2835b8edfc0f4c08036b20cb51e8f78a420bf"

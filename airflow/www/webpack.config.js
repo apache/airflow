@@ -259,6 +259,14 @@ const config = {
           from: 'node_modules/jshint/dist/jshint.js',
           flatten: true,
         },
+        {
+          from: 'templates/swagger-ui',
+          to: `${BUILD_DIR}/swagger-ui`,
+        },
+        {
+          from: 'node_modules/swagger-ui-dist',
+          to: `${BUILD_DIR}/swagger-ui`,
+        },
       ],
     }),
     new LicensePlugin({
