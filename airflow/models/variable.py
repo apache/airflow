@@ -106,6 +106,7 @@ class Variable(Base, LoggingMixin):
         :param key: Dict key for this Variable
         :param default: Default value to set and return if the variable
             isn't already in the DB
+        :param description: Default value to set Description of the Variable
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
         :return: Mixed
@@ -169,7 +170,7 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
         """
-        # check if the secret exists in the custom secrets backend.
+        # check if the secret exists in the custom secrets' backend.
         Variable.check_for_write_conflict(key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
