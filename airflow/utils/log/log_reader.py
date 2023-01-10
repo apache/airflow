@@ -34,6 +34,9 @@ from airflow.utils.state import State
 class TaskLogReader:
     """Task log reader"""
 
+    STREAM_LOOP_SLEEP_SECONDS = 0.5
+    """Time to sleep between loops while waiting for more logs"""
+
     def read_log_chunks(
         self, ti: TaskInstance, try_number: int | None, metadata
     ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
@@ -85,7 +88,10 @@ class TaskLogReader:
                 if "end_of_log" not in metadata or (
                     not metadata["end_of_log"] and ti.state not in [State.RUNNING, State.DEFERRED]
                 ):
-                    time.sleep(0.5)
+                    if not logs[0]:
+                        # we did not receive any logs in this loop
+                        # sleeping to conserve resources / limit requests on external services
+                        time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
                 else:
                     break
 
