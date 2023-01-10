@@ -26,7 +26,6 @@ import requests
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.typing_compat import ParamSpec
 
 PS = ParamSpec("PS")
@@ -98,6 +97,8 @@ def internal_api_call(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
         use_internal_api = InternalApiConfig.get_use_internal_api()
         if not use_internal_api:
             return func(*args, **kwargs)
+
+        from airflow.serialization.serialized_objects import BaseSerialization  # avoid circular import
 
         bound = inspect.signature(func).bind(*args, **kwargs)
         arguments_dict = dict(bound.arguments)
