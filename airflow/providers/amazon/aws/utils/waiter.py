@@ -49,8 +49,8 @@ def waiter(
         exception if any are reached before the desired_state
     :param object_type: Used for the reporting string. What are you waiting for? (application, job, etc)
     :param action: Used for the reporting string. What action are you waiting for? (created, deleted, etc)
-    :param countdown: Total amount of time the waiter should wait for the desired state
-        before timing out (in seconds). Defaults to 25 * 60 seconds.
+    :param countdown: Number of seconds the waiter should wait for the desired state before timing out.
+        Defaults to 25 * 60 seconds. None = infinite.
     :param check_interval_seconds: Number of seconds waiter should wait before attempting
         to retry get_state_callable. Defaults to 60 seconds.
     """
@@ -60,14 +60,20 @@ def waiter(
             break
         if state in failure_states:
             raise AirflowException(f"{object_type.title()} reached failure state {state}.")
-        if countdown and countdown > check_interval_seconds:
-            countdown -= check_interval_seconds
+
+        if countdown is None:
+            # No waiter limit. Execution time is limited by task.execution_timeout.
             log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
             time.sleep(check_interval_seconds)
         else:
-            message = f"{object_type.title()} still not {action.lower()} after the allocated time limit."
-            log.error(message)
-            raise RuntimeError(message)
+            if countdown > check_interval_seconds:
+                countdown -= check_interval_seconds
+                log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
+                time.sleep(check_interval_seconds)
+            else:
+                message = f"{object_type.title()} still not {action.lower()} after the allocated time limit."
+                log.error(message)
+                raise RuntimeError(message)
 
 
 def get_state(response, keys) -> str:
