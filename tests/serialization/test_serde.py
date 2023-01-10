@@ -31,8 +31,9 @@ from airflow.serialization.serde import (
     SCHEMA_ID,
     VERSION,
     _compile_patterns,
+    _match,
     deserialize,
-    serialize, _match,
+    serialize,
 )
 from airflow.utils.module_loading import qualname
 from tests.test_utils.config import conf_vars
