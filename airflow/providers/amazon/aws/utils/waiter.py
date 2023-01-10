@@ -34,7 +34,7 @@ def waiter(
     failure_states: set,
     object_type: str,
     action: str,
-    countdown: int | None = 25 * 60,
+    countdown: int | float | None = 25 * 60,
     check_interval_seconds: int = 60,
 ) -> None:
     """
@@ -62,18 +62,16 @@ def waiter(
             raise AirflowException(f"{object_type.title()} reached failure state {state}.")
 
         if countdown is None:
-            # No waiter limit. Execution time is limited by task.execution_timeout.
+            countdown = float("inf")
+
+        if countdown > check_interval_seconds:
+            countdown -= check_interval_seconds
             log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
             time.sleep(check_interval_seconds)
         else:
-            if countdown > check_interval_seconds:
-                countdown -= check_interval_seconds
-                log.info("Waiting for %s to be %s.", object_type.lower(), action.lower())
-                time.sleep(check_interval_seconds)
-            else:
-                message = f"{object_type.title()} still not {action.lower()} after the allocated time limit."
-                log.error(message)
-                raise RuntimeError(message)
+            message = f"{object_type.title()} still not {action.lower()} after the allocated time limit."
+            log.error(message)
+            raise RuntimeError(message)
 
 
 def get_state(response, keys) -> str:
