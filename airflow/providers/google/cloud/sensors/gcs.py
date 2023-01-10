@@ -97,7 +97,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
 
 class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
-    Checks for the existence of a file in Google Cloud Storage.
+    Checks for the existence of a file in Google Cloud Storage .
 
     :param bucket: The Google Cloud Storage bucket where the object is.
     :param object: The name of the object to check in the Google cloud storage bucket.
