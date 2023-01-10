@@ -28,8 +28,28 @@ in the ``[email]`` section.
   email_backend = airflow.utils.email.send_email_smtp
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
+  
+Equivalent environment variables looks like
 
-You can configure sender's email address by setting ``from_email`` in the ``[email]`` section.
+.. code-block::
+
+  AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.utils.email.send_email_smtp
+  AIRFLOW__EMAIL__SUBJECT_TEMPLATE=/path/to/my_subject_template_file
+  AIRFLOW__EMAIL__HTML_CONTENT_TEMPLATE=/path/to/my_html_content_template_file
+
+You can configure sender's email address by setting ``from_email`` in the ``[email]`` section like
+
+.. code-block:: ini
+
+  [email]
+  from_email = From email <email@example.com>
+
+Equivalent environment variables looks like
+
+.. code-block::
+
+  AIRFLOW__EMAIL__FROM_EMAIL=From email <email@example.com>
+  
 
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
 If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
