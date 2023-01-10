@@ -23,7 +23,6 @@ import logging
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
-from airflow.dag_processing.processor import DagFileProcessor
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -33,11 +32,17 @@ def _build_methods_map(list) -> dict:
     return {f"{func.__module__}.{func.__name__}": func for func in list}
 
 
-METHODS_MAP = _build_methods_map(
-    [
-        DagFileProcessor.update_import_errors,
-    ]
-)
+def _initialize_map() -> dict:
+    from airflow.dag_processing.processor import DagFileProcessor
+
+    return _build_methods_map(
+        [
+            DagFileProcessor.update_import_errors,
+        ]
+    )
+
+
+METHODS_MAP = _initialize_map()
 
 
 def internal_airflow_api(
