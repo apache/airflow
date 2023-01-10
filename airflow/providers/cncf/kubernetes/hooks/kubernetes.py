@@ -28,6 +28,7 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from kubernetes_asyncio.client import ApiException
 from kubernetes_asyncio.config import load_kube_config_from_dict
+from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -404,6 +405,12 @@ class KubernetesHook(BaseHook):
             namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
         )
 
+    def get_pod(self, name: str, namespace: str) -> V1Pod:
+        return self.core_v1_client.read_namespaced_pod(
+            name=name,
+            namespace=namespace,
+        )
+
     def get_namespaced_pod_list(
         self,
         label_selector: str | None = "",
@@ -423,12 +430,6 @@ class KubernetesHook(BaseHook):
             label_selector=label_selector,
             _preload_content=False,
             **kwargs,
-        )
-
-    def get_pod(self, name: str, namespace: str) -> V1Pod:
-        return self.core_v1_client.read_namespaced_pod(
-            name=name,
-            namespace=namespace,
         )
 
 
@@ -456,7 +457,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         self._extras: dict | None = None
 
-    async def _get_client(self):
+    async def _load_config(self):
         """Returns Kubernetes API session for use with requests"""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
@@ -502,7 +503,6 @@ class AsyncKubernetesHook(KubernetesHook):
             client_configuration=self.client_configuration,
             context=cluster_context,
         )
-        return async_client.ApiClient()
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
@@ -529,7 +529,7 @@ class AsyncKubernetesHook(KubernetesHook):
     async def get_conn(self) -> async_client.ApiClient:
         kube_client = None
         try:
-            kube_client = await self._get_client() or async_client.ApiClient()
+            kube_client = await self._load_config() or async_client.ApiClient()
             yield kube_client
         finally:
             if kube_client is not None:
@@ -551,11 +551,45 @@ class AsyncKubernetesHook(KubernetesHook):
         return pod
 
     async def delete_pod(self, name: str, namespace: str):
+        """
+        Deletes pod's object.
+
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        """
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
-                await v1_api.delete_namespaced_pod(name, namespace, body=client.V1DeleteOptions())
+                await v1_api.delete_namespaced_pod(
+                    name=name, namespace=namespace, body=client.V1DeleteOptions()
+                )
             except ApiException as e:
                 # If the pod is already deleted
                 if e.status != 404:
                     raise
+
+    async def read_logs(self, name: str, namespace: str):
+        """
+        Reads logs inside the pod while starting containers inside. All the logs will be outputted with its
+        timestamp to track the logs after the execution of the pod is completed. The method is used for async
+        output of the logs only in the pod failed it execution or the task was cancelled by the user.
+
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        """
+        async with self.get_conn() as connection:
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                logs = await v1_api.read_namespaced_pod_log(
+                    name=name,
+                    namespace=namespace,
+                    follow=False,
+                    timestamps=True,
+                )
+                logs = logs.splitlines()
+                for line in logs:
+                    self.log.info("Container logs from %s", line)
+                return logs
+            except HTTPError:
+                self.log.exception("There was an error reading the kubernetes API.")
+                raise

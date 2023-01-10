@@ -249,6 +249,7 @@ class PodManager(LoggingMixin):
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
         # loop as we do here. But in a long-running process we might temporarily lose connectivity.
         # So the looping logic is there to let us resume following the logs.
+
         last_log_time = since_time
         while True:
             last_log_time = consume_logs(since_time=last_log_time, follow=follow)

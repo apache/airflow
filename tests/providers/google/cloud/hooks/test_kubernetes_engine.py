@@ -35,11 +35,11 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GKE_STRING = "airflow.providers.google.cloud.hooks.kubernetes_engine.{}"
 
 
-class TestGKEHookClient:
+class TestGKEPodHookClient:
     def setup_method(self):
         self.gke_hook = GKEClusterHook(location=GKE_ZONE)
 
-    @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
+    @mock.patch(GKE_STRING.format("GKEClusterHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
 
@@ -49,7 +49,7 @@ class TestGKEHookClient:
         assert self.gke_hook._client == result
 
 
-class TestGKEHookDelete:
+class TestGKEPodHookDelete:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -57,7 +57,7 @@ class TestGKEHookDelete:
             self.gke_hook = GKEClusterHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
-    @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
+    @mock.patch(GKE_STRING.format("GKEClusterHook.wait_for_operation"))
     def test_delete_cluster(self, wait_mock):
         retry_mock, timeout_mock = mock.Mock(), mock.Mock()
 
@@ -74,9 +74,8 @@ class TestGKEHookDelete:
         )
         wait_mock.assert_called_once_with(client_delete.return_value, TEST_GCP_PROJECT_ID)
 
-    @mock.patch(GKE_STRING.format("GKEHook.log"))
-    @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
-    def test_delete_cluster_not_found(self, wait_mock, log_mock):
+    @mock.patch(GKE_STRING.format("GKEClusterHook.wait_for_operation"))
+    def test_delete_cluster_not_found(self, wait_mock, caplog):
         from google.api_core.exceptions import NotFound
 
         # To force an error
@@ -85,14 +84,14 @@ class TestGKEHookDelete:
 
         self.gke_hook.delete_cluster(name="not-existing", project_id=TEST_GCP_PROJECT_ID)
         wait_mock.assert_not_called()
-        log_mock.info.assert_any_call("Assuming Success: %s", message)
+        assert "Assuming Success:" in caplog.text
 
     @mock.patch(
         BASE_STRING.format("GoogleBaseHook.project_id"),
         new_callable=mock.PropertyMock,
         return_value=None,
     )
-    @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
+    @mock.patch(GKE_STRING.format("GKEClusterHook.wait_for_operation"))
     def test_delete_cluster_error(self, wait_mock, mock_project_id):
         # To force an error
         self.gke_hook._client.delete_cluster.side_effect = AirflowException("400")
@@ -102,7 +101,7 @@ class TestGKEHookDelete:
             wait_mock.assert_not_called()
 
 
-class TestGKEHookCreate:
+class TestGKEPodHookCreate:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -110,7 +109,7 @@ class TestGKEHookCreate:
             self.gke_hook = GKEClusterHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
-    @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
+    @mock.patch(GKE_STRING.format("GKEClusterHook.wait_for_operation"))
     def test_create_cluster_proto(self, wait_mock):
         mock_cluster_proto = Cluster()
         mock_cluster_proto.name = CLUSTER_NAME
@@ -132,7 +131,7 @@ class TestGKEHookCreate:
         wait_mock.assert_called_once_with(client_create.return_value, TEST_GCP_PROJECT_ID)
 
     @mock.patch(GKE_STRING.format("Cluster.from_json"))
-    @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
+    @mock.patch(GKE_STRING.format("GKEClusterHook.wait_for_operation"))
     def test_create_cluster_dict(self, wait_mock, convert_mock):
         mock_cluster_dict = {"name": CLUSTER_NAME}
         retry_mock, timeout_mock = mock.Mock(), mock.Mock()
@@ -152,7 +151,7 @@ class TestGKEHookCreate:
         )
         wait_mock.assert_called_once_with(client_create.return_value, TEST_GCP_PROJECT_ID)
 
-    @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
+    @mock.patch(GKE_STRING.format("GKEClusterHook.wait_for_operation"))
     def test_create_cluster_error(self, wait_mock):
         # to force an error
         mock_cluster_proto = None
@@ -161,9 +160,8 @@ class TestGKEHookCreate:
             self.gke_hook.create_cluster(mock_cluster_proto)
             wait_mock.assert_not_called()
 
-    @mock.patch(GKE_STRING.format("GKEHook.log"))
-    @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
-    def test_create_cluster_already_exists(self, wait_mock, log_mock):
+    @mock.patch(GKE_STRING.format("GKEClusterHook.wait_for_operation"))
+    def test_create_cluster_already_exists(self, wait_mock, caplog):
         from google.api_core.exceptions import AlreadyExists
 
         # To force an error
@@ -172,10 +170,10 @@ class TestGKEHookCreate:
 
         self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
         wait_mock.assert_not_called()
-        log_mock.info.assert_any_call("Assuming Success: %s", message)
+        assert "Assuming Success:" in caplog.text
 
 
-class TestGKEHookGet:
+class TestGKEPodHookGet:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -199,7 +197,7 @@ class TestGKEHookGet:
         )
 
 
-class TestGKEHook:
+class TestGKEPodHook:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -208,7 +206,7 @@ class TestGKEHook:
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
-    @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
+    @mock.patch(GKE_STRING.format("GKEClusterHook.get_credentials"))
     def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()
@@ -259,7 +257,7 @@ class TestGKEHook:
             self.gke_hook.wait_for_operation(mock_op)
             assert time_mock.call_count == 1
 
-    @mock.patch(GKE_STRING.format("GKEHook.get_operation"))
+    @mock.patch(GKE_STRING.format("GKEClusterHook.get_operation"))
     @mock.patch(GKE_STRING.format("time.sleep"))
     def test_wait_for_response_running(self, time_mock, operation_mock):
         from google.cloud.container_v1.types import Operation

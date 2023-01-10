@@ -578,6 +578,7 @@ class KubernetesPodOperator(BaseOperator):
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
                 should_delete_pod=self.is_delete_operator_pod,
+                get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
             ),
             method_name="execute_complete",
@@ -594,14 +595,17 @@ class KubernetesPodOperator(BaseOperator):
             # It is done to coincide with the current implementation of the general logic of the cleanup
             # method. If it's going to be remade in future then it must be changed
             remote_pod = pod
-
             if event["status"] in ("error", "failed", "timeout"):
+                # fetch some logs when pod is failed
+                if self.get_logs:
+                    self.write_logs(pod)
                 raise AirflowException(event["message"])
             elif event["status"] == "success":
                 ti = context["ti"]
                 ti.xcom_push(key="pod_name", value=pod.metadata.name)
                 ti.xcom_push(key="pod_namespace", value=pod.metadata.namespace)
 
+                # fetch some logs when pod is executed successfully
                 if self.get_logs:
                     self.write_logs(pod)
 

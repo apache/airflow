@@ -47,6 +47,7 @@ from kubernetes_asyncio import client as async_client
 from kubernetes_asyncio.client import ApiException
 from kubernetes_asyncio.client.models import V1Pod
 from kubernetes_asyncio.config.kube_config import FileOrData
+from urllib3.exceptions import HTTPError
 
 from airflow import version
 from airflow.compat.functools import cached_property
@@ -360,7 +361,12 @@ class GKEPodHook(GoogleBaseHook):
 
 
 class AsyncGKEPodHook(GoogleBaseAsyncHook):
-    """Hook for asynchronous way to manage GKE pods."""
+    """
+    Hook for managing GKE pods in asynchronous way.
+
+    :param cluster_url: The URL pointed to the cluster.
+    :param ssl_ca_cert: SSL certificate that is used for authentication to the pod.
+    """
 
     sync_hook_class = GKEPodHook
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
@@ -429,6 +435,12 @@ class AsyncGKEPodHook(GoogleBaseAsyncHook):
             return pod
 
     async def delete_pod(self, name: str, namespace: str):
+        """
+        Deletes pod's object.
+
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        """
         async with Token(scopes=self.scopes) as token:
             async with self.get_conn(token) as connection:
                 try:
@@ -438,3 +450,30 @@ class AsyncGKEPodHook(GoogleBaseAsyncHook):
                     # If the pod is already deleted
                     if e.status != 404:
                         raise
+
+    async def read_logs(self, name: str, namespace: str):
+        """
+        Reads logs inside the pod while starting containers inside. All the logs will be outputted with its
+        timestamp to track the logs after the execution of the pod is completed. The method is used for async
+        output of the logs only in the pod failed it execution or the task was cancelled by the user.
+
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        """
+        async with Token(scopes=self.scopes) as token:
+            async with self.get_conn(token) as connection:
+                try:
+                    v1_api = async_client.CoreV1Api(connection)
+                    logs = await v1_api.read_namespaced_pod_log(
+                        name=name,
+                        namespace=namespace,
+                        follow=False,
+                        timestamps=True,
+                    )
+                    logs = logs.splitlines()
+                    for line in logs:
+                        self.log.info("Container logs from %s", line)
+                    return logs
+                except HTTPError:
+                    self.log.exception("There was an error reading the kubernetes API.")
+                    raise

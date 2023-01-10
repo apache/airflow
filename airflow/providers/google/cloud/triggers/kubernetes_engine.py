@@ -24,7 +24,14 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import AsyncGKEPodHo
 
 
 class GKEPodTrigger(KubernetesPodTrigger):
-    """Trigger for checking pod status until it finishes its job."""
+    """
+    Trigger for checking pod status until it finishes its job.
+
+    :param pod_name: The name of the pod.
+    :param pod_namespace: The namespace of the pod.
+    :param cluster_url: The URL pointed to the cluster.
+    :param ssl_ca_cert: SSL certificate that is used for authentication to the pod.
+    """
 
     def __init__(
         self,

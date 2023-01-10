@@ -275,7 +275,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         should be spawned in
     :param use_internal_ip: Use the internal IP address as the endpoint.
     :param project_id: The Google Developers Console project id
-    :param gcp_conn_id: The google cloud connection id to use. This allows for
+    :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or list of accounts required to get the access_token
@@ -288,7 +288,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
     :param regional: The location param is region name.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod.  Current default is False, but this will be
+        pod; if False, leave the pod. Current default is False, but this will be
         changed in the next major release of this provider.
     :param deferrable: Run operator in the deferrable mode.
     """

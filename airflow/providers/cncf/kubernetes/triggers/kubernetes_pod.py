@@ -57,6 +57,13 @@ class KubernetesPodTrigger(BaseTrigger):
     :param config_dict: Kubernetes config file content in dict format. If not specified,
         default value is ``~/.kube/config``
     :param poll_interval: Polling period in seconds to check for the status.
+    :param trigger_start_time: time in Datetime format when the trigger was started
+    :param in_cluster: run kubernetes client with in_cluster configuration.
+    :param should_delete_pod: What to do when the pod reaches its final
+        state, or the execution is interrupted. If True (default), delete the
+        pod; if False, leave the pod.
+    :param get_logs: get the stdout of the container as logs of the tasks.
+    :param startup_timeout: timeout in seconds to start up the pod.
     """
 
     def __init__(
@@ -65,11 +72,12 @@ class KubernetesPodTrigger(BaseTrigger):
         pod_namespace: str,
         trigger_start_time: datetime,
         kubernetes_conn_id: str | None = None,
-        poll_interval: float = 10,
+        poll_interval: float = 2,
         cluster_context: str | None = None,
         config_dict: dict | None = None,
         in_cluster: bool | None = None,
         should_delete_pod: bool = True,
+        get_logs: bool = True,
         startup_timeout: int = 120,
     ):
         super().__init__()
@@ -82,9 +90,11 @@ class KubernetesPodTrigger(BaseTrigger):
         self.config_dict = config_dict
         self.in_cluster = in_cluster
         self.should_delete_pod = should_delete_pod
+        self.get_logs = get_logs
         self.startup_timeout = startup_timeout
 
         self._hook: AsyncKubernetesHook | None = None
+        self._since_time = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes KubernetesCreatePodTrigger arguments and classpath."""
@@ -99,6 +109,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "config_dict": self.config_dict,
                 "in_cluster": self.in_cluster,
                 "should_delete_pod": self.should_delete_pod,
+                "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
                 "trigger_start_time": self.trigger_start_time,
             },
@@ -117,6 +128,7 @@ class KubernetesPodTrigger(BaseTrigger):
 
                 pod_status = pod.status.phase
                 self.log.debug("Pod %s status: %s", self.pod_name, pod_status)
+
                 container_state = self.define_container_state(pod)
                 self.log.debug("Container %s status: %s", BASE_CONTAINER_NAME, container_state)
 
@@ -164,6 +176,12 @@ class KubernetesPodTrigger(BaseTrigger):
                     return
             except CancelledError:
                 # That means that task was marked as failed
+                if self.get_logs:
+                    self.log.info("Outputting container logs...")
+                    await self._get_async_hook().read_logs(
+                        name=self.pod_name,
+                        namespace=self.pod_namespace,
+                    )
                 if self.should_delete_pod:
                     self.log.info("Deleting pod...")
                     await self._get_async_hook().delete_pod(
