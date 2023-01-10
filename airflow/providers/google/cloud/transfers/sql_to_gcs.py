@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import abc
 import json
+import os
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -77,6 +78,10 @@ class BaseSQLToGCSOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :param upload_metadata: whether to upload the row count metadata as blob metadata
     :param exclude_columns: set of columns to exclude from transmission
+    :param partition_columns: list of columns to use for file partitioning. In order to use
+        this parameter, you must sort your dataset by partition_columns. Do this by
+        passing an ORDER BY clause to the sql query. Files are uploaded to GCS as objects
+        with a hive style partitioning directory structure (templated).
     """
 
     template_fields: Sequence[str] = (
@@ -87,6 +92,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         "schema",
         "parameters",
         "impersonation_chain",
+        "partition_columns",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
@@ -111,7 +117,8 @@ class BaseSQLToGCSOperator(BaseOperator):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         upload_metadata: bool = False,
-        exclude_columns=None,
+        exclude_columns: set | None = None,
+        partition_columns: list | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -135,8 +142,16 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.upload_metadata = upload_metadata
         self.exclude_columns = exclude_columns
+        self.partition_columns = partition_columns
 
     def execute(self, context: Context):
+        if self.partition_columns:
+            self.log.info(
+                f"Found partition columns: {','.join(self.partition_columns)}. "
+                "Assuming the SQL statement is properly sorted by these columns in "
+                "ascending or descending order."
+            )
+
         self.log.info("Executing query")
         cursor = self.query()
 
@@ -158,6 +173,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         total_files = 0
         self.log.info("Writing local data files")
         for file_to_upload in self._write_local_data_files(cursor):
+
             # Flush file before uploading
             file_to_upload["file_handle"].flush()
 
@@ -204,27 +220,13 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        import os
-
         org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         schema = [column for column in org_schema if column not in self.exclude_columns]
 
         col_type_dict = self._get_col_type_dict()
         file_no = 0
-
-        tmp_file_handle = NamedTemporaryFile(delete=True)
-        if self.export_format == "csv":
-            file_mime_type = "text/csv"
-        elif self.export_format == "parquet":
-            file_mime_type = "application/octet-stream"
-        else:
-            file_mime_type = "application/json"
-        file_to_upload = {
-            "file_name": self.filename.format(file_no),
-            "file_handle": tmp_file_handle,
-            "file_mime_type": file_mime_type,
-            "file_row_count": 0,
-        }
+        file_mime_type = self._get_file_mime_type()
+        file_to_upload, tmp_file_handle = self._get_file_to_upload(file_mime_type, file_no)
 
         if self.export_format == "csv":
             csv_writer = self._configure_csv_file(tmp_file_handle, schema)
@@ -232,8 +234,42 @@ class BaseSQLToGCSOperator(BaseOperator):
             parquet_schema = self._convert_parquet_schema(cursor)
             parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
+        prev_partition_values = None
+        curr_partition_values = None
         for row in cursor:
+            if self.partition_columns:
+                row_dict = dict(zip(schema, row))
+                curr_partition_values = tuple(
+                    [row_dict.get(partition_column, "") for partition_column in self.partition_columns]
+                )
+
+                if prev_partition_values is None:
+                    # We haven't set prev_partition_values before. Set to current
+                    prev_partition_values = curr_partition_values
+
+                elif prev_partition_values != curr_partition_values:
+                    # If the partition values differ, write the current local file out
+                    # Yield first before we write the current record
+                    file_no += 1
+
+                    if self.export_format == "parquet":
+                        parquet_writer.close()
+
+                    file_to_upload["partition_values"] = prev_partition_values
+                    yield file_to_upload
+                    file_to_upload, tmp_file_handle = self._get_file_to_upload(file_mime_type, file_no)
+                    if self.export_format == "csv":
+                        csv_writer = self._configure_csv_file(tmp_file_handle, schema)
+                    if self.export_format == "parquet":
+                        parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
+
+                    # Reset previous to current after writing out the file
+                    prev_partition_values = curr_partition_values
+
+            # Incrementing file_row_count after partition yield ensures all rows are written
             file_to_upload["file_row_count"] += 1
+
+            # Proceed to write the row to the localfile
             if self.export_format == "csv":
                 row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
@@ -268,23 +304,43 @@ class BaseSQLToGCSOperator(BaseOperator):
 
                 if self.export_format == "parquet":
                     parquet_writer.close()
+
+                file_to_upload["partition_values"] = curr_partition_values
                 yield file_to_upload
-                tmp_file_handle = NamedTemporaryFile(delete=True)
-                file_to_upload = {
-                    "file_name": self.filename.format(file_no),
-                    "file_handle": tmp_file_handle,
-                    "file_mime_type": file_mime_type,
-                    "file_row_count": 0,
-                }
+                file_to_upload, tmp_file_handle = self._get_file_to_upload(file_mime_type, file_no)
                 if self.export_format == "csv":
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
                 if self.export_format == "parquet":
                     parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
+
         if self.export_format == "parquet":
             parquet_writer.close()
         # Last file may have 0 rows, don't yield if empty
         if file_to_upload["file_row_count"] > 0:
+            file_to_upload["partition_values"] = curr_partition_values
             yield file_to_upload
+
+    def _get_file_to_upload(self, file_mime_type, file_no):
+        """Returns a dictionary that represents the file to upload"""
+        tmp_file_handle = NamedTemporaryFile(delete=True)
+        return (
+            {
+                "file_name": self.filename.format(file_no),
+                "file_handle": tmp_file_handle,
+                "file_mime_type": file_mime_type,
+                "file_row_count": 0,
+            },
+            tmp_file_handle,
+        )
+
+    def _get_file_mime_type(self):
+        if self.export_format == "csv":
+            file_mime_type = "text/csv"
+        elif self.export_format == "parquet":
+            file_mime_type = "application/octet-stream"
+        else:
+            file_mime_type = "application/json"
+        return file_mime_type
 
     def _configure_csv_file(self, file_handle, schema):
         """Configure a csv writer with the file_handle and write schema
@@ -400,9 +456,19 @@ class BaseSQLToGCSOperator(BaseOperator):
         if is_data_file and self.upload_metadata:
             metadata = {"row_count": file_to_upload["file_row_count"]}
 
+        object_name = file_to_upload.get("file_name")
+        if is_data_file and self.partition_columns:
+            # Add partition column values to object_name
+            partition_values = file_to_upload.get("partition_values")
+            head_path, tail_path = os.path.split(object_name)
+            partition_subprefix = [
+                f"{col}={val}" for col, val in zip(self.partition_columns, partition_values)
+            ]
+            object_name = os.path.join(head_path, *partition_subprefix, tail_path)
+
         hook.upload(
             self.bucket,
-            file_to_upload.get("file_name"),
+            object_name,
             file_to_upload.get("file_handle").name,
             mime_type=file_to_upload.get("file_mime_type"),
             gzip=self.gzip if is_data_file else False,

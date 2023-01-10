@@ -32,6 +32,13 @@ def client_with_login(app, **kwargs):
     return client
 
 
+def client_without_login(app):
+    # Anonymous users can only view if AUTH_ROLE_PUBLIC is set to non-Public
+    app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
+    client = app.test_client()
+    return client
+
+
 def check_content_in_response(text, resp, resp_code=200):
     resp_html = resp.data.decode("utf-8")
     assert resp_code == resp.status_code
