@@ -39,6 +39,9 @@ class LocalKubernetesExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_pickling: bool = False
+    supports_sentry: bool = False
+
     callback_sink: BaseCallbackSink | None = None
 
     KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")

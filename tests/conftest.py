@@ -41,6 +41,7 @@ os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/air
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
+from tests.test_utils.db import clear_all  # noqa: E402
 
 from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
@@ -195,6 +196,12 @@ def pytest_addoption(parser):
             f"displayed as a comma-separated list. Supported values: [f{allowed_trace_sql_columns_list}]"
         ),
         metavar="COLUMNS",
+    )
+    group.addoption(
+        "--no-db-cleanup",
+        action="store_false",
+        dest="db_cleanup",
+        help="Disable DB clear before each test module.",
     )
 
 
@@ -856,3 +863,24 @@ def reset_logging_config():
 
     logging_config = import_string(settings.LOGGING_CLASS_PATH)
     logging.config.dictConfig(logging_config)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _clear_db(request):
+    """Clear DB before each test module run."""
+    if not request.config.option.db_cleanup:
+        return
+    dist_option = getattr(request.config.option, "dist", "no")
+    if dist_option != "no" or hasattr(request.config, "workerinput"):
+        # Skip if pytest-xdist detected (controller or worker)
+        return
+
+    try:
+        clear_all()
+    except Exception as ex:
+        exc_name_parts = [type(ex).__name__]
+        exc_module = type(ex).__module__
+        if exc_module != "builtins":
+            exc_name_parts.insert(0, exc_module)
+        extra_msg = "" if request.config.option.db_init else ", try to run with flag --with-db-init"
+        pytest.exit(f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}")

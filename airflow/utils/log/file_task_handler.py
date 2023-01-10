@@ -30,13 +30,13 @@ from airflow.configuration import AirflowConfigException, conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.utils.log.logging_mixin import SetContextPropagate
 
 
 class FileTaskHandler(logging.Handler):
@@ -62,10 +62,22 @@ class FileTaskHandler(logging.Handler):
                 # handler, not the one that calls super()__init__.
                 stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
+        self.maintain_propagate: bool = False
+        """
+        If true, overrides default behavior of setting propagate=False
+
+        :meta private:
+        """
 
     def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
+
+        Generally speaking returns None.  But if attr `maintain_propagate` has
+        been set to propagate, then returns sentinel MAINTAIN_PROPAGATE. This
+        has the effect of overriding the default behavior to set `propagate`
+        to False whenever set_context is called.  At time of writing, this
+        functionality is only used in unit testing.
 
         :param ti: task instance object
         """
@@ -74,7 +86,7 @@ class FileTaskHandler(logging.Handler):
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
-        return None
+        return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
     def emit(self, record):
         if self.handler:
@@ -92,16 +104,17 @@ class FileTaskHandler(logging.Handler):
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
-        str_tpl, jinja_tpl = parse_template_string(template)
+            str_tpl, jinja_tpl = parse_template_string(template)
 
-        if jinja_tpl:
-            if hasattr(ti, "task"):
-                context = ti.get_template_context()
-            else:
-                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-            context["try_number"] = try_number
-            return render_template_to_string(jinja_tpl, context)
-        elif str_tpl:
+            if jinja_tpl:
+                if hasattr(ti, "task"):
+                    context = ti.get_template_context(session=session)
+                else:
+                    context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
+                context["try_number"] = try_number
+                return render_template_to_string(jinja_tpl, context)
+
+        if str_tpl:
             try:
                 dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.
@@ -278,7 +291,7 @@ class FileTaskHandler(logging.Handler):
                 return log, {"end_of_log": True}
 
         # Process tailing if log is not at it's end
-        end_of_log = ti.try_number != try_number or ti.state not in State.running
+        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
         log_pos = len(log)
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
@@ -340,6 +353,35 @@ class FileTaskHandler(logging.Handler):
 
         return logs, metadata_array
 
+    def _prepare_log_folder(self, directory: Path):
+        """
+        Prepare the log folder and ensure its mode is 777.
+
+        To handle log writing when tasks are impersonated, the log files need to
+        be writable by the user that runs the Airflow command and the user
+        that is impersonated. This is mainly to handle corner cases with the
+        SubDagOperator. When the SubDagOperator is run, all of the operators
+        run under the impersonated user and create appropriate log files
+        as the impersonated user. However, if the user manually runs tasks
+        of the SubDagOperator through the UI, then the log files are created
+        by the user that runs the Airflow command. For example, the Airflow
+        run command may be run by the `airflow_sudoable` user, but the Airflow
+        tasks may be run by the `airflow` user. If the log files are not
+        writable by both users, then it's possible that re-running a task
+        via the UI (or vice versa) results in a permission error as the task
+        tries to write to a log file created by the other user.
+
+        Create the log file and give it group writable permissions
+        TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
+        operator is not compatible with impersonation (e.g. if a Celery executor is used
+        for a SubDag operator and the SubDag operator has a different owner than the
+        parent DAG)
+        """
+        mode = 0o777
+        directory.mkdir(mode=mode, parents=True, exist_ok=True)
+        if directory.stat().st_mode != mode:
+            directory.chmod(mode)
+
     def _init_file(self, ti):
         """
         Create log directory and give it correct permissions.
@@ -362,13 +404,7 @@ class FileTaskHandler(logging.Handler):
         # tries to write to a log file created by the other user.
         relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, relative_path)
-        directory = os.path.dirname(full_path)
-        # Create the log file and give it group writable permissions
-        # TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
-        # operator is not compatible with impersonation (e.g. if a Celery executor is used
-        # for a SubDag operator and the SubDag operator has a different owner than the
-        # parent DAG)
-        Path(directory).mkdir(mode=0o777, parents=True, exist_ok=True)
+        self._prepare_log_folder(Path(full_path).parent)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()

@@ -154,6 +154,7 @@ Beauchemin
 Behaviour
 behaviour
 behaviours
+BestCandidate
 Bigquery
 bigquery
 BigQueryHook
@@ -855,8 +856,11 @@ LineItem
 lineterminator
 linter
 linux
+ListColumnSpecsPager
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
+ListTableSpecsPager
 Liveness
 liveness
 livy
@@ -1269,6 +1273,7 @@ SearchResultGenerator
 SecretManagerClient
 secretRef
 secretRefs
+SecretsManagerBackend
 securable
 securecookie
 securestring
@@ -1356,6 +1361,7 @@ ssm
 Stackdriver
 stackdriver
 stacktrace
+StartManualTransferRunsResponse
 starttls
 StatefulSet
 StatefulSets
@@ -1422,6 +1428,7 @@ symlink
 symlinking
 symlinks
 sync'ed
+SynthesizeSpeechResponse
 sys
 syspath
 Systemd
@@ -1493,6 +1500,8 @@ tooltip
 tooltips
 traceback
 tracebacks
+TransferConfig
+TransferRun
 travis
 triage
 triaging

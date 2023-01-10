@@ -208,7 +208,11 @@ def init_api_connexion(app: Flask) -> None:
             return views.method_not_allowed(ex)
 
     spec_dir = path.join(ROOT_APP_DIR, "api_connexion", "openapi")
-    options = {"swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True)}
+    swagger_ui_dir = path.join(ROOT_APP_DIR, "www", "static", "dist", "swagger-ui")
+    options = {
+        "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+        "swagger_path": swagger_ui_dir,
+    }
     connexion_app = App(__name__, specification_dir=spec_dir, skip_error_handlers=True, options=options)
     connexion_app.app = app
     api_bp = connexion_app.add_api(
