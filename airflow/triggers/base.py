@@ -32,7 +32,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
      - Actively running in a trigger worker
 
     We use the same class for both situations, and rely on all Trigger classes
-    to be able to return the (Airflow-JSON-encodable) arguments that will
+    to be able to return the arguments (possible to encode with Airflow-JSON) that will
     let them be re-instantiated elsewhere.
     """
 
