@@ -87,7 +87,10 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         self.db_type = RdsDbType(db_type)
         self.db_identifier = db_identifier
         self.db_snapshot_identifier = db_snapshot_identifier
-        self.tags = format_tags(tags)
+        if isinstance(tags, dict):
+            self.tags = format_tags(tags)
+        else:
+            self.tags = tags or []
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
@@ -176,7 +179,10 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         self.source_db_snapshot_identifier = source_db_snapshot_identifier
         self.target_db_snapshot_identifier = target_db_snapshot_identifier
         self.kms_key_id = kms_key_id
-        self.tags = format_tags(tags)
+        if isinstance(tags, dict):
+            self.tags = format_tags(tags)
+        else:
+            self.tags = tags or []
         self.copy_tags = copy_tags
         self.pre_signed_url = pre_signed_url
         self.option_group_name = option_group_name
@@ -440,7 +446,10 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         self.event_categories = event_categories or []
         self.source_ids = source_ids or []
         self.enabled = enabled
-        self.tags = format_tags(tags)
+        if isinstance(tags, dict):
+            self.tags = format_tags(tags)
+        else:
+            self.tags = tags or []
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
