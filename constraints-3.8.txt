@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-11T12:33:31Z
+# This constraints file was automatically generated on 2023-01-11T17:49:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -250,7 +250,7 @@ flower==1.2.0
 frozenlist==1.3.3
 fsspec==2022.11.0
 future==0.18.2
-gcloud-aio-auth==4.1.2
+gcloud-aio-auth==4.1.5
 gcloud-aio-bigquery==6.2.0
 gcloud-aio-storage==8.0.0
 gcsfs==2022.11.0
@@ -396,7 +396,7 @@ mypy==0.971
 mysql-connector-python==8.0.31
 mysqlclient==2.1.1
 nbclient==0.7.2
-nbformat==5.7.1
+nbformat==5.7.2
 neo4j==5.4.0
 nest-asyncio==1.5.6
 networkx==2.8.8
@@ -614,7 +614,7 @@ uamqp==1.6.3
 uc-micro-py==1.0.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
-urllib3==1.26.13
+urllib3==1.26.14
 userpath==1.8.0
 vertica-python==1.2.0
 vine==5.0.0
