@@ -168,7 +168,7 @@ Here we select completely unique records from the retrieved data, then we check 
           FROM (
               SELECT DISTINCT *
               FROM employees_temp
-          )
+          ) t
           ON CONFLICT ("Serial Number") DO UPDATE
           SET "Serial Number" = excluded."Serial Number";
       """
@@ -283,7 +283,7 @@ Putting all of the pieces together, we have our completed DAG.
               FROM (
                   SELECT DISTINCT *
                   FROM employees_temp
-              )
+              ) t
               ON CONFLICT ("Serial Number") DO UPDATE
               SET "Serial Number" = excluded."Serial Number";
           """
