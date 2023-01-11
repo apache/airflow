@@ -151,7 +151,7 @@ def get_unique_task_id(
     core = re.split(r"__\d+$", task_id)[0]
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
-RV = TypeVar("RV", bound=Any)
+RV = TypeVar("RV")
 
 class DecoratedOperator(BaseOperator):
     """
