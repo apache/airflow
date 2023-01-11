@@ -107,7 +107,6 @@ class TestCeleryExecutor:
     def test_supports_sentry(self):
         assert CeleryExecutor.supports_sentry
 
-    @pytest.mark.quarantined
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
         caplog.set_level(logging.ERROR, logger="airflow.executors.celery_executor.BulkStateFetcher")
