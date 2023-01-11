@@ -93,7 +93,7 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     :return: The value of the provided key from SSM
     """
     _test_name: str = test_name if test_name else _get_test_name()
-    hook = SsmHook()
+    hook = SsmHook(aws_conn_id=None)
     value: str = ""
 
     try:
