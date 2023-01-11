@@ -581,10 +581,12 @@ class TestKubernetesExecutor:
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
     def test_change_state_skip_pod_deletion(
-        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods = False
         executor.kube_config.delete_worker_pods_on_failure = False
@@ -592,18 +594,21 @@ class TestKubernetesExecutor:
         executor.start()
         try:
             key = ("dag_id", "task_id", "run_id", "try_number2")
-            executor._change_state(key, State.SUCCESS, "pod_id", "default")
+            executor._change_state(key, State.SUCCESS, "pod_id", "test-namespace")
             assert executor.event_buffer[key][0] == State.SUCCESS
             mock_delete_pod.assert_not_called()
+            mock_patch_pod.assert_called_once_with(pod_id="pod_id", namespace="test-namespace")
         finally:
             executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
     def test_change_state_failed_pod_deletion(
-        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods_on_failure = True
 
@@ -613,6 +618,7 @@ class TestKubernetesExecutor:
             executor._change_state(key, State.FAILED, "pod_id", "test-namespace")
             assert executor.event_buffer[key][0] == State.FAILED
             mock_delete_pod.assert_called_once_with("pod_id", "test-namespace")
+            mock_patch_pod.assert_not_called()
         finally:
             executor.end()
 
@@ -775,7 +781,7 @@ class TestKubernetesExecutor:
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
             namespace="somens",
             field_selector="status.phase=Succeeded",
-            label_selector="kubernetes_executor=True,airflow-worker!=modified",
+            label_selector="kubernetes_executor=True,airflow-worker!=modified,airflow_executor_done!=True",
         )
         assert len(pod_names) == mock_kube_client.patch_namespaced_pod.call_count
         mock_kube_client.patch_namespaced_pod.assert_has_calls(
