@@ -52,7 +52,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
-POD_DONE_KEY = "airflow_done"
+POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 
 # TaskInstance key, command, configuration, pod_template_file
 KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
@@ -368,14 +368,14 @@ class AirflowKubernetesScheduler(LoggingMixin):
             if e.status != 404:
                 raise
 
-    def patch_done_with_pod(self, *, pod_id: str, namespace: str):
+    def patch_pod_executor_done(self, *, pod_id: str, namespace: str):
         """Add a "done" annotation to ensure we don't continually adopt pods"""
         self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_id, namespace)
         try:
             self.kube_client.patch_namespaced_pod(
                 name=pod_id,
                 namespace=namespace,
-                body={"metadata": {"labels": {POD_DONE_KEY: "True"}}},
+                body={"metadata": {"labels": {POD_EXECUTOR_DONE_KEY: "True"}}},
             )
         except ApiException as e:
             self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_id, e)
@@ -757,7 +757,7 @@ class KubernetesExecutor(BaseExecutor):
                     self.kube_scheduler.delete_pod(pod_id, namespace)
                     self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
             else:
-                self.kube_scheduler.patch_done_with_pod(pod_id=pod_id, namespace=namespace)
+                self.kube_scheduler.patch_pod_executor_done(pod_id=pod_id, namespace=namespace)
                 self.log.info("Patched pod %s in namespace %s to mark it as done", str(key), str(namespace))
             try:
                 self.running.remove(key)
@@ -826,7 +826,8 @@ class KubernetesExecutor(BaseExecutor):
         query_kwargs = {
             "field_selector": "status.phase=Succeeded",
             "label_selector": (
-                f"kubernetes_executor=True,airflow-worker!={new_worker_id_label},{POD_DONE_KEY}!=True"
+                "kubernetes_executor=True,"
+                f"airflow-worker!={new_worker_id_label},{POD_EXECUTOR_DONE_KEY}!=True"
             ),
         }
         pod_list = self._list_pods(query_kwargs)

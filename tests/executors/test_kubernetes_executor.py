@@ -586,7 +586,7 @@ class TestKubernetesExecutor:
         self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
         mock_delete_pod = mock_kubescheduler.return_value.delete_pod
-        mock_patch_pod = mock_kubescheduler.return_value.patch_done_with_pod
+        mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods = False
         executor.kube_config.delete_worker_pods_on_failure = False
@@ -608,7 +608,7 @@ class TestKubernetesExecutor:
         self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
         mock_delete_pod = mock_kubescheduler.return_value.delete_pod
-        mock_patch_pod = mock_kubescheduler.return_value.patch_done_with_pod
+        mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods_on_failure = True
 
@@ -781,7 +781,7 @@ class TestKubernetesExecutor:
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
             namespace="somens",
             field_selector="status.phase=Succeeded",
-            label_selector="kubernetes_executor=True,airflow-worker!=modified,airflow_done!=True",
+            label_selector="kubernetes_executor=True,airflow-worker!=modified,airflow_executor_done!=True",
         )
         assert len(pod_names) == mock_kube_client.patch_namespaced_pod.call_count
         mock_kube_client.patch_namespaced_pod.assert_has_calls(
