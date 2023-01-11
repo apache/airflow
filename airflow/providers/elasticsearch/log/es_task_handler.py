@@ -188,15 +188,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return True
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
+        self, ti: TaskInstance, try_number: int, metadata: dict | None = None, *, log_type=None
     ) -> tuple[EsLogMsgType, dict]:
         """
         Endpoint for streaming log.
 
         :param ti: task instance object
         :param try_number: try_number of the task instance
-        :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
+        :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
+        :param log_type: not used
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
@@ -324,7 +324,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         :param ti: task instance object
         """
-        self.mark_end_on_close = not ti.raw
+        is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
+        self.mark_end_on_close = not ti.raw and not is_trigger_log_context
 
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
