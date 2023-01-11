@@ -207,8 +207,13 @@ class KubernetesPodOperator(BaseOperator):
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
     :param base_container_name: The name of the base container in the pod. This container's logs
-        will appear as part of this task's logs if get_logs is True. Defaults to "base".
+        will appear as part of this task's logs if get_logs is True. Defaults to None. If None,
+        will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
+        container name to use.
     """
+
+    # This field can be overloaded at the instance level via base_container_name
+    BASE_CONTAINER_NAME = "base"
 
     POD_CHECKED_KEY = "already_checked"
 
@@ -273,7 +278,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
-        base_container_name: str = "base",
+        base_container_name: str | None = None,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -340,7 +345,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
-        self.base_container_name = base_container_name
+        self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
 
     @cached_property
     def _incluster_namespace(self):

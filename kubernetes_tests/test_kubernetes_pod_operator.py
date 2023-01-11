@@ -1265,3 +1265,22 @@ class TestKubernetesPodOperatorSystem:
                 k.execute(context)
 
         assert mock_get_container_termination_message.call_args[0][1] == "apple-sauce"
+
+    def test_base_container_name_init_precedence(self):
+        assert (
+            KubernetesPodOperator(base_container_name="apple-sauce", task_id=str(uuid4())).base_container_name
+            == "apple-sauce"
+        )
+        assert (
+            KubernetesPodOperator(task_id=str(uuid4())).base_container_name
+            == KubernetesPodOperator.BASE_CONTAINER_NAME
+        )
+
+        class MyK8SPodOperator(KubernetesPodOperator):
+            BASE_CONTAINER_NAME = "tomato-sauce"
+
+        assert (
+            MyK8SPodOperator(base_container_name="apple-sauce", task_id=str(uuid4())).base_container_name
+            == "apple-sauce"
+        )
+        assert MyK8SPodOperator(task_id=str(uuid4())).base_container_name == "tomato-sauce"
