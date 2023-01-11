@@ -53,11 +53,11 @@ class TestSageMakerExperimentOperator:
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
         op = SageMakerCreateExperimentOperator(
-            name="the name", description="the desc", tags={"the": "tags"}, task_id="whatever"
+            name="the name", description="the desc", tags={"jinja": "{{ task.task_id }}"}, task_id="tid"
         )
         ret = op.execute(None)
 
         assert ret == "abcdef"
         conn_mock().create_experiment.assert_called_once_with(
-            ExperimentName="the name", Description="the desc", Tags=[{"Key": "the", "Value": "tags"}]
+            ExperimentName="the name", Description="the desc", Tags=[{"Key": "jinja", "Value": "tid"}]
         )
