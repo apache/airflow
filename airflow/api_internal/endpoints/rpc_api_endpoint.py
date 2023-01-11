@@ -28,11 +28,10 @@ from airflow.serialization.serialized_objects import BaseSerialization
 log = logging.getLogger(__name__)
 
 
-def _build_methods_map(list) -> dict:
-    return {f"{func.__module__}.{func.__name__}": func for func in list}
-
-
 def _initialize_map() -> dict:
+    def _build_methods_map(list) -> dict:
+        return {f"{func.__module__}.{func.__name__}": func for func in list}
+
     from airflow.dag_processing.processor import DagFileProcessor
 
     return _build_methods_map(
