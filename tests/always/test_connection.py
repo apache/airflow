@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import pdb
 import re
 import unittest
 from collections import namedtuple
@@ -357,7 +356,6 @@ class TestConnection(unittest.TestCase):
         connection = Connection(uri=test_config.test_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(connection, conn_attr)
-            print(f"Conn_attr {conn_attr} expected_val: {expected_val} actual_val: {actual_val}")
             if expected_val is None:
                 assert expected_val is None
             if isinstance(expected_val, dict):
@@ -418,8 +416,6 @@ class TestConnection(unittest.TestCase):
         new_conn = Connection(conn_id="test_conn", uri=gen_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(new_conn, conn_attr)
-
-            print(f"Conn_attr {conn_attr} expected_val: {expected_val} actual_val: {actual_val}")
             if expected_val is None:
                 assert actual_val is None
             else:
