@@ -299,6 +299,7 @@ def _compile_patterns():
 
     _patterns.clear()  # ensure to reinit
     for p in patterns:
+        p = re.sub(r"(\w)\.", r"\1\..", p)
         _patterns.append(re.compile(p))
 
 

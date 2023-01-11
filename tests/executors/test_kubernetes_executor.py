@@ -718,19 +718,77 @@ class TestKubernetesExecutor:
         pod_ids = {ti_key: {}}
 
         executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
-        assert mock_kube_client.patch_namespaced_pod.call_args[1] == {
-            "body": {
-                "metadata": {
-                    "labels": {"airflow-worker": "modified"},
-                    "annotations": annotations,
-                    "name": "foo",
-                }
-            },
-            "name": "foo",
-            "namespace": None,
-        }
+        mock_kube_client.patch_namespaced_pod.assert_called_once_with(
+            body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+            name="foo",
+            namespace=None,
+        )
         assert pod_ids == {}
         assert executor.running == {ti_key}
+
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_adopt_launched_task_api_exception(self, mock_kube_client):
+        """We shouldn't think we are running the task if aren't able to patch the pod"""
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        annotations = {
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        }
+        ti_key = annotations_to_key(annotations)
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo", annotations=annotations))
+        pod_ids = {ti_key: {}}
+
+        mock_kube_client.patch_namespaced_pod.side_effect = ApiException(status=400)
+        executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
+        mock_kube_client.patch_namespaced_pod.assert_called_once_with(
+            body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+            name="foo",
+            namespace=None,
+        )
+        assert pod_ids == {ti_key: {}}
+        assert executor.running == set()
+
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_adopt_completed_pods(self, mock_kube_client):
+        """We should adopt all completed pods from other schedulers"""
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        executor.kube_client = mock_kube_client
+        executor.kube_config.kube_namespace = "somens"
+        pod_names = ["one", "two"]
+        mock_kube_client.list_namespaced_pod.return_value.items = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name=pod_name,
+                    labels={"airflow-worker": pod_name},
+                    annotations={"some_annotation": "hello"},
+                    namespace="somens",
+                )
+            )
+            for pod_name in pod_names
+        ]
+
+        executor._adopt_completed_pods(mock_kube_client)
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            namespace="somens",
+            field_selector="status.phase=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker!=modified",
+        )
+        assert len(pod_names) == mock_kube_client.patch_namespaced_pod.call_count
+        mock_kube_client.patch_namespaced_pod.assert_has_calls(
+            [
+                mock.call(
+                    body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+                    name=pod_name,
+                    namespace="somens",
+                )
+                for pod_name in pod_names
+            ],
+            any_order=True,
+        )
 
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):

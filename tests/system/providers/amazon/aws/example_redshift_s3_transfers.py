@@ -54,9 +54,9 @@ IP_PERMISSION = {
     "IpRanges": [{"CidrIp": "0.0.0.0/0", "Description": "Test description"}],
 }
 
-S3_KEY = "s3_key"
+S3_KEY = "s3_output_"
 S3_KEY_2 = "s3_key_2"
-S3_KEY_PREFIX = "s3_"
+S3_KEY_PREFIX = "s3_k"
 REDSHIFT_TABLE = "test_table"
 
 SQL_CREATE_TABLE = f"""
