@@ -234,8 +234,7 @@ Using the TaskFlow API with complex/conflicting Python dependencies
 -------------------------------------------------------------------
 
 If you have tasks that require complex or conflicting requirements then you will have the ability to use the
-TaskFlow API with either Python virtual environment (since 2.0.2), Docker container (since version 2.2.0) or
-or ExternalPythonOperator or KubernetesPodOperator (since 2.4.0).
+TaskFlow API with either Python virtual environment (since 2.0.2), Docker container (since 2.2.0), ExternalPythonOperator (since 2.4.0) or KubernetesPodOperator (since 2.4.0).
 
 This functionality allows a much more comprehensive range of use-cases for the TaskFlow API,
 as you are not limited to the packages and system libraries of the Airflow worker. For all cases of
