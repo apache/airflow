@@ -24,7 +24,7 @@ Apache Flink Operators
 FlinkKubernetesOperator
 -----------------------
 
-Launches spark applications on a Kubernetes cluster
+Launches flink applications on a Kubernetes cluster
 
 For parameter definition take a look at :class:`~airflow.providers.apache.flink.operators.flink_kubernetes.FlinkKubernetesOperator`.
 
