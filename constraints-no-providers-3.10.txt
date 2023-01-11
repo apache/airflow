@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-09T17:50:49Z
+# This constraints file was automatically generated on 2023-01-11T02:35:15Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -48,7 +48,7 @@ backoff==2.2.1
 bcrypt==4.0.1
 billiard==3.6.4.0
 blinker==1.5
-cachelib==0.9.0
+cachelib==0.10.0
 cachetools==5.2.1
 cattrs==22.2.0
 celery==5.2.7
@@ -87,7 +87,7 @@ fsspec==2022.11.0
 future==0.18.2
 gcloud-aio-auth==4.1.2
 gevent==22.10.2
-google-auth==2.15.0
+google-auth==2.16.0
 graphviz==0.20.1
 greenlet==2.0.1
 gssapi==1.8.2
@@ -159,7 +159,6 @@ six==1.16.0
 sniffio==1.3.0
 sortedcontainers==2.4.0
 statsd==4.0.1
-swagger-ui-bundle==0.0.9
 tabulate==0.9.0
 tblib==1.7.0
 tenacity==8.1.0
