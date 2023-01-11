@@ -275,13 +275,13 @@ class TestConnection(unittest.TestCase):
             description="no schema",
         ),
         UriTestCaseConfig(
-            test_conn_uri="google-cloud-platform://@/?key_path=%2Fkeys%2Fkey.json&scope="
+            test_conn_uri="google-cloud-platform://?key_path=%2Fkeys%2Fkey.json&scope="
             "https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&project=airflow",
             test_conn_attributes=dict(
                 conn_type="google_cloud_platform",
                 host="",
                 schema="",
-                login="",
+                login=None,
                 password=None,
                 port=None,
                 extra_dejson=dict(
@@ -317,7 +317,7 @@ class TestConnection(unittest.TestCase):
             description="with path",
         ),
         UriTestCaseConfig(
-            test_conn_uri="scheme://@/airflow",
+            test_conn_uri="scheme:///airflow",
             test_conn_attributes=dict(
                 conn_type="scheme",
                 schema="airflow",

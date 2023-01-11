@@ -239,11 +239,6 @@ class Connection(Base, LoggingMixin):
             else:
                 host_block += f":{self.port}"
 
-        is_authority_block_not_set = not self.login and not self.password
-        is_host_block_not_set = not self.host and not self.port
-        if is_authority_block_not_set and is_host_block_not_set and (self.schema or self.extra):
-            host_block += "@"
-
         if self.schema:
             host_block += f"/{quote(self.schema, safe='')}"
 
