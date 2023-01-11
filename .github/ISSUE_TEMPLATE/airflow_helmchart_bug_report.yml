@@ -63,7 +63,7 @@ body:
         you paste with ``` ```.
   - type: textarea
     attributes:
-      label: Docker Image customisations
+      label: Docker Image customizations
       description: What are the specific modification you've made in your image?
       placeholder: >
         Did you extend or customise the official Airflow image? Did you add any packages? Maybe

@@ -28,6 +28,7 @@ from airflow.sensors.python import PythonSensor
 class DecoratedSensorOperator(PythonSensor):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
+
     :param python_callable: A reference to an object that is callable
     :param task_id: task Id
     :param op_args: a list of positional arguments that will get unpacked when
@@ -63,6 +64,7 @@ class DecoratedSensorOperator(PythonSensor):
 def sensor_task(python_callable: Callable | None = None, **kwargs) -> TaskDecorator:
     """
     Wraps a function into an Airflow operator.
+
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
     :param python_callable: Function to decorate
     """

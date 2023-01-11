@@ -270,7 +270,7 @@ If you use a non-existing lexer then the value of the template field will be ren
 Define an operator extra link
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For your operator, you can :doc:`Define an extra link <define_extra_link>` that can
+For your operator, you can :doc:`Define an extra link <define-extra-link>` that can
 redirect users to external systems. For example, you can add a link that redirects
 the user to the operator's manual.
 

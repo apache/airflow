@@ -221,17 +221,18 @@ if PACKAGE_NAME == "apache-airflow":
 
     browsable_packages = {
         "hooks",
+        "decorators",
         "example_dags",
         "executors",
-        "models",
         "operators",
         "providers",
         "secrets",
         "sensors",
         "timetables",
+        "triggers",
         "utils",
     }
-    browseable_utils = {"dag_parsing_context.py"}
+    browsable_utils: set[str] = set()
 
     root = ROOT_DIR / "airflow"
     for path in root.iterdir():
@@ -240,9 +241,9 @@ if PACKAGE_NAME == "apache-airflow":
         if path.is_dir() and path.name not in browsable_packages:
             exclude_patterns.append(f"_api/airflow/{path.name}")
 
-    # Don't include all of utils, just the specific ones we include in python-api-ref
+    # Don't include all of utils, just the specific ones we decoded to include
     for path in (root / "utils").iterdir():
-        if path.name not in browseable_utils:
+        if path.name not in browsable_utils:
             exclude_patterns.append(_get_rst_filepath_from_path(path))
 elif PACKAGE_NAME != "docker-stack":
     exclude_patterns.extend(
