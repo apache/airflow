@@ -1086,7 +1086,7 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
         self.name = name
         self.description = description
-        self.tags = tags or []
+        self.tags = tags or {}
 
     def execute(self, context: Context) -> str:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
