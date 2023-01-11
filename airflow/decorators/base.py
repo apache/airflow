@@ -151,6 +151,7 @@ def get_unique_task_id(
     core = re.split(r"__\d+$", task_id)[0]
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
+RV = TypeVar("RV", bound=Any)
 
 class DecoratedOperator(BaseOperator):
     """
@@ -208,16 +209,16 @@ class DecoratedOperator(BaseOperator):
         self.op_kwargs = op_kwargs
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> RV:
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
         #  as well
         for arg in chain(self.op_args, self.op_kwargs.values()):
             if isinstance(arg, Dataset):
                 self.inlets.append(arg)
-        return_value = super().execute(context)
+        return_value: RV = super().execute(context)
         return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
 
-    def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
+    def _handle_output(self, return_value: RV, context: Context, xcom_push: Callable) -> RV:
         """
         Handles logic for whether a decorator needs to push a single return value or multiple return values.
 
@@ -252,7 +253,7 @@ class DecoratedOperator(BaseOperator):
             )
         return return_value
 
-    def _hook_apply_defaults(self, *args, **kwargs):
+    def _hook_apply_defaults(self, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
         if "python_callable" not in kwargs:
             return args, kwargs
 
@@ -294,7 +295,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     _airflow_is_task_decorator: ClassVar[bool] = True
 
     @multiple_outputs.default
-    def _infer_multiple_outputs(self):
+    def _infer_multiple_outputs(self) -> bool:
         try:
             return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
         except TypeError:  # Can't evaluate return type.
@@ -302,7 +303,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         ttype = getattr(return_type, "__origin__", return_type)
         return ttype == dict or ttype == Dict
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         if "self" in self.function_signature.parameters:
             raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault("task_id", self.function.__name__)
@@ -323,7 +324,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     def __wrapped__(self) -> Callable[FParams, FReturn]:
         return self.function
 
-    def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
+    def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]) -> None:
         # Ensure that context variables are not shadowed.
         context_keys_being_mapped = KNOWN_CONTEXT_KEYS.intersection(kwargs)
         if len(context_keys_being_mapped) == 1:
@@ -459,10 +460,10 @@ class DecoratedMappedOperator(MappedOperator):
     # in partial_kwargs, and MappedOperator prevents duplication.
     op_kwargs_expand_input: ExpandInput
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         # The magic super() doesn't work here, so we use the explicit form.
         # Not using super(..., self) to work around pyupgrade bug.
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
