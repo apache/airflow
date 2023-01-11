@@ -48,7 +48,7 @@ Equivalent environment variables looks like
 
 .. code-block::
 
-  AIRFLOW__EMAIL__FROM_EMAIL=From email <email@example.com>
+  AIRFLOW__EMAIL__FROM_EMAIL="From email <email@example.com>"
   
 
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
