@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-11T02:31:40Z
+# This constraints file was automatically generated on 2023-01-11T12:28:06Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -350,7 +350,7 @@ parso==0.8.3
 partd==1.3.0
 pathable==0.4.3
 pathspec==0.9.0
-pbr==5.11.0
+pbr==5.11.1
 pdpyras==4.5.2
 pendulum==2.1.2
 pexpect==4.8.0
