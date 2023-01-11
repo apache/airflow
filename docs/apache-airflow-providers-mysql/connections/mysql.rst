@@ -46,9 +46,6 @@ Extra (optional)
       * ``charset``: specify charset of the connection
       * ``cursor``: one of ``sscursor``, ``dictcursor``, ``ssdictcursor`` . Specifies cursor class to be
         used
-      * ``local_infile``: controls MySQL's LOCAL capability (permitting local data loading by
-        clients). See `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_
-        for details.
       * ``unix_socket``: UNIX socket used instead of the default socket.
       * ``ssl``: Dictionary of SSL parameters that control connecting using SSL. Those
         parameters are server specific and should contain ``ca``, ``cert``, ``key``, ``capath``,
@@ -99,14 +96,7 @@ Extra (optional)
           If encounter UnicodeDecodeError while working with MySQL connection, check
           the charset defined is matched to the database charset.
 
-    For ``mysql-connector-python`` the following extras are supported:
+    For ``mysql-connector-python`` no extras are supported:
 
-      * ``allow_local_infile``: Whether to enable ``LOAD DATA LOCAL INFILE`` capability.
-
-      Example "extras" field:
-
-      .. code-block:: json
-
-         {
-            "allow_local_infile": true
-         }
+In both cases, when you want to use ``LOAD DATA LOCAL INFILE`` SQL commands of MySQl, you need to create the
+Hook with "local_infile" parameter set to True.
