@@ -64,7 +64,7 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
     tasks as soon as possible. The scheduler checks how many free slots available in a pool and schedule at most that number of tasks instances in one iteration.
     This means that task priority will only come in to effect when there are more scheduled tasks
     waiting than the queue slots. Thus there can be cases where low priority tasks will be schedule before high priority tasks if they share the same batch.
-    For more read about that you can reference this `Github discussion <https://github.com/apache/airflow/discussions/28809>`_.
+    For more read about that you can reference `this GitHub discussion <https://github.com/apache/airflow/discussions/28809>`__.
 
 
 DAG File Processing
