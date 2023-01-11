@@ -25,16 +25,9 @@ An Airflow operator for AWS Batch services
 """
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.providers.amazon.aws.utils import trim_none_values
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -44,6 +37,7 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobQueueLink,
 )
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
+from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
