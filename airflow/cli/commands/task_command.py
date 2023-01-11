@@ -44,6 +44,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
+from airflow.models.taskinstance import ArgDeferred
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -182,7 +183,7 @@ def _get_ti(
     return ti, dr_created
 
 
-def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
+def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | ArgDeferred:
     """
     Runs the task based on a mode.
 
@@ -195,7 +196,7 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
     if args.local:
         _run_task_by_local_task_job(args, ti)
     elif args.raw:
-        _run_raw_task(args, ti)
+        return _run_raw_task(args, ti)
     else:
         _run_task_by_executor(args, dag, ti)
 
@@ -269,9 +270,9 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 ]
 
 
-def _run_raw_task(args, ti: TaskInstance) -> None:
+def _run_raw_task(args, ti: TaskInstance) -> None | ArgDeferred:
     """Runs the main task handling code."""
-    ti._run_raw_task(
+    return ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
@@ -407,18 +408,19 @@ def task_run(args, dag=None):
     # this should be last thing before running, to reduce likelihood of an open session
     # which can cause trouble if running process in a fork.
     settings.reconfigure_orm(disable_connection_pool=True)
-
+    ret = None
     try:
         if args.interactive:
-            _run_task_by_selected_method(args, dag, ti)
+            ret = _run_task_by_selected_method(args, dag, ti)
         else:
             with _move_task_handlers_to_root(ti), _redirect_stdout_to_ti_log(ti):
-                _run_task_by_selected_method(args, dag, ti)
+                ret = _run_task_by_selected_method(args, dag, ti)
     finally:
         try:
             get_listener_manager().hook.before_stopping(component=TaskCommandMarker())
         except Exception:
             pass
+    return ret
 
 
 @cli_utils.action_cli(check_db=False)
