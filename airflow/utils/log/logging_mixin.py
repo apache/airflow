@@ -31,7 +31,6 @@ from airflow.settings import IS_K8S_EXECUTOR_POD
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
-
 # Private: A sentinel objects
 class SetContextPropagate(enum.Enum):
     """:meta private:"""

@@ -139,6 +139,13 @@ if TYPE_CHECKING:
 PAST_DEPENDS_MET = "past_depends_met"
 
 
+class ArgDeferred:
+    """sentinel."""
+
+
+DEFERRED = ArgDeferred()
+
+
 @contextlib.contextmanager
 def set_current_context(context: Context) -> Generator[Context, None, None]:
     """
@@ -1370,7 +1377,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> ArgDeferred | None:
         """
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
@@ -1420,7 +1427,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self)
                 session.commit()
-            return
+            return DEFERRED
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding

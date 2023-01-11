@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import signal
 
 import psutil
@@ -29,6 +30,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
+from airflow.task.task_runner.standard_task_runner import DEFERRAL_EXIT_CODE
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
@@ -63,6 +65,18 @@ macOS
     If your are not using a proxy you could disable it by set environment variable 'no_proxy' to '*'.
     See: https://github.com/python/cpython/issues/58037 and https://bugs.python.org/issue30385#msg293958
 ********************************************************************************************************"""
+
+
+def set_task_deferred_context_var():
+    """
+    Tell task log handler that task exited with deferral.
+
+    :meta private:
+    """
+    logger = logging.getLogger()
+    h = next((h for h in logger.handlers if hasattr(h, "ctx_task_deferred")), None)
+    if h:
+        h.ctx_task_deferred = True
 
 
 class LocalTaskJob(BaseJob):
@@ -210,8 +224,11 @@ class LocalTaskJob(BaseJob):
         self.terminating = True
         self.log.info("Task exited with return code %s", return_code)
         self._log_return_code_metric(return_code)
+        is_deferral = return_code == DEFERRAL_EXIT_CODE
+        if is_deferral:
+            set_task_deferred_context_var()
 
-        if not self.task_instance.test_mode:
+        if not self.task_instance.test_mode and not is_deferral:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
                 self.task_instance.schedule_downstream_tasks()
 

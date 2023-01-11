@@ -103,6 +103,13 @@ class FileTaskHandler(logging.Handler):
         :meta private:
         """
 
+        self.ctx_task_deferred = False
+        """
+        If true, task exited with deferral to trigger.
+
+        Some handlers emit "end of log" markers, and may not wish to do so when task defers.
+        """
+
     def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
