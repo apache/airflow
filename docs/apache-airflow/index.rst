@@ -79,6 +79,7 @@ seen running over time:
 Each column represents one DAG run. These are two of the most used views in Airflow, but there are several
 other views which allow you to deep dive into the state of your workflows.
 
+
 Why Airflow?
 =========================================
 Airflow is a batch workflow orchestration platform. The Airflow framework contains operators to connect with
@@ -107,8 +108,12 @@ The open-source nature of Airflow ensures you work on components developed, test
 blogs posts, articles, conferences, books, and more. You can connect with other peers via several channels
 such as `Slack <https://s.apache.org/airflow-slack>`_ and mailing lists.
 
+Airflow as a Platform is highly customizable. By utilizing :doc:`public-airflow-interface` you can extend
+and customize almost every aspect of Airflow.
+
 Why not Airflow?
-=========================================
+================
+
 Airflow was built for finite batch workflows. While the CLI and REST API do allow triggering workflows,
 Airflow was not built for infinitely-running event-based workflows. Airflow is not a streaming solution.
 However, a streaming system such as Apache Kafka is often seen working together with Apache Airflow. Kafka can
@@ -137,6 +142,7 @@ so coding will always be required.
     authoring-and-scheduling/index
     administration-and-deployment/index
     integration
+    public-airflow-interface
     best-practices
     faq
     Release Policies <release-process>
@@ -150,7 +156,6 @@ so coding will always be required.
     Operators and hooks <operators-and-hooks-ref>
     CLI <cli-and-env-variables-ref>
     Templates <templates-ref>
-    Python API <python-api-ref>
     Stable REST API <stable-rest-api-ref>
     deprecated-rest-api-ref
     Configurations <configurations-ref>
