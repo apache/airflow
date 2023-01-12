@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from time import sleep
 from typing import TYPE_CHECKING, cast
 
 from airflow.compat.functools import cached_property
@@ -34,7 +35,6 @@ if TYPE_CHECKING:
     )
 
     from airflow.utils.context import Context
-
 
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}
 MANDATORY_FILTER_DATE_MSG = "The filter_date argument is mandatory for {entity}!"
@@ -57,6 +57,8 @@ class AppflowBaseOperator(BaseOperator):
     """
 
     ui_color = "#2bccbd"
+
+    UPDATE_PROPAGATION_TIME: int = 15
 
     def __init__(
         self,
@@ -96,6 +98,12 @@ class AppflowBaseOperator(BaseOperator):
         self.connector_type = self._get_connector_type()
         if self.flow_update:
             self._update_flow()
+            # previous code had a wait between update and run without explaining why.
+            # since I don't have a way to actually test this behavior,
+            # I'm reproducing it out of fear of breaking workflows.
+            # It might be unnecessary.
+            sleep(AppflowBaseOperator.UPDATE_PROPAGATION_TIME)
+
         self._run_flow(context)
 
     def _get_connector_type(self) -> str:
