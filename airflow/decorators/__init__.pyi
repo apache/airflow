@@ -166,7 +166,7 @@ class TaskDecoratorCollection:
     def branch(self, *, multiple_outputs: bool | None = None, **kwargs) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonOperator.
 
-        For more information on how to use this decorator, see :ref:`howto/operator:BranchPythonOperator`.
+        For more information on how to use this decorator, see :ref:`concepts:branching`.
         Accepts arbitrary for operator kwarg. Can be reused in a single DAG.
 
         :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
