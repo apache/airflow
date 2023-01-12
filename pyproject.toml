@@ -72,6 +72,30 @@ known-first-party = ["airflow", "airflow_breeze", "docker_tests", "docs", "kuber
 required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
+# TODO: for now, https://github.com/charliermarsh/ruff/issues/1817
+known-third-party = [
+    "asana",
+    "atlassian",
+    "celery",
+    "cloudant",
+    "databricks",
+    "datadog",
+    "docker",
+    "elasticsearch",
+    "github",
+    "google",
+    "grpc",
+    "jenkins",
+    "mysql",
+    "neo4j",
+    "papermill",
+    "redis",
+    "sendgrid",
+    "snowflake",
+    "telegram",
+    "trino",
+]
+
 [tool.ruff.per-file-ignores]
 "airflow/models/__init__.py" = ["F401"]
 "airflow/models/sqla_models.py" = ["F401"]
