@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import time
+import warnings
 from enum import Enum
 from functools import wraps
 from inspect import signature
@@ -140,17 +141,14 @@ class DbtCloudHook(HttpHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Builds custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
-            "hidden_fields": ["host", "port", "extra"],
-            "relabeling": {"login": "Account ID", "password": "API Token", "schema": "Tenant"},
-            "placeholders": {"schema": "Defaults to 'cloud'."},
+            "hidden_fields": ["schema", "port", "extra"],
+            "relabeling": {"login": "Account ID", "password": "API Token", "host": "Tenant"},
+            "placeholders": {"host": "Defaults to 'cloud.getdbt.com'."},
         }
 
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        tenant = self.connection.schema if self.connection.schema else "cloud"
-
-        self.base_url = f"https://{tenant}.getdbt.com/api/v2/accounts/"
 
     @cached_property
     def connection(self) -> Connection:
@@ -161,6 +159,21 @@ class DbtCloudHook(HttpHook):
         return _connection
 
     def get_conn(self, *args, **kwargs) -> Session:
+        if self.connection.schema:
+            warnings.warn(
+                "The `schema` parameter is deprecated and use within a dbt Cloud connection will be removed "
+                "in a future version. Please use `host` instead and specify the entire tenant domain name.",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            # Prior to deprecation, the connection.schema value could _only_ modify the third-level
+            # domain value while '.getdbt.com' was always used as the remainder of the domain name.
+            tenant = f"{self.connection.schema}.getdbt.com"
+        else:
+            tenant = self.connection.host or "cloud.getdbt.com"
+
+        self.base_url = f"https://{tenant}/api/v2/accounts/"
+
         session = Session()
         session.auth = self.auth_type(self.connection.password)
 
