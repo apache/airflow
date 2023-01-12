@@ -59,7 +59,7 @@ USING_TRIGGERER_HANDLER_WRAPPER = False
 """
 If this value is true, trigger logging is configured to use TriggerHandlerWrapper
 
-:meta :private
+:meta private:
 """
 
 logger = logging.getLogger(__name__)

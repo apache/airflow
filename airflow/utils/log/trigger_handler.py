@@ -53,7 +53,10 @@ class TriggerMetadataFilter(logging.Filter):
 
 class DropTriggerLogsFilter(logging.Filter):
     """
-    If record has non-empty attr trigger_id, filter the record.
+    If record has attr with name ctx_indiv_trigger, filter the record.
+
+    The purpose here is to prevent trigger logs from going to stdout
+    in the trigger service.
 
     :meta private:
     """
