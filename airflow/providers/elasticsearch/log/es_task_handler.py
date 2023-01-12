@@ -95,7 +95,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param host: Elasticsearch host name
         """
         es_kwargs = es_kwargs or {}
-        super().__init__(base_log_folder, filename_template)
+        super_args = []
+        if filename_template:
+            super_args.append(filename_template)
+        super().__init__(base_log_folder, *super_args)
         self.closed = False
 
         self.client = elasticsearch.Elasticsearch(host.split(";"), **es_kwargs)  # type: ignore[attr-defined]
@@ -120,6 +123,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self.is_trigger_log_context: bool | None = None
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
@@ -324,8 +328,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         :param ti: task instance object
         """
-        is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
-        self.mark_end_on_close = not ti.raw and not is_trigger_log_context
+        self.is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
+        self.mark_end_on_close = not getattr(ti, "raw", None)
 
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
@@ -362,7 +366,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             return
 
         # todo: remove `getattr` when min airflow version >= 2.6
-        if not self.mark_end_on_close or getattr(self, "ctx_task_deferred", None):
+        ctx_task_deferred = getattr(self, "ctx_task_deferred", None)
+
+        if not self.mark_end_on_close:
             # when we're closing due to task deferral, don't mark end of log
             self.closed = True
             return
@@ -372,14 +378,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.closed = True
             return
 
-        # Reopen the file stream, because FileHandler.close() would be called
-        # first in logging.shutdown() and the stream in it would be set to None.
-        if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
-            self.handler.stream = self.handler._open()  # type: ignore[union-attr]
+        if not (self.is_trigger_log_context or ctx_task_deferred):
+            # Reopen the file stream, because FileHandler.close() would be called
+            # first in logging.shutdown() and the stream in it would be set to None.
+            if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
+                self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
-        # Mark the end of file using end of log mark,
-        # so we know where to stop while auto-tailing.
-        self.emit(logging.makeLogRecord({"msg": self.end_of_log_mark}))
+            # Mark the end of file using end of log mark,
+            # so we know where to stop while auto-tailing.
+            self.emit(logging.makeLogRecord({"msg": self.end_of_log_mark}))
 
         if self.write_stdout:
             self.handler.close()
