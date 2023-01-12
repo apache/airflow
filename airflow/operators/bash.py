@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import shlex
 import shutil
 from typing import Sequence
 
@@ -172,7 +171,7 @@ class BashOperator(BaseOperator):
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.debug(
             "Exporting env vars: %s",
-            " ".join(f"{k}={shlex.quote(v)}" for k, v in airflow_context_vars.items()),
+            " ".join(f"{k}={v!r}" for k, v in airflow_context_vars.items()),
         )
         env.update(airflow_context_vars)
         return env
