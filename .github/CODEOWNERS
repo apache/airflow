@@ -1,5 +1,5 @@
 # Core
-/airflow/executors/ @kaxil @XD-DENG @ashb
+/airflow/executors/ @kaxil @XD-DENG @ashb @o-nikolas
 /airflow/jobs/ @kaxil @ashb @XD-DENG
 /airflow/models/ @kaxil @XD-DENG @ashb
 
@@ -67,14 +67,14 @@
 /airflow/providers/cncf/kubernetes @jedcunningham
 /airflow/providers/dbt/cloud/ @josh-fell
 /airflow/providers/tabular/ @Fokko
-/airflow/providers/amazon/ @eladkal
+/airflow/providers/amazon/ @eladkal @o-nikolas
 /airflow/providers/common/sql/ @eladkal
 /airflow/providers/slack/ @eladkal
-/docs/apache-airflow-providers-amazon/ @eladkal
+/docs/apache-airflow-providers-amazon/ @eladkal @o-nikolas
 /docs/apache-airflow-providers-common-sql/ @eladkal
 /docs/apache-airflow-providers-slack/ @eladkal
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
-/tests/providers/amazon/ @eladkal
+/tests/providers/amazon/ @eladkal @o-nikolas
 /tests/providers/common/sql/ @eladkal
 /tests/providers/slack/ @eladkal
 
