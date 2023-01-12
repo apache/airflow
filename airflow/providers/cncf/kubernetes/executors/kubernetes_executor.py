@@ -37,6 +37,18 @@ from sqlalchemy.orm import Session
 
 from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.cli.cli_config import (
+    ARG_DAG_ID,
+    ARG_EXECUTION_DATE,
+    ARG_OUTPUT_PATH,
+    ARG_SUBDIR,
+    ARG_VERBOSE,
+    ActionCommand,
+    Arg,
+    GroupCommand,
+    lazy_load_command,
+    positive_int,
+)
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
@@ -68,6 +80,45 @@ class PodMutationHookException(AirflowException):
 
 class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
+
+
+# CLI Args
+ARG_NAMESPACE = Arg(
+    ("--namespace",),
+    default=conf.get("kubernetes_executor", "namespace"),
+    help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
+)
+
+ARG_MIN_PENDING_MINUTES = Arg(
+    ("--min-pending-minutes",),
+    default=30,
+    type=positive_int(allow_zero=False),
+    help=(
+        "Pending pods created before the time interval are to be cleaned up, "
+        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
+    ),
+)
+
+# CLI Commands
+KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name="cleanup-pods",
+        help=(
+            "Clean up Kubernetes pods "
+            "(created by KubernetesExecutor/KubernetesPodOperator) "
+            "in evicted/failed/succeeded/pending states"
+        ),
+        func=lazy_load_command("airflow.cli.commands.kubernetes_command.cleanup_pods"),
+        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="generate-dag-yaml",
+        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
+        "launching into a cluster",
+        func=lazy_load_command("airflow.cli.commands.kubernetes_command.generate_pod_yaml"),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
+    ),
+)
 
 
 class KubernetesExecutor(BaseExecutor):
@@ -644,3 +695,13 @@ class KubernetesExecutor(BaseExecutor):
 
     def terminate(self):
         """Terminate the executor is not doing anything."""
+
+    @staticmethod
+    def get_cli_commands() -> list:
+        return [
+            GroupCommand(
+                name="kubernetes",
+                help="Tools to help run the KubernetesExecutor",
+                subcommands=KUBERNETES_COMMANDS,
+            )
+        ]
