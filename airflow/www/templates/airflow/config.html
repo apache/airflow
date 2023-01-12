@@ -25,6 +25,7 @@
 
 {% block content %}
     {{ super() }}
+    <h2>{{ title }}</h2>
 
     {% if hide_config_msg is defined %}
         <div class="alert alert-info">
