@@ -37,10 +37,10 @@ spec:
   scaleTargetRef:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
     name: {{ .Release.Name }}-worker
-  pollingInterval:  {{ .Values.workers.keda.pollingInterval }}   # Optional. Default: 30 seconds
-  cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}    # Optional. Default: 300 seconds
-  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}   # Optional. Default: 0
-  maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}   # Optional. Default: 100
+  pollingInterval:  {{ .Values.workers.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}
 {{- if .Values.workers.keda.advanced }}
   advanced:
 {{ toYaml .Values.workers.keda.advanced | indent 4 }}
