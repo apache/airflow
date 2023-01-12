@@ -179,7 +179,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _group_logs_by_host(self, logs):
         grouped_logs = defaultdict(list)
         for log in logs:
-            key = getattr(log, self.host_field, "default_host")
+            key = getattr_nested(log, self.host_field, None) or "default_host"
             grouped_logs[key].append(log)
 
         return grouped_logs
@@ -407,3 +407,18 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def supports_external_link(self) -> bool:
         """Whether we can support external links"""
         return bool(self.frontend)
+
+
+def getattr_nested(obj, item, default):
+    """
+    Get item from obj but return default if not found
+
+    E.g. calling ``getattr_nested(a, 'b.c', "NA")`` will return
+    ``a.b.c`` if such a value exists, and "NA" otherwise.
+
+    :meta private:
+    """
+    try:
+        return attrgetter(item)(obj)
+    except AttributeError:
+        return default

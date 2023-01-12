@@ -31,7 +31,7 @@ import pendulum
 import pytest
 
 from airflow.configuration import conf
-from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler
+from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler, getattr_nested
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
@@ -590,3 +590,19 @@ class TestElasticsearchTaskHandler:
         assert first_log["asctime"] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert third_log["asctime"] == t3.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
+
+
+def test_safe_attrgetter():
+    class A:
+        ...
+
+    a = A()
+    a.b = "b"
+    a.c = None
+    a.x = a
+    a.x.d = "blah"
+    assert getattr_nested(a, "b", None) == "b"  # regular getattr
+    assert getattr_nested(a, "x.d", None) == "blah"  # nested val
+    assert getattr_nested(a, "aa", "heya") == "heya"  # respects non-none default
+    assert getattr_nested(a, "c", "heya") is None  # respects none value
+    assert getattr_nested(a, "aa", None) is None  # respects none default
