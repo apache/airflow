@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 import warnings
 from datetime import timedelta
 from tempfile import gettempdir
@@ -81,9 +82,15 @@ def create_app(config=None, testing=False):
 
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
-    flask_app.config["APP_NAME"] = conf.get(section="webserver", key="instance_name", fallback="Airflow")
     flask_app.config["TESTING"] = testing
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+
+    instance_name = conf.get(section="webserver", key="instance_name", fallback="Airflow")
+    instance_name_has_markup = conf.getboolean(section="webserver", key="instance_name_has_markup", fallback=False)
+    if instance_name_has_markup:
+        instance_name = re.sub(r"<[^<]+?>", "", instance_name)
+
+    flask_app.config["APP_NAME"] = instance_name
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
