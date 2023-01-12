@@ -763,13 +763,14 @@ class KubernetesExecutor(BaseExecutor):
             self.kube_scheduler.patch_pod_executor_done(pod_id=pod_id, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", str(key), str(namespace))
 
-        if key in self.running:
+        try:
             self.running.remove(key)
-            # We do get multiple events once the pod hits a terminal state, and we only want to
+        except KeyError:
+            self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
+        else:
+            # We get multiple events once the pod hits a terminal state, and we only want to
             # do this once, so only do it when we remove the task from running
             self.event_buffer[key] = state, None
-        else:
-            self.log.debug("TI key not in running, not adding to event_buffer: %s", str(key))
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
