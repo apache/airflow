@@ -1232,9 +1232,6 @@ class TaskInstance(Base, LoggingMixin):
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr("previously_succeeded", 1, 1)
 
-        # TODO: Logging needs cleanup, not clear what is being printed
-        hr_line_break = "\n" + ("-" * 80)  # Line break
-
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
             # Since mark_success is not set, we do nothing.
@@ -1277,7 +1274,6 @@ class TaskInstance(Base, LoggingMixin):
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
                 self.state = State.NONE
-                self.log.warning(hr_line_break)
                 self.log.warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
@@ -1285,16 +1281,12 @@ class TaskInstance(Base, LoggingMixin):
                     self.try_number,
                     self.max_tries + 1,
                 )
-                self.log.warning(hr_line_break)
                 self.queued_dttm = timezone.utcnow()
                 session.merge(self)
                 session.commit()
                 return False
 
-        # print status message
-        self.log.info(hr_line_break)
         self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
-        self.log.info(hr_line_break)
         self._try_number += 1
 
         if not test_mode:
