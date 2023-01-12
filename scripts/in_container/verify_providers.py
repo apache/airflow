@@ -213,6 +213,11 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
         "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
         "requests_toolbelt",
     ),
+    (
+        "zmq.eventloop.ioloop is deprecated in pyzmq 17. pyzmq now works with default tornado and asyncio "
+        "eventloops.",
+        "jupyter_client",
+    ),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: set[str] = {
