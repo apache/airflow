@@ -775,17 +775,27 @@ class TestKubernetesExecutor:
         executor.kube_client = mock_kube_client
         executor.kube_config.kube_namespace = "somens"
         pod_names = ["one", "two"]
+
+        def get_annotations(pod_name):
+            return {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": pod_name,
+                "try_number": "1",
+            }
+
         mock_kube_client.list_namespaced_pod.return_value.items = [
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
                     name=pod_name,
                     labels={"airflow-worker": pod_name},
-                    annotations={"some_annotation": "hello"},
+                    annotations=get_annotations(pod_name),
                     namespace="somens",
                 )
             )
             for pod_name in pod_names
         ]
+        expected_running_ti_keys = {annotations_to_key(get_annotations(pod_name)) for pod_name in pod_names}
 
         executor._adopt_completed_pods(mock_kube_client)
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
@@ -805,6 +815,7 @@ class TestKubernetesExecutor:
             ],
             any_order=True,
         )
+        assert executor.running == expected_running_ti_keys
 
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):
