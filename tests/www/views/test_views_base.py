@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime
 import json
-from unittest import mock
 
 import pytest
 
@@ -413,7 +412,6 @@ def test_page_instance_name_with_markup(admin_client):
     resp = admin_client.get("home", follow_redirects=True)
     check_content_in_response("<b>Bold Site Title Test</b>", resp)
     check_content_not_in_response("&lt;b&gt;Bold Site Title Test&lt;/b&gt;", resp)
-    # check_content_not_in_response("DAGs - Airflow", resp)
 
 
 @conf_vars(instance_name_with_markup_conf)
