@@ -80,15 +80,15 @@ class ComputeEngineHook(GoogleBaseHook):
 
     def get_compute_instance_template_client(self):
         """Returns Compute Engine Instance Template Client."""
-        return InstanceTemplatesClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return InstanceTemplatesClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     def get_compute_instance_client(self):
         """Returns Compute Engine Instance Client."""
-        return InstancesClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return InstancesClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     def get_compute_instance_group_managers_client(self):
         """Returns Compute Engine Instance Group Managers Client."""
-        return InstanceGroupManagersClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return InstanceGroupManagersClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance_template(

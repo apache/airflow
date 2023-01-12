@@ -1090,7 +1090,7 @@ class TaskInstance(Base, LoggingMixin):
         if failed:
             return False
 
-        verbose_aware_logger("Dependencies all met for %s", self)
+        verbose_aware_logger("Dependencies all met for dep_context=%s ti=%s", dep_context.description, self)
         return True
 
     @provide_session
@@ -1232,9 +1232,6 @@ class TaskInstance(Base, LoggingMixin):
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr("previously_succeeded", 1, 1)
 
-        # TODO: Logging needs cleanup, not clear what is being printed
-        hr_line_break = "\n" + ("-" * 80)  # Line break
-
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
             # Since mark_success is not set, we do nothing.
@@ -1245,6 +1242,7 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_depends_on_past=ignore_depends_on_past,
                 wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_task_deps=ignore_task_deps,
+                description="non-requeueable deps",
             )
             if not self.are_dependencies_met(
                 dep_context=non_requeueable_dep_context, session=session, verbose=True
@@ -1274,10 +1272,10 @@ class TaskInstance(Base, LoggingMixin):
                 wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_task_deps=ignore_task_deps,
                 ignore_ti_state=ignore_ti_state,
+                description="requeueable deps",
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
                 self.state = State.NONE
-                self.log.warning(hr_line_break)
                 self.log.warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
@@ -1285,16 +1283,12 @@ class TaskInstance(Base, LoggingMixin):
                     self.try_number,
                     self.max_tries + 1,
                 )
-                self.log.warning(hr_line_break)
                 self.queued_dttm = timezone.utcnow()
                 session.merge(self)
                 session.commit()
                 return False
 
-        # print status message
-        self.log.info(hr_line_break)
         self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
-        self.log.info(hr_line_break)
         self._try_number += 1
 
         if not test_mode:
