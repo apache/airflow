@@ -1080,7 +1080,7 @@ class TaskInstance(Base, LoggingMixin):
         if failed:
             return False
 
-        verbose_aware_logger("Dependencies all met for %s", self)
+        verbose_aware_logger("Dependencies all met for dep_context=%s ti=%s", dep_context.description, self)
         return True
 
     @provide_session
@@ -1230,6 +1230,7 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_ti_state=ignore_ti_state,
                 ignore_depends_on_past=ignore_depends_on_past,
                 ignore_task_deps=ignore_task_deps,
+                description="non-requeueable deps",
             )
             if not self.are_dependencies_met(
                 dep_context=non_requeueable_dep_context, session=session, verbose=True
@@ -1258,6 +1259,7 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_depends_on_past=ignore_depends_on_past,
                 ignore_task_deps=ignore_task_deps,
                 ignore_ti_state=ignore_ti_state,
+                description="requeueable deps",
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
                 self.state = State.NONE
