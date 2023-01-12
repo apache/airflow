@@ -252,7 +252,7 @@ class GKECreateClusterOperator(BaseOperator):
 class GKEStartPodOperator(KubernetesPodOperator):
     """
     Executes a task in a Kubernetes pod in the specified Google Kubernetes
-    Engine cluster
+    Engine cluster.
 
     This Operator assumes that the system has gcloud installed and has configured a
     connection id with a service account.

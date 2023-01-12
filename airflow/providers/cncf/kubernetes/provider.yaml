@@ -52,6 +52,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
+  - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
   # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
