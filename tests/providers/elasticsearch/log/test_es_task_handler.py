@@ -594,11 +594,15 @@ class TestElasticsearchTaskHandler:
 
 def test_safe_attrgetter():
     class A:
-        a = "hi"
+        ...
 
     a = A()
-    a.b = a
-    assert getattr_nested(a, "b.a", None) == "hi"
-    assert getattr_nested(a, "a", None) == "hi"
-    assert getattr_nested(a, "aa", "heya") == "heya"
-    assert getattr_nested(a, "aa", None) is None
+    a.b = "b"
+    a.c = None
+    a.x = a
+    a.x.d = "blah"
+    assert getattr_nested(a, "b", None) == "b"  # regular getattr
+    assert getattr_nested(a, "x.d", None) == "blah"  # nested val
+    assert getattr_nested(a, "aa", "heya") == "heya"  # respects non-none default
+    assert getattr_nested(a, "c", "heya") is None  # respects none value
+    assert getattr_nested(a, "aa", None) is None  # respects none default
