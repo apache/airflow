@@ -76,7 +76,7 @@ def get_log(
         metadata["download_logs"] = False
 
     task_log_reader = TaskLogReader()
-    if log_type == LogType.TRIGGER and not task_log_reader.supports_triggerer:
+    if log_type == LogType.TRIGGER and not task_log_reader.triggerer_logs_separate:
         raise BadRequest("Task log handler does not support trigger logging.")
 
     if not task_log_reader.supports_read:

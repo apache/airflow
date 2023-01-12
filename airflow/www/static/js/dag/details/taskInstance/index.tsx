@@ -64,7 +64,7 @@ const TaskInstance = ({
 }: Props) => {
   const isMapIndexDefined = !(mapIndex === undefined);
   const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
-  const { data: { dagRuns, groups, readerSupportsTriggerer } } = useGridData();
+  const { data: { dagRuns, groups, readerTriggererLogsSeparate } } = useGridData();
   const containerRef = useContainerRef();
   const detailsRef = useRef<HTMLDivElement>(null);
   const offsetHeight = useOffsetHeight(detailsRef);
@@ -97,7 +97,7 @@ const TaskInstance = ({
   };
 
   let triggerLogsTooltipProps;
-  if (!readerSupportsTriggerer) {
+  if (!readerTriggererLogsSeparate) {
     triggerLogsTooltipProps = {
       label: 'The configured log handler does not support reading trigger logs.',
       isDisabled: false,
@@ -113,7 +113,7 @@ const TaskInstance = ({
       isDisabled: true,
     };
   }
-  const disableTriggerLogs = !(readerSupportsTriggerer && instance?.hasDeferred === true);
+  const disableTriggerLogs = !(readerTriggererLogsSeparate && instance?.hasDeferred === true);
 
   useEffect(() => {
     // Reset preferred tab if it is disabled
@@ -183,7 +183,7 @@ const TaskInstance = ({
             </Tab>
           )}
 
-          {!isGroupOrMappedTaskSummary && (
+          {!isGroupOrMappedTaskSummary && !disableTriggerLogs && (
           <Tooltip
             {...triggerLogsTooltipProps}
             placement="top-end"

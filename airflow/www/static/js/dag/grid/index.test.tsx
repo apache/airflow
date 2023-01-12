@@ -107,7 +107,7 @@ const mockGridData = {
     },
   ],
   ordering: ['dataIntervalStart'],
-  readerSupportsTriggerer: true,
+  readerTriggererLogsSeparate: true,
 } as useGridDataModule.GridData;
 
 const EXPAND = 'Expand all task groups';

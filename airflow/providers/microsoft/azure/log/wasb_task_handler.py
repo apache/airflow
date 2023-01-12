@@ -71,7 +71,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             return None
 
     @cached_property
-    def supports_triggerer(self):
+    def triggerer_logs_separate(self):
         """Not implemented yet."""
         return False
 

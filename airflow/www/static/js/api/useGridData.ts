@@ -40,7 +40,7 @@ export interface GridData {
   dagRuns: DagRun[];
   groups: Task;
   ordering: RunOrdering;
-  readerSupportsTriggerer: boolean;
+  readerTriggererLogsSeparate: boolean;
 }
 
 export const emptyGridData: GridData = {
@@ -51,7 +51,7 @@ export const emptyGridData: GridData = {
     instances: [],
   },
   ordering: [],
-  readerSupportsTriggerer: false,
+  readerTriggererLogsSeparate: false,
 };
 
 const formatOrdering = (data: GridData) => ({

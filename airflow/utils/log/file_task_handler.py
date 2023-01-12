@@ -146,7 +146,16 @@ class FileTaskHandler(logging.Handler):
         return full_path
 
     @cached_property
-    def supports_triggerer(self):
+    def triggerer_logs_separate(self):
+        """
+        If true, webserver should render trigger logs in distinct tab
+
+        :meta private:
+        """
+        return "log_type" in inspect.signature(self._read).parameters.keys()
+
+    @cached_property
+    def wrap_for_triggerer(self):
         """
         If true, this handler has been updated to support individual logging as implemented
         in triggerer_job.

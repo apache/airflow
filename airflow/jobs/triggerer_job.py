@@ -80,24 +80,24 @@ def configure_trigger_log_handler():
     """
     global USING_TRIGGERER_HANDLER_WRAPPER
 
-    def supports_triggerer(handler):
-        return getattr(handler, "supports_triggerer", False)
+    def should_wrap_for_triggerer(handler):
+        return getattr(handler, "wrap_for_triggerer", False)
 
     def get_task_handler_from_logger(logger_):
         for h in logger_.handlers:
-            if isinstance(h, FileTaskHandler) and not supports_triggerer(h):
+            if isinstance(h, FileTaskHandler) and not should_wrap_for_triggerer(h):
                 warnings.warn(
                     f"Handler {h.__class__.__name__} does not support "
                     "individual trigger logging. Please check the release notes "
                     "for your provider to see if a newer version supports "
                     "individual trigger logging."
                 )
-            if supports_triggerer(h):
+            if should_wrap_for_triggerer(h):
                 return h
 
     def find_suitable_task_handler():
         # check root logger then check airflow.task to see if a handler
-        # suitable for use with TriggerHandlerWrapper (has supports_triggerer
+        # suitable for use with TriggerHandlerWrapper (has wrap_for_triggerer
         # attr, likely inherits from FileTaskHandler)
         h = get_task_handler_from_logger(root_logger)
         if not h:

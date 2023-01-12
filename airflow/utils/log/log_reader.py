@@ -60,7 +60,7 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        kwargs = {"log_type": log_type} if self.supports_triggerer else {}
+        kwargs = {"log_type": log_type} if self.triggerer_logs_separate else {}
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata, **kwargs)
         metadata = metadatas[0]
         return logs, metadata
@@ -86,7 +86,7 @@ class TaskLogReader:
             metadata.pop("offset", None)
             metadata.pop("log_pos", None)
             while True:
-                kwargs = {"log_type": log_type} if self.supports_triggerer else {}
+                kwargs = {"log_type": log_type} if self.triggerer_logs_separate else {}
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata, **kwargs)
                 for host, log in logs[0]:
                     yield "\n".join([host or "", log]) + "\n"
@@ -114,8 +114,8 @@ class TaskLogReader:
         return hasattr(self.log_handler, "read")
 
     @property
-    def supports_triggerer(self):
-        return getattr(self.log_handler, "supports_triggerer", False)
+    def triggerer_logs_separate(self):
+        return getattr(self.log_handler, "triggerer_logs_separate", False)
 
     @property
     def supports_external_link(self) -> bool:
