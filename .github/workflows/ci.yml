@@ -581,6 +581,7 @@ jobs:
           COLUMNS: "250"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+          RUFF_FORMAT: "github"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
