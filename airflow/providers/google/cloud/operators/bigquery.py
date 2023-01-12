@@ -1631,7 +1631,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "compression": self.compression,
                 "csvOptions": {
-                    "fieldDelimeter": self.field_delimiter,
+                    "fieldDelimiter": self.field_delimiter,
                     "skipLeadingRows": self.skip_leading_rows,
                     "quote": self.quote_character,
                     "allowQuotedNewlines": self.allow_quoted_newlines,
