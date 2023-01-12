@@ -1315,7 +1315,10 @@ class TaskInstance(Base, LoggingMixin):
                 session.commit()
                 return False
 
-        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
+        if self.next_kwargs is not None:
+            self.log.info("resuming after deferral")
+        else:
+            self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
         self._try_number += 1
 
         if not test_mode:
