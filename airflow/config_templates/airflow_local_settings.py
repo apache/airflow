@@ -313,7 +313,7 @@ if REMOTE_LOGGING:
                 "offset_field": ELASTICSEARCH_OFFSET_FIELD,
             },
         }
-        if tuple(map(int, version.split(".")[:3])) >= (2, 3, 4):
+        if tuple(map(int, version.split(".")[:3])) < (2, 3, 4):
             # todo: remove this when ES min airflow version >= 2.3.4
             ELASTIC_REMOTE_HANDLERS["task"].update(log_id_template=ELASTICSEARCH_LOG_ID_TEMPLATE)
 
