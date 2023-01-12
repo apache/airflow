@@ -754,6 +754,7 @@ IRSA
 isfile
 ish
 isn
+isort
 iterable
 iterables
 iteratively

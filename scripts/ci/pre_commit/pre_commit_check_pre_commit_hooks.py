@@ -119,10 +119,10 @@ def black_mode():
 
     return Mode(
         target_versions=target_versions,
-        line_length=bool(config.get("line_length", Mode.line_length)),
-        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
-        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
-        preview=bool(config.get("preview", Mode.preview)),
+        line_length=config.get("line_length", Mode.line_length),
+        is_pyi=config.get("is_pyi", False),
+        string_normalization=not config.get("skip_string_normalization", False),
+        preview=config.get("preview", False),
     )
 
 
@@ -170,7 +170,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-length", help="Max length for hook names")
     args = parser.parse_args()
-    max_length = int(args.max_length) or 70
+    max_length = int(args.max_length or 70)
     content = yaml.safe_load(PRE_COMMIT_YAML_FILE.read_text())
     errors, hooks, image_hooks = get_errors_and_hooks(content, max_length)
     if errors:

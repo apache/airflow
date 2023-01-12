@@ -15,7 +15,6 @@
 .codespellignorelines
 .eslintrc
 .eslintignore
-.flake8
 .rat-excludes
 .stylelintignore
 .stylelintrc

@@ -21,13 +21,12 @@ import difflib
 import os
 import shutil
 import subprocess
-
-import jinja2
 import sys
 import textwrap
 from functools import lru_cache
 from pathlib import Path
 
+import jinja2
 from rich.console import Console
 
 if __name__ not in ("__main__", "__mp_main__"):

@@ -378,7 +378,7 @@ class EmrContainerHook(AwsBaseHook):
         Submit a job to the EMR Containers API and return the job ID.
         A job run is a unit of work, such as a Spark jar, PySpark script,
         or SparkSQL query, that you submit to Amazon EMR on EKS.
-        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run  # noqa: E501
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run
 
         :param name: The name of the job run.
         :param execution_role_arn: The IAM role ARN associated with the job run.
@@ -390,7 +390,7 @@ class EmrContainerHook(AwsBaseHook):
             Use this if you want to specify a unique ID to prevent two jobs from getting started.
         :param tags: The tags assigned to job runs.
         :return: Job ID
-        """
+        """  # noqa: E501
         params = {
             "name": name,
             "virtualClusterId": self.virtual_cluster_id,
@@ -443,10 +443,12 @@ class EmrContainerHook(AwsBaseHook):
     def check_query_status(self, job_id: str) -> str | None:
         """
         Fetch the status of submitted job run. Returns None or one of valid query states.
-        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.describe_job_run  # noqa: E501
+
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.describe_job_run
+
         :param job_id: Id of submitted job run
         :return: str
-        """
+        """  # noqa: E501
         try:
             response = self.conn.describe_job_run(
                 virtualClusterId=self.virtual_cluster_id,

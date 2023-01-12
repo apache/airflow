@@ -164,11 +164,17 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.11.2
-    hooks:
-      - id: isort
-        name: Run isort to sort imports in Python files
+      - id: ruff
+        name: ruff
+        language: python
+        require_serial: true
+        pass_filenames: true
+        # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
+        # host CPU to it's fullest
+        entry: ruff --fix --no-update-check --force-exclude
+        additional_dependencies: ['ruff>=0.0.219']
+        files: \.pyi?$
+        exclude: ^airflow/_vendor/
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
@@ -230,14 +236,6 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
-  # TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
-    hooks:
-      - id: pyupgrade
-        name: Upgrade Python code automatically
-        args: ["--py37-plus"]
-        exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
     hooks:
@@ -255,35 +253,6 @@ repos:
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/_vendor/
-  - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.1.1
-    hooks:
-      - id: pydocstyle
-        name: Run pydocstyle
-        args:
-          - --convention=pep257
-          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
-        exclude: |
-          (?x)
-          ^tests/.*\.py$|
-          ^scripts/.*\.py$|
-          ^dev|
-          ^provider_packages|
-          ^docker_tests|
-          ^kubernetes_tests|
-          .*example_dags/.*|
-          ^chart/.*\.py$|
-          ^airflow/_vendor/
-        additional_dependencies: ['toml']
-  - repo: https://github.com/asottile/yesqa
-    rev: v1.4.0
-    hooks:
-      - id: yesqa
-        name: Remove unnecessary noqa statements
-        exclude: |
-          (?x)
-          ^airflow/_vendor/
-        additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
     rev: '0.77'
     hooks:
@@ -322,11 +291,6 @@ repos:
         types: [file, text]
         exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
         additional_dependencies: ['rich>=12.4.4']
-      - id: static-check-autoflake
-        name: Remove all unused code
-        entry: autoflake --remove-all-unused-imports --ignore-init-module-imports --in-place
-        language: python
-        additional_dependencies: ['autoflake']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
         language: docker_image
@@ -903,14 +867,6 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
-      - id: run-flake8
-        name: Run flake8
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_flake8.py
-        files: \.py$
-        pass_filenames: true
-        exclude: ^airflow/_vendor/
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files

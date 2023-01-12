@@ -96,7 +96,6 @@ labelPRBasedOnFilePath:
     - .asf.yaml
     - .bash_completion
     - .dockerignore
-    - .flake8
     - .hadolint.yaml
     - .pre-commit-config.yaml
     - .rat-excludes

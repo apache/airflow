@@ -210,7 +210,7 @@ def connections_add(args):
     if has_json and has_uri:
         raise SystemExit("Cannot supply both conn-uri and conn-json")
 
-    if has_type and not (args.conn_type in _get_connection_types()):
+    if has_type and args.conn_type not in _get_connection_types():
         warnings.warn(f"The type provided to --conn-type is invalid: {args.conn_type}")
         warnings.warn(
             f"Supported --conn-types are:{_get_connection_types()}."

@@ -371,15 +371,8 @@ devel_only = [
     "click>=8.0",
     "coverage",
     "filelock",
-    "flake8>=3.9.0",
-    "flake8-colors",
-    "flake8-implicit-str-concat",
     "gitpython",
     "ipdb",
-    # make sure that we are using stable sorting order from 5.* version (some changes were introduced
-    # in 5.11.3. Black is not compatible yet, so we need to limit isort
-    # we can remove the limit when black and isort agree on the order
-    "isort==5.11.2",
     "jira",
     "jsondiff",
     "mongomock",
@@ -410,6 +403,7 @@ devel_only = [
     "pytest-httpx",
     "requests_mock",
     "rich-click>=1.5",
+    "ruff>=0.0.219",
     "semver",
     "time-machine",
     "towncrier",

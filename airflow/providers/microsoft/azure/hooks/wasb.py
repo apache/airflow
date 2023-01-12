@@ -442,7 +442,7 @@ class WasbHook(BaseHook):
             self.log.info("Deleted container: %s", container_name)
         except ResourceNotFoundError:
             self.log.info("Unable to delete container %s (not found)", container_name)
-        except:  # noqa: E722
+        except:
             self.log.info("Error deleting container: %s", container_name)
             raise
 

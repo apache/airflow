@@ -210,7 +210,7 @@ class GKECreateClusterOperator(BaseOperator):
     def _check_input(self) -> None:
         if (
             not all([self.project_id, self.location, self.body])
-            or (isinstance(self.body, dict) and not ("name" in self.body))
+            or (isinstance(self.body, dict) and "name" not in self.body)
             or (
                 isinstance(self.body, dict)
                 and ("initial_node_count" not in self.body and "node_pools" not in self.body)

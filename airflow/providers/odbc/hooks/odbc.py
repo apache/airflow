@@ -145,7 +145,7 @@ class OdbcHook(DbApiHook):
 
             extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme"}
             extra_params = {
-                k: v for k, v in self.connection.extra_dejson.items() if not k.lower() in extra_exclude
+                k: v for k, v in self.connection.extra_dejson.items() if k.lower() not in extra_exclude
             }
             for k, v in extra_params.items():
                 conn_str += f"{k}={v};"
