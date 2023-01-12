@@ -780,7 +780,10 @@ class KubernetesExecutor(BaseExecutor):
             # still be in queued.
             query_kwargs = {
                 "field_selector": "status.phase!=Succeeded",
-                "label_selector": f"kubernetes_executor=True,airflow-worker={scheduler_job_id}",
+                "label_selector": (
+                    "kubernetes_executor=True,"
+                    f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}!=True"
+                ),
             }
             pod_list = self._list_pods(query_kwargs)
             for pod in pod_list:

@@ -646,7 +646,7 @@ class TestKubernetesExecutor:
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
             namespace="default",
             field_selector="status.phase!=Succeeded",
-            label_selector="kubernetes_executor=True,airflow-worker=1",
+            label_selector="kubernetes_executor=True,airflow-worker=1,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once_with(mock_kube_client, pod, {ti_key: mock_ti})
         mock_adopt_completed_pods.assert_called_once()
@@ -666,7 +666,7 @@ class TestKubernetesExecutor:
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
             namespace="default",
             field_selector="status.phase!=Succeeded",
-            label_selector="kubernetes_executor=True,airflow-worker=10",
+            label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once()  # Won't check args this time around as they get mutated
         mock_adopt_completed_pods.assert_called_once()
@@ -692,12 +692,12 @@ class TestKubernetesExecutor:
                 mock.call(
                     namespace="default",
                     field_selector="status.phase!=Succeeded",
-                    label_selector="kubernetes_executor=True,airflow-worker=10",
+                    label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
                 ),
                 mock.call(
                     namespace="default",
                     field_selector="status.phase!=Succeeded",
-                    label_selector="kubernetes_executor=True,airflow-worker=40",
+                    label_selector="kubernetes_executor=True,airflow-worker=40,airflow_executor_done!=True",
                 ),
             ],
             any_order=True,
