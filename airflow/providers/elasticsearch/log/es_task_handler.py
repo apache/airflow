@@ -413,8 +413,8 @@ def getattr_nested(obj, item, default):
     """
     Get item from obj but return default if not found
 
-    E.g. calling ``getattr_nested('b.c', a, "NA")`` will return
-    ``a.b.c`` if such a value exists
+    E.g. calling ``getattr_nested(a, 'b.c', "NA")`` will return
+    ``a.b.c`` if such a value exists, and "NA" otherwise.
 
     :meta private:
     """
