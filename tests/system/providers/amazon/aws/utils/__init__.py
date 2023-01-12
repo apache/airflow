@@ -29,6 +29,7 @@ from botocore.client import BaseClient
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.decorators import task
+from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 
 ENV_ID_ENVIRON_KEY: str = "SYSTEM_TESTS_ENV_ID"
 ENV_ID_KEY: str = "ENV_ID"
@@ -92,15 +93,15 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     :return: The value of the provided key from SSM
     """
     _test_name: str = test_name if test_name else _get_test_name()
-    ssm_client: BaseClient = boto3.client("ssm")
+    hook = SsmHook(aws_conn_id=None)
     value: str = ""
 
     try:
-        value = json.loads(ssm_client.get_parameter(Name=_test_name)["Parameter"]["Value"])[key]
+        value = json.loads(hook.get_parameter_value(_test_name))[key]
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError as e:
         log.info("No boto credentials found: %s", e)
-    except ssm_client.exceptions.ParameterNotFound as e:
+    except hook.conn.exceptions.ParameterNotFound as e:
         log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
         log.info("SSM contains one parameter for this test, but not the requested value: %s", e)

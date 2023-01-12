@@ -195,6 +195,10 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/s3.rst
     tags: [aws]
+  - integration-name: Amazon Systems Manager (SSM)
+    external-doc-url: https://aws.amazon.com/systems-manager/
+    logo: /integration-logos/aws/AWS-Systems-Manager_light-bg@4x.png
+    tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
     logo: /integration-logos/aws/AWS-Cloud-alt_light-bg@4x.png
@@ -461,6 +465,9 @@ hooks:
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.ssm
   - integration-name: Amazon SecretsManager
     python-modules:
       - airflow.providers.amazon.aws.hooks.secrets_manager
