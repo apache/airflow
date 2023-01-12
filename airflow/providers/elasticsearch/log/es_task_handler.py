@@ -179,7 +179,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _group_logs_by_host(self, logs):
         grouped_logs = defaultdict(list)
         for log in logs:
-            key = safe_attrgetter(self.host_field, obj=log, default="default_host")
+            key = getattr_nested(log, self.host_field, None) or "default_host"
             grouped_logs[key].append(log)
 
         return grouped_logs
@@ -409,16 +409,22 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return bool(self.frontend)
 
 
-def safe_attrgetter(*items, obj, default):
+def getattr_nested(obj, item, default):
     """
-    Get items from obj but return default if not found
+    Get item from obj but return default if not found
+
+    E.g. calling ``getattr_nested('b.c', a, "NA")`` will return
+    ``a.b.c`` if such a value exists
 
     :meta private:
     """
-    val = None
+    NOTSET = object()
+    val = NOTSET
     try:
-        val = attrgetter(*items)(obj)
+        val = attrgetter(item)(obj)
     except AttributeError:
         pass
-
-    return val or default
+    if val is NOTSET:
+        return default
+    else:
+        return val
