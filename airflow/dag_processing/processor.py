@@ -28,10 +28,12 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Iterator
 
 from setproctitle import setproctitle
-from sqlalchemy import exc, func, or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
+from airflow.api_internal.actions.dag import InternalApiDagActions
+from airflow.api_internal.actions.taskinstance import InternalApiTaskInstanceActions
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
@@ -689,18 +691,17 @@ class DagFileProcessor(LoggingMixin):
             return
 
         simple_ti = request.simple_task_instance
-        ti: TI | None = (
-            session.query(TI)
-            .filter_by(
-                dag_id=simple_ti.dag_id,
-                run_id=simple_ti.run_id,
-                task_id=simple_ti.task_id,
-                map_index=simple_ti.map_index,
-            )
-            .one_or_none()
+        ti = InternalApiTaskInstanceActions.get_task_instance(
+            dag_id=simple_ti.dag_id,
+            run_id=simple_ti.run_id,
+            task_id=simple_ti.task_id,
+            map_index=simple_ti.map_index,
+            session=session,
         )
         if not ti:
             return
+
+        # TODO: Need to convert back here internal API object to SQLAlchemy object
 
         task: Operator | None = None
 
@@ -713,14 +714,10 @@ class DagFileProcessor(LoggingMixin):
             # `handle_failure` so that the state of the TI gets progressed.
             #
             # Since handle_failure _really_ wants a task, we do our best effort to give it one
-            from airflow.models.serialized_dag import SerializedDagModel
+            task = InternalApiDagActions.get_serialized_dag(
+                dag_id=simple_ti.dag_id, task_id=simple_ti.task_id, session=session
+            )
 
-            try:
-                model = session.query(SerializedDagModel).get(simple_ti.dag_id)
-                if model:
-                    task = model.dag.get_task(simple_ti.task_id)
-            except (exc.NoResultFound, TaskNotFound):
-                pass
         if task:
             ti.refresh_from_task(task)
 

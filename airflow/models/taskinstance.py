@@ -64,6 +64,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators, case
 
 from airflow import settings
+from airflow.api_internal.actions.taskinstance import InternalApiTaskInstanceActions
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
@@ -108,7 +109,6 @@ from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
-from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
@@ -776,29 +776,15 @@ class TaskInstance(Base, LoggingMixin):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
-        self.log.debug("Refreshing TaskInstance %s from DB", self)
-
-        if self in session:
-            session.refresh(self, TaskInstance.__mapper__.column_attrs.keys())
-
-        qry = (
-            # To avoid joining any relationships, by default select all
-            # columns, not the object. This also means we get (effectively) a
-            # namedtuple back, not a TI object
-            session.query(*TaskInstance.__table__.columns).filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.run_id == self.run_id,
-                TaskInstance.map_index == self.map_index,
-            )
+        ti = InternalApiTaskInstanceActions.get_task_instance(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+            lock_for_update=lock_for_update,
+            session=session,
         )
 
-        if lock_for_update:
-            for attempt in run_with_db_retries(logger=self.log):
-                with attempt:
-                    ti: TaskInstance | None = qry.with_for_update().one_or_none()
-        else:
-            ti = qry.one_or_none()
         if ti:
             # Fields ordered per model definition
             self.start_date = ti.start_date
@@ -1808,6 +1794,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
         if context is None and getattr(self, "task", None):
+            # TODO: Need to convert this one. Looks massive!
             context = self.get_template_context(session)
 
         if context is not None:
