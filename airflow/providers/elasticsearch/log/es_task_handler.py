@@ -418,13 +418,7 @@ def getattr_nested(obj, item, default):
 
     :meta private:
     """
-    NOTSET = object()
-    val = NOTSET
     try:
-        val = attrgetter(item)(obj)
+        return attrgetter(item)(obj)
     except AttributeError:
-        pass
-    if val is NOTSET:
         return default
-    else:
-        return val
