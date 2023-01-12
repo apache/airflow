@@ -59,7 +59,11 @@ class WebEncoder(json.JSONEncoder):
             data = serialize(o)
             if isinstance(data, dict) and DATA in data:
                 return data[DATA]
-
+        if isinstance(o, bytes):
+            try:
+                return o.decode()
+            except Exception:
+                return o.__repr__()
         try:
             data = serialize(o)
             if isinstance(data, dict) and CLASSNAME in data:
@@ -71,7 +75,7 @@ class WebEncoder(json.JSONEncoder):
                     return data[DATA]
             return data
         except TypeError:
-            raise
+            return o.__repr__()
 
 
 class XComEncoder(json.JSONEncoder):
@@ -111,21 +115,6 @@ class XComDecoder(json.JSONDecoder):
     def orm_object_hook(dct: dict) -> object:
         """Creates a readable representation of a serialized object"""
         return deserialize(dct, False)
-
-
-class DagRunConfEncoder(WebEncoder):
-    """This encodes DagRunConf values into a web understandable format. There is no deserializer"""
-
-    def default(self, obj):
-        try:
-            return super().default(obj)
-        except Exception:
-            if isinstance(obj, bytes):
-                try:
-                    return obj.decode()
-                except Exception:
-                    return obj.__repr__()
-            return obj.__repr__()
 
 
 # backwards compatibility

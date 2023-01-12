@@ -193,7 +193,7 @@ class TestAttrRenderer:
             '{"1": "string", "2": "bytes", "3": 123, "4": "b\'\\\\xe0\'", "5": "2023-01-01T00:00:00+00:00"}'
         )
         encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(
-            dag_run_conf, json_encoder=utils_json.DagRunConfEncoder
+            dag_run_conf, json_encoder=utils_json.WebEncoder
         )
         assert expected_encoded_dag_run_conf == encoded_dag_run_conf
 
