@@ -24,6 +24,7 @@ import logging
 import math
 import operator
 import os
+import shlex
 import signal
 import warnings
 from collections import defaultdict
@@ -1516,7 +1517,7 @@ class TaskInstance(Base, LoggingMixin):
             if not self.next_method:
                 self.log.info(
                     "Exporting env vars: %s",
-                    " ".join(f"{k}={v}" for k, v in airflow_context_vars.items()),
+                    " ".join(f"{k}={shlex.quote(v)}" for k, v in airflow_context_vars.items()),
                 )
 
             # Run pre_execute callback
