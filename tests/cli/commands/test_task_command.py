@@ -697,7 +697,7 @@ class TestLogsfromTaskRunCommand:
             # 20 is arbitrary, but, with enough padding to hopefully not be flakey
             assert len(lines) > 20
             self.assert_log_line("Starting attempt 1 of 1", lines)
-            self.assert_log_line("Exporting the following env vars", lines)
+            self.assert_log_line("Exporting env vars", lines)
             self.assert_log_line("Log from DAG Logger", lines)
             self.assert_log_line("Log from TI Logger", lines)
             self.assert_log_line("Log from Print statement", lines, expect_from_logging_mixin=True)
