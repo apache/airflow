@@ -49,7 +49,7 @@ DUMP_COMMON_ARGS = {
     "flow_name": FLOW_NAME,
     "poll_interval": 0,
 }
-AppflowBaseOperator.UPDATE_PROPAGATION_TIME = 0.1  # avoid wait
+AppflowBaseOperator.UPDATE_PROPAGATION_TIME = 0  # avoid wait
 
 
 @pytest.fixture
@@ -120,7 +120,9 @@ def test_run_full(appflow_conn, ctx):
 
 
 def test_run_after(appflow_conn, ctx):
-    operator = AppflowRunAfterOperator(source_field="col0", filter_date="2022-05-26", **DUMP_COMMON_ARGS)
+    operator = AppflowRunAfterOperator(
+        source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
+    )
     operator.execute(ctx)  # type: ignore
     run_assertions_base(
         appflow_conn,
@@ -136,7 +138,9 @@ def test_run_after(appflow_conn, ctx):
 
 
 def test_run_before(appflow_conn, ctx):
-    operator = AppflowRunBeforeOperator(source_field="col0", filter_date="2022-05-26", **DUMP_COMMON_ARGS)
+    operator = AppflowRunBeforeOperator(
+        source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
+    )
     operator.execute(ctx)  # type: ignore
     run_assertions_base(
         appflow_conn,
@@ -152,7 +156,9 @@ def test_run_before(appflow_conn, ctx):
 
 
 def test_run_daily(appflow_conn, ctx):
-    operator = AppflowRunDailyOperator(source_field="col0", filter_date="2022-05-26", **DUMP_COMMON_ARGS)
+    operator = AppflowRunDailyOperator(
+        source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
+    )
     operator.execute(ctx)  # type: ignore
     run_assertions_base(
         appflow_conn,
