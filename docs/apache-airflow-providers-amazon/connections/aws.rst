@@ -148,6 +148,18 @@ Snippet to create Connection and convert to URI
     os.environ[env_key] = conn_uri
     print(conn.test_connection())
 
+
+  .. warning:: When using airflow CLI there might be a need to add ``@`` when:
+
+    - login
+    - password,
+    - host
+    - port
+
+    are not given see example below. This is a known airflow limitation.
+
+    ``airflow connections add aws_conn --conn-uri aws://@/?egion_name=eu-west-1``
+
 Using instance profile
 ^^^^^^^^^^^^^^^^^^^^^^
 
