@@ -2040,7 +2040,10 @@ export interface components {
     };
     /** @description Metadata about collection. */
     CollectionInfo: {
-      /** @description Count of objects in the current result set. */
+      /**
+       * @description Count of total objects in the current result set before pagination parameters
+       * (limit, offset) are applied.
+       */
       total_entries?: number;
     };
     /**
