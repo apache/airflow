@@ -31,7 +31,7 @@ import pendulum
 import pytest
 
 from airflow.configuration import conf
-from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler
+from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler, safe_attrgetter
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
@@ -590,3 +590,15 @@ class TestElasticsearchTaskHandler:
         assert first_log["asctime"] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert third_log["asctime"] == t3.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
+
+
+def test_safe_attrgetter():
+    class A:
+        a = "hi"
+
+    a = A()
+    a.b = a
+    assert safe_attrgetter("a", "b.a", obj=a, default=None) == ("hi", "hi")
+    assert safe_attrgetter("a", obj=a, default=None) == "hi"
+    assert safe_attrgetter("aa", obj=a, default="heya") == "heya"
+    assert safe_attrgetter("aa", obj=a, default=None) is None

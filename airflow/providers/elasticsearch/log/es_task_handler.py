@@ -179,7 +179,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _group_logs_by_host(self, logs):
         grouped_logs = defaultdict(list)
         for log in logs:
-            key = getattr(log, self.host_field, "default_host")
+            key = safe_attrgetter(self.host_field, obj=log, default="default_host")
             grouped_logs[key].append(log)
 
         return grouped_logs
@@ -407,3 +407,18 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def supports_external_link(self) -> bool:
         """Whether we can support external links"""
         return bool(self.frontend)
+
+
+def safe_attrgetter(*items, obj, default):
+    """
+    Get items from obj but return default if not found
+
+    :meta private:
+    """
+    val = None
+    try:
+        val = attrgetter(*items)(obj)
+    except AttributeError:
+        pass
+
+    return val or default
