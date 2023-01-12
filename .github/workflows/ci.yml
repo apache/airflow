@@ -256,18 +256,20 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+        if: >
+          matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
       - name: "Push CI cache ${{ matrix.platform }}"
         run: >
           breeze ci-image build
@@ -278,7 +280,7 @@ jobs:
           --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-        if: needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Push CI latest image ${{ matrix.platform }}"
         run: >
           breeze ci-image build
@@ -287,18 +289,24 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
         # We only push "amd" image as it is really only needed for any kind of automated builds in CI
         # and currently there is not an easy way to make multi-platform image from two separate builds
-        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
-
+        if: >
+          matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+        if: >
+          always() && matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
       - name: "Clean docker cache for ${{ matrix.platform }}"
         run: docker system prune --all --force
-        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
+        if: >
+          matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
-        if: always() && needs.build-info.outputs.canary-run == 'true'
-
+        if: >
+          always() && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
     timeout-minutes: 5
