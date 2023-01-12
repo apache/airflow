@@ -121,6 +121,10 @@ Name                                                                   Descripti
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
 ``triggers.succeeded``                                                 Number of triggers that have fired at least one event
+``dataset.changed_datasets``                                           Number of changed datasets
+``dataset.orphaned_datasets``                                          Number of datasets marked as orphans because they are no longer referenced in DAG
+                                                                       schedule parameters or task outlets
+``dataset.triggered_runs``                                             Number of runs triggered by a dataset change
 ====================================================================== ================================================================
 
 Gauges
