@@ -561,4 +561,4 @@ class TestAsyncKubernetesHook:
             follow=False,
             timestamps=True,
         )
-        assert "Container logs from 2023-01-11: Some string logs..." in caplog.text
+        assert "Container logs from 2023-01-11 Some string logs..." in caplog.text
