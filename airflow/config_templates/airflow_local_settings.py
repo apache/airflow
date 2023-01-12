@@ -25,6 +25,7 @@ from urllib.parse import urlsplit
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.version import version
 
 # TODO: Logging format and level should be configured
 # in this file instead of from airflow.cfg. Currently
@@ -301,7 +302,6 @@ if REMOTE_LOGGING:
                 "class": "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler",
                 "formatter": "airflow",
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
-                "log_id_template": ELASTICSEARCH_LOG_ID_TEMPLATE,
                 "filename_template": FILENAME_TEMPLATE,
                 "end_of_log_mark": ELASTICSEARCH_END_OF_LOG_MARK,
                 "host": ELASTICSEARCH_HOST,
@@ -313,6 +313,9 @@ if REMOTE_LOGGING:
                 "offset_field": ELASTICSEARCH_OFFSET_FIELD,
             },
         }
+        if tuple(map(int, version.split(".")[:3])) >= (2, 3, 4):
+            # todo: remove this when ES min airflow version >= 2.3.4
+            ELASTIC_REMOTE_HANDLERS["task"].update(log_id_template=ELASTICSEARCH_LOG_ID_TEMPLATE)
 
         DEFAULT_LOGGING_CONFIG["handlers"].update(ELASTIC_REMOTE_HANDLERS)
     else:
