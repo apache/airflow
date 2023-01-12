@@ -239,7 +239,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
                     "autodetect": True,
                     "compression": "NONE",
                     "csvOptions": {
-                        "fieldDelimeter": ",",
+                        "fieldDelimiter": ",",
                         "skipLeadingRows": 0,
                         "quote": None,
                         "allowQuotedNewlines": False,
