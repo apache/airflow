@@ -1779,6 +1779,10 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
         operation.result()
         self.log.info("Workflow %s completed successfully", self.workflow_id)
+    
+    def on_kill(self):
+        if self.operation:
+            self.operation.cancel()
 
 
 class DataprocSubmitJobOperator(BaseOperator):
