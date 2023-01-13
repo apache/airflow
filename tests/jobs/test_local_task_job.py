@@ -397,7 +397,6 @@ class TestLocalTaskJob:
             ]
         )
 
-    @pytest.mark.quarantined
     @patch.object(StandardTaskRunner, "return_code")
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
 

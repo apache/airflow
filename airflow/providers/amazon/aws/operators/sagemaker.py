@@ -1064,6 +1064,7 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
     :param name: name of the experiment, must be unique within the AWS account
     :param description: description of the experiment, optional
     :param tags: tags to attach to the experiment, optional
+    :param aws_conn_id: The AWS connection ID to use.
 
     :returns: the ARN of the experiment created, though experiments are referred to by name
     """
@@ -1079,14 +1080,14 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
         *,
         name: str,
         description: str | None = None,
-        tags: dict | list | None = None,
+        tags: dict | None = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         **kwargs,
     ):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
         self.name = name
         self.description = description
-        self.tags = tags
+        self.tags = tags or {}
 
     def execute(self, context: Context) -> str:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
