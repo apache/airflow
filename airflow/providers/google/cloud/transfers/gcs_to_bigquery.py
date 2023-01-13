@@ -147,6 +147,8 @@ class GCSToBigQueryOperator(BaseOperator):
         options and schema for CSV and JSON sources. (Default: ``True``).
         Parameter must be set to True if 'schema_fields' and 'schema_object' are undefined.
         It is suggested to set to True if table are create outside of Airflow.
+        If autodetect is None and no schema is provided (neither via schema_fields
+        nor a schema_object), assume the table already exists.
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
 
@@ -337,7 +339,10 @@ class GCSToBigQueryOperator(BaseOperator):
         self.source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
 
         if not self.schema_fields:
-            if not self.schema_object and not self.autodetect:
+            # Check for self.autodetect explicitly False. self.autodetect equal to None
+            # entails we do not want to detect schema from files. Instead, it means we
+            # rely on an already existing table's schema
+            if not self.schema_object and self.autodetect is False:
                 raise AirflowException(
                     "Table schema was not found. Neither schema object nor schema fields were specified"
                 )

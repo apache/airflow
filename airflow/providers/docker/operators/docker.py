@@ -26,17 +26,20 @@ from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from docker import APIClient, tls  # type: ignore[attr-defined]
-from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
-from docker.errors import APIError  # type: ignore[attr-defined]
-from docker.types import DeviceRequest, LogConfig, Mount  # type: ignore[attr-defined]
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
+from docker.errors import APIError
+from docker.types import LogConfig, Mount
 from dotenv import dotenv_values
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
 
 if TYPE_CHECKING:
+    from docker import APIClient
+    from docker.types import DeviceRequest
+
     from airflow.utils.context import Context
 
 
@@ -258,8 +261,7 @@ class DockerOperator(BaseOperator):
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
 
-        self.cli = None
-        self.container = None
+        self.container: dict = None  # type: ignore[assignment]
         self.retrieve_output = retrieve_output
         self.retrieve_output_path = retrieve_output_path
         self.timeout = timeout
@@ -268,25 +270,35 @@ class DockerOperator(BaseOperator):
         self.log_opts_max_file = log_opts_max_file
         self.ipc_mode = ipc_mode
 
-    def get_hook(self) -> DockerHook:
-        """
-        Retrieves hook for the operator.
-
-        :return: The Docker Hook
-        """
+    @cached_property
+    def hook(self) -> DockerHook:
+        """Create and return an DockerHook (cached)."""
+        tls_config = DockerHook.construct_tls_config(
+            ca_cert=self.tls_ca_cert,
+            client_cert=self.tls_client_cert,
+            client_key=self.tls_client_key,
+            assert_hostname=self.tls_hostname,
+            ssl_version=self.tls_ssl_version,
+        )
         return DockerHook(
             docker_conn_id=self.docker_conn_id,
             base_url=self.docker_url,
             version=self.api_version,
-            tls=self.__get_tls_config(),
+            tls=tls_config,
             timeout=self.timeout,
         )
+
+    def get_hook(self) -> DockerHook:
+        """Create and return an DockerHook (cached)."""
+        return self.hook
+
+    @property
+    def cli(self) -> APIClient:
+        return self.hook.api_client
 
     def _run_image(self) -> list[str] | str | None:
         """Run a Docker container with the provided image"""
         self.log.info("Starting docker container from image %s", self.image)
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
         if self.mount_tmp_dir:
             with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir_generated:
                 tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
@@ -310,8 +322,6 @@ class DockerOperator(BaseOperator):
             self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
         else:
             self.environment.pop("AIRFLOW_TMP_DIR", None)
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
         docker_log_config = {}
         if self.log_opts_max_size is not None:
             docker_log_config["max-size"] = self.log_opts_max_size
@@ -407,16 +417,11 @@ class DockerOperator(BaseOperator):
         except APIError:
             return None
 
-    def execute(self, context: Context) -> str | None:
-        self.cli = self._get_cli()
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
-
+    def execute(self, context: Context) -> list[str] | str | None:
         # Pull the docker image if `force_pull` is set or image does not exist locally
-
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info("Pulling docker image %s", self.image)
-            latest_status = {}
+            latest_status: dict[str, str] = {}
             for output in self.cli.pull(self.image, stream=True, decode=True):
                 if isinstance(output, str):
                     self.log.info("%s", output)
@@ -433,17 +438,8 @@ class DockerOperator(BaseOperator):
                         latest_status[output_id] = output_status
         return self._run_image()
 
-    def _get_cli(self) -> APIClient:
-        if self.docker_conn_id:
-            return self.get_hook().get_conn()
-        else:
-            tls_config = self.__get_tls_config()
-            return APIClient(
-                base_url=self.docker_url, version=self.api_version, tls=tls_config, timeout=self.timeout
-            )
-
     @staticmethod
-    def format_command(command: str | list[str]) -> list[str] | str:
+    def format_command(command: list[str] | str | None) -> list[str] | str | None:
         """
         Retrieve command(s). if command string starts with [, it returns the command list)
 
@@ -452,31 +448,16 @@ class DockerOperator(BaseOperator):
         :return: the command (or commands)
         """
         if isinstance(command, str) and command.strip().find("[") == 0:
-            return ast.literal_eval(command)
+            command = ast.literal_eval(command)
         return command
 
     def on_kill(self) -> None:
-        if self.cli is not None:
+        if self.hook.client_created:
             self.log.info("Stopping docker container")
             if self.container is None:
                 self.log.info("Not attempting to kill container as it was not created")
                 return
             self.cli.stop(self.container["Id"])
-
-    def __get_tls_config(self) -> tls.TLSConfig | None:
-        tls_config = None
-        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
-            # Ignore type error on SSL version here - it is deprecated and type annotation is wrong
-            # it should be string
-            tls_config = tls.TLSConfig(
-                ca_cert=self.tls_ca_cert,
-                client_cert=(self.tls_client_cert, self.tls_client_key),
-                verify=True,
-                ssl_version=self.tls_ssl_version,
-                assert_hostname=self.tls_hostname,
-            )
-            self.docker_url = self.docker_url.replace("tcp://", "https://")
-        return tls_config
 
     @staticmethod
     def unpack_environment_variables(env_str: str) -> dict:

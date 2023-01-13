@@ -360,6 +360,7 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
     merge_conn(
         Connection(
             conn_id="kubernetes_default",
@@ -1582,7 +1583,7 @@ def upgradedb(
         log.info("Creating tables")
         val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
         try:
-            # Reconfigure the ORM ot use _EXACTLY_ one connection, otherwise some db engines hang forever
+            # Reconfigure the ORM to use _EXACTLY_ one connection, otherwise some db engines hang forever
             # trying to ALTER TABLEs
             os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = "1"
             settings.reconfigure_orm(pool_class=sqlalchemy.pool.SingletonThreadPool)

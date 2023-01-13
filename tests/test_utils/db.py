@@ -185,3 +185,25 @@ def clear_dag_specific_permissions():
             synchronize_session=False
         )
         session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
+
+
+def clear_all():
+    clear_db_runs()
+    clear_db_datasets()
+    clear_db_dags()
+    clear_db_serialized_dags()
+    clear_db_sla_miss()
+    clear_db_dag_code()
+    clear_db_callbacks()
+    clear_rendered_ti_fields()
+    clear_db_import_errors()
+    clear_db_dag_warnings()
+    clear_db_logs()
+    clear_db_jobs()
+    clear_db_task_fail()
+    clear_db_task_reschedule()
+    clear_db_xcom()
+    clear_db_variables()
+    clear_db_pools()
+    clear_db_connections(add_default_connections_back=True)
+    clear_dag_specific_permissions()

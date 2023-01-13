@@ -168,6 +168,8 @@ definitions in Airflow.
 
     # This is the class you derive to create a plugin
     from airflow.plugins_manager import AirflowPlugin
+    from airflow.security import permissions
+    from airflow.www.auth import has_access
 
     from flask import Blueprint
     from flask_appbuilder import expose, BaseView as AppBuilderBaseView
@@ -201,6 +203,11 @@ definitions in Airflow.
         default_view = "test"
 
         @expose("/")
+        @has_access(
+            [
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ]
+        )
         def test(self):
             return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
@@ -210,6 +217,11 @@ definitions in Airflow.
         default_view = "test"
 
         @expose("/")
+        @has_access(
+            [
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ]
+        )
         def test(self):
             return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
@@ -245,7 +257,7 @@ definitions in Airflow.
         appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
         appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
 
-.. seealso:: :doc:`/howto/define_extra_link`
+.. seealso:: :doc:`/howto/define-extra-link`
 
 Exclude views from CSRF protection
 ----------------------------------

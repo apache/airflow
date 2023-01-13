@@ -225,7 +225,7 @@ core:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
         The individual items will be parsed as regexp. Python built-in classes (like dict)
-        are always allowed
+        are always allowed. Bare "." will be replaced so you can set airflow.* .
       version_added: 2.5.0
       type: string
       default: 'airflow\..*'

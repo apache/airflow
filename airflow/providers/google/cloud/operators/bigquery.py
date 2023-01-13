@@ -611,7 +611,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-        failed_tests(
+        failed_tests.extend(
             f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
             for col, checks in self.column_mapping.items()
             for check, check_values in checks.items()
@@ -1156,7 +1156,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param table_id: The Name of the table to be created. (templated)
     :param table_resource: Table resource as described in documentation:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-        If provided all other parameters are ignored.
+        If provided all other parameters are ignored. (templated)
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
 
@@ -1254,6 +1254,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "table_id",
+        "table_resource",
         "project_id",
         "gcs_schema_object",
         "labels",
@@ -1630,7 +1631,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "compression": self.compression,
                 "csvOptions": {
-                    "fieldDelimeter": self.field_delimiter,
+                    "fieldDelimiter": self.field_delimiter,
                     "skipLeadingRows": self.skip_leading_rows,
                     "quote": self.quote_character,
                     "allowQuotedNewlines": self.allow_quoted_newlines,

@@ -611,8 +611,8 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
-apache.druid, apache.flink, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig,
-apache.pinot, apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas,
+apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kylin, apache.livy,
+apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas,
 atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes, common.sql,
 crypto, dask, databricks, datadog, dbt.cloud, deprecated_api, devel, devel_all, devel_ci,
 devel_hadoop, dingding, discord, doc, doc_gen, docker, druid, elasticsearch, exasol, facebook, ftp,
@@ -893,7 +893,7 @@ as described in the static code checks documentation.
 Coding style and best practices
 ===============================
 
-Most of our coding style rules are enforced programmatically by flake8 and mypy (which are run automatically
+Most of our coding style rules are enforced programmatically by ruff and mypy (which are run automatically
 on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
 semantic than style
 

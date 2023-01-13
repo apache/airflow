@@ -153,17 +153,30 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.3.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.12.0', 'jinja2']
         pass_filenames: false
         require_serial: true
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.11.4
-    hooks:
-      - id: isort
-        name: Run isort to sort imports in Python files
-  # Keep version of black in sync wit blacken-docs, pre-commit-hook-names, update-common-sql-api-stubs
+      - id: update-black-version
+        name: Update black versions everywhere
+        entry: ./scripts/ci/pre_commit/pre_commit_update_black_version.py
+        language: python
+        files: ^.pre-commit-config.yaml$
+        additional_dependencies: ['pyyaml']
+        pass_filenames: false
+        require_serial: true
+      - id: ruff
+        name: ruff
+        language: python
+        require_serial: true
+        pass_filenames: true
+        # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
+        # host CPU to it's fullest
+        entry: ruff --fix --no-update-check --force-exclude
+        additional_dependencies: ['ruff>=0.0.219']
+        files: \.pyi?$
+        exclude: ^airflow/_vendor/
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 22.12.0
     hooks:
       - id: black
         name: Run black (python formatter)
@@ -181,7 +194,7 @@ repos:
           - --target-version=py39
           - --target-version=py310
         alias: black
-        additional_dependencies: [black==22.3.0]
+        additional_dependencies: [black==22.12.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
@@ -223,14 +236,6 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
-  # TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v2.32.1
-    hooks:
-      - id: pyupgrade
-        name: Upgrade Python code automatically
-        args: ["--py37-plus"]
-        exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
     hooks:
@@ -248,37 +253,8 @@ repos:
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/_vendor/
-  - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.1.1
-    hooks:
-      - id: pydocstyle
-        name: Run pydocstyle
-        args:
-          - --convention=pep257
-          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
-        exclude: |
-          (?x)
-          ^tests/.*\.py$|
-          ^scripts/.*\.py$|
-          ^dev|
-          ^provider_packages|
-          ^docker_tests|
-          ^kubernetes_tests|
-          .*example_dags/.*|
-          ^chart/.*\.py$|
-          ^airflow/_vendor/
-        additional_dependencies: ['toml']
-  - repo: https://github.com/asottile/yesqa
-    rev: v1.3.0
-    hooks:
-      - id: yesqa
-        name: Remove unnecessary noqa statements
-        exclude: |
-          (?x)
-          ^airflow/_vendor/
-        additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
-    rev: '0.76'
+    rev: '0.77'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -292,7 +268,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.1.0
+    rev: v2.2.2
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
@@ -315,11 +291,6 @@ repos:
         types: [file, text]
         exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
         additional_dependencies: ['rich>=12.4.4']
-      - id: static-check-autoflake
-        name: Remove all unused code
-        entry: autoflake --remove-all-unused-imports --ignore-init-module-imports --in-place
-        language: python
-        additional_dependencies: ['autoflake']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
         language: docker_image
@@ -664,7 +635,7 @@ repos:
           - --max-length=64
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'tabulate', 'rich>=12.4.4']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.12.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
@@ -897,22 +868,13 @@ repos:
         exclude: ^docs/rtd-deprecation
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
-      - id: run-flake8
-        name: Run flake8
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_flake8.py
-        files: \.py$
-        pass_filenames: true
-        exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
-        pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
-        require_serial: true
-        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
+        files: ^airflow/providers/.*/provider.yaml$
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
         language: python

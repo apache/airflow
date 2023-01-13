@@ -128,6 +128,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.hive         | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                     |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.impala       | ``pip install 'apache-airflow[apache.impala]'``     | All Impala related operators & hooks           |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.kylin        | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.livy         | ``pip install 'apache-airflow[apache.livy]'``       | All Livy related operators, hooks & sensors    |
@@ -300,7 +302,7 @@ These are extras that provide support for integration with external systems via 
 Bundle extras
 -------------
 
-These are extras that install one ore more extras as a bundle. Note that these extras should only be used for "development" version
+These are extras that install one or more extras as a bundle. Note that these extras should only be used for "development" version
 of Airflow - i.e. when Airflow is installed from sources. Because of the way how bundle extras are constructed they might not
 work when airflow is installed from 'PyPI`.
 

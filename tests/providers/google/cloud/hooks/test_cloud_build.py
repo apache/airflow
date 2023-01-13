@@ -21,7 +21,6 @@ functions in CloudBuildHook
 """
 from __future__ import annotations
 
-import unittest
 from concurrent.futures import Future
 from unittest import mock
 
@@ -60,8 +59,8 @@ OPERATION = {"metadata": {"build": {"id": BUILD_ID}}}
 TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
 
 
-class TestCloudBuildHook(unittest.TestCase):
-    def setUp(self):
+class TestCloudBuildHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

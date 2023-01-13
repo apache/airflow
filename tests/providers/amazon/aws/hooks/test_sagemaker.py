@@ -849,3 +849,50 @@ class TestSageMakerHook:
         created = hook.create_model_package_group("group-name")
 
         assert created is False
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_create_auto_ml_parameter_structure(self, conn_mock):
+        hook = SageMakerHook()
+
+        hook.create_auto_ml_job(
+            job_name="a",
+            s3_input="b",
+            target_attribute="c",
+            s3_output="d",
+            role_arn="e",
+            compressed_input=True,
+            time_limit=30,
+            wait_for_completion=False,
+        )
+
+        assert conn_mock().create_auto_ml_job.call_args[1] == {
+            "AutoMLJobConfig": {"CompletionCriteria": {"MaxAutoMLJobRuntimeInSeconds": 30}},
+            "AutoMLJobName": "a",
+            "InputDataConfig": [
+                {
+                    "CompressionType": "Gzip",
+                    "DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "b"}},
+                    "TargetAttributeName": "c",
+                }
+            ],
+            "OutputDataConfig": {"S3OutputPath": "d"},
+            "RoleArn": "e",
+        }
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_create_auto_ml_waits_for_completion(self, conn_mock):
+        hook = SageMakerHook()
+        conn_mock().describe_auto_ml_job.side_effect = [
+            {"AutoMLJobStatus": "InProgress", "AutoMLJobSecondaryStatus": "a"},
+            {"AutoMLJobStatus": "InProgress", "AutoMLJobSecondaryStatus": "b"},
+            {
+                "AutoMLJobStatus": "Completed",
+                "AutoMLJobSecondaryStatus": "c",
+                "BestCandidate": {"name": "me"},
+            },
+        ]
+
+        ret = hook.create_auto_ml_job("a", "b", "c", "d", "e", check_interval=0)
+
+        assert conn_mock().describe_auto_ml_job.call_count == 3
+        assert ret == {"name": "me"}

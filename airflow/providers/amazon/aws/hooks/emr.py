@@ -28,6 +28,7 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter import get_state, waiter
+from airflow.utils.helpers import prune_dict
 
 
 class EmrHook(AwsBaseHook):
@@ -126,7 +127,13 @@ class EmrHook(AwsBaseHook):
         return response
 
     def add_job_flow_steps(
-        self, job_flow_id: str, steps: list[dict] | str | None = None, wait_for_completion: bool = False
+        self,
+        job_flow_id: str,
+        steps: list[dict] | str | None = None,
+        wait_for_completion: bool = False,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
+        execution_role_arn: str | None = None,
     ) -> list[str]:
         """
         Add new steps to a running cluster.
@@ -134,8 +141,14 @@ class EmrHook(AwsBaseHook):
         :param job_flow_id: The id of the job flow to which the steps are being added
         :param steps: A list of the steps to be executed by the job flow
         :param wait_for_completion: If True, wait for the steps to be completed. Default is False
+        :param waiter_delay: The amount of time in seconds to wait between attempts. Default is 5
+        :param waiter_max_attempts: The maximum number of attempts to be made. Default is 100
+        :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
         """
-        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
+        config = {}
+        if execution_role_arn:
+            config["ExecutionRoleArn"] = execution_role_arn
+        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps, **config)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Adding steps failed: {response}")
@@ -147,10 +160,12 @@ class EmrHook(AwsBaseHook):
                 waiter.wait(
                     ClusterId=job_flow_id,
                     StepId=step_id,
-                    WaiterConfig={
-                        "Delay": 5,
-                        "MaxAttempts": 100,
-                    },
+                    WaiterConfig=prune_dict(
+                        {
+                            "Delay": waiter_delay,
+                            "MaxAttempts": waiter_max_attempts,
+                        }
+                    ),
                 )
         return response["StepIds"]
 
@@ -363,7 +378,7 @@ class EmrContainerHook(AwsBaseHook):
         Submit a job to the EMR Containers API and return the job ID.
         A job run is a unit of work, such as a Spark jar, PySpark script,
         or SparkSQL query, that you submit to Amazon EMR on EKS.
-        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run  # noqa: E501
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run
 
         :param name: The name of the job run.
         :param execution_role_arn: The IAM role ARN associated with the job run.
@@ -375,7 +390,7 @@ class EmrContainerHook(AwsBaseHook):
             Use this if you want to specify a unique ID to prevent two jobs from getting started.
         :param tags: The tags assigned to job runs.
         :return: Job ID
-        """
+        """  # noqa: E501
         params = {
             "name": name,
             "virtualClusterId": self.virtual_cluster_id,
@@ -428,10 +443,12 @@ class EmrContainerHook(AwsBaseHook):
     def check_query_status(self, job_id: str) -> str | None:
         """
         Fetch the status of submitted job run. Returns None or one of valid query states.
-        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.describe_job_run  # noqa: E501
+
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.describe_job_run
+
         :param job_id: Id of submitted job run
         :return: str
-        """
+        """  # noqa: E501
         try:
             response = self.conn.describe_job_run(
                 virtualClusterId=self.virtual_cluster_id,

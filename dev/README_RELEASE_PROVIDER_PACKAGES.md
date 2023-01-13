@@ -27,6 +27,7 @@
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
+  - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
@@ -160,6 +161,15 @@ branch should be prepared like this:
 breeze release-management prepare-provider-documentation \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
+
+## Open PR with suggested version releases
+
+At this point you should have providers yaml files and changelog updated.
+You should go over the change log and place changes in their relevant section (breaking change, feature, bugs, etc...)
+Once finished you should raise a PR : Prepare docs for MM YYYY wave of Providers
+In the PR we will verify if we want to release a specific package or if the versions chosen are right.
+Only after PR is merged you should proceed to next steps.
+
 
 ## Build provider packages for SVN apache upload
 
@@ -370,11 +380,24 @@ You will need to change it manually to see the docs
 **NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
 apache-airflow with doc extra:
 
-* `pip install apache-airflow[doc]`
+* `pip install 'apache-airflow[doc_gen]'`
+
+If you don't have virtual env set you can do:
+
+```shell script
+cd <path_you_want_to_save_your_virtual_env>
+virtualenv providers
+
+source venv/providers/bin/activate
+
+pip install 'apache-airflow[doc_gen]'
+```
 
 All providers (including overriding documentation for doc-only changes):
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
@@ -386,6 +409,8 @@ cd "${AIRFLOW_SITE_DIRECTORY}"
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 ```
 
@@ -814,6 +839,8 @@ svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n")"
 Verify that the packages appear in
 [providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
+You are expected to see all latest versions of providers.
+The ones you are about to release (with new version) and the ones that are not part of the current release.
 
 ## Publish the packages to PyPI
 
@@ -823,6 +850,11 @@ By that time the packages should be in your dist folder.
 cd ${AIRFLOW_REPO_ROOT}
 git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 ```
+
+example `git checkout providers-amazon/7.0.0rc2`
+
+Note you probably will see message `You are in 'detached HEAD' state.`
+This is expected, the RC tag is most likely behind the main branch.
 
 * Verify the artifacts that would be uploaded:
 
