@@ -3621,7 +3621,7 @@ class Airflow(AirflowBaseView):
                 "groups": dag_to_grid(dag, dag_runs, session),
                 "dag_runs": encoded_runs,
                 "ordering": dag.timetable.run_ordering,
-                "trigger_logs_presentation_mode": task_log_reader.trigger_logs_presentation_mode,
+                "trigger_logs_presentation_mode": task_log_reader.trigger_logs_presentation_mode.value,
             }
         # avoid spaces to reduce payload size
         return (

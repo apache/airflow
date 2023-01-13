@@ -73,7 +73,7 @@ def _fetch_logs_from_service(url, log_relative_path):
     return response
 
 
-class TriggerLogsPresentationMode(str, Enum):
+class TriggerLogsPresentationMode(Enum):
     """
     Controls how trigger logs are presented in webserver.
 
