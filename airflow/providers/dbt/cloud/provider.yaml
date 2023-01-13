@@ -22,6 +22,7 @@ description: |
     `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
 versions:
+  - 2.3.1
   - 2.3.0
   - 2.2.0
   - 2.1.0

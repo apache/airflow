@@ -35,14 +35,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.8.0
+.....
+
+Latest change: 2023-01-12
+
+=================================================================================================  ===========  =========================================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================================================================================================
+`ce858a5d71 <https://github.com/apache/airflow/commit/ce858a5d719fb1dff85ad7e4747f0777404d1f56>`_  2023-01-12   ``Switch to ruff for faster static checks (#28893)``
+`f1eb2f1af4 <https://github.com/apache/airflow/commit/f1eb2f1af42c537f7c49a891f238083fd5d9e762>`_  2023-01-12   ``'BigQueryCreateExternalTableOperator' fix field delimiter not working with csv (#28856)``
+`a337e6209a <https://github.com/apache/airflow/commit/a337e6209ad1ded42db3f1d788c3f4df4f1d645a>`_  2023-01-11   ``Fix using private _get_credentials instead of public get_credentials (#28588)``
+`284cd52989 <https://github.com/apache/airflow/commit/284cd529898fbadd14308004a0b0cb6f389b4318>`_  2023-01-10   ``Add deferrable ''GCSObjectExistenceSensorAsync'' (#28763)``
+`35a8ffc55a <https://github.com/apache/airflow/commit/35a8ffc55af220b16ea345d770f80f698dcae3fb>`_  2023-01-10   ``Support partition_columns in BaseSQLToGCSOperator (#28677)``
+`c0b2fcff24 <https://github.com/apache/airflow/commit/c0b2fcff24184aa0c5beb9c0d06ce7d67b5c5b7e>`_  2023-01-09   ``assign "datasetReference" attribute to dataset_reference dict. by default if not already set in create_empty_dataset method of bigquery hook (#28782)``
+`71306b31f1 <https://github.com/apache/airflow/commit/71306b31f1842ee2b1eb1cc2980b90f0fb6b11dc>`_  2023-01-09   ``Fix'GoogleCampaignManagerReportSensor' with 'QUEUED' status (#28735)``
+`c67f4af667 <https://github.com/apache/airflow/commit/c67f4af667948e654585e6df102663670804819e>`_  2023-01-09   ``Fix BigQueryColumnCheckOperator runtime error (#28796)``
+=================================================================================================  ===========  =========================================================================================================================================================
+
 8.7.0
 .....
 
-Latest change: 2023-01-01
+Latest change: 2023-01-02
 
 =================================================================================================  ===========  =============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
 `fec1460eb7 <https://github.com/apache/airflow/commit/fec1460eb7896da6bfad69e95c92b8e531e35485>`_  2023-01-01   ``Push job_id in xcom for dataproc submit job op (#28639)``
 `0fae6a0c9e <https://github.com/apache/airflow/commit/0fae6a0c9e6e303f4b897a79829f119b44550e01>`_  2022-12-28   ``Add table_resource to template fields for BigQueryCreateEmptyTableOperator (#28235)``
 `d7f5f6d737 <https://github.com/apache/airflow/commit/d7f5f6d737cf06cc8e216f523534aeaf48065793>`_  2022-12-24   ``GCSToBigQueryOperator allows autodetect None and infers schema (#28564)``
