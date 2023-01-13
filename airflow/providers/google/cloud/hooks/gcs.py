@@ -47,9 +47,17 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
-from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
+
+try:
+    # Airflow 2.3 doesn't have this yet
+    from airflow.typing_compat import ParamSpec
+except ImportError:
+    try:
+        from typing import ParamSpec  # type: ignore[no-redef,attr-defined]
+    except ImportError:
+        from typing_extensions import ParamSpec
 
 RT = TypeVar("RT")
 T = TypeVar("T", bound=Callable)
