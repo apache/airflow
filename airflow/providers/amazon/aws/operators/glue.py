@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK
+from airflow.providers.amazon.aws.links.glue import GlueJobLogsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -69,6 +71,8 @@ class GlueJobOperator(BaseOperator):
         "create_job_kwargs": "json",
     }
     ui_color = "#ededed"
+
+    operator_extra_links = (GlueJobLogsLink(),)
 
     def __init__(
         self,
@@ -146,9 +150,17 @@ class GlueJobOperator(BaseOperator):
         )
         glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
         glue_job_run_url = (
-            f"https://{glue_job.conn_region_name}.console.aws.amazon.com/gluestudio/home?"
+            f"{BASE_AWS_CONSOLE_LINK}/gluestudio/home?"
             + f"region={glue_job.conn_region_name}#/job/{urllib.parse.quote(self.job_name, safe='')}/run/"
             + glue_job_run["JobRunId"]
+        )
+        GlueJobLogsLink.persist(
+            context=context,
+            operator=self,
+            region_name=glue_job.conn_region_name,
+            aws_partition=glue_job.conn_partition,
+            job_name=urllib.parse.quote(self.job_name, safe=""),
+            job_run_id=glue_job_run["JobRunId"],
         )
         self.log.info("You can monitor this Glue Job run at: %s", glue_job_run_url)
         if self.wait_for_completion:

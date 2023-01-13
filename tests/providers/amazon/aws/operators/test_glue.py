@@ -24,6 +24,7 @@ from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
 
 TASK_ID = "test_glue_operator"
@@ -91,7 +92,7 @@ class TestGlueJobOperator:
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
         mock_get_job_state.return_value = "SUCCEEDED"
 
-        glue.execute({})
+        glue.execute(mock.MagicMock())
 
         mock_initialize_job.assert_called_once_with({}, {})
         mock_print_job_logs.assert_not_called()
@@ -116,7 +117,7 @@ class TestGlueJobOperator:
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
         mock_get_job_state.return_value = "SUCCEEDED"
 
-        glue.execute({})
+        glue.execute(mock.MagicMock())
 
         mock_initialize_job.assert_called_once_with({}, {})
         mock_print_job_logs.assert_called_once_with(
@@ -147,7 +148,7 @@ class TestGlueJobOperator:
         )
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
 
-        job_run_id = glue.execute({})
+        job_run_id = glue.execute(mock.MagicMock())
 
         mock_initialize_job.assert_called_once_with({}, {})
         mock_job_completion.assert_not_called()
@@ -177,12 +178,12 @@ class TestGlueJobOperator:
         mock_get_job_state.return_value = "SUCCEEDED"
 
         glue_job_run_url = (
-            f"https://{region}.console.aws.amazon.com/gluestudio/home?"
+            f"{BASE_AWS_CONSOLE_LINK}/gluestudio/home?"
             + f"region={region}#/job/test_job_name%2Fwith_slash/run/{JOB_RUN_ID}"
         )
 
         with mock.patch.object(glue.log, "info") as mock_log_info:
-            job_run_id = glue.execute({})
-        assert job_run_id == JOB_RUN_ID
-        print(mock_log_info.call_args_list)
+            job_run_id = glue.execute(mock.MagicMock())
+            assert job_run_id == JOB_RUN_ID
+
         mock_log_info.assert_any_call("You can monitor this Glue Job run at: %s", glue_job_run_url)
