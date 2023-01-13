@@ -49,3 +49,12 @@ class CustomSerializationTimetable(Timetable):
     @property
     def summary(self):
         return f"{type(self).__name__}({self.value!r})"
+
+    def validate(self) -> None:
+        pass
+
+    def infer_manual_data_interval(self, *, run_after):
+        raise NotImplementedError()
+
+    def next_dagrun_info(self, *, last_automated_data_interval, restriction):
+        raise NotImplementedError()
