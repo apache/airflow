@@ -132,9 +132,8 @@ def _is_stdout(fileio: io.TextIOWrapper) -> bool:
 
 
 def _valid_uri(uri: str) -> bool:
-    """Check if a URI is valid, by checking if both scheme and netloc are available."""
-    uri_parts = urlsplit(uri)
-    return uri_parts.scheme != "" and uri_parts.netloc != ""
+    """Check if a URI is valid, by checking if scheme (conn_type) provided."""
+    return urlsplit(uri).scheme != ""
 
 
 @cache
