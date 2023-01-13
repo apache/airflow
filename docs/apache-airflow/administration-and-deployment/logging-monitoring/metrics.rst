@@ -121,8 +121,8 @@ Name                                                                   Descripti
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
 ``triggers.succeeded``                                                 Number of triggers that have fired at least one event
-``dataset.updates``                                           Number of updated datasets
-``dataset.orphaned``                                          Number of datasets marked as orphans because they are no longer referenced in DAG
+``dataset.updates``                                                    Number of updated datasets
+``dataset.orphaned``                                                   Number of datasets marked as orphans because they are no longer referenced in DAG
                                                                        schedule parameters or task outlets
 ``dataset.triggered_runs``                                             Number of runs triggered by a dataset update
 ====================================================================== ================================================================
