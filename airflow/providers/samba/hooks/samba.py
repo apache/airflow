@@ -135,7 +135,7 @@ class SambaHook(BaseHook):
             file_type=file_type,
             **self._conn_kwargs,
         )
-    @warps(smbclient.copyfile)
+    @wraps(smbclient.copyfile)
     def copyfile(self, src, dst):
         return smbclient.copyfile(self.__join_path(src), self.__join_path(dst), **self._conn_kwargs)
 
