@@ -1973,8 +1973,11 @@ class Airflow(AirflowBaseView):
                 elif isinstance(form_fields[k]["value"], dict):
                     form_fields[k]["schema"]["type"] = ["object", "null"]
             # Mark markup fields as safe
-            if "description" in form_fields[k] and form_fields[k]["description"]:
-                form_fields[k]["description"] = Markup(form_fields[k]["description"])
+            if (
+                "description_html" in form_fields[k]["schema"]
+                and form_fields[k]["schema"]["description_html"]
+            ):
+                form_fields[k]["description"] = Markup(form_fields[k]["schema"]["description_html"])
             if "custom_html_form" in form_fields[k]["schema"]:
                 form_fields[k]["schema"]["custom_html_form"] = Markup(
                     form_fields[k]["schema"]["custom_html_form"]

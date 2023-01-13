@@ -94,17 +94,18 @@ with DAG(
         "flag": False,
         "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
         # But of course you might want to have it nicer! Let's add some description to parameters.
-        # Note that you can add any arbitrary HTML formatting to the description as well.
+        # Note if you can add any HTML formatting to the description, you need to use the description_html
+        # attribute.
         "most_loved_number": Param(
             42,
             type="integer",
             title="You favorite number",
-            description="Everybody should have a favorite number. Not only math teachers. "
-            "If you can not think of any at the moment please think of the 42 which is very famous because "
-            "of the book "
-            "<a href='https://en.wikipedia.org/wiki/Phrases_from_The_Hitchhiker%27s_Guide_to_the_Galaxy#"
-            "The_Answer_to_the_Ultimate_Question_of_Life,_the_Universe,_and_Everything_is_42'>"
-            "The Hitchhiker's Guide to the Galaxy</a>",
+            description_html="""Everybody should have a favorite number. Not only math teachers.
+            If you can not think of any at the moment please think of the 42 which is very famous because
+            of the book
+            <a href='https://en.wikipedia.org/wiki/Phrases_from_The_Hitchhiker%27s_Guide_to_the_Galaxy#
+            The_Answer_to_the_Ultimate_Question_of_Life,_the_Universe,_and_Everything_is_42'>
+            The Hitchhiker's Guide to the Galaxy</a>""",
         ),
         # If you want to have a selection list box then you can use the enum feature of JSON schema
         "pick_one": Param(
@@ -157,8 +158,8 @@ with DAG(
             "optional text, you can trigger also w/o text",
             type=["null", "string"],
             title="Optional text field",
-            description="This field is optional. As field content is JSON schema validated you must allow "
-            "the <code>null</code> type.",
+            description_html="This field is optional. As field content is JSON schema validated you must "
+            "allow the <code>null</code> type.",
         ),
         # You can arrange the entry fields in sections so that you can have a better overview for the user
         # Therefore you can add the "section" attribute.
@@ -168,10 +169,10 @@ with DAG(
             "length-checked-field",
             type="string",
             title="Text field with length check",
-            description="This field is required. And you need to provide something between 10 and 30 "
-            "characters. See the "
-            "<a href='https://json-schema.org/understanding-json-schema/reference/string.html'>"
-            "JSON schema description (string)</a> in for more details",
+            description_html="""This field is required. And you need to provide something between 10 and 30
+            characters. See the
+            <a href='https://json-schema.org/understanding-json-schema/reference/string.html'>
+            JSON schema description (string)</a> in for more details""",
             minLength=10,
             maxLength=20,
             section="JSON Schema validation options",
@@ -180,9 +181,9 @@ with DAG(
             100,
             type="number",
             title="Number field with value check",
-            description="This field is required. You need to provide any number between 64 and 128. "
-            "See the <a href='https://json-schema.org/understanding-json-schema/reference/numeric.html'>"
-            "JSON schema description (numbers)</a> in for more details",
+            description_html="""This field is required. You need to provide any number between 64 and 128.
+            See the <a href='https://json-schema.org/understanding-json-schema/reference/numeric.html'>
+            JSON schema description (numbers)</a> in for more details""",
             minimum=64,
             maximum=128,
             section="JSON Schema validation options",
@@ -205,15 +206,16 @@ with DAG(
             "#FF8800",
             type="string",
             title="Pick a color",
-            description="This is a special HTML widget as custom implementation in the DAG code. "
-            "It is templated with the following parameter to render proper HTML form fields:"
-            "<ul>"
-            "    <li><code>{name}</code>: Name of the HTML input field that is expected.</li>"
-            "    <li><code>{value}</code>: (Default) value that should be displayed when showing/loading "
-            "        the form.</li>"
-            "    <li>Note: If you have elements changing a value, call <code>updateJSONconf()</code>.</li>"
-            "</ul>"
-            "Example: <code>&lt;input name='{name}' value='{value}' onchange='updateJSONconf()' /&gt;</code>",
+            description_html="""This is a special HTML widget as custom implementation in the DAG code.
+            It is templated with the following parameter to render proper HTML form fields:
+            <ul>
+                <li><code>{name}</code>: Name of the HTML input field that is expected.</li>
+                <li><code>{value}</code>:
+                    (Default) value that should be displayed when showing/loading the form.</li>
+                <li>Note: If you have elements changing a value, call <code>updateJSONconf()</code>.</li>
+            </ul>
+            Example: <code>&lt;input name='{name}' value='{value}' onchange='updateJSONconf()' /&gt;</code>
+            """,
             custom_html_form=HTML_COLOR_PICKER_CUSTOM_CODE,
             section="Special advanced stuff with form fields",
         ),

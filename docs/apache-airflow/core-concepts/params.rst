@@ -171,7 +171,8 @@ The following features are supported in the Trigger UI Form:
 
   - The Param attribute ``title`` is used to render the form field label of the entry box
   - The Param attribute ``description`` is rendered below an entry field as help text in gray color.
-    Note that you can add HTML tags here if you like to apply special formatting or links.
+    Note that if you want to provide HTML tags for special formatting or links you need to use the Param attribute
+    ``description_html``, see tutorial DAG ``example_params_ui_tutorial`` for an example.
   - The Param attribute ``type`` influences how a field is rendered. The following types are supported:
 
     - ``string``: Generates a text box to edit text.
