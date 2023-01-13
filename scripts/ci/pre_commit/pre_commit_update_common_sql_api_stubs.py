@@ -36,8 +36,7 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
-PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-COMMON_SQL_ROOT = PROVIDERS_ROOT / "common" / "sql"
+COMMON_SQL_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / "common" / "sql"
 OUT_DIR = AIRFLOW_SOURCES_ROOT / "out"
 
 COMMON_SQL_PACKAGE_PREFIX = "airflow.providers.common.sql."
@@ -117,7 +116,7 @@ def summarize_changes(results: list[str]) -> tuple[int, int]:
 
 
 def post_process_historically_publicised_methods(stub_file_path: Path, line: str, new_lines: list[str]):
-    if stub_file_path.relative_to(OUT_DIR) == Path("common") / "sql" / "operators" / "sql.pyi":
+    if stub_file_path.parts[-4:] == ("common", "sql", "operators", "sql.pyi"):
         if line.strip().startswith("parse_boolean: Incomplete"):
             # Handle Special case - historically we allow _parse_boolean to be part of the public API,
             # and we handle it via parse_boolean = _parse_boolean which produces Incomplete entry in the
@@ -182,7 +181,7 @@ def read_pyi_file_content(
     lines_no_comments = [
         line
         for line in pyi_file_path.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.strip().startswith("#")
+        if not line.strip().startswith("#")
     ]
     remove_docstring = False
     lines = []
@@ -195,6 +194,8 @@ def read_pyi_file_content(
     if (pyi_file_path.name == "__init__.pyi") and lines == []:
         console.print(f"[yellow]Skip {pyi_file_path} as it is an empty stub for __init__.py file")
         return None
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
     return post_process_generated_stub_file(
         module_name, pyi_file_path, lines, patch_historical_methods=patch_historical_methods
     )
@@ -209,8 +210,8 @@ def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple
     """
     _removals, _additions = 0, 0
     rel_path = generated_stub_path.relative_to(OUT_DIR)
-    target_path = PROVIDERS_ROOT / rel_path
-    module_name = "airflow.providers." + os.fspath(rel_path.with_suffix("")).replace(os.path.sep, ".")
+    target_path = AIRFLOW_SOURCES_ROOT / rel_path
+    module_name = os.fspath(rel_path.with_suffix("")).replace(os.path.sep, ".")
     generated_pyi_content = read_pyi_file_content(
         module_name, generated_stub_path, patch_historical_methods=True
     )
@@ -318,7 +319,12 @@ if __name__ == "__main__":
     shutil.rmtree(OUT_DIR, ignore_errors=True)
 
     subprocess.run(
-        ["stubgen", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("**/*.py")]], cwd=AIRFLOW_SOURCES_ROOT
+        # Without --export-less, we end up with some _odd_ imports in the stub file that aren't used!
+        # +from airflow import AirflowException as AirflowException
+        # +from airflow.hooks.base import BaseHook as BaseHook
+        # We could avoid this if we had __all__ defined
+        ["stubgen", "--export-less", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("**/*.py")]],
+        cwd=AIRFLOW_SOURCES_ROOT,
     )
     removals, additions = 0, 0
     _force_override = os.environ.get("UPDATE_COMMON_SQL_API") == "1"
@@ -331,7 +337,7 @@ if __name__ == "__main__":
         removals += _new_removals
         additions += _new_additions
     for target_path in COMMON_SQL_ROOT.rglob("*.pyi"):
-        generated_path = OUT_DIR / target_path.relative_to(PROVIDERS_ROOT)
+        generated_path = OUT_DIR / target_path.relative_to(AIRFLOW_SOURCES_ROOT)
         if not generated_path.exists():
             console.print(
                 f"[red]The {target_path} file is missing in generated files:. "
