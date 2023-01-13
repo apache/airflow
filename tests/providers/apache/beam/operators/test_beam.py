@@ -40,7 +40,7 @@ PY_FILE = "gs://my-bucket/my-object.py"
 PY_INTERPRETER = "python3"
 PY_OPTIONS = ["-m"]
 GO_FILE = "gs://my-bucket/example/main.go"
-GO_BINARY = "gs://my-bucket/example/launcher"
+LAUNCHER_BINARY = "gs://my-bucket/example/launcher"
 WORKER_BINARY = "gs://my-bucket/example/worker"
 DEFAULT_OPTIONS = {
     "project": "test",
@@ -316,36 +316,37 @@ class TestBeamRunGoPipelineOperator:
         """Test BeamRunGoPipelineOperator instance is properly initialized with go_file."""
         assert self.operator.task_id == TASK_ID
         assert self.operator.go_file == GO_FILE
-        assert self.operator.go_binary == ""
+        assert self.operator.launcher_binary == ""
         assert self.operator.worker_binary == ""
         assert self.operator.runner == DEFAULT_RUNNER
         assert self.operator.default_pipeline_options == DEFAULT_OPTIONS
         assert self.operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
 
-    def test_init_with_go_binary(self):
-        """Test BeamRunGoPipelineOperator instance is properly initialized with go_binary."""
+    def test_init_with_launcher_binary(self):
+        """Test BeamRunGoPipelineOperator instance is properly initialized with launcher_binary."""
         operator = BeamRunGoPipelineOperator(
             task_id=TASK_ID,
-            go_binary=GO_BINARY,
+            launcher_binary=LAUNCHER_BINARY,
             default_pipeline_options=DEFAULT_OPTIONS,
             pipeline_options=ADDITIONAL_OPTIONS,
         )
 
         assert operator.task_id == TASK_ID
         assert operator.go_file == ""
-        assert operator.go_binary == GO_BINARY
-        assert operator.worker_binary == GO_BINARY
+        assert operator.launcher_binary == LAUNCHER_BINARY
+        assert operator.worker_binary == LAUNCHER_BINARY
         assert operator.runner == DEFAULT_RUNNER
         assert operator.default_pipeline_options == DEFAULT_OPTIONS
         assert operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
 
-    def test_init_with_go_binary_and_worker_binary(self):
+    def test_init_with_launcher_binary_and_worker_binary(self):
         """
-        Test BeamRunGoPipelineOperator instance is properly initialized with go_binary and worker_binary.
+        Test BeamRunGoPipelineOperator instance is properly initialized with launcher_binary and
+        worker_binary.
         """
         operator = BeamRunGoPipelineOperator(
             task_id=TASK_ID,
-            go_binary=GO_BINARY,
+            launcher_binary=LAUNCHER_BINARY,
             worker_binary=WORKER_BINARY,
             default_pipeline_options=DEFAULT_OPTIONS,
             pipeline_options=ADDITIONAL_OPTIONS,
@@ -353,34 +354,34 @@ class TestBeamRunGoPipelineOperator:
 
         assert operator.task_id == TASK_ID
         assert operator.go_file == ""
-        assert operator.go_binary == GO_BINARY
+        assert operator.launcher_binary == LAUNCHER_BINARY
         assert operator.worker_binary == WORKER_BINARY
         assert operator.runner == DEFAULT_RUNNER
         assert operator.default_pipeline_options == DEFAULT_OPTIONS
         assert operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
 
-    def test_init_with_neither_go_file_nor_go_binary_raises(self):
+    def test_init_with_neither_go_file_nor_launcher_binary_raises(self):
         """
         Test BeamRunGoPipelineOperator initialization raises ValueError when neither
-        go_file nor go_binary is provided.
+        go_file nor launcher_binary is provided.
         """
-        with pytest.raises(ValueError, match="Exactly one of `go_file` and `go_binary` must be set"):
+        with pytest.raises(ValueError, match="Exactly one of `go_file` and `launcher_binary` must be set"):
             BeamRunGoPipelineOperator(
                 task_id=TASK_ID,
                 default_pipeline_options=DEFAULT_OPTIONS,
                 pipeline_options=ADDITIONAL_OPTIONS,
             )
 
-    def test_init_with_both_go_file_and_go_binary_raises(self):
+    def test_init_with_both_go_file_and_launcher_binary_raises(self):
         """
         Test BeamRunGoPipelineOperator initialization raises ValueError when both of
-        go_file and go_binary are provided.
+        go_file and launcher_binary are provided.
         """
-        with pytest.raises(ValueError, match="Exactly one of `go_file` and `go_binary` must be set"):
+        with pytest.raises(ValueError, match="Exactly one of `go_file` and `launcher_binary` must be set"):
             BeamRunGoPipelineOperator(
                 task_id=TASK_ID,
                 go_file=GO_FILE,
-                go_binary=GO_BINARY,
+                launcher_binary=LAUNCHER_BINARY,
                 default_pipeline_options=DEFAULT_OPTIONS,
                 pipeline_options=ADDITIONAL_OPTIONS,
             )
@@ -419,11 +420,11 @@ class TestBeamRunGoPipelineOperator:
     @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
     @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
     @mock.patch("tempfile.TemporaryDirectory")
-    def test_exec_direct_runner_with_gcs_go_binary(
+    def test_exec_direct_runner_with_gcs_launcher_binary(
         self, mock_tmp_dir, mock_beam_hook, mock_gcs_hook, tmp_path
     ):
         """
-        Test start_go_pipeline_from_binary is called with an executable Go binary downloaded from GCS.
+        Test start_go_pipeline_from_binary is called with an executable launcher binary downloaded from GCS.
         """
 
         def tmp_dir_side_effect(prefix: str) -> str:
@@ -443,7 +444,7 @@ class TestBeamRunGoPipelineOperator:
 
         operator = BeamRunGoPipelineOperator(
             task_id=TASK_ID,
-            go_binary="gs://bucket/path/to/main",
+            launcher_binary="gs://bucket/path/to/main",
             default_pipeline_options=DEFAULT_OPTIONS,
             pipeline_options=ADDITIONAL_OPTIONS,
         )
@@ -494,15 +495,15 @@ class TestBeamRunGoPipelineOperator:
         )
 
     @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
-    def test_exec_direct_runner_with_local_go_binary(self, mock_beam_hook):
+    def test_exec_direct_runner_with_local_launcher_binary(self, mock_beam_hook):
         """
-        Test start_go_pipeline_with_binary is called with a local Go binary.
+        Test start_go_pipeline_with_binary is called with a local launcher binary.
         """
         start_go_pipeline_method = mock_beam_hook.return_value.start_go_pipeline_with_binary
 
         operator = BeamRunGoPipelineOperator(
             task_id=TASK_ID,
-            go_binary="/local/path/to/main",
+            launcher_binary="/local/path/to/main",
         )
         operator.execute({})
 
@@ -584,7 +585,7 @@ class TestBeamRunGoPipelineOperator:
     @mock.patch("airflow.providers.apache.beam.operators.beam.GCSHook")
     @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
     @mock.patch("tempfile.TemporaryDirectory")
-    def test_exec_dataflow_runner_with_go_binary_and_worker_binary(
+    def test_exec_dataflow_runner_with_launcher_binary_and_worker_binary(
         self, mock_tmp_dir, mock_beam_hook, mock_gcs_hook, mock_dataflow_hook, mock_persist_link, tmp_path
     ):
         """
@@ -615,7 +616,7 @@ class TestBeamRunGoPipelineOperator:
 
         operator = BeamRunGoPipelineOperator(
             task_id=TASK_ID,
-            go_binary="gs://bucket/path/to/main1",
+            launcher_binary="gs://bucket/path/to/main1",
             worker_binary="gs://bucket/path/to/main2",
             runner="DataflowRunner",
             default_pipeline_options=DEFAULT_OPTIONS,

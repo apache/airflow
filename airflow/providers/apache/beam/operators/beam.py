@@ -526,23 +526,24 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
     :param go_file: Reference to the Apache Beam pipeline Go source file,
         e.g. /local/path/to/main.go or gs://bucket/path/to/main.go.
-        Exactly one of go_file and go_binary must be provided.
+        Exactly one of go_file and launcher_binary must be provided.
 
-    :param go_binary: Reference to the Apache Beam pipeline Go binary compiled for the launching platform,
-        e.g. /local/path/to/launcher-main or gs://bucket/path/to/launcher-main.
-        Exactly one of go_file and go_binary must be provided.
+    :param launcher_binary: Reference to the Apache Beam pipeline Go binary compiled for the launching
+        platform, e.g. /local/path/to/launcher-main or gs://bucket/path/to/launcher-main.
+        Exactly one of go_file and launcher_binary must be provided.
 
     :param worker_binary: Reference to the Apache Beam pipeline Go binary compiled for the worker platform,
         e.g. /local/path/to/worker-main or gs://bucket/path/to/worker-main.
         Needed if the OS or architecture of the workers running the pipeline is different from that
-        of the platform launching the pipeline. If not set, will default to the value of go_binary.
-        For more information, see the Apache Beam documentation for Go cross compilation:
-        https://beam.apache.org/documentation/sdks/go-cross-compilation/
+        of the platform launching the pipeline. For more information, see the Apache Beam documentation
+        for Go cross compilation: https://beam.apache.org/documentation/sdks/go-cross-compilation/.
+        If launcher_binary is not set, providing a worker_binary will have no effect. If launcher_binary is
+        set and worker_binary is not, worker_binary will default to the value of launcher_binary.
     """
 
     template_fields = [
         "go_file",
-        "go_binary",
+        "launcher_binary",
         "worker_binary",
         "runner",
         "pipeline_options",
@@ -556,7 +557,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         self,
         *,
         go_file: str = "",
-        go_binary: str = "",
+        launcher_binary: str = "",
         worker_binary: str = "",
         runner: str = "DirectRunner",
         default_pipeline_options: dict | None = None,
@@ -583,12 +584,12 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             )
         self.dataflow_support_impersonation = False
 
-        if not exactly_one(go_file, go_binary):
-            raise ValueError("Exactly one of `go_file` and `go_binary` must be set")
+        if not exactly_one(go_file, launcher_binary):
+            raise ValueError("Exactly one of `go_file` and `launcher_binary` must be set")
 
         self.go_file = go_file
-        self.go_binary = go_binary
-        self.worker_binary = worker_binary or go_binary
+        self.launcher_binary = launcher_binary
+        self.worker_binary = worker_binary or launcher_binary
 
         self.pipeline_options.setdefault("labels", {}).update(
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
@@ -609,7 +610,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         go_artifact: _GoArtifact = (
             _GoFile(file=self.go_file)
             if self.go_file
-            else _GoBinary(launcher=self.go_binary, worker=self.worker_binary)
+            else _GoBinary(launcher=self.launcher_binary, worker=self.worker_binary)
         )
 
         with ExitStack() as exit_stack:
