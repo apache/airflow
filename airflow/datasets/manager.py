@@ -67,7 +67,7 @@ class DatasetManager(LoggingMixin):
             )
         )
         session.flush()
-        Stats.incr("dataset.changed_datasets")
+        Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()
