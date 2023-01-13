@@ -150,7 +150,7 @@ class HttpHook(BaseHook):
 
         log_request = request_kwargs.pop('log_request', True)
         if log_request:
-            self.log.info("Sending '%s' to url: %s", self.method, url)
+            self.log.debug("Sending '%s' to url: %s", self.method, url)
 
         return self.run_and_check(session, prepped_request, extra_options)
 
