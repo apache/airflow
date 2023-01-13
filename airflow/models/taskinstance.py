@@ -147,7 +147,7 @@ class TaskReturnCode(Enum):
     :meta private:
     """
 
-    DEFERRED = 101
+    DEFERRED = 100
     """When task exits with deferral to trigger."""
 
 

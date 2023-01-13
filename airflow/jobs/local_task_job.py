@@ -27,10 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
 from airflow.listeners.events import register_task_instance_state_events
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskReturnCode
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
-from airflow.task.task_runner.standard_task_runner import DEFERRAL_EXIT_CODE
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
@@ -223,7 +222,7 @@ class LocalTaskJob(BaseJob):
         # Without setting this, heartbeat may get us
         self.terminating = True
         self._log_return_code_metric(return_code)
-        is_deferral = return_code == DEFERRAL_EXIT_CODE
+        is_deferral = return_code == TaskReturnCode.DEFERRED.value
         if is_deferral:
             self.log.info("Task exited with return code %s (task deferral)", return_code)
             set_task_deferred_context_var()
