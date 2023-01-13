@@ -14,17 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import json
-from pathlib import Path
-
 """
 Global constants that are used by all other Breeze components.
 """
+from __future__ import annotations
+
+import json
 import platform
 from enum import Enum
 from functools import lru_cache
+from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT

@@ -18,9 +18,10 @@
 # dynamically generated task decorators. Functions declared in this stub do not
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
+from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Callable, Iterable, Mapping, Union, overload
+from typing import Any, Callable, Iterable, Mapping, overload
 
 from kubernetes.client import models as k8s
 
@@ -30,6 +31,7 @@ from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.sensor import sensor_task
+from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
 from airflow.kubernetes.secret import Secret
 from airflow.models.dag import dag
@@ -98,8 +100,8 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
-        requirements: Union[None, Iterable[str], str] = None,
-        python_version: Union[None, str, int, float] = None,
+        requirements: None | Iterable[str] | str = None,
+        python_version: None | str | int | float = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
@@ -263,7 +265,8 @@ class TaskDecoratorCollection:
             None - No networking for this container
             container:<name|id> - Use the network stack of another container specified via <name|id>
             host - Use the host network stack. Incompatible with `port_bindings`
-            '<network-name>|<network-id>' - Connects the container to user created network(using `docker network create` command)
+            '<network-name>|<network-id>' - Connects the container to user created network(using `docker
+            network create` command)
         :param tls_ca_cert: Path to a PEM-encoded certificate authority
             to secure the docker connection.
         :param tls_client_cert: Path to the PEM-encoded certificate
@@ -448,6 +451,6 @@ class TaskDecoratorCollection:
         :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
         """
     @overload
-    def sensor(self, python_callable: Optional[FParams, FReturn] = None) -> Task[FParams, FReturn]: ...
+    def sensor(self, python_callable: FParams | FReturn | None = None) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
