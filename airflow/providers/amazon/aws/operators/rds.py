@@ -87,10 +87,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         self.db_type = RdsDbType(db_type)
         self.db_identifier = db_identifier
         self.db_snapshot_identifier = db_snapshot_identifier
-        if isinstance(tags, dict):
-            self.tags = format_tags(tags)
-        else:
-            self.tags = tags or []
+        self.tags = tags
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
@@ -101,11 +98,12 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
             self.db_snapshot_identifier,
         )
 
+        formatted_tags = format_tags(self.tags)
         if self.db_type.value == "instance":
             create_instance_snap = self.hook.conn.create_db_snapshot(
                 DBInstanceIdentifier=self.db_identifier,
                 DBSnapshotIdentifier=self.db_snapshot_identifier,
-                Tags=self.tags,
+                Tags=formatted_tags,
             )
             create_response = json.dumps(create_instance_snap, default=str)
             if self.wait_for_completion:
@@ -114,7 +112,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
             create_cluster_snap = self.hook.conn.create_db_cluster_snapshot(
                 DBClusterIdentifier=self.db_identifier,
                 DBClusterSnapshotIdentifier=self.db_snapshot_identifier,
-                Tags=self.tags,
+                Tags=formatted_tags,
             )
             create_response = json.dumps(create_cluster_snap, default=str)
             if self.wait_for_completion:
@@ -179,10 +177,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         self.source_db_snapshot_identifier = source_db_snapshot_identifier
         self.target_db_snapshot_identifier = target_db_snapshot_identifier
         self.kms_key_id = kms_key_id
-        if isinstance(tags, dict):
-            self.tags = format_tags(tags)
-        else:
-            self.tags = tags or []
+        self.tags = tags
         self.copy_tags = copy_tags
         self.pre_signed_url = pre_signed_url
         self.option_group_name = option_group_name
@@ -197,12 +192,13 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
             self.target_db_snapshot_identifier,
         )
 
+        formatted_tags = format_tags(self.tags)
         if self.db_type.value == "instance":
             copy_instance_snap = self.hook.conn.copy_db_snapshot(
                 SourceDBSnapshotIdentifier=self.source_db_snapshot_identifier,
                 TargetDBSnapshotIdentifier=self.target_db_snapshot_identifier,
                 KmsKeyId=self.kms_key_id,
-                Tags=self.tags,
+                Tags=formatted_tags,
                 CopyTags=self.copy_tags,
                 PreSignedUrl=self.pre_signed_url,
                 OptionGroupName=self.option_group_name,
@@ -219,7 +215,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceDBClusterSnapshotIdentifier=self.source_db_snapshot_identifier,
                 TargetDBClusterSnapshotIdentifier=self.target_db_snapshot_identifier,
                 KmsKeyId=self.kms_key_id,
-                Tags=self.tags,
+                Tags=formatted_tags,
                 CopyTags=self.copy_tags,
                 PreSignedUrl=self.pre_signed_url,
                 SourceRegion=self.source_region,
@@ -446,15 +442,13 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         self.event_categories = event_categories or []
         self.source_ids = source_ids or []
         self.enabled = enabled
-        if isinstance(tags, dict):
-            self.tags = format_tags(tags)
-        else:
-            self.tags = tags or []
+        self.tags = tags
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
         self.log.info("Creating event subscription '%s' to '%s'", self.subscription_name, self.sns_topic_arn)
 
+        formatted_tags = format_tags(self.tags)
         create_subscription = self.hook.conn.create_event_subscription(
             SubscriptionName=self.subscription_name,
             SnsTopicArn=self.sns_topic_arn,
@@ -462,7 +456,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
             EventCategories=self.event_categories,
             SourceIds=self.source_ids,
             Enabled=self.enabled,
-            Tags=self.tags,
+            Tags=formatted_tags,
         )
 
         if self.wait_for_completion:

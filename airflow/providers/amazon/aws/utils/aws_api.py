@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
 
-def format_tags(source: dict | list | None, *, key_label: str = "Key", value_label: str = "Value"):
+
+def format_tags(source: Any, *, key_label: str = "Key", value_label: str = "Value"):
     """
     If given a dictionary, formats it as an array of objects with a key and a value field to be passed to boto
     calls that expect this format.
-    If given a list, assumes that it's already in the right format and returns it as is. We do not validate
+    Else, assumes that it's already in the right format and returns it as is. We do not validate
     the format here since it's done by boto anyway, and the error wouldn't be clearer if thrown from here.
 
     :param source: a dict from which keys and values are read

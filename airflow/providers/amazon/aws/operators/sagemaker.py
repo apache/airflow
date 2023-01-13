@@ -1086,14 +1086,14 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
         self.name = name
         self.description = description
-        self.tags_set = format_tags(tags)
+        self.tags = tags
 
     def execute(self, context: Context) -> str:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         params = {
             "ExperimentName": self.name,
             "Description": self.description,
-            "Tags": self.tags_set,
+            "Tags": format_tags(self.tags),
         }
         ans = sagemaker_hook.conn.create_experiment(**trim_none_values(params))
         arn = ans["ExperimentArn"]
