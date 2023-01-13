@@ -222,11 +222,13 @@ class LocalTaskJob(BaseJob):
         """
         # Without setting this, heartbeat may get us
         self.terminating = True
-        self.log.info("Task exited with return code %s", return_code)
         self._log_return_code_metric(return_code)
         is_deferral = return_code == DEFERRAL_EXIT_CODE
         if is_deferral:
+            self.log.info("Task exited with return code %s (task deferral)", return_code)
             set_task_deferred_context_var()
+        else:
+            self.log.info("Task exited with return code %s", return_code)
 
         if not self.task_instance.test_mode and not is_deferral:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):

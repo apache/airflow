@@ -28,6 +28,7 @@ import signal
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import partial
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
@@ -139,11 +140,15 @@ if TYPE_CHECKING:
 PAST_DEPENDS_MET = "past_depends_met"
 
 
-class ArgDeferred:
-    """sentinel."""
+class TaskReturnCode(Enum):
+    """
+    Enum to signal manner of exit for task run command.
 
+    :meta private:
+    """
 
-DEFERRED = ArgDeferred()
+    DEFERRED = 101
+    """When task exits with deferral to trigger."""
 
 
 @contextlib.contextmanager
@@ -1380,7 +1385,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> ArgDeferred | None:
+    ) -> TaskReturnCode | None:
         """
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
@@ -1430,7 +1435,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self)
                 session.commit()
-            return DEFERRED
+            return TaskReturnCode.DEFERRED
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding

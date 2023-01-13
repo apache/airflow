@@ -44,7 +44,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
-from airflow.models.taskinstance import ArgDeferred
+from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -183,7 +183,7 @@ def _get_ti(
     return ti, dr_created
 
 
-def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | ArgDeferred:
+def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | TaskReturnCode:
     """
     Runs the task based on a mode.
 
@@ -270,7 +270,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 ]
 
 
-def _run_raw_task(args, ti: TaskInstance) -> None | ArgDeferred:
+def _run_raw_task(args, ti: TaskInstance) -> None | TaskReturnCode:
     """Runs the main task handling code."""
     return ti._run_raw_task(
         mark_success=args.mark_success,
