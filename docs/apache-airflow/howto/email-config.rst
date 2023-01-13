@@ -37,14 +37,14 @@ Equivalent environment variables look like:
   AIRFLOW__EMAIL__SUBJECT_TEMPLATE=/path/to/my_subject_template_file
   AIRFLOW__EMAIL__HTML_CONTENT_TEMPLATE=/path/to/my_html_content_template_file
 
-You can configure sender's email address by setting ``from_email`` in the ``[email]`` section like
+You can configure a sender's email address by setting ``from_email`` in the ``[email]`` section like:
 
 .. code-block:: ini
 
   [email]
-  from_email = From email <email@example.com>
+  from_email = "email@example.com"
 
-Equivalent environment variables looks like
+Equivalent environment variables look like:
 
 .. code-block::
 
