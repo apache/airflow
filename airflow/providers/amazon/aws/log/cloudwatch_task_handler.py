@@ -24,7 +24,7 @@ import watchtower
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.file_task_handler import FileTaskHandler, TriggerLogsPresentationMode
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -68,6 +68,10 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             boto3_client=self.hook.get_conn(),
         )
 
+    @cached_property
+    def trigger_logs_presentation_mode(self):
+        return TriggerLogsPresentationMode.INTERLEAVED
+
     def close(self):
         """Close the handler responsible for the upload of the local log file to Cloudwatch."""
         # When application exit, system shuts down all handlers by
@@ -82,7 +86,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, task_instance, try_number, metadata=None):
+    def _read(self, task_instance, try_number, metadata=None, log_type=None):
         stream_name = self._render_filename(task_instance, try_number)
         try:
             return (
