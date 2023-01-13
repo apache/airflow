@@ -1639,4 +1639,4 @@ class SchedulerJob(BaseJob):
             self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
             dataset.is_orphaned = expression.true()
             orphaned_datasets_count += 1
-        Stats.incr("dataset.orphaned_datasets", count=orphaned_datasets_count)
+        Stats.incr("dataset.orphaned", count=orphaned_datasets_count)
