@@ -391,6 +391,7 @@ class EmrContainerOperator(BaseOperator):
         "execution_role_arn",
         "release_label",
         "job_driver",
+        "configuration_overrides",
     )
     ui_color = "#f9c915"
 
