@@ -687,7 +687,6 @@ with DAG(
         delete_bucket,
         delete_experiment(test_setup["experiment_name"]),
         delete_pipeline(test_setup["pipeline_name"]),
-        delete_logs(test_context[ENV_ID_KEY]),
         delete_docker_image(test_setup["docker_image"]),
         log_cleanup,
     )
