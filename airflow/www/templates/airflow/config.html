@@ -27,24 +27,11 @@
     {{ super() }}
     <h2>{{ title }}</h2>
 
-    {% if pre_subtitle %}
-        <pre>{{ pre_subtitle }}</pre>
-    {% endif %}
-
-    {% if subtitle %}
-        <h5>{{ subtitle }}</h5>
-    {% endif %}
-
-    {% if code_html %}
-        {{ code_html }}
-    {% endif %}
-
-    <hr>
-
-    {% if table %}
-        <br>
-        <h3>Running Configuration</h3>
-        <br>
+    {% if hide_config_msg is defined %}
+        <div class="alert alert-info">
+            <p>{{ hide_config_msg }}</p>
+        </div>
+    {% elif table %}
         <div>
             <table class="table table-striped table-bordered">
                 <tr>

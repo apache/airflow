@@ -45,7 +45,7 @@ def test_configuration_do_not_expose_config(admin_client):
     check_content_in_response(
         [
             "Airflow Configuration",
-            "# Your Airflow administrator chose not to expose the configuration, "
+            "Your Airflow administrator chose not to expose the configuration, "
             "most likely for security reasons.",
         ],
         resp,
@@ -59,7 +59,7 @@ def test_configuration_expose_config(admin_client):
     conf.validate()
     with conf_vars({("webserver", "expose_config"): "True"}):
         resp = admin_client.get("configuration", follow_redirects=True)
-    check_content_in_response(["Airflow Configuration", "Running Configuration"], resp)
+    check_content_in_response(["Airflow Configuration"], resp)
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
