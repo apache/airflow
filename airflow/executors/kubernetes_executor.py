@@ -212,7 +212,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
         elif status == "Succeeded":
             self.log.info("Event: %s Succeeded", pod_id)
-            self.watcher_queue.put((pod_id, namespace, None, annotations, resource_version))
+            self.watcher_queue.put((pod_id, namespace, State.SUCCESS, annotations, resource_version))
         elif status == "Running":
             if event["type"] == "DELETED":
                 self.log.info("Event: Pod %s deleted before it could complete", pod_id)
@@ -751,19 +751,26 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_scheduler
 
-        if state != State.RUNNING:
-            if self.kube_config.delete_worker_pods:
-                if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
-                    self.kube_scheduler.delete_pod(pod_id, namespace)
-                    self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
-            else:
-                self.kube_scheduler.patch_pod_executor_done(pod_id=pod_id, namespace=namespace)
-                self.log.info("Patched pod %s in namespace %s to mark it as done", str(key), str(namespace))
-            try:
-                self.running.remove(key)
-            except KeyError:
-                self.log.debug("Could not find key: %s", str(key))
-        self.event_buffer[key] = state, None
+        if state == State.RUNNING:
+            self.event_buffer[key] = state, None
+            return
+
+        if self.kube_config.delete_worker_pods:
+            if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+                self.kube_scheduler.delete_pod(pod_id, namespace)
+                self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
+        else:
+            self.kube_scheduler.patch_pod_executor_done(pod_id=pod_id, namespace=namespace)
+            self.log.info("Patched pod %s in namespace %s to mark it as done", str(key), str(namespace))
+
+        try:
+            self.running.remove(key)
+        except KeyError:
+            self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
+        else:
+            # We get multiple events once the pod hits a terminal state, and we only want to
+            # do this once, so only do it when we remove the task from running
+            self.event_buffer[key] = state, None
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
@@ -841,6 +848,8 @@ class KubernetesExecutor(BaseExecutor):
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            pod_id = annotations_to_key(pod.metadata.annotations)
+            self.running.add(pod_id)
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:

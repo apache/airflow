@@ -519,8 +519,10 @@ class TestKubernetesExecutor:
         executor.start()
         try:
             key = ("dag_id", "task_id", "run_id", "try_number1")
+            executor.running = {key}
             executor._change_state(key, State.RUNNING, "pod_id", "default")
             assert executor.event_buffer[key][0] == State.RUNNING
+            assert executor.running == {key}
         finally:
             executor.end()
 
@@ -532,8 +534,10 @@ class TestKubernetesExecutor:
         executor.start()
         try:
             key = ("dag_id", "task_id", "run_id", "try_number2")
+            executor.running = {key}
             executor._change_state(key, State.SUCCESS, "pod_id", "default")
             assert executor.event_buffer[key][0] == State.SUCCESS
+            assert executor.running == set()
             mock_delete_pod.assert_called_once_with("pod_id", "default")
         finally:
             executor.end()
@@ -550,8 +554,10 @@ class TestKubernetesExecutor:
         executor.start()
         try:
             key = ("dag_id", "task_id", "run_id", "try_number3")
+            executor.running = {key}
             executor._change_state(key, State.FAILED, "pod_id", "default")
             assert executor.event_buffer[key][0] == State.FAILED
+            assert executor.running == set()
             mock_delete_pod.assert_not_called()
         finally:
             executor.end()
@@ -594,8 +600,10 @@ class TestKubernetesExecutor:
         executor.start()
         try:
             key = ("dag_id", "task_id", "run_id", "try_number2")
+            executor.running = {key}
             executor._change_state(key, State.SUCCESS, "pod_id", "test-namespace")
             assert executor.event_buffer[key][0] == State.SUCCESS
+            assert executor.running == set()
             mock_delete_pod.assert_not_called()
             mock_patch_pod.assert_called_once_with(pod_id="pod_id", namespace="test-namespace")
         finally:
@@ -615,8 +623,10 @@ class TestKubernetesExecutor:
         executor.start()
         try:
             key = ("dag_id", "task_id", "run_id", "try_number2")
+            executor.running = {key}
             executor._change_state(key, State.FAILED, "pod_id", "test-namespace")
             assert executor.event_buffer[key][0] == State.FAILED
+            assert executor.running == set()
             mock_delete_pod.assert_called_once_with("pod_id", "test-namespace")
             mock_patch_pod.assert_not_called()
         finally:
@@ -765,17 +775,27 @@ class TestKubernetesExecutor:
         executor.kube_client = mock_kube_client
         executor.kube_config.kube_namespace = "somens"
         pod_names = ["one", "two"]
+
+        def get_annotations(pod_name):
+            return {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": pod_name,
+                "try_number": "1",
+            }
+
         mock_kube_client.list_namespaced_pod.return_value.items = [
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
                     name=pod_name,
                     labels={"airflow-worker": pod_name},
-                    annotations={"some_annotation": "hello"},
+                    annotations=get_annotations(pod_name),
                     namespace="somens",
                 )
             )
             for pod_name in pod_names
         ]
+        expected_running_ti_keys = {annotations_to_key(get_annotations(pod_name)) for pod_name in pod_names}
 
         executor._adopt_completed_pods(mock_kube_client)
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
@@ -795,6 +815,7 @@ class TestKubernetesExecutor:
             ],
             any_order=True,
         )
+        assert executor.running == expected_running_ti_keys
 
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):
@@ -1265,7 +1286,7 @@ class TestKubernetesJobWatcher:
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
         self._run()
-        self.assert_watcher_queue_called_once_with_state(None)
+        self.assert_watcher_queue_called_once_with_state(State.SUCCESS)
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"
