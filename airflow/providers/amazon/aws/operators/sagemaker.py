@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.utils.json import AirflowJsonEncoder
 
@@ -1049,3 +1050,53 @@ class SageMakerAutoMLOperator(SageMakerBaseOperator):
             self.check_interval,
         )
         return best
+
+
+class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
+    """
+    Creates a SageMaker experiment, to be then associated to jobs etc.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerCreateExperimentOperator`
+
+    :param name: name of the experiment, must be unique within the AWS account
+    :param description: description of the experiment, optional
+    :param tags: tags to attach to the experiment, optional
+    :param aws_conn_id: The AWS connection ID to use.
+
+    :returns: the ARN of the experiment created, though experiments are referred to by name
+    """
+
+    template_fields: Sequence[str] = (
+        "name",
+        "description",
+        "tags",
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        description: str | None = None,
+        tags: dict | None = None,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        **kwargs,
+    ):
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
+        self.name = name
+        self.description = description
+        self.tags = tags or {}
+
+    def execute(self, context: Context) -> str:
+        sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        tags_set = [{"Key": kvp[0], "Value": kvp[1]} for kvp in self.tags.items()]
+        params = {
+            "ExperimentName": self.name,
+            "Description": self.description,
+            "Tags": tags_set,
+        }
+        ans = sagemaker_hook.conn.create_experiment(**trim_none_values(params))
+        arn = ans["ExperimentArn"]
+        self.log.info("Experiment %s created successfully with ARN %s.", self.name, arn)
+        return arn

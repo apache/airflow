@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerAutoMLOperator,
+    SageMakerCreateExperimentOperator,
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
     SageMakerProcessingOperator,
@@ -200,6 +201,7 @@ def set_up(env_id, role_arn):
     model_package_group_name = f"{env_id}-group"
     pipeline_name = f"{env_id}-pipe"
     auto_ml_job_name = f"{env_id}-automl"
+    experiment_name = f"{env_id}-experiment"
 
     input_data_S3_key = f"{env_id}/processed-input-data"
     prediction_output_s3_key = f"{env_id}/transform"
@@ -303,6 +305,7 @@ def set_up(env_id, role_arn):
             }
         ],
         "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"},
+        "ExperimentConfig": {"ExperimentName": experiment_name},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
         "StoppingCondition": {"MaxRuntimeInSeconds": 60},
@@ -409,6 +412,7 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="model_package_group_name", value=model_package_group_name)
     ti.xcom_push(key="pipeline_name", value=pipeline_name)
     ti.xcom_push(key="auto_ml_job_name", value=auto_ml_job_name)
+    ti.xcom_push(key="experiment_name", value=experiment_name)
     ti.xcom_push(key="model_config", value=model_config)
     ti.xcom_push(key="model_name", value=model_name)
     ti.xcom_push(key="inference_code_image", value=knn_image_uri)
@@ -455,6 +459,21 @@ def delete_model_group(group_name, model_version_arn):
 def delete_pipeline(pipeline_name):
     sgmk_client = boto3.client("sagemaker")
     sgmk_client.delete_pipeline(PipelineName=pipeline_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_experiment(name):
+    sgmk_client = boto3.client("sagemaker")
+    trials = sgmk_client.list_trials(ExperimentName=name)
+    trials_names = [s["TrialName"] for s in trials["TrialSummaries"]]
+    for trial in trials_names:
+        components = sgmk_client.list_trial_components(TrialName=trial)
+        components_names = [s["TrialComponentName"] for s in components["TrialComponentSummaries"]]
+        for component in components_names:
+            sgmk_client.disassociate_trial_component(TrialComponentName=component, TrialName=trial)
+            sgmk_client.delete_trial_component(TrialComponentName=component)
+        sgmk_client.delete_trial(TrialName=trial)
+    sgmk_client.delete_experiment(ExperimentName=name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -543,6 +562,12 @@ with DAG(
         pipeline_exec_arn=start_pipeline2.output,
     )
     # [END howto_sensor_sagemaker_pipeline]
+
+    # [START howto_operator_sagemaker_experiment]
+    create_experiment = SageMakerCreateExperimentOperator(
+        task_id="create_experiment", name=test_setup["experiment_name"]
+    )
+    # [END howto_operator_sagemaker_experiment]
 
     # [START howto_operator_sagemaker_processing]
     preprocess_raw_data = SageMakerProcessingOperator(
@@ -646,6 +671,7 @@ with DAG(
         start_pipeline2,
         stop_pipeline1,
         await_pipeline2,
+        create_experiment,
         preprocess_raw_data,
         train_model,
         await_training,
@@ -660,8 +686,9 @@ with DAG(
         delete_model_group(test_setup["model_package_group_name"], register_model.output),
         delete_model,
         delete_bucket,
-        delete_logs(test_context[ENV_ID_KEY]),
+        delete_experiment(test_setup["experiment_name"]),
         delete_pipeline(test_setup["pipeline_name"]),
+        delete_logs(test_context[ENV_ID_KEY]),
         delete_docker_image(test_setup["docker_image"]),
     )
 
