@@ -17,16 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 from typing import Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
 
 from airflow.compat.functools import cached_property
+from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.file_task_handler import FileTaskHandler, LogType
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 _DEFAULT_SCOPESS = frozenset(
@@ -100,8 +103,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.
-        self.log_relative_path = self._render_filename(ti, ti.try_number)
-        self.upload_on_close = not ti.raw
+        full_path = self.handler.baseFilename
+        self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
+        is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
+        self.upload_on_close = is_trigger_log_context or not ti.raw
 
     def close(self):
         """Close and upload local log file to remote storage GCS."""
@@ -128,7 +133,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number, metadata=None):
+    def _read(self, ti, try_number, metadata=None, log_type=None):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
@@ -138,21 +143,40 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
         """
-        # Explicitly getting log relative path is necessary as the given
-        # task instance might be different than task instance passed in
-        # in set_context method.
-        log_relative_path = self._render_filename(ti, try_number)
-        remote_loc = os.path.join(self.remote_base, log_relative_path)
+        self.log.warning("called with metadata=%s", json.dumps(metadata))
 
+        # Explicitly getting log relative path is necessary because this method
+        # is called from webserver from TaskLogReader, where we don't call set_context
+        # and can read logs for different TIs in each request
+        log = ""
+        worker_log_relative_path = self._render_filename(ti, try_number)
+        remote_loc = os.path.join(self.remote_base, worker_log_relative_path)
+        uris = []
+        if log_type == LogType.TRIGGER:
+            if ti.triggerer_job:
+                # triggerer currently running; skip s3 read and try to read from triggerer log server
+                return super()._read(ti, try_number, metadata, log_type=log_type)
+            bucket, prefix = _parse_gcs_url(remote_loc)
+            blobs = list(self.client.list_blobs(bucket_or_name=bucket, prefix=prefix + "."))
+            if blobs:
+                uris = [f"gs://{bucket}/{b.name}" for b in blobs]
+            else:
+                log += f"*** No logs found for triggerer; ti=%s {ti}\n"
+        else:
+            uris = [remote_loc]
         try:
-            blob = storage.Blob.from_string(remote_loc, self.client)
-            remote_log = blob.download_as_bytes().decode()
-            log = f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
+            for key in uris:
+                blob = storage.Blob.from_string(key, self.client)
+                remote_log = blob.download_as_bytes().decode()
+                log += f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
+
             return log, {"end_of_log": True}
         except Exception as e:
-            log = f"*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n"
-            self.log.error(log)
-            local_log, metadata = super()._read(ti, try_number, metadata)
+            log = f"*** Unable to read remote log {e}\n\n"
+            kwargs = {}
+            if log_type:
+                kwargs.update({"log_type": log_type})
+            local_log, metadata = super()._read(ti, try_number, metadata, **kwargs)
             log += local_log
             return log, metadata
 
@@ -169,12 +193,26 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             old_log = blob.download_as_bytes().decode()
             log = "\n".join([old_log, log]) if old_log else log
         except Exception as e:
-            if not hasattr(e, "resp") or e.resp.get("status") != "404":
-                log = f"*** Previous log discarded: {str(e)}\n\n" + log
-                self.log.info("Previous log discarded: %s", e)
-
+            if self.no_log_found(e):
+                pass
+            else:
+                log += f"*** Error checking for previous log; if exists, may be overwritten: {str(e)}\n\n"
+                self.log.warning("Error checking for previous log: %s", e)
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             blob.upload_from_string(log, content_type="text/plain")
         except Exception as e:
             self.log.error("Could not write logs to %s: %s", remote_log_location, e)
+
+    @staticmethod
+    def no_log_found(exc):
+        """
+        Given exception, determine whether it is result of log not found.
+
+        :meta private:
+        """
+        if exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]:
+            return True
+        elif getattr(exc, "resp", {}).get("status") == "404":
+            return True
+        return False
