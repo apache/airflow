@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os.path
+import urllib.parse
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -144,6 +145,12 @@ class GlueJobOperator(BaseOperator):
             self.wait_for_completion,
         )
         glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
+        glue_job_run_url = (
+            f"https://{glue_job.conn_region_name}.console.aws.amazon.com/gluestudio/home?"
+            + f"region={glue_job.conn_region_name}#/job/{urllib.parse.quote(self.job_name, safe='')}/run/"
+            + glue_job_run["JobRunId"]
+        )
+        self.log.info("You can monitor this Glue Job run at: %s", glue_job_run_url)
         if self.wait_for_completion:
             glue_job_run = glue_job.job_completion(self.job_name, glue_job_run["JobRunId"], self.verbose)
             self.log.info(
