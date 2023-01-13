@@ -56,6 +56,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    import multiprocessing.context
+
     from airflow.models.operator import Operator
 
 
@@ -187,8 +189,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def start(self) -> None:
         """Launch the process and start processing the DAG."""
-        start_method = self._get_multiprocessing_start_method()
-        context = multiprocessing.get_context(start_method)
+        context = self._get_multiprocessing_context()
 
         _parent_channel, _child_channel = context.Pipe(duplex=False)
         process = context.Process(
