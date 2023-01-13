@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-13T11:08:27Z
+# This constraints file was automatically generated on 2023-01-13T22:40:45Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -57,7 +57,7 @@ amqp==5.1.1
 analytics-python==1.4.0
 ansiwrap==0.8.4
 anyio==3.6.2
-apache-beam==2.43.0
+apache-beam==2.44.0
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==2.0.0
@@ -105,9 +105,9 @@ bitarray==2.6.2
 black==23.1a1
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.49
+boto3==1.26.50
 boto==2.49.0
-botocore==1.29.49
+botocore==1.29.50
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -327,7 +327,7 @@ nodeenv==1.7.0
 ntlm-auth==1.5.0
 numpy==1.21.1
 oauthlib==3.2.2
-objsize==0.5.2
+objsize==0.6.1
 openapi-schema-validator==0.3.4
 openapi-spec-validator==0.5.1
 opsgenie-sdk==2.1.5
