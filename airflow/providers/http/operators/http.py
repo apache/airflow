@@ -106,7 +106,6 @@ class SimpleHttpOperator(BaseOperator):
         self.tcp_keep_alive_idle = tcp_keep_alive_idle
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
-        self.log_request = kwargs.pop('log_request', True)
 
     def execute(self, context: Context) -> Any:
         from airflow.utils.operator_helpers import determine_kwargs
@@ -123,8 +122,7 @@ class SimpleHttpOperator(BaseOperator):
 
         self.log.info("Calling HTTP method")
 
-        response = http.run(self.endpoint, self.data, self.headers, self.extra_options, log_request=self.
-                            log_request)
+        response = http.run(self.endpoint, self.data, self.headers, self.extra_options)
         if self.log_response:
             self.log.info(response.text)
         if self.response_check:
