@@ -29,7 +29,7 @@ in the ``[email]`` section.
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
-Equivalent environment variables looks like
+Equivalent environment variables look like:
 
 .. code-block::
 
