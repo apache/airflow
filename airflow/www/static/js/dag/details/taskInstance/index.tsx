@@ -40,6 +40,7 @@ import NotesAccordion from 'src/dag/details/NotesAccordion';
 import { useContainerRef } from 'src/context/containerRef';
 import TabWithTooltip from 'src/components/TabWithTooltip';
 
+import { TriggerLogsPresentationMode } from 'src/api/useGridData';
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 import TaskNav from './Nav';
@@ -64,7 +65,7 @@ const TaskInstance = ({
 }: Props) => {
   const isMapIndexDefined = !(mapIndex === undefined);
   const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
-  const { data: { dagRuns, groups, readerTriggererLogsSeparate } } = useGridData();
+  const { data: { dagRuns, groups, triggerLogsPresentationMode } } = useGridData();
   const containerRef = useContainerRef();
   const detailsRef = useRef<HTMLDivElement>(null);
   const offsetHeight = useOffsetHeight(detailsRef);
@@ -95,14 +96,18 @@ const TaskInstance = ({
     localStorage.setItem(detailsPanelActiveTabIndex, index.toString());
     setPreferedTabIndex(index);
   };
-
+  // eslint-disable-next-line max-len
+  const triggerLogsNotSupported = triggerLogsPresentationMode === TriggerLogsPresentationMode.NOT_SUPPORTED;
+  const triggerLogsSplit = triggerLogsPresentationMode === TriggerLogsPresentationMode.SPLIT;
+  // eslint-disable-next-line max-len
+  const triggerLogsInterleaved = triggerLogsPresentationMode === TriggerLogsPresentationMode.INTERLEAVED;
   let triggerLogsTooltipProps;
-  if (!readerTriggererLogsSeparate) {
+  if (triggerLogsNotSupported) {
     triggerLogsTooltipProps = {
       label: 'The configured log handler does not support reading trigger logs.',
       isDisabled: false,
     };
-  } else if (!instance?.hasDeferred) {
+  } else if (triggerLogsSplit && !instance?.hasDeferred) {
     triggerLogsTooltipProps = {
       label: 'This task has no deferrals.',
       isDisabled: false,
@@ -113,14 +118,13 @@ const TaskInstance = ({
       isDisabled: true,
     };
   }
-  const disableTriggerLogs = !(readerTriggererLogsSeparate && instance?.hasDeferred === true);
-
+  const skipTriggerLogsRender = !triggerLogsSplit || !instance?.hasDeferred;
   useEffect(() => {
     // Reset preferred tab if it is disabled
-    if (disableTriggerLogs && preferedTabIndex === 2) {
+    if (skipTriggerLogsRender && preferedTabIndex === 2) {
       setPreferedTabIndex(1);
     }
-  }, [disableTriggerLogs, preferedTabIndex]);
+  }, [skipTriggerLogsRender, preferedTabIndex]);
 
   if (!group || !run || !instance) return null;
 
@@ -179,18 +183,17 @@ const TaskInstance = ({
           )}
           {!isGroupOrMappedTaskSummary && (
             <Tab>
-              <Text as="strong">Logs</Text>
+              <Text fontSize="lg" as="strong">Logs</Text>
             </Tab>
           )}
-
-          {!isGroupOrMappedTaskSummary && !disableTriggerLogs && (
+          {!isGroupOrMappedTaskSummary && !triggerLogsInterleaved && (
           <Tooltip
             {...triggerLogsTooltipProps}
             placement="top-end"
             portalProps={{ containerRef }}
             hasArrow
           >
-            <TabWithTooltip isDisabled={disableTriggerLogs}>
+            <TabWithTooltip isDisabled={!instance.hasDeferred}>
               <Text fontSize="lg" as="strong">Triggerer logs</Text>
             </TabWithTooltip>
           </Tooltip>
@@ -265,7 +268,7 @@ const TaskInstance = ({
           {/* Triggerer Logs Tab */}
           {!isGroupOrMappedTaskSummary && (
             <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
-              {instance?.hasDeferred === true && (
+              {!skipTriggerLogsRender && (
               <Logs
                 dagId={dagId}
                 dagRunId={runId}

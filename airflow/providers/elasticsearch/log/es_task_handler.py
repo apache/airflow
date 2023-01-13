@@ -38,7 +38,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.utils import timezone
-from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.file_task_handler import FileTaskHandler, TriggerLogsPresentationMode
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
 
@@ -123,8 +123,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
 
     @cached_property
-    def triggerer_logs_separate(self):
-        return False
+    def trigger_logs_presentation_mode(self):
+        return TriggerLogsPresentationMode.INTERLEAVED
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:

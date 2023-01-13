@@ -98,7 +98,7 @@ def test_no_runs(admin_client, dag_without_runs):
     assert resp.status_code == 200, resp.json
     assert resp.json == {
         "dag_runs": [],
-        "reader_triggerer_logs_separate": True,
+        "trigger_logs_presentation_mode": "not_supported",
         "groups": {
             "children": [
                 {
@@ -227,7 +227,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "state": "running",
             },
         ],
-        "reader_triggerer_logs_separate": True,
+        "trigger_logs_presentation_mode": "not_supported",
         "groups": {
             "children": [
                 {
@@ -407,7 +407,7 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
     assert resp.status_code == 200, resp.json
     assert resp.json == {
         "dag_runs": [],
-        "reader_triggerer_logs_separate": True,
+        "trigger_logs_presentation_mode": "not_supported",
         "groups": {
             "children": [
                 _expected_task_details("task1", False),

@@ -73,6 +73,19 @@ def _fetch_logs_from_service(url, log_relative_path):
     return response
 
 
+class TriggerLogsPresentationMode(str, Enum):
+    """
+    Controls how trigger logs are presented in webserver.
+
+    Handlers may be implemented either to have trigger logs interleaved with task logs
+    or shown in a separate tab.
+    """
+
+    SPLIT = "split"
+    INTERLEAVED = "interleaved"
+    NOT_SUPPORTED = "not_supported"
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads
@@ -146,13 +159,16 @@ class FileTaskHandler(logging.Handler):
         return full_path
 
     @cached_property
-    def triggerer_logs_separate(self):
+    def trigger_logs_presentation_mode(self):
         """
-        If true, webserver should render trigger logs in distinct tab
+        Tells webserver whether to use separate tab for triggerer logs.
 
         :meta private:
         """
-        return "log_type" in inspect.signature(self._read).parameters.keys()
+        if "log_type" in inspect.signature(self._read).parameters.keys():
+            return TriggerLogsPresentationMode.SPLIT  # split is default, most common
+        else:
+            return TriggerLogsPresentationMode.NOT_SUPPORTED
 
     @cached_property
     def wrap_for_triggerer(self):
@@ -162,7 +178,10 @@ class FileTaskHandler(logging.Handler):
 
         :meta private:
         """
-        return "log_type" in inspect.signature(self._read).parameters.keys()
+        return self.trigger_logs_presentation_mode in (
+            TriggerLogsPresentationMode.SPLIT,
+            TriggerLogsPresentationMode.INTERLEAVED,
+        )
 
     def emit(self, record):
         if self.handler:

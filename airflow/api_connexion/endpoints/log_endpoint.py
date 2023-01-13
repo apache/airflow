@@ -32,7 +32,7 @@ from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
-from airflow.utils.log.file_task_handler import LogType
+from airflow.utils.log.file_task_handler import LogType, TriggerLogsPresentationMode
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -76,8 +76,13 @@ def get_log(
         metadata["download_logs"] = False
 
     task_log_reader = TaskLogReader()
-    if log_type == LogType.TRIGGER and not task_log_reader.triggerer_logs_separate:
-        raise BadRequest("Task log handler does not support trigger logging.")
+    if log_type == LogType.TRIGGER:
+        not_supported = TriggerLogsPresentationMode.NOT_SUPPORTED
+        interleaved = TriggerLogsPresentationMode.INTERLEAVED
+        if task_log_reader.trigger_logs_presentation_mode == not_supported:
+            raise BadRequest("Task log handler does not support trigger logging.")
+        if task_log_reader.trigger_logs_presentation_mode == interleaved:
+            raise BadRequest("Trigger logs requested but handler does not split trigger logs.")
 
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")

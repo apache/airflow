@@ -23,7 +23,7 @@ from typing import Any
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.file_task_handler import FileTaskHandler, TriggerLogsPresentationMode
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -71,9 +71,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             return None
 
     @cached_property
-    def triggerer_logs_separate(self):
+    def trigger_logs_presentation_mode(self):
         """Not implemented yet."""
-        return False
+        return TriggerLogsPresentationMode.NOT_SUPPORTED
 
     def set_context(self, ti) -> None:
         super().set_context(ti)

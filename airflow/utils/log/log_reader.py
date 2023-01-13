@@ -26,6 +26,7 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import render_log_filename
+from airflow.utils.log.file_task_handler import TriggerLogsPresentationMode
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
@@ -60,7 +61,8 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        kwargs = {"log_type": log_type} if self.triggerer_logs_separate else {}
+        split_mode = self.trigger_logs_presentation_mode == TriggerLogsPresentationMode.SPLIT
+        kwargs = {"log_type": log_type} if split_mode else {}
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata, **kwargs)
         metadata = metadatas[0]
         return logs, metadata
@@ -86,7 +88,8 @@ class TaskLogReader:
             metadata.pop("offset", None)
             metadata.pop("log_pos", None)
             while True:
-                kwargs = {"log_type": log_type} if self.triggerer_logs_separate else {}
+                split_mode = self.trigger_logs_presentation_mode == TriggerLogsPresentationMode.SPLIT
+                kwargs = {"log_type": log_type} if split_mode else {}
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata, **kwargs)
                 for host, log in logs[0]:
                     yield "\n".join([host or "", log]) + "\n"
@@ -114,8 +117,12 @@ class TaskLogReader:
         return hasattr(self.log_handler, "read")
 
     @property
-    def triggerer_logs_separate(self):
-        return getattr(self.log_handler, "triggerer_logs_separate", False)
+    def trigger_logs_presentation_mode(self):
+        return getattr(
+            self.log_handler,
+            "trigger_logs_presentation_mode",
+            TriggerLogsPresentationMode.NOT_SUPPORTED,
+        )
 
     @property
     def supports_external_link(self) -> bool:

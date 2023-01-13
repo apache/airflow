@@ -36,11 +36,17 @@ const dagId = getMetaValue(DAG_ID_PARAM);
 const gridDataUrl = getMetaValue('grid_data_url');
 const urlRoot = getMetaValue('root');
 
+export enum TriggerLogsPresentationMode {
+  SPLIT = 'split',
+  NOT_SUPPORTED = 'not_supported',
+  INTERLEAVED = 'interleaved',
+}
+
 export interface GridData {
   dagRuns: DagRun[];
   groups: Task;
   ordering: RunOrdering;
-  readerTriggererLogsSeparate: boolean;
+  triggerLogsPresentationMode: TriggerLogsPresentationMode;
 }
 
 export const emptyGridData: GridData = {
@@ -51,7 +57,7 @@ export const emptyGridData: GridData = {
     instances: [],
   },
   ordering: [],
-  readerTriggererLogsSeparate: false,
+  triggerLogsPresentationMode: TriggerLogsPresentationMode.NOT_SUPPORTED,
 };
 
 const formatOrdering = (data: GridData) => ({
