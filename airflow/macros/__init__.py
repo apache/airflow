@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import time  # noqa
 import uuid  # noqa
 from datetime import datetime, timedelta
@@ -26,6 +27,7 @@ from typing import Any
 import dateutil  # noqa
 from pendulum import DateTime
 
+import airflow.utils.yaml as yaml
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
@@ -85,3 +87,21 @@ def datetime_diff_for_humans(dt: Any, since: DateTime | None = None) -> str:
     import pendulum
 
     return pendulum.instance(dt).diff_for_humans(since)
+
+
+def json_loads(data: str) -> dict[Any, Any]:
+    """
+    Deserialize a json string.
+
+    :param data: input string representing a json or yaml object
+    """
+    return json.loads(data)
+
+
+def yaml_loads(data: str) -> dict[Any, Any]:
+    """
+    Deserialize a yaml string.
+
+    :param data: input string representing a yaml object
+    """
+    return yaml.safe_load(data)
