@@ -18,18 +18,15 @@
 # Helm Chart
 /chart/ @dstandish @jedcunningham
 
-# Docs
-/docs/ @mik-laj
-
 # Docs (without Providers)
-/docs/apache-airflow @kaxil @potiuk
+/docs/apache-airflow @potiuk
 /docs/docker-stack @potiuk
 /docs/helm-chart @dstandish @jedcunningham
 /docs/*.py @kaxil @potiuk
 
 # API
-/airflow/api/ @mik-laj @ephraimbuddy
-/airflow/api_connexion/ @mik-laj @ephraimbuddy
+/airflow/api/ @ephraimbuddy
+/airflow/api_connexion/ @ephraimbuddy
 
 # WWW
 /airflow/www/ @ryanahamilton @ashb @bbovenzi
@@ -80,12 +77,12 @@
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
-Dockerfile @potiuk @ashb @mik-laj
+Dockerfile @potiuk @ashb
 Dockerfile.ci @potiuk @ashb
 /dev/ @potiuk @ashb @jedcunningham
 /provider_packages/ @potiuk @ashb
-/scripts/ @potiuk @ashb @mik-laj
-/docker_tests/ @potiuk @ashb @mik-laj
+/scripts/ @potiuk @ashb
+/docker_tests/ @potiuk @ashb
 
 # Releasing Guides & Project Guidelines
 /dev/README_RELEASE_*.md  @kaxil
