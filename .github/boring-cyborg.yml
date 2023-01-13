@@ -213,7 +213,7 @@ firstPRWelcomeComment: >
 
   Here are some useful points:
 
-  - Pay attention to the quality of your code (flake8, mypy and type annotations). Our [pre-commits](
+  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [pre-commits](
   https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
   will help you with that.
 

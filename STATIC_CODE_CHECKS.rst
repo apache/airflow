@@ -119,8 +119,8 @@ require Breeze Docker image to be build locally.
   In case you have a problem with running particular ``pre-commit`` check you can still continue using the
   benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
   checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example
-  when you want to skip some checks (flake/mypy for example), you should be able to do it by setting
-  ``export SKIP=run-flake8,run-mypy``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+  when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
+  ``export SKIP=ruff,run-mypy``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
 
   In case you do not have breeze image configured locally, you can also disable all checks that require
@@ -382,7 +382,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=run-mypy,run-flake8 pre-commit run --all-files
+    SKIP=run-mypy,ruff pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -412,17 +412,17 @@ Run the ``mypy`` check for all files:
 
      breeze static-checks --type run-mypy --all-files
 
-Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
+Run the ``ruff`` check for the ``tests.core.py`` file with verbose output:
 
 .. code-block:: bash
 
-     breeze static-checks --type run-flake8 --file tests/core.py --verbose
+     breeze static-checks --type ruff --file tests/core.py --verbose
 
-Run the ``flake8`` check for the ``tests.core`` package with verbose output:
+Run the ``ruff for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     breeze static-checks --type run-flake8 --file tests/core/* --verbose
+     breeze static-checks --type ruff --file tests/core/* --verbose
 
 Run all checks for the currently staged files:
 
@@ -457,10 +457,10 @@ Printing the commands while executing:
 
 .. code-block:: bash
 
-     VERBOSE="true" pre-commit run --verbose run-flake8
+     VERBOSE="true" pre-commit run --verbose ruff
 
 Just performing dry run:
 
 .. code-block:: bash
 
-     DRY_RUN="true" pre-commit run --verbose run-flake8
+     DRY_RUN="true" pre-commit run --verbose ruff
