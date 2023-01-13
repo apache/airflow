@@ -46,8 +46,13 @@ export const parseLogs = (
   if (!data) {
     return {};
   }
-
-  const lines = data.split('\n');
+  let lines;
+  try {
+    lines = data.split('\n');
+  } catch (err) {
+    // debugger
+    return {};
+  }
 
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
