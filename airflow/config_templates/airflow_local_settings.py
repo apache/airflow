@@ -287,7 +287,6 @@ if REMOTE_LOGGING:
         }
         DEFAULT_LOGGING_CONFIG["handlers"].update(OSS_REMOTE_HANDLERS)
     elif ELASTICSEARCH_HOST:
-        ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get_mandatory_value("elasticsearch", "LOG_ID_TEMPLATE")
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
         ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "frontend")
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean("elasticsearch", "WRITE_STDOUT")
@@ -301,7 +300,6 @@ if REMOTE_LOGGING:
                 "class": "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler",
                 "formatter": "airflow",
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
-                "log_id_template": ELASTICSEARCH_LOG_ID_TEMPLATE,
                 "filename_template": FILENAME_TEMPLATE,
                 "end_of_log_mark": ELASTICSEARCH_END_OF_LOG_MARK,
                 "host": ELASTICSEARCH_HOST,
