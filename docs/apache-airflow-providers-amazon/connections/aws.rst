@@ -158,7 +158,7 @@ Snippet to create Connection and convert to URI
 
     are not given see example below. This is a known airflow limitation.
 
-    ``airflow connections add aws_conn --conn-uri aws://@/?egion_name=eu-west-1``
+    ``airflow connections add aws_conn --conn-uri aws://@/?region_name=eu-west-1``
 
 Using instance profile
 ^^^^^^^^^^^^^^^^^^^^^^
