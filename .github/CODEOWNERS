@@ -59,8 +59,7 @@
 /airflow/secrets  @dstandish @kaxil @potiuk @ashb
 
 # Providers
-/airflow/providers/google/ @turbaszek
-/airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
+/airflow/providers/snowflake/ @potiuk @mik-laj
 /airflow/providers/cncf/kubernetes @jedcunningham
 /airflow/providers/dbt/cloud/ @josh-fell
 /airflow/providers/tabular/ @Fokko
