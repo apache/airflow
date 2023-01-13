@@ -71,4 +71,4 @@ class PythonSensor(BaseSensorOperator):
 
         self.log.info("Poking callable: %s", str(self.python_callable))
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
-        return PokeReturnValue(bool(return_value))
+        return return_value if isinstance(return_value, PokeReturnValue) else PokeReturnValue(bool(return_value))
