@@ -1,0 +1,44 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: 'Gets target branch build scripts'
+description: 'Checks out target branch build scripts (including breeze) and replaces the current version'
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+      uses: actions/checkout@v3
+      with:
+        path: "target-airflow"
+        ref: ${{ github.base_ref }}
+        persist-credentials: false
+        submodules: recursive
+    - name: >
+        Override "scripts/ci", "dev" and "./github/actions" with the target branch
+        so that the PR does not override it
+      # We should not override those scripts which become part of the image as they will not be
+      # changed in the image built - we should only override those that are executed to build
+      # the image.
+      shell: bash
+      run: |
+        rm -rfv "scripts/ci"
+        mv -v "target-airflow/scripts/ci" "scripts"
+        rm -rfv "dev"
+        mv -v "target-airflow/dev" "."
+        rm -rfv "./github/actions"
+        mv -v "target-airflow/.github/actions" "actions"
