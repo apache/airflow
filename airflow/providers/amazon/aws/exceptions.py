@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
