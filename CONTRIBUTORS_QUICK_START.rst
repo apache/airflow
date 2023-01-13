@@ -532,8 +532,8 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
   $ pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
     black...............................................................Passed
-  $ pre-commit run run-flake8 --files airflow/decorators.py tests/utils/test_task_group.py
-    Run flake8..........................................................Passed
+  $ pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
+    Run ruff............................................................Passed
 
 
 
