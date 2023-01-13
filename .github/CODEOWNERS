@@ -56,8 +56,7 @@
 /airflow/secrets  @dstandish @kaxil @potiuk @ashb
 
 # Providers
-/airflow/providers/google/ @turbaszek
-/airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
+/airflow/providers/snowflake/ @potiuk @mik-laj
 /airflow/providers/cncf/kubernetes @jedcunningham
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
 
