@@ -31,9 +31,6 @@ Features
 ~~~~~~~~
 * ``check jenkins result state (#28659)``
 
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-
 3.1.0
 .....
 

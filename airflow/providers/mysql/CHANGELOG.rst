@@ -38,8 +38,6 @@ hook's "local_infile" parameter when you create the MySqlHook (either directly o
 
 * ``Move local_infile option from extra to hook parameter (#28811)``
 
-.. Review and move the new changes to one of the sections above:
-
 3.4.0
 .....
 

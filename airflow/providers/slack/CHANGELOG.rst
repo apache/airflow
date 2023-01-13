@@ -32,9 +32,6 @@ Features
 
 * ``Add general-purpose "notifier" concept to DAGs (#28569)``
 
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-
 7.1.1
 .....
 

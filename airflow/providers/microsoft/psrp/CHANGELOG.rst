@@ -32,9 +32,6 @@ Features
 
 * ``Add option to add arguments to PSRP hook and operator (#27689)``
 
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-
 2.1.0
 .....
 
