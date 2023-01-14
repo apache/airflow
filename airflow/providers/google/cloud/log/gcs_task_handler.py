@@ -154,7 +154,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         uris = []
         if log_type == LogType.TRIGGER:
             if ti.triggerer_job:
-                # triggerer currently running; skip s3 read and try to read from triggerer log server
+                # triggerer currently running; skip remote read and try to read from triggerer log server
                 return super()._read(ti, try_number, metadata, log_type=log_type)
             bucket, prefix = _parse_gcs_url(remote_loc)
             blobs = list(self.client.list_blobs(bucket_or_name=bucket, prefix=prefix + "."))

@@ -267,6 +267,7 @@ class FileTaskHandler(logging.Handler):
         metadata: dict[str, Any] | None = None,
         *,
         log_type: LogType | None = LogType.WORKER,
+        base_content=None,
     ):
         """
         Template method that contains custom logic of reading
