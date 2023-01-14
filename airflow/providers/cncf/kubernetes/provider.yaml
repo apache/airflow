@@ -22,6 +22,7 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 versions:
+  - 5.1.1
   - 5.1.0
   - 5.0.0
   - 4.4.0

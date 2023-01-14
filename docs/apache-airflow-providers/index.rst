@@ -205,7 +205,7 @@ Displaying package information in CLI/API:
 Exposing customized functionality to the Airflow's core:
 
 * ``extra-links`` - this field should contain the list of all operator class names that are adding extra links
-  capability. See :doc:`apache-airflow:howto/define_extra_link` for description of how to add extra link
+  capability. See :doc:`apache-airflow:howto/define-extra-link` for description of how to add extra link
   capability to the operators of yours.
 
 * ``connection-types`` - this field should contain the list of all connection types together with hook
