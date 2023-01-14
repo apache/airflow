@@ -63,7 +63,7 @@ class WebEncoder(json.JSONEncoder):
             try:
                 return o.decode()
             except Exception:
-                return o.__repr__()
+                return repr(o)
         try:
             data = serialize(o)
             if isinstance(data, dict) and CLASSNAME in data:
