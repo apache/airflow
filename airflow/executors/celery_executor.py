@@ -53,6 +53,7 @@ from airflow.executors.base_executor import BaseExecutor, CommandType, EventBuff
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -252,9 +253,24 @@ class CeleryExecutor(BaseExecutor):
         )
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries", fallback=3)
+        self.task_stuck_in_queued_check_interval = conf.getint("celery",
+                                                               "task_stuck_in_queued_check_interval",
+                                                               fallback=None)
+        self.task_stuck_in_queued_timeout = conf.getint("celery",
+                                                        "task_stuck_in_queued_timeout",
+                                                        fallback=300)
+        self.event_scheduler: EventScheduler | None = None
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
+
+        if self.task_stuck_in_queued_check_interval:
+            self.event_scheduler = EventScheduler()
+
+            self.event_scheduler.call_regular_interval(
+                self.task_stuck_in_queued_check_interval,
+                self.clear_not_launched_queued_tasks,
+            )
 
     def _num_tasks_per_send_process(self, to_send_count: int) -> int:
         """
@@ -554,6 +570,30 @@ class CeleryExecutor(BaseExecutor):
             self.adopted_task_timeouts[key] = utcnow() + self.task_adoption_timeout
         elif timeout_type == _CeleryPendingTaskTimeoutType.STALLED and self.stalled_task_timeout:
             self.stalled_task_timeouts[key] = utcnow() + self.stalled_task_timeout
+
+    @provide_session
+    def clear_not_launched_queued_tasks(self, session=None) -> None:
+        """
+        Clear tasks that were not yet launched, but were previously queued.
+
+        Tasks can end up in a "Queued" state due to some reasons.
+
+        it uses almost same logic of same name method on KubernetesExecutor
+        """
+        self.log.debug("Clearing tasks stuck in queued status")
+
+        stuck_threshold_dttm = utcnow() - datetime.timedelta(seconds=self.task_stuck_in_queued_timeout)
+        query = session.query(TaskInstance).filter(
+            TaskInstance.state == State.QUEUED,
+            TaskInstance.queued_dttm <= stuck_threshold_dttm,
+            TaskInstance.queued_by_job_id == self.job_id,
+        )  # care only task instances scheduled by this scheduler (in HA scheduler mode)
+
+        queued_tis: list[TaskInstance] = query.all()
+        self.log.info("Found %s queued task instances", len(queued_tis))
+
+        query.update({TaskInstance.state: State.SCHEDULED})
+        self.log.info("TaskInstance(s) found in queued state but was not launched, rescheduling")
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:

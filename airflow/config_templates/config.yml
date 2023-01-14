@@ -2034,6 +2034,20 @@ celery:
       type: integer
       example: ~
       default: "3"
+    task_stuck_in_queued_check_interval:
+      description: |
+        How often in seconds to check for task instances stuck in "queued" status
+      version_added: 2.5.1
+      type: integer
+      example: ~
+      default: ~
+    task_stuck_in_queued_timeout:
+      description: |
+        How long in seconds to determine whether task instances are stuck in "queued" status
+      version_added: 2.5.1
+      type: integer
+      example: ~
+      default: "600"
     worker_precheck:
       description: |
         Worker initialisation check to validate Metadata Database connection
