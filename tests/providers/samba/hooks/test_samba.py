@@ -82,7 +82,6 @@ class TestSambaHook:
             "replace",
             "rmdir",
             "copyfile",
-            "remove",
             "scandir",
             "setxattr",
             "stat",
