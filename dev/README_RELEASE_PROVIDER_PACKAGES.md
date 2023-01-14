@@ -406,6 +406,12 @@ cd "${AIRFLOW_REPO_ROOT}"
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
 
+If you see `ModuleNotFoundError: No module named 'docs'`, set:
+
+```
+export PYTHONPATH=.:${PYTHONPATH}
+```
+
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
