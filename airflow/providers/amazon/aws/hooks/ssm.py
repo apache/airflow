@@ -23,15 +23,14 @@ from airflow.utils.types import NOTSET, ArgNotSet
 
 class SsmHook(AwsBaseHook):
     """
-    Interact with Amazon Systems Manager (SSM) using the boto3 library.
-    All API calls available through the Boto API are also available here.
-    See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html#client
+    Interact with Amazon Systems Manager (SSM).
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("ssm") <SSM.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -41,6 +40,9 @@ class SsmHook(AwsBaseHook):
     def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
         """
         Returns the value of the provided Parameter or an optional default.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SSM.Client.get_parameter`
 
         :param parameter: The SSM Parameter name to return the value for.
         :param default: Optional default value to return if none is found.

@@ -28,13 +28,14 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class AwsLogsHook(AwsBaseHook):
     """
-    Interact with AWS CloudWatch Logs
+    Interact with Amazon CloudWatch Logs.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("logs") <CloudWatchLogs.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -52,6 +53,9 @@ class AwsLogsHook(AwsBaseHook):
         """
         A generator for log items in a single stream. This will yield all the
         items that are available at the current moment.
+
+        .. seealso::
+            - :external+boto3:py:meth:`CloudWatchLogs.Client.get_log_events`
 
         :param log_group: The name of the log group.
         :param log_stream_name: The name of the specific stream.

@@ -52,35 +52,23 @@ class BatchOperator(BaseOperator):
         :ref:`howto/operator:BatchOperator`
 
     :param job_name: the name for the job that will run on AWS Batch (templated)
-
     :param job_definition: the job definition name on AWS Batch
-
     :param job_queue: the queue name on AWS Batch
-
     :param overrides: the `containerOverrides` parameter for boto3 (templated)
-
     :param array_properties: the `arrayProperties` parameter for boto3
-
     :param parameters: the `parameters` for boto3 (templated)
-
     :param job_id: the job ID, usually unknown (None) until the
         submit_job operation gets the jobId defined by AWS Batch
-
     :param waiters: an :py:class:`.BatchWaiters` object (see note below);
         if None, polling is used with max_retries and status_retries.
-
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
-
     :param status_retries: number of HTTP retries to get job status, 10;
         polling is only used when waiters is None
-
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used.
-
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
-
     :param tags: collection of tags to apply to the AWS Batch job submission
         if None, no tags are submitted
 

@@ -26,29 +26,17 @@ from airflow.providers.amazon.aws.utils import trim_none_values
 
 class LambdaHook(AwsBaseHook):
     """
-    Interact with AWS Lambda
+    Interact with AWS Lambda.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("lambda") <Lambda.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-
-    :param function_name: AWS Lambda Function Name
-    :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
-    :param log_type: Tail Invocation Request
-    :param client_context: Up to 3,583 bytes of base64-encoded data about the invoking client
-        to pass to the function in the context object.
-    :param payload: The JSON that you want to provide to your Lambda function as input.
-    :param qualifier: AWS Lambda Function Version or Alias Name
-
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "lambda"
         super().__init__(*args, **kwargs)
 
@@ -62,7 +50,20 @@ class LambdaHook(AwsBaseHook):
         payload: str | None = None,
         qualifier: str | None = None,
     ):
-        """Invoke Lambda Function. Refer to the boto3 documentation for more info."""
+        """
+        Invoke Lambda Function.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Lambda.Client.invoke`
+
+        :param function_name: AWS Lambda Function Name
+        :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
+        :param log_type: Tail Invocation Request
+        :param client_context: Up to 3,583 bytes of base64-encoded data about the invoking client
+            to pass to the function in the context object.
+        :param payload: The JSON that you want to provide to your Lambda function as input.
+        :param qualifier: AWS Lambda Function Version or Alias Name
+        """
         invoke_args = {
             "FunctionName": function_name,
             "InvocationType": invocation_type,
@@ -98,6 +99,51 @@ class LambdaHook(AwsBaseHook):
         code_signing_config_arn: str | None = None,
         architectures: list[str] | None = None,
     ) -> dict:
+        """
+        Creates a Lambda function.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Lambda.Client.create_function`
+            - `Configuring a Lambda function to access resources in a VPC \
+            <https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html>`__
+
+        :param function_name: AWS Lambda Function Name
+        :param runtime: The identifier of the function's runtime.
+            Runtime is required if the deployment package is a .zip file archive.
+        :param role: The Amazon Resource Name (ARN) of the function's execution role.
+        :param handler: The name of the method within your code that Lambda calls to run your function.
+            Handler is required if the deployment package is a .zip file archive.
+        :param code: The code for the function.
+        :param description: A description of the function.
+        :param timeout: The amount of time (in seconds) that Lambda
+            allows a function to run before stopping it.
+        :param memory_size: The amount of memory available to the function at runtime.
+            Increasing the function memory also increases its CPU allocation.
+        :param publish: Set to true to publish the first version of the function during creation.
+        :param vpc_config: For network connectivity to Amazon Web Services resources in a VPC,
+            specify a list of security groups and subnets in the VPC.
+        :param package_type: The type of deployment package.
+            Set to `Image` for container image and set to `Zip` for .zip file archive.
+        :param dead_letter_config: A dead-letter queue configuration that specifies the queue or topic
+            where Lambda sends asynchronous events when they fail processing.
+        :param environment: Environment variables that are accessible from function code during execution.
+        :param kms_key_arn: The ARN of the Key Management Service (KMS) key that's used to
+            encrypt your function's environment variables.
+            If it's not provided, Lambda uses a default service key.
+        :param tracing_config: Set `Mode` to `Active` to sample and trace
+            a subset of incoming requests with X-Ray.
+        :param tags: A list of tags to apply to the function.
+        :param layers: A list of function layers to add to the function's execution environment.
+            Specify each layer by its ARN, including the version.
+        :param file_system_configs: Connection settings for an Amazon EFS file system.
+        :param image_config: Container image configuration values that override
+            the values in the container image Dockerfile.
+        :param code_signing_config_arn: To enable code signing for this function,
+            specify the ARN of a code-signing configuration.
+            A code-signing configuration includes a set of signing profiles,
+            which define the trusted publishers for this function.
+        :param architectures: The instruction set architecture that the function supports.
+        """
         if package_type == "Zip":
             if handler is None:
                 raise TypeError("Parameter 'handler' is required if 'package_type' is 'Zip'")

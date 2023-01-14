@@ -33,19 +33,28 @@ class DmsTaskWaiterStatus(str, Enum):
 
 
 class DmsHook(AwsBaseHook):
-    """Interact with AWS Database Migration Service."""
+    """
+    Interact with AWS Database Migration Service (DMS).
+    Provide thin wrapper around
+    :external+boto3:py:class:`boto3.client("dms") <DatabaseMigrationService.Client>`.
 
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    def __init__(self, *args, **kwargs):
         kwargs["client_type"] = "dms"
         super().__init__(*args, **kwargs)
 
     def describe_replication_tasks(self, **kwargs) -> tuple[str | None, list]:
         """
         Describe replication tasks
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.describe_replication_tasks`
 
         :return: Marker and list of replication tasks
         """
@@ -57,9 +66,12 @@ class DmsHook(AwsBaseHook):
     def find_replication_tasks_by_arn(self, replication_task_arn: str, without_settings: bool | None = False):
         """
         Find and describe replication tasks by task ARN
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.describe_replication_tasks`
+
         :param replication_task_arn: Replication task arn
         :param without_settings: Indicates whether to return task information with settings.
-
         :return: list of replication tasks that match the ARN
         """
         _, tasks = self.describe_replication_tasks(
@@ -105,7 +117,10 @@ class DmsHook(AwsBaseHook):
         **kwargs,
     ) -> str:
         """
-        Create DMS replication task
+        Create DMS replication task.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.create_replication_task`
 
         :param replication_task_id: Replication task id
         :param source_endpoint_arn: Source endpoint ARN
@@ -140,6 +155,9 @@ class DmsHook(AwsBaseHook):
         """
         Starts replication task.
 
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.start_replication_task`
+
         :param replication_task_arn: Replication task ARN
         :param start_replication_task_type: Replication task start type (default='start-replication')
             ('start-replication'|'resume-processing'|'reload-target')
@@ -155,6 +173,9 @@ class DmsHook(AwsBaseHook):
         """
         Stops replication task.
 
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.stop_replication_task`
+
         :param replication_task_arn: Replication task ARN
         """
         dms_client = self.get_conn()
@@ -162,7 +183,10 @@ class DmsHook(AwsBaseHook):
 
     def delete_replication_task(self, replication_task_arn):
         """
-        Starts replication task deletion and waits for it to be deleted
+        Starts replication task deletion and waits for it to be deleted.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.delete_replication_task`
 
         :param replication_task_arn: Replication task ARN
         """

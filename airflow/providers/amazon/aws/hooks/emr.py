@@ -33,11 +33,12 @@ from airflow.utils.helpers import prune_dict
 
 class EmrHook(AwsBaseHook):
     """
-    Interact with Amazon Elastic MapReduce Service.
+    Interact with Amazon Elastic MapReduce Service (EMR).
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("emr") <EMR.Client>`.
 
     :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
         This attribute is only necessary when using
-        the :meth:`~airflow.providers.amazon.aws.hooks.emr.EmrHook.create_job_flow` method.
+        the :meth:`airflow.providers.amazon.aws.hooks.emr.EmrHook.create_job_flow`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -60,6 +61,9 @@ class EmrHook(AwsBaseHook):
         """
         Fetch id of EMR cluster with given name and (optional) states.
         Will return only if single id is found.
+
+        .. seealso::
+            - :external+boto3:py:meth:`EMR.Client.list_clusters`
 
         :param emr_cluster_name: Name of a cluster to find
         :param cluster_states: State(s) of cluster to find
@@ -85,18 +89,21 @@ class EmrHook(AwsBaseHook):
         """
         Create and start running a new cluster (job flow).
 
+        .. seealso::
+            - :external+boto3:py:meth:`EMR.Client.run_job_flow`
+
         This method uses ``EmrHook.emr_conn_id`` to receive the initial Amazon EMR cluster configuration.
         If ``EmrHook.emr_conn_id`` is empty or the connection does not exist, then an empty initial
         configuration is used.
 
         :param job_flow_overrides: Is used to overwrite the parameters in the initial Amazon EMR configuration
-            cluster. The resulting configuration will be used in the boto3 emr client run_job_flow method.
+            cluster. The resulting configuration will be used in the
+            :external+boto3:py:meth:`EMR.Client.run_job_flow`.
 
         .. seealso::
             - :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`
+            - :external+boto3:py:meth:`EMR.Client.run_job_flow`
             - `API RunJobFlow <https://docs.aws.amazon.com/emr/latest/APIReference/API_RunJobFlow.html>`_
-            - `boto3 emr client run_job_flow method <https://boto3.amazonaws.com/v1/documentation/\
-               api/latest/reference/services/emr.html#EMR.Client.run_job_flow>`_.
         """
         config = {}
         if self.emr_conn_id:
@@ -138,6 +145,9 @@ class EmrHook(AwsBaseHook):
         """
         Add new steps to a running cluster.
 
+        .. seealso::
+            - :external+boto3:py:meth:`EMR.Client.add_job_flow_steps`
+
         :param job_flow_id: The id of the job flow to which the steps are being added
         :param steps: A list of the steps to be executed by the job flow
         :param wait_for_completion: If True, wait for the steps to be completed. Default is False
@@ -172,6 +182,7 @@ class EmrHook(AwsBaseHook):
     def test_connection(self):
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable).
+
 
         We need to overwrite this method because this hook is based on
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
@@ -220,13 +231,14 @@ class EmrHook(AwsBaseHook):
 
 class EmrServerlessHook(AwsBaseHook):
     """
-    Interact with EMR Serverless API.
+    Interact with Amazon EMR Serverless.
+    Provide thin wrapper around :py:class:`boto3.client("emr-serverless") <EMRServerless.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     JOB_INTERMEDIATE_STATES = {"PENDING", "RUNNING", "SCHEDULED", "SUBMITTED"}
@@ -306,14 +318,16 @@ class EmrServerlessHook(AwsBaseHook):
 
 class EmrContainerHook(AwsBaseHook):
     """
-    Interact with AWS EMR Virtual Cluster to run, poll jobs and return job status
+    Interact with Amazon EMR Containers (Amazon EMR on EKS).
+    Provide thick wrapper around :py:class:`boto3.client("emr-containers") <EMRContainers.Client>`.
+
+    :param virtual_cluster_id: Cluster ID of the EMR on EKS virtual cluster
+
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-
-    :param virtual_cluster_id: Cluster ID of the EMR on EKS virtual cluster
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     INTERMEDIATE_STATES = (
@@ -378,7 +392,9 @@ class EmrContainerHook(AwsBaseHook):
         Submit a job to the EMR Containers API and return the job ID.
         A job run is a unit of work, such as a Spark jar, PySpark script,
         or SparkSQL query, that you submit to Amazon EMR on EKS.
-        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run
+
+        .. seealso::
+            - :external+boto3:py:meth:`EMRContainers.Client.start_job_run`
 
         :param name: The name of the job run.
         :param execution_role_arn: The IAM role ARN associated with the job run.
@@ -389,8 +405,8 @@ class EmrContainerHook(AwsBaseHook):
         :param client_request_token: The client idempotency token of the job run request.
             Use this if you want to specify a unique ID to prevent two jobs from getting started.
         :param tags: The tags assigned to job runs.
-        :return: Job ID
-        """  # noqa: E501
+        :return: The ID of the job run request.
+        """
         params = {
             "name": name,
             "virtualClusterId": self.virtual_cluster_id,
@@ -419,11 +435,12 @@ class EmrContainerHook(AwsBaseHook):
         """
         Fetch the reason for a job failure (e.g. error message). Returns None or reason string.
 
-        :param job_id: Id of submitted job run
-        :return: str
+        .. seealso::
+            - :external+boto3:py:meth:`EMRContainers.Client.describe_job_run`
+
+        :param job_id: The ID of the job run request.
         """
-        # We absorb any errors if we can't retrieve the job status
-        reason = None
+        reason = None  # We absorb any errors if we can't retrieve the job status
 
         try:
             response = self.conn.describe_job_run(
@@ -444,11 +461,11 @@ class EmrContainerHook(AwsBaseHook):
         """
         Fetch the status of submitted job run. Returns None or one of valid query states.
 
-        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.describe_job_run
+        .. seealso::
+            - :external+boto3:py:meth:`EMRContainers.Client.describe_job_run`
 
-        :param job_id: Id of submitted job run
-        :return: str
-        """  # noqa: E501
+        :param job_id: The ID of the job run request.
+        """
         try:
             response = self.conn.describe_job_run(
                 virtualClusterId=self.virtual_cluster_id,
@@ -474,11 +491,10 @@ class EmrContainerHook(AwsBaseHook):
         Poll the status of submitted job run until query state reaches final state.
         Returns one of the final states.
 
-        :param job_id: Id of submitted job run
+        :param job_id: The ID of the job run request.
         :param max_tries: Deprecated - Use max_polling_attempts instead
         :param poll_interval: Time (in seconds) to wait between calls to check query status on EMR
         :param max_polling_attempts: Number of times to poll for query state before function exits
-        :return: str
         """
         if max_tries:
             warnings.warn(
@@ -518,8 +534,10 @@ class EmrContainerHook(AwsBaseHook):
         """
         Cancel the submitted job_run
 
-        :param job_id: Id of submitted job_run
-        :return: dict
+        .. seealso::
+            - :external+boto3:py:meth:`EMRContainers.Client.cancel_job_run`
+
+        :param job_id: The ID of the job run to cancel.
         """
         return self.conn.cancel_job_run(
             virtualClusterId=self.virtual_cluster_id,

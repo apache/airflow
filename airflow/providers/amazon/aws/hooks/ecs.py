@@ -88,20 +88,16 @@ class EcsTaskStates(Enum):
 
 class EcsHook(AwsGenericHook):
     """
-    Interact with AWS Elastic Container Service, using the boto3 library
-    Hook attribute `conn` has all methods that listed in documentation
+    Interact with Amazon Elastic Container Service (ECS).
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("ecs") <ECS.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
-        - https://docs.aws.amazon.com/AmazonECS/latest/APIReference/Welcome.html
-
-    Additional arguments (such as ``aws_conn_id`` or ``region_name``) may be specified and
-        are passed down to the underlying AwsBaseHook.
-
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - `Amazon Elastic Container Service \
+        <https://docs.aws.amazon.com/AmazonECS/latest/APIReference/Welcome.html>`__
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -109,12 +105,40 @@ class EcsHook(AwsGenericHook):
         super().__init__(*args, **kwargs)
 
     def get_cluster_state(self, cluster_name: str) -> str:
+        """
+        Get ECS Cluster state.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ECS.Client.describe_clusters`
+
+        :param cluster_name: ECS Cluster name or full cluster Amazon Resource Name (ARN) entry.
+        """
         return self.conn.describe_clusters(clusters=[cluster_name])["clusters"][0]["status"]
 
     def get_task_definition_state(self, task_definition: str) -> str:
+        """
+        Get ECS Task Definition state.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ECS.Client.describe_task_definition`
+
+        :param task_definition: The family for the latest ACTIVE revision,
+            family and revision ( family:revision ) for a specific revision in the family,
+            or full Amazon Resource Name (ARN) of the task definition to describe.
+        """
         return self.conn.describe_task_definition(taskDefinition=task_definition)["taskDefinition"]["status"]
 
     def get_task_state(self, cluster, task) -> str:
+        """
+        Get ECS Task state.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ECS.Client.describe_tasks`
+
+        :param cluster: The short name or full Amazon Resource Name (ARN)
+            of the cluster that hosts the task or tasks to describe.
+        :param task: Task ID or full ARN entry.
+        """
         return self.conn.describe_tasks(cluster=cluster, tasks=[task])["tasks"][0]["lastStatus"]
 
 

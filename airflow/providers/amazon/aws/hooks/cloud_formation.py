@@ -27,19 +27,27 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class CloudFormationHook(AwsBaseHook):
     """
     Interact with AWS CloudFormation.
+    Provide thin wrapper around
+    :external+boto3:py:class:`boto3.client("cloudformation") <CloudFormation.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="cloudformation", *args, **kwargs)
 
     def get_stack_status(self, stack_name: client | resource) -> dict | None:
-        """Get stack status from CloudFormation."""
+        """
+        Get stack status from CloudFormation.
+
+        .. seealso::
+            - :external+boto3:py:meth:`CloudFormation.Client.describe_stacks`
+
+        """
         self.log.info("Poking for stack %s", stack_name)
 
         try:
@@ -55,6 +63,9 @@ class CloudFormationHook(AwsBaseHook):
         """
         Create stack in CloudFormation.
 
+        .. seealso::
+            - :external+boto3:py:meth:`CloudFormation.Client.create_stack`
+
         :param stack_name: stack_name.
         :param cloudformation_parameters: parameters to be passed to CloudFormation.
         """
@@ -65,6 +76,9 @@ class CloudFormationHook(AwsBaseHook):
     def delete_stack(self, stack_name: str, cloudformation_parameters: dict | None = None) -> None:
         """
         Delete stack in CloudFormation.
+
+        .. seealso::
+            - :external+boto3:py:meth:`CloudFormation.Client.delete_stack`
 
         :param stack_name: stack_name.
         :param cloudformation_parameters: parameters to be passed to CloudFormation (optional).
