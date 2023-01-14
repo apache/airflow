@@ -3920,61 +3920,58 @@ class ConfigurationView(AirflowBaseView):
         """Shows configuration."""
         raw = request.args.get("raw") == "true"
         title = "Airflow Configuration"
-        subtitle = AIRFLOW_CONFIG
+        expose_config = conf.get("webserver", "expose_config").lower()
 
-        expose_config = conf.get("webserver", "expose_config")
-
-        # Don't show config when expose_config variable is False in airflow config
-        # Don't show sensitive config values if expose_config variable is 'non-sensitive-only'
-        # in airflow config
-        if expose_config.lower() == "non-sensitive-only":
-            from airflow.configuration import SENSITIVE_CONFIG_VALUES
-
-            updater = configupdater.ConfigUpdater()
-            updater.read(AIRFLOW_CONFIG)
-            for sect, key in SENSITIVE_CONFIG_VALUES:
-                if updater.has_option(sect, key):
-                    updater[sect][key].value = "< hidden >"
-            config = str(updater)
-
-            table = [
-                (section, key, str(value), source)
-                for section, parameters in conf.as_dict(True, False).items()
-                for key, (value, source) in parameters.items()
-            ]
-        elif expose_config.lower() in ["true", "t", "1"]:
-
-            with open(AIRFLOW_CONFIG) as file:
-                config = file.read()
-            table = [
-                (section, key, str(value), source)
-                for section, parameters in conf.as_dict(True, True).items()
-                for key, (value, source) in parameters.items()
-            ]
-        else:
-            config = (
-                "# Your Airflow administrator chose not to expose the "
-                "configuration, most likely for security reasons."
-            )
-            table = None
-
+        # TODO remove "if raw" usage in Airflow 3.0. Configuration can be fetched via the REST API.
         if raw:
-            return Response(response=config, status=200, mimetype="application/text")
-        else:
-            code_html = Markup(
-                highlight(
-                    config,
-                    lexers.IniLexer(),  # Lexer call
-                    HtmlFormatter(noclasses=True),
+            if expose_config == "non-sensitive-only":
+                from airflow.configuration import SENSITIVE_CONFIG_VALUES
+
+                updater = configupdater.ConfigUpdater()
+                updater.read(AIRFLOW_CONFIG)
+                for sect, key in SENSITIVE_CONFIG_VALUES:
+                    if updater.has_option(sect, key):
+                        updater[sect][key].value = "< hidden >"
+                config = str(updater)
+            elif expose_config in {"true", "t", "1"}:
+                with open(AIRFLOW_CONFIG) as file:
+                    config = file.read()
+            else:
+                config = (
+                    "# Your Airflow administrator chose not to expose the configuration, "
+                    "most likely for security reasons."
                 )
+
+            return Response(
+                response=config,
+                status=200,
+                mimetype="application/text",
+                headers={"Deprecation": "Endpoint will be removed in Airflow 3.0, use the REST API instead."},
             )
+
+        if expose_config in {"non-sensitive-only", "true", "t", "1"}:
+            display_sensitive = expose_config != "non-sensitive-only"
+
+            table = [
+                (section, key, str(value), source)
+                for section, parameters in conf.as_dict(True, display_sensitive).items()
+                for key, (value, source) in parameters.items()
+            ]
+
+            return self.render_template(
+                template="airflow/config.html",
+                title=title,
+                table=table,
+            )
+
+        else:
             return self.render_template(
                 "airflow/config.html",
-                pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
-                code_html=code_html,
                 title=title,
-                subtitle=subtitle,
-                table=table,
+                hide_config_msg=(
+                    "Your Airflow administrator chose not to expose the configuration, "
+                    "most likely for security reasons."
+                ),
             )
 
 

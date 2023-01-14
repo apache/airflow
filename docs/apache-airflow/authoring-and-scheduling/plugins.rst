@@ -257,7 +257,7 @@ definitions in Airflow.
         appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
         appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
 
-.. seealso:: :doc:`/howto/define_extra_link`
+.. seealso:: :doc:`/howto/define-extra-link`
 
 Exclude views from CSRF protection
 ----------------------------------

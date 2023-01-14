@@ -1487,6 +1487,22 @@ class TestDatasetsOperations(_BigQueryBaseTestClass):
             dataset=api_repr.return_value, exists_ok=True
         )
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Dataset")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_empty_dataset_without_datasetreference_key(self, mock_client, mock_dataset):
+        dataset = {"defaultTableExpirationMs": str(1000 * 60 * 60 * 24 * 30)}
+        dataset_copy = dataset.copy()
+        self.hook.create_empty_dataset(
+            dataset_reference=dataset, dataset_id="DATASET_ID", project_id="PROJECT_ID"
+        )
+        assert dataset["defaultTableExpirationMs"] == dataset_copy["defaultTableExpirationMs"]
+        assert dataset["datasetReference"] == {"datasetId": "DATASET_ID", "projectId": "PROJECT_ID"}
+        api_repr = mock_dataset.from_api_repr
+        api_repr.assert_called_once_with(dataset)
+        mock_client.return_value.create_dataset.assert_called_once_with(
+            dataset=api_repr.return_value, exists_ok=True
+        )
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_get_dataset(self, mock_client):
         _expected_result = {
