@@ -769,15 +769,9 @@ class Airflow(AirflowBaseView):
 
             dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
             user_permissions = g.user.perms
-            all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
             can_create_dag_run = (
                 permissions.ACTION_CAN_CREATE,
                 permissions.RESOURCE_DAG_RUN,
-            ) in user_permissions
-
-            all_dags_deletable = (
-                permissions.ACTION_CAN_DELETE,
-                permissions.RESOURCE_DAG,
             ) in user_permissions
 
             dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
@@ -789,16 +783,9 @@ class Airflow(AirflowBaseView):
                 dataset_triggered_next_run_info = {}
 
             for dag in dags:
-                dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
-                if all_dags_editable:
-                    dag.can_edit = True
-                else:
-                    dag.can_edit = (permissions.ACTION_CAN_EDIT, dag_resource_name) in user_permissions
+                dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id, g.user)
                 dag.can_trigger = dag.can_edit and can_create_dag_run
-                if all_dags_deletable:
-                    dag.can_delete = True
-                else:
-                    dag.can_delete = (permissions.ACTION_CAN_DELETE, dag_resource_name) in user_permissions
+                dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id, g.user)
 
             dagtags = session.query(func.distinct(DagTag.name)).all()
             tags = [
