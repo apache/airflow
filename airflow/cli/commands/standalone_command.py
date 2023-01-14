@@ -159,13 +159,27 @@ class StandaloneCommand:
         # Make sure we're using a local executor flavour
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
         if not executor_class.is_local:
-            if "sqlite" in conf.get("database", "sql_alchemy_conn"):
-                self.print_output("standalone", "Forcing executor to SequentialExecutor")
-                env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.SEQUENTIAL_EXECUTOR
-            else:
-                self.print_output("standalone", "Forcing executor to LocalExecutor")
-                env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.LOCAL_EXECUTOR
+            env["AIRFLOW__CORE__EXECUTOR"] = self.get_local_executor(
+                database=conf.get("database", "sql_alchemy_conn")
+            )
+            self.print_output("standalone", f"Forcing executor to {env['AIRFLOW__CORE__EXECUTOR']}")
         return env
+
+    @classmethod
+    def get_local_executor(cls, database: str) -> str:
+        """
+        Get local executor for standalone command
+        for sqlite we need SEQUENTIAL_EXECUTOR otherwise LOCAL_EXECUTOR.
+        """
+        try:
+            return [
+                executor_name
+                for executor_name in ExecutorLoader.executors.keys()
+                if executor_name != "DaskExecutor"
+                and database in ExecutorLoader.load_executor(executor_name).standalone_command_backends
+            ][0]
+        except IndexError:
+            return executor_constants.LOCAL_EXECUTOR
 
     def initialize_database(self):
         """Makes sure all the tables are created."""

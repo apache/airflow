@@ -207,6 +207,7 @@ class LocalExecutor(BaseExecutor):
 
     is_local: bool = True
     supports_pickling: bool = False
+    standalone_command_backends = ["mysql", "postgres", "mssql"]
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)

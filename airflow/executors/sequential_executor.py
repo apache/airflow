@@ -46,6 +46,7 @@ class SequentialExecutor(BaseExecutor):
 
     supports_pickling: bool = False
     is_local: bool = True
+    standalone_command_backends = ["sqlite"]
 
     def __init__(self):
         super().__init__()
