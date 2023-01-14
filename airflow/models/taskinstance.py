@@ -1515,8 +1515,8 @@ class TaskInstance(Base, LoggingMixin):
             # case there's no need to log these again).
             if not self.next_method:
                 self.log.info(
-                    "Exporting the following env vars:\n%s",
-                    "\n".join(f"{k}={v}" for k, v in airflow_context_vars.items()),
+                    "Exporting env vars: %s",
+                    " ".join(f"{k}={v!r}" for k, v in airflow_context_vars.items()),
                 )
 
             # Run pre_execute callback
