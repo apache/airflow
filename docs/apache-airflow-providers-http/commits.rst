@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.1
+.....
+
+Latest change: 2023-01-13
+
+=================================================================================================  ===========  =================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================
+`a9d5471c66 <https://github.com/apache/airflow/commit/a9d5471c66c788d8469ca65556e5820f1e96afc1>`_  2023-01-13   ``Change logging for HttpHook to debug (#28911)``
+=================================================================================================  ===========  =================================================
+
 4.1.0
 .....
 
-Latest change: 2022-10-23
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
 `f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``

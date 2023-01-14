@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2023-01-11
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`45dd0c484e <https://github.com/apache/airflow/commit/45dd0c484e16ff56800cc9c047f56b4a909d2d0d>`_  2023-01-11   ``Move local_infile option from extra to hook parameter (#28811)``
+=================================================================================================  ===========  ==================================================================
+
 3.4.0
 .....
 
-Latest change: 2022-11-24
+Latest change: 2022-11-26
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
 `2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
 `80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
 `83dc604650 <https://github.com/apache/airflow/commit/83dc604650d13d64e34014f2c2323e764033c4a5>`_  2022-11-17   ``Allow SSL mode in MySQL provider (#27717)``

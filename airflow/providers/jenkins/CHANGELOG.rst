@@ -24,6 +24,13 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+* ``check jenkins result state (#28659)``
+
 3.1.0
 .....
 

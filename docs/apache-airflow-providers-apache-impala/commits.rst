@@ -25,3 +25,16 @@ Package apache-airflow-providers-apache-impala
 
 This is detailed commit list of changes for versions provider package: ``apache.impala``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2023-01-06
+
+=================================================================================================  ===========  =============================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================
+`6d09fc7b88 <https://github.com/apache/airflow/commit/6d09fc7b88623919b01cfbdee5566598cefba021>`_  2023-01-06   ``Add 'ImpalaHook' (#26970)``
+=================================================================================================  ===========  =============================

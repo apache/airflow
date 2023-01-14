@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.1
+.....
+
+Latest change: 2023-01-12
+
+=================================================================================================  ===========  =======================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================
+`ce858a5d71 <https://github.com/apache/airflow/commit/ce858a5d719fb1dff85ad7e4747f0777404d1f56>`_  2023-01-12   ``Switch to ruff for faster static checks (#28893)``
+`ce677862be <https://github.com/apache/airflow/commit/ce677862be4a7de777208ba9ba9e62bcd0415393>`_  2023-01-07   ``Fix Incorrect 'await_container_completion' (#28771)``
+=================================================================================================  ===========  =======================================================
+
 5.1.0
 .....
 
-Latest change: 2022-12-30
+Latest change: 2023-01-02
 
 =================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
 `c22fc000b6 <https://github.com/apache/airflow/commit/c22fc000b6c0075429b9d1e51c9ee3d384141ff3>`_  2022-12-30   ``Use labels instead of pod name for pod log read in k8s exec (#28546)``
 `681835a67c <https://github.com/apache/airflow/commit/681835a67c89784944f41fce86099bcb2c3a0614>`_  2022-12-21   ``Add Flink on K8s Operator  (#28512)``
 `38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``

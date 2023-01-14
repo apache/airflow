@@ -24,6 +24,13 @@
 Changelog
 ---------
 
+4.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Allow nested attr in elasticsearch host_field (#28878)``
+
 4.3.2
 .....
 
