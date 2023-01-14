@@ -46,15 +46,15 @@ class MongoHook(BaseHook):
         when connecting to MongoDB.
     """
 
-    conn_name_attr = "conn_id"
+    conn_name_attr = "mongo_conn_id"
     default_conn_name = "mongo_default"
     conn_type = "mongo"
     hook_name = "MongoDB"
 
-    def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
+    def __init__(self, mongo_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__()
-        self.mongo_conn_id = conn_id
-        self.connection = self.get_connection(conn_id)
+        self.mongo_conn_id = mongo_conn_id
+        self.connection = self.get_connection(mongo_conn_id)
         self.extras = self.connection.extra_dejson.copy()
         self.client = None
         self.uri = self._create_uri()
