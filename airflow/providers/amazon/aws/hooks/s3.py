@@ -108,7 +108,9 @@ def unify_bucket_name_and_key(func: T) -> T:
 
 class S3Hook(AwsBaseHook):
     """
-    Interact with AWS S3, using the boto3 library.
+    Interact with Amazon Simple Storage Service (S3).
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("s3") <S3.Client>`
+    and :external+boto3:py:class:`boto3.resource("s3") <S3.ServiceResource>`.
 
     :param transfer_config_args: Configuration object for managed S3 transfers.
     :param extra_args: Extra arguments that may be passed to the download/upload operations.
@@ -123,7 +125,7 @@ class S3Hook(AwsBaseHook):
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(
@@ -215,6 +217,9 @@ class S3Hook(AwsBaseHook):
         """
         Check if bucket_name exists.
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.head_bucket`
+
         :param bucket_name: the name of the bucket
         :return: True if it exists and False if not.
         """
@@ -240,7 +245,10 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def get_bucket(self, bucket_name: str | None = None) -> object:
         """
-        Returns a boto3.S3.Bucket object
+        Returns a :py:class:`S3.Bucket` object
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.ServiceResource.Bucket`
 
         :param bucket_name: the name of the bucket
         :return: the bucket object to the bucket name.
@@ -257,6 +265,9 @@ class S3Hook(AwsBaseHook):
     def create_bucket(self, bucket_name: str | None = None, region_name: str | None = None) -> None:
         """
         Creates an Amazon S3 bucket.
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.create_bucket`
 
         :param bucket_name: The name of the bucket
         :param region_name: The name of the aws region in which to create the bucket.
@@ -303,6 +314,9 @@ class S3Hook(AwsBaseHook):
     ) -> list:
         """
         Lists prefixes in a bucket under prefix
+
+        .. seealso::
+            - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
 
         :param bucket_name: the name of the bucket
         :param prefix: a key prefix
@@ -357,6 +371,9 @@ class S3Hook(AwsBaseHook):
     ) -> list:
         """
         Lists keys in a bucket under prefix and not containing delimiter
+
+        .. seealso::
+            - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
 
         :param bucket_name: the name of the bucket
         :param prefix: a key prefix
@@ -430,6 +447,9 @@ class S3Hook(AwsBaseHook):
         """
         Lists metadata objects in a bucket under prefix
 
+        .. seealso::
+            - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
+
         :param prefix: a key prefix
         :param bucket_name: the name of the bucket
         :param page_size: pagination size
@@ -456,6 +476,9 @@ class S3Hook(AwsBaseHook):
         """
         Retrieves metadata of an object
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.head_object`
+
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which the file is stored
         :return: metadata of an object
@@ -474,6 +497,9 @@ class S3Hook(AwsBaseHook):
         """
         Checks if a key exists in a bucket
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.head_object`
+
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which the file is stored
         :return: True if the key exists and False if not.
@@ -485,7 +511,10 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def get_key(self, key: str, bucket_name: str | None = None) -> S3Transfer:
         """
-        Returns a boto3.s3.Object
+        Returns a :py:class:`S3.Object`.
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.ServiceResource.Object`
 
         :param key: the path to the key
         :param bucket_name: the name of the bucket
@@ -506,6 +535,9 @@ class S3Hook(AwsBaseHook):
     def read_key(self, key: str, bucket_name: str | None = None) -> str:
         """
         Reads a key from S3
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Object.get`
 
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which the file is stored
@@ -528,6 +560,9 @@ class S3Hook(AwsBaseHook):
         """
         Reads a key with S3 Select.
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.select_object_content`
+
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which the file is stored
         :param expression: S3 Select expression
@@ -535,10 +570,6 @@ class S3Hook(AwsBaseHook):
         :param input_serialization: S3 Select input data serialization format
         :param output_serialization: S3 Select output data serialization format
         :return: retrieved subset of original data by S3 Select
-
-        .. seealso::
-            For more details about S3 Select parameters:
-            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.select_object_content
         """
         expression = expression or "SELECT * FROM S3Object"
         expression_type = expression_type or "SQL"
@@ -614,6 +645,9 @@ class S3Hook(AwsBaseHook):
         """
         Loads a local file to S3
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.upload_file`
+
         :param filename: path to the file to load.
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which to store the file
@@ -664,6 +698,9 @@ class S3Hook(AwsBaseHook):
         This is provided as a convenience to drop a string in S3. It uses the
         boto infrastructure to ship a file to s3.
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.upload_fileobj`
+
         :param string_data: str to set as content for the key.
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which to store the file
@@ -712,6 +749,9 @@ class S3Hook(AwsBaseHook):
         This is provided as a convenience to drop bytes data into S3. It uses the
         boto infrastructure to ship a file to s3.
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.upload_fileobj`
+
         :param bytes_data: bytes to set as content for the key.
         :param key: S3 key that will point to the file
         :param bucket_name: Name of the bucket in which to store the file
@@ -739,6 +779,9 @@ class S3Hook(AwsBaseHook):
     ) -> None:
         """
         Loads a file object to S3
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.upload_fileobj`
 
         :param file_obj: The file-like object to set as the content for the S3 key.
         :param key: S3 key that will point to the file
@@ -791,6 +834,9 @@ class S3Hook(AwsBaseHook):
         """
         Creates a copy of an object that is already stored in S3.
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.copy_object`
+
         Note: the S3 connection used here needs to have access to both
         source and destination bucket/key.
 
@@ -834,6 +880,9 @@ class S3Hook(AwsBaseHook):
         """
         To delete s3 bucket, delete all s3 bucket objects and then delete the bucket.
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.delete_bucket`
+
         :param bucket_name: Bucket name
         :param force_delete: Enable this to delete bucket even if not empty
         :return: None
@@ -847,6 +896,9 @@ class S3Hook(AwsBaseHook):
     def delete_objects(self, bucket: str, keys: str | list) -> None:
         """
         Delete keys from the bucket.
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.delete_objects`
 
         :param bucket: Name of the bucket in which you are going to delete object(s)
         :param keys: The key(s) to delete from S3 bucket.
@@ -885,6 +937,9 @@ class S3Hook(AwsBaseHook):
     ) -> str:
         """
         Downloads a file from the S3 location to the local file system.
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Object.download_fileobj`
 
         :param key: The key path in S3.
         :param bucket_name: The specific bucket to use.
@@ -953,6 +1008,9 @@ class S3Hook(AwsBaseHook):
         """
         Generate a presigned url given a client, its method, and arguments
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.generate_presigned_url`
+
         :param client_method: The client method to presign for.
         :param params: The parameters normally passed to ClientMethod.
         :param expires_in: The number of seconds the presigned url is valid for.
@@ -976,6 +1034,9 @@ class S3Hook(AwsBaseHook):
         """
         Gets a List of tags from a bucket.
 
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.get_bucket_tagging`
+
         :param bucket_name: The name of the bucket.
         :return: A List containing the key/value pairs for the tags
         """
@@ -998,6 +1059,9 @@ class S3Hook(AwsBaseHook):
     ) -> None:
         """
         Overwrites the existing TagSet with provided tags.  Must provide either a TagSet or a key/value pair.
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.put_bucket_tagging`
 
         :param tag_set: A List containing the key/value pairs for the tags.
         :param key: The Key for the new TagSet entry.
@@ -1026,6 +1090,9 @@ class S3Hook(AwsBaseHook):
     def delete_bucket_tagging(self, bucket_name: str | None = None) -> None:
         """
         Deletes all tags from a bucket.
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.delete_bucket_tagging`
 
         :param bucket_name: The name of the bucket.
         :return: None
