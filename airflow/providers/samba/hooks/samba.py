@@ -139,10 +139,6 @@ class SambaHook(BaseHook):
     def copyfile(self, src, dst):
         return smbclient.copyfile(self.__join_path(src), self.__join_path(dst), **self._conn_kwargs)
 
-    @wraps(smbclient.remove)
-    def remove(self, path):
-        return smbclient.remove(self.__join_path(path), **self._conn_kwargs)
-
     @wraps(smbclient.readlink)
     def readlink(self, path):
         return smbclient.readlink(self._join_path(path), **self._conn_kwargs)
