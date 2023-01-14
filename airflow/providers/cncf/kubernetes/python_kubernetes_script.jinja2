@@ -17,7 +17,7 @@
  under the License.
 -#}
 
-import {{ pickling_library }}
+import json
 import sys
 
 {# Check whether Airflow is available in the environment.
@@ -34,7 +34,7 @@ if sys.version_info >= (3,6):
 
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:
-    arg_dict = {{ pickling_library }}.load(file)
+    arg_dict = json.loads(file.read())
 {% else %}
 arg_dict = {"args": [], "kwargs": {}}
 {% endif %}
@@ -42,3 +42,8 @@ arg_dict = {"args": [], "kwargs": {}}
 # Script
 {{ python_callable_source }}
 res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
+
+# Write output
+with open(sys.argv[2], "w") as file:
+    if res is not None:
+        file.write(json.dumps(res))

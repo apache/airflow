@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import inspect
+import json
 import os
-import pickle
 import uuid
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -37,21 +38,24 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 _PYTHON_SCRIPT_ENV = "__PYTHON_SCRIPT"
+_PYTHON_INPUT_ENV = "__PYTHON_INPUT"
 
 _FILENAME_IN_CONTAINER = "/tmp/script.py"
+_INPUT_FILENAME_IN_CONTAINER = "/tmp/script.in"
+_OUTPUT_FILENAME_IN_CONTAINER = "/airflow/xcom/return.json"
 
 
-def _generate_decode_command() -> str:
+def _generate_decoded_command(env_var: str, file: str) -> str:
     return (
         f'python -c "import base64, os;'
-        rf"x = os.environ[\"{_PYTHON_SCRIPT_ENV}\"];"
-        rf'f = open(\"{_FILENAME_IN_CONTAINER}\", \"w\"); f.write(x); f.close()"'
+        rf"x = base64.b64decode(os.environ[\"{env_var}\"]);"
+        rf'f = open(\"{file}\", \"wb\"); f.write(x); f.close()"'
     )
 
 
-def _read_file_contents(filename):
-    with open(filename) as script_file:
-        return script_file.read()
+def _read_file_contents(filename: str) -> str:
+    with open(filename, "rb") as script_file:
+        return base64.b64encode(script_file.read()).decode("utf-8")
 
 
 class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
@@ -62,17 +66,15 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"}
     )
 
-    # since we won't mutate the arguments, we should just do the shallow copy
+    # Since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
     def __init__(self, namespace: str = "default", **kwargs) -> None:
-        self.pickling_library = pickle
         super().__init__(
             namespace=namespace,
             name=kwargs.pop("name", f"k8s_airflow_pod_{uuid.uuid4().hex}"),
-            cmds=["bash"],
-            arguments=["-cx", f"{_generate_decode_command()} && python {_FILENAME_IN_CONTAINER}"],
+            cmds=["dummy-command"],
             **kwargs,
         )
 
@@ -82,15 +84,35 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         res = remove_task_decorator(res, "@task.kubernetes")
         return res
 
+    def _generate_cmds(self):
+        return [
+            "bash",
+            "-cx",
+            (
+                f"{_generate_decoded_command('%s', '%s')} && " % (_PYTHON_SCRIPT_ENV, _FILENAME_IN_CONTAINER)
+                + f"{_generate_decoded_command('%s', '%s')} && "
+                % (_PYTHON_INPUT_ENV, _INPUT_FILENAME_IN_CONTAINER)
+                + "mkdir -p /airflow/xcom && python "
+                + f"{_FILENAME_IN_CONTAINER} {_INPUT_FILENAME_IN_CONTAINER} {_OUTPUT_FILENAME_IN_CONTAINER}"
+            ),
+        ]
+
     def execute(self, context: Context):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             script_filename = os.path.join(tmp_dir, "script.py")
-            py_source = self._get_python_source()
+            input_filename = os.path.join(tmp_dir, "script.in")
 
+            with open(input_filename, "wb") as file:
+                if self.op_args or self.op_kwargs:
+                    json_as_bytes = json.dumps({"args": self.op_args, "kwargs": self.op_kwargs}).encode(
+                        "utf-8"
+                    )
+                    file.write(json_as_bytes)
+
+            py_source = self._get_python_source()
             jinja_context = {
                 "op_args": self.op_args,
                 "op_kwargs": self.op_kwargs,
-                "pickling_library": self.pickling_library.__name__,
                 "python_callable": self.python_callable.__name__,
                 "python_callable_source": py_source,
                 "string_args_global": False,
@@ -100,7 +122,10 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             self.env_vars = [
                 *self.env_vars,
                 k8s.V1EnvVar(name=_PYTHON_SCRIPT_ENV, value=_read_file_contents(script_filename)),
+                k8s.V1EnvVar(name=_PYTHON_INPUT_ENV, value=_read_file_contents(input_filename)),
             ]
+
+            self.cmds = self._generate_cmds()
             return super().execute(context)
 
 
