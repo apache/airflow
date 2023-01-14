@@ -26,7 +26,8 @@ The Amazon Web Services connection type enables the :ref:`AWS Integrations
 Authenticating to AWS
 ---------------------
 
-Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
+Authentication may be performed using any of the options described in Boto3 Guide :external+boto3:ref:`guide_credentials`.
+Alternatively, one can pass credentials in as a Connection initialisation parameter.
 
 To use IAM instance profile, create an "empty" connection (i.e. one with no AWS Access Key ID or AWS Secret Access Key
 specified, or ``aws://``).
@@ -66,8 +67,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. All parameters are optional.
 
-    The following extra parameters used to create an initial
-    `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__:
+    The following extra parameters used to create an initial :external:py:class:`boto3.session.Session`:
 
     * ``aws_access_key_id``: AWS access key ID used for the initial connection.
     * ``aws_secret_access_key``: AWS secret access key used for the initial connection
@@ -87,9 +87,8 @@ Extra (optional)
       if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
 
-    The following extra parameters used for
-    `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
-    and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__:
+    The following extra parameters pass to :external:py:meth:`boto3.session.Session.client`
+    or :external:py:meth:`boto3.session.Session.resource`.
 
     * ``config_kwargs``: Additional **kwargs** used to construct a
       `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
@@ -110,8 +109,7 @@ Extra (optional)
     * ``profile``: If you are getting your credentials from the ``s3_config_file``
       you can specify the profile with this parameter.
     * ``host``: Used as connection's URL. Use ``endpoint_url`` instead.
-    * ``session_kwargs``: Additional **kwargs** passed to
-      `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__.
+    * ``session_kwargs``: Additional **kwargs** passed to :external:py:class:`boto3.session.Session`.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
@@ -214,7 +212,7 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
     }
 
 .. seealso::
-    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerole
+    - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerole
 
 
 3. Configuring an outbound HTTP proxy
@@ -279,9 +277,9 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     The ``python-gssapi`` library is outdated, and conflicts with some versions of ``paramiko`` which Airflow uses elsewhere.
 
 .. seealso::
-    :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
-    https://pypi.org/project/requests-gssapi/
+    - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
+    - https://pypi.org/project/requests-gssapi/
 
 
 Avoid Throttling exceptions
@@ -301,7 +299,7 @@ If you encounter throttling exceptions, you may change the mode to ``standard`` 
 
 
 .. seealso::
-    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#retries
+    - Boto3 Guide: :external+boto3:ref:`guide_retries`
 
 Set in Connection
 ^^^^^^^^^^^^^^^^^
@@ -352,8 +350,7 @@ Session Factory
 ---------------
 
 The default ``BaseSessionFactory`` for the connection can handle most of the authentication methods for AWS.
-In the case that you would like to have full control of
-`boto3 session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__ creation or
+In the case that you would like to have full control of :external:py:class:`boto3.session.Session` creation or
 you are using custom `federation <https://aws.amazon.com/identity/federation/>`__ that requires
 `external process to source the credentials <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sourcing-external.html>`__,
 you can subclass :class:`~airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory` and override ``create_session``
@@ -667,7 +664,11 @@ You can configure connection, also using environmental variable :envvar:`AIRFLOW
 Using IAM Roles for Service Accounts (IRSA) on EKS
 ----------------------------------------------------------------
 
-If you are running Airflow on `Amazon EKS <https://aws.amazon.com/eks/>`_, you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service by granting the IAM role to it's service account. IRSA provides fine-grained permission management for apps(e.g., pods) that run on EKS and use other AWS services. These could be apps that use S3, any other AWS services like Secrets Manager, CloudWatch, DynamoDB etc.
+If you are running Airflow on `Amazon EKS <https://aws.amazon.com/eks/>`_,
+you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service
+by granting the IAM role to it's service account.
+IRSA provides fine-grained permission management for apps(e.g., pods) that run on EKS and use other AWS services.
+These could be apps that use S3, any other AWS services like Secrets Manager, CloudWatch, DynamoDB etc.
 
 To activate this, the following steps must be followed:
 
@@ -676,10 +677,15 @@ To activate this, the following steps must be followed:
 3. Add the corresponding IAM Role to the Airflow service account as an annotation.
 
 .. seealso::
-    https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+    - https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
 
-Then you can find ``AWS_ROLE_ARN`` and ``AWS_WEB_IDENTITY_TOKEN_FILE`` in environment variables of appropriate pods that `Amazon EKS Pod Identity Web Hook <https://github.com/aws/amazon-eks-pod-identity-webhook>`__ added. Then `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials>`__ will configure credentials using those variables.
-In order to use IRSA in Airflow, you have to create an aws connection with all fields empty. If a field such as ``role-arn`` is set, Airflow does not follow the boto3 default flow because it manually create a session using connection fields. If you did not change the default connection ID, an empty AWS connection named ``aws_default`` would be enough.
+Then you can find ``AWS_ROLE_ARN`` and ``AWS_WEB_IDENTITY_TOKEN_FILE`` in environment variables of appropriate pods that
+`Amazon EKS Pod Identity Web Hook <https://github.com/aws/amazon-eks-pod-identity-webhook>`__ added.
+Then `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials>`__
+will configure credentials using those variables. In order to use IRSA in Airflow, you have to create an aws connection
+with all fields empty. If a field such as ``role-arn`` is set, Airflow does not follow the boto3 default flow because
+it manually create a session using connection fields.
+If you did not change the default connection ID, an empty AWS connection named ``aws_default`` would be enough.
 
 Create IAM Role for Service Account(IRSA) using eksctl
 ------------------------------------------------------
@@ -693,13 +699,16 @@ Create IAM Role for Service Account(IRSA) using eksctl
 
     eksctl utils associate-iam-oidc-provider --cluster="<EKS_CLUSTER_ID>" --approve
 
-4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the the following command. This command will use an existing EKS Cluster ID and create an IAM role, service account and namespace.
+4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the the following command.
+This command will use an existing EKS Cluster ID and create an IAM role, service account and namespace.
 
 .. code-block:: bash
 
     eksctl create iamserviceaccount --cluster="<EKS_CLUSTER_ID>" --name="<SERVICE_ACCOUNT_NAME>" --namespace="<NAMESPACE>" --attach-policy-arn="<IAM_POLICY_ARN>" --approve``
 
-This is an example command with values. This example is using managed policy with full S3 permissions attached to the IAM role. We highly recommend you to create a restricted IAM policy with necessary permissions to S3, Secrets Manager, CloudWatch etc. and use it with ``--attach-policy-arn``.
+This is an example command with values. This example is using managed policy with full
+S3 permissions attached to the IAM role. We highly recommend you to create a restricted IAM policy
+with necessary permissions to S3, Secrets Manager, CloudWatch etc. and use it with ``--attach-policy-arn``.
 
 .. code-block:: bash
 
@@ -712,8 +721,10 @@ Create IAM Role for Service Account(IRSA) using Terraform
 
 For Terraform users, IRSA roles can be created using `Amazon EKS Blueprints for Terraform <https://github.com/aws-ia/terraform-aws-eks-blueprints>`_ module.
 
-This module creates a new IAM Role, service account and namespace. This will associate IAM role with the service account and adds the annotation to the service account.
-You need to create an IAM policy with the required permissions that you would like the containers in your pods to have. Replace ``IAM_POLICY_ARN`` with your IAM policy ARN, other required inputs as shown below and run ``terraform apply``.
+This module creates a new IAM Role, service account and namespace.
+This will associate IAM role with the service account and adds the annotation to the service account.
+You need to create an IAM policy with the required permissions that you would like the containers in your pods to have.
+Replace ``IAM_POLICY_ARN`` with your IAM policy ARN, other required inputs as shown below and run ``terraform apply``.
 
 .. code-block:: terraform
 
@@ -727,4 +738,5 @@ You need to create an IAM policy with the required permissions that you would li
       kubernetes_service_account = "<SERVICE_ACCOUNT_NAME>"
     }
 
-Once the Terraform module is applied then you can use the service account in your Airflow deployments or with Kubernetes Pod Operator.
+Once the Terraform module is applied then you can use the service account in your Airflow deployments
+or with Kubernetes Pod Operator.

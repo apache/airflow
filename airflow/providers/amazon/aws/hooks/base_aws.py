@@ -76,7 +76,7 @@ class BaseSessionFactory(LoggingMixin):
     creation or to support custom federation.
 
     .. seealso::
-        :ref:`howto/connection:aws:session-factory`
+        - :ref:`howto/connection:aws:session-factory`
     """
 
     def __init__(
@@ -378,8 +378,8 @@ class BaseSessionFactory(LoggingMixin):
 
 class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     """
-    Interact with AWS.
-    This class is a thin wrapper around the boto3 python library.
+    Generic class for interact with AWS.
+    This class provide a thin wrapper around the boto3 python library.
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -389,8 +389,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-    :param client_type: boto3.client client_type. Eg 's3', 'emr' etc
-    :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
+    :param client_type: Reference to :external:py:meth:`boto3.client service_name \
+        <boto3.session.Session.client>`, e.g. 'emr', 'batch', 's3', etc.
+        Mutually exclusive with ``resource_type``.
+    :param resource_type: Reference to :external:py:meth:`boto3.resource service_name \
+        <boto3.session.Session.resource>`, e.g. 's3', 'ec2', 'dynamodb', etc.
+        Mutually exclusive with ``client_type``.
     :param config: Configuration for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
@@ -809,12 +813,25 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
 class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
     """
-    Interact with AWS.
-    This class is a thin wrapper around the boto3 python library
-    with basic conn annotation.
+    Base class for interact with AWS.
+    This class provide a thin wrapper around the boto3 python library.
 
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param client_type: Reference to :external:py:meth:`boto3.client service_name \
+        <boto3.session.Session.client>`, e.g. 'emr', 'batch', 's3', etc.
+        Mutually exclusive with ``resource_type``.
+    :param resource_type: Reference to :external:py:meth:`boto3.resource service_name \
+        <boto3.session.Session.resource>`, e.g. 's3', 'ec2', 'dynamodb', etc.
+        Mutually exclusive with ``client_type``.
+    :param config: Configuration for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
 
