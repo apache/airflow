@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Incorrect 'await_container_completion' (#28771)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
 5.1.0
 .....
 
