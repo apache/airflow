@@ -124,7 +124,7 @@ Name                                                                   Descripti
 ``dataset.updates``                                                    Number of updated datasets
 ``dataset.orphaned``                                                   Number of datasets marked as orphans because they are no longer referenced in DAG
                                                                        schedule parameters or task outlets
-``dataset.triggered_runs``                                             Number of runs triggered by a dataset update
+``dataset.triggered_dagruns``                                          Number of DAG runs triggered by a dataset update
 ====================================================================== ================================================================
 
 Gauges

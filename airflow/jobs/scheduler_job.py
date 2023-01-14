@@ -1198,7 +1198,7 @@ class SchedulerJob(BaseJob):
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
-                Stats.incr("dataset.triggered_runs")
+                Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
                 session.query(DatasetDagRunQueue).filter(
                     DatasetDagRunQueue.target_dag_id == dag_run.dag_id
@@ -1633,10 +1633,9 @@ class SchedulerJob(BaseJob):
                     func.count(TaskOutletDatasetReference.dag_id) == 0,
                 )
             )
+            .all()
         )
-        orphaned_datasets_count = 0
         for dataset in orphaned_dataset_query:
             self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
             dataset.is_orphaned = expression.true()
-            orphaned_datasets_count += 1
-        Stats.incr("dataset.orphaned", count=orphaned_datasets_count)
+        Stats.gauge("dataset.orphaned", len(orphaned_dataset_query))
