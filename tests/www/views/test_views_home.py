@@ -109,6 +109,31 @@ def client_single_dag(app, user_single_dag):
     )
 
 
+@pytest.fixture(scope="module")
+def user_single_dag_edit(app):
+    """Create User that can edit DAG resource only a single DAG"""
+    return create_user(
+        app,
+        username="user_single_dag_edit",
+        role_name="role_single_dag",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("filter_test_1")),
+        ],
+    )
+
+
+@pytest.fixture()
+def client_single_dag_edit(app, user_single_dag_edit):
+    """Client for User that can only edit the first DAG from TEST_FILTER_DAG_IDS"""
+    return client_with_login(
+        app,
+        username="user_single_dag_edit",
+        password="user_single_dag_edit",
+    )
+
+
 TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
 TEST_TAGS = ["example", "test", "team", "group"]
 
@@ -192,6 +217,17 @@ def test_home_dag_list_search(working_dags, user_client):
     check_content_in_response("dag_id=filter_test_2", resp)
     check_content_not_in_response("dag_id=filter.test", resp)
     check_content_not_in_response("dag_id=a_first_dag_id_asc", resp)
+
+
+def test_home_dag_edit_permissions(capture_templates, working_dags, client_single_dag_edit):
+    with capture_templates() as templates:
+        client_single_dag_edit.get("home", follow_redirects=True)
+
+    dags = templates[0].local_context["dags"]
+    assert len(dags) > 0
+    dag_edit_perm_tuple = [(dag.dag_id, dag.can_edit) for dag in dags]
+    assert ("filter_test_1", True) in dag_edit_perm_tuple
+    assert ("filter_test_2", False) in dag_edit_perm_tuple
 
 
 def test_home_robots_header_in_response(user_client):
