@@ -90,7 +90,7 @@ run the commands below.
 .. code-block:: bash
 
     # run your first task instance
-    airflow tasks run example_bash_operator runme_0 2015-01-01
+    airflow tasks test example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
     airflow dags backfill example_bash_operator \
         --start-date 2015-01-01 \
