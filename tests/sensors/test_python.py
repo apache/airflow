@@ -43,7 +43,13 @@ class TestPythonSensor(BasePythonTest):
             self.run_as_task(lambda: 1 / 0)
 
     def test_python_sensor_xcom(self):
-        poke_result =  self.run_as_operator(fn=lambda: PokeReturnValue(True, "xcom")).poke({})
+        with self.dag:
+            task = self.opcls(
+                task_id=self.task_id,
+                python_callable=lambda: PokeReturnValue(True, "xcom"),
+                **self.default_kwargs(),
+            )
+        poke_result = task.poke({})
         assert poke_result.xcom_value == "xcom"
 
     def test_python_callable_arguments_are_templatized(self):
