@@ -1149,8 +1149,8 @@ class AirflowConfigParser(ConfigParser):
             if not display_sensitive and env_var != self._env_var_name("core", "unit_test_mode"):
                 # Don't hide cmd/secret values here
                 if not env_var.lower().endswith("cmd") and not env_var.lower().endswith("secret"):
-                    opt = "< hidden >"
-
+                    if (section, key) in self.sensitive_config_values:
+                        opt = "< hidden >"
             elif raw:
                 opt = opt.replace("%", "%%")
             if display_source:

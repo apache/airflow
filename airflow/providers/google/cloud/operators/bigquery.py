@@ -611,7 +611,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-        failed_tests(
+        failed_tests.extend(
             f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
             for col, checks in self.column_mapping.items()
             for check, check_values in checks.items()
@@ -1631,7 +1631,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "compression": self.compression,
                 "csvOptions": {
-                    "fieldDelimeter": self.field_delimiter,
+                    "fieldDelimiter": self.field_delimiter,
                     "skipLeadingRows": self.skip_leading_rows,
                     "quote": self.quote_character,
                     "allowQuotedNewlines": self.allow_quoted_newlines,

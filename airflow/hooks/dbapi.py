@@ -20,8 +20,10 @@ from __future__ import annotations
 import warnings
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.providers.common.sql.hooks.sql import ConnectorProtocol  # noqa
-from airflow.providers.common.sql.hooks.sql import DbApiHook  # noqa
+from airflow.providers.common.sql.hooks.sql import (
+    ConnectorProtocol,  # noqa
+    DbApiHook,  # noqa
+)
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.common.sql.hooks.sql`.",
