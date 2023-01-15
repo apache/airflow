@@ -52,6 +52,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
+POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 
 # TaskInstance key, command, configuration, pod_template_file
 KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
@@ -211,7 +212,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
         elif status == "Succeeded":
             self.log.info("Event: %s Succeeded", pod_id)
-            self.watcher_queue.put((pod_id, namespace, None, annotations, resource_version))
+            self.watcher_queue.put((pod_id, namespace, State.SUCCESS, annotations, resource_version))
         elif status == "Running":
             if event["type"] == "DELETED":
                 self.log.info("Event: Pod %s deleted before it could complete", pod_id)
@@ -366,6 +367,18 @@ class AirflowKubernetesScheduler(LoggingMixin):
             # If the pod is already deleted
             if e.status != 404:
                 raise
+
+    def patch_pod_executor_done(self, *, pod_id: str, namespace: str):
+        """Add a "done" annotation to ensure we don't continually adopt pods"""
+        self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_id, namespace)
+        try:
+            self.kube_client.patch_namespaced_pod(
+                name=pod_id,
+                namespace=namespace,
+                body={"metadata": {"labels": {POD_EXECUTOR_DONE_KEY: "True"}}},
+            )
+        except ApiException as e:
+            self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_id, e)
 
     def sync(self) -> None:
         """
@@ -738,16 +751,26 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_scheduler
 
-        if state != State.RUNNING:
-            if self.kube_config.delete_worker_pods:
-                if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
-                    self.kube_scheduler.delete_pod(pod_id, namespace)
-                    self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
-            try:
-                self.running.remove(key)
-            except KeyError:
-                self.log.debug("Could not find key: %s", str(key))
-        self.event_buffer[key] = state, None
+        if state == State.RUNNING:
+            self.event_buffer[key] = state, None
+            return
+
+        if self.kube_config.delete_worker_pods:
+            if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+                self.kube_scheduler.delete_pod(pod_id, namespace)
+                self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
+        else:
+            self.kube_scheduler.patch_pod_executor_done(pod_id=pod_id, namespace=namespace)
+            self.log.info("Patched pod %s in namespace %s to mark it as done", str(key), str(namespace))
+
+        try:
+            self.running.remove(key)
+        except KeyError:
+            self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
+        else:
+            # We get multiple events once the pod hits a terminal state, and we only want to
+            # do this once, so only do it when we remove the task from running
+            self.event_buffer[key] = state, None
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
@@ -778,26 +801,28 @@ class KubernetesExecutor(BaseExecutor):
             assert self.scheduler_job_id
 
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
-        pod.metadata.labels["airflow-worker"] = pod_generator.make_safe_label_value(self.scheduler_job_id)
         pod_id = annotations_to_key(pod.metadata.annotations)
         if pod_id not in pod_ids:
             self.log.error("attempting to adopt taskinstance which was not specified by database: %s", pod_id)
             return
 
+        new_worker_id_label = pod_generator.make_safe_label_value(self.scheduler_job_id)
         try:
             kube_client.patch_namespaced_pod(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                body=PodGenerator.serialize_pod(pod),
+                body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
             )
-            pod_ids.pop(pod_id)
-            self.running.add(pod_id)
         except ApiException as e:
             self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            return
+
+        del pod_ids[pod_id]
+        self.running.add(pod_id)
 
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
         """
-        Patch completed pod so that the KubernetesJobWatcher can delete it.
+        Patch completed pods so that the KubernetesJobWatcher can delete them.
 
         :param kube_client: kubernetes client for speaking to kube API
         """
@@ -807,20 +832,24 @@ class KubernetesExecutor(BaseExecutor):
         new_worker_id_label = pod_generator.make_safe_label_value(self.scheduler_job_id)
         query_kwargs = {
             "field_selector": "status.phase=Succeeded",
-            "label_selector": f"kubernetes_executor=True,airflow-worker!={new_worker_id_label}",
+            "label_selector": (
+                "kubernetes_executor=True,"
+                f"airflow-worker!={new_worker_id_label},{POD_EXECUTOR_DONE_KEY}!=True"
+            ),
         }
         pod_list = self._list_pods(query_kwargs)
         for pod in pod_list:
             self.log.info("Attempting to adopt pod %s", pod.metadata.name)
-            pod.metadata.labels["airflow-worker"] = new_worker_id_label
             try:
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
-                    body=PodGenerator.serialize_pod(pod),
+                    body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            pod_id = annotations_to_key(pod.metadata.annotations)
+            self.running.add(pod_id)
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:
@@ -872,13 +901,16 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_scheduler
 
         self.log.info("Shutting down Kubernetes executor")
-        self.log.debug("Flushing task_queue...")
-        self._flush_task_queue()
-        self.log.debug("Flushing result_queue...")
-        self._flush_result_queue()
-        # Both queues should be empty...
-        self.task_queue.join()
-        self.result_queue.join()
+        try:
+            self.log.debug("Flushing task_queue...")
+            self._flush_task_queue()
+            self.log.debug("Flushing result_queue...")
+            self._flush_result_queue()
+            # Both queues should be empty...
+            self.task_queue.join()
+            self.result_queue.join()
+        except ConnectionResetError:
+            self.log.exception("Connection Reset error while flushing task_queue and result_queue.")
         if self.kube_scheduler:
             self.kube_scheduler.terminate()
         self._manager.shutdown()

@@ -45,7 +45,6 @@
 
 !.coveragerc
 !.rat-excludes
-!.flake8
 !.dockerignore
 !pytest.ini
 !RELEASE_NOTES.rst

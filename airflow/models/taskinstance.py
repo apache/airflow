@@ -136,6 +136,9 @@ if TYPE_CHECKING:
     from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 
+PAST_DEPENDS_MET = "past_depends_met"
+
+
 @contextlib.contextmanager
 def set_current_context(context: Context) -> Generator[Context, None, None]:
     """
@@ -547,7 +550,7 @@ class TaskInstance(Base, LoggingMixin):
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        if self.state in State.running:
+        if self.state == State.RUNNING:
             return self._try_number
         return self._try_number + 1
 
@@ -579,6 +582,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_all_deps=False,
         ignore_task_deps=False,
         ignore_depends_on_past=False,
+        wait_for_past_depends_before_skipping=False,
         ignore_ti_state=False,
         local=False,
         pickle_id=None,
@@ -620,6 +624,7 @@ class TaskInstance(Base, LoggingMixin):
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
             ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
             pickle_id=pickle_id,
@@ -639,6 +644,7 @@ class TaskInstance(Base, LoggingMixin):
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
@@ -661,6 +667,7 @@ class TaskInstance(Base, LoggingMixin):
             Overrides the other ignore_* parameters.
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
             (e.g. for Backfills)
+        :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
         :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
             and trigger rule
         :param ignore_ti_state: Ignore the task instance's previous failure/success
@@ -686,7 +693,9 @@ class TaskInstance(Base, LoggingMixin):
         if ignore_task_deps:
             cmd.extend(["--ignore-dependencies"])
         if ignore_depends_on_past:
-            cmd.extend(["--ignore-depends-on-past"])
+            cmd.extend(["--depends-on-past", "ignore"])
+        elif wait_for_past_depends_before_skipping:
+            cmd.extend(["--depends-on-past", "wait"])
         if ignore_ti_state:
             cmd.extend(["--force"])
         if local:
@@ -1081,7 +1090,7 @@ class TaskInstance(Base, LoggingMixin):
         if failed:
             return False
 
-        verbose_aware_logger("Dependencies all met for %s", self)
+        verbose_aware_logger("Dependencies all met for dep_context=%s ti=%s", dep_context.description, self)
         return True
 
     @provide_session
@@ -1183,6 +1192,7 @@ class TaskInstance(Base, LoggingMixin):
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
@@ -1200,6 +1210,7 @@ class TaskInstance(Base, LoggingMixin):
         :param verbose: whether to turn on more verbose logging
         :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
         :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
+        :param wait_for_past_depends_before_skipping: Wait for past depends before mark the ti as skipped
         :param ignore_task_deps: Don't check the dependencies of this TaskInstance's task
         :param ignore_ti_state: Disregards previous task instance state
         :param mark_success: Don't run the task, mark its state as success
@@ -1221,9 +1232,6 @@ class TaskInstance(Base, LoggingMixin):
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr("previously_succeeded", 1, 1)
 
-        # TODO: Logging needs cleanup, not clear what is being printed
-        hr_line_break = "\n" + ("-" * 80)  # Line break
-
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
             # Since mark_success is not set, we do nothing.
@@ -1232,7 +1240,9 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_all_deps=ignore_all_deps,
                 ignore_ti_state=ignore_ti_state,
                 ignore_depends_on_past=ignore_depends_on_past,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_task_deps=ignore_task_deps,
+                description="non-requeueable deps",
             )
             if not self.are_dependencies_met(
                 dep_context=non_requeueable_dep_context, session=session, verbose=True
@@ -1259,12 +1269,13 @@ class TaskInstance(Base, LoggingMixin):
                 deps=REQUEUEABLE_DEPS,
                 ignore_all_deps=ignore_all_deps,
                 ignore_depends_on_past=ignore_depends_on_past,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_task_deps=ignore_task_deps,
                 ignore_ti_state=ignore_ti_state,
+                description="requeueable deps",
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
                 self.state = State.NONE
-                self.log.warning(hr_line_break)
                 self.log.warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
@@ -1272,16 +1283,12 @@ class TaskInstance(Base, LoggingMixin):
                     self.try_number,
                     self.max_tries + 1,
                 )
-                self.log.warning(hr_line_break)
                 self.queued_dttm = timezone.utcnow()
                 session.merge(self)
                 session.commit()
                 return False
 
-        # print status message
-        self.log.info(hr_line_break)
         self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
-        self.log.info(hr_line_break)
         self._try_number += 1
 
         if not test_mode:
@@ -1508,8 +1515,8 @@ class TaskInstance(Base, LoggingMixin):
             # case there's no need to log these again).
             if not self.next_method:
                 self.log.info(
-                    "Exporting the following env vars:\n%s",
-                    "\n".join(f"{k}={v}" for k, v in airflow_context_vars.items()),
+                    "Exporting env vars: %s",
+                    " ".join(f"{k}={v!r}" for k, v in airflow_context_vars.items()),
                 )
 
             # Run pre_execute callback
@@ -1656,6 +1663,7 @@ class TaskInstance(Base, LoggingMixin):
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
@@ -1669,6 +1677,7 @@ class TaskInstance(Base, LoggingMixin):
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
             mark_success=mark_success,

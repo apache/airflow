@@ -44,7 +44,7 @@ EXECDATE_ISO = EXECDATE_NOFRACTIONS.isoformat()
 class TestLocalClient:
     @classmethod
     def setup_class(cls):
-        DagBag(example_bash_operator.__file__).get_dag("example_bash_operator").sync_to_db()
+        DagBag(example_bash_operator.__file__, include_examples=False).sync_to_db()
 
     def setup_method(self):
         clear_db_pools()

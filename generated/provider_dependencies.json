@@ -116,6 +116,15 @@
       "vertica"
     ]
   },
+  "apache.impala": {
+    "deps": [
+      "apache-airflow>=2.3.0",
+      "impyla>=0.18.0,<1.0"
+    ],
+    "cross-providers-deps": [
+      "common.sql"
+    ]
+  },
   "apache.kylin": {
     "deps": [
       "apache-airflow>=2.3.0",
@@ -259,7 +268,7 @@
   },
   "docker": {
     "deps": [
-      "apache-airflow>=2.4.0",
+      "apache-airflow>=2.3.0",
       "docker>=5.0.3",
       "python-dotenv>=0.21.0"
     ],
@@ -452,6 +461,7 @@
       "azure-servicebus>=7.6.1",
       "azure-storage-blob>=12.14.0",
       "azure-storage-common>=2.1.0",
+      "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file>=2.1.0",
       "azure-synapse-spark"
     ],
@@ -708,7 +718,7 @@
   "telegram": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "python-telegram-bot>=13.0"
+      "python-telegram-bot>=13.0,<20.0.0"
     ],
     "cross-providers-deps": []
   },

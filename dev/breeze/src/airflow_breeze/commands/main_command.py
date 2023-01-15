@@ -141,7 +141,7 @@ def check_for_python_emulation():
                 prompt="Are you REALLY sure you want to continue? (answer with y otherwise we exit in 20s)\n",
                 timeout=20,
             )
-            if not user_status.upper() in ["Y", "YES"]:
+            if user_status.upper() not in ["Y", "YES"]:
                 sys.exit(1)
     except TimeoutOccurred:
         get_console().print("\nNo answer, exiting...")
@@ -189,7 +189,7 @@ def check_for_rosetta_environment():
                 prompt="Are you REALLY sure you want to continue? (answer with y otherwise we exit in 20s)\n",
                 timeout=20,
             )
-            if not user_status.upper() in ["Y", "YES"]:
+            if user_status.upper() not in ["Y", "YES"]:
                 sys.exit(1)
     except TimeoutOccurred:
         get_console().print("\nNo answer, exiting...")

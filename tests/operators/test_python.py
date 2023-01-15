@@ -924,19 +924,7 @@ class TestPythonVirtualenvOperator(BasePythonTest):
             *PythonVirtualenvOperator.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS,
             *intentionally_excluded_context_keys,
         }
-
         assert set(context) == declared_keys
-
-
-DEFAULT_ARGS = {
-    "owner": "test",
-    "depends_on_past": True,
-    "start_date": timezone.datetime(2022, 1, 1),
-    "end_date": datetime.today(),
-    "schedule_interval": "@once",
-    "retries": 1,
-    "retry_delay": timedelta(minutes=1),
-}
 
 
 class TestCurrentContext:
@@ -1000,14 +988,24 @@ def clear_db():
     clear_db_runs()
 
 
+DEFAULT_ARGS = {
+    "owner": "test",
+    "depends_on_past": True,
+    "start_date": datetime(2022, 1, 1),
+    "end_date": datetime.today(),
+    "retries": 1,
+    "retry_delay": timedelta(minutes=1),
+}
+
+
 @pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
     def test_context_in_task(self):
-        with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS):
+        with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
             op = MyContextAssertOperator(task_id="assert_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
     def test_get_context_in_old_style_context_task(self):
-        with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS):
+        with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)

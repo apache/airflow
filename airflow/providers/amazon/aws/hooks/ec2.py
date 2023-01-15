@@ -49,13 +49,18 @@ def only_client_type(func):
 
 class EC2Hook(AwsBaseHook):
     """
-    Interact with AWS EC2 Service.
+    Interact with Amazon Elastic Compute Cloud (EC2).
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("ec2") <EC2.Client>`
+    or :external+boto3:py:class:`boto3.resource("ec2") <EC2.ServiceResource>`.
+
+    :param api_type: If set to ``client_type`` then hook use ``boto3.client("ec2")`` capabilities,
+        If set to ``resource_type`` then hook use ``boto3.resource("ec2")`` capabilities.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     API_TYPES = frozenset({"resource_type", "client_type"})
