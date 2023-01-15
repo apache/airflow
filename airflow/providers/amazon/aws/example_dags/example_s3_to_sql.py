@@ -52,7 +52,7 @@ with DAG(
     # line of the CSV file
     #
     transfer_s3_to_sql_inferred_column_names = S3ToSqlOperator(
-        task_id="transfer_s3_to_sql",
+        task_id="transfer_s3_to_sql_inferred_column_names",
         aws_conn_id="aws_default",
         s3_bucket="bucket",
         s3_key="data_with_headers.csv",
@@ -68,8 +68,8 @@ with DAG(
     # [START howto_transfer_s3_to_sql_csv_reader_kwargs]
     # If you want to use `;` as the delimiter instead of default `,`,
     # pass it in `csv_reader_kwargs`
-    transfer_s3_to_sql_inferred_column_names = S3ToSqlOperator(
-        task_id="transfer_s3_to_sql",
+    transfer_s3_to_sql_csv_reader_kwargs = S3ToSqlOperator(
+        task_id="transfer_s3_to_sql_csv_reader_kwargs",
         aws_conn_id="aws_default",
         s3_bucket="bucket",
         s3_key="data_with_headers.csv",
