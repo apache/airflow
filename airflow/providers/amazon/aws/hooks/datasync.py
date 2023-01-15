@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import time
+from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -74,17 +75,17 @@ class DataSyncHook(AwsBaseHook):
         :return: LocationArn of the created Location.
         :raises AirflowException: If location type (prefix from ``location_uri``) is invalid.
         """
-        typ = location_uri.split(":")[0]
-        if typ == "smb":
+        schema = urlsplit(location_uri).scheme
+        if schema == "smb":
             location = self.get_conn().create_location_smb(**create_location_kwargs)
-        elif typ == "s3":
+        elif schema == "s3":
             location = self.get_conn().create_location_s3(**create_location_kwargs)
-        elif typ == "nfs":
-            location = self.get_conn().create_loction_nfs(**create_location_kwargs)
-        elif typ == "efs":
-            location = self.get_conn().create_loction_efs(**create_location_kwargs)
+        elif schema == "nfs":
+            location = self.get_conn().create_location_nfs(**create_location_kwargs)
+        elif schema == "efs":
+            location = self.get_conn().create_location_efs(**create_location_kwargs)
         else:
-            raise AirflowException(f"Invalid location type: {typ}")
+            raise AirflowException(f"Invalid/Unsupported location type: {schema}")
         self._refresh_locations()
         return location["LocationArn"]
 
