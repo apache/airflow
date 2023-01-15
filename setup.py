@@ -216,6 +216,11 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
+    # dnspython 2.3.0 is not compatible with eventlet.
+    # This can be removed when the issue is resolved (reported in two places):
+    # * https://github.com/eventlet/eventlet/issues/781
+    # * https://datastax-oss.atlassian.net/browse/PYTHON-1320
+    "dnspython<2.3.0",
     "eventlet>=0.9.7",
     "gevent>=0.13",
     "greenlet>=0.4.9",
