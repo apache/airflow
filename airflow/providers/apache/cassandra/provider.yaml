@@ -36,6 +36,11 @@ versions:
 dependencies:
   - apache-airflow>=2.3.0
   - cassandra-driver>=3.13.0
+  # dnspython 2.3.0 is not compatible with eventlet that cassandra-driver uses under-the-hood
+  # This can be removed when the issue is resolved (reported in two places):
+  # * https://github.com/eventlet/eventlet/issues/781
+  # * https://datastax-oss.atlassian.net/browse/PYTHON-1320
+  - dnspython<2.3.0
 
 integrations:
   - integration-name: Apache Cassandra
