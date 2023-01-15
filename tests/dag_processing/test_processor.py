@@ -242,7 +242,9 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 1
-        mock_stats_incr.assert_called_with("sla_missed")
+        mock_stats_incr.assert_called_with(
+            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
+        )
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
@@ -290,7 +292,9 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 2
-        mock_stats_incr.assert_called_with("sla_missed")
+        mock_stats_incr.assert_called_with(
+            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
+        )
 
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     def test_dag_file_processor_sla_miss_callback_exception(self, mock_stats_incr, create_dummy_dag):
@@ -330,7 +334,10 @@ class TestDagFileProcessor:
                 sla_callback.func_name,  # type: ignore[attr-defined]
                 f"test_sla_miss_{i}",
             )
-            mock_stats_incr.assert_called_once_with("sla_callback_notification_failure")
+            mock_stats_incr.assert_called_once_with(
+                "sla_callback_notification_failure",
+                tags={"dag_id": f"test_sla_miss_{i}", "func_name": sla_callback.func_name},
+            )
 
     @mock.patch("airflow.dag_processing.processor.send_email")
     def test_dag_file_processor_only_collect_emails_from_sla_missed_tasks(
@@ -401,7 +408,9 @@ class TestDagFileProcessor:
         mock_log.exception.assert_called_once_with(
             "Could not send SLA Miss email notification for DAG %s", "test_sla_miss"
         )
-        mock_stats_incr.assert_called_once_with("sla_email_notification_failure")
+        mock_stats_incr.assert_called_once_with(
+            "sla_email_notification_failure", tags={"dag_id": "test_sla_miss"}
+        )
 
     def test_dag_file_processor_sla_miss_deleted_task(self, create_dummy_dag):
         """
