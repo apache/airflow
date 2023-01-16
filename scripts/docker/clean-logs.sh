@@ -36,5 +36,6 @@ while true; do
     xargs -0 rm -f
 
   seconds=$(( $(date -u +%s) % EVERY))
-  (( seconds < 1 )) || sleep $((EVERY - seconds))
+  (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
+  sleep 1
 done
