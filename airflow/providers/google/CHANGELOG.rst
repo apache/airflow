@@ -23,6 +23,28 @@
 Changelog
 ---------
 
+8.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable ''GCSObjectExistenceSensorAsync'' (#28763)``
+* ``Support partition_columns in BaseSQLToGCSOperator (#28677)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'BigQueryCreateExternalTableOperator' fix field delimiter not working with csv (#28856)``
+* ``Fix using private _get_credentials instead of public get_credentials (#28588)``
+* ``Fix'GoogleCampaignManagerReportSensor' with 'QUEUED' status (#28735)``
+* ``Fix BigQueryColumnCheckOperator runtime error (#28796)``
+* ``assign "datasetReference" attribute to dataset_reference dict. by default if not already set in create_empty_dataset method of bigquery hook (#28782)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
 8.7.0
 .....
 

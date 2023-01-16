@@ -252,6 +252,10 @@ class DataprocHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
+    def get_operations_client(self, region):
+        """Returns OperationsClient"""
+        return self.get_batch_client(region=region).transport.operations_client
+
     def wait_for_operation(
         self,
         operation: Operation,
