@@ -425,7 +425,7 @@ class _Stats(type):
         )
         dogstatsd_allow_list = conf.get("metrics", "statsd_allow_list", fallback=None)
         allow_list_validator = AllowListValidator(dogstatsd_allow_list)
-        datadog_metrics_tags = conf.get("metrics", "statsd_datadog_metrics_tags", fallback=False)
+        datadog_metrics_tags = conf.get("metrics", "statsd_datadog_metrics_tags", fallback=True)
         return SafeDogStatsdLogger(dogstatsd, allow_list_validator, datadog_metrics_tags)
 
     @classmethod
