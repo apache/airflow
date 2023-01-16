@@ -67,6 +67,13 @@ class LoggingMixin:
     def __init__(self, context=None):
         self._set_context(context)
 
+    @classmethod
+    def get_log(cls):
+        """Returns a logger."""
+        if cls._log is None:
+            cls._log = logging.getLogger(cls.__module__ + "." + cls.__name__)
+        return cls._log
+
     @property
     def log(self) -> Logger:
         """Returns a logger."""
