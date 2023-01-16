@@ -156,7 +156,7 @@ Snippet to create Connection and convert to URI
     - host
     - port
 
-    are not given see example below. This is a known airflow limitation.
+    are not given, see example below. This is a known airflow limitation.
 
     ``airflow connections add aws_conn --conn-uri aws://@/?egion_name=eu-west-1``
 
