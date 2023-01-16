@@ -92,9 +92,10 @@ class Param:
             self._warn_if_not_json(value)
         final_val = value if value is not NOTSET else self.value
         if isinstance(final_val, ArgNotSet):
+            logging.debug("Setting the default value to None when not set")
+            final_val = None
             if suppress_exception:
                 return None
-            raise ParamValidationError("No value passed and Param has no default value")
         try:
             jsonschema.validate(final_val, self.schema, format_checker=FormatChecker())
         except ValidationError as err:
