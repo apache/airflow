@@ -122,7 +122,7 @@ With the above configurations, Webserver and Worker Pods can access Amazon S3 bu
   The final step to create connections under Airflow UI before executing the DAGs.
 
   * Login to Airflow Web UI with ``admin`` credentials and Navigate to ``Admin -> Connections``
-  * Create connection for ``Amazon Web Services`` and select the options(Connection ID and Connection Type) as shown in the image.
+  * Create connection for ``Amazon Web Services`` and select the options (Connection ID and Connection Type) as shown in the image.
   * Select the correct region where S3 bucket is created in ``Extra`` text box.
 
   .. image:: /img/aws-base-conn-airflow.png
