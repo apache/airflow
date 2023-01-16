@@ -34,7 +34,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_glue"
 
@@ -69,22 +69,6 @@ datasource.toDF().write.format('csv').mode("append").save('s3://{bucket_name}/ou
 @task
 def get_role_name(arn: str) -> str:
     return arn.split("/")[-1]
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_logs(job_id: str, crawler_name: str) -> None:
-    """
-    Glue generates four Cloudwatch log groups and multiple log streams and leaves them.
-    """
-    generated_log_groups: list[tuple[str, str | None]] = [
-        # Format: ('log group name', 'log stream prefix')
-        ("/aws-glue/crawlers", crawler_name),
-        ("/aws-glue/jobs/logs-v2", job_id),
-        ("/aws-glue/jobs/error", job_id),
-        ("/aws-glue/jobs/output", job_id),
-    ]
-
-    purge_logs(generated_log_groups)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -188,6 +172,16 @@ with DAG(
         force_delete=True,
     )
 
+    log_cleanup = prune_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            ("/aws-glue/crawlers", glue_crawler_name),
+            ("/aws-glue/jobs/logs-v2", submit_glue_job.output),
+            ("/aws-glue/jobs/error", submit_glue_job.output),
+            ("/aws-glue/jobs/output", submit_glue_job.output),
+        ]
+    )
+
     chain(
         # TEST SETUP
         test_context,
@@ -202,7 +196,7 @@ with DAG(
         # TEST TEARDOWN
         glue_cleanup(glue_crawler_name, glue_job_name, glue_db_name),
         delete_bucket,
-        delete_logs(submit_glue_job.output, glue_crawler_name),
+        log_cleanup,
     )
 
     from tests.system.utils.watcher import watcher

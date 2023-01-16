@@ -55,7 +55,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerTuningSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_sagemaker"
 
@@ -437,17 +437,6 @@ def delete_ecr_repository(repository_name):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_logs(env_id):
-    generated_logs = [
-        # Format: ('log group name', 'log stream prefix')
-        ("/aws/sagemaker/ProcessingJobs", env_id),
-        ("/aws/sagemaker/TrainingJobs", env_id),
-        ("/aws/sagemaker/TransformJobs", env_id),
-    ]
-    purge_logs(generated_logs)
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_model_group(group_name, model_version_arn):
     sgmk_client = boto3.client("sagemaker")
     # need to destroy model registered in group first
@@ -501,9 +490,10 @@ with DAG(
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
+    env_id = test_context[ENV_ID_KEY]
 
     test_setup = set_up(
-        env_id=test_context[ENV_ID_KEY],
+        env_id=env_id,
         role_arn=test_context[ROLE_ARN_KEY],
     )
 
@@ -658,6 +648,15 @@ with DAG(
         force_delete=True,
     )
 
+    log_cleanup = prune_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            ("/aws/sagemaker/ProcessingJobs", env_id),
+            ("/aws/sagemaker/TrainingJobs", env_id),
+            ("/aws/sagemaker/TransformJobs", env_id),
+        ]
+    )
+
     chain(
         # TEST SETUP
         test_context,
@@ -688,8 +687,8 @@ with DAG(
         delete_bucket,
         delete_experiment(test_setup["experiment_name"]),
         delete_pipeline(test_setup["pipeline_name"]),
-        delete_logs(test_context[ENV_ID_KEY]),
         delete_docker_image(test_setup["docker_image"]),
+        log_cleanup,
     )
 
     from tests.system.utils.watcher import watcher
