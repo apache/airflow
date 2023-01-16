@@ -25,15 +25,16 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class FirehoseHook(AwsBaseHook):
     """
-    Interact with AWS Kinesis Firehose.
+    Interact with Amazon Kinesis Firehose.
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("firehose") <Firehose.Client>`.
+
+    :param delivery_stream: Name of the delivery stream
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-
-    :param delivery_stream: Name of the delivery stream
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, delivery_stream: str, *args, **kwargs) -> None:
@@ -42,5 +43,11 @@ class FirehoseHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def put_records(self, records: Iterable):
-        """Write batch records to Kinesis Firehose"""
+        """Write batch records to Kinesis Firehose
+
+        .. seealso::
+            - :external+boto3:py:meth:`Firehose.Client.put_record_batch`
+
+        :param records: list of records
+        """
         return self.get_conn().put_record_batch(DeliveryStreamName=self.delivery_stream, Records=records)
