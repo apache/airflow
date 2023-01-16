@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import base64
 from unittest import mock
 
 import pytest
@@ -98,11 +97,7 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
     assert len(containers) == 1
     assert containers[0].command[0] == "bash"
     assert len(containers[0].args) == 0
-
-    assert containers[0].env[0].name == "__PYTHON_SCRIPT"
-    assert containers[0].env[0].value
-    assert containers[0].env[1].name == "__PYTHON_INPUT"
-    assert not containers[0].env[1].value
+    assert containers[0].env == []
 
 
 def test_kubernetes_with_input_output(
@@ -143,15 +138,7 @@ def test_kubernetes_with_input_output(
     assert len(containers) == 2
     assert containers[0].command[0] == "bash"
     assert len(containers[0].args) == 0
-
-    assert containers[0].env[0].name == "__PYTHON_SCRIPT"
-    assert containers[0].env[0].value
-    assert containers[0].env[1].name == "__PYTHON_INPUT"
-    assert containers[0].env[1].value
-
-    # Ensure we pass input through a b64 encoded env var
-    decoded_input = base64.b64decode(containers[0].env[1].value).decode("utf-8")
-    assert decoded_input == '{"args": ["arg1", "arg2"], "kwargs": {"kwarg1": "kwarg1"}}'
+    assert containers[0].env == []
 
     # Second container is xcom image
     assert containers[1].image == XCOM_IMAGE

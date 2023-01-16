@@ -18,6 +18,7 @@
 -#}
 
 import json
+import {{ pickling_library }}
 import sys
 
 {# Check whether Airflow is available in the environment.
@@ -34,7 +35,7 @@ if sys.version_info >= (3,6):
 
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:
-    arg_dict = json.loads(file.read())
+    arg_dict = {{ pickling_library }}.load(file)
 {% else %}
 arg_dict = {"args": [], "kwargs": {}}
 {% endif %}
