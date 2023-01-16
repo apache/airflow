@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+3.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add correct widgets in Docker Hook (#28700)``
+* ``Make docker operators always use 'DockerHook' for API calls (#28363)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.4.0
 .....
 
