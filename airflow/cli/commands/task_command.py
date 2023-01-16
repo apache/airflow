@@ -253,6 +253,7 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool,
         external_executor_id=_extract_external_executor_id(args),
+        shut_down_logging=args.shut_down_logging,
     )
     try:
         run_job.run()

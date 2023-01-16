@@ -622,6 +622,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id=None,
         pool=None,
         cfg_path=None,
+        shut_down_logging: bool | None = None,
     ):
         """
         Returns a command that can be executed anywhere where airflow is
@@ -666,6 +667,7 @@ class TaskInstance(Base, LoggingMixin):
             pool=pool,
             cfg_path=cfg_path,
             map_index=self.map_index,
+            shut_down_logging=shut_down_logging,
         )
 
     @staticmethod
@@ -687,6 +689,7 @@ class TaskInstance(Base, LoggingMixin):
         pool: str | None = None,
         cfg_path: str | None = None,
         map_index: int = -1,
+        shut_down_logging: bool | None = None,
     ) -> list[str]:
         """
         Generates the shell command required to execute this task instance.
@@ -711,6 +714,7 @@ class TaskInstance(Base, LoggingMixin):
         :param job_id: job ID (needs more details)
         :param pool: the Airflow pool that the task should run in
         :param cfg_path: the Path to the configuration file
+        :param shut_down_logging: whether logging.shutdown() should be called
         :return: shell command that can be used to run the task instance
         """
         cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
@@ -742,6 +746,8 @@ class TaskInstance(Base, LoggingMixin):
             cmd.extend(["--cfg-path", cfg_path])
         if map_index != -1:
             cmd.extend(["--map-index", str(map_index)])
+        if shut_down_logging is False:
+            cmd.extend(["--no-shut-down-logging"])
         return cmd
 
     @property
