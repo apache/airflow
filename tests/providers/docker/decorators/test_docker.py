@@ -25,7 +25,7 @@ DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 class TestDockerDecorator:
     def test_basic_docker_operator(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f():
             import random
 
@@ -40,7 +40,7 @@ class TestDockerDecorator:
         assert len(ti.xcom_pull()) == 100
 
     def test_basic_docker_operator_with_param(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f(num_results):
             import random
 
@@ -57,10 +57,7 @@ class TestDockerDecorator:
         assert len(result) == 50
 
     def test_basic_docker_operator_multiple_output(self, dag_maker):
-        @task.docker(
-            image="python:3.9-slim",
-            multiple_outputs=True,
-        )
+        @task.docker(image="python:3.9-slim", multiple_outputs=True, auto_remove="force")
         def return_dict(number: int):
             return {"number": number + 1, "43": 43}
 
@@ -77,7 +74,7 @@ class TestDockerDecorator:
         assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
 
     def test_no_return(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f():
             pass
 
@@ -92,11 +89,7 @@ class TestDockerDecorator:
     def test_call_decorated_multiple_times(self):
         """Test calling decorated function 21 times in a DAG"""
 
-        @task.docker(
-            image="python:3.9-slim",
-            network_mode="bridge",
-            api_version="auto",
-        )
+        @task.docker(image="python:3.9-slim", network_mode="bridge", api_version="auto", auto_remove="force")
         def do_run():
             return 4
 

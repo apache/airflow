@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add option to add arguments to PSRP hook and operator (#27689)``
+
 2.1.0
 .....
 
