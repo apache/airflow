@@ -95,9 +95,9 @@ def get_log(
             TaskInstance.map_index == map_index,
         )
         .join(TaskInstance.dag_run)
+        .options(joinedload("trigger"))
+        .options(joinedload("trigger.triggerer_job"))
     )
-    if log_type == LogType.TRIGGER:
-        query = query.options(joinedload("trigger")).options(joinedload("trigger.triggerer_job"))
     ti = query.one_or_none()
     if ti is None:
         metadata["end_of_log"] = True

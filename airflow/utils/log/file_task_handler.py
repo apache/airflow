@@ -25,8 +25,10 @@ import warnings
 from contextlib import suppress
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 from urllib.parse import urljoin
+
+import pendulum
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -36,10 +38,12 @@ from airflow.utils.helpers import parse_template_string, render_template_to_stri
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+
+logger = logging.getLogger(__name__)
 
 
 class LogType(str, Enum):
@@ -84,6 +88,31 @@ class TriggerLogsPresentationMode(Enum):
     SPLIT = "split"
     INTERLEAVED = "interleaved"
     NOT_SUPPORTED = "not_supported"
+
+
+def _parse_timestamps_in_log_file(lines: Iterable[str]):
+    timestamp = None
+    next_timestamp = None
+    for line in lines:
+        if not line:
+            continue
+        with suppress(Exception):
+            timestamp_str, _ = line.split(" ", 1)
+            next_timestamp = pendulum.parse(timestamp_str.strip("[]"))
+        if next_timestamp:
+            timestamp = next_timestamp
+        yield timestamp, line
+
+
+def _interleave_logs(*logs):
+    records = []
+    for log in logs:
+        records.extend(_parse_timestamps_in_log_file(log.splitlines()))
+    last = None
+    for _, v in sorted(records, key=lambda x: x[0] or pendulum.datetime(2000, 1, 1)):
+        if v != last:  # dedupe
+            yield v
+        last = v
 
 
 class FileTaskHandler(logging.Handler):
@@ -178,10 +207,9 @@ class FileTaskHandler(logging.Handler):
 
         :meta private:
         """
-        return self.trigger_logs_presentation_mode in (
-            TriggerLogsPresentationMode.SPLIT,
-            TriggerLogsPresentationMode.INTERLEAVED,
-        )
+        # this is just the default inference since we added _read_remote_logs when implementing
+        # trigger logging in all handlers
+        return "_read_remote_logs" in self.__dict__
 
     def emit(self, record):
         if self.handler:
@@ -265,9 +293,6 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: dict[str, Any] | None = None,
-        *,
-        log_type: LogType | None = LogType.WORKER,
-        base_content=None,
     ):
         """
         Template method that contains custom logic of reading
@@ -293,102 +318,38 @@ class FileTaskHandler(logging.Handler):
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
+        messages_list = []
         worker_log_rel_path = self._render_filename(ti, try_number)
         worker_log_full_path = Path(self.local_base, worker_log_rel_path)
 
-        local_log_files = self._get_local_log_files(worker_log_path=worker_log_full_path, log_type=log_type)
-        log = ""
-        if local_log_files:
-            try:
-                for file in local_log_files:
-                    log += f"*** Reading local file: {file}\n"
-                    log += Path(file).read_text()
-            except Exception as e:
-                log = f"*** Failed to load local log files: {local_log_files}\n"
-                log += f"*** {str(e)}\n"
-                return log, {"end_of_log": True}
-        elif self._should_check_k8s(ti.queue) and log_type != LogType.TRIGGER:
-            try:
-                from airflow.kubernetes.kube_client import get_kube_client
-                from airflow.kubernetes.pod_generator import PodGenerator
-
-                client = get_kube_client()
-
-                log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
-                selector = PodGenerator.build_selector_for_k8s_executor_pod(
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    try_number=ti.try_number,
-                    map_index=ti.map_index,
-                    run_id=ti.run_id,
-                    airflow_worker=ti.queued_by_job_id,
-                )
-                namespace = self._get_pod_namespace(ti)
-                pod_list = client.list_namespaced_pod(
-                    namespace=namespace,
-                    label_selector=selector,
-                ).items
-                if not pod_list:
-                    raise RuntimeError("Cannot find pod for ti %s", ti)
-                elif len(pod_list) > 1:
-                    raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
-                res = client.read_namespaced_pod_log(
-                    name=pod_list[0].metadata.name,
-                    namespace=namespace,
-                    container="base",
-                    follow=False,
-                    tail_lines=100,
-                    _preload_content=False,
-                )
-
-                for line in res:
-                    log += line.decode()
-
-            except Exception as f:
-                log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
-                return log, {"end_of_log": True}
-        else:
-            log += "*** Logs not found locally\n"
-            try:
-                url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
-                log += f"*** Fetching from: {url}\n"
-                response = _fetch_logs_from_service(url, rel_path)
-                if response.status_code == 403:
-                    log += (
-                        "*** !!!! Please make sure that all your Airflow components (e.g. "
-                        "schedulers, webservers, workers and triggerer) have "
-                        "the same 'secret_key' configured in 'webserver' section and "
-                        "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
-                        "*** See more at https://airflow.apache.org/docs/apache-airflow/"
-                        "stable/configurations-ref.html#secret-key\n***"
-                    )
-                # Check if the resource was properly fetched
-                response.raise_for_status()
-                log += "\n" + response.text
-            except Exception as e:
-                log += f"*** Failed to fetch log file from {log_type}. {str(e)}\n"
-                return log, {"end_of_log": True}
-
-        # Process tailing if log is not at it's end
+        local_messages, local_logs = self._read_from_local(worker_log_full_path)
+        messages_list.extend(local_messages)
+        running_logs = ""
+        running_messages = []
+        if ti.state == TaskInstanceState.RUNNING and self._should_check_k8s(ti.queue):
+            running_messages, running_logs = self._read_from_k8s_worker(ti)
+        elif ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED):
+            running_messages, running_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+        messages_list.extend(running_messages)
+        remote_logs = ""
+        remote_messages = []
+        with suppress(NotImplementedError):
+            remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
+        messages_list.extend(remote_messages)
+        logs = "\n".join(
+            _interleave_logs(
+                local_logs,
+                running_logs,
+                remote_logs,
+            )
+        )
+        log_pos = len(logs)
+        messages = "".join([f"*** {x}\n" for x in messages_list])
         end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
-        log_pos = len(log)
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
-            log = log[previous_chars:]  # Cut off previously passed log test as new tail
-        return log, {"end_of_log": end_of_log, "log_pos": log_pos}
-
-    def _get_local_log_files(self, worker_log_path: Path, log_type: str | None = None):
-        """
-        If trigger log type, get sublogs. Otherwise, get requested path.
-
-        We take worker log path because the trigger logs are always named the same as
-        the worker logs but with an additional suffix appended.
-        """
-        if log_type == LogType.TRIGGER:
-            prefix = self.add_triggerer_suffix(worker_log_path.name, job_id=None)
-            return list(worker_log_path.parent.rglob(prefix + "*.*"))
-        elif worker_log_path.exists():
-            return [worker_log_path]
+            logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
+        return messages + logs, {"end_of_log": end_of_log, "log_pos": log_pos}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -509,3 +470,83 @@ class FileTaskHandler(logging.Handler):
                 logging.warning("OSError while change ownership of the log file")
 
         return full_path
+
+    @staticmethod
+    def _read_from_local(worker_log_path: Path):
+        messages = []
+        log = ""
+        for file in worker_log_path.rglob("*"):
+            messages.append(f"Read from local file: {file}")
+            log += Path(file).read_text()
+        return messages, log
+
+    def _read_from_k8s_worker(self, ti: TaskInstance):
+        messages = []
+        log = ""
+        try:
+            from airflow.kubernetes.kube_client import get_kube_client
+            from airflow.kubernetes.pod_generator import PodGenerator
+
+            client = get_kube_client()
+
+            messages.append(f"Trying to get logs (last 100 lines) from worker pod {ti.hostname}")
+            selector = PodGenerator.build_selector_for_k8s_executor_pod(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                run_id=ti.run_id,
+                airflow_worker=ti.queued_by_job_id,
+            )
+            namespace = self._get_pod_namespace(ti)
+            pod_list = client.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=selector,
+            ).items
+            if not pod_list:
+                raise RuntimeError("Cannot find pod for ti %s", ti)
+            elif len(pod_list) > 1:
+                raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
+            res = client.read_namespaced_pod_log(
+                name=pod_list[0].metadata.name,
+                namespace=namespace,
+                container="base",
+                follow=False,
+                tail_lines=100,
+                _preload_content=False,
+            )
+
+            for line in res:
+                log += line.decode()
+        except Exception as e:
+            messages.append(f"Reading from k8s pod logs failed: {str(e)}")
+        return messages, log
+
+    def _read_from_logs_server(self, ti, worker_log_rel_path):
+        messages = []
+        log = ""
+        try:
+            log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
+            url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
+            messages.append(f"Fetching from: {url}")
+            response = _fetch_logs_from_service(url, rel_path)
+            if response.status_code == 403:
+                messages.append(
+                    "!!!! Please make sure that all your Airflow components (e.g. "
+                    "schedulers, webservers, workers and triggerer) have "
+                    "the same 'secret_key' configured in 'webserver' section and "
+                    "time is synchronized on all your machines (for example with ntpd)\n"
+                    "See more at https://airflow.apache.org/docs/apache-airflow/"
+                    "stable/configurations-ref.html#secret-key"
+                )
+            # Check if the resource was properly fetched
+            response.raise_for_status()
+            log += "\n" + response.text
+        except Exception as e:
+            log += str(e)
+            logger.exception(msg="error")
+        return messages, log
+
+    def _read_remote_logs(self, ti, try_number, metadata=None):
+        """Implement in subclasses to read from the remote service"""
+        raise NotImplementedError

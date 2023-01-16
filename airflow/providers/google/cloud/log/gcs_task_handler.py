@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import json
+import logging
 import os
 from pathlib import Path
 from typing import Collection
@@ -29,7 +29,7 @@ from airflow.compat.functools import cached_property
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.utils.log.file_task_handler import FileTaskHandler, LogType
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 _DEFAULT_SCOPESS = frozenset(
@@ -37,6 +37,8 @@ _DEFAULT_SCOPESS = frozenset(
         "https://www.googleapis.com/auth/devstorage.read_write",
     ]
 )
+
+logger = logging.getLogger(__name__)
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -133,7 +135,39 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number, metadata=None, log_type=None):
+    def _add_message(self, msg):
+        filename, lineno, func, stackinfo = logger.findCaller()
+        record = logging.LogRecord("", logging.INFO, filename, lineno, msg + "\n", None, None, func=func)
+        return self.format(record)
+
+    def _read_remote_logs(self, ti, try_number, metadata=None):
+        # Explicitly getting log relative path is necessary because this method
+        # is called from webserver from TaskLogReader, where we don't call set_context
+        # and can read logs for different TIs in each request
+        messages = []
+        log = ""
+        worker_log_relative_path = self._render_filename(ti, try_number)
+        remote_loc = os.path.join(self.remote_base, worker_log_relative_path)
+        uris = []
+        bucket, prefix = _parse_gcs_url(remote_loc)
+        blobs = list(self.client.list_blobs(bucket_or_name=bucket, prefix=prefix))
+
+        if blobs:
+            uris = [f"gs://{bucket}/{b.name}" for b in blobs]
+            messages.extend(["Found remote logs:", *[f"  * {x}" for x in uris]])
+        else:
+            messages.append(f"No logs found in GCS; ti=%s {ti}")
+        try:
+            for key in uris:
+                blob = storage.Blob.from_string(key, self.client)
+                remote_log = blob.download_as_bytes().decode()
+                if remote_log:
+                    log += remote_log
+        except Exception as e:
+            messages.append(f"Unable to read remote log {e}")
+        return messages, log
+
+    def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
@@ -143,42 +177,16 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
         """
-        self.log.warning("called with metadata=%s", json.dumps(metadata))
+        if hasattr(super(), "_read_remote_logs"):
+            # from Airflow 2.6, we don't implement the `_read` method.
+            # if parent has _read_remote_logs, we're >= 2.6
+            return super()._read(ti, try_number, metadata)
 
-        # Explicitly getting log relative path is necessary because this method
-        # is called from webserver from TaskLogReader, where we don't call set_context
-        # and can read logs for different TIs in each request
-        log = ""
-        worker_log_relative_path = self._render_filename(ti, try_number)
-        remote_loc = os.path.join(self.remote_base, worker_log_relative_path)
-        uris = []
-        if log_type == LogType.TRIGGER:
-            if ti.triggerer_job:
-                # triggerer currently running; skip remote read and try to read from triggerer log server
-                return super()._read(ti, try_number, metadata, log_type=log_type)
-            bucket, prefix = _parse_gcs_url(remote_loc)
-            blobs = list(self.client.list_blobs(bucket_or_name=bucket, prefix=prefix + "."))
-            if blobs:
-                uris = [f"gs://{bucket}/{b.name}" for b in blobs]
-            else:
-                log += f"*** No logs found for triggerer; ti=%s {ti}\n"
-        else:
-            uris = [remote_loc]
-        try:
-            for key in uris:
-                blob = storage.Blob.from_string(key, self.client)
-                remote_log = blob.download_as_bytes().decode()
-                log += f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
+        messages, logs = self._read_remote_logs(ti, try_number, metadata)
+        if not logs:
+            return super()._read(ti, try_number, metadata)
 
-            return log, {"end_of_log": True}
-        except Exception as e:
-            log = f"*** Unable to read remote log {e}\n\n"
-            kwargs = {}
-            if log_type:
-                kwargs.update({"log_type": log_type})
-            local_log, metadata = super()._read(ti, try_number, metadata, **kwargs)
-            log += local_log
-            return log, metadata
+        return "".join([f"*** {x}\n" for x in logs]), {"end_of_log": True}
 
     def gcs_write(self, log, remote_log_location):
         """
@@ -196,7 +204,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             if self.no_log_found(e):
                 pass
             else:
-                log += f"*** Error checking for previous log; if exists, may be overwritten: {str(e)}\n\n"
+                log += self._add_message(
+                    f"Error checking for previous log; if exists, may be overwritten: {str(e)}"
+                )
                 self.log.warning("Error checking for previous log: %s", e)
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)

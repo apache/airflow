@@ -32,7 +32,11 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import DAG, DagRun, TaskInstance, Trigger
 from airflow.operators.python import PythonOperator
-from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.file_task_handler import (
+    FileTaskHandler,
+    _interleave_logs,
+    _parse_timestamps_in_log_file,
+)
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -406,3 +410,168 @@ class TestLogUrl:
 def test__should_check_k8s(config, queue, expected):
     with patch.dict("os.environ", **config):
         assert FileTaskHandler._should_check_k8s(queue) == expected
+
+
+log_sample = """[2022-11-16T00:05:54.278-0800] {taskinstance.py:1257} INFO -
+--------------------------------------------------------------------------------
+[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1
+[2022-11-16T00:05:54.279-0800] {taskinstance.py:1259} INFO -
+--------------------------------------------------------------------------------
+[2022-11-16T00:05:54.295-0800] {taskinstance.py:1278} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2022-11-16 08:05:52.324532+00:00
+[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task
+[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task
+[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task
+[2022-11-16T00:05:54.306-0800] {standard_task_runner.py:82} INFO - Running: ['airflow', 'tasks', 'run', 'simple_async_timedelta', 'wait', 'manual__2022-11-16T08:05:52.324532+00:00', '--job-id', '33648', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmp725r305n']
+[2022-11-16T00:05:54.309-0800] {standard_task_runner.py:83} INFO - Job 33648: Subtask wait
+[2022-11-16T00:05:54.457-0800] {task_command.py:376} INFO - Running <TaskInstance: simple_async_timedelta.wait manual__2022-11-16T08:05:52.324532+00:00 [running]> on host daniels-mbp-2.lan
+[2022-11-16T00:05:54.592-0800] {taskinstance.py:1485} INFO - Exporting the following env vars:
+AIRFLOW_CTX_DAG_OWNER=airflow
+AIRFLOW_CTX_DAG_ID=simple_async_timedelta
+AIRFLOW_CTX_TASK_ID=wait
+AIRFLOW_CTX_EXECUTION_DATE=2022-11-16T08:05:52.324532+00:00
+AIRFLOW_CTX_TRY_NUMBER=1
+AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
+[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554
+"""
+
+
+def test_parse_timestamps():
+    actual = []
+    for timestamp, _ in _parse_timestamps_in_log_file(log_sample.splitlines()):
+        actual.append(timestamp)
+    assert actual == [
+        pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.279000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.279000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.295000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.300000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.300000-08:00"),  # duplicate
+        pendulum.parse("2022-11-16T00:05:54.300000-08:00"),  # duplicate
+        pendulum.parse("2022-11-16T00:05:54.306000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.309000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.457000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
+        pendulum.parse("2022-11-16T00:05:54.604000-08:00"),
+    ]
+
+
+def test_interleave_interleaves():
+    log_sample1 = "\n".join(
+        [
+            "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",
+        ]
+    )
+    log_sample2 = "\n".join(
+        [
+            "[2022-11-16T00:05:54.295-0800] {taskinstance.py:1278} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2022-11-16 08:05:52.324532+00:00",
+            "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
+            "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
+            "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
+            "[2022-11-16T00:05:54.306-0800] {standard_task_runner.py:82} INFO - Running: ['airflow', 'tasks', 'run', 'simple_async_timedelta', 'wait', 'manual__2022-11-16T08:05:52.324532+00:00', '--job-id', '33648', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmp725r305n']",
+            "[2022-11-16T00:05:54.309-0800] {standard_task_runner.py:83} INFO - Job 33648: Subtask wait",
+        ]
+    )
+    log_sample3 = "\n".join(
+        [
+            "[2022-11-16T00:05:54.457-0800] {task_command.py:376} INFO - Running <TaskInstance: simple_async_timedelta.wait manual__2022-11-16T08:05:52.324532+00:00 [running]> on host daniels-mbp-2.lan",
+            "[2022-11-16T00:05:54.592-0800] {taskinstance.py:1485} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=airflow",
+            "AIRFLOW_CTX_DAG_ID=simple_async_timedelta",
+            "AIRFLOW_CTX_TASK_ID=wait",
+            "AIRFLOW_CTX_EXECUTION_DATE=2022-11-16T08:05:52.324532+00:00",
+            "AIRFLOW_CTX_TRY_NUMBER=1",
+            "AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00",
+            "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
+        ]
+    )
+    expected = "\n".join(
+        [
+            "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",
+            "[2022-11-16T00:05:54.295-0800] {taskinstance.py:1278} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2022-11-16 08:05:52.324532+00:00",
+            "[2022-11-16T00:05:54.300-0800] {standard_task_runner.py:55} INFO - Started process 52536 to run task",
+            "[2022-11-16T00:05:54.306-0800] {standard_task_runner.py:82} INFO - Running: ['airflow', 'tasks', 'run', 'simple_async_timedelta', 'wait', 'manual__2022-11-16T08:05:52.324532+00:00', '--job-id', '33648', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmp725r305n']",
+            "[2022-11-16T00:05:54.309-0800] {standard_task_runner.py:83} INFO - Job 33648: Subtask wait",
+            "[2022-11-16T00:05:54.457-0800] {task_command.py:376} INFO - Running <TaskInstance: simple_async_timedelta.wait manual__2022-11-16T08:05:52.324532+00:00 [running]> on host daniels-mbp-2.lan",
+            "[2022-11-16T00:05:54.592-0800] {taskinstance.py:1485} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=airflow",
+            "AIRFLOW_CTX_DAG_ID=simple_async_timedelta",
+            "AIRFLOW_CTX_TASK_ID=wait",
+            "AIRFLOW_CTX_EXECUTION_DATE=2022-11-16T08:05:52.324532+00:00",
+            "AIRFLOW_CTX_TRY_NUMBER=1",
+            "AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00",
+            "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
+        ]
+    )
+    assert "\n".join(_interleave_logs(log_sample2, log_sample1, log_sample3)) == expected
+
+
+long_sample = """
+*** yoyoyoyo
+[2023-01-15T22:36:46.474-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [queued]>
+[2023-01-15T22:36:46.482-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [queued]>
+[2023-01-15T22:36:46.483-0800] {taskinstance.py:1332} INFO - Starting attempt 1 of 1
+[2023-01-15T22:36:46.516-0800] {taskinstance.py:1351} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2023-01-16 06:36:43.044492+00:00
+[2023-01-15T22:36:46.522-0800] {standard_task_runner.py:56} INFO - Started process 38807 to run task
+[2023-01-15T22:36:46.530-0800] {standard_task_runner.py:83} INFO - Running: ['airflow', 'tasks', 'run', 'example_time_delta_sensor_async', 'wait', 'manual__2023-01-16T06:36:43.044492+00:00', '--job-id', '487', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmpiwyl54bn', '--no-shut-down-logging']
+[2023-01-15T22:36:46.536-0800] {standard_task_runner.py:84} INFO - Job 487: Subtask wait
+[2023-01-15T22:36:46.624-0800] {task_command.py:417} INFO - Running <TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [running]> on host daniels-mbp-2.lan
+[2023-01-15T22:36:46.918-0800] {taskinstance.py:1558} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='example_time_delta_sensor_async' AIRFLOW_CTX_TASK_ID='wait' AIRFLOW_CTX_EXECUTION_DATE='2023-01-16T06:36:43.044492+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2023-01-16T06:36:43.044492+00:00'
+[2023-01-15T22:36:46.929-0800] {taskinstance.py:1433} INFO - Pausing task as DEFERRED. dag_id=example_time_delta_sensor_async, task_id=wait, execution_date=20230116T063643, start_date=20230116T063646
+[2023-01-15T22:36:46.981-0800] {local_task_job.py:218} INFO - Task exited with return code 100 (task deferral)
+
+[2023-01-15T22:36:46.474-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [queued]>
+[2023-01-15T22:36:46.482-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [queued]>
+[2023-01-15T22:36:46.483-0800] {taskinstance.py:1332} INFO - Starting attempt 1 of 1
+[2023-01-15T22:36:46.516-0800] {taskinstance.py:1351} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2023-01-16 06:36:43.044492+00:00
+[2023-01-15T22:36:46.522-0800] {standard_task_runner.py:56} INFO - Started process 38807 to run task
+[2023-01-15T22:36:46.530-0800] {standard_task_runner.py:83} INFO - Running: ['airflow', 'tasks', 'run', 'example_time_delta_sensor_async', 'wait', 'manual__2023-01-16T06:36:43.044492+00:00', '--job-id', '487', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmpiwyl54bn', '--no-shut-down-logging']
+[2023-01-15T22:36:46.536-0800] {standard_task_runner.py:84} INFO - Job 487: Subtask wait
+[2023-01-15T22:36:46.624-0800] {task_command.py:417} INFO - Running <TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [running]> on host daniels-mbp-2.lan
+[2023-01-15T22:36:46.918-0800] {taskinstance.py:1558} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='example_time_delta_sensor_async' AIRFLOW_CTX_TASK_ID='wait' AIRFLOW_CTX_EXECUTION_DATE='2023-01-16T06:36:43.044492+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2023-01-16T06:36:43.044492+00:00'
+[2023-01-15T22:36:46.929-0800] {taskinstance.py:1433} INFO - Pausing task as DEFERRED. dag_id=example_time_delta_sensor_async, task_id=wait, execution_date=20230116T063643, start_date=20230116T063646
+[2023-01-15T22:36:46.981-0800] {local_task_job.py:218} INFO - Task exited with return code 100 (task deferral)
+[2023-01-15T22:37:17.673-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [queued]>
+[2023-01-15T22:37:17.681-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [queued]>
+[2023-01-15T22:37:17.682-0800] {taskinstance.py:1330} INFO - resuming after deferral
+[2023-01-15T22:37:17.693-0800] {taskinstance.py:1351} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2023-01-16 06:36:43.044492+00:00
+[2023-01-15T22:37:17.697-0800] {standard_task_runner.py:56} INFO - Started process 39090 to run task
+[2023-01-15T22:37:17.703-0800] {standard_task_runner.py:83} INFO - Running: ['airflow', 'tasks', 'run', 'example_time_delta_sensor_async', 'wait', 'manual__2023-01-16T06:36:43.044492+00:00', '--job-id', '488', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmp_sa9sau4', '--no-shut-down-logging']
+[2023-01-15T22:37:17.707-0800] {standard_task_runner.py:84} INFO - Job 488: Subtask wait
+[2023-01-15T22:37:17.771-0800] {task_command.py:417} INFO - Running <TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [running]> on host daniels-mbp-2.lan
+[2023-01-15T22:37:18.043-0800] {taskinstance.py:1369} INFO - Marking task as SUCCESS. dag_id=example_time_delta_sensor_async, task_id=wait, execution_date=20230116T063643, start_date=20230116T063646, end_date=20230116T063718
+[2023-01-15T22:37:18.117-0800] {local_task_job.py:220} INFO - Task exited with return code 0
+[2023-01-15T22:37:18.147-0800] {taskinstance.py:2648} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2023-01-15T22:37:18.173-0800] {:0} Level None - end_of_log
+
+*** hihihi!
+[2023-01-15T22:36:48.348-0800] {temporal.py:62} INFO - trigger starting
+[2023-01-15T22:36:48.348-0800] {temporal.py:66} INFO - 24 seconds remaining; sleeping 10 seconds
+[2023-01-15T22:36:58.349-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:36:59.349-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:00.349-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:01.350-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:02.350-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:03.351-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:04.351-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:05.353-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:06.354-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:07.355-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:08.356-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:09.357-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:10.358-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:11.359-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:12.359-0800] {temporal.py:71} INFO - sleeping 1 second...
+[2023-01-15T22:37:13.360-0800] {temporal.py:74} INFO - yielding event with payload DateTime(2023, 1, 16, 6, 37, 13, 44492, tzinfo=Timezone('UTC'))
+[2023-01-15T22:37:13.361-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-16T06:37:13.044492+00:00> (ID 106) fired: TriggerEvent<DateTime(2023, 1, 16, 6, 37, 13, 44492, tzinfo=Timezone('UTC'))>
+"""
+
+for line in _parse_timestamps_in_log_file(long_sample.splitlines()):
+    print(line)
+for line in _interleave_logs(long_sample):
+    print(line)
