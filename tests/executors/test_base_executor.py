@@ -44,6 +44,10 @@ def test_is_local_default_value():
     assert not BaseExecutor.is_local
 
 
+def test_serve_logs_default_value():
+    assert not BaseExecutor.serve_logs
+
+
 def test_get_event_buffer():
     executor = BaseExecutor()
 

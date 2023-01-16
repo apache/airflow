@@ -48,6 +48,8 @@ class LocalKubernetesExecutor(LoggingMixin):
 
     is_local: bool = False
 
+    serve_logs: bool = True
+
     def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
         self._job_id: str | None = None
