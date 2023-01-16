@@ -24,10 +24,13 @@ import zlib
 from datetime import datetime, timedelta
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_
+from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_
 from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
+from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.exceptions import TaskNotFound
+from airflow.models import Operator
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
@@ -35,7 +38,7 @@ from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 log = logging.getLogger(__name__)
@@ -368,3 +371,18 @@ class SerializedDagModel(Base):
         else:
             iterator = session.query(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def get_serialized_dag(dag_id: str, task_id: str, session: Session = NEW_SESSION) -> Operator | None:
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        try:
+            model = session.query(SerializedDagModel).get(dag_id)
+            if model:
+                return model.dag.get_task(task_id)
+        except (exc.NoResultFound, TaskNotFound):
+            pass
+
+        return None

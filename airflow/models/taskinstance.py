@@ -64,7 +64,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators, case
 
 from airflow import settings
-from airflow.api_internal.actions.taskinstance import InternalApiTaskInstanceActions
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
@@ -84,6 +84,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.jobs.scheduler_job import TI
 from airflow.models.base import Base, StringID
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -109,6 +110,7 @@ from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
+from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
@@ -766,6 +768,33 @@ class TaskInstance(Base, LoggingMixin):
         session.merge(self)
         session.commit()
 
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def get_task_instance(
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int,
+        lock_for_update: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> TI | None:
+        # TODO: need to convert SQLAlchemy objects to internal API objects
+        query = session.query(TI).filter_by(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+        )
+
+        if lock_for_update:
+            # TODO: pass the logger once resolved here https://github.com/apache/airflow/pull/28502
+            for attempt in run_with_db_retries(logger=None):
+                with attempt:
+                    return query.with_for_update().one_or_none()
+        else:
+            return query.one_or_none()
+
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
         """
@@ -776,7 +805,7 @@ class TaskInstance(Base, LoggingMixin):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
-        ti = InternalApiTaskInstanceActions.get_task_instance(
+        ti = TaskInstance.get_task_instance(
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,

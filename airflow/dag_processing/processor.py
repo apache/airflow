@@ -32,8 +32,6 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
-from airflow.api_internal.actions.dag import InternalApiDagActions
-from airflow.api_internal.actions.taskinstance import InternalApiTaskInstanceActions
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
@@ -48,7 +46,8 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
@@ -691,7 +690,7 @@ class DagFileProcessor(LoggingMixin):
             return
 
         simple_ti = request.simple_task_instance
-        ti = InternalApiTaskInstanceActions.get_task_instance(
+        ti = TaskInstance.get_task_instance(
             dag_id=simple_ti.dag_id,
             run_id=simple_ti.run_id,
             task_id=simple_ti.task_id,
@@ -714,7 +713,7 @@ class DagFileProcessor(LoggingMixin):
             # `handle_failure` so that the state of the TI gets progressed.
             #
             # Since handle_failure _really_ wants a task, we do our best effort to give it one
-            task = InternalApiDagActions.get_serialized_dag(
+            task = SerializedDagModel.get_serialized_dag(
                 dag_id=simple_ti.dag_id, task_id=simple_ti.task_id, session=session
             )
 
