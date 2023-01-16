@@ -147,11 +147,26 @@ Pyenv and setting up virtual-env
 
 1. Install pyenv and configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md#installation>`_
 
-2. After installing pyenv, you need to install a few more required packages for Airflow
+2. After installing pyenv, you need to install a few more required packages for Airflow. The below command adds
+   basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
+   if your operating system is MacOS or another flavour of Linux
+
 
 .. code-block:: bash
 
-  $ sudo apt-get install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+  $ sudo apt install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+
+If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
+like system, this command will install all necessary dependencies that should be installed when you use ``devel_all``
+extra while installing airflow.
+
+.. code-block:: bash
+
+  $ sudo apt install apt-transport-https apt-utils build-essential ca-certificates dirmngr \
+  freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
+  libkrb5-dev libldap2-dev libpq-dev libsasl2-2 libsasl2-dev libsasl2-modules \
+  libssl-dev locales lsb-release openssh-client sasl2-bin \
+  software-properties-common sqlite3 sudo unixodbc unixodbc-dev
 
 3. Restart your shell so the path changes take effect and verifying installation
 
