@@ -209,7 +209,7 @@ class FileTaskHandler(logging.Handler):
         """
         # this is just the default inference since we added _read_remote_logs when implementing
         # trigger logging in all handlers
-        return "_read_remote_logs" in self.__dict__
+        return "_read_remote_logs" in self.__class__.__dict__
 
     def emit(self, record):
         if self.handler:
