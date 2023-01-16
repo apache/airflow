@@ -113,17 +113,25 @@ We are  using the existing ``serviceAccount`` hence ``create: false`` with exist
         delete_worker_pods: 'False'
         encrypt_s3_logs: 'True'
 
-Step3: Create Amazon Web Services connection in Airflow Web UI
+Step3: Create Amazon Web Services connection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 With the above configurations, Webserver and Worker Pods can access Amazon S3 bucket and write logs without using any Access Key and Secret Key or Instance profile credentials.
 
-The final step to create connections under Airflow UI before executing the DAGs.
+- Using Airflow Web UI
 
-* Login to Airflow Web UI with ``admin`` credentials and Navigate to ``Admin -> Connections``
-* Create connection for ``Amazon Web Services`` and select the options(Connection ID and Connection Type) as shown in the image.
-* Select the correct region where S3 bucket is created in ``Extra`` text box.
+  The final step to create connections under Airflow UI before executing the DAGs.
 
-.. image:: /img/aws-base-conn-airflow.png
+  * Login to Airflow Web UI with ``admin`` credentials and Navigate to ``Admin -> Connections``
+  * Create connection for ``Amazon Web Services`` and select the options (Connection ID and Connection Type) as shown in the image.
+  * Select the correct region where S3 bucket is created in ``Extra`` text box.
+
+  .. image:: /img/aws-base-conn-airflow.png
+
+- Using Airflow CLI
+
+  ``airflow connections add aws_conn --conn-uri aws://@/?egion_name=eu-west-1``
+
+  Note that ``@`` used in ``-conn-uri`` parameter usually separates password and host but in this case it complies with uri validator used.
 
 Step4: Verify the logs
 ~~~~~~~~~~~~~~~~~~~~~~
