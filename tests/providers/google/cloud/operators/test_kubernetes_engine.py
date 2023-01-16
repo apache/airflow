@@ -281,20 +281,12 @@ class TestGKEPodOperatorAsync(unittest.TestCase):
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
 
-    @mock.patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
-    @mock.patch.dict(os.environ, {})
     @mock.patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @mock.patch(KUB_OP_PATH.format("get_or_create_pod"))
-    @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
-        return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
-    )
     @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
     def test_async_create_pod_should_execute_successfully(
-        self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj, mocked_config
+        self, fetch_cluster_info_mock, mocked_pod, mocked_pod_obj
     ):
         with pytest.raises(TaskDeferred):
-            self.gke_op._cluster_url = CLUSTER_URL
-            self.gke_op._ssl_ca_cert = SSL_CA_CERT
             self.gke_op.execute(context=mock.MagicMock())
             fetch_cluster_info_mock.assert_called_once()

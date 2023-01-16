@@ -445,7 +445,11 @@ class AsyncGKEPodHook(GoogleBaseAsyncHook):
             async with self.get_conn(token) as connection:
                 try:
                     v1_api = async_client.CoreV1Api(connection)
-                    await v1_api.delete_namespaced_pod(name, namespace, body=client.V1DeleteOptions())
+                    await v1_api.delete_namespaced_pod(
+                        name=name,
+                        namespace=namespace,
+                        body=client.V1DeleteOptions(),
+                    )
                 except ApiException as e:
                     # If the pod is already deleted
                     if e.status != 404:
