@@ -32,7 +32,6 @@ from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
-from airflow.utils.log.file_task_handler import LogType, TriggerLogsPresentationMode
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -54,7 +53,6 @@ def get_log(
     full_content: bool = False,
     map_index: int = -1,
     token: str | None = None,
-    log_type: LogType | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get logs for specific task instance."""
@@ -76,13 +74,6 @@ def get_log(
         metadata["download_logs"] = False
 
     task_log_reader = TaskLogReader()
-    if log_type == LogType.TRIGGER:
-        not_supported = TriggerLogsPresentationMode.NOT_SUPPORTED
-        interleaved = TriggerLogsPresentationMode.INTERLEAVED
-        if task_log_reader.trigger_logs_presentation_mode == not_supported:
-            raise BadRequest("Task log handler does not support trigger logging.")
-        if task_log_reader.trigger_logs_presentation_mode == interleaved:
-            raise BadRequest("Trigger logs requested but handler does not split trigger logs.")
 
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
@@ -115,12 +106,12 @@ def get_log(
     # return_type would be either the above two or None
     logs: Any
     if return_type == "application/json" or return_type is None:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata, log_type=log_type)
+        logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
         logs = logs[0] if task_try_number is not None else logs
         # we must have token here, so we can safely ignore it
         token = URLSafeSerializer(key).dumps(metadata)  # type: ignore[assignment]
         return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
     # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata, log_type=log_type)
+    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
 
     return Response(logs, headers={"Content-Type": return_type})

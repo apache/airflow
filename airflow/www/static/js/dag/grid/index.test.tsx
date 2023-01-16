@@ -21,11 +21,10 @@
 /* global describe, test, expect, beforeEach, beforeAll, jest, window */
 
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { render, fireEvent, waitFor } from '@testing-library/react';
 
 import { Wrapper } from 'src/utils/testUtils';
 import * as useGridDataModule from 'src/api/useGridData';
-import { TriggerLogsPresentationMode } from 'src/api/useGridData';
 
 import Grid from '.';
 
@@ -108,7 +107,6 @@ const mockGridData = {
     },
   ],
   ordering: ['dataIntervalStart'],
-  triggerLogsPresentationMode: TriggerLogsPresentationMode.NOT_SUPPORTED,
 } as useGridDataModule.GridData;
 
 const EXPAND = 'Expand all task groups';

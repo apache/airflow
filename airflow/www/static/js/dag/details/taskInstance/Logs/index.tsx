@@ -89,7 +89,6 @@ interface Props {
   executionDate: DagRun['executionDate'];
   tryNumber: TaskInstance['tryNumber'];
   state?: TaskInstance['state'];
-  logType?: string;
 }
 
 const Logs = ({
@@ -100,7 +99,6 @@ const Logs = ({
   executionDate,
   tryNumber,
   state,
-  logType,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedTryNumber, setSelectedTryNumber] = useState<number | undefined>();
@@ -119,7 +117,6 @@ const Logs = ({
     taskTryNumber,
     fullContent: shouldRequestFullContent,
     state,
-    logType,
   });
 
   const params = new URLSearchParamsWrapper({

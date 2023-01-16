@@ -1656,12 +1656,6 @@ paths:
       - $ref: '#/components/parameters/FullContent'
       - $ref: '#/components/parameters/FilterMapIndex'
       - $ref: '#/components/parameters/ContinuationToken'
-      - name: log_type
-        in: query
-        schema:
-          type: string
-        required: false
-
 
     get:
       summary: Get logs

@@ -26,7 +26,6 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import render_log_filename
-from airflow.utils.log.file_task_handler import TriggerLogsPresentationMode
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
@@ -39,7 +38,7 @@ class TaskLogReader:
     """Time to sleep between loops while waiting for more logs"""
 
     def read_log_chunks(
-        self, ti: TaskInstance, try_number: int | None, metadata, *, log_type=None
+        self, ti: TaskInstance, try_number: int | None, metadata
     ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
         """
         Reads chunks of Task Instance logs.
@@ -48,7 +47,6 @@ class TaskLogReader:
         :param try_number: If provided, logs for the given try will be returned.
             Otherwise, logs from all attempts are returned.
         :param metadata: A dictionary containing information about how to read the task log
-        :param log_type: Either trigger or worker, to determine where to read logs from.
 
         The following is an example of how to use this method to read log:
 
@@ -61,15 +59,11 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        split_mode = self.trigger_logs_presentation_mode == TriggerLogsPresentationMode.SPLIT
-        kwargs = {"log_type": log_type} if split_mode else {}
-        logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata, **kwargs)
+        logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadatas[0]
         return logs, metadata
 
-    def read_log_stream(
-        self, ti: TaskInstance, try_number: int | None, metadata: dict, *, log_type=None
-    ) -> Iterator[str]:
+    def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
         Used to continuously read log to the end
 
@@ -88,9 +82,7 @@ class TaskLogReader:
             metadata.pop("offset", None)
             metadata.pop("log_pos", None)
             while True:
-                split_mode = self.trigger_logs_presentation_mode == TriggerLogsPresentationMode.SPLIT
-                kwargs = {"log_type": log_type} if split_mode else {}
-                logs, metadata = self.read_log_chunks(ti, current_try_number, metadata, **kwargs)
+                logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
                     yield "\n".join([host or "", log]) + "\n"
                 if "end_of_log" not in metadata or (
@@ -115,14 +107,6 @@ class TaskLogReader:
     def supports_read(self):
         """Checks if a read operation is supported by a current log handler."""
         return hasattr(self.log_handler, "read")
-
-    @property
-    def trigger_logs_presentation_mode(self):
-        return getattr(
-            self.log_handler,
-            "trigger_logs_presentation_mode",
-            TriggerLogsPresentationMode.NOT_SUPPORTED,
-        )
 
     @property
     def supports_external_link(self) -> bool:
