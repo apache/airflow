@@ -31,6 +31,7 @@ readonly VERSION
 go_config=(
     "packageVersion=${VERSION}"
     "enumClassPrefix=true"
+    "structPrefix=true"
 )
 
 validate_input "$@"
