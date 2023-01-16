@@ -25,7 +25,7 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK
-from airflow.providers.amazon.aws.links.glue import GlueJobLogsLink
+from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -72,7 +72,7 @@ class GlueJobOperator(BaseOperator):
     }
     ui_color = "#ededed"
 
-    operator_extra_links = (GlueJobLogsLink(),)
+    operator_extra_links = (GlueJobRunDetailsLink(),)
 
     def __init__(
         self,
@@ -154,7 +154,7 @@ class GlueJobOperator(BaseOperator):
             + f"region={glue_job.conn_region_name}#/job/{urllib.parse.quote(self.job_name, safe='')}/run/"
             + glue_job_run["JobRunId"]
         )
-        GlueJobLogsLink.persist(
+        GlueJobRunDetailsLink.persist(
             context=context,
             operator=self,
             region_name=glue_job.conn_region_name,

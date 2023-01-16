@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobQueueLink,
 )
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
-from airflow.providers.amazon.aws.links.glue import GlueJobLogsLink
+from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
 from airflow.serialization.serialized_objects import SerializedDAG
 
@@ -80,7 +80,7 @@ AWS_LINKS = [
         f"/log-events/test%2Fstream%2Fd56a66bb98a14c4593defa1548686edf",
     ),
     (
-        GlueJobLogsLink,
+        GlueJobRunDetailsLink,
         {"job_run_id": "11111", "job_name": "test_job_name"},
         f"https://console.{AWS_DOMAIN}/gluestudio/home?region={REGION_NAME}#/job/test_job_name/run/11111",
     ),

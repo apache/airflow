@@ -19,11 +19,11 @@ from __future__ import annotations
 from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
 
 
-class GlueJobLogsLink(BaseAwsLink):
-    """Helper class for constructing AWS Glue Job Logs Link"""
+class GlueJobRunDetailsLink(BaseAwsLink):
+    """Helper class for constructing AWS Glue Job Run Details Link"""
 
-    name = "AWS Glue Job Logs"
-    key = "glue_job_logs"
+    name = "AWS Glue Job Run Details"
+    key = "glue_job_run_details"
     format_str = (
         BASE_AWS_CONSOLE_LINK + "/gluestudio/home?region={region_name}#/job/{job_name}/run/{job_run_id}"
     )
