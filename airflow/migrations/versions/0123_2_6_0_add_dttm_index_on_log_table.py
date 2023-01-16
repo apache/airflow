@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,25 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+"""add dttm index on log table
 
-readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+Revision ID: 6abdffdd4815
+Revises: 290244fb8b83
+Create Date: 2023-01-13 13:57:14.412028
 
-trap "exit" INT TERM
+"""
+from __future__ import annotations
 
-readonly EVERY=$((15*60))
+from alembic import op
 
-echo "Cleaning logs every $EVERY seconds"
+# revision identifiers, used by Alembic.
+revision = "6abdffdd4815"
+down_revision = "290244fb8b83"
+branch_labels = None
+depends_on = None
+airflow_version = "2.6.0"
 
-while true; do
-  echo "Trimming airflow logs to ${RETENTION} days."
-  find "${DIRECTORY}"/logs \
-    -type d -name 'lost+found' -prune -o \
-    -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
-    xargs -0 rm -f
 
-  seconds=$(( $(date -u +%s) % EVERY))
-  (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
-  sleep 1
-done
+def upgrade():
+    """Apply add dttm index on log table"""
+    op.create_index("idx_log_dttm", "log", ["dttm"], unique=False)
+
+
+def downgrade():
+    """Unapply add dttm index on log table"""
+    op.drop_index("idx_log_dttm", table_name="log")
