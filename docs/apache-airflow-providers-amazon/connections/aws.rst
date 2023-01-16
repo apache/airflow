@@ -147,10 +147,10 @@ Snippet to create Connection and convert to URI
     print(conn.test_connection())
 
 
-  .. warning:: When using airflow CLI there might be a need to add ``@`` when:
+  .. warning:: When using the Airflow CLI, a ``@`` may need to be added when:
 
     - login
-    - password,
+    - password
     - host
     - port
 
