@@ -63,7 +63,7 @@ class DataProcJobBuilder:
         job_type: str,
         properties: dict[str, str] | None = None,
     ) -> None:
-        name = f"{task_id.replace('.', '_')}_{uuid.uuid4()!s:.8}"
+        name = f"{task_id}_{uuid.uuid4()!s:.8}"
         self.job_type = job_type
         self.job: dict[str, Any] = {
             "job": {
@@ -180,12 +180,11 @@ class DataProcJobBuilder:
 
     def set_job_name(self, name: str) -> None:
         """
-        Set Dataproc job name. Job name is sanitized, replacing dots by underscores.
+        Set Dataproc job name.
 
         :param name: Job name.
         """
-        sanitized_name = f"{name.replace('.', '_')}_{uuid.uuid4()!s:.8}"
-        self.job["job"]["reference"]["job_id"] = sanitized_name
+        self.job["job"]["reference"]["job_id"] = f"{name}_{uuid.uuid4()!s:.8}"
 
     def build(self) -> dict:
         """

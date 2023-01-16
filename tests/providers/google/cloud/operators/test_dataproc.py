@@ -52,7 +52,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitPySparkJobOperator,
     DataprocSubmitSparkJobOperator,
     DataprocSubmitSparkSqlJobOperator,
-    DataprocUpdateClusterOperator,
+    DataprocUpdateClusterOperator, DataprocJobBaseOperator,
 )
 from airflow.providers.google.cloud.triggers.dataproc import DataprocBaseTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
@@ -1342,6 +1342,26 @@ def test_instantiate_inline_workflow_operator_extra_links(
 
     # Assert operator links after execution
     assert ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
+
+
+class TestDataprocJobBaseOperator(DataprocJobTestBase):
+    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_default_job_name(self, mock_hook, mock_uuid):
+        mock_uuid.return_value = TEST_JOB_ID
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_uuid.return_value = TEST_JOB_ID
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
+
+        op = DataprocJobBaseOperator(
+            task_id="group.task",
+            region=GCP_REGION,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        op.render_template_fields(context=self.mock_context)
+        job = op.create_job_template().build()
+        assert job["job"]["reference"]["job_id"] == f"group_task_{TEST_JOB_ID}"
 
 
 class TestDataProcHiveOperator(unittest.TestCase):

@@ -1006,17 +1006,9 @@ class TestDataProcJobBuilder:
         self.builder.set_python_main(main)
         assert main == self.builder.job["job"][self.job_type]["main_python_file_uri"]
 
-    @pytest.mark.parametrize(
-        "job_name",
-        [
-            pytest.param("name", id="simple"),
-            pytest.param("name_with_dash", id="name with underscores"),
-            pytest.param("group.name", id="name with dot"),
-            pytest.param("group.name_with_dash", id="name with dot and underscores"),
-        ],
-    )
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
-    def test_set_job_name(self, mock_uuid, job_name):
+    def test_set_job_name(self, mock_uuid):
+        job_name = "name"
         uuid = "test_uuid"
         expected_job_name = f"{job_name}_{uuid[:8]}".replace(".", "_")
         mock_uuid.return_value = uuid

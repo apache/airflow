@@ -887,7 +887,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self,
         *,
         region: str,
-        job_name: str = "{{task.task_id}}_{{ds_nodash}}",
+        job_name: str = "{{task.task_id.replace('.', '_')}}_{{ds_nodash}}",
         cluster_name: str = "cluster-1",
         project_id: str | None = None,
         dataproc_properties: dict | None = None,
