@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import signal
 
 import psutil
@@ -66,18 +65,6 @@ macOS
 ********************************************************************************************************"""
 
 
-def set_task_deferred_context_var():
-    """
-    Tell task log handler that task exited with deferral.
-
-    :meta private:
-    """
-    logger = logging.getLogger()
-    h = next((h for h in logger.handlers if hasattr(h, "ctx_task_deferred")), None)
-    if h:
-        h.ctx_task_deferred = True
-
-
 class LocalTaskJob(BaseJob):
     """LocalTaskJob runs a single task instance."""
 
@@ -120,7 +107,7 @@ class LocalTaskJob(BaseJob):
 
         super().__init__(*args, **kwargs)
 
-    def _execute(self):
+    def _execute(self) -> int | None:
         self._enable_task_listeners()
         self.task_runner = get_task_runner(self)
 
@@ -165,6 +152,7 @@ class LocalTaskJob(BaseJob):
             self.log.info("Task is not able to be run")
             return
 
+        return_code = None
         try:
             self.task_runner.start()
 
@@ -197,7 +185,7 @@ class LocalTaskJob(BaseJob):
                 return_code = self.task_runner.return_code(timeout=max_wait_time)
                 if return_code is not None:
                     self.handle_task_exit(return_code)
-                    return
+                    return return_code
 
                 self.heartbeat()
 
@@ -214,6 +202,7 @@ class LocalTaskJob(BaseJob):
                     )
         finally:
             self.on_kill()
+            return return_code
 
     def handle_task_exit(self, return_code: int) -> None:
         """
@@ -227,7 +216,6 @@ class LocalTaskJob(BaseJob):
         is_deferral = return_code == TaskReturnCode.DEFERRED.value
         if is_deferral:
             self.log.info("Task exited with return code %s (task deferral)", return_code)
-            set_task_deferred_context_var()
         else:
             self.log.info("Task exited with return code %s", return_code)
 

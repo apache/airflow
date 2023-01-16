@@ -70,6 +70,18 @@ log = logging.getLogger(__name__)
 CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
 
 
+def _set_task_deferred_context_var():
+    """
+    Tell task log handler that task exited with deferral.
+
+    :meta private:
+    """
+    logger = logging.getLogger()
+    h = next((h for h in logger.handlers if hasattr(h, "ctx_task_deferred")), None)
+    if h:
+        h.ctx_task_deferred = True
+
+
 def _generate_temporary_run_id() -> str:
     """Generate a ``run_id`` for a DAG run that will be created temporarily.
 
@@ -194,11 +206,11 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | Tas
     - by executor
     """
     if args.local:
-        _run_task_by_local_task_job(args, ti)
+        return _run_task_by_local_task_job(args, ti)
     elif args.raw:
         return _run_raw_task(args, ti)
     else:
-        _run_task_by_executor(args, dag, ti)
+        return _run_task_by_executor(args, dag, ti)
 
 
 def _run_task_by_executor(args, dag, ti):
@@ -240,7 +252,7 @@ def _run_task_by_executor(args, dag, ti):
     executor.end()
 
 
-def _run_task_by_local_task_job(args, ti):
+def _run_task_by_local_task_job(args, ti) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
     run_job = LocalTaskJob(
         task_instance=ti,
@@ -256,11 +268,13 @@ def _run_task_by_local_task_job(args, ti):
         shut_down_logging=args.shut_down_logging,
     )
     try:
-        run_job.run()
+        ret = run_job.run()
 
     finally:
         if args.shut_down_logging:
             logging.shutdown()
+    with suppress(ValueError):
+        return TaskReturnCode(ret)
 
 
 RAW_TASK_UNSUPPORTED_OPTION = [
@@ -409,19 +423,21 @@ def task_run(args, dag=None):
     # this should be last thing before running, to reduce likelihood of an open session
     # which can cause trouble if running process in a fork.
     settings.reconfigure_orm(disable_connection_pool=True)
-    ret = None
+    task_return_code = None
     try:
         if args.interactive:
-            ret = _run_task_by_selected_method(args, dag, ti)
+            task_return_code = _run_task_by_selected_method(args, dag, ti)
         else:
             with _move_task_handlers_to_root(ti), _redirect_stdout_to_ti_log(ti):
-                ret = _run_task_by_selected_method(args, dag, ti)
+                task_return_code = _run_task_by_selected_method(args, dag, ti)
+                if task_return_code == TaskReturnCode.DEFERRED:
+                    _set_task_deferred_context_var()
     finally:
         try:
             get_listener_manager().hook.before_stopping(component=TaskCommandMarker())
         except Exception:
             pass
-    return ret
+    return task_return_code
 
 
 @cli_utils.action_cli(check_db=False)
