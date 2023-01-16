@@ -75,7 +75,7 @@ class WebEncoder(json.JSONEncoder):
                     return data[DATA]
             return data
         except TypeError:
-            return o.__repr__()
+            return repr(o)
 
 
 class XComEncoder(json.JSONEncoder):
