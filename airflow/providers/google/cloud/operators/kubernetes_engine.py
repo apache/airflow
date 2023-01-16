@@ -303,9 +303,11 @@ class GKEStartPodOperator(KubernetesPodOperator):
         *,
         location: str,
         cluster_name: str,
+        use_internal_ip: bool | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        regional: bool | None = None,
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
@@ -319,6 +321,24 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 stacklevel=2,
             )
             is_delete_operator_pod = False
+
+        if use_internal_ip is not None:
+            warnings.warn(
+                f"You have set parameter use_internal_ip in class {self.__class__.__name__}. "
+                "In current implementation of the operator the parameter is not used and will "
+                "be deleted in future.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        if regional is not None:
+            warnings.warn(
+                f"You have set parameter regional in class {self.__class__.__name__}. "
+                "In current implementation of the operator the parameter is not used and will "
+                "be deleted in future.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         super().__init__(is_delete_operator_pod=is_delete_operator_pod, **kwargs)
         self.project_id = project_id

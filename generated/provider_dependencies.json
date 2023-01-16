@@ -213,7 +213,7 @@
       "asgiref>=3.5.2",
       "cryptography>=2.0.0",
       "kubernetes>=21.7.0,<24",
-      "kubernetes_asyncio==24.2.2"
+      "kubernetes_asyncio>=24.2.2,<25"
     ],
     "cross-providers-deps": []
   },
