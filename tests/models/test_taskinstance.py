@@ -3600,6 +3600,40 @@ class TestMappedTaskInstanceReceiveValue:
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
 
 
+def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
+    backend = os.environ.get("BACKEND")
+    if backend == "mssql":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.[key] = 'xxx'",
+        ]
+    elif backend == "mysql":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
+        ]
+    elif backend == "postgres":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
+        ]
+    elif backend == "sqlite":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
+        ]
+    else:
+        raise RuntimeError(f"unknown backend {backend!r}")
+
+
 def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
     with dag_maker(session=session):
         EmptyOperator(task_id="t")
@@ -3621,12 +3655,7 @@ def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
     # After the object went through pickling, the underlying ORM query should be
     # replaced by one backed by a literal SQL string with all variables binded.
     sql_lines = [line.strip() for line in str(processed._query.statement.compile(None)).splitlines()]
-    assert sql_lines == [
-        "SELECT xcom.value",
-        "FROM xcom",
-        "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-        "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
-    ]
+    assert sql_lines == _get_lazy_xcom_access_expected_sql_lines()
 
     assert len(processed) == 1
     assert list(processed) == [123]
