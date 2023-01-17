@@ -50,6 +50,10 @@ def test_get_task_log():
     assert executor.get_task_log(ti=ti) is None
 
 
+def test_serve_logs_default_value():
+    assert not BaseExecutor.serve_logs
+
+
 def test_get_event_buffer():
     executor = BaseExecutor()
 
