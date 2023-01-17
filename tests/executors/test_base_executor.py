@@ -44,10 +44,14 @@ def test_is_local_default_value():
     assert not BaseExecutor.is_local
 
 
+
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=BaseOperator(task_id="dummy"))
     assert executor.get_task_log(ti=ti) is None
+
+def test_serve_logs_default_value():
+    assert not BaseExecutor.serve_logs
 
 
 def test_get_event_buffer():
