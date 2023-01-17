@@ -26,15 +26,6 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-try:
-    from airflow.utils.log.file_task_handler import LogType
-except ImportError:
-    # todo: remove when min airflow version >= 2.6
-    class LogType:  # type: ignore[no-redef]
-        """For backcompat"""
-
-        TRIGGER = object()
-
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
     """
