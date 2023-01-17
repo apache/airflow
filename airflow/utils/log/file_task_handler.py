@@ -92,6 +92,7 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
         if not line:
             continue
         with suppress(Exception):
+            # next_timestamp unchanged if line can't be parsed
             next_timestamp = _parse_timestamp(line)
         if next_timestamp:
             timestamp = next_timestamp
