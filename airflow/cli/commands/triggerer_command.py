@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import signal
 from contextlib import contextmanager
+from functools import partial
 from multiprocessing import Process
 from typing import Generator
 
@@ -38,8 +39,6 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
     """Starts serve_logs sub-process"""
     sub_proc = None
     if skip_serve_logs is False:
-        from functools import partial
-
         port = conf.getint("logging", "trigger_log_server_port", fallback=8794)
         sub_proc = Process(target=partial(serve_logs, port=port))
         sub_proc.start()
