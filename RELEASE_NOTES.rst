@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.5.1 (2023-01-16)
+Airflow 2.5.1 (2023-01-20)
 --------------------------
 
 Significant Changes
@@ -93,6 +93,8 @@ Bug Fixes
 
 Misc/Internal
 ^^^^^^^^^^^^^
+- Remove limit for ``dnspython`` after eventlet got fixed (#29004)
+- Limit ``dnspython`` to < ``2.3.0`` until eventlet incompatibility is solved (#28962)
 - Add automated version replacement in example dag indexes (#28090)
 - Cleanup and do housekeeping with plugin examples (#28537)
 - Limit ``SQLAlchemy`` to below ``2.0`` (#28725)
