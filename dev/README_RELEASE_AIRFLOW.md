@@ -248,7 +248,13 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - PR from the 'test' branch to the 'stable' branch
 
-- When the PR is approved, Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC
+- When the PR is approved, install `dev/breeze` in a virtualenv:
+
+    ```shell script
+    pip install -e ./dev/breeze
+    ```
+
+- Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC
 
 - Start the release candidate process by running the below command (If you have not generated a key yet, generate it by following instructions on
     http://www.apache.org/dev/openpgp.html#key-gen-generate-key):

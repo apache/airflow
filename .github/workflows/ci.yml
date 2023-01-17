@@ -785,6 +785,8 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
+      - name: "Install required packages"
+        run: python -m pip install --editable ./dev/breeze/
       - name: "Check Airflow RC process command"
         run: |
           breeze release-management start-rc-process --version 2.4.3rc1 --previous-version 2.4.2  --answer y
