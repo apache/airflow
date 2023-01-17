@@ -102,7 +102,7 @@ def test_datetime_diff_for_humans(dt, since, expected):
     ],
 )
 def test_json_loads(input_value, expected):
-    result = macros.json_loads(input_value)
+    result = macros.json.loads(input_value)
     assert result == expected
 
 
@@ -118,5 +118,5 @@ def test_json_loads(input_value, expected):
     ],
 )
 def test_yaml_loads(input_value, expected):
-    result = macros.yaml_loads(input_value)
+    result = macros.yaml.safe_load(input_value)
     assert result == expected
