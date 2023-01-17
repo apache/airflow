@@ -304,22 +304,22 @@ class FileTaskHandler(logging.Handler):
         # is needed to get correct log path.
         messages_list = []
         worker_log_rel_path = self._render_filename(ti, try_number)
-        worker_log_full_path = Path(self.local_base, worker_log_rel_path)
-
-        local_messages, local_logs = self._read_from_local(worker_log_full_path)
-        messages_list.extend(local_messages)
-        running_logs = ""
-        running_messages = []
+        remote_logs = []
+        running_logs = []
+        local_logs = []
+        with suppress(NotImplementedError):
+            remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
+            messages_list.extend(remote_messages)
         if ti.state == TaskInstanceState.RUNNING and self._should_check_k8s(ti.queue):
             running_messages, running_logs = self._read_from_k8s_worker(ti)
         elif ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED):
             running_messages, running_logs = self._read_from_logs_server(ti, worker_log_rel_path)
-        messages_list.extend(running_messages)
-        remote_logs = ""
-        remote_messages = []
-        with suppress(NotImplementedError):
-            remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
-        messages_list.extend(remote_messages)
+            messages_list.extend(running_messages)
+        if not (remote_logs and ti.state not in State.unfinished):
+            # when finished, if we have remote logs, no need to check local
+            worker_log_full_path = Path(self.local_base, worker_log_rel_path)
+            local_messages, local_logs = self._read_from_local(worker_log_full_path)
+            messages_list.extend(local_messages)
         logs = "\n".join(
             _interleave_logs(
                 *local_logs,
@@ -458,7 +458,8 @@ class FileTaskHandler(logging.Handler):
         messages = []
         logs = []
         files = list(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        messages.extend(["Found local files:", *[f"  * {x}" for x in sorted(files)]])
+        if files:
+            messages.extend(["Found local files:", *[f"  * {x}" for x in sorted(files)]])
         for file in sorted(files):
             logs.append(Path(file).read_text())
         return messages, logs
