@@ -1608,6 +1608,11 @@ class SchedulerJob(BaseJob):
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
+    def _set_orphaned(self, dataset: DatasetModel) -> int:
+        self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
+        dataset.is_orphaned = expression.true()
+        return 1
+
     @provide_session
     def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
         """
@@ -1633,9 +1638,7 @@ class SchedulerJob(BaseJob):
                     func.count(TaskOutletDatasetReference.dag_id) == 0,
                 )
             )
-            .all()
         )
-        for dataset in orphaned_dataset_query:
-            self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
-            dataset.is_orphaned = expression.true()
-        Stats.gauge("dataset.orphaned", len(orphaned_dataset_query))
+
+        updated_count = sum(self._set_orphaned(dataset) for dataset in orphaned_dataset_query)
+        Stats.gauge("dataset.orphaned", updated_count)
