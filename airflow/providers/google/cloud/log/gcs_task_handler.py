@@ -186,7 +186,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         if not logs:
             return super()._read(ti, try_number, metadata)
 
-        return "".join([f"*** {x}\n" for x in logs]), {"end_of_log": True}
+        return "".join([f"*** {x}\n" for x in messages]) + logs, {"end_of_log": True}
 
     def gcs_write(self, log, remote_log_location):
         """

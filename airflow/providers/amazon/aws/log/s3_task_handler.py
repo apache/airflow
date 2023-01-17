@@ -103,14 +103,15 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
         # in set_context method.
+        worker_log_rel_path = self._render_filename(ti, try_number)
+
         log = ""
         messages = []
-        worker_log_rel_path = self._render_filename(ti, try_number)
         bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, worker_log_rel_path))
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
         if keys:
             keys = [f"s3://{bucket}/{key}" for key in keys]
-            messages.extend(["Reading logs from s3:", *[f"\n  * {x}" for x in keys]])
+            messages.extend(["Reading logs from s3:", *[f"  * {x}\n" for x in keys]])
             for key in keys:
                 log += self.s3_read(key, return_error=True)
         else:
