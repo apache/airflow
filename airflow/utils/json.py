@@ -60,24 +60,30 @@ class WebEncoder(json.JSONEncoder):
             if isinstance(data, dict) and DATA in data:
                 return data[DATA]
 
+        if isinstance(o, (set, frozenset)):
+            return list(o)
+
         try:
             data = serialize(o)
-            if isinstance(data, dict) and CLASSNAME in data:
-                # this is here for backwards compatibility
-                if (
-                    data[CLASSNAME].startswith("numpy")
-                    or data[CLASSNAME] == "kubernetes.client.models.v1_pod.V1Pod"
-                ):
-                    return data[DATA]
-            return data
         except TypeError:
-            raise
+            return super().default(o)
+
+        if isinstance(data, dict) and CLASSNAME in data:
+            # this is here for backwards compatibility
+            if (
+                data[CLASSNAME].startswith("numpy")
+                or data[CLASSNAME] == "kubernetes.client.models.v1_pod.V1Pod"
+            ):
+                return data[DATA]
+        return data
 
 
 class XComEncoder(json.JSONEncoder):
     """This encoder serializes any object that has attr, dataclass or a custom serializer."""
 
     def default(self, o: object) -> Any:
+        if isinstance(o, (set, frozenset)):
+            return list(o)
         try:
             return serialize(o)
         except TypeError:

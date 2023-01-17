@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import decimal
 import json
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -48,6 +49,11 @@ class TestWebEncoder:
     def test_encode_date(self):
         assert json.dumps(date(2017, 5, 21), cls=utils_json.WebEncoder) == '"2017-05-21"'
 
+    @pytest.mark.parametrize("tp", [frozenset, set])
+    def test_encode_set(self, tp):
+        value = tp((decimal.Decimal("1.23"), "abc"))
+        assert json.dumps(value, cls=utils_json.WebEncoder) in ('[1.23, "abc"]', '["abc", 1.23]')
+
     def test_encode_numpy_int(self):
         assert json.dumps(np.int32(5), cls=utils_json.WebEncoder) == "5"
 
@@ -65,6 +71,14 @@ class TestXComEncoder:
                 Exception,
                 cls=utils_json.XComEncoder,
             )
+
+    @pytest.mark.parametrize("tp", [frozenset, set])
+    def test_encode_set(self, tp):
+        value = tp((decimal.Decimal("1.23"), "abc"))
+        assert json.dumps(value, cls=utils_json.XComEncoder) in (
+            '[{"__classname__": "decimal.Decimal", "__version__": 1, "__data__": 1.23}, "abc"]',
+            '["abc", {"__classname__": "decimal.Decimal", "__version__": 1, "__data__": 1.23}]',
+        )
 
     def test_encode_xcom_dataset(self):
         dataset = Dataset("mytest://dataset")
