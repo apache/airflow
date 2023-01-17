@@ -70,7 +70,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         session_configuration=None,
         http_headers: list[tuple[str, str]] | None = None,
         catalog: str = "",
-        schema: str | None = "default",
+        schema: str = "default",
         table_name: str = "",
         partition_name: dict = {"date": "2023-1-1"},
         handler: Callable[[Any], Any] = fetch_all_handler,

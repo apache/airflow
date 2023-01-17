@@ -72,7 +72,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         handler: Callable[[Any], Any] = fetch_all_handler,
         caller: str = "DatabricksSqlSensor",
         client_parameters: dict[str, Any] | None = None,
-        sql: str = None,
+        sql: str = "",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
