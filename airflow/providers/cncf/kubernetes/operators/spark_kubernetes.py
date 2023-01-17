@@ -27,16 +27,16 @@ import jinja2
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
 from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import _suppress, KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.utils.helpers import prune_dict
 
 from airflow.compat.functools import cached_property
-from airflow.kubernetes import kube_client, pod_generator
+from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -78,13 +78,12 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def __init__(
         self,
         *,
-        image: str,
-        code_path: str,
+        image: Optional[str] = None,
+        code_path: Optional[str] = None,
         namespace: str = 'default',
         name: str = 'default',
         application_file: Optional[str] = None,
         template_spec=None,
-        cluster_context: Optional[str] = None,
         get_logs: bool = True,
         do_xcom_push: bool = False,
         success_run_history_limit: int = 1,
@@ -108,7 +107,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.reattach_on_restart = reattach_on_restart
         self.delete_on_termination = delete_on_termination
         self.do_xcom_push = do_xcom_push
-        self.cluster_context = cluster_context
         self.namespace = namespace
         self.get_logs = get_logs
         self.log_events_on_failure = log_events_on_failure
@@ -136,6 +134,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             template_body = self.template_spec
         else:
             raise AirflowException('either application_file or template_spec should be passed')
+        if 'spark' not in template_body:
+            template_body = {'spark': template_body}
         return template_body
 
     def create_job_name(self):
@@ -232,7 +232,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.log.info("xcom result: \n%s", result)
         return json.loads(result)
 
-    def process_pod_deletion(self, pod):
+    def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:
                 self.log.info("Deleting spark job: %s", pod.metadata.name.replace('-driver', ''))
@@ -244,9 +244,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def hook(self) -> KubernetesHook:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
-            in_cluster=self.template_body['kubernetes']['in_cluster'],
-            config_file=self.template_body['kubernetes']['kube_config_file'],
-            cluster_context=self.cluster_context,
+            in_cluster=self.in_cluster or self.template_body.get('kubernetes', {}).get('in_cluster', False),
+            config_file=self.config_file or self.template_body.get('kubernetes', {}).get('kube_config_file', None),
+            cluster_context=self.cluster_context or self.template_body.get('kubernetes', {}).get('cluster_context', None),
         )
         return hook
 
@@ -278,7 +278,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.log.debug("Deleting spark job for task %s", self.task_id)
             self.launcher.delete_spark_job()
 
-    def patch_already_checked(self, pod: k8s.V1Pod):
+    def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""
         pod.metadata.labels["already_checked"] = "True"
         body = PodGenerator.serialize_pod(pod)

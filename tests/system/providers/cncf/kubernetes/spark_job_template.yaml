@@ -17,10 +17,10 @@
 # under the License.
 ---
 spark:
-  apiVersion: v1beta2
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  version: v1beta2
   kind: SparkApplication
-  api_group: sparkoperator.k8s.io
-  api_plural: sparkapplications
+  apiGroup: sparkoperator.k8s.io
   metadata:
     namespace: default
   spec:
@@ -142,4 +142,5 @@ kubernetes:
   conn_id: kubernetes_default
   kube_config_file: null
   cluster_context: null
+
 

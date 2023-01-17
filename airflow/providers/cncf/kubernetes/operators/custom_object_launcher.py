@@ -50,16 +50,17 @@ class SparkJobSpec:
         self.update_resources()
 
     def validate(self):
-        if self.spec['dynamicAllocation']['enabled']:
+        if self.spec.get('dynamicAllocation', {}).get('enabled'):
             if not all(
                 [self.spec['dynamicAllocation']['initialExecutors'], self.spec['dynamicAllocation']['minExecutors'], self.spec['dynamicAllocation']['maxExecutors']]
             ):
                 raise AirflowException("Make sure initial/min/max value for dynamic allocation is passed")
 
     def update_resources(self):
-        spark_resources = SparkResources(self.spec['driver'].pop('container_resources'), self.spec['executor'].pop('container_resources'))
-        self.spec['driver'].update(spark_resources.resources['driver'])
-        self.spec['executor'].update(spark_resources.resources['executor'])
+        if self.spec['driver'].get('container_resources'):
+            spark_resources = SparkResources(self.spec['driver'].pop('container_resources'), self.spec['executor'].pop('container_resources'))
+            self.spec['driver'].update(spark_resources.resources['driver'])
+            self.spec['executor'].update(spark_resources.resources['executor'])
 
 
 class KubernetesSpec:
@@ -69,7 +70,7 @@ class KubernetesSpec:
 
     def set_attribute(self):
         self.env_vars = convert_env_vars(self.env_vars) if self.env_vars else []
-        self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if self.image_pull_secrets else []
+        self.image_pull_secrets = convert_image_pull_secrets(self.image_pull_secrets) if self.image_pull_secrets else []
         if self.config_map_mounts:
             vols, vols_mounts = convert_configmap_to_volume(self.config_map_mounts)
             self.volumes.extend(vols)
@@ -85,8 +86,8 @@ class SparkResources:
 
     def __init__(
         self,
-        driver: dict | None = None,
-        executor: dict | None = None,
+        driver: dict = None,
+        executor: dict = None,
     ):
         self.default = {
             'gpu': {'name': None, 'quantity': 0},
@@ -195,10 +196,13 @@ class CustomObjectLauncher(LoggingMixin):
         self.namespace = namespace
         self.template_body = template_body
         self.body: dict = self.get_body()
-        self.api_group = self.body['apiGroup']
-        self.api_version = self.body['version']
-        self.plural = self.body['apiPlural']
         self.kind = self.body['kind']
+        self.plural = f'{self.kind.lower()}s'
+        if self.body.get('apiVersion'):
+            self.api_group, self.api_version = self.body.get('apiVersion').split("/")
+        else:
+            self.api_group = self.body['apiGroup']
+            self.api_version = self.body['version']
         self._client = kube_client
         self.custom_obj_api = custom_obj_api
         self.spark_obj_spec: dict = {}
@@ -210,20 +214,24 @@ class CustomObjectLauncher(LoggingMixin):
 
     def get_body(self):
         self.body: dict = SparkJobSpec(**self.template_body['spark'])
-        self.body.metadata = {'name': self.name}
-        k8s_spec: dict = KubernetesSpec(**self.template_body['kubernetes'])
-        self.body.spec['volumes'] = k8s_spec.volumes
-        for item in ['driver', 'executor']:
-            # Env List
-            self.body.spec[item]['env'] = k8s_spec.env_vars
-            self.body.spec[item]['envFrom'] = k8s_spec.env_from
-            # Volumes
-            self.body.spec[item]['volumeMounts'] = k8s_spec.volume_mounts
-            # Add affinity
-            self.body.spec[item]['affinity'] = k8s_spec.affinity
-            self.body.spec[item]['tolerations'] = k8s_spec.tolerations
-            # Labels
-            self.body.spec[item]['labels'] = self.body.spec['labels']
+        self.body.metadata = {'name': self.name, 'namespace': self.namespace}
+        if self.template_body.get('kubernetes'):
+            k8s_spec: dict = KubernetesSpec(**self.template_body['kubernetes'])
+            self.body.spec['volumes'] = k8s_spec.volumes
+            if k8s_spec.image_pull_secrets:
+                self.body.spec['imagePullSecrets'] = k8s_spec.image_pull_secrets
+            for item in ['driver', 'executor']:
+                # Env List
+                self.body.spec[item]['env'] = k8s_spec.env_vars
+                self.body.spec[item]['envFrom'] = k8s_spec.env_from
+                # Volumes
+                self.body.spec[item]['volumeMounts'] = k8s_spec.volume_mounts
+                # Add affinity
+                self.body.spec[item]['affinity'] = k8s_spec.affinity
+                self.body.spec[item]['tolerations'] = k8s_spec.tolerations
+                # Labels
+                self.body.spec[item]['labels'] = self.body.spec['labels']
+
         return self.body.__dict__
 
     @tenacity.retry(
@@ -232,16 +240,20 @@ class CustomObjectLauncher(LoggingMixin):
         reraise=True,
         retry=tenacity.retry_if_exception(should_retry_start_spark_job),
     )
-    def start_spark_job(self, image, code_path, startup_timeout: int = 600):
+    def start_spark_job(self, image=None, code_path=None, startup_timeout: int = 600):
         """
         Launches the pod synchronously and waits for completion.
 
+        :param image: image name
+        :param code_path: path to the .py file for python and jar file for scala
         :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
         :return:
         """
         try:
-            self.body['spec']['image'] = image
-            self.body['spec']['mainApplicationFile'] = code_path
+            if image:
+                self.body['spec']['image'] = image
+            if code_path:
+                self.body['spec']['mainApplicationFile'] = code_path
             self.log.debug('Spark Job Creation Request Submitted')
             self.spark_obj_spec = self.custom_obj_api.create_namespaced_custom_object(
                 group=self.api_group,
@@ -313,8 +325,7 @@ class CustomObjectLauncher(LoggingMixin):
             self.log.warning("Spark job not found: %s", spark_job_name)
             return
         try:
-            v1 = client.CustomObjectsApi()
-            v1.delete_namespaced_custom_object(
+            self.custom_obj_api.delete_namespaced_custom_object(
                 group=self.api_group,
                 version=self.api_version,
                 namespace=self.namespace,

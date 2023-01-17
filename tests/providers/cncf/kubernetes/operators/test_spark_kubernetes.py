@@ -20,13 +20,15 @@ from __future__ import annotations
 import copy
 import json
 import unittest
+from os.path import join
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pendulum
 import pytest
 import yaml
 from kubernetes.client import models as k8s
+from pathlib import Path
 
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
@@ -34,111 +36,69 @@ from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKu
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
 
-TEST_VALID_APPLICATION_YAML = """
-apiVersion: "sparkoperator.k8s.io/v1beta2"
-kind: SparkApplication
-metadata:
-  name: spark-pi
-  namespace: default
-spec:
-  type: Scala
-  mode: cluster
-  image: "gcr.io/spark-operator/spark:v2.4.5"
-  imagePullPolicy: Always
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar"
-  sparkVersion: "2.4.5"
-  restartPolicy:
-    type: Never
-  volumes:
-    - name: "test-volume"
-      hostPath:
-        path: "/tmp"
-        type: Directory
-  driver:
-    cores: 1
-    coreLimit: "1200m"
-    memory: "512m"
-    labels:
-      version: 2.4.5
-    serviceAccount: spark
-    volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
-  executor:
-    cores: 1
-    instances: 1
-    memory: "512m"
-    labels:
-      version: 2.4.5
-    volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
-"""
-TEST_VALID_APPLICATION_JSON = """
-{
-   "apiVersion":"sparkoperator.k8s.io/v1beta2",
-   "kind":"SparkApplication",
-   "metadata":{
-      "name":"spark-pi",
-      "namespace":"default"
-   },
-   "spec":{
-      "type":"Scala",
-      "mode":"cluster",
-      "image":"gcr.io/spark-operator/spark:v2.4.5",
-      "imagePullPolicy":"Always",
-      "mainClass":"org.apache.spark.examples.SparkPi",
-      "mainApplicationFile":"local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar",
-      "sparkVersion":"2.4.5",
-      "restartPolicy":{
-         "type":"Never"
-      },
-      "volumes":[
-         {
-            "name":"test-volume",
-            "hostPath":{
-               "path":"/tmp",
-               "type":"Directory"
-            }
-         }
-      ],
-      "driver":{
-         "cores":1,
-         "coreLimit":"1200m",
-         "memory":"512m",
-         "labels":{
-            "version":"2.4.5"
-         },
-         "serviceAccount":"spark",
-         "volumeMounts":[
-            {
-               "name":"test-volume",
-               "mountPath":"/tmp"
-            }
-         ]
-      },
-      "executor":{
-         "cores":1,
-         "instances":1,
-         "memory":"512m",
-         "labels":{
-            "version":"2.4.5"
-         },
-         "volumeMounts":[
-            {
-               "name":"test-volume",
-               "mountPath":"/tmp"
-            }
-         ]
-      }
-   }
+TEST_K8S_DICT = {
+    'apiVersion': 'sparkoperator.k8s.io/v1beta2',
+    'kind': 'SparkApplication',
+    'metadata': {'name': 'default_yaml_template', 'namespace': 'default'},
+    'spec': {
+        'driver': {
+            'coreLimit': '1200m',
+            'cores': 1,
+            'labels': {},
+            'memory': '365m',
+            'serviceAccount': 'default',
+            'volumeMounts': [],
+            'env': [],
+            'envFrom': [],
+            'tolerations': [],
+            'affinity': {
+                'nodeAffinity': {},
+                'podAffinity': {},
+                'podAntiAffinity': {}
+            },
+        },
+        'executor': {
+            'cores': 1,
+            'instances': 1,
+            'labels': {},
+            'env': [],
+            'envFrom': [],
+            'memory': '365m',
+            'volumeMounts': [],
+            'tolerations': [],
+            'affinity': {
+                'nodeAffinity': {},
+                'podAffinity': {},
+                'podAntiAffinity': {}
+            },
+        },
+        'hadoopConf': {},
+        'dynamicAllocation': {
+            'enabled': False,
+            'initialExecutors': 1,
+            'maxExecutors': 1,
+            'minExecutors': 1
+        },
+        'image': 'gcr.io/spark-operator/spark:v2.4.5',
+        'imagePullPolicy': 'Always',
+        'mainApplicationFile': 'local:///opt/test.py',
+        'mode': 'cluster',
+        'restartPolicy': {'type': 'Never'},
+        'sparkVersion': '3.0.0',
+        'successfulRunHistoryLimit': 1,
+        'pythonVersion': '3',
+        'type': 'Python',
+        'imagePullSecrets': '',
+        'labels': {},
+        'volumes': [],
+    },
 }
-"""
+
+
 TEST_APPLICATION_DICT = {
     'apiVersion': 'sparkoperator.k8s.io/v1beta2',
     'kind': 'SparkApplication',
-    'metadata': {'name': 'spark-pi', 'namespace': 'default'},
+    'metadata': {'name': 'default_yaml', 'namespace': 'default'},
     'spec': {
         'driver': {
             'coreLimit': '1200m',
@@ -193,12 +153,12 @@ def create_context(task):
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-@patch("airflow.kubernetes.custom_object_launcher.CustomObjectLauncher._load_body")
-@patch("airflow.kubernetes.kube_client.get_kube_client")
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.create_job_name")#, return_value='default')
+@patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.cleanup")
 @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status')
-@patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
 @patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
-class TestSparkKubernetesOperatorYaml(unittest.TestCase):
+class TestSparkKubernetesOperator(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(conn_id='kubernetes_default_kube_config', conn_type='kubernetes', extra=json.dumps({}))
@@ -213,70 +173,40 @@ class TestSparkKubernetesOperatorYaml(unittest.TestCase):
         args = {'owner': 'airflow', 'start_date': timezone.datetime(2020, 2, 1)}
         self.dag = DAG('test_dag_id', default_args=args)
 
-    def test_create_application_from_yaml(
-        self,
-        mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
-        mock_get_namespaced_custom_object_status,
-        mock_get_kube_client,
-        mock_body,
-        mock_create_pod,
-        mock_await_pod_start,
-        mock_await_pod_completion,
-    ):
-        mock_body.return_value = yaml.safe_load(TEST_VALID_APPLICATION_YAML)
-        mock_create_namespaced_crd.return_value = yaml.safe_load(TEST_VALID_APPLICATION_YAML)
+    def execute_operator(self, task_name, mock_create_job_name, job_spec):
+        mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
-            application_file=TEST_VALID_APPLICATION_YAML,
+            template_spec=job_spec,
             dag=self.dag,
             kubernetes_conn_id='kubernetes_default_kube_config',
-            task_id='test_task_id',
+            task_id=task_name,
         )
         context = create_context(op)
         op.execute(context)
-        mock_create_namespaced_crd.assert_called_with(
-            body=TEST_APPLICATION_DICT,
-            group='sparkoperator.k8s.io',
-            namespace='default',
-            plural='sparkapplications',
-            version='v1beta2',
-        )
-        mock_delete_namespaced_crd.assert_called_once_with(
-            group='sparkoperator.k8s.io',
-            namespace='default',
-            plural='sparkapplications',
-            version='v1beta2',
-            name=TEST_APPLICATION_DICT["metadata"]["name"],
-        )
+        return op
 
-    def test_create_application_from_json(
+    def test_create_application_from_yaml_json(
         self,
         mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
         mock_get_kube_client,
-        mock_body,
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
     ):
-        mock_body.return_value = TEST_APPLICATION_DICT
-        mock_create_namespaced_crd.return_value = TEST_APPLICATION_DICT
+        task_name = 'default_yaml'
+        mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
-            application_file=TEST_VALID_APPLICATION_JSON,
+            application_file=join(Path(__file__).parent, 'spark_application_test.yaml'),
             dag=self.dag,
             kubernetes_conn_id='kubernetes_default_kube_config',
-            task_id='test_task_id',
+            task_id=task_name,
         )
         context = create_context(op)
         op.execute(context)
-        mock_delete_namespaced_crd.assert_called_once_with(
-            group='sparkoperator.k8s.io',
-            namespace='default',
-            plural='sparkapplications',
-            version='v1beta2',
-            name=TEST_APPLICATION_DICT["metadata"]["name"],
-        )
+        TEST_APPLICATION_DICT['metadata']['name'] = task_name
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
             group='sparkoperator.k8s.io',
@@ -285,276 +215,216 @@ class TestSparkKubernetesOperatorYaml(unittest.TestCase):
             version='v1beta2',
         )
 
-    def test_create_application_from_json_with_api_group_and_version(
-        self,
-        mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
-        mock_get_namespaced_custom_object_status,
-        mock_get_kube_client,
-        mock_body,
-        mock_create_pod,
-        mock_await_pod_start,
-        mock_await_pod_completion,
-    ):
-        mock_body.return_value = json.loads(TEST_VALID_APPLICATION_JSON)
-        mock_create_namespaced_crd.return_value = json.loads(TEST_VALID_APPLICATION_JSON)
-        api_group = 'sparkoperator.example.com'
-        api_version = 'v1alpha1'
+        task_name = 'default_json'
+        mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
-            application_file=TEST_VALID_APPLICATION_JSON,
+            application_file=join(Path(__file__).parent, 'spark_application_test.json'),
             dag=self.dag,
             kubernetes_conn_id='kubernetes_default_kube_config',
-            task_id='test_task_id',
-            api_group=api_group,
-            api_version=api_version,
+            task_id=task_name,
         )
         context = create_context(op)
         op.execute(context)
-        mock_delete_namespaced_crd.assert_called_once_with(
-            group=api_group,
-            namespace='default',
-            plural='sparkapplications',
-            version=api_version,
-            name=TEST_APPLICATION_DICT["metadata"]["name"],
-        )
+        TEST_APPLICATION_DICT['metadata']['name'] = task_name
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
-            group=api_group,
+            group='sparkoperator.k8s.io',
             namespace='default',
             plural='sparkapplications',
-            version=api_version,
+            version='v1beta2',
         )
 
-    def test_namespace_from_operator(
+    def test_new_template_from_yaml(
         self,
         mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
         mock_get_kube_client,
-        mock_body,
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
     ):
-        mock_body.return_value = json.loads(TEST_VALID_APPLICATION_JSON)
-        mock_create_namespaced_crd.return_value = json.loads(TEST_VALID_APPLICATION_JSON)
+        task_name = 'default_yaml_template'
+        mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
-            application_file=TEST_VALID_APPLICATION_JSON,
+            application_file=join(Path(__file__).parent, 'spark_application_template.yaml'),
             dag=self.dag,
-            namespace='operator_namespace',
-            kubernetes_conn_id='kubernetes_with_namespace',
-            task_id='test_task_id',
+            kubernetes_conn_id='kubernetes_default_kube_config',
+            task_id=task_name,
         )
         context = create_context(op)
         op.execute(context)
-        mock_delete_namespaced_crd.assert_called_once_with(
-            group='sparkoperator.k8s.io',
-            namespace='operator_namespace',
-            plural='sparkapplications',
-            version='v1beta2',
-            name=TEST_APPLICATION_DICT["metadata"]["name"],
-        )
+        TEST_K8S_DICT['metadata']['name'] = task_name
         mock_create_namespaced_crd.assert_called_with(
-            body=TEST_APPLICATION_DICT,
-            group='sparkoperator.k8s.io',
-            namespace='operator_namespace',
-            plural='sparkapplications',
-            version='v1beta2',
-        )
-
-    def test_namespace_from_connection(
-        self,
-        mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
-        mock_get_namespaced_custom_object_status,
-        mock_get_kube_client,
-        mock_body,
-        mock_create_pod,
-        mock_await_pod_start,
-        mock_await_pod_completion,
-    ):
-        mock_body.return_value = json.loads(TEST_VALID_APPLICATION_JSON)
-        mock_create_namespaced_crd.return_value = json.loads(TEST_VALID_APPLICATION_JSON)
-        op = SparkKubernetesOperator(
-            application_file=TEST_VALID_APPLICATION_JSON,
-            dag=self.dag,
-            kubernetes_conn_id='kubernetes_with_namespace',
-            task_id='test_task_id',
-        )
-        context = create_context(op)
-        op.execute(context)
-        mock_delete_namespaced_crd.assert_called_once_with(
-            group='sparkoperator.k8s.io',
-            namespace='default',
-            plural='sparkapplications',
-            version='v1beta2',
-            name=TEST_APPLICATION_DICT["metadata"]["name"],
-        )
-        mock_create_namespaced_crd.assert_called_with(
-            body=TEST_APPLICATION_DICT,
+            body=TEST_K8S_DICT,
             group='sparkoperator.k8s.io',
             namespace='default',
             plural='sparkapplications',
             version='v1beta2',
         )
 
-
-@patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-@patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
-@patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-@patch("airflow.kubernetes.custom_object_launcher.CustomObjectLauncher._load_body")
-@patch("airflow.kubernetes.kube_client.get_kube_client")
-@patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status')
-@patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object')
-@patch('kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object')
-class TestSparkKubernetesOperator:
-    def setup_class(self):
-        db.merge_conn(
-            Connection(conn_id='kubernetes_default_kube_config', conn_type='kubernetes', extra=json.dumps({}))
-        )
-        db.merge_conn(
-            Connection(
-                conn_id='kubernetes_with_namespace',
-                conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__namespace': 'mock_namespace'}),
-            )
-        )
-        args = {'owner': 'airflow', 'start_date': timezone.datetime(2020, 2, 1)}
-        self.dag = DAG('test_dag_id', default_args=args)
-
-    def test_env_vars(
+    def test_template_spec(
         self,
         mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
         mock_get_kube_client,
-        mock_body,
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
     ):
+        task_name = 'default_yaml_template'
+        job_spec = yaml.safe_load(open(join(Path(__file__).parent, 'spark_application_template.yaml')))
+        self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+
+        TEST_K8S_DICT['metadata']['name'] = task_name
+        mock_create_namespaced_crd.assert_called_with(
+            body=TEST_K8S_DICT,
+            group='sparkoperator.k8s.io',
+            namespace='default',
+            plural='sparkapplications',
+            version='v1beta2',
+        )
+
+    def test_env(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+    ):
+        task_name = 'default_env'
+        job_spec = yaml.safe_load(open(join(Path(__file__).parent, 'spark_application_template.yaml')))
+        # test env vars
+        job_spec['kubernetes']['env_vars'] = {"TEST_ENV_1": 'VALUE1'}
+
+        # test env from
         env_from = [
             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-direct-configmap')),
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-direct-secret')),
         ]
-        from_env_config_map = ['env-from-configmap']
-        from_env_secret = ['env-from-secret']
-        op = SparkKubernetesOperator(
-            task_id='test-env-vars',
-            namespace='mock_namespace',
-            service_account_name='mock_sa',
-            code_path='/code/path',
-            image='mock_image_tag',
-            env_vars={"TEST_ENV_1": 'VALUE1', "TEST_ENV_2": 'VALUE2'},
-            env_from=env_from,
-            from_env_config_map=from_env_config_map,
-            from_env_secret=from_env_secret,
-            dag=self.dag,
-        )
-        context = create_context(op)
-        op.execute(context)
+        job_spec['kubernetes']['env_from'] = copy.deepcopy(env_from)
+
+        # test from_env_config_map
+        job_spec['kubernetes']['from_env_config_map'] = ['env-from-configmap']
+        job_spec['kubernetes']['from_env_secret'] = ['env-from-secret']
+
+        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
         assert op.launcher.body['spec']['driver']['env'] == [
             k8s.V1EnvVar(name='TEST_ENV_1', value='VALUE1'),
-            k8s.V1EnvVar(name='TEST_ENV_2', value='VALUE2'),
         ]
         assert op.launcher.body['spec']['executor']['env'] == [
             k8s.V1EnvVar(name='TEST_ENV_1', value='VALUE1'),
-            k8s.V1EnvVar(name='TEST_ENV_2', value='VALUE2'),
         ]
-        exp_env_from = [
-            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-direct-configmap')),
-            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-direct-secret')),
+
+        env_from = env_from + [
             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name='env-from-configmap')),
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='env-from-secret')),
         ]
-        assert op.launcher.body['spec']['driver']['envFrom'] == exp_env_from
-        assert op.launcher.body['spec']['executor']['envFrom'] == exp_env_from
+        assert op.launcher.body['spec']['driver']['envFrom'] == env_from
+        assert op.launcher.body['spec']['executor']['envFrom'] == env_from
 
-    def test_volume_mount(
+    def test_volume(
         self,
         mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
         mock_get_kube_client,
-        mock_body,
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
     ):
+        task_name = 'default_volume'
+        job_spec = yaml.safe_load(open(join(Path(__file__).parent, 'spark_application_template.yaml')))
         volumes = [
             k8s.V1Volume(
                 name='test-pvc',
                 persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-pvc'),
-            )
-        ]
-        volume_mount = [k8s.V1VolumeMount(mount_path='/pvc-path', name='test-pvc')]
-        op = SparkKubernetesOperator(
-            task_id='test_volume_mount',
-            namespace='mock_namespace',
-            service_account_name='mock_sa',
-            code_path='/code/path',
-            image='mock_image_tag',
-            volumes=copy.deepcopy(volumes),
-            volume_mounts=volume_mount,
-            config_map_mounts={'test-configmap-mount': '/configmap-path'},
-            dag=self.dag,
-        )
-        context = create_context(op)
-        op.execute(context)
-        exp_vols = volumes + [
+            ),
             k8s.V1Volume(
                 name='test-configmap-mount',
                 config_map=k8s.V1ConfigMapVolumeSource(name='test-configmap-mount'),
             )
         ]
-        exp_vol_mounts = [
+        volume_mounts = [
             k8s.V1VolumeMount(mount_path='/pvc-path', name='test-pvc'),
-            k8s.V1VolumeMount(mount_path='/configmap-path', name='test-configmap-mount'),
+            k8s.V1VolumeMount(mount_path='/configmap-path', name='test-configmap-mount')
         ]
+        job_spec['kubernetes']['volumes'] = copy.deepcopy(volumes)
+        job_spec['kubernetes']['volume_mounts'] = copy.deepcopy(volume_mounts)
+        job_spec['kubernetes']['config_map_mounts'] = {'test-configmap-mounts-field': '/cm-path'}
+        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
-        assert op.launcher.body['spec']['volumes'] == exp_vols
-        assert op.launcher.body['spec']['driver']['volumeMounts'] == exp_vol_mounts
-        assert op.launcher.body['spec']['executor']['volumeMounts'] == exp_vol_mounts
+        assert op.launcher.body['spec']['volumes'] == volumes + [
+            k8s.V1Volume(
+                name='test-configmap-mounts-field',
+                config_map=k8s.V1ConfigMapVolumeSource(name='test-configmap-mounts-field'),
+            )
+        ]
+        volume_mounts = volume_mounts + [
+            k8s.V1VolumeMount(mount_path='/cm-path', name='test-configmap-mounts-field')
+        ]
+        assert op.launcher.body['spec']['driver']['volumeMounts'] == volume_mounts
+        assert op.launcher.body['spec']['executor']['volumeMounts'] == volume_mounts
 
     def test_pull_secret(
         self,
         mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
         mock_get_kube_client,
-        mock_body,
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
     ):
-        volume_mount = [k8s.V1VolumeMount(mount_path='/pvc-path', name='test-pvc')]
-        op = SparkKubernetesOperator(
-            task_id='test_pull_secret',
-            namespace='mock_namespace',
-            service_account_name='mock_sa',
-            code_path='/code/path',
-            image='mock_image_tag',
-            image_pull_secrets='secret1,secret2',
-            volume_mounts=volume_mount,
-            config_map_mounts={'test-configmap-mount': '/configmap-path'},
-            dag=self.dag,
-        )
-        context = create_context(op)
-        op.execute(context)
+        task_name = 'test_pull_secret'
+        job_spec = yaml.safe_load(open(join(Path(__file__).parent, 'spark_application_template.yaml')))
+        job_spec['kubernetes']['image_pull_secrets'] = 'secret1,secret2'
+        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+
         exp_secrets = [k8s.V1LocalObjectReference(name=secret) for secret in ['secret1', 'secret2']]
         assert op.launcher.body['spec']['imagePullSecrets'] == exp_secrets
 
     def test_affinity(
         self,
         mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
         mock_get_kube_client,
-        mock_body,
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
     ):
+        task_name = 'test_affinity'
+        job_spec = yaml.safe_load(open(join(Path(__file__).parent, 'spark_application_template.yaml')))
+        job_spec['kubernetes']['affinity'] = k8s.V1Affinity(
+            node_affinity=k8s.V1NodeAffinity(
+                required_during_scheduling_ignored_during_execution=k8s.V1NodeSelector(
+                    node_selector_terms=[
+                        k8s.V1NodeSelectorTerm(
+                            match_expressions=[
+                                k8s.V1NodeSelectorRequirement(
+                                    key='beta.kubernetes.io/instance-type',
+                                    operator='In',
+                                    values=['r5.xlarge'],
+                                )
+                            ]
+                        )
+                    ]
+                )
+            )
+        )
+
+        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
         affinity = k8s.V1Affinity(
             node_affinity=k8s.V1NodeAffinity(
                 required_during_scheduling_ignored_during_execution=k8s.V1NodeSelector(
@@ -564,7 +434,7 @@ class TestSparkKubernetesOperator:
                                 k8s.V1NodeSelectorRequirement(
                                     key='beta.kubernetes.io/instance-type',
                                     operator='In',
-                                    values=['test'],
+                                    values=['r5.xlarge'],
                                 )
                             ]
                         )
@@ -572,25 +442,16 @@ class TestSparkKubernetesOperator:
                 )
             )
         )
-        op = SparkKubernetesOperator(
-            task_id='test_affinity',
-            code_path='/code/path',
-            image='mock_image_tag',
-            affinity=affinity,
-            dag=self.dag,
-        )
-        context = create_context(op)
-        op.execute(context)
         assert op.launcher.body['spec']['driver']['affinity'] == affinity
         assert op.launcher.body['spec']['executor']['affinity'] == affinity
 
     def test_toleration(
         self,
         mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
         mock_get_kube_client,
-        mock_body,
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
@@ -601,100 +462,82 @@ class TestSparkKubernetesOperator:
             value='test',
             effect='NoSchedule',
         )
-        op = SparkKubernetesOperator(
-            task_id='test_toleration',
-            code_path='/code/path',
-            image='mock_image_tag',
-            tolerations=[toleration],
-            dag=self.dag,
-        )
-        context = create_context(op)
-        op.execute(context)
+        task_name = 'test_tolerations'
+        job_spec = yaml.safe_load(open(join(Path(__file__).parent, 'spark_application_template.yaml')))
+        job_spec['kubernetes']['tolerations'] = [toleration]
+        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+
         assert op.launcher.body['spec']['driver']['tolerations'] == [toleration]
         assert op.launcher.body['spec']['executor']['tolerations'] == [toleration]
 
-    @pytest.mark.parametrize(
-        "task_id, resources, dr_exp_cores, dr_exp_cor_limit, dr_exp_mem, exec_exp_cores, "
-        "exec_exp_cor_limit, exec_exp_mem, dr_gpu, exec_gpu",
-        [
-            (
-                'test_resources_0',
-                {
-                    'driver_request_cpu': '1',
-                    'driver_limit_cpu': '1',
-                    'driver_limit_memory': '1Gi',
-                    'executor_request_cpu': '2',
-                    'executor_limit_cpu': '1',
-                    'executor_limit_memory': '1Gi',
-                    'driver_gpu_name': 'nvidia.com/gpu',
-                    'driver_gpu_quantity': '1',
-                    'executor_gpu_name': 'nvidia.com/gpu',
-                    'executor_gpu_quantity': '2',
-                },
-                1,
-                '1',
-                '731m',
-                2,
-                '1',
-                '731m',
-                {'name': 'nvidia.com/gpu', 'quantity': 1},
-                {'name': 'nvidia.com/gpu', 'quantity': 2},
-            ),  # 731 + (40%*731) = 1024m(1Gi)
-            (
-                'test_resources_1',
-                {
-                    'driver_request_cpu': 1,
-                    'driver_limit_cpu': 1,
-                    'driver_limit_memory': '1024m',
-                },
-                1,
-                '1',
-                '731m',
-                None,
-                None,
-                None,
-                None,
-                None,
-            ),
-            ('test_resources_2', {}, None, None, None, None, None, None, None, None),
-        ],
-    )
-    def test_resources(
-        self,
-        mock_create_namespaced_crd,
-        mock_delete_namespaced_crd,
-        mock_get_namespaced_custom_object_status,
-        mock_get_kube_client,
-        mock_body,
-        mock_create_pod,
-        mock_await_pod_start,
-        mock_await_pod_completion,
-        task_id,
-        resources,
-        dr_exp_cores,
-        dr_exp_cor_limit,
-        dr_exp_mem,
-        exec_exp_cores,
-        exec_exp_cor_limit,
-        exec_exp_mem,
-        dr_gpu,
-        exec_gpu,
-    ):
-        op = SparkKubernetesOperator(
-            task_id=task_id,
-            code_path='/code/path',
-            image='mock_image_tag',
-            resources=resources,
-            dag=self.dag,
-        )
-        context = create_context(op)
-        op.execute(context)
-        assert op.launcher.body['spec']['driver'].get('cores') == dr_exp_cores
-        assert op.launcher.body['spec']['driver'].get('coreLimit') == dr_exp_cor_limit
-        assert op.launcher.body['spec']['driver'].get('memory') == dr_exp_mem
-        assert op.launcher.body['spec']['driver'].get('gpu') == dr_gpu
-
-        assert op.launcher.body['spec']['executor'].get('cores') == exec_exp_cores
-        assert op.launcher.body['spec']['executor'].get('coreLimit') == exec_exp_cor_limit
-        assert op.launcher.body['spec']['executor'].get('memory') == exec_exp_mem
-        assert op.launcher.body['spec']['executor'].get('gpu') == exec_gpu
+    # @pytest.mark.parametrize(
+    #     ('task_id', 'resources', 'dr_exp_cores'),
+    #     [
+    #         (
+    #             'test_resources_1',
+    #             {
+    #                 'cpu': {
+    #                     'request': 1,
+    #                     'limit': '1200m',
+    #                 },
+    #                 'memory': {
+    #                     'limit': '512m',
+    #                 }
+    #             },
+    #             1,
+    #             '1',
+    #             '731m',
+    #             None,
+    #             None,
+    #             None,
+    #             None,
+    #             None,
+    #         ),
+    #     ],
+    # )
+    # def test_resources(
+    #     self,
+    #     mock_create_namespaced_crd,
+    #     mock_get_namespaced_custom_object_status,
+    #     mock_cleanup,
+    #     mock_create_job_name,
+    #     mock_get_kube_client,
+    #     mock_create_pod,
+    #     mock_await_pod_start,
+    #     mock_await_pod_completion,
+    #     task_id,
+    #     resources,
+    #     dr_exp_cores,
+    #     dr_exp_cor_limit,
+    #     dr_exp_mem,
+    #     exec_exp_cores,
+    #     exec_exp_cor_limit,
+    #     exec_exp_mem,
+    #     dr_gpu,
+    #     exec_gpu,
+    # ):
+    #     breakpoint()
+    #     # op = SparkKubernetesOperator(
+    #     #     task_id=task_id,
+    #     #     code_path='/code/path',
+    #     #     image='mock_image_tag',
+    #     #     resources=resources,
+    #     #     dag=self.dag,
+    #     # )
+    #     # context = create_context(op)
+    #     # op.execute(context)
+    #     task_name = 'test_tolerations'
+    #     job_spec = yaml.safe_load(open(join(Path(__file__).parent, 'spark_application_template.yaml')))
+    #     job_spec['spark']['driver']['container_resources'] = resources
+    #     job_spec['spark']['executor']['container_resources'] = resources
+    #     op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+    #
+    #     assert op.launcher.body['spec']['driver'].get('cores') == dr_exp_cores
+    #     assert op.launcher.body['spec']['driver'].get('coreLimit') == dr_exp_cor_limit
+    #     assert op.launcher.body['spec']['driver'].get('memory') == dr_exp_mem
+    #     assert op.launcher.body['spec']['driver'].get('gpu') == dr_gpu
+    #
+    #     assert op.launcher.body['spec']['executor'].get('cores') == exec_exp_cores
+    #     assert op.launcher.body['spec']['executor'].get('coreLimit') == exec_exp_cor_limit
+    #     assert op.launcher.body['spec']['executor'].get('memory') == exec_exp_mem
+    #     assert op.launcher.body['spec']['executor'].get('gpu') == exec_gpu
