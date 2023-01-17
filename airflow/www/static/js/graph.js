@@ -90,7 +90,7 @@ const updateNodeLabels = (node, instances) => {
   let { label } = node.value;
   // Check if there is a count of mapped instances
   if ((tasks[node.id] && tasks[node.id].is_mapped) || node.value.isMapped) {
-    const firstChildId = node.children[0].id;
+    const id = !!node.children && node.children.length ? node.children[0].id : node.value.id;
 
     let count = ' ';
 
@@ -98,8 +98,8 @@ const updateNodeLabels = (node, instances) => {
     // TODO: update this count for when we can nest mapped tasks inside of mapped task groups
     if (instances[node.id] && instances[node.id].mapped_states) {
       count = instances[node.id].mapped_states.length;
-    } else if (firstChildId && instances[firstChildId]) {
-      count = instances[firstChildId].mapped_states.length;
+    } else if (id && instances[id]) {
+      count = instances[id].mapped_states.length;
     }
 
     if (!label.includes(`[${count}]`)) {
