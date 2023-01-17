@@ -111,7 +111,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
         if keys:
             keys = [f"s3://{bucket}/{key}" for key in keys]
-            messages.extend(["Reading logs from s3:", *[f"  * {x}\n" for x in keys]])
+            messages.extend(["Found logs in s3:", *[f"  * {x}" for x in keys]])
             for key in keys:
                 log += self.s3_read(key, return_error=True)
         else:
@@ -133,11 +133,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # from airflow 2.6 we no longer implement the _read method
         if hasattr(super(), "_read_remote_logs"):
             return super()._read(ti, try_number, metadata)
-
         # if we get here, we're on airflow < 2.6 and we use this backcompat logic
         messages, log = self._read_remote_logs(ti, try_number, metadata)
         if log:
-            return {"log": log + "".join(f"*** {x}\n" for x in messages), "end_of_log": True}
+            return "".join(f"*** {x}\n" for x in messages) + log, {"end_of_log": True}
         else:
             log += "*** Falling back to local log\n"
             local_log, metadata = super()._read(ti, try_number, metadata)

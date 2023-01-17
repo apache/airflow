@@ -475,8 +475,9 @@ class FileTaskHandler(logging.Handler):
     def _read_from_local(worker_log_path: Path):
         messages = []
         log = ""
-        for file in worker_log_path.rglob("*"):
-            messages.append(f"Read from local file: {file}")
+        files = list(worker_log_path.parent.glob(worker_log_path.name + "*"))
+        messages.extend(["Found local files:", *[f"  * {x}" for x in files]])
+        for file in files:
             log += Path(file).read_text()
         return messages, log
 
