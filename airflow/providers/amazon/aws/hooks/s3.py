@@ -42,7 +42,7 @@ from botocore.exceptions import ClientError
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.utils.aws_api import format_tags
+from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
 
 T = TypeVar("T", bound=Callable)

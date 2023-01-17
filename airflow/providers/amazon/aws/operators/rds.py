@@ -24,8 +24,8 @@ from mypy_boto3_rds.type_defs import TagTypeDef
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
-from airflow.providers.amazon.aws.utils.aws_api import format_tags
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
+from airflow.providers.amazon.aws.utils.tags import format_tags
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
