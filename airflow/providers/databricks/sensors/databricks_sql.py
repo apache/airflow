@@ -32,19 +32,20 @@ from airflow.utils.context import Context
 class DatabricksSqlSensor(BaseSensorOperator):
     """Generic SQL sensor for Databricks
 
-        :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
-        :param http_path: _description_, defaults to None
-        :param sql_endpoint_name: _description_, defaults to None
-        :param session_configuration: _description_, defaults to None
-        :param http_headers: _description_, defaults to None
-        :param catalog: _description_, defaults to ""
-        :param schema: _description_, defaults to "default"
-        :param table_name: _description_, defaults to ""
-        :param handler: _description_, defaults to fetch_all_handler
-        :param caller: _description_, defaults to "DatabricksSqlSensor"
-        :param client_parameters: _description_, defaults to None
-        :param sql: _description_, defaults to ""
-        """
+    :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
+    :param http_path: _description_, defaults to None
+    :param sql_endpoint_name: _description_, defaults to None
+    :param session_configuration: _description_, defaults to None
+    :param http_headers: _description_, defaults to None
+    :param catalog: _description_, defaults to ""
+    :param schema: _description_, defaults to "default"
+    :param table_name: _description_, defaults to ""
+    :param handler: _description_, defaults to fetch_all_handler
+    :param caller: _description_, defaults to "DatabricksSqlSensor"
+    :param client_parameters: _description_, defaults to None
+    :param sql: _description_, defaults to ""
+    """
+
     def __init__(
         self,
         *,
@@ -61,7 +62,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         client_parameters: dict[str, Any] | None = None,
         sql: str = "",
         **kwargs,
-    ) -> None:    
+    ) -> None:
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self._http_path = http_path

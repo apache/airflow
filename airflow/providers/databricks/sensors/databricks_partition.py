@@ -33,20 +33,21 @@ from airflow.utils.context import Context
 class DatabricksPartitionSensor(DatabricksSqlSensor):
     """Sensor to detect the existence of partitions in a Delta table.
 
-        :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
-        :param http_path: _description_, defaults to None
-        :param sql_endpoint_name: _description_, defaults to None
-        :param session_configuration: _description_, defaults to None
-        :param http_headers: _description_, defaults to None
-        :param catalog: _description_, defaults to ""
-        :param schema: _description_, defaults to "default"
-        :param table_name: _description_, defaults to ""
-        :param partition_name: _description_, defaults to {"date": "2023-1-1"}
-        :param handler: _description_, defaults to fetch_all_handler
-        :param timestamp: _description_, defaults to datetime.now()-timedelta(days=7)
-        :param caller: _description_, defaults to "DatabricksPartitionSensor"
-        :param client_parameters: _description_, defaults to None
-        """
+    :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
+    :param http_path: _description_, defaults to None
+    :param sql_endpoint_name: _description_, defaults to None
+    :param session_configuration: _description_, defaults to None
+    :param http_headers: _description_, defaults to None
+    :param catalog: _description_, defaults to ""
+    :param schema: _description_, defaults to "default"
+    :param table_name: _description_, defaults to ""
+    :param partition_name: _description_, defaults to {"date": "2023-1-1"}
+    :param handler: _description_, defaults to fetch_all_handler
+    :param timestamp: _description_, defaults to datetime.now()-timedelta(days=7)
+    :param caller: _description_, defaults to "DatabricksPartitionSensor"
+    :param client_parameters: _description_, defaults to None
+    """
+
     def __init__(
         self,
         *,
@@ -64,7 +65,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         caller: str = "DatabricksPartitionSensor",
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
-    ) -> None:    
+    ) -> None:
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self._http_path = http_path

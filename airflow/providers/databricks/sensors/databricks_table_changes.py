@@ -46,7 +46,8 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         :param timestamp: _description_, defaults to datetime.now()-timedelta(days=7)
         :param caller: _description_, defaults to "DatabricksTableChangesSensor"
         :param client_parameters: _description_, defaults to None
-        """    
+    """
+
     def __init__(
         self,
         *,
