@@ -84,6 +84,20 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
     return container_status.state.running is not None
 
 
+def container_is_completed(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is running.
+    If that container is present and completed, returns True.  Returns False otherwise.
+    """
+    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if not container_statuses:
+        return False
+    container_status = next((status for status in container_statuses if status.name == container_name), None)
+    if not container_status:
+        return False
+    return container_status.state.terminated is not None
+
+
 def get_container_termination_message(pod: V1Pod, container_name: str):
     with suppress(AttributeError, TypeError):
         container_statuses = pod.status.container_statuses
@@ -232,11 +246,12 @@ class PodManager(LoggingMixin):
                 for raw_line in logs:
                     line = raw_line.decode("utf-8", errors="backslashreplace")
                     timestamp, message = self.parse_log_line(line)
-                    self.log.info(message)
+                    self.log.info("[%s] %s", container_name, message)
             except BaseHTTPError as e:
                 self.log.warning(
-                    "Reading of logs interrupted with error %r; will retry. "
+                    "Reading of logs interrupted for container %r with error %r; will retry. "
                     "Set log level to DEBUG for traceback.",
+                    container_name,
                     e,
                 )
                 self.log.debug(
@@ -264,15 +279,69 @@ class PodManager(LoggingMixin):
                 )
                 time.sleep(1)
 
-    def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
+    def fetch_input_container_logs(
+        self, pod: V1Pod, log_containers: list[str] | bool, follow=False
+    ) -> list[PodLoggingStatus]:
         """
-        Waits for the given container in the given pod to be completed
+        Follow the logs of containers in the pod specified by input parameter and stream to airflow logging.
+        Returns when all the containers exit
+        """
+        pod_logging_statuses = []
+        all_container_names = self.get_container_names(pod)
+        if len(all_container_names) == 0:
+            self.log.error("Failed to retrieve container names from the pod, unable to collect logs")
+        else:
+            # if log_containers is list type, collect logs of the input container names
+            if type(log_containers) == list:
+                for container_name in log_containers:
+                    if container_name in all_container_names:
+                        status = self.fetch_container_logs(
+                            pod=pod, container_name=container_name, follow=follow
+                        )
+                        pod_logging_statuses.append(status)
+                    else:
+                        self.log.error(
+                            "container name '%s' specified in input parameter is not found in the pod",
+                            container_name,
+                        )
+            # if log_containers is bool value True, collect logs from all containers
+            # if log_containers is bool value False, collect logs from the base (first) container
+            elif type(log_containers) == bool:
+                if log_containers is True:
+                    for container_name in all_container_names:
+                        status = self.fetch_container_logs(
+                            pod=pod, container_name=container_name, follow=follow
+                        )
+                        pod_logging_statuses.append(status)
+                else:
+                    status = self.fetch_container_logs(
+                        pod=pod, container_name=all_container_names[0], follow=follow
+                    )
+                    pod_logging_statuses.append(status)
+            else:
+                self.log.error(
+                    "Invalid type '%s' specified for container names input parameter", type(log_containers)
+                )
 
-        :param pod: pod spec that will be monitored
-        :param container_name: name of the container within the pod to monitor
+        return pod_logging_statuses
+
+    def await_container_completion(self, pod: V1Pod, container_name: str) -> bool:
         """
-        while self.container_is_running(pod=pod, container_name=container_name):
+        Examines V1Pod ``pod`` to determine whether ``container_name`` is running.
+        If that container is present and completed, returns True.  Returns False otherwise.
+
+        :param pod: pod spec
+        :param container_name: container name that will be monitored
+        :return: tuple[str, str | None]
+        """
+        while True:
+            remote_pod = self.read_pod(pod)
+            terminated = container_is_completed(remote_pod, container_name)
+            if terminated:
+                break
+            self.log.info("Waiting for container '%s' state to be Terminated", container_name)
             time.sleep(1)
+        return terminated
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:
         """
@@ -349,6 +418,17 @@ class PodManager(LoggingMixin):
         except BaseHTTPError:
             self.log.exception("There was an error reading the kubernetes API.")
             raise
+
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
+    def get_container_names(self, pod: V1Pod) -> list[str]:
+        """Return Container names from POD except for the airflow-xcom-sidecar container"""
+        container_names = []
+        pod_info = self.read_pod(pod)
+        for container_spec in pod_info.spec.containers:
+            if container_spec.name != "airflow-xcom-sidecar":
+                container_names.append(container_spec.name)
+
+        return container_names
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:

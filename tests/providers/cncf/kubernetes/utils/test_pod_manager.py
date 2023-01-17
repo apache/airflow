@@ -302,6 +302,29 @@ class TestPodManager:
         assert ret.last_log_time == DateTime(2021, 1, 1, tzinfo=Timezone("UTC"))
         assert ret.running is False
 
+    @pytest.mark.parametrize("follow", [True, False])
+    @pytest.mark.parametrize("log_containers", ["base", "alpine"])
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
+    def test_fetch_input_container_logs(self, container_running, log_containers, follow):
+        mock_pod = MagicMock()
+        self.pod_manager.read_pod = MagicMock()
+        self.pod_manager.get_container_names = MagicMock()
+        container_running.return_value = False
+        self.mock_kube_client.read_namespaced_pod_log.return_value = [b"2021-01-01 hi"]
+        ret_values = self.pod_manager.fetch_input_container_logs(
+            pod=mock_pod, log_containers=log_containers, follow=follow
+        )
+        for ret in ret_values:
+            assert ret.last_log_time == DateTime(2021, 1, 1, tzinfo=Timezone("UTC"))
+            assert ret.running is False
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_completed")
+    def test_await_container_completion(self, container_completed):
+        mock_pod = MagicMock()
+        container_completed.return_value = True
+        status_completed = self.pod_manager.await_container_completion(pod=mock_pod, container_name="base")
+        assert status_completed is True
+
     @mock.patch("pendulum.now")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_fetch_container_since_time(self, container_running, mock_now):

@@ -168,6 +168,9 @@ class KubernetesPodOperator(BaseOperator):
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param get_logs: get the stdout of the container as logs of the tasks.
+    :param log_containers: list of container names or bool value to collect logs.
+        If bool value is True, all container logs are collected,
+        if False, only 'base' container logs are collected.
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
@@ -248,6 +251,7 @@ class KubernetesPodOperator(BaseOperator):
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
         get_logs: bool = True,
+        log_containers: list[str] | bool = False,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
         container_resources: k8s.V1ResourceRequirements | None = None,
@@ -311,6 +315,7 @@ class KubernetesPodOperator(BaseOperator):
         self.cluster_context = cluster_context
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
+        self.log_containers = log_containers
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
@@ -496,9 +501,13 @@ class KubernetesPodOperator(BaseOperator):
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
-                self.pod_manager.fetch_container_logs(
+                # if log_containers is False, fetch logs from base container, otherwise
+                # fetch logs for all containers or for the specified input list of container names
+                self.pod_manager.fetch_input_container_logs(
                     pod=self.pod,
-                    container_name=self.BASE_CONTAINER_NAME,
+                    log_containers=(
+                        self.log_containers if self.log_containers else [self.BASE_CONTAINER_NAME]
+                    ),
                     follow=True,
                 )
             else:
