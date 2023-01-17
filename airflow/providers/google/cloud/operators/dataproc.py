@@ -2055,6 +2055,9 @@ class DataprocCreateBatchOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param asynchronous: Flag to return after creating batch to the Dataproc API.
+        This is useful for creating long-running batch and
+        waiting on them asynchronously using the DataprocBatchSensor
     """
 
     template_fields: Sequence[str] = (
@@ -2080,6 +2083,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         result_retry: Retry | _MethodDefault = DEFAULT,
+        asynchronous: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -2095,6 +2099,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.operation: operation.Operation | None = None
+        self.asynchronous = asynchronous
 
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -2114,10 +2119,13 @@ class DataprocCreateBatchOperator(BaseOperator):
             )
             if self.operation is None:
                 raise RuntimeError("The operation should be set here!")
-            result = hook.wait_for_operation(
-                timeout=self.timeout, result_retry=self.result_retry, operation=self.operation
-            )
-            self.log.info("Batch %s created", self.batch_id)
+            if not self.asynchronous:
+                result = hook.wait_for_operation(
+                    timeout=self.timeout, result_retry=self.result_retry, operation=self.operation
+                )
+                self.log.info("Batch %s created", self.batch_id)
+            else:
+                return self.operation.operation.name
         except AlreadyExists:
             self.log.info("Batch with given id already exists")
             if self.batch_id is None:
@@ -2130,7 +2138,6 @@ class DataprocCreateBatchOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-
             # The existing batch may be a number of states other than 'SUCCEEDED'
             if result.state != Batch.State.SUCCEEDED:
                 if result.state == Batch.State.FAILED or result.state == Batch.State.CANCELLED:
@@ -2355,3 +2362,59 @@ class DataprocListBatchesOperator(BaseOperator):
         )
         DataprocListLink.persist(context=context, task_instance=self, url=DATAPROC_BATCHES_LINK)
         return [Batch.to_dict(result) for result in results]
+
+
+class DataprocCancelOperationOperator(BaseOperator):
+    """
+    Cancel the batch workload resource.
+
+    :param operation_name: Required. The name of the operation resource to be cancelled.
+    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :param metadata: Additional metadata that is provided to the method.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = ("operation_name", "region", "project_id", "impersonation_chain")
+
+    def __init__(
+        self,
+        *,
+        operation_name: str,
+        region: str,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.operation_name = operation_name
+        self.region = region
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+
+        self.log.info("Canceling operation: %s", self.operation_name)
+        hook.get_operations_client(region=self.region).cancel_operation(name=self.operation_name)
+        self.log.info("Operation canceled.")

@@ -32,6 +32,9 @@ class TestSequentialExecutor:
     def test_is_local_default_value(self):
         assert SequentialExecutor.is_local
 
+    def test_serve_logs_default_value(self):
+        assert SequentialExecutor.serve_logs
+
     @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
     @mock.patch("airflow.executors.base_executor.Stats.gauge")

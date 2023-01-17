@@ -54,6 +54,64 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-snowflake/**/*
     - tests/providers/snowflake/**/*
 
+  provider:DBs:
+    - airflow/providers/mysql/**/*
+    - docs/apache-airflow-providers-mysql/**/*
+    - tests/providers/mysql/**/*
+    - airflow/providers/postgres/**/*
+    - docs/apache-airflow-providers-postgres/**/*
+    - tests/providers/postgres/**/*
+    - airflow/providers/sqlite/**/*
+    - docs/apache-airflow-providers-sqlite/**/*
+    - tests/providers/sqlite/**/*
+    - airflow/providers/oracle/**/*
+    - docs/apache-airflow-providers-oracle/**/*
+    - tests/providers/oracle/**/*
+    - airflow/providers/influxdb/**/*
+    - docs/apache-airflow-providers-influxdb/**/*
+    - tests/providers/influxdb/**/*
+    - airflow/providers/microsoft/mssql/**/*
+    - docs/apache-airflow-providers-microsoft-mssql/**/*
+    - tests/providers/microsoft/mssql/**/*
+
+  provider:Protocols:
+    - airflow/providers/http/**/*
+    - docs/apache-airflow-providers-http/**/*
+    - tests/providers/http/**/*
+    - airflow/providers/ftp/**/*
+    - docs/apache-airflow-providers-ftp/**/*
+    - tests/providers/ftp/**/*
+    - airflow/providers/ssh/**/*
+    - docs/apache-airflow-providers-ssh/**/*
+    - tests/providers/ssh/**/*
+    - airflow/providers/jdbc/**/*
+    - docs/apache-airflow-providers-jdbc/**/*
+    - tests/providers/jdbc/**/*
+
+  provider:Docker:
+    - airflow/providers/docker/**/*
+    - docs/apache-airflow-providers-docker/**/*
+    - tests/providers/docker/**/*
+
+  provider:message-apps:
+    - airflow/providers/slack/**/*
+    - docs/apache-airflow-providers-slack/**/*
+    - tests/providers/slack/**/*
+    - airflow/providers/opsgenie/**/*
+    - docs/apache-airflow-providers-opsgenie/**/*
+    - tests/providers/opsgenie/**/*
+    - airflow/providers/telegram/**/*
+    - docs/apache-airflow-providers-telegram/**/*
+    - tests/providers/telegram/**/*
+
+  provider:trino/presto:
+    - airflow/providers/trino/**/*
+    - docs/apache-airflow-providers-trino/**/*
+    - tests/providers/trino/**/*
+    - airflow/providers/presto/**/*
+    - docs/apache-airflow-providers-presto/**/*
+    - tests/providers/presto/**/*
+
   area:providers:
     - airflow/providers/**/*
     - docs/apache-airflow-providers-*/**/*
