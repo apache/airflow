@@ -88,14 +88,14 @@ if not _parse_timestamp:
 def _parse_timestamps_in_log_file(lines: Iterable[str]):
     timestamp = None
     next_timestamp = None
-    for line in lines:
+    for idx, line in enumerate(lines):
         if not line:
             continue
         with suppress(Exception):
             next_timestamp = _parse_timestamp(line)
         if next_timestamp:
             timestamp = next_timestamp
-        yield timestamp, line
+        yield timestamp, idx, line
 
 
 def _interleave_logs(*logs):
@@ -103,7 +103,9 @@ def _interleave_logs(*logs):
     for log in logs:
         records.extend(_parse_timestamps_in_log_file(log.splitlines()))
     last = None
-    for _, v in sorted(records, key=lambda x: x[0] or pendulum.datetime(2000, 1, 1)):
+    for _, _, v in sorted(
+        records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
+    ):
         if v != last:  # dedupe
             yield v
         last = v
@@ -319,9 +321,9 @@ class FileTaskHandler(logging.Handler):
         messages_list.extend(remote_messages)
         logs = "\n".join(
             _interleave_logs(
-                local_logs,
-                running_logs,
-                remote_logs,
+                *local_logs,
+                *running_logs,
+                *remote_logs,
             )
         )
         log_pos = len(logs)
@@ -451,14 +453,14 @@ class FileTaskHandler(logging.Handler):
         return full_path
 
     @staticmethod
-    def _read_from_local(worker_log_path: Path):
+    def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
         messages = []
-        log = ""
+        logs = []
         files = list(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        messages.extend(["Found local files:", *[f"  * {x}" for x in files]])
-        for file in files:
-            log += Path(file).read_text()
-        return messages, log
+        messages.extend(["Found local files:", *[f"  * {x}" for x in sorted(files)]])
+        for file in sorted(files):
+            logs.append(Path(file).read_text())
+        return messages, logs
 
     def _read_from_k8s_worker(self, ti: TaskInstance):
         messages = []
@@ -502,13 +504,12 @@ class FileTaskHandler(logging.Handler):
             messages.append(f"Reading from k8s pod logs failed: {str(e)}")
         return messages, log
 
-    def _read_from_logs_server(self, ti, worker_log_rel_path):
+    def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
         messages = []
-        log = ""
+        logs = []
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
-            messages.append(f"Fetching from: {url}")
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
                 messages.append(
@@ -521,11 +522,12 @@ class FileTaskHandler(logging.Handler):
                 )
             # Check if the resource was properly fetched
             response.raise_for_status()
-            log += "\n" + response.text
+            if response.text:
+                logs.append(response.text)
         except Exception as e:
-            log += str(e)
-            logger.exception(msg="error")
-        return messages, log
+            messages.append(f"Could not read served logs: {str(e)}")
+            logger.exception("Could not read served logs")
+        return messages, logs
 
     def _read_remote_logs(self, ti, try_number, metadata=None):
         """Implement in subclasses to read from the remote service"""

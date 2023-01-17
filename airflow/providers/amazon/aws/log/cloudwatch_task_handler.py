@@ -50,6 +50,10 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self.closed = False
 
     @cached_property
+    def wrap_for_triggerer(self):
+        return True
+
+    @cached_property
     def hook(self):
         """Returns AwsLogsHook."""
         return AwsLogsHook(

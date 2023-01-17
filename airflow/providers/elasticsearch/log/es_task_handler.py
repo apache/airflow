@@ -32,6 +32,7 @@ import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -120,6 +121,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+
+    @cached_property
+    def wrap_for_triggerer(self):
+        return True
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:

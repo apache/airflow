@@ -140,12 +140,12 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         record = logging.LogRecord("", logging.INFO, filename, lineno, msg + "\n", None, None, func=func)
         return self.format(record)
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
         # Explicitly getting log relative path is necessary because this method
         # is called from webserver from TaskLogReader, where we don't call set_context
         # and can read logs for different TIs in each request
         messages = []
-        log = ""
+        logs = []
         worker_log_relative_path = self._render_filename(ti, try_number)
         remote_loc = os.path.join(self.remote_base, worker_log_relative_path)
         uris = []
@@ -154,18 +154,18 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         if blobs:
             uris = [f"gs://{bucket}/{b.name}" for b in blobs]
-            messages.extend(["Found remote logs:", *[f"  * {x}" for x in uris]])
+            messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
             messages.append(f"No logs found in GCS; ti=%s {ti}")
         try:
-            for key in uris:
+            for key in sorted(uris):
                 blob = storage.Blob.from_string(key, self.client)
                 remote_log = blob.download_as_bytes().decode()
                 if remote_log:
-                    log += remote_log
+                    logs.append(remote_log)
         except Exception as e:
             messages.append(f"Unable to read remote log {e}")
-        return messages, log
+        return messages, logs
 
     def _read(self, ti, try_number, metadata=None):
         """
@@ -186,7 +186,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         if not logs:
             return super()._read(ti, try_number, metadata)
 
-        return "".join([f"*** {x}\n" for x in messages]) + logs, {"end_of_log": True}
+        return "".join([f"*** {x}\n" for x in messages]) + "\n".join(logs), {"end_of_log": True}
 
     def gcs_write(self, log, remote_log_location):
         """

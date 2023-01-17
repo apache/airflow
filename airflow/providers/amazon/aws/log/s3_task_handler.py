@@ -105,18 +105,18 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # in set_context method.
         worker_log_rel_path = self._render_filename(ti, try_number)
 
-        log = ""
+        logs = []
         messages = []
         bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, worker_log_rel_path))
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
         if keys:
             keys = [f"s3://{bucket}/{key}" for key in keys]
-            messages.extend(["Found logs in s3:", *[f"  * {x}" for x in keys]])
-            for key in keys:
-                log += self.s3_read(key, return_error=True)
+            messages.extend(["Found logs in s3:", *[f"  * {x}" for x in sorted(keys)]])
+            for key in sorted(keys):
+                logs.append(self.s3_read(key, return_error=True))
         else:
             messages.append(f"No logs found on s3 for ti={ti}")
-        return messages, log
+        return messages, logs
 
     def _read(self, ti, try_number, metadata=None):
         """
@@ -134,13 +134,12 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         if hasattr(super(), "_read_remote_logs"):
             return super()._read(ti, try_number, metadata)
         # if we get here, we're on airflow < 2.6 and we use this backcompat logic
-        messages, log = self._read_remote_logs(ti, try_number, metadata)
-        if log:
-            return "".join(f"*** {x}\n" for x in messages) + log, {"end_of_log": True}
+        messages, logs = self._read_remote_logs(ti, try_number, metadata)
+        if logs:
+            return "".join(f"*** {x}\n" for x in messages) + "\n".join(logs), {"end_of_log": True}
         else:
-            log += "*** Falling back to local log\n"
             local_log, metadata = super()._read(ti, try_number, metadata)
-            return log + local_log, metadata
+            return "*** Falling back to local log\n" + local_log, metadata
 
     def s3_log_exists(self, remote_log_location: str) -> bool:
         """
