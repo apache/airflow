@@ -76,6 +76,15 @@ def _fetch_logs_from_service(url, log_relative_path):
     return response
 
 
+_parse_timestamp = conf.getimport("core", "interleave_timestamp_parser", fallback=None)
+
+if not _parse_timestamp:
+
+    def _parse_timestamp(line: str):
+        timestamp_str, _ = line.split(" ", 1)
+        return pendulum.parse(timestamp_str.strip("[]"))
+
+
 def _parse_timestamps_in_log_file(lines: Iterable[str]):
     timestamp = None
     next_timestamp = None
@@ -83,8 +92,7 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
         if not line:
             continue
         with suppress(Exception):
-            timestamp_str, _ = line.split(" ", 1)
-            next_timestamp = pendulum.parse(timestamp_str.strip("[]"))
+            next_timestamp = _parse_timestamp(line)
         if next_timestamp:
             timestamp = next_timestamp
         yield timestamp, line
