@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from http import HTTPStatus
 
 import pendulum
@@ -319,6 +320,27 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,
             )
+            from airflow.models.log import Log
+            from airflow.utils import timezone
+
+            try:
+                session.bulk_insert_mappings(
+                    Log,
+                    [
+                        {
+                            "event": "rest_dag_trigger",
+                            "task_instance": None,
+                            "owner": g.user.username,
+                            "extra": None,
+                            "task_id": None,
+                            "dag_id": f"{dag_run.dag_id}",
+                            "execution_date": dag_run.execution_date,
+                            "dttm": timezone.utcnow(),
+                        }
+                    ],
+                )
+            except Exception as error:
+                logging.warning("Failed to log action with %s", error)
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
             raise BadRequest(detail=str(ve))
