@@ -18,7 +18,6 @@
 """File logging handler for tasks."""
 from __future__ import annotations
 
-import inspect
 import logging
 import os
 import warnings
@@ -75,19 +74,6 @@ def _fetch_logs_from_service(url, log_relative_path):
     )
     response.encoding = "utf-8"
     return response
-
-
-class TriggerLogsPresentationMode(Enum):
-    """
-    Controls how trigger logs are presented in webserver.
-
-    Handlers may be implemented either to have trigger logs interleaved with task logs
-    or shown in a separate tab.
-    """
-
-    SPLIT = "split"
-    INTERLEAVED = "interleaved"
-    NOT_SUPPORTED = "not_supported"
 
 
 def _parse_timestamps_in_log_file(lines: Iterable[str]):
@@ -186,18 +172,6 @@ class FileTaskHandler(logging.Handler):
         if job_id:
             full_path += f".{job_id}.log"
         return full_path
-
-    @cached_property
-    def trigger_logs_presentation_mode(self):
-        """
-        Tells webserver whether to use separate tab for triggerer logs.
-
-        :meta private:
-        """
-        if "log_type" in inspect.signature(self._read).parameters.keys():
-            return TriggerLogsPresentationMode.SPLIT  # split is default, most common
-        else:
-            return TriggerLogsPresentationMode.NOT_SUPPORTED
 
     @cached_property
     def wrap_for_triggerer(self):

@@ -32,13 +32,12 @@ import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.utils import timezone
-from airflow.utils.log.file_task_handler import FileTaskHandler, TriggerLogsPresentationMode
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
 
@@ -122,10 +121,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
 
-    @cached_property
-    def trigger_logs_presentation_mode(self):
-        return TriggerLogsPresentationMode.INTERLEAVED
-
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
@@ -193,7 +188,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return True
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: dict | None = None, *, log_type=None
+        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
     ) -> tuple[EsLogMsgType, dict]:
         """
         Endpoint for streaming log.
@@ -201,7 +196,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param ti: task instance object
         :param try_number: try_number of the task instance
         :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
-        :param log_type: not used
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
