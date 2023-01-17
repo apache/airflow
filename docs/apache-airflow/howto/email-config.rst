@@ -46,9 +46,9 @@ You can configure a sender's email address by setting ``from_email`` in the ``[e
 
 Equivalent environment variables look like:
 
-.. code-block::
+.. code-block:: sh
 
-AIRFLOW__EMAIL__FROM_EMAIL="John Doe <johndoe@example.com>"
+  AIRFLOW__EMAIL__FROM_EMAIL="John Doe <johndoe@example.com>"
 
 
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
