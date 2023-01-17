@@ -154,12 +154,11 @@ class TestBackfillJob:
         assert State.SUCCESS == dag_run.state
 
     @pytest.mark.backend("postgres", "mysql")
-    def test_trigger_controller_dag(self):
+    def test_trigger_controller_dag(self, session):
         dag = self.dagbag.get_dag("example_trigger_controller_dag")
         target_dag = self.dagbag.get_dag("example_trigger_target_dag")
         target_dag.sync_to_db()
 
-        session = settings.Session()
         target_dag_run = session.query(DagRun).filter(DagRun.dag_id == target_dag.dag_id).one_or_none()
         assert not target_dag_run
 
