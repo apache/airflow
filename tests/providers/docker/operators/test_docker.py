@@ -25,7 +25,6 @@ import pytest
 from docker import APIClient
 from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -511,13 +510,14 @@ class TestDockerOperator:
             logging.raiseExceptions = original_raise_exceptions
             print_exception_mock.assert_not_called()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "extra_kwargs, actual_exit_code, expected_exc",
         [
-            (None, 99, AirflowSkipException),
+            (None, 99, AirflowException),
             ({"skip_exit_code": 100}, 100, AirflowSkipException),
             ({"skip_exit_code": 100}, 101, AirflowException),
-            ({"skip_exit_code": None}, 99, AirflowException),
-        ]
+            ({"skip_exit_code": None}, 100, AirflowException),
+        ],
     )
     def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
         msg = {"StatusCode": actual_exit_code}

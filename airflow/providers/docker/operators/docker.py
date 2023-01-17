@@ -212,7 +212,7 @@ class DockerOperator(BaseOperator):
         log_opts_max_size: str | None = None,
         log_opts_max_file: str | None = None,
         ipc_mode: str | None = None,
-        skip_exit_code: int = 99,
+        skip_exit_code: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
