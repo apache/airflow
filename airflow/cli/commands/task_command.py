@@ -77,8 +77,8 @@ def _set_task_deferred_context_var():
     :meta private:
     """
     logger = logging.getLogger()
-    h = next((h for h in logger.handlers if hasattr(h, "ctx_task_deferred")), None)
-    if h:
+    with suppress(StopIteration):
+        h = next(h for h in logger.handlers if hasattr(h, "ctx_task_deferred"))
         h.ctx_task_deferred = True
 
 
