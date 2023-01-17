@@ -281,7 +281,6 @@ class FileTaskHandler(logging.Handler):
                                   which was retrieved in previous calls, this
                                   part will be skipped and only following test
                                   returned to be added to tail.
-        :param log_type: controls whether to fetch worker or trigger logs for task
         :return: log message as a string and metadata.
                  Following attributes are used in metadata:
                  end_of_log: Boolean, True if end of log is reached or False
@@ -351,7 +350,7 @@ class FileTaskHandler(logging.Handler):
             log_relative_path,
         )
 
-    def read(self, task_instance, try_number=None, metadata=None, log_type=None):
+    def read(self, task_instance, try_number=None, metadata=None):
         """
         Read logs of given task instance from local machine.
 
@@ -359,7 +358,6 @@ class FileTaskHandler(logging.Handler):
         :param try_number: task instance try_number to read logs from. If None
                            it returns all logs separated by try_number
         :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
-        :param log_type: Whether to retrieve logs for triggerer or worker.
         :return: a list of listed tuples which order log string by host
         """
         # Task instance increments its try number when it starts to run.
@@ -381,9 +379,8 @@ class FileTaskHandler(logging.Handler):
         metadata_array = [{}] * len(try_numbers)
 
         # subclasses implement _read and may not have log_type, which was added recently
-        kwargs = {"log_type": log_type} if log_type == LogType.TRIGGER else {}
         for i, try_number_element in enumerate(try_numbers):
-            log, out_metadata = self._read(task_instance, try_number_element, metadata, **kwargs)
+            log, out_metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
             logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]

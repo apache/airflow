@@ -20,7 +20,6 @@ from __future__ import annotations
 import contextlib
 import os
 from unittest import mock
-from unittest.mock import MagicMock, patch
 
 import boto3
 import moto
@@ -31,7 +30,6 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
-from airflow.utils.log.file_task_handler import LogType
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -206,31 +204,3 @@ class TestS3TaskHandler:
 
         with pytest.raises(ClientError):
             boto3.resource("s3").Object("bucket", self.remote_log_key).get()
-
-
-@pytest.mark.parametrize("log_type", [LogType.TRIGGER, None])
-@patch("airflow.utils.log.file_task_handler.FileTaskHandler._read")
-@patch("airflow.utils.log.file_task_handler.FileTaskHandler._render_filename")
-def test_read_backcompat(_render_mock, _read_mock_parent, log_type):
-    """
-    Don't don't make trigger-related calls / use triggerer-related params unless
-    asked. This ensures backcompat with pre-2.6 airflow versions.
-    todo: after min airflow version == 2.6, we can just forward log_type
-    """
-    # just forces exit of function after this call. otherwise, have to mock more.
-    _render_mock.return_value = "tmp/any"
-
-    _read_mock_parent.return_value = ["ret", None]
-    client = boto3.client("s3")
-    client.create_bucket(Bucket="abc")
-    h = S3TaskHandler("/tmp", "s3://abc")
-    h.handler = MagicMock()
-    ti = MagicMock()
-    if log_type == "trigger":
-        ti.triggerer_job.id = 123
-        h._read(ti, 1, log_type=log_type)
-        _read_mock_parent.assert_called_with(ti, 1, None, log_type=log_type)
-    else:
-        h._read(ti, 1)
-        # unless triggerer log type asked for, arg is not forwarded
-        _read_mock_parent.assert_called_with(ti, 1, None)

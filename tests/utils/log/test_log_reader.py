@@ -206,9 +206,9 @@ class TestLogView:
 
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, metadata={}, log_type=None),
-                mock.call(self.ti, 1, metadata={}, log_type=None),
-                mock.call(self.ti, 1, metadata={"end_of_log": False}, log_type=None),
+                mock.call(self.ti, 1, metadata={}),
+                mock.call(self.ti, 1, metadata={}),
+                mock.call(self.ti, 1, metadata={"end_of_log": False}),
             ],
             any_order=False,
         )
@@ -227,9 +227,9 @@ class TestLogView:
 
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, metadata={}, log_type=None),
-                mock.call(self.ti, 2, metadata={}, log_type=None),
-                mock.call(self.ti, 3, metadata={}, log_type=None),
+                mock.call(self.ti, 1, metadata={}),
+                mock.call(self.ti, 2, metadata={}),
+                mock.call(self.ti, 3, metadata={}),
             ],
             any_order=False,
         )
