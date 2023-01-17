@@ -68,7 +68,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         http_headers: list[tuple[str, str]] | None = None,
         catalog: str = "",
         schema: str = "default",
-        table_name: str | None = None,
+        table_name: str = "",
         handler: Callable[[Any], Any] = fetch_all_handler,
         caller: str = "DatabricksSqlSensor",
         client_parameters: dict[str, Any] | None = None,

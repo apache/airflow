@@ -71,7 +71,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         http_headers: list[tuple[str, str]] | None = None,
         catalog: str = "",
         schema: str | None = "default",
-        table_name: str | None = None,
+        table_name: str = "",
         partition_name: dict = {"date": "2023-1-1"},
         handler: Callable[[Any], Any] = fetch_all_handler,
         timestamp: datetime = datetime.now() - timedelta(days=7),
