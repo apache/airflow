@@ -33,33 +33,34 @@ from airflow.utils.context import Context
 class DatabricksTableChangesSensor(DatabricksSqlSensor):
     """Sensor to detect changes in a Delta table.
 
-        :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
-        :type databricks_conn_id: str, optional
-        :param http_path: _description_, defaults to None
-        :type http_path: str | None, optional
-        :param sql_endpoint_name: _description_, defaults to None
-        :type sql_endpoint_name: str | None, optional
-        :param session_configuration: _description_, defaults to None
-        :type session_configuration: _type_, optional
-        :param http_headers: _description_, defaults to None
-        :type http_headers: list[tuple[str, str]] | None, optional
-        :param catalog: _description_, defaults to ""
-        :type catalog: str, optional
-        :param schema: _description_, defaults to "default"
-        :type schema: str | None, optional
-        :param table_name: _description_, defaults to None
-        :type table_name: str | None, optional
-        :param partition_name: _description_, defaults to {"date": "2023-1-1"}
-        :type partition_name: _type_, optional
-        :param handler: _description_, defaults to fetch_all_handler
-        :type handler: Callable[[Any], Any], optional
-        :param timestamp: _description_, defaults to datetime.now()-timedelta(days=7)
-        :type timestamp: datetime, optional
-        :param caller: _description_, defaults to "DatabricksTableChangesSensor"
-        :type caller: str, optional
-        :param client_parameters: _description_, defaults to None
-        :type client_parameters: dict[str, Any] | None, optional
-        """
+    :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
+    :type databricks_conn_id: str, optional
+    :param http_path: _description_, defaults to None
+    :type http_path: str | None, optional
+    :param sql_endpoint_name: _description_, defaults to None
+    :type sql_endpoint_name: str | None, optional
+    :param session_configuration: _description_, defaults to None
+    :type session_configuration: _type_, optional
+    :param http_headers: _description_, defaults to None
+    :type http_headers: list[tuple[str, str]] | None, optional
+    :param catalog: _description_, defaults to ""
+    :type catalog: str, optional
+    :param schema: _description_, defaults to "default"
+    :type schema: str | None, optional
+    :param table_name: _description_, defaults to ""
+    :type table_name: str | None, optional
+    :param partition_name: _description_, defaults to {"date": "2023-1-1"}
+    :type partition_name: _type_, optional
+    :param handler: _description_, defaults to fetch_all_handler
+    :type handler: Callable[[Any], Any], optional
+    :param timestamp: _description_, defaults to datetime.now()-timedelta(days=7)
+    :type timestamp: datetime, optional
+    :param caller: _description_, defaults to "DatabricksTableChangesSensor"
+    :type caller: str, optional
+    :param client_parameters: _description_, defaults to None
+    :type client_parameters: dict[str, Any] | None, optional
+    """
+
     def __init__(
         self,
         *,
@@ -77,7 +78,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         caller: str = "DatabricksTableChangesSensor",
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
-    ) -> None:    
+    ) -> None:
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self._http_path = http_path
@@ -133,27 +134,6 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         result = self._sql_sensor(change_sql)[0][0]
         return result
 
-    def _check_table_partitions(self) -> bool:
-        if self.catalog is not None:
-            complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
-            self.log.info("Table name generated from arguments: %s", complete_table_name)
-        else:
-            raise AirflowException("Catalog name not specified, aborting query execution.")
-        partitions_list = []
-        for partition_col, partition_value in self.partition_name.items():
-            if isinstance(partition_value, (int, float, complex)):
-                partitions_list.append(f"""{partition_col}={partition_value}""")
-            else:
-                partitions_list.append(f"""{partition_col}=\"{partition_value}\"""")
-        partitions = " AND ".join(partitions_list)
-        partition_sql = f"SELECT 1 FROM {complete_table_name} WHERE {partitions}"
-        result = self._sql_sensor(partition_sql)
-        self.log.info("result: %s", result)
-        if len(result) > 1 and result[0][0] == 1:
-            return True
-        else:
-            return False
-
     def _check_table_changes(self, context: Context) -> bool:
         if self.catalog is not None:
             complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
@@ -180,7 +160,4 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
 
     def poke(self, context: Context) -> bool:
         result = self._check_table_changes(context=context)
-        if result:
-            return True
-        else:
-            return False
+        return result
