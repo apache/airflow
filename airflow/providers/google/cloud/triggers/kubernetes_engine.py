@@ -60,15 +60,9 @@ class GKEPodTrigger(KubernetesPodTrigger):
         **kwargs,
     ):
         super().__init__(
-            pod_name=pod_name,
-            pod_namespace=pod_namespace,
-            trigger_start_time=trigger_start_time,
-            cluster_context=cluster_context,
-            poll_interval=poll_interval,
-            in_cluster=in_cluster,
-            should_delete_pod=should_delete_pod,
-            get_logs=get_logs,
-            startup_timeout=startup_timeout,
+            pod_name,
+            pod_namespace,
+            trigger_start_time,
             *args,
             **kwargs,
         )
