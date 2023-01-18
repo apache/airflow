@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Move local_infile option from extra to hook parameter (#28811)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.1.0
 .....
 
