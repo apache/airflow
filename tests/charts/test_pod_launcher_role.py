@@ -26,8 +26,9 @@ class TestPodLauncher:
     @pytest.mark.parametrize(
         "executor, rbac, allow, expected_accounts",
         [
-            ("CeleryKubernetesExecutor", True, True, ["scheduler", "worker"]),
-            ("KubernetesExecutor", True, True, ["scheduler", "worker"]),
+            ("CeleryKubernetesExecutor", True, True, ["webserver", "scheduler", "worker"]),
+            ("KubernetesExecutor", True, True, ["webserver", "scheduler", "worker"]),
+            ("LocalKubernetesExecutor", True, True, ["webserver", "scheduler", "worker"]),
             ("CeleryExecutor", True, True, ["worker"]),
             ("LocalExecutor", True, True, ["scheduler"]),
             ("LocalExecutor", False, False, []),
@@ -42,6 +43,7 @@ class TestPodLauncher:
             },
             show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
         )
+        print(docs)
         if expected_accounts:
             for idx, suffix in enumerate(expected_accounts):
                 assert f"release-name-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
