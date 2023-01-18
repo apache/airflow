@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
+
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
@@ -85,7 +87,11 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
         self.xcom_push(context, "output", output)
         return True
 
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> StepFunctionHook:
+        """Create and return a StepFunctionHook"""
+        return self.hook
+
     @cached_property
     def hook(self) -> StepFunctionHook:
-        """Create and return a StepFunctionHook"""
         return StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

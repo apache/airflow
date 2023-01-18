@@ -23,6 +23,8 @@ import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Sequence
 
+from deprecated import deprecated
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -129,9 +131,13 @@ class S3KeySensor(BaseSensorOperator):
         else:
             return all(self._check_key(key) for key in self.bucket_key)
 
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> S3Hook:
+        """Create and return an S3Hook"""
+        return self.hook
+
     @cached_property
     def hook(self) -> S3Hook:
-        """Create and return an S3Hook"""
         return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
 

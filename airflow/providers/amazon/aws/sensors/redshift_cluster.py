@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
+
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
@@ -57,7 +59,11 @@ class RedshiftClusterSensor(BaseSensorOperator):
         self.log.info("Poking for status : %s\nfor cluster %s", self.target_status, self.cluster_identifier)
         return self.hook.cluster_status(self.cluster_identifier) == self.target_status
 
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> RedshiftHook:
+        """Create and return a RedshiftHook"""
+        return self.hook
+
     @cached_property
     def hook(self) -> RedshiftHook:
-        """Create and return a RedshiftHook"""
         return RedshiftHook(aws_conn_id=self.aws_conn_id)

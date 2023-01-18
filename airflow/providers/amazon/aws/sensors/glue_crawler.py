@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
+
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
@@ -64,7 +66,11 @@ class GlueCrawlerSensor(BaseSensorOperator):
         else:
             return False
 
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> GlueCrawlerHook:
+        """Returns a new or pre-existing GlueCrawlerHook"""
+        return self.hook
+
     @cached_property
     def hook(self) -> GlueCrawlerHook:
-        """Returns a new or pre-existing GlueCrawlerHook"""
         return GlueCrawlerHook(aws_conn_id=self.aws_conn_id)

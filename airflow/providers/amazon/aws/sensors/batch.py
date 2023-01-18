@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
+
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -73,9 +75,13 @@ class BatchSensor(BaseSensorOperator):
 
         raise AirflowException(f"Batch sensor failed. Unknown AWS Batch job status: {state}")
 
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> BatchClientHook:
+        """Create and return a BatchClientHook"""
+        return self.hook
+
     @cached_property
     def hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook"""
         return BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,

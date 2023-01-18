@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
+from deprecated import deprecated
 from jsonpath_ng import parse
 from typing_extensions import Literal
 
@@ -184,9 +185,13 @@ class SqsSensor(BaseSensorOperator):
         context["ti"].xcom_push(key="messages", value=message_batch)
         return True
 
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> SqsHook:
+        """Create and return an SqsHook"""
+        return self.hook
+
     @cached_property
     def hook(self) -> SqsHook:
-        """Create and return an SqsHook"""
         return SqsHook(aws_conn_id=self.aws_conn_id)
 
     def filter_messages(self, messages):

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
+
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
@@ -83,7 +85,11 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
 
         return self.hook.check_for_partition(self.database_name, self.table_name, self.expression)
 
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> GlueCatalogHook:
+        """Gets the GlueCatalogHook"""
+        return self.hook
+
     @cached_property
     def hook(self) -> GlueCatalogHook:
-        """Gets the GlueCatalogHook"""
         return GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

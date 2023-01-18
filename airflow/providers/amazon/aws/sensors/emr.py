@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
+from deprecated import deprecated
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -52,6 +54,10 @@ class EmrBaseSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.target_states: Iterable[str] = []  # will be set in subclasses
         self.failed_states: Iterable[str] = []  # will be set in subclasses
+
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> EmrHook:
+        return self.hook
 
     @cached_property
     def hook(self) -> EmrHook:
