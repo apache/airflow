@@ -104,27 +104,42 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         )
         return sql_result
 
-    def _check_table_partitions(self) -> bool:
+    def _check_table_partitions(self) -> list:
         if self.catalog is not None:
             complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
             self.log.info("Table name generated from arguments: %s", complete_table_name)
         else:
             raise AirflowException("Catalog name not specified, aborting query execution.")
+        table_info = self._sql_sensor(f"describe detail {complete_table_name}")
+        self.log.info("table_info: %s, length: %s", table_info, len(table_info))
+        partition_columns = []
+        if len(table_info[0][7]) >= 1:
+            for part_col in table_info[0][7]:
+                partition_columns.append(part_col)
+        if len(partition_columns) >= 1:
+            self.log.info("Partition columns: %s", partition_columns)
+        else:
+            raise AirflowException("Table %s does not have partitions", complete_table_name)
         partitions_list = []
         for partition_col, partition_value in self.partition_name.items():
-            if isinstance(partition_value, (int, float, complex)):
-                partitions_list.append(f"""{partition_col}={partition_value}""")
+            if partition_col in partition_columns:
+                if isinstance(partition_value, (int, float, complex)):
+                    partitions_list.append(f"""{partition_col}={partition_value}""")
+                else:
+                    partitions_list.append(f"""{partition_col}=\"{partition_value}\"""")
             else:
-                partitions_list.append(f"""{partition_col}=\"{partition_value}\"""")
+                raise AirflowException(
+                    "Column %s not part of table partitions: %s", partition_col, partition_columns
+                )
         partitions = " AND ".join(partitions_list)
         partition_sql = f"SELECT 1 FROM {complete_table_name} WHERE {partitions}"
-        result = self._sql_sensor(partition_sql)
-        self.log.info("result: %s", result)
-        return result
+        return self._sql_sensor(partition_sql)
 
     def poke(self, context: Context) -> bool:
         result = self._check_table_partitions()
-        if result:
+        self.log.info("result: %s, %s", result, len(result))
+        if len(result) == 0:
+            raise AirflowException("Databricks SQL partition sensor failed.")
+        if len(result) >= 1:
             return True
-        else:
-            return False
+        return False

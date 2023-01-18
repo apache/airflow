@@ -32,8 +32,8 @@ from airflow.utils.context import Context
 class DatabricksSqlSensor(BaseSensorOperator):
     """Generic SQL sensor for Databricks
 
-    :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
-    :param http_path: _description_, defaults to None
+    :param databricks_conn_id: connection id from Airflow to databricks, defaults to DatabricksSqlHook.default_conn_name
+    :param http_path: http_path, defaults to None
     :param sql_endpoint_name: _description_, defaults to None
     :param session_configuration: _description_, defaults to None
     :param http_headers: _description_, defaults to None
