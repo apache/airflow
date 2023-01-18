@@ -75,8 +75,8 @@ Airflow Webserver:
       {{- $hostname := $.Values.ingress.web.host -}}
       {{- if . | kindIs "string" | not }}
       {{- if .tls }}
-      {{- $tlsEnabled := .tls.enabled -}}
-      {{- $hostname := $.name -}}
+      {{- $tlsEnabled = .tls.enabled -}}
+      {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
       http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.web.path }}/
@@ -89,8 +89,8 @@ Flower dashboard:
       {{- $hostname := $.Values.ingress.flower.host -}}
       {{- if . | kindIs "string" | not }}
       {{- if .tls }}
-      {{- $tlsEnabled := .tls.enabled -}}
-      {{- $hostname := $.name -}}
+      {{- $tlsEnabled = .tls.enabled -}}
+      {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
       http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.flower.path }}/
