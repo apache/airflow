@@ -40,7 +40,7 @@ which will add the DAG to anything inside it implicitly::
     with DAG(
         "my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule="@daily", catchup=False
-    ) as dag:
+    ):
         op = EmptyOperator(task_id="task")
 
 Or, you can use a standard constructor, passing the dag into any
