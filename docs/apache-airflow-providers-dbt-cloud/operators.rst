@@ -35,10 +35,10 @@ Trigger a dbt Cloud Job
 Use the :class:`~airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperator` to trigger a run of a dbt
 Cloud job. By default, the operator will periodically check on the status of the executed job to terminate
 with a successful status every ``check_interval`` seconds or until the job reaches a ``timeout`` length of
-execution time. This functionality is controlled by the ``wait_for_termination`` parameter. Alternatively,
-``wait_for_termination`` can be set to False to perform an asynchronous wait (typically paired with the
-:class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`). Setting ``wait_for_termination`` to
-False is a good approach for long-running dbt Cloud jobs.
+execution time. This functionality is controlled by the ``deferrable`` parameter. Alternatively,
+``deferrable`` can be set to True to perform an asynchronous execution on the airflow Triggerer,
+causing the airflow worker slot to free up and save resources. Setting ``deferrable`` to
+True is a good approach for long-running dbt Cloud jobs.
 
 While ``schema_override`` and ``steps_override`` are explicit, optional parameters for the
 ``DbtCloudRunJobOperator``, custom run configurations can also be passed to the operator using the
