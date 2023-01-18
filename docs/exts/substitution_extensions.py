@@ -125,4 +125,4 @@ def setup(app: Sphinx) -> dict:
     app.add_role("subst-code", substitution_code_role)
     app.add_post_transform(SubstitutionCodeBlockTransform)
     app.add_post_transform(AddSpacepadSubstReference)
-    return {"parallel_write_safe": True}
+    return {"parallel_write_safe": True, "parallel_read_safe": True}

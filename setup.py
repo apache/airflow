@@ -216,7 +216,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
-    "eventlet>=0.9.7",
+    "eventlet>=0.33.3",
     "gevent>=0.13",
     "greenlet>=0.4.9",
 ]
@@ -371,16 +371,8 @@ devel_only = [
     "click>=8.0",
     "coverage",
     "filelock",
-    "flake8>=3.9.0",
-    "flake8-colors",
-    "flake8-implicit-str-concat",
-    "flaky",
     "gitpython",
     "ipdb",
-    # make sure that we are using stable sorting order from 5.* version (some changes were introduced
-    # in 5.11.3. Black is not compatible yet, so we need to limit isort
-    # we can remove the limit when black and isort agree on the order
-    "isort==5.11.2",
     "jira",
     "jsondiff",
     "mongomock",
@@ -411,6 +403,7 @@ devel_only = [
     "pytest-httpx",
     "requests_mock",
     "rich-click>=1.5",
+    "ruff>=0.0.219",
     "semver",
     "time-machine",
     "towncrier",
@@ -450,6 +443,9 @@ devel_hadoop = get_unique_dependency_list(
         devel,
         get_provider_dependencies("apache.hdfs"),
         get_provider_dependencies("apache.hive"),
+        get_provider_dependencies("apache.hdfs"),
+        get_provider_dependencies("apache.hive"),
+        get_provider_dependencies("apache.impala"),
         kerberos,
         get_provider_dependencies("presto"),
         webhdfs,
@@ -583,6 +579,7 @@ ALL_DB_PROVIDERS = [
     "apache.druid",
     "apache.hdfs",
     "apache.hive",
+    "apache.impala",
     "apache.pinot",
     "arangodb",
     "cloudant",
@@ -810,6 +807,10 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )
+    elif extra == "apache.hive":
+        # We moved the hive macros to the hive provider, and they are available in hive provider only as of
+        # 5.1.0 version only, so we have to make sure minimum version is used
+        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-hive>=5.1.0"]
     else:
         EXTRAS_DEPENDENCIES[extra] = [
             get_provider_package_name_from_package_id(package_name) for package_name in providers

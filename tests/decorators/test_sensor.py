@@ -63,6 +63,30 @@ class TestSensorDecorator:
         )
         assert actual_xcom_value == sensor_xcom_value
 
+    def test_basic_sensor_success_returns_bool(self, dag_maker):
+        @task.sensor
+        def sensor_f():
+            return True
+
+        @task
+        def dummy_f():
+            pass
+
+        with dag_maker():
+            sf = sensor_f()
+            df = dummy_f()
+            sf >> df
+
+        dr = dag_maker.create_dagrun()
+        sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == "sensor_f":
+                assert ti.state == State.SUCCESS
+            if ti.task_id == "dummy_f":
+                assert ti.state == State.NONE
+
     def test_basic_sensor_failure(self, dag_maker):
         @task.sensor(timeout=0)
         def sensor_f():
@@ -89,10 +113,60 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
+    def test_basic_sensor_failure_returns_bool(self, dag_maker):
+        @task.sensor(timeout=0)
+        def sensor_f():
+            return False
+
+        @task
+        def dummy_f():
+            pass
+
+        with dag_maker():
+            sf = sensor_f()
+            df = dummy_f()
+            sf >> df
+
+        dr = dag_maker.create_dagrun()
+        with pytest.raises(AirflowSensorTimeout):
+            sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == "sensor_f":
+                assert ti.state == State.FAILED
+            if ti.task_id == "dummy_f":
+                assert ti.state == State.NONE
+
     def test_basic_sensor_soft_fail(self, dag_maker):
         @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
             return PokeReturnValue(is_done=False, xcom_value="xcom_value")
+
+        @task
+        def dummy_f():
+            pass
+
+        with dag_maker():
+            sf = sensor_f()
+            df = dummy_f()
+            sf >> df
+
+        dr = dag_maker.create_dagrun()
+        sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == "sensor_f":
+                assert ti.state == State.SKIPPED
+            if ti.task_id == "dummy_f":
+                assert ti.state == State.NONE
+
+    def test_basic_sensor_soft_fail_returns_bool(self, dag_maker):
+        @task.sensor(timeout=0, soft_fail=True)
+        def sensor_f():
+            return False
 
         @task
         def dummy_f():

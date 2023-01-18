@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import sys
 import unittest
-from asyncio import Future
 from copy import deepcopy
+from asyncio import Future
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
@@ -62,8 +62,8 @@ TRANSFER_CONFIG_ID = "id1234"
 RUN_ID = "id1234"
 
 
-class BigQueryDataTransferHookTestCase(unittest.TestCase):
-    def setUp(self) -> None:
+class TestBigQueryDataTransferHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.bigquery_dts.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

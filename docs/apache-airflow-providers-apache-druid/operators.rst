@@ -22,7 +22,8 @@ Apache Druid Operators
 Prerequisite
 ------------
 
-To use ``DruidOperator``, you must configure a Druid Connection first.
+To use :class:`~airflow.providers.apache.druid.operators.druid.DruidOperator`,
+you must configure a Druid Connection first.
 
 DruidOperator
 -------------------

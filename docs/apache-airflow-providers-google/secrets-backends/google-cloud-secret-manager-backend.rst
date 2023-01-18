@@ -137,7 +137,7 @@ You can do it with the gcloud tools as in the example below.
         airflow-connections-first-connection \
         --data-file=- \
         --replication-policy=automatic
-    Created version [1] of the secret [airflow-variables-first-connection].
+    Created version [1] of the secret [airflow-connections-first-connection].
 
 If you have the default backend configuration and you want to create a variable named ``first-variable``,
 you should create a secret named ``airflow-variables-first-variable``. You can do it with the gcloud

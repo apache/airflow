@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 import gzip as gz
+import inspect
 import os
+import re
 import tempfile
 from pathlib import Path
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import boto3
 import pytest
@@ -69,6 +71,14 @@ class TestAwsS3Hook:
 
     def test_parse_s3_url(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
+        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
+
+    def test_parse_s3_url_s3a_style(self):
+        parsed = S3Hook.parse_s3_url("s3a://test/this/is/not/a-real-key.txt")
+        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
+
+    def test_parse_s3_url_s3n_style(self):
+        parsed = S3Hook.parse_s3_url("s3n://test/this/is/not/a-real-key.txt")
         assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
 
     def test_parse_s3_url_path_style(self):
@@ -464,13 +474,9 @@ class TestAwsS3Hook:
             def test_function(self, bucket_name=None):
                 return bucket_name
 
-        fake_s3_hook = FakeS3Hook()
-
-        test_bucket_name = fake_s3_hook.test_function()
-        assert test_bucket_name == mock_get_connection.return_value.schema
-
-        test_bucket_name = fake_s3_hook.test_function(bucket_name="bucket")
-        assert test_bucket_name == "bucket"
+        hook = FakeS3Hook()
+        assert hook.test_function() == "test_bucket"
+        assert hook.test_function(bucket_name="bucket") == "bucket"
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.
@@ -817,3 +823,122 @@ class TestAwsS3Hook:
 
         with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
             hook.get_bucket_tagging(bucket_name="new_bucket")
+
+
+@pytest.mark.parametrize(
+    "key_kind, has_conn, has_bucket, precedence, expected",
+    [
+        ("full_key", "no_conn", "no_bucket", "unify", ["key_bucket", "key.txt"]),
+        ("full_key", "no_conn", "no_bucket", "provide", ["key_bucket", "key.txt"]),
+        ("full_key", "no_conn", "with_bucket", "unify", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "no_conn", "with_bucket", "provide", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "no_bucket", "unify", ["key_bucket", "key.txt"]),
+        ("full_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "with_bucket", "unify", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("rel_key", "no_conn", "no_bucket", "unify", [None, "key.txt"]),
+        ("rel_key", "no_conn", "no_bucket", "provide", [None, "key.txt"]),
+        ("rel_key", "no_conn", "with_bucket", "unify", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "no_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "no_bucket", "unify", ["conn_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "no_bucket", "provide", ["conn_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "with_bucket", "unify", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
+    ],
+)
+@patch("airflow.hooks.base.BaseHook.get_connection")
+def test_unify_and_provide_bucket_name_combination(
+    mock_base, key_kind, has_conn, has_bucket, precedence, expected, caplog
+):
+    """
+    Verify what is the outcome when the unify_bucket_name_and_key and provide_bucket_name
+    decorators are combined.
+
+    The one case (at least in this test) where the order makes a difference is when
+    user provides a full s3 key, and also has a connection with a bucket defined,
+    and does not provide a bucket in the method call.  In this case, if we unify
+    first, then we (desirably) get the bucket from the key.  If we provide bucket first,
+    something undesirable happens.  The bucket from the connection is used, which means
+    we don't respect the full key provided. Further, the full key is not made relative,
+    which would cause the actual request to fail. For this reason we want to put unify
+    first.
+    """
+    if has_conn == "with_conn":
+        c = Connection(schema="conn_bucket")
+    else:
+        c = Connection(schema=None)
+    key = "key.txt" if key_kind == "rel_key" else "s3://key_bucket/key.txt"
+    if has_bucket == "with_bucket":
+        kwargs = {"bucket_name": "kwargs_bucket", "key": key}
+    else:
+        kwargs = {"key": key}
+
+    mock_base.return_value = c
+    if precedence == "unify":  # unify to be processed before provide
+
+        class MyHook(S3Hook):
+            @unify_bucket_name_and_key
+            @provide_bucket_name
+            def do_something(self, bucket_name=None, key=None):
+                return bucket_name, key
+
+    else:
+
+        with caplog.at_level("WARNING"):
+
+            class MyHook(S3Hook):
+                @provide_bucket_name
+                @unify_bucket_name_and_key
+                def do_something(self, bucket_name=None, key=None):
+                    return bucket_name, key
+
+        assert caplog.records[0].message == "`unify_bucket_name_and_key` should wrap `provide_bucket_name`."
+    hook = MyHook()
+    assert list(hook.do_something(**kwargs)) == expected
+
+
+@pytest.mark.parametrize(
+    "key_kind, has_conn, has_bucket, expected",
+    [
+        ("full_key", "no_conn", "no_bucket", ["key_bucket", "key.txt"]),
+        ("full_key", "no_conn", "with_bucket", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("full_key", "with_conn", "no_bucket", ["key_bucket", "key.txt"]),
+        ("full_key", "with_conn", "with_bucket", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
+        ("rel_key", "no_conn", "no_bucket", [None, "key.txt"]),
+        ("rel_key", "no_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "no_bucket", ["conn_bucket", "key.txt"]),
+        ("rel_key", "with_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
+    ],
+)
+@patch("airflow.hooks.base.BaseHook.get_connection")
+def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_kind, expected):
+    if has_conn == "with_conn":
+        c = Connection(schema="conn_bucket")
+    else:
+        c = Connection(schema=None)
+    mock_conn.return_value = c
+    key = "key.txt" if key_kind == "rel_key" else "s3://key_bucket/key.txt"
+    if has_bucket == "with_bucket":
+        kwargs = {"bucket_name": "kwargs_bucket", "key": key}
+    else:
+        kwargs = {"key": key}
+
+    hook = S3Hook()
+    m = MagicMock()
+    hook.get_conn = m
+    hook.head_object(**kwargs)
+    assert list(m.mock_calls[1][2].values()) == expected
+
+
+def test_unify_and_provide_ordered_properly():
+    """
+    If we unify first, then we (desirably) get the bucket from the key.  If we provide bucket first,
+    something undesirable happens.  The bucket from the connection is used, which means
+    we don't respect the full key provided. Further, the full key is not made relative,
+    which would cause the actual request to fail. For this reason we want to put unify
+    first.
+    """
+    code = inspect.getsource(S3Hook)
+    matches = re.findall(r"@provide_bucket_name\s+@unify_bucket_name_and_key", code, re.MULTILINE)
+    if matches:
+        pytest.fail("@unify_bucket_name_and_key should be applied before @provide_bucket_name in S3Hook")

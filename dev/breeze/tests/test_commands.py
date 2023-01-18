@@ -27,23 +27,23 @@ def test_visuals():
 
 def test_get_extra_docker_flags_all():
     flags = get_extra_docker_flags(MOUNT_ALL)
-    assert "empty" not in "".join(flags)
+    assert "/empty," not in "".join(flags)
     assert len(flags) < 10
 
 
 def test_get_extra_docker_flags_selected():
     flags = get_extra_docker_flags(MOUNT_SELECTED)
-    assert "empty" not in "".join(flags)
+    assert "/empty," not in "".join(flags)
     assert len(flags) > 40
 
 
 def test_get_extra_docker_flags_remove():
     flags = get_extra_docker_flags(MOUNT_REMOVE)
-    assert "empty" in "".join(flags)
+    assert "/empty," in "".join(flags)
     assert len(flags) < 10
 
 
 def test_get_extra_docker_flags_skip():
     flags = get_extra_docker_flags(MOUNT_SKIP)
-    assert "empty" not in "".join(flags)
+    assert "/empty," not in "".join(flags)
     assert len(flags) < 10

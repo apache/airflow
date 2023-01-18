@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.configuration import conf
 from airflow.utils.docs import get_docs_url
 
 
@@ -36,12 +37,14 @@ def init_appbuilder_links(app):
     appbuilder.add_link(
         name="Documentation", label="GitHub Repo", href="https://github.com/apache/airflow", category="Docs"
     )
-    appbuilder.add_link(
-        name="Documentation",
-        label="REST API Reference (Swagger UI)",
-        href="/api/v1./api/v1_swagger_ui_index",
-        category="Docs",
-    )
+
+    if conf.getboolean("webserver", "enable_swagger_ui", fallback=True):
+        appbuilder.add_link(
+            name="Documentation",
+            label="REST API Reference (Swagger UI)",
+            href="/api/v1./api/v1_swagger_ui_index",
+            category="Docs",
+        )
     appbuilder.add_link(
         name="Documentation", label="REST API Reference (Redoc)", href="RedocView.redoc", category="Docs"
     )

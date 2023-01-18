@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+4.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Ensure Beam Go file downloaded from GCS still exists when referenced (#28664)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.1.0
 .....
 

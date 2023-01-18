@@ -223,6 +223,7 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 Installation
 ============
 
+Set your working directory to root of (this) cloned repository.
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
@@ -239,7 +240,7 @@ Those are all available commands for Breeze and details about the commands are d
   :width: 100%
   :alt: Breeze commands
 
-Breeze installed this way is linked to your checked out sources of Airflow so Breeze will
+Breeze installed this way is linked to your checked out sources of Airflow, so Breeze will
 automatically use latest version of sources from ``./dev/breeze``. Sometimes, when dependencies are
 updated ``breeze`` commands with offer you to run self-upgrade.
 
@@ -919,7 +920,7 @@ Checking status of the K8S cluster
 ..................................
 
 You can delete kubernetes cluster and airflow deployed in the current cluster
-via ``breeze k8s status`` command. It can be also checked fora all clusters created so far by passing
+via ``breeze k8s status`` command. It can be also checked for all clusters created so far by passing
 ``--all`` flag.
 
 All parameters of the command are here:
@@ -1105,7 +1106,7 @@ Dumping logs from all k8s clusters
 ..................................
 
 KinD allows to export logs from the running cluster so that you can troubleshoot your deployment.
-This can be done with ``breeze k8s logs`` command. Logs can be also dumped fora all clusters created
+This can be done with ``breeze k8s logs`` command. Logs can be also dumped for all clusters created
 so far by passing ``--all`` flag.
 
 All parameters of the command are here:
