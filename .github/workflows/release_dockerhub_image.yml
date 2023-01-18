@@ -76,6 +76,7 @@ jobs:
       "ephraimbuddy",
       "jedcunningham",
       "kaxil",
+      "pierrejeambrun",
       "potiuk",
       ]'), github.event.sender.login)
     steps:
