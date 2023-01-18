@@ -490,12 +490,12 @@ class DagFileProcessor(LoggingMixin):
                             "sla_callback_notification_failure",
                             tags={
                                 "dag_id": dag.dag_id,
-                                "func_name": callback.func_name,  # type: ignore[attr-defined]
+                                "func_name": callback.__name__,
                             },
                         )
                         self.log.exception(
                             "Could not call sla_miss_callback(%s) for DAG %s",
-                            callback.func_name,  # type: ignore[attr-defined]
+                            callback.__name__,
                             dag.dag_id,
                         )
             email_content = f"""\
