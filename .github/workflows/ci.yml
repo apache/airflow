@@ -982,7 +982,8 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.default-branch != 'main'}}"
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1041,7 +1042,8 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.default-branch != 'main'}}"
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
