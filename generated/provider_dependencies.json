@@ -53,8 +53,7 @@
   "apache.cassandra": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "cassandra-driver>=3.13.0",
-      "dnspython<2.3.0"
+      "cassandra-driver>=3.13.0"
     ],
     "cross-providers-deps": []
   },
