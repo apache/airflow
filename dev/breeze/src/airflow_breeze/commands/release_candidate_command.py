@@ -242,6 +242,8 @@ def create_issue_for_testing(version, previous_version, github_token):
         console_print()
         console_print(f"Status of testing of Apache Airflow {version}")
         console_print()
+        if CI:
+            run_command(["git", "fetch"], check=True)
         if confirm_action("Print the issue body?"):
             run_command(
                 [

@@ -791,9 +791,9 @@ jobs:
         run: |
           breeze release-management start-rc-process --version 2.4.3rc1 --previous-version 2.4.2  --answer y
       - name: "Check Airflow release command"
-        run: |
-          breeze release-management start-release -release-candidate 2.4.3rc1
-            --previous-release 2.4.2 --answer y
+        run: >
+          breeze release-management start-release --release-candidate 2.4.3rc1
+          --previous-release 2.4.2 --answer y
       - name: "Check creating minor branch command"
         run: |
           breeze release-management create-minor-branch --version-branch 2-4 --answer y
