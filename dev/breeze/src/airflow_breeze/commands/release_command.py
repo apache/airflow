@@ -32,19 +32,20 @@ DRY_RUN = True if CI else False
 
 def clone_asf_repo(working_dir):
     if confirm_action("Clone ASF repo?"):
-        run_command(["rm", "-rf", f"{working_dir}/asf-dist"])
+        run_command(["rm", "-rf", f"{working_dir}/asf-dist"], check=True)
         run_command(
-            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"]
+            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
+            check=True,
         )
         dev_dir = f"{working_dir}/asf-dist/dev/airflow"
         release_dir = f"{working_dir}/asf-dist/release/airflow"
-        run_command(["svn", "update", "--set-depth", "infinity", dev_dir])
-        run_command(["svn", "update", "--set-depth", "infinity", release_dir])
+        run_command(["svn", "update", "--set-depth", "infinity", dev_dir], check=True)
+        run_command(["svn", "update", "--set-depth", "infinity", release_dir], check=True)
 
 
 def create_version_dir(version):
     if confirm_action(f"Create SVN version directory for {version}?"):
-        run_command(["svn", "mkdir", f"{version}"], dry_run_override=DRY_RUN)
+        run_command(["svn", "mkdir", f"{version}"], dry_run_override=DRY_RUN, check=True)
         console_print(f"{version} directory created")
 
 
@@ -65,6 +66,7 @@ def copy_artifacts_to_svn(rc, svn_dev_repo):
                 "done",
             ],
             dry_run_override=DRY_RUN,
+            check=True,
         )
         console_print("Artifacts copied to SVN:")
         run_command(["ls"], dry_run_override=DRY_RUN)
@@ -72,14 +74,20 @@ def copy_artifacts_to_svn(rc, svn_dev_repo):
 
 def commit_release(version, rc, svn_release_version_dir):
     if confirm_action(f"Commit release {version} to SVN?"):
-        run_command(["svn", "commit", "-m", f"Release Airflow {version} from {rc}"], dry_run_override=DRY_RUN)
+        run_command(
+            ["svn", "commit", "-m", f"Release Airflow {version} from {rc}"],
+            dry_run_override=DRY_RUN,
+            check=True,
+        )
 
 
 def remove_old_release(previous_release):
     if confirm_action(f"Remove old release {previous_release}?"):
-        run_command(["svn", "rm", f"{previous_release}"], dry_run_override=DRY_RUN)
+        run_command(["svn", "rm", f"{previous_release}"], dry_run_override=DRY_RUN, check=True)
         run_command(
-            ["svn", "commit", "-m", f"Remove old release: {previous_release}"], dry_run_override=DRY_RUN
+            ["svn", "commit", "-m", f"Remove old release: {previous_release}"],
+            dry_run_override=DRY_RUN,
+            check=True,
         )
         confirm_action(
             "Verify that the packages appear in "
@@ -90,13 +98,15 @@ def remove_old_release(previous_release):
 
 def verify_pypi_package(version):
     if confirm_action("Verify PyPI package?"):
-        run_command(["twine", "check", "*.whl", f"*{version}.tar.gz"])
+        run_command(["twine", "check", "*.whl", f"*{version}.tar.gz"], check=True)
 
 
 def upload_to_pypi_test(version):
     if confirm_action("Upload to PyPI test?"):
         run_command(
-            ["twine", "upload", "-r", "pypitest", "*.whl", f"*{version}.tar.gz"], dry_run_override=DRY_RUN
+            ["twine", "upload", "-r", "pypitest", "*.whl", f"*{version}.tar.gz"],
+            dry_run_override=DRY_RUN,
+            check=True,
         )
         console_print("Packages pushed to test PyPI")
         console_print(
@@ -114,7 +124,9 @@ def upload_to_pypi(version):
             abort=True,
         )
         run_command(
-            ["twine", "upload", "-r", "pypi", "*.whl", f"*{version}.tar.gz"], dry_run_override=DRY_RUN
+            ["twine", "upload", "-r", "pypi", "*.whl", f"*{version}.tar.gz"],
+            dry_run_override=DRY_RUN,
+            check=True,
         )
         console_print("Packages pushed to production PyPI")
         console_print(
@@ -124,7 +136,9 @@ def upload_to_pypi(version):
 
 def retag_constraints(release_candidate, version):
     if confirm_action(f"Retag constraints for {release_candidate} as {version}?"):
-        run_command(["git", "checkout", f"constraints-{release_candidate}"], dry_run_override=DRY_RUN)
+        run_command(
+            ["git", "checkout", f"constraints-{release_candidate}"], dry_run_override=DRY_RUN, check=True
+        )
         run_command(
             [
                 "git",
@@ -135,9 +149,12 @@ def retag_constraints(release_candidate, version):
                 f"Constraints for Apache Airflow {version}",
             ],
             dry_run_override=DRY_RUN,
+            check=True,
         )
     if confirm_action("Push latest constraints tag to GitHub?"):
-        run_command(["git", "push", "origin", "tag", f"constraints-{version}"], dry_run_override=DRY_RUN)
+        run_command(
+            ["git", "push", "origin", "tag", f"constraints-{version}"], dry_run_override=DRY_RUN, check=True
+        )
 
 
 def tag_and_push_latest_constraint(version):
@@ -154,9 +171,12 @@ def tag_and_push_latest_constraint(version):
                 f"Latest constraints set to Apache Airflow {version}",
             ],
             dry_run_override=DRY_RUN,
+            check=True,
         )
     if confirm_action("Push latest constraints tag to GitHub?"):
-        run_command(["git", "push", "origin", "tag", "constraints-latest"], dry_run_override=DRY_RUN)
+        run_command(
+            ["git", "push", "origin", "tag", "constraints-latest"], dry_run_override=DRY_RUN, check=True
+        )
 
 
 def push_tag_for_final_version(version, release_candidate):
@@ -171,11 +191,13 @@ def push_tag_for_final_version(version, release_candidate):
         )
         confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
 
-        run_command(["git", "checkout", f"{release_candidate}"], dry_run_override=DRY_RUN)
+        run_command(["git", "checkout", f"{release_candidate}"], dry_run_override=DRY_RUN, check=True)
         run_command(
-            ["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"], dry_run_override=DRY_RUN
+            ["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"],
+            dry_run_override=DRY_RUN,
+            check=True,
         )
-        run_command(["git", "push", "origin", "tag", f"{version}"], dry_run_override=DRY_RUN)
+        run_command(["git", "push", "origin", "tag", f"{version}"], dry_run_override=DRY_RUN, check=True)
 
 
 @click.command(
@@ -202,7 +224,7 @@ def airflow_release(release_candidate, previous_release):
     console_print("Airflow repo root:", airflow_repo_root)
     console_print()
     console_print("Below are your git remotes. We will push to origin:")
-    run_command(["git", "remote", "-v"])
+    run_command(["git", "remote", "-v"], check=True)
     console_print()
     confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
     # Final confirmation

@@ -39,30 +39,39 @@ def merge_pr(version_branch):
                 f"v{version_branch}-stable",
             ],
             dry_run_override=DRY_RUN,
+            check=True,
         )
-        run_command(["git", "reset", "--hard", f"origin/v{version_branch}-stable"], dry_run_override=DRY_RUN)
-        run_command(["git", "merge", "--ff-only", f"v{version_branch}-test"], dry_run_override=DRY_RUN)
+        run_command(
+            ["git", "reset", "--hard", f"origin/v{version_branch}-stable"],
+            dry_run_override=DRY_RUN,
+            check=True,
+        )
+        run_command(
+            ["git", "merge", "--ff-only", f"v{version_branch}-test"], dry_run_override=DRY_RUN, check=True
+        )
         if confirm_action("Do you want to push the changes? Pushing the changes closes the PR"):
-            run_command(["git", "push", "origin", f"v{version_branch}-stable"], dry_run_override=DRY_RUN)
+            run_command(
+                ["git", "push", "origin", f"v{version_branch}-stable"], dry_run_override=DRY_RUN, check=True
+            )
 
 
 def git_tag(version):
     if confirm_action(f"Tag {version}?"):
-        run_command(["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"])
+        run_command(["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"], check=True)
         console_print("Tagged")
 
 
 def git_clean():
     if confirm_action("Clean git repo?"):
-        run_command(["git", "clean", "-fxd"], dry_run_override=DRY_RUN)
+        run_command(["git", "clean", "-fxd"], dry_run_override=DRY_RUN, check=True)
         console_print("Git repo cleaned")
 
 
 def tarball_release(version, version_without_rc):
     if confirm_action("Create tarball?"):
-        run_command(["rm", "-rf", "dist"])
+        run_command(["rm", "-rf", "dist"], check=True)
 
-        run_command(["mkdir", "dist"])
+        run_command(["mkdir", "dist"], check=True)
         run_command(
             [
                 "git",
@@ -72,33 +81,38 @@ def tarball_release(version, version_without_rc):
                 f"--prefix=apache-airflow-{version_without_rc}/",
                 "-o",
                 f"dist/apache-airflow-{version_without_rc}-source.tar.gz",
-            ]
+            ],
+            check=True,
         )
         console_print("Tarball created")
 
 
 def create_artifacts_with_sdist():
-    run_command(["python3", "setup.py", "compile_assets", "sdist", "bdist_wheel"])
+    run_command(["python3", "setup.py", "compile_assets", "sdist", "bdist_wheel"], check=True)
     console_print("Artifacts created")
 
 
 def create_artifacts_with_breeze():
-    run_command(["breeze", "release-management", "prepare-airflow-package", "--package-format", "both"])
+    run_command(
+        ["breeze", "release-management", "prepare-airflow-package", "--package-format", "both"], check=True
+    )
     console_print("Artifacts created")
 
 
 def sign_the_release(repo_root):
     if confirm_action("Do you want to sign the release?"):
         os.chdir(repo_root)
-        run_command(["pushd", "dist"], dry_run_override=DRY_RUN)
-        run_command(["./dev/sign.sh", "*"], dry_run_override=DRY_RUN)
-        run_command(["popd"], dry_run_override=DRY_RUN)
+        run_command(["pushd", "dist"], dry_run_override=DRY_RUN, check=True)
+        run_command(["./dev/sign.sh", "*"], dry_run_override=DRY_RUN, check=True)
+        run_command(["popd"], dry_run_override=DRY_RUN, check=True)
         console_print("Release signed")
 
 
 def tag_and_push_constraints(version, version_branch):
     if confirm_action("Do you want to tag and push constraints?"):
-        run_command(["git", "checkout", f"origin/constraints-{version_branch}"], dry_run_override=DRY_RUN)
+        run_command(
+            ["git", "checkout", f"origin/constraints-{version_branch}"], dry_run_override=DRY_RUN, check=True
+        )
         run_command(
             [
                 "git",
@@ -109,8 +123,11 @@ def tag_and_push_constraints(version, version_branch):
                 f"Constraints for Apache Airflow {version}",
             ],
             dry_run_override=DRY_RUN,
+            check=True,
         )
-        run_command(["git", "push", "origin", "tag", f"constraints-{version}"], dry_run_override=DRY_RUN)
+        run_command(
+            ["git", "push", "origin", "tag", f"constraints-{version}"], dry_run_override=DRY_RUN, check=True
+        )
         console_print("Constraints tagged and pushed")
 
 
@@ -118,17 +135,18 @@ def clone_asf_repo(version, repo_root):
     if confirm_action("Do you want to clone asf repo?"):
         os.chdir(repo_root)
         run_command(
-            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"]
+            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
+            check=True,
         )
-        run_command(["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"])
+        run_command(["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"], check=True)
         console_print("Cloned ASF repo successfully")
 
 
 def move_artifacts_to_svn(version, repo_root):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
-        run_command(["svn", "mkdir", f"{version}"], dry_run_override=DRY_RUN)
-        run_command(["mv", f"{repo_root}/dist/*", f"{version}/"], dry_run_override=DRY_RUN)
+        run_command(["svn", "mkdir", f"{version}"], dry_run_override=DRY_RUN, check=True)
+        run_command(["mv", f"{repo_root}/dist/*", f"{version}/"], dry_run_override=DRY_RUN, check=True)
         console_print("Moved artifacts to SVN:")
         run_command(["ls"], dry_run_override=DRY_RUN)
 
@@ -140,18 +158,22 @@ def push_artifacts_to_asf_repo(version, repo_root):
             os.chdir(f"{repo_root}/asf-dist/dev/airflow/{version}")
         run_command(["ls"], dry_run_override=DRY_RUN)
         confirm_action("Do you want to continue?", abort=True)
-        run_command(["svn", "add", "*"], dry_run_override=DRY_RUN)
-        run_command(["svn", "commit", "-m", f"Add artifacts for Airflow {version}"], dry_run_override=DRY_RUN)
+        run_command(["svn", "add", "*"], dry_run_override=DRY_RUN, check=True)
+        run_command(
+            ["svn", "commit", "-m", f"Add artifacts for Airflow {version}"],
+            dry_run_override=DRY_RUN,
+            check=True,
+        )
         console_print("Files pushed to svn")
         os.chdir(repo_root)
-        run_command(["rm", "-rf", "asf-dist"], dry_run_override=DRY_RUN)
+        run_command(["rm", "-rf", "asf-dist"], dry_run_override=DRY_RUN, check=True)
 
 
 def prepare_pypi_packages(version, version_suffix, repo_root):
     if confirm_action("Prepare pypi packages?"):
         console_print("Preparing PyPI packages")
         os.chdir(repo_root)
-        run_command(["git", "checkout", f"{version}"])
+        run_command(["git", "checkout", f"{version}"], check=True)
         run_command(
             [
                 "breeze",
@@ -161,15 +183,16 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
                 f"{version_suffix}",
                 "--package-format",
                 "both",
-            ]
+            ],
+            check=True,
         )
-        run_command(["twine", "check", "dist/*"])
+        run_command(["twine", "check", "dist/*"], check=True)
         console_print("PyPI packages prepared")
 
 
 def push_packages_to_test_pypi():
     if confirm_action("Do you want to push packages to test PyPI?"):
-        run_command(["twine", "upload", "-r", "pypitest", "dist/*"], dry_run_override=DRY_RUN)
+        run_command(["twine", "upload", "-r", "pypitest", "dist/*"], dry_run_override=DRY_RUN, check=True)
         console_print("Packages pushed to test PyPI")
         console_print(
             "Verify that the test package looks good by downloading it and installing it into a virtual "
@@ -185,7 +208,7 @@ def push_packages_to_pypi():
             "I installed and ran a DAG with it and there's no issue. Do you agree to the above?",
             abort=True,
         )
-        run_command(["twine", "upload", "-r", "pypi", "dist/*"], dry_run_override=DRY_RUN)
+        run_command(["twine", "upload", "-r", "pypi", "dist/*"], dry_run_override=DRY_RUN, check=True)
         console_print("Packages pushed to production PyPI")
         console_print(
             "Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow"
@@ -208,7 +231,7 @@ def push_release_candidate_to_github(version):
         """
         )
         confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
-        run_command(["git", "push", "origin", "tag", f"{version}"], dry_run_override=DRY_RUN)
+        run_command(["git", "push", "origin", "tag", f"{version}"], dry_run_override=DRY_RUN, check=True)
         console_print("Release candidate pushed to GitHub")
 
 
@@ -230,7 +253,8 @@ def create_issue_for_testing(version, previous_version, github_token):
                     f"{version}",
                     "--github-token",
                     f"{github_token}",
-                ]
+                ],
+                check=True,
             )
 
 
@@ -284,7 +308,7 @@ def publish_release_candidate(version, previous_version, github_token):
     git_clean()
     # Build the latest image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.7"])
+        run_command(["breeze", "ci-image", "build", "--python", "3.7"], check=True)
     # Create the tarball
     tarball_release(version, version_without_rc)
     # Create the artifacts
@@ -309,7 +333,7 @@ def publish_release_candidate(version, previous_version, github_token):
 
     # Push the packages to pypi
     push_packages_to_pypi()
-    # Push the release candidate to github
+    # Push the release candidate to gitHub
 
     push_release_candidate_to_github(version)
     # Create issue for testing
