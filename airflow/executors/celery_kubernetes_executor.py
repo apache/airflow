@@ -48,6 +48,8 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     is_local: bool = False
 
+    serve_logs: bool = False
+
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
         self._job_id: int | None = None
