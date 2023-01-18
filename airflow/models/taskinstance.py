@@ -1966,7 +1966,6 @@ class TaskInstance(Base, LoggingMixin):
             assert task.dag
         dag: DAG = task.dag
 
-        # TODO: convert this one: looks easy
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
 
