@@ -54,7 +54,7 @@ def git_tag(version):
 
 def git_clean():
     if confirm_action("Clean git repo?"):
-        run_command(["git", "clean", "-fxd"])
+        run_command(["git", "clean", "-fxd"], dry_run_override=DRY_RUN)
         console_print("Git repo cleaned")
 
 

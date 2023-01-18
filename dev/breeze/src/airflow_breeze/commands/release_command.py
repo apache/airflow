@@ -185,8 +185,8 @@ def push_tag_for_final_version(version, release_candidate):
     "This command will guide you through the release process. ",
     hidden=True,
 )
-@click.option("--release-candidate", "-rc", required=True)
-@click.option("--previous-release", "-prev-r", required=True)
+@click.option("--release-candidate", required=True)
+@click.option("--previous-release", required=True)
 @option_answer
 def airflow_release(release_candidate, previous_release):
     if "rc" not in release_candidate:
