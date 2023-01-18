@@ -54,11 +54,15 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 )
 from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
+from airflow.models.log import Log
 from airflow.security import permissions
+from airflow.utils import timezone
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+from airflow.www.decorators import action_logging
 
 
 @security.requires_access(
@@ -281,6 +285,12 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     ],
 )
 @provide_session
+@action_logging(
+    event=action_event_from_permission(
+        prefix="log",
+        permission=permissions.ACTION_CAN_CREATE,
+    ),
+)
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
     dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
@@ -320,25 +330,17 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,
             )
-            from airflow.models.log import Log
-            from airflow.utils import timezone
-
             try:
-                session.bulk_insert_mappings(
-                    Log,
-                    [
-                        {
-                            "event": "rest_dag_trigger",
-                            "task_instance": None,
-                            "owner": g.user.username,
-                            "extra": None,
-                            "task_id": None,
-                            "dag_id": f"{dag_run.dag_id}",
-                            "execution_date": dag_run.execution_date,
-                            "dttm": timezone.utcnow(),
-                        }
-                    ],
-                )
+                to_log_data = {
+                    "event": "rest_dag_trigger",
+                    "owner": g.user.username,
+                    "extra": None,
+                    "task_id": None,
+                    "dag_id": f"{dag_run.dag_id}",
+                    "execution_date": dag_run.execution_date,
+                    "dttm": timezone.utcnow(),
+                }
+                session.add(Log(**to_log_data))
             except Exception as error:
                 logging.warning("Failed to log action with %s", error)
             return dagrun_schema.dump(dag_run)
