@@ -34,6 +34,7 @@ from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
+from airflow.utils.log.secrets_masker import ConvertableToDict
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -866,3 +867,72 @@ def test_find_mapped_dependants_in_another_group(dag_maker):
 
     dependants = list(gen_result.operator.iter_mapped_dependants())
     assert dependants == [add_result.operator]
+
+
+def test_render_template_hide_sensitive_values_on_exception(caplog, monkeypatch):
+    logger = logging.getLogger("airflow.task")
+    monkeypatch.setattr(logger, "propagate", True)
+
+    class Var:
+        def __getattr__(self, name):
+            raise KeyError(name)
+
+    class EnvVar:
+        def __init__(self, name, value):
+            self.name = name
+            self.value = value
+
+        def to_dict(self):
+            return {"name": self.name, "value": self.value}
+
+        def __str__(self):
+            return str(self.to_dict())
+
+        def __repr__(self):
+            return f"EnvVar(name={repr(self.name)}, value={repr(self.value)})"
+
+    ConvertableToDict.register(EnvVar)
+
+    class MockOperatorWithNestedFields(MockOperator):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+
+        def _render_nested_template_fields(
+            self,
+            content: Any,
+            context: Context,
+            jinja_env: jinja2.Environment,
+            seen_oids: set,
+        ) -> None:
+            if id(content) not in seen_oids:
+                template_fields: tuple | None = None
+
+                if isinstance(content, EnvVar):
+                    template_fields = ("value", "name")
+
+                if template_fields:
+                    seen_oids.add(id(content))
+                    self._do_render_template_fields(content, template_fields, context, jinja_env, seen_oids)
+                    return
+
+            super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
+
+    EnvVar(name="aaa", value="bbb")
+
+    context = {
+        "var2": "secretpassword",
+        "var": Var(),
+    }
+    task = MockOperatorWithNestedFields(
+        task_id="op1",
+        arg1=[
+            EnvVar(name="password", value="{{ var2 }}"),
+            EnvVar(name="willraiseexception", value="{{ var.raisekeyerror }}"),
+        ],
+    )
+    with pytest.raises(KeyError):
+        task.render_template_fields(context=context)
+    assert "password" in caplog.text
+    # EnvVar name is "password" which is a DEFAULT_SENSITIVE_FIELDS
+    # therefore the EnvVar value should be masked
+    assert "secretpassword" not in caplog.text

@@ -61,8 +61,10 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
-from airflow.utils.timezone import utcnow
+from airflow.utils.log.secrets_masker import ConvertableToDict
 from airflow.version import version as airflow_version
+
+ConvertableToDict.register(k8s.V1EnvVar)
 
 if TYPE_CHECKING:
     import jinja2

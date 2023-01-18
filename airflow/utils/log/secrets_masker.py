@@ -21,12 +21,22 @@ import collections
 import logging
 import re
 import sys
+from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Generator, Iterable, List, TextIO, Tuple, TypeVar, Union
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
 
-Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any])
+
+class ConvertableToDict(ABC):
+    """Abstract Base Class for classes implementing to_dict."""
+
+    @abstractmethod
+    def to_dict(self) -> dict:
+        """Convert to a dict"""
+
+
+Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any], ConvertableToDict)
 Redacted = Union[Redactable, str]
 
 log = logging.getLogger(__name__)
@@ -200,10 +210,18 @@ class SecretsMasker(logging.Filter):
             if name and should_hide_value_for_key(name):
                 return self._redact_all(item, depth)
             if isinstance(item, dict):
-                return {
+                to_return = {
                     dict_key: self._redact(subval, name=dict_key, depth=(depth + 1))
                     for dict_key, subval in item.items()
                 }
+                return to_return
+            elif isinstance(item, ConvertableToDict):  # things like V1EnvVar
+                tmp = item.to_dict()
+                if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
+                    tmp["value"] = "***"
+                else:
+                    return self._redact(item=tmp, name=name, depth=depth)
+                return tmp
             elif isinstance(item, str):
                 if self.replacer:
                     # We can't replace specific values, but the key-based redacting
