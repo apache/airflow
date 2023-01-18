@@ -62,7 +62,7 @@ class WebEncoder(json.JSONEncoder):
         if isinstance(o, bytes):
             try:
                 return o.decode()
-            except Exception:
+            except UnicodeDecodeError:
                 return repr(o)
         try:
             data = serialize(o)
