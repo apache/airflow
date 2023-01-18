@@ -19,6 +19,7 @@ from __future__ import annotations
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
@@ -100,7 +101,6 @@ class S3ToSqlOperator(BaseOperator):
 
         self.log.info("Loading %s to SQL table %s...", self.s3_key, self.table)
 
-        db_hook = self._get_hook()
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         s3_obj = s3_hook.get_key(key=self.s3_key, bucket_name=self.s3_bucket)
 
@@ -108,7 +108,7 @@ class S3ToSqlOperator(BaseOperator):
 
             s3_obj.download_fileobj(local_tempfile)
 
-            db_hook.insert_rows(
+            self.db_hook.insert_rows(
                 table=self.table,
                 schema=self.schema,
                 target_fields=self.column_list,
@@ -116,7 +116,8 @@ class S3ToSqlOperator(BaseOperator):
                 commit_every=self.commit_every,
             )
 
-    def _get_hook(self) -> DbApiHook:
+    @cached_property
+    def db_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
         hook = conn.get_hook()
