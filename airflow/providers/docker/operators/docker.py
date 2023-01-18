@@ -155,7 +155,7 @@ class DockerOperator(BaseOperator):
         Only effective when max-size is also set. A positive integer. Defaults to 1.
     :param ipc_mode: Set the IPC mode for the container.
     :param skip_exit_code: If task exits with this exit code, leave the task
-        in ``skipped`` state (default: 99). If set to ``None``, any non-zero
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     """
 
