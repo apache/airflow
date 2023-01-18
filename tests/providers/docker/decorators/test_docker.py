@@ -115,7 +115,7 @@ class TestDockerDecorator:
         ],
     )
     def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
-        @task.docker(image="python:3.9-slim", **(extra_kwargs if extra_kwargs else {}))
+        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs if extra_kwargs else {}))
         def f(exit_code):
             exit(exit_code)
 
