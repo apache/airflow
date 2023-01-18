@@ -1198,6 +1198,7 @@ class SchedulerJob(BaseJob):
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
+                Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
                 session.query(DatasetDagRunQueue).filter(
                     DatasetDagRunQueue.target_dag_id == dag_run.dag_id
@@ -1607,6 +1608,11 @@ class SchedulerJob(BaseJob):
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
+    def _set_orphaned(self, dataset: DatasetModel) -> int:
+        self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
+        dataset.is_orphaned = expression.true()
+        return 1
+
     @provide_session
     def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
         """
@@ -1633,6 +1639,6 @@ class SchedulerJob(BaseJob):
                 )
             )
         )
-        for dataset in orphaned_dataset_query:
-            self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
-            dataset.is_orphaned = expression.true()
+
+        updated_count = sum(self._set_orphaned(dataset) for dataset in orphaned_dataset_query)
+        Stats.gauge("dataset.orphaned", updated_count)
