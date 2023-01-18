@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import or_
@@ -58,126 +58,40 @@ class TestS3ToSqlTransfer:
             "s3_key": "test/test.csv",
             "s3_bucket": "testbucket",
             "table": "sql_table",
+            "column_list": ["Column1", "Column2"],
             "schema": "sql_schema",
-            "skip_first_row": False,
             "commit_every": 5000,
-            "column_list": "infer",
         }
 
-        self.csv_header_line = ["A1", "A2"]
-        self.csv_data_line = ["A3", "A4"]
+    @pytest.fixture()
+    def mock_parser(self):
+        return MagicMock()
 
-    def _csv_generator(self):
-        """This is kind of hacky.
-        It will mock a CSV line that is read line by line.
-        Because csv.read is a generator, the mock should be a generator as well.
-        """
-        yield self.csv_header_line
-        yield self.csv_data_line
-
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.open")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.csv.reader")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.download_file")
+    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.NamedTemporaryFile")
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.DbApiHook.insert_rows")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.os.remove")
-    def test_execute(self, mock_remove, mock_insert_rows, mock_download_file, mock_csv_reader, mock_open):
+    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.get_key")
+    def test_execute(self, mock_get_key, mock_insert_rows, mock_tempfile, mock_parser):
 
-        mock_csv_reader.return_value = self._csv_generator()
+        S3ToSqlOperator(parser=mock_parser, **self.s3_to_sql_transfer_kwargs).execute({})
 
-        S3ToSqlOperator(**self.s3_to_sql_transfer_kwargs).execute({})
-
-        mock_download_file.assert_called_once_with(
+        mock_get_key.assert_called_once_with(
             key=self.s3_to_sql_transfer_kwargs["s3_key"],
             bucket_name=self.s3_to_sql_transfer_kwargs["s3_bucket"],
         )
 
-        mock_open.assert_called_once_with(mock_download_file.return_value, newline="")
+        mock_get_key.return_value.download_fileobj.assert_called_once_with(
+            mock_tempfile.return_value.__enter__.return_value
+        )
+
+        mock_parser.assert_called_once_with(mock_tempfile.return_value.__enter__.return_value.name)
 
         mock_insert_rows.assert_called_once_with(
             table=self.s3_to_sql_transfer_kwargs["table"],
             schema=self.s3_to_sql_transfer_kwargs["schema"],
+            target_fields=self.s3_to_sql_transfer_kwargs["column_list"],
+            rows=mock_parser.return_value,
             commit_every=self.s3_to_sql_transfer_kwargs["commit_every"],
-            rows=mock_csv_reader.return_value,
-            target_fields=self.csv_header_line,
         )
-
-        assert next(mock_csv_reader.return_value) == self.csv_data_line
-
-        mock_remove.assert_called_once_with(mock_download_file.return_value)
-
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.open")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.download_file")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.DbApiHook.insert_rows")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.os.remove")
-    def test_execute_exception(self, mock_remove, mock_insert_rows, mock_download_file, mock_open):
-        """Tests if downloaded CSV file is deleted in case an exception occurred"""
-        mock_insert_rows.side_effect = Exception
-
-        with pytest.raises(Exception):
-            S3ToSqlOperator(**self.s3_to_sql_transfer_kwargs).execute({})
-
-        mock_download_file.assert_called_once_with(
-            key=self.s3_to_sql_transfer_kwargs["s3_key"],
-            bucket_name=self.s3_to_sql_transfer_kwargs["s3_bucket"],
-        )
-
-        mock_remove.assert_called_once_with(mock_download_file.return_value)
-
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.open")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.csv.reader")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.download_file")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.DbApiHook.insert_rows")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.os.remove")
-    def test_execute_dont_skip_first_row(
-        self, mock_remove, mock_insert_rows, mock_download_file, mock_csv_reader, mock_open
-    ):
-        """Test if first row is not ignored when passing skip_first_row=False and colum_list=[str]"""
-
-        mock_csv_reader.return_value = self._csv_generator()
-
-        s3_to_sql_transfer_kwargs = self.s3_to_sql_transfer_kwargs
-        s3_to_sql_transfer_kwargs.update({"skip_first_row": False, "column_list": ["Column1"]})
-
-        S3ToSqlOperator(**s3_to_sql_transfer_kwargs).execute({})
-
-        mock_download_file.assert_called_once_with(
-            key=self.s3_to_sql_transfer_kwargs["s3_key"],
-            bucket_name=self.s3_to_sql_transfer_kwargs["s3_bucket"],
-        )
-
-        mock_insert_rows.assert_called_once_with(
-            table=self.s3_to_sql_transfer_kwargs["table"],
-            schema=self.s3_to_sql_transfer_kwargs["schema"],
-            commit_every=self.s3_to_sql_transfer_kwargs["commit_every"],
-            rows=mock_csv_reader.return_value,
-            target_fields=["Column1"],
-        )
-
-        # Check if first row was skipped by retrieving the next line from our mock_read_csv generator
-        assert next(mock_csv_reader.return_value) == self.csv_header_line
-
-        mock_remove.assert_called_once_with(mock_download_file.return_value)
-
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.open")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.csv.reader")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.download_file")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.DbApiHook.insert_rows")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.os.remove")
-    def test_execute_csv_reader_kwargs(
-        self, mock_remove, mock_insert_rows, mock_download_file, mock_csv_reader, mock_open
-    ):
-        csv_reader_kwargs = {"delimiter": ";"}
-        s3_to_sql_transfer_kwargs = self.s3_to_sql_transfer_kwargs
-        s3_to_sql_transfer_kwargs.update({"csv_reader_kwargs": csv_reader_kwargs})
-
-        S3ToSqlOperator(**self.s3_to_sql_transfer_kwargs).execute({})
-
-        mock_download_file.assert_called_once_with(
-            key=self.s3_to_sql_transfer_kwargs["s3_key"],
-            bucket_name=self.s3_to_sql_transfer_kwargs["s3_bucket"],
-        )
-
-        mock_csv_reader.assert_called_once_with(mock_open().__enter__(), **csv_reader_kwargs)
 
     def teardown_method(self):
         with create_session() as session:
