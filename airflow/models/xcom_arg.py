@@ -39,10 +39,10 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
-# Callable objects contained by MapXComArg. We only accept callables from
-# the user, but deserialize them into strings in a serialized XComArg for
-# safety (those callables are arbitrary user code).
-MapCallables = Sequence[Union[Callable[[Any], Any], str]]
+# Callable objects contained by MapXComArg or ConvertXComArg. We only accept
+# callables from the user, but deserialize them into strings in a serialized
+# XComArg for safety (those callables are arbitrary user code).
+Converter = Union[Callable[[Any], Any], str]
 
 
 class XComArg(ResolveMixin, DependencyMixin):
@@ -172,6 +172,9 @@ class XComArg(ResolveMixin, DependencyMixin):
         not need to validate whether the incoming data contains correct keys.
         """
         raise NotImplementedError()
+
+    def convert(self, f: Callable[[Any], Any]) -> ConvertXComArg:
+        return ConvertXComArg(self, [f])
 
     def map(self, f: Callable[[Any], Any]) -> MapXComArg:
         return MapXComArg(self, [f])
@@ -343,8 +346,8 @@ class PlainXComArg(XComArg):
         raise XComNotFound(ti.dag_id, task_id, self.key)
 
 
-def _get_callable_name(f: Callable | str) -> str:
-    """Try to "describe" a callable by getting its name."""
+def _get_converter_name(f: Callable | str) -> str:
+    """Try to "describe" a value converter by getting its name."""
     if callable(f):
         return f.__name__
     # Parse the source to find whatever is behind "def". For safety, we don't
@@ -356,27 +359,29 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
+def _apply_converters(value: Any, converters: Sequence[Converter]) -> Any:
+    # In the worker, we can access all actual callables. Call them.
+    callables = [f for f in converters if callable(f)]
+    if len(converters) == len(callables):
+        for f in callables:
+            value = f(value)
+        return value
+
+    # In the scheduler, we don't have access to the actual callables, nor do
+    # we want to run it since it's arbitrary code. This builds a string to
+    # represent the call chain in the UI or logs instead.
+    for v in converters:
+        value = f"{_get_converter_name(v)}({value})"
+    return value
+
+
 class _MapResult(Sequence):
-    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
+    def __init__(self, value: Sequence | dict, callables: Sequence[Converter]) -> None:
         self.value = value
         self.callables = callables
 
     def __getitem__(self, index: Any) -> Any:
-        value = self.value[index]
-
-        # In the worker, we can access all actual callables. Call them.
-        callables = [f for f in self.callables if callable(f)]
-        if len(callables) == len(self.callables):
-            for f in callables:
-                value = f(value)
-            return value
-
-        # In the scheduler, we don't have access to the actual callables, nor do
-        # we want to run it since it's arbitrary code. This builds a string to
-        # represent the call chain in the UI or logs instead.
-        for v in self.callables:
-            value = f"{_get_callable_name(v)}({value})"
-        return value
+        return _apply_converters(self.value[index], self.callables)
 
     def __len__(self) -> int:
         return len(self.value)
@@ -391,7 +396,7 @@ class MapXComArg(XComArg):
     :meta private:
     """
 
-    def __init__(self, arg: XComArg, callables: MapCallables) -> None:
+    def __init__(self, arg: XComArg, callables: Sequence[Converter]) -> None:
         for c in callables:
             if getattr(c, "_airflow_is_task_decorator", False):
                 raise ValueError("map() argument must be a plain function, not a @task operator")
@@ -399,7 +404,7 @@ class MapXComArg(XComArg):
         self.callables = callables
 
     def __repr__(self) -> str:
-        map_calls = "".join(f".map({_get_callable_name(f)})" for f in self.callables)
+        map_calls = "".join(f".map({_get_converter_name(f)})" for f in self.callables)
         return f"{self.arg!r}{map_calls}"
 
     def _serialize(self) -> dict[str, Any]:
@@ -513,8 +518,59 @@ class ZipXComArg(XComArg):
         return _ZipResult(values, fillvalue=self.fillvalue)
 
 
+class NotExpandable(RuntimeError):
+    """Raise if an XCom reference does not support task expansion at runtime."""
+
+
+class ConvertXComArg(XComArg):
+    """An XCom reference that will be converted after resolution.
+
+    This is constructed by calling ``convert()`` on an existing XComArg. The
+    conversion function will be called when the reference is resolved to return
+    the converted value.
+    """
+
+    def __init__(self, arg: XComArg, callables: Sequence[Converter]) -> None:
+        for c in callables:
+            if getattr(c, "_airflow_is_task_decorator", False):
+                raise ValueError("map() argument must be a plain function, not a @task operator")
+        self.arg = arg
+        self.callables = callables
+
+    def __repr__(self) -> str:
+        convert_calls = "".join(f".convert({_get_converter_name(f)})" for f in self.callables)
+        return f"{self.arg!r}{convert_calls}"
+
+    def _serialize(self) -> dict[str, Any]:
+        return {
+            "arg": serialize_xcom_arg(self.arg),
+            "callables": [inspect.getsource(c) if callable(c) else c for c in self.callables],
+        }
+
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
+        # We are deliberately NOT deserializing the callables. These are shown
+        # in the UI, and displaying a function object is useless.
+        return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield from self.arg.iter_references()
+
+    def convert(self, f: Callable[[Any], Any]) -> ConvertXComArg:
+        # Flatten arg.convert(f1).convert(f2) into one ConvertXComArg.
+        return ConvertXComArg(self.arg, [*self.callables, f])
+
+    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        raise NotExpandable("XCom values with convert() applied cannot be used for task mapping")
+
+    @provide_session
+    def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+        return _apply_converters(self.arg.resolve(context, session=session), self.callables)
+
+
 _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
     "": PlainXComArg,
+    "convert": ConvertXComArg,
     "map": MapXComArg,
     "zip": ZipXComArg,
 }
