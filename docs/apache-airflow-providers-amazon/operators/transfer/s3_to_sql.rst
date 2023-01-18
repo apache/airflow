@@ -15,13 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
-============================
+================
 Amazon S3 to SQL
-============================
+================
 
-Use the ``S3ToSqlOperator`` transfer to copy data from an Amazon Simple Storage Service (S3) file into an existing
-SQL table.
-Only CSV Format is supported.
+Use the ``S3ToSqlOperator`` transfer to copy data from an Amazon Simple Storage Service (S3)
+file into an existing SQL table. By providing a parser function which is applied to the
+downloaded file, this operator can accept a variety of file formats.
 
 
 Prerequisite Tasks
@@ -35,38 +35,28 @@ Operators
 .. _howto/operator:S3ToSqlOperator:
 
 Amazon S3 To SQL Transfer Operator
-==============================================
+==================================
 
 To get more information about this operator visit:
 :class:`~airflow.providers.amazon.aws.transfers.s3_to_sql.S3ToSqlOperator`
 
-Example usage:
+Example usage with a parser for a csv file. This parser loads the
+file into memory and returns a list of rows:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_sql.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3_to_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_s3_to_sql]
     :end-before: [END howto_transfer_s3_to_sql]
 
 
+Example usage with a parser function that returns a generator.
 
-
-You can also pass **column_list='inferred** if you want the operator to read the column names from the first row of the CSV File:
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_sql.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3_to_sql.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_transfer_s3_to_sql_inferred_column_names]
-    :end-before: [END howto_transfer_s3_to_sql_inferred_column_names]
-
-The dict passed in **csv_reader_kwargs** will be used by the csv.reader to interpret the CSV format.
-To see a list of allowed parameters, check out this: `CSV reader documentation <https://docs.python.org/3/library/csv.html#csv.reader>`__
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_sql.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_transfer_s3_to_sql_csv_reader_kwargs]
-    :end-before: [END howto_transfer_s3_to_sql_csv_reader_kwargs]
+    :start-after: [START howto_transfer_s3_to_sql_generator]
+    :end-before: [END howto_transfer_s3_to_sql_generator]
 
 
 Reference

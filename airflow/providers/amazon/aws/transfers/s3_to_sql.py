@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from typing import TYPE_CHECKING, Any, Sequence
+from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -28,29 +28,12 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from typing_extensions import Literal
-
-try:
-    import csv as csv
-except ImportError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-    raise AirflowOptionalProviderFeatureException from e
-
 
 class S3ToSqlOperator(BaseOperator):
     """
         Loads Data from S3 into a SQL Database.
-        Data should be readable as CSV.
-
-        This operator downloads a file from an S3, reads it via `csv.reader`
-        and inserts the data into a SQL database using `insert_rows` method.
-        All SQL hooks are supported, as long as it is of type DbApiHook
-
-        Extra arguments can be passed to it by using csv_reader_kwargs parameter.
-        (e.g. Use different quoting or delimiters)
-        Here you will find a list of all kwargs
-        https://docs.python.org/3/library/csv.html#csv.reader
+        You need to provide a parser function that takes a filename as an input
+        and returns a iterable of rows
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -62,16 +45,19 @@ class S3ToSqlOperator(BaseOperator):
     :param s3_key: reference to a specific S3 key
     :param sql_conn_id: reference to a specific SQL database. Must be of type DBApiHook
     :param aws_conn_id: reference to a specific S3 / AWS connection
-    :param column_list: list of column names.
-        Set to `infer` if column names should be read from first line of CSV file (default)
-    :param skip_first_line: If first line of CSV file should be skipped.
-        If `column_list` is set to 'infer', this is ignored
+    :param column_list: list of column names to use in the insert SQL.
     :param commit_every: The maximum number of rows to insert in one
         transaction. Set to `0` to insert all rows in one transaction.
-    :param csv_reader_kwargs: key word arguments to pass to csv.reader().
-        This lets you control how the CSV is read.
-        e.g. To use a different delimiter, pass the following dict:
-        {'delimiter' : ';'}
+    :param parser: parser function that takes a filepath as input and returns an iterable.
+        e.g. to use a CSV parser that yields rows line-by-line, pass the following
+        function:
+
+        def parse_csv(filepath):
+            import csv
+
+            with open(filepath, newline="") as file:
+                yield from csv.reader(file)
+
     """
 
     template_fields: Sequence[str] = (
@@ -91,13 +77,12 @@ class S3ToSqlOperator(BaseOperator):
         s3_key: str,
         s3_bucket: str,
         table: str,
-        column_list: Literal["infer"] | list[str] | None = "infer",
+        parser: Callable[[str], Iterable[Iterable]],
+        column_list: list[str] | None = None,
         commit_every: int = 1000,
         schema: str | None = None,
-        skip_first_row: bool = False,
         sql_conn_id: str = "sql_default",
         aws_conn_id: str = "aws_default",
-        csv_reader_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -109,43 +94,27 @@ class S3ToSqlOperator(BaseOperator):
         self.sql_conn_id = sql_conn_id
         self.column_list = column_list
         self.commit_every = commit_every
-        self.skip_first_row = skip_first_row
-        if csv_reader_kwargs:
-            self.csv_reader_kwargs = csv_reader_kwargs
-        else:
-            self.csv_reader_kwargs = {}
+        self.parser = parser
 
     def execute(self, context: Context) -> None:
 
         self.log.info("Loading %s to SQL table %s...", self.s3_key, self.table)
 
+        db_hook = self._get_hook()
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
-        self._file = s3_hook.download_file(key=self.s3_key, bucket_name=self.s3_bucket)
+        s3_obj = s3_hook.get_key(key=self.s3_key, bucket_name=self.s3_bucket)
 
-        hook = self._get_hook()
-        try:
-            # open with newline='' as recommended
-            # https://docs.python.org/3/library/csv.html#csv.reader
-            with open(self._file, newline="") as file:
-                reader = csv.reader(file, **self.csv_reader_kwargs)
+        with NamedTemporaryFile() as local_tempfile:
 
-                if self.column_list == "infer":
-                    self.column_list = list(next(reader))
-                    self.log.info("Column Names inferred from csv: %s", self.column_list)
-                elif self.skip_first_row:
-                    next(reader)
+            s3_obj.download_fileobj(local_tempfile)
 
-                hook.insert_rows(
-                    table=self.table,
-                    schema=self.schema,
-                    target_fields=self.column_list,
-                    rows=reader,
-                    commit_every=self.commit_every,
-                )
-
-        finally:
-            # Remove file downloaded from s3 to be idempotent.
-            os.remove(self._file)
+            db_hook.insert_rows(
+                table=self.table,
+                schema=self.schema,
+                target_fields=self.column_list,
+                rows=self.parser(local_tempfile.name),
+                commit_every=self.commit_every,
+            )
 
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
