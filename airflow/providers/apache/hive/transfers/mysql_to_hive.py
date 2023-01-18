@@ -149,7 +149,7 @@ class MySqlToHiveOperator(BaseOperator):
             csv_writer.writerows(cursor)
             f.flush()
             cursor.close()
-            conn.close()
+            conn.close()  # type: ignore[misc]
             self.log.info("Loading file into Hive")
             hive.load_file(
                 f.name,
