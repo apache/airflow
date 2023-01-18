@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-16T20:47:17Z
+# This constraints file was automatically generated on 2023-01-18T12:12:21Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -21,7 +21,7 @@ Flask-JWT-Extended==4.4.4
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.4.0
-Flask-WTF==1.1.0
+Flask-WTF==1.1.1
 Flask==2.2.2
 GitPython==3.1.30
 HeapDict==1.0.1
@@ -30,7 +30,7 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.2
 Mako==1.2.4
 Markdown==3.4.1
-MarkupSafe==2.1.1
+MarkupSafe==2.1.2
 PyGithub==1.57
 PyHive==0.6.5
 PyJWT==2.6.0
@@ -106,9 +106,9 @@ bitarray==2.6.2
 black==23.1a1
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.50
+boto3==1.26.51
 boto==2.49.0
-botocore==1.29.50
+botocore==1.29.51
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -118,7 +118,7 @@ celery==5.2.7
 certifi==2022.12.7
 cffi==1.15.1
 cfgv==3.3.1
-cfn-lint==0.72.8
+cfn-lint==0.72.9
 cgroupspy==0.2.2
 chardet==4.0.0
 charset-normalizer==2.1.1
@@ -151,7 +151,7 @@ defusedxml==0.7.1
 dill==0.3.1.1
 distlib==0.3.6
 distributed==2023.1.0
-dnspython==2.2.1
+dnspython==2.3.0
 docker==6.0.1
 docopt==0.6.2
 docutils==0.16
@@ -162,11 +162,11 @@ elasticsearch==7.13.4
 email-validator==1.3.0
 entrypoints==0.4
 eralchemy2==1.3.6
-eventlet==0.33.2
+eventlet==0.33.3
 exceptiongroup==1.1.0
 execnet==1.9.0
 executing==1.2.0
-facebook-business==15.0.1
+facebook-business==15.0.2
 fastavro==1.7.0
 fasteners==0.18
 fastjsonschema==2.16.2
@@ -317,7 +317,7 @@ mypy-boto3-rds==1.26.47
 mypy-boto3-redshift-data==1.26.30
 mypy-extensions==0.4.3
 mypy==0.971
-mysql-connector-python==8.0.31
+mysql-connector-python==8.0.32
 mysqlclient==2.1.1
 nbclient==0.7.2
 nbformat==5.7.3
@@ -443,7 +443,7 @@ rfc3986==1.5.0
 rich-click==1.6.0
 rich==13.1.0
 rsa==4.9
-ruff==0.0.223
+ruff==0.0.225
 s3transfer==0.6.0
 sarif-om==1.0.4
 sasl==0.3.1
@@ -467,7 +467,7 @@ sortedcontainers==2.4.0
 soupsieve==2.3.2.post1
 sphinx-airflow-theme==0.0.11
 sphinx-argparse==0.4.0
-sphinx-autoapi==2.0.0
+sphinx-autoapi==2.0.1
 sphinx-copybutton==0.5.1
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==1.1.1
@@ -510,21 +510,22 @@ traitlets==5.8.1
 trino==0.321.0
 twine==4.0.2
 types-Deprecated==1.2.9
-types-Markdown==3.4.2.1
-types-PyMySQL==1.0.19.1
-types-PyYAML==6.0.12.2
-types-boto==2.49.18.4
+types-Markdown==3.4.2.2
+types-PyMySQL==1.0.19.2
+types-PyYAML==6.0.12.3
+types-boto==2.49.18.5
 types-certifi==2021.10.8.3
 types-croniter==1.3.2.1
-types-docutils==0.19.1.1
-types-paramiko==2.12.0.2
-types-protobuf==4.21.0.2
-types-python-dateutil==2.8.19.5
+types-docutils==0.19.1.2
+types-paramiko==2.12.0.3
+types-protobuf==4.21.0.3
+types-pyOpenSSL==23.0.0.1
+types-python-dateutil==2.8.19.6
 types-python-slugify==7.0.0.1
 types-pytz==2022.7.1.0
-types-redis==4.4.0.0
-types-requests==2.28.11.7
-types-setuptools==65.7.0.1
+types-redis==4.4.0.2
+types-requests==2.28.11.8
+types-setuptools==65.7.0.2
 types-tabulate==0.9.0.0
 types-termcolor==1.1.6
 types-toml==0.10.8.1
