@@ -71,7 +71,7 @@ def decode(d: dict[str, str | int | T]) -> tuple:
 
 
 def serialize(o: object, depth: int = 0) -> U | None:
-    """Serialize an object into a represatation consisting only built-in types.
+    """Serialize an object into a representation consisting only built-in types.
 
     Primitives (int, float, bool, str) are returned as-is. Built-in collections
     are iterated over, where it is assumed that keys in a dict can be represented
