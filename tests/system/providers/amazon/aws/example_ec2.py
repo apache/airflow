@@ -74,6 +74,9 @@ def create_instance(instance_name: str, key_pair_id: str):
         InstanceType="t2.micro",
         KeyName=key_pair_id,
         TagSpecifications=[{"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": instance_name}]}],
+        # Use IMDSv2 for greater security, see the following doc for more details:
+        # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+        MetadataOptions={"HttpEndpoint": "enabled", "HttpTokens": "required"},
     )["Instances"][0]["InstanceId"]
 
     # Wait for it to exist
