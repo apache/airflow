@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import html.parser
 import re
 import warnings
 from datetime import timedelta
@@ -75,6 +76,18 @@ def sync_appbuilder_roles(flask_app):
         flask_app.appbuilder.sm.sync_roles()
 
 
+def strip_tags(input_html: str) -> str:
+    """Strips tags from HTML"""
+    parts: list[str] = []
+
+    class TagStripParser(html.parser.HTMLParser):
+        def handle_data(self, d: str) -> None:
+            parts.append(d)
+
+    TagStripParser().feed(input_html)
+    return "".join(parts)
+
+
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app"""
     flask_app = Flask(__name__)
@@ -90,7 +103,7 @@ def create_app(config=None, testing=False):
         section="webserver", key="instance_name_has_markup", fallback=False
     )
     if instance_name_has_markup:
-        instance_name = re.sub(r"<[^<]+?>", "", instance_name)
+        instance_name = strip_tags(instance_name)
 
     flask_app.config["APP_NAME"] = instance_name
 
