@@ -18,9 +18,8 @@
 from __future__ import annotations
 
 import sys
-import unittest
-from copy import deepcopy
 from asyncio import Future
+from copy import deepcopy
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
