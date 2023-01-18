@@ -21,11 +21,13 @@ import inspect
 import os
 import pickle
 import uuid
+from shlex import quote
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Sequence
 
 import dill
+from kubernetes.client import models as k8s
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
@@ -37,15 +39,14 @@ from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-_FILENAME_IN_CONTAINER = "/tmp/script.py"
-_INPUT_FILENAME_IN_CONTAINER = "/tmp/script.in"
-_OUTPUT_FILENAME_IN_CONTAINER = "/airflow/xcom/return.json"
+_PYTHON_SCRIPT_ENV = "__PYTHON_SCRIPT"
+_PYTHON_INPUT_ENV = "__PYTHON_INPUT"
 
 
-def _generate_decoded_command(val: str, file: str) -> str:
+def _generate_decoded_command(env_var: str, file: str) -> str:
     return (
-        f'python -c "import base64;'
-        rf"x = base64.b64decode(\"{val}\");"
+        f'python -c "import base64, os;'
+        rf"x = base64.b64decode(os.environ[\"{env_var}\"]);"
         rf'f = open(\"{file}\", \"wb\"); f.write(x); f.close()"'
     )
 
@@ -82,17 +83,29 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         res = remove_task_decorator(res, "@task.kubernetes")
         return res
 
-    def _generate_cmds(self, encoded_script_contents: str, encoded_input_contents: str) -> list[str]:
+    def _generate_cmds(self) -> list[str]:
+        script_filename = "/tmp/script.py"
+        input_filename = "/tmp/script.in"
+        output_filename = "/airflow/xcom/return.json"
+
+        write_local_script_file_cmd = (
+            f"{_generate_decoded_command(quote(_PYTHON_SCRIPT_ENV), quote(script_filename))}"
+        )
+        write_local_input_file_cmd = (
+            f"{_generate_decoded_command(quote(_PYTHON_INPUT_ENV), quote(input_filename))}"
+        )
+        make_xcom_dir_cmd = "mkdir -p /airflow/xcom"
+        exec_python_cmd = f"python {script_filename} {input_filename} {output_filename}"
         return [
             "bash",
             "-cx",
-            (
-                f"{_generate_decoded_command('%s', '%s')} && "
-                % (encoded_script_contents, _FILENAME_IN_CONTAINER)
-                + f"{_generate_decoded_command('%s', '%s')} && "
-                % (encoded_input_contents, _INPUT_FILENAME_IN_CONTAINER)
-                + "mkdir -p /airflow/xcom && python "
-                + f"{_FILENAME_IN_CONTAINER} {_INPUT_FILENAME_IN_CONTAINER} {_OUTPUT_FILENAME_IN_CONTAINER}"
+            " && ".join(
+                [
+                    write_local_script_file_cmd,
+                    write_local_input_file_cmd,
+                    make_xcom_dir_cmd,
+                    exec_python_cmd,
+                ]
             ),
         ]
 
@@ -116,9 +129,13 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             }
             write_python_script(jinja_context=jinja_context, filename=script_filename)
 
-            self.cmds = self._generate_cmds(
-                _read_file_contents(script_filename), _read_file_contents(input_filename)
-            )
+            self.env_vars = [
+                *self.env_vars,
+                k8s.V1EnvVar(name=_PYTHON_SCRIPT_ENV, value=_read_file_contents(script_filename)),
+                k8s.V1EnvVar(name=_PYTHON_INPUT_ENV, value=_read_file_contents(input_filename)),
+            ]
+
+            self.cmds = self._generate_cmds()
             return super().execute(context)
 
 
