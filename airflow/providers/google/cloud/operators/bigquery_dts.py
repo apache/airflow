@@ -31,6 +31,7 @@ from google.cloud.bigquery_datatransfer_v1 import (
 )
 
 from airflow import AirflowException
+from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
@@ -266,7 +267,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         self,
         *,
         transfer_config_id: str,
-        project_id,
+        project_id: str | None = None,
         location: str | None = None,
         requested_time_range: dict | None = None,
         requested_run_time: dict | None = None,
@@ -291,11 +292,18 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
 
-        self._hook: BiqQueryDataTransferServiceHook | None = None
+    @cached_property
+    def hook(self) -> BiqQueryDataTransferServiceHook:
+        hook = BiqQueryDataTransferServiceHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            location=self.location,
+        )
+        return hook
 
     def execute(self, context: Context):
         self.log.info("Submitting manual transfer for %s", self.transfer_config_id)
-        response = self._get_hook().start_manual_transfer_runs(
+        response = self.hook.start_manual_transfer_runs(
             transfer_config_id=self.transfer_config_id,
             requested_time_range=self.requested_time_range,
             requested_run_time=self.requested_run_time,
@@ -338,21 +346,12 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
             method_name="execute_completed",
         )
 
-    def _get_hook(self) -> BiqQueryDataTransferServiceHook:
-        if self._hook is None:
-            self._hook = BiqQueryDataTransferServiceHook(
-                gcp_conn_id=self.gcp_conn_id,
-                impersonation_chain=self.impersonation_chain,
-                location=self.location,
-            )
-        return self._hook
-
     def _wait_for_transfer_to_be_done(self, run_id: str, transfer_config_id: str, interval: int = 10):
         if interval < 0:
             raise ValueError("Interval must be > 0")
 
         while True:
-            transfer_run: TransferRun = self._get_hook().get_transfer_run(
+            transfer_run: TransferRun = self.hook.get_transfer_run(
                 run_id=run_id,
                 transfer_config_id=transfer_config_id,
                 project_id=self.project_id,
@@ -389,7 +388,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
             self.log.error("Trigger finished its work with status: %s.", event["status"])
             raise AirflowException(event["message"])
 
-        transfer_run: TransferRun = self._get_hook().get_transfer_run(
+        transfer_run: TransferRun = self.hook.get_transfer_run(
             project_id=self.project_id,
             run_id=event["run_id"],
             transfer_config_id=event["config_id"],

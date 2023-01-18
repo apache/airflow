@@ -295,11 +295,15 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
             self._conn = DataTransferServiceAsyncClient(credentials=credentials, client_info=CLIENT_INFO)
         return self._conn
 
+    async def _get_project_id(self) -> str:
+        sync_hook = await self.get_sync_hook()
+        return sync_hook.project_id
+
     async def get_transfer_run(
         self,
-        project_id: str,
         config_id: str,
         run_id: str,
+        project_id: str | None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -320,6 +324,7 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
         :param metadata: Additional metadata that is provided to the method.
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
         """
+        project_id = project_id or (await self._get_project_id())
         client = await self._get_conn()
         name = f"projects/{project_id}/transferConfigs/{config_id}/runs/{run_id}"
         transfer_run = await client.get_transfer_run(

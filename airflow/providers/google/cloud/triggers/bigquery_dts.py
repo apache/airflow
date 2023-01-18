@@ -49,7 +49,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
 
     def __init__(
         self,
-        project_id: str,
+        project_id: str | None,
         config_id: str,
         run_id: str,
         poll_interval: int = 10,
