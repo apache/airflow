@@ -52,7 +52,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     @cached_property
     def wrap_for_triggerer(self):
         """
-        Signals to triggerer_job that this handler supports individual triggerer logging.
+        Tells triggerer_job that this handler supports individual triggerer logging.
 
         Overriding this property is necessary when a handler does not implement _read_remote_logs.
         Handlers which stream to the log sink, such as Cloudwatch and ElasticSearch, do not need
