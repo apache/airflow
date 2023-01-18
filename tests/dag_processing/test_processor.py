@@ -304,7 +304,9 @@ class TestDagFileProcessor:
         """
         session = settings.Session()
 
-        sla_callback = MagicMock(side_effect=RuntimeError("Could not call function"))
+        sla_callback = MagicMock(
+            __name__="function_name", side_effect=RuntimeError("Could not call function")
+        )
 
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
 
@@ -331,12 +333,12 @@ class TestDagFileProcessor:
             assert sla_callback.called
             mock_log.exception.assert_called_once_with(
                 "Could not call sla_miss_callback(%s) for DAG %s",
-                sla_callback.func_name,  # type: ignore[attr-defined]
+                sla_callback.__name__,
                 f"test_sla_miss_{i}",
             )
             mock_stats_incr.assert_called_once_with(
                 "sla_callback_notification_failure",
-                tags={"dag_id": f"test_sla_miss_{i}", "func_name": sla_callback.func_name},
+                tags={"dag_id": f"test_sla_miss_{i}", "func_name": sla_callback.__name__},
             )
 
     @mock.patch("airflow.dag_processing.processor.send_email")
