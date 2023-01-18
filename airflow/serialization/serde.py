@@ -208,7 +208,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
         classname, version, value = decode(o)
         if not _match(classname) and classname not in _extra_allowed:
             raise ImportError(
-                f"{classname} was not found in allow list for deserialization imports."
+                f"{classname} was not found in allow list for deserialization imports. "
                 f"To allow it, add it to allowed_deserialization_classes in the configuration"
             )
 
