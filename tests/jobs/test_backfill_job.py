@@ -160,7 +160,7 @@ class TestBackfillJob:
         target_dag.sync_to_db()
 
         target_dag_run = session.query(DagRun).filter(DagRun.dag_id == target_dag.dag_id).one_or_none()
-        assert not target_dag_run
+        assert target_dag_run is None
 
         job = BackfillJob(
             dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_first_depends_on_past=True
@@ -168,7 +168,7 @@ class TestBackfillJob:
         job.run()
 
         dag_run = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one_or_none()
-        assert dag_run
+        assert dag_run is not None
 
         task_instances_list = job._task_instances_for_dag_run(dag=dag, dag_run=dag_run)
 
