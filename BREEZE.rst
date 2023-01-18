@@ -491,6 +491,13 @@ Those are all available flags of ``static-checks`` command:
     get broken, in which case you should run ``breeze stop`` to clean up the cache.
 
 
+.. note::
+
+    You cannot change Python version for static checks that are run within Breeze containers.
+    The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
+    The main reason is to keep consistency in the results of static checks and to make sure that
+    our code is fine when running the lowest supported version.
+
 Starting Airflow
 ----------------
 
