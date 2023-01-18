@@ -73,7 +73,7 @@ def branch_task(
     Wraps a python function into a BranchPythonOperator.
 
     For more information on how to use this operator, take a look at the guide:
-    :ref:`howto/operator:BranchPythonOperator`
+    :ref:`concepts:branching`
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 

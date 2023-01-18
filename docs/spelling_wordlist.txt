@@ -754,6 +754,7 @@ IRSA
 isfile
 ish
 isn
+isort
 iterable
 iterables
 iteratively
@@ -856,8 +857,11 @@ LineItem
 lineterminator
 linter
 linux
+ListColumnSpecsPager
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
+ListTableSpecsPager
 Liveness
 liveness
 livy
@@ -1265,6 +1269,7 @@ schedulable
 schedulername
 schemas
 sdk
+sdks
 searchpath
 SearchResultGenerator
 SecretManagerClient
@@ -1358,6 +1363,7 @@ ssm
 Stackdriver
 stackdriver
 stacktrace
+StartManualTransferRunsResponse
 starttls
 StatefulSet
 StatefulSets
@@ -1424,6 +1430,7 @@ symlink
 symlinking
 symlinks
 sync'ed
+SynthesizeSpeechResponse
 sys
 syspath
 Systemd
@@ -1495,6 +1502,8 @@ tooltip
 tooltips
 traceback
 tracebacks
+TransferConfig
+TransferRun
 travis
 triage
 triaging
