@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.sensors.base import BaseSensorOperator
@@ -48,15 +49,13 @@ class GlueCrawlerSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_statuses = "SUCCEEDED"
         self.errored_statuses = ("FAILED", "CANCELLED")
-        self.hook: GlueCrawlerHook | None = None
 
     def poke(self, context: Context):
-        hook = self.get_hook()
         self.log.info("Poking for AWS Glue crawler: %s", self.crawler_name)
-        crawler_state = hook.get_crawler(self.crawler_name)["State"]
+        crawler_state = self.hook.get_crawler(self.crawler_name)["State"]
         if crawler_state == "READY":
             self.log.info("State: %s", crawler_state)
-            crawler_status = hook.get_crawler(self.crawler_name)["LastCrawl"]["Status"]
+            crawler_status = self.hook.get_crawler(self.crawler_name)["LastCrawl"]["Status"]
             if crawler_status == self.success_statuses:
                 self.log.info("Status: %s", crawler_status)
                 return True
@@ -65,10 +64,7 @@ class GlueCrawlerSensor(BaseSensorOperator):
         else:
             return False
 
-    def get_hook(self) -> GlueCrawlerHook:
+    @cached_property
+    def hook(self) -> GlueCrawlerHook:
         """Returns a new or pre-existing GlueCrawlerHook"""
-        if self.hook:
-            return self.hook
-
-        self.hook = GlueCrawlerHook(aws_conn_id=self.aws_conn_id)
-        return self.hook
+        return GlueCrawlerHook(aws_conn_id=self.aws_conn_id)

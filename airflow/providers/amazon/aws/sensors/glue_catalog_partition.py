@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -71,7 +72,6 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
-        self.hook: GlueCatalogHook | None = None
 
     def poke(self, context: Context):
         """Checks for existence of the partition in the AWS Glue Catalog table"""
@@ -81,12 +81,9 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
             "Poking for table %s. %s, expression %s", self.database_name, self.table_name, self.expression
         )
 
-        return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)
+        return self.hook.check_for_partition(self.database_name, self.table_name, self.expression)
 
-    def get_hook(self) -> GlueCatalogHook:
+    @cached_property
+    def hook(self) -> GlueCatalogHook:
         """Gets the GlueCatalogHook"""
-        if self.hook:
-            return self.hook
-
-        self.hook = GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
-        return self.hook
+        return GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

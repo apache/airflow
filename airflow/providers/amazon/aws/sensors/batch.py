@@ -57,10 +57,9 @@ class BatchSensor(BaseSensorOperator):
         self.job_id = job_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook: BatchClientHook | None = None
 
     def poke(self, context: Context) -> bool:
-        job_description = self.get_hook().get_job_description(self.job_id)
+        job_description = self.hook.get_job_description(self.job_id)
         state = job_description["status"]
 
         if state == BatchClientHook.SUCCESS_STATE:
@@ -74,16 +73,13 @@ class BatchSensor(BaseSensorOperator):
 
         raise AirflowException(f"Batch sensor failed. Unknown AWS Batch job status: {state}")
 
-    def get_hook(self) -> BatchClientHook:
+    @cached_property
+    def hook(self) -> BatchClientHook:
         """Create and return a BatchClientHook"""
-        if self.hook:
-            return self.hook
-
-        self.hook = BatchClientHook(
+        return BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
         )
-        return self.hook
 
 
 class BatchComputeEnvironmentSensor(BaseSensorOperator):

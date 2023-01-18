@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Collection, Sequence
 from jsonpath_ng import parse
 from typing_extensions import Literal
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
@@ -111,8 +112,6 @@ class SqsSensor(BaseSensorOperator):
 
         self.message_filtering_config = message_filtering_config
 
-        self.hook: SqsHook | None = None
-
     def poll_sqs(self, sqs_conn: BaseAwsConnection) -> Collection:
         """
         Poll SQS queue to retrieve messages.
@@ -152,7 +151,7 @@ class SqsSensor(BaseSensorOperator):
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
-        sqs_conn = self.get_hook().get_conn()
+        sqs_conn = self.hook.get_conn()
 
         message_batch: list[Any] = []
 
@@ -185,13 +184,10 @@ class SqsSensor(BaseSensorOperator):
         context["ti"].xcom_push(key="messages", value=message_batch)
         return True
 
-    def get_hook(self) -> SqsHook:
+    @cached_property
+    def hook(self) -> SqsHook:
         """Create and return an SqsHook"""
-        if self.hook:
-            return self.hook
-
-        self.hook = SqsHook(aws_conn_id=self.aws_conn_id)
-        return self.hook
+        return SqsHook(aws_conn_id=self.aws_conn_id)
 
     def filter_messages(self, messages):
         if self.message_filtering == "literal":
