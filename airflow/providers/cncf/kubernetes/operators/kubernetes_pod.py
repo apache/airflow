@@ -207,7 +207,7 @@ class KubernetesPodOperator(BaseOperator):
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
     :param skip_exit_code: If task exits with this exit code, leave the task
-        in ``skipped`` state (default: 99). If set to ``None``, any non-zero
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     """
 
@@ -275,7 +275,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
-        skip_exit_code: int = 99,
+        skip_exit_code: int | None = None,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -534,11 +534,6 @@ class KubernetesPodOperator(BaseOperator):
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
-        exit_code = (
-            remote_pod.status.container_statuses[0].last_state.terminated.exit_code
-            if hasattr(remote_pod, "status")
-            else None
-        )
         if pod_phase != PodPhase.SUCCEEDED or not self.is_delete_operator_pod:
             self.patch_already_checked(remote_pod, reraise=False)
         if pod_phase != PodPhase.SUCCEEDED:
@@ -546,10 +541,16 @@ class KubernetesPodOperator(BaseOperator):
                 self._read_pod_log_events(pod, reraise=False)
             self.process_pod_deletion(remote_pod, reraise=False)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
-            if self.skip_exit_code is not None and exit_code == self.skip_exit_code:
-                raise AirflowSkipException(
-                    f"Pod {pod and pod.metadata.name} returned exit code {self.skip_exit_code}. Skipping."
+            if self.skip_exit_code is not None:
+                exit_code = (
+                    remote_pod.status.container_statuses[0].last_state.terminated.exit_code
+                    if hasattr(remote_pod, "status")
+                    else None
                 )
+                if exit_code == self.skip_exit_code:
+                    raise AirflowSkipException(
+                        f"Pod {pod and pod.metadata.name} returned exit code {self.skip_exit_code}. Skipping."
+                    )
             raise AirflowException(
                 f"Pod {pod and pod.metadata.name} returned a failure:\n{error_message}\n"
                 f"remote_pod: {remote_pod}"
