@@ -34,7 +34,6 @@ from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
-from airflow.utils.log.secrets_masker import ConvertableToDict
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -890,8 +889,6 @@ def test_render_template_hide_sensitive_values_on_exception(caplog, monkeypatch)
 
         def __repr__(self):
             return f"EnvVar(name={repr(self.name)}, value={repr(self.value)})"
-
-    ConvertableToDict.register(EnvVar)
 
     class MockOperatorWithNestedFields(MockOperator):
         def __init__(self, **kwargs):

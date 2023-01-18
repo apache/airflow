@@ -21,17 +21,29 @@ import collections
 import logging
 import re
 import sys
-from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Iterable, List, TextIO, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Protocol,
+    TextIO,
+    Tuple,
+    TypeVar,
+    Union,
+    runtime_checkable,
+)
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
 
 
-class ConvertableToDict(ABC):
-    """Abstract Base Class for classes implementing to_dict."""
+@runtime_checkable
+class ConvertableToDict(Protocol):
+    """Protocol for classes implementing to_dict."""
 
-    @abstractmethod
     def to_dict(self) -> dict:
         """Convert to a dict"""
 
