@@ -113,14 +113,13 @@ class WasbHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ["schema", "port"],
+            "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
                 "login": "Blob Storage Login (optional)",
                 "password": "Blob Storage Key (optional)",
                 "host": "Account Name (Active Directory Auth)",
             },
             "placeholders": {
-                "extra": "additional options for use with FileService and AzureFileVolume",
                 "login": "account name",
                 "password": "secret",
                 "host": "account url",

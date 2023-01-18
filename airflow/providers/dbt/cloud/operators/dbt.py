@@ -50,6 +50,7 @@ class DbtCloudRunJobOperator(BaseOperator):
     :param job_id: The ID of a dbt Cloud job.
     :param account_id: Optional. The ID of a dbt Cloud account.
     :param trigger_reason: Optional. Description of the reason to trigger the job.
+        Defaults to "Triggered via Apache Airflow by task <task_id> in the <dag_id> DAG."
     :param steps_override: Optional. List of dbt commands to execute when triggering the job instead of those
         configured in dbt Cloud.
     :param schema_override: Optional. Override the destination schema in the configured target for this job.

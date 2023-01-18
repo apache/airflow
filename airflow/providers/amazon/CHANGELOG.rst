@@ -24,8 +24,40 @@
 Changelog
 ---------
 
+7.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ''configuration_overrides'' to templated fields (#28920)``
+* ``Add a new SSM hook and use it in the System Test context builder (#28755)``
+* ``Add waiter config params to emr.add_job_flow_steps (#28464)``
+* ``Add AWS Sagemaker Auto ML operator and sensor (#28472)``
+* ``new operator to create a sagemaker experiment (#28837)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid circular import from S3HookUriParseFailure (#28908)``
+* ``Use compat for cached_property in AWS Batch modules (#28835)``
+* ``Apply "unify bucket and key" before "provide bucket" (#28710)``
+
+Misc
+~~~~
+
+* ``Update S3ToRedshiftOperator docs to inform users about multiple key functionality (#28705)``
+* ``Refactor waiter function and improve unit tests (#28753)``
+* ``Better exception raised in case of numpy missing (#28722)``
+* ``Don't call get_connection from provide_bucket_name (#28716)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
+
 7.0.0
------
+.....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -77,9 +109,6 @@ Misc
 * ``add description of breaking changes (#28582)``
 * ``[misc] Get rid of 'pass' statement in conditions (#27775)``
 * ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
 
 6.2.0
 .....
