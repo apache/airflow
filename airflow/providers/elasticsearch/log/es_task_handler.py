@@ -200,7 +200,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         :param ti: task instance object
         :param try_number: try_number of the task instance
-        :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
