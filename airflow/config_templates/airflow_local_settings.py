@@ -26,10 +26,6 @@ from urllib.parse import urlsplit
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
-# TODO: Logging format and level should be configured
-# in this file instead of from airflow.cfg. Currently
-# there are other log format and level configurations in
-# settings.py and cli.py. Please see AIRFLOW-1455.
 LOG_LEVEL: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
 
 
