@@ -731,7 +731,12 @@ class LazyXComAccess(collections.abc.Sequence):
         # do the same for count(), but I think it should be performant enough to
         # calculate only that eagerly.
         with self._get_bound_query() as query:
-            statement = query.statement.compile(query.session.get_bind())
+            statement = query.statement.compile(
+                query.session.get_bind(),
+                # This inlines all the values into the SQL string to simplify
+                # cross-process commuinication as much as possible.
+                compile_kwargs={"literal_binds": True},
+            )
             return (str(statement), query.count())
 
     def __setstate__(self, state: Any) -> None:
