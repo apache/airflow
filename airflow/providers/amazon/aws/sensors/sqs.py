@@ -152,13 +152,11 @@ class SqsSensor(BaseSensorOperator):
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
-        sqs_conn = self.hook.get_conn()
-
         message_batch: list[Any] = []
 
         # perform multiple SQS call to retrieve messages in series
         for _ in range(self.num_batches):
-            messages = self.poll_sqs(sqs_conn=sqs_conn)
+            messages = self.poll_sqs(sqs_conn=self.hook.conn)
 
             if not len(messages):
                 continue
@@ -173,7 +171,7 @@ class SqsSensor(BaseSensorOperator):
                     {"Id": message["MessageId"], "ReceiptHandle": message["ReceiptHandle"]}
                     for message in messages
                 ]
-                response = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
+                response = self.hook.conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
                 if "Successful" not in response:
                     raise AirflowException(
