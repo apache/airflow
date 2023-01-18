@@ -19,8 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
-from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
@@ -32,7 +30,7 @@ from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder, ENV_ID_KEY
-import os
+from tests.system.utils.watcher import watcher
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
@@ -145,10 +143,6 @@ with DAG(
         bucket_name=s3_bucket_name,
         force_delete=True,
     )
-
-    @task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
-    def watcher():
-        raise AirflowException("Failing task because one or more upstream tasks failed.")
 
     chain(
         # TEST SETUP
