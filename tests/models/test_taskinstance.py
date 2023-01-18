@@ -2348,16 +2348,14 @@ class TestTaskInstance:
             assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
-        "finished_state, callback_type",
+        "finished_state",
         [
-            (State.SUCCESS, "on_success"),
-            (State.UP_FOR_RETRY, "on_retry"),
-            (State.FAILED, "on_failure"),
+            State.SUCCESS,
+            State.UP_FOR_RETRY,
+            State.FAILED,
         ],
     )
-    def test_finished_callbacks_handle_and_log_exception(
-        self, finished_state, callback_type, create_task_instance
-    ):
+    def test_finished_callbacks_handle_and_log_exception(self, finished_state, create_task_instance):
         called = completed = False
 
         def on_finish_callable(context):
@@ -2377,7 +2375,7 @@ class TestTaskInstance:
                 state=finished_state,
             )
             ti._log = mock.Mock()
-            ti._run_finished_callback(callback_input, {}, callback_type)
+            ti._run_finished_callback(callback_input, {})
 
             assert called
             assert not completed

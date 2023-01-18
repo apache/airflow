@@ -792,6 +792,8 @@ class TaskInstance(Base, LoggingMixin):
             for attempt in run_with_db_retries(logger=None):
                 with attempt:
                     return query.with_for_update().one_or_none()
+            else:
+                return None
         else:
             return query.one_or_none()
 
@@ -1465,7 +1467,7 @@ class TaskInstance(Base, LoggingMixin):
         # run on_success_callback before db committing
         # otherwise, the LocalTaskJob sees the state is changed to `success`,
         # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        self._run_finished_callback(self.task.on_success_callback, context, "on_success")
+        self._run_finished_callback(self.task.on_success_callback, context)
 
         if not test_mode:
             session.add(Log(self.state, self))
@@ -1554,7 +1556,6 @@ class TaskInstance(Base, LoggingMixin):
         self,
         callbacks: None | TaskStateChangeCallback | list[TaskStateChangeCallback],
         context: Context,
-        callback_type: str,
     ) -> None:
         """Run callback after task finishes"""
         if callbacks:
@@ -1787,44 +1788,58 @@ class TaskInstance(Base, LoggingMixin):
             tb = tb.tb_next
         return tb or error.__traceback__
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def handle_failure(
-        self,
-        error: None | str | Exception | KeyboardInterrupt,
+    def fetch_handle_failure_context(
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int,
+        error: None | str | Exception | KeyboardInterrupt,  # Is this serializable?
         test_mode: bool | None = None,
-        context: Context | None = None,
+        context: Context | None = None,  # Is this serializable?
         force_fail: bool = False,
         session: Session = NEW_SESSION,
-    ) -> None:
-        """Handle Failure for the TaskInstance"""
-        if test_mode is None:
-            test_mode = self.test_mode
+    ):
+        ti = TaskInstance.get_task_instance(
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            map_index=map_index,
+            session=session,
+        )
+
+        if ti is None:
+            raise AirflowException(f"Unable to fetch the task instance from the database. dag_id={dag_id},"
+                                   f"task_id={task_id}, run_id={run_id}, map_index={map_index}")
 
         if error:
             if isinstance(error, BaseException):
-                tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
-                self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
+                tb = TaskInstance.get_truncated_error_traceback(error, truncate_to=ti._execute_task)
+                # TODO address all log statements when https://github.com/apache/airflow/pull/28502 is merged
+                # self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
             else:
-                self.log.error("%s", error)
+                # self.log.error("%s", error)
+                pass
         if not test_mode:
-            self.refresh_from_db(session)
+            ti.refresh_from_db(session)
 
-        self.end_date = timezone.utcnow()
-        self.set_duration()
-        Stats.incr(f"operator_failures_{self.operator}")
+        ti.end_date = timezone.utcnow()
+        ti.set_duration()
+        Stats.incr(f"operator_failures_{ti.operator}")
         Stats.incr("ti_failures")
         if not test_mode:
-            session.add(Log(State.FAILED, self))
+            session.add(Log(State.FAILED, ti))
 
             # Log failure duration
-            session.add(TaskFail(ti=self))
+            session.add(TaskFail(ti=ti))
 
-        self.clear_next_method_args()
+        ti.clear_next_method_args()
 
         # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
-        if context is None and getattr(self, "task", None):
-            # TODO: Need to convert this one. Looks massive!
-            context = self.get_template_context(session)
+        if context is None and getattr(ti, "task", None):
+            context = ti.get_template_context(session)
 
         if context is not None:
             context["exception"] = error
@@ -1843,38 +1858,81 @@ class TaskInstance(Base, LoggingMixin):
 
         task: BaseOperator | None = None
         try:
-            if getattr(self, "task", None) and context:
-                task = self.task.unmap((context, session))
+            if getattr(ti, "task", None) and context:
+                task = ti.task.unmap((context, session))
         except Exception:
-            self.log.error("Unable to unmap task to determine if we need to send an alert email")
+            # self.log.error("Unable to unmap task to determine if we need to send an alert email")
+            pass
 
-        if force_fail or not self.is_eligible_to_retry():
-            self.state = State.FAILED
+        if force_fail or not ti.is_eligible_to_retry():
+            ti.state = State.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
-            callback_type = "on_failure"
         else:
-            if self.state == State.QUEUED:
-                # We increase the try_number so as to fail the task if it fails to start after sometime
-                self._try_number += 1
-            self.state = State.UP_FOR_RETRY
+            if ti.state == State.QUEUED:
+                # We increase the try_number to fail the task if it fails to start after sometime
+                ti._try_number += 1
+            ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
-            callback_type = "on_retry"
+
+        return {
+            "ti": ti,  # TODO: Need to convert this SQL Alchemy object to serializable object
+            "email_for_state": email_for_state,  # Is this serializable?
+            "task": task,  # Is this serializable?
+            "callbacks": callbacks,  # Is this serializable?
+            "context": context,  # Is this serializable?
+        }
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def save_to_db(ti: TaskInstance, session: Session = NEW_SESSION):
+        # TODO: Need to convert TaskInstance SQL Alchemy object to serializable object
+        session.merge(ti)
+        session.flush()
+
+    @provide_session
+    def handle_failure(
+        self,
+        error: None | str | Exception | KeyboardInterrupt,
+        test_mode: bool | None = None,
+        context: Context | None = None,
+        force_fail: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """Handle Failure for the TaskInstance"""
+        if test_mode is None:
+            test_mode = self.test_mode
+
+        failure_context = TaskInstance.fetch_handle_failure_context(
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+            error=error,
+            test_mode=test_mode,
+            context=context,
+            force_fail=force_fail,
+            session=session,
+        )
 
         self._log_state("Immediate failure requested. " if force_fail else "")
-        if task and email_for_state(task) and task.email:
+        if (
+            failure_context["task"]
+            and failure_context["email_for_state"](failure_context["task"])
+            and failure_context["task"].email
+        ):
             try:
-                self.email_alert(error, task)
+                self.email_alert(error, failure_context["task"])
             except Exception:
-                self.log.exception("Failed to send email to: %s", task.email)
+                self.log.exception("Failed to send email to: %s", failure_context["task"].email)
 
-        if callbacks and context:
-            self._run_finished_callback(callbacks, context, callback_type)
+        if failure_context["callbacks"] and failure_context["context"]:
+            self._run_finished_callback(failure_context["callbacks"], failure_context["context"])
 
         if not test_mode:
-            session.merge(self)
-            session.flush()
+            TaskInstance.save_to_db(failure_context["ti"], session)
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
@@ -1908,6 +1966,7 @@ class TaskInstance(Base, LoggingMixin):
             assert task.dag
         dag: DAG = task.dag
 
+        # TODO: convert this one: looks easy
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
 
