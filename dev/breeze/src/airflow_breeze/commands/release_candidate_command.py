@@ -238,7 +238,6 @@ def create_issue_for_testing(version, previous_version, github_token):
     name="start-rc-process",
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",
-    hidden=True,
 )
 @click.option("--version", required=True, help="The release candidate version e.g. 2.4.3rc1")
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")

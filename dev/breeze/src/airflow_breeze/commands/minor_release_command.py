@@ -136,7 +136,6 @@ def create_constraints(version_branch):
 @click.command(
     name="create-minor-branch",
     help="Create a new version branch and update the default branches in main",
-    hidden=True,
 )
 @click.option("--version-branch", help="The version branch you want to create e.g 2-4", required=True)
 @option_answer
