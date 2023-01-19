@@ -567,6 +567,7 @@ extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobQueueLink
   - airflow.providers.amazon.aws.links.emr.EmrClusterLink
   - airflow.providers.amazon.aws.links.emr.EmrLogsLink
+  - airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
 
 connection-types:
