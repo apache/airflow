@@ -56,6 +56,25 @@ class LogType(str, Enum):
     WORKER = "worker"
 
 
+def _set_task_deferred_context_var():
+    """
+    Tell task log handler that task exited with deferral.
+
+    This exists for the sole purpose of telling elasticsearch handler not to
+    emit end_of_log mark after task deferral.
+
+    Depending on how the task is run, we may need to set this in task command or in local task job.
+    Kubernetes executor requires the local task job invocation; local executor requires the task
+    command invocation.
+
+    :meta private:
+    """
+    logger = logging.getLogger()
+    with suppress(StopIteration):
+        h = next(h for h in logger.handlers if hasattr(h, "ctx_task_deferred"))
+        h.ctx_task_deferred = True
+
+
 def _fetch_logs_from_service(url, log_relative_path):
     import httpx
 

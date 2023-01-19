@@ -59,6 +59,7 @@ from airflow.utils.cli import (
     suppress_logs_and_warning,
 )
 from airflow.utils.dates import timezone
+from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
@@ -68,18 +69,6 @@ from airflow.utils.state import DagRunState
 log = logging.getLogger(__name__)
 
 CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
-
-
-def _set_task_deferred_context_var():
-    """
-    Tell task log handler that task exited with deferral.
-
-    :meta private:
-    """
-    logger = logging.getLogger()
-    with suppress(StopIteration):
-        h = next(h for h in logger.handlers if hasattr(h, "ctx_task_deferred"))
-        h.ctx_task_deferred = True
 
 
 def _generate_temporary_run_id() -> str:
