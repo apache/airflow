@@ -23,6 +23,7 @@ from unittest.mock import ANY
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataproc_v1 import (
+    Batch,
     BatchControllerAsyncClient,
     ClusterControllerAsyncClient,
     JobControllerAsyncClient,
@@ -417,6 +418,27 @@ class TestDataprocHook:
             metadata=(),
             retry=DEFAULT,
             timeout=None,
+        )
+
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch"))
+    def test_wait_for_batch(self, mock_batch):
+        mock_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        self.hook.wait_for_batch(
+            batch_id=BATCH_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            wait_time_interval=1,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        mock_batch.assert_called_once_with(
+            batch_id=BATCH_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch_client"))
