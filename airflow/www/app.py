@@ -76,7 +76,7 @@ def sync_appbuilder_roles(flask_app):
         flask_app.appbuilder.sm.sync_roles()
 
 
-def strip_tags(input_html: str) -> str:
+def _strip_tags(input_html: str) -> str:
     """Strips tags from HTML"""
     parts: list[str] = []
 
@@ -103,7 +103,7 @@ def create_app(config=None, testing=False):
         section="webserver", key="instance_name_has_markup", fallback=False
     )
     if instance_name_has_markup:
-        instance_name = strip_tags(instance_name)
+        instance_name = _strip_tags(instance_name)
 
     flask_app.config["APP_NAME"] = instance_name
 
