@@ -34,7 +34,7 @@ class TestS3ToSqlTransfer:
         db.merge_conn(
             models.Connection(
                 conn_id="s3_test",
-                conn_type="s3",
+                conn_type="aws",
                 schema="test",
                 extra='{"aws_access_key_id": "aws_access_key_id", "aws_secret_access_key":'
                 ' "aws_secret_access_key"}',
