@@ -505,7 +505,7 @@
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The pod_template image repository.",
+                            "description": "The pod_template image repository. If ``config.kubernetes.worker_container_repository`` is set, k8s executor will use config value instead.",
                             "type": [
                                 "string",
                                 "null"
@@ -513,7 +513,7 @@
                             "default": null
                         },
                         "tag": {
-                            "description": "The pod_template image tag.",
+                            "description": "The pod_template image tag. If ``config.kubernetes.worker_container_tag`` is set, k8s executor will use config value instead.",
                             "type": [
                                 "string",
                                 "null"
