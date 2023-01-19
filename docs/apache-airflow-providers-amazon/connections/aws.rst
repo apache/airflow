@@ -271,7 +271,7 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
       "assume_role_kwargs": { "something":"something" }
     }
 
-5. Using **service_config** to specify information about services such as S3, STS, and EMR
+5. Using **service_config** to specify configuration for services such as S3, STS, and EMR
 
 .. code-block:: json
 
