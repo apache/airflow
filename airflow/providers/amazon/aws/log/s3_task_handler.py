@@ -53,12 +53,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to S3 remote storage.
-        log_relative_path = self._render_filename(ti, ti.try_number)
-        # use getattr for compat with airflow < 2.6
+        full_path = self.handler.baseFilename
+        self.log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
-        if is_trigger_log_context:
-            log_relative_path = self.add_triggerer_suffix(log_relative_path, ti.triggerer_job.id)
-        self.log_relative_path = log_relative_path
         self.upload_on_close = is_trigger_log_context or not ti.raw
         # Clear the file first so that duplicate data is not uploaded
         # when re-using the same path (e.g. with rescheduled sensors)
