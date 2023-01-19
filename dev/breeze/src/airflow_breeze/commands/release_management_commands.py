@@ -167,11 +167,6 @@ def release_management():
     pass
 
 
-release_management.add_command(publish_release_candidate)
-release_management.add_command(airflow_release)
-release_management.add_command(create_minor_version_branch)
-
-
 @release_management.command(
     name="prepare-airflow-package",
     help="Prepare sdist/whl package of Airflow.",
@@ -897,3 +892,9 @@ def generate_issue_content(
                 users.add("@" + pr.user.login)
         get_console().print("All users involved in the PRs:")
         get_console().print(" ".join(users))
+
+
+# AIRFLOW RELEASE COMMANDS
+release_management.add_command(publish_release_candidate)
+release_management.add_command(airflow_release)
+release_management.add_command(create_minor_version_branch)
