@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import html.parser
-import re
 import warnings
 from datetime import timedelta
 from tempfile import gettempdir
