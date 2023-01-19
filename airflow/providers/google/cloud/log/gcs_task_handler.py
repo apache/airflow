@@ -172,6 +172,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
 
+        todo: when min airflow version >= 2.6, remove this method
+
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
