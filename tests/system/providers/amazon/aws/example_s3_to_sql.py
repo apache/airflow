@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateObjectOperator,
 )
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator, SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder, ENV_ID_KEY
 from tests.system.utils.watcher import watcher
@@ -38,11 +38,11 @@ DAG_ID = "example_s3_to_sql"
 
 SQL_TABLE_NAME = "cocktails"
 SQL_COLUMN_LIST = ["cocktail_id", "cocktail_name", "base_spirit"]
-SAMPLE_DATA = """
-1;Caipirinha;Cachaca\n
-2;Bramble;Gin\n
-3;Daiquiri;Rum
+SAMPLE_DATA = r"""1,Caipirinha,Cachaca
+2,Bramble,Gin
+3,Daiquiri,Rum
 """
+
 
 with DAG(
     dag_id=DAG_ID,
@@ -127,6 +127,15 @@ with DAG(
     )
     # [END howto_transfer_s3_to_sql_generator]
 
+    check_table = SQLTableCheckOperator(
+        task_id="check_table",
+        conn_id="sql_default",
+        table=SQL_TABLE_NAME,
+        checks={
+            "row_count_check": {"check_statement": "COUNT(*) = 6"},
+        },
+    )
+
     drop_table = SQLExecuteQueryOperator(
         conn_id="sql_default",
         trigger_rule=TriggerRule.ALL_DONE,
@@ -157,6 +166,7 @@ with DAG(
         # TEST BODY
         transfer_s3_to_sql,
         transfer_s3_to_sql_generator,
+        check_table,
         # TEST TEARDOWN
         drop_table,
         delete_s3_objects,
