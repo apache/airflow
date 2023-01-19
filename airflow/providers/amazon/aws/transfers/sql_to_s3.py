@@ -22,13 +22,6 @@ from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
-try:
-    import numpy as np
-    import pandas as pd
-except ImportError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-    raise AirflowOptionalProviderFeatureException(e)
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
@@ -134,11 +127,23 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
-    def _fix_dtypes(df: pd.DataFrame, file_format: FILE_FORMAT) -> None:
+    def _fix_dtypes(df, file_format: FILE_FORMAT) -> None:
         """
         Mutate DataFrame to set dtypes for float columns containing NaN values.
         Set dtype of object to str to allow for downstream transformations.
         """
+        try:
+            import numpy as np
+            from pandas import DataFrame, Float64Dtype, Int64Dtype
+        except ImportError as e:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+
+        # DataFrame type checking should be postponed because of imports order
+        if not isinstance(df, DataFrame):
+            raise TypeError('The given dataframe is not a valid pandas DataFrame')
+
         for col in df:
 
             if df[col].dtype.name == "object" and file_format == "parquet":
@@ -152,11 +157,11 @@ class SqlToS3Operator(BaseOperator):
                 if np.equal(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
                     df[col] = np.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype(pd.Int64Dtype())
+                    df[col] = df[col].astype(Int64Dtype())
                 elif np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to float dtype that retains floats and supports NaNs
                     df[col] = np.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype(pd.Float64Dtype())
+                    df[col] = df[col].astype(Float64Dtype())
 
     def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
