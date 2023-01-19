@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from datetime import datetime
 
@@ -198,8 +199,9 @@ def _run_test(
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
 
-def _file_name_from_test_type(test_type):
-    return test_type.lower().replace("[", "_").replace("]", "").replace(",", "_")[:30]
+def _file_name_from_test_type(test_type: str):
+    test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
+    return re.sub("[,\.]", "_", test_type_no_brackets)[:30]
 
 
 def _run_tests_in_pool(
