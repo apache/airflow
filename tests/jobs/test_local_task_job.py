@@ -848,12 +848,12 @@ class TestSigtermOnRunner:
     )
     def test_process_sigterm_works_with_retries(self, mp_method, daemon, clear_db, request, capfd):
         """Test that ensures that task runner sets tasks to retry when task runner receive SIGTERM."""
-        fork_context = mp.get_context(mp_method)
+        mp_context = mp.get_context(mp_method)
 
         # Use shared memory value, so we can properly track value change
         # even if it's been updated across processes.
-        retry_callback_called = fork_context.Value("i", 0)
-        task_started = fork_context.Value("i", 0)
+        retry_callback_called = mp_context.Value("i", 0)
+        task_started = mp_context.Value("i", 0)
 
         dag_id = f"test_task_runner_sigterm_{mp_method}_{'' if daemon else 'non_'}daemon"
         task_id = "test_on_retry_callback"
@@ -861,7 +861,7 @@ class TestSigtermOnRunner:
         run_id = f"test-{execution_date.date().isoformat()}"
 
         # Run LocalTaskJob in separate process
-        proc = fork_context.Process(
+        proc = mp_context.Process(
             target=self._sigterm_local_task_runner,
             args=(dag_id, task_id, run_id, execution_date, task_started, retry_callback_called),
             name="LocalTaskJob-TestProcess",
@@ -895,9 +895,10 @@ class TestSigtermOnRunner:
         assert ti.state == State.UP_FOR_RETRY
 
         pytest_capture = request.config.option.capture
-        if pytest_capture != "no":
-            # Retrieve log information from stdout/stderr but only if `-s` flag set
-            # see: https://github.com/pytest-dev/pytest/issues/5997
+        if pytest_capture == "no":
+            # Since we run `LocalTaskJob` in the separate process we can grab ut easily by `caplog`.
+            # However, we could grab it from stdout/stderr but only if `-s` flag set, see:
+            # https://github.com/pytest-dev/pytest/issues/5997
             captured = capfd.readouterr()
             for msg in [
                 "Received SIGTERM. Terminating subprocesses",
