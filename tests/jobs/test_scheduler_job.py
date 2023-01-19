@@ -42,6 +42,8 @@ from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.executor_constants import MOCK_EXECUTOR
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.local_task_job import LocalTaskJob
@@ -113,6 +115,10 @@ def load_examples():
         yield
 
 
+# Patch the MockExecutor into the dict of known executors in the Loader
+@patch.dict(
+    ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
+)
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
