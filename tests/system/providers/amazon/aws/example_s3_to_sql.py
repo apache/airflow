@@ -73,6 +73,7 @@ with DAG(
 
     create_table = SQLExecuteQueryOperator(
         task_id="create_sample_table",
+        conn_id="sql_default",
         sql=f"""
             CREATE TABLE IF NOT EXISTS {SQL_TABLE_NAME} (
             cocktail_id INT NOT NULL,
@@ -127,7 +128,10 @@ with DAG(
     # [END howto_transfer_s3_to_sql_generator]
 
     drop_table = SQLExecuteQueryOperator(
-        trigger_rule=TriggerRule.ALL_DONE, task_id="drop_table", sql=f"DROP TABLE {SQL_TABLE_NAME}"
+        conn_id="sql_default",
+        trigger_rule=TriggerRule.ALL_DONE,
+        task_id="drop_table",
+        sql=f"DROP TABLE {SQL_TABLE_NAME}",
     )
 
     delete_s3_objects = S3DeleteObjectsOperator(
