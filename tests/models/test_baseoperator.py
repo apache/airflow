@@ -319,6 +319,77 @@ class TestBaseOperator:
         assert task.arg1 == "footemplated"
         assert task.arg2 == "bartemplated"
 
+    def test_render_template_all_templatable_fields(self):
+        """Verify if template all fields is working correctly."""
+        task = MockOperator(
+            task_id="op1", template_all_fields=True, arg1="{{ foo }}", arg2="{{ bar }}", arg3="{{ baz }}"
+        )
+
+        # Assert only first two fields are templated
+        assert task.template_fields == ("arg1", "arg2")
+
+        # Assert nothing is templated yet
+        assert task.arg1 == "{{ foo }}"
+        assert task.arg2 == "{{ bar }}"
+        assert task.arg3 == "{{ baz }}"
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(
+            context={"foo": "footemplated", "bar": "bartemplated", "baz": "baztemplated"}
+        )
+        assert task.arg1 == "footemplated"
+        assert task.arg2 == "bartemplated"
+        assert task.arg3 == "baztemplated"
+
+    def test_render_template_all_templatable_fields_with_exlusion(self):
+        """Verify if template all fields is working correctly with an exclusion as a string."""
+        task = MockOperator(
+            task_id="op1",
+            template_all_fields=True,
+            exclude_fields_from_template="arg3",
+            arg1="{{ foo }}",
+            arg2="{{ bar }}",
+            arg3="{{ baz }}",
+        )
+
+        # Assert nothing is templated yet
+        assert task.arg1 == "{{ foo }}"
+        assert task.arg2 == "{{ bar }}"
+        assert task.arg3 == "{{ baz }}"
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(
+            context={"foo": "footemplated", "bar": "bartemplated", "baz": "baztemplated"}
+        )
+        assert task.arg1 == "footemplated"
+        assert task.arg2 == "bartemplated"
+        assert task.arg3 == "{{ baz }}"
+
+    def test_render_template_all_templatable_fields_with_multiple_exlusions(self):
+        """Verify if template all fields is working correctly with multiple exclusions."""
+
+        task = MockOperator(
+            task_id="op1",
+            template_all_fields=True,
+            exclude_fields_from_template=["arg2", "arg3"],
+            arg1="{{ foo }}",
+            arg2="{{ bar }}",
+            arg3="{{ baz }}",
+        )
+
+        # Assert nothing is templated yet
+        assert task.arg1 == "{{ foo }}"
+        assert task.arg2 == "{{ bar }}"
+        assert task.arg3 == "{{ baz }}"
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(
+            context={"foo": "footemplated", "bar": "bartemplated", "baz": "baztemplated"}
+        )
+        assert task.arg1 == "footemplated"
+        assert task.arg2 == "{{ bar }}"
+        assert task.arg3 == "{{ baz }}"
+
     @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
     def test_render_template_fields_no_change(self, content):
         """Tests if non-templatable types remain unchanged."""
