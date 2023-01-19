@@ -31,7 +31,6 @@ from airflow.executors.executor_constants import (
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
     LOCAL_KUBERNETES_EXECUTOR,
-    MOCK_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
 )
 from airflow.utils.module_loading import import_string
@@ -64,7 +63,6 @@ class ExecutorLoader:
         DASK_EXECUTOR: "airflow.executors.dask_executor.DaskExecutor",
         KUBERNETES_EXECUTOR: "airflow.executors.kubernetes_executor.KubernetesExecutor",
         DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
-        MOCK_EXECUTOR: "tests.test_utils.mock_executor.MockExecutor",
     }
 
     @classmethod
