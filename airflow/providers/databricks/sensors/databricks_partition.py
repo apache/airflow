@@ -38,33 +38,33 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         :ref:`Databricks connection id<howto/connection:databricks>`
          (templated),
         defaults to DatabricksSqlHook.default_conn_name
-    :param http_path: Optional string specifying HTTP path of 
+    :param http_path: Optional string specifying HTTP path of
         Databricks SQL Endpoint or cluster.
-        If not specified, 
+        If not specified,
         it should be either specified in the Databricks connection's extra parameters,
         or ``sql_endpoint_name`` must be specified, defaults to None
-    :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. 
+    :param sql_endpoint_name: Optional name of Databricks SQL Endpoint.
         If not specified, ``http_path`` must
         be provided as described above, defaults to None
-    :param session_configuration: An optional dictionary of Spark session parameters. 
+    :param session_configuration: An optional dictionary of Spark session parameters.
         Defaults to None.
-        If not specified, it could be specified in the Databricks connection's 
+        If not specified, it could be specified in the Databricks connection's
         extra parameters., defaults to None
-    :param http_headers: An optional list of (k, v) pairs that will be set as HTTP 
+    :param http_headers: An optional list of (k, v) pairs that will be set as HTTP
         headers on every request.
          (templated), defaults to None
-    :param catalog: An optional initial catalog to use. 
+    :param catalog: An optional initial catalog to use.
         Requires DBR version 9.0+ (templated), defaults to ""
-    :param schema: An optional initial schema to use. 
+    :param schema: An optional initial schema to use.
         Requires DBR version 9.0+ (templated), defaults to "default"
     :param table_name: Table name to generate the SQL query, defaults to ""
-    :param partition_name: Partition to check, 
+    :param partition_name: Partition to check,
         defaults to {"date": datetime.now().date()}
-    :param handler: Handler for DbApiHook.run() to return results, 
+    :param handler: Handler for DbApiHook.run() to return results,
         defaults to fetch_all_handler
-    :param caller: String passed to name a hook to Databricks, 
+    :param caller: String passed to name a hook to Databricks,
         defaults to "DatabrickPartitionSensor"
-    :param client_parameters: Additional parameters internal to 
+    :param client_parameters: Additional parameters internal to
         Databricks SQL Connector parameters, defaults to None
     """
 
