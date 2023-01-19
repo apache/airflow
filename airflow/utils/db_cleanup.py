@@ -20,13 +20,14 @@ This module took inspiration from the community maintenance dag
 """
 from __future__ import annotations
 
+import csv
 import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
 from pendulum import DateTime
-from sqlalchemy import and_, column, false, func, table, text
+from sqlalchemy import and_, column, false, func, inspect, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Query, Session, aliased
@@ -39,6 +40,8 @@ from airflow.utils.db import reflect_tables
 from airflow.utils.session import NEW_SESSION, provide_session
 
 logger = logging.getLogger(__file__)
+
+ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
 
 
 @dataclass
@@ -123,6 +126,15 @@ def _check_for_rows(*, query: Query, print_rows=False):
     return num_entities
 
 
+def _dump_db(*, target_table, file_path, export_format, session):
+    if export_format == "csv":
+        with open(file_path + ".csv", "w") as f:
+            csv_writer = csv.writer(f)
+            cursor = session.execute(text(f"SELECT * FROM {target_table}"))
+            csv_writer.writerow(cursor.keys())
+            csv_writer.writerows(cursor.fetchall())
+
+
 def _do_delete(*, query, orm_model, skip_archive, session):
     import re
     from datetime import datetime
@@ -131,7 +143,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     # using bulk delete
     # create a new table and copy the rows there
     timestamp_str = re.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
-    target_table_name = f"_airflow_deleted__{orm_model.name}__{timestamp_str}"
+    target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     stmt = CreateTableAs(target_table_name, query.selectable)
     logger.debug("ctas query:\n%s", stmt.compile())
@@ -370,3 +382,19 @@ def run_cleanup(
                 session=session,
             )
             session.commit()
+
+
+@provide_session
+def export_archived_records(export_format, output_path, session: Session = NEW_SESSION):
+    """Export cleaned data to the given output path in the given format."""
+    inspector = inspect(session.bind)
+    table_names = inspector.get_table_names()
+    for table_name in table_names:
+        if table_name.startswith(ARCHIVE_TABLE_PREFIX):
+            _dump_db(
+                target_table=table_name,
+                file_path=f"{output_path}/{table_name}",
+                export_format=export_format,
+                session=session,
+            )
+    logger.info("Done")

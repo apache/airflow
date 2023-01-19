@@ -21,7 +21,7 @@ from contextlib import suppress
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -32,7 +32,16 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
-from airflow.utils.db_cleanup import CreateTableAs, _build_query, _cleanup_table, config_dict, run_cleanup
+from airflow.utils.db_cleanup import (
+    ARCHIVE_TABLE_PREFIX,
+    CreateTableAs,
+    _build_query,
+    _cleanup_table,
+    _dump_db,
+    config_dict,
+    export_archived_records,
+    run_cleanup,
+)
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
@@ -319,6 +328,34 @@ class TestDBCleanup:
         with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
             run_cleanup(clean_before_timestamp=datetime.utcnow(), table_names=["task_instance"], dry_run=True)
         assert "Encountered error when attempting to clean table" in caplog.text
+
+    @patch("airflow.utils.db_cleanup._dump_db")
+    @patch("airflow.utils.db_cleanup.inspect")
+    def test_export_cleaned_records(self, inspect_mock, dump_mock, session):
+        """Test export_archived_records and show that only tables with the archive prefix are exported."""
+
+        inspector = inspect_mock.return_value
+        inspector.get_table_names.return_value = [f"{ARCHIVE_TABLE_PREFIX}dag_run", "task_instance"]
+        export_archived_records(export_format="csv", output_path="path", session=session)
+        dump_mock.assert_called_once_with(
+            target_table=f"{ARCHIVE_TABLE_PREFIX}dag_run",
+            file_path=f"path/{ARCHIVE_TABLE_PREFIX}dag_run",
+            export_format="csv",
+            session=session,
+        )
+
+    @patch("airflow.utils.db_cleanup.csv")
+    def test_dump_db_function_for_csv(self, mock_csv):
+        mockopen = mock_open()
+        with patch("airflow.utils.db_cleanup.open", mockopen, create=True):
+            _dump_db(
+                target_table="mytable", file_path="dags/myfile", export_format="csv", session=MagicMock()
+            )
+            mockopen.assert_called_once_with("dags/myfile.csv", "w")
+            writer = mock_csv.writer
+            writer.assert_called_once()
+            writer.return_value.writerow.assert_called_once()
+            writer.return_value.writerows.assert_called_once()
 
 
 def create_tis(base_date, num_tis, external_trigger=False):

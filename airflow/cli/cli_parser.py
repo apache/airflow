@@ -468,7 +468,17 @@ ARG_DB_SKIP_ARCHIVE = Arg(
     help="Don't preserve purged records in an archive table.",
     action="store_true",
 )
-
+ARG_DB_EXPORT_FORMAT = Arg(
+    ("--export-format",),
+    help="The file format to export the cleaned data",
+    choices=("csv",),
+)
+ARG_DB_OUTPUT_PATH = Arg(
+    ("--output-path",),
+    metavar="FILEPATH",
+    help="The output to export the cleaned data",
+    required=True,
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -1587,6 +1597,15 @@ DB_COMMANDS = (
             ARG_VERBOSE,
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
+        ),
+    ),
+    ActionCommand(
+        name="export-cleaned",
+        help="Export cleaned data from the archive tables",
+        func=lazy_load_command("airflow.cli.commands.db_command.export_archived"),
+        args=(
+            ARG_DB_EXPORT_FORMAT,
+            ARG_DB_OUTPUT_PATH,
         ),
     ),
 )
