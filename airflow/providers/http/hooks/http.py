@@ -255,7 +255,7 @@ class HttpHook(BaseHook):
             return False, str(e)
 
 
-class HttpHookAsync(BaseHook):
+class HttpAsyncHook(BaseHook):
     """
     Interact with HTTP servers using Python Async.
 
