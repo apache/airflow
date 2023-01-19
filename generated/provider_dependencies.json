@@ -410,6 +410,8 @@
   },
   "http": {
     "deps": [
+      "aiohttp",
+      "asgiref",
       "requests>=2.26.0",
       "requests_toolbelt"
     ],
