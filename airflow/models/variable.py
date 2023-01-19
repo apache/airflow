@@ -181,7 +181,7 @@ class Variable(Base, LoggingMixin):
         session.add(Variable(key=key, val=stored_value, description=description))
         session.flush()
 
-    @classmethod
+    @staticmethod
     @provide_session
     @internal_api_call
     def update(
