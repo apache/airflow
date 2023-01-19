@@ -185,7 +185,6 @@ class Variable(Base, LoggingMixin):
     @provide_session
     @internal_api_call
     def update(
-        cls,
         key: str,
         value: Any,
         serialize_json: bool = False,
