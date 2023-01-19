@@ -26,7 +26,7 @@ import pytest
 from kubernetes.client import ApiClient, models as k8s
 from pytest import param
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
@@ -1025,6 +1025,35 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj({})
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
+
+    @pytest.mark.parametrize(
+        "extra_kwargs, actual_exit_code, expected_exc",
+        [
+            (None, 99, AirflowException),
+            ({"skip_exit_code": 100}, 100, AirflowSkipException),
+            ({"skip_exit_code": 100}, 101, AirflowException),
+            ({"skip_exit_code": None}, 100, AirflowException),
+        ],
+    )
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    def test_task_skip_when_pod_exit_with_certain_code(
+        self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
+    ):
+        """ """
+        k = KubernetesPodOperator(
+            task_id="task", is_delete_operator_pod=True, **(extra_kwargs if extra_kwargs else {})
+        )
+
+        base_container = MagicMock()
+        base_container.name = k.BASE_CONTAINER_NAME
+        base_container.last_state.terminated.exit_code = actual_exit_code
+        sidecar_container = MagicMock()
+        sidecar_container.name = "airflow-xcom-sidecar"
+        sidecar_container.last_state.terminated.exit_code = 0
+        remote_pod.return_value.status.container_statuses = [base_container, sidecar_container]
+
+        with pytest.raises(expected_exc):
+            self.run_pod(k)
 
 
 class TestSuppress:
