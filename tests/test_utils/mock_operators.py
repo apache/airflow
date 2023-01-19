@@ -31,10 +31,11 @@ class MockOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("arg1", "arg2")
 
-    def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
+    def __init__(self, arg1: str = "", arg2: str = "", arg3: str = "", **kwargs):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
+        self.arg3 = arg3
 
     def execute(self, context: Context):
         pass

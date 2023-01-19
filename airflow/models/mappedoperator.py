@@ -530,6 +530,14 @@ class MappedOperator(AbstractOperator):
     def doc_rst(self) -> str | None:
         return self.partial_kwargs.get("doc_rst")
 
+    @property
+    def template_all_fields(self) -> bool:
+        return self.partial_kwargs.get("template_all_fields", False)
+
+    @property
+    def exclude_fields_from_template(self) -> str | Iterable[str] | None:
+        return self.partial_kwargs.get("exclude_fields_from_template")
+
     def get_dag(self) -> DAG | None:
         """Implementing Operator."""
         return self.dag

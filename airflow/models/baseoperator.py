@@ -226,6 +226,8 @@ def partial(
     doc_json: str | None = None,
     doc_yaml: str | None = None,
     doc_rst: str | None = None,
+    template_all_fields: bool = False,
+    exclude_fields_from_template: str | Iterable[str] | None = None,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -287,6 +289,8 @@ def partial(
     partial_kwargs.setdefault("doc_md", doc_md)
     partial_kwargs.setdefault("doc_rst", doc_rst)
     partial_kwargs.setdefault("doc_yaml", doc_yaml)
+    partial_kwargs.setdefault("template_all_fields", template_all_fields)
+    partial_kwargs.setdefault("exclude_fields_from_template", exclude_fields_from_template)
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -605,6 +609,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that is visible in Task Instance details View in the Webserver
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
+    :param template_all_fields: If set to True, all eligible fields will be rendered using Jinja2.
+    :param exclude_fields_from_template: Used to exclude fields from being rendered using Jinja2
+        when template_all_fields is set to True. Accepts one field as a string or multiple fields
+            with a list of strings.
     """
 
     # Implementing Operator.
@@ -734,6 +742,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_json: str | None = None,
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
+        template_all_fields: bool = False,
+        exclude_fields_from_template: str | Iterable[str] | None = None,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -914,6 +924,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
             self.template_fields = [self.template_fields]
+
+        self.template_all_fields = template_all_fields
+        self.exclude_fields_from_template = exclude_fields_from_template
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1184,7 +1197,29 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
-        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
+
+        if self.template_all_fields:
+            templatable_fields = (
+                set(self.__dict__.keys())
+                - set(BaseOperator.__dict__.keys())
+                - set(partial(operator_class=self.__class__, task_id=self.task_id).kwargs.keys())
+            )
+
+            if self.exclude_fields_from_template:
+                if isinstance(self.exclude_fields_from_template, str):
+                    templatable_fields -= {self.exclude_fields_from_template}
+                elif isinstance(self.exclude_fields_from_template, list):
+                    templatable_fields -= set(self.exclude_fields_from_template)
+
+            template_fields = [
+                templatable_field
+                for templatable_field in templatable_fields
+                if isinstance(getattr(self, templatable_field), str)
+            ]
+
+            self._do_render_template_fields(self, template_fields, context, jinja_env, set())
+        else:
+            self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
     @provide_session
     def clear(
