@@ -31,7 +31,7 @@ from requests.adapters import Response
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.http.hooks.http import HttpHook, HttpHookAsync
+from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
 
 def get_airflow_connection(unused_conn_id=None):
@@ -395,7 +395,7 @@ class TestKeepAlive:
 @pytest.mark.asyncio
 async def test_do_api_call_async_non_retryable_error(aioresponse):
     """Test api call asynchronously with non retryable error."""
-    hook = HttpHookAsync(method="GET")
+    hook = HttpAsyncHook(method="GET")
     aioresponse.get("http://httpbin.org/non_existent_endpoint", status=400)
 
     with pytest.raises(AirflowException) as exc, mock.patch.dict(
@@ -411,7 +411,7 @@ async def test_do_api_call_async_non_retryable_error(aioresponse):
 async def test_do_api_call_async_retryable_error(caplog, aioresponse):
     """Test api call asynchronously with retryable error."""
     caplog.set_level(logging.WARNING, logger="airflow.providers.http.hooks.http")
-    hook = HttpHookAsync(method="GET")
+    hook = HttpAsyncHook(method="GET")
     aioresponse.get("http://httpbin.org/non_existent_endpoint", status=500, repeat=True)
 
     with pytest.raises(AirflowException) as exc, mock.patch.dict(
@@ -427,7 +427,7 @@ async def test_do_api_call_async_retryable_error(caplog, aioresponse):
 @pytest.mark.asyncio
 async def test_do_api_call_async_unknown_method():
     """Test api call asynchronously for unknown method."""
-    hook = HttpHookAsync(method="NOPE")
+    hook = HttpAsyncHook(method="NOPE")
     json = {
         "existing_cluster_id": "xxxx-xxxxxx-xxxxxx",
     }
@@ -441,7 +441,7 @@ async def test_do_api_call_async_unknown_method():
 @pytest.mark.asyncio
 async def test_async_post_request(aioresponse):
     """Test api call asynchronously for POST request."""
-    hook = HttpHookAsync()
+    hook = HttpAsyncHook()
 
     aioresponse.post(
         "http://test:8080/v1/test",
@@ -458,7 +458,7 @@ async def test_async_post_request(aioresponse):
 @pytest.mark.asyncio
 async def test_async_post_request_with_error_code(aioresponse):
     """Test api call asynchronously for POST request with error."""
-    hook = HttpHookAsync()
+    hook = HttpAsyncHook()
 
     aioresponse.post(
         "http://test:8080/v1/test",
