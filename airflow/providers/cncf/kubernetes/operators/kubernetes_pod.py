@@ -542,9 +542,17 @@ class KubernetesPodOperator(BaseOperator):
             self.process_pod_deletion(remote_pod, reraise=False)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             if self.skip_exit_code is not None:
+                container_statuses = (
+                    remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
+                )
+                base_container_status = next(
+                    (x for x in container_statuses if x.name == self.BASE_CONTAINER_NAME), None
+                )
                 exit_code = (
-                    remote_pod.status.container_statuses[0].last_state.terminated.exit_code
-                    if hasattr(remote_pod, "status")
+                    base_container_status.last_state.terminated.exit_code
+                    if base_container_status
+                    and base_container_status.last_state
+                    and base_container_status.last_state.terminated
                     else None
                 )
                 if exit_code == self.skip_exit_code:
