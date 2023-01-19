@@ -20,8 +20,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -29,24 +28,41 @@ from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow.utils.context import Context
 
+template_fields: Sequence[str] = ("databricks_conn_id", "catalog", "schema", "table_name", "partition_name")
+
 
 class DatabricksPartitionSensor(DatabricksSqlSensor):
     """Sensor to detect the existence of partitions in a Delta table.
 
-    :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
-    :param http_path: _description_, defaults to None
-    :param sql_endpoint_name: _description_, defaults to None
-    :param session_configuration: _description_, defaults to None
-    :param http_headers: _description_, defaults to None
-    :param catalog: _description_, defaults to ""
-    :param schema: _description_, defaults to "default"
-    :param table_name: _description_, defaults to ""
-    :param partition_name: _description_, defaults to {"date": "2023-1-1"}
-    :param handler: _description_, defaults to fetch_all_handler
-    :param timestamp: _description_, defaults to datetime.now()-timedelta(days=7)
-    :param caller: _description_, defaults to "DatabricksPartitionSensor"
-    :param client_parameters: _description_, defaults to None
+    :param databricks_conn_id: Reference to
+        :ref:`Databricks connection id<howto/connection:databricks>` (templated),
+        defaults to DatabricksSqlHook.default_conn_name
+    :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
+        If not specified, it should be either specified in the Databricks connection's extra parameters,
+        or ``sql_endpoint_name`` must be specified, defaults to None
+    :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path`` must
+        be provided as described above, defaults to None
+    :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
+        If not specified, it could be specified in the Databricks connection's extra parameters., defaults to None
+    :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers on every request.
+         (templated), defaults to None
+    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated), defaults to ""
+    :param schema: An optional initial schema to use. Requires DBR version 9.0+ (templated), defaults to "default"
+    :param table_name: Table name to generate the SQL query, defaults to ""
+    :param partition_name: Partition to check, defaults to {"date": datetime.now().date()}
+    :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
+    :param caller: String passed to name a hook to Databricks, defaults to "DatabrickPartitionSensor"
+    :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters, defaults to None
     """
+
+    template_fields: Sequence[str] = (
+        "databricks_conn_id",
+        "schema",
+        "http_headers",
+        "catalog",
+        "table_name",
+        "partition_name",
+    )
 
     def __init__(
         self,
@@ -61,7 +77,6 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         table_name: str = "",
         partition_name: dict = {"date": "2023-1-1"},
         handler: Callable[[Any], Any] = fetch_all_handler,
-        timestamp: datetime = datetime.now() - timedelta(days=7),
         caller: str = "DatabricksPartitionSensor",
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
@@ -76,7 +91,6 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         self.schema = schema
         self.table_name = table_name
         self.partition_name = partition_name
-        self.timestamp = timestamp
         self.caller = caller
         self.client_parameters = client_parameters or {}
         self.hook_params = kwargs.pop("hook_params", {})
@@ -107,18 +121,12 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
     def _check_table_partitions(self) -> list:
         if self.catalog is not None:
             complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
-            self.log.info("Table name generated from arguments: %s", complete_table_name)
+            self.log.debug("Table name generated from arguments: %s", complete_table_name)
         else:
             raise AirflowException("Catalog name not specified, aborting query execution.")
-        table_info = self._sql_sensor(f"describe detail {complete_table_name}")
-        self.log.info("table_info: %s, length: %s", table_info, len(table_info))
-        partition_columns = []
-        if len(table_info[0][7]) >= 1:
-            for part_col in table_info[0][7]:
-                partition_columns.append(part_col)
-        if len(partition_columns) >= 1:
-            self.log.info("Partition columns: %s", partition_columns)
-        else:
+        partition_columns = list(self._sql_sensor(f"describe detail {complete_table_name}")[0][7])
+        self.log.debug("table_info: %s", partition_columns)
+        if len(partition_columns) < 1:
             raise AirflowException("Table %s does not have partitions", complete_table_name)
         partitions_list = []
         for partition_col, partition_value in self.partition_name.items():
@@ -137,9 +145,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
 
     def poke(self, context: Context) -> bool:
         result = self._check_table_partitions()
-        self.log.info("result: %s, %s", result, len(result))
-        if len(result) == 0:
+        self.log.debug("Partition sensor result: %s", result)
+        if len(result) < 1:
             raise AirflowException("Databricks SQL partition sensor failed.")
-        if len(result) >= 1:
-            return True
-        return False
+        return True
