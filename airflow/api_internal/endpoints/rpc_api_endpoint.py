@@ -25,7 +25,6 @@ from typing import Any, Callable
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
-from airflow.dag_processing.processor import DagFileProcessor
 from airflow.models import Variable
 from airflow.serialization.serialized_objects import BaseSerialization
 
