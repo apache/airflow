@@ -125,7 +125,7 @@ VIRTUAL_CLUSTER_CONFIG = {
             "gke_cluster_target": "projects/project_id/locations/region/clusters/gke_cluster_name",
             "node_pool_target": [
                 {
-                    "node_pool": "projects/project_id/locations/region/clusters/gke_cluster_name/nodePools/dp",  # noqa
+                    "node_pool": "projects/project_id/locations/region/clusters/gke_cluster_name/nodePools/dp",# noqa
                     "roles": ["DEFAULT"],
                 }
             ],
@@ -1789,6 +1789,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_batch.assert_called_once_with(
@@ -1819,6 +1820,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_batch.assert_called_once_with(
@@ -1848,14 +1850,62 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
-        mock_hook.return_value.get_batch.return_value.state = Batch.State.FAILED
+        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.FAILED)
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
-            mock_hook.return_value.get_batch.assert_called_once_with(
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_batch_already_exists_succeeds(self, mock_hook):
+        op = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        op.execute(context=MagicMock())
+        mock_hook.return_value.wait_for_batch.assert_called_once_with(
+            batch_id=BATCH_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            wait_time_interval=10,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_batch_already_exists_fails(self, mock_hook):
+        op = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
+        with pytest.raises(AirflowException):
+            op.execute(context=MagicMock())
+            mock_hook.return_value.wait_for_batch.assert_called_once_with(
                 batch_id=BATCH_ID,
                 region=GCP_REGION,
                 project_id=GCP_PROJECT,
+                wait_time_interval=10,
                 retry=RETRY,
                 timeout=TIMEOUT,
                 metadata=METADATA,

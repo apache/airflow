@@ -2103,7 +2103,10 @@ class DataprocCreateBatchOperator(BaseOperator):
 
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        self.log.info("Creating batch")
+        link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id,
+                                          resource=self.batch_id)
+        self.log.info("Creating batch %s", self.batch_id)
+        self.log.info("Once started, the batch job will be available at %s", link)
         if self.region is None:
             raise AirflowException("Region should be set here")
         try:
@@ -2127,33 +2130,27 @@ class DataprocCreateBatchOperator(BaseOperator):
             else:
                 return self.operation.operation.name
         except AlreadyExists:
-            self.log.info("Batch with given id already exists")
-            if self.batch_id is None:
-                raise AirflowException("Batch Id should be set here")
-            result = hook.get_batch(
+            self.log.info("Batch job %s already exists.", self.batch_id)
+            self.log.info("Attaching to the job if it is still running at %s", link)
+            # Could be running if Airflow was restarted after task started
+            # poll until a final state is reached
+            result = hook.wait_for_batch(
                 batch_id=self.batch_id,
                 region=self.region,
                 project_id=self.project_id,
+                wait_time_interval=10,
                 retry=self.retry,
                 timeout=self.timeout,
-                metadata=self.metadata,
+                metadata=self.metadata
             )
-            # The existing batch may be a number of states other than 'SUCCEEDED'
-            if result.state != Batch.State.SUCCEEDED:
-                if result.state == Batch.State.FAILED or result.state == Batch.State.CANCELLED:
-                    raise AirflowException(
-                        f"Existing Batch {self.batch_id} failed or cancelled. "
-                        f"Error: {result.state_message}"
-                    )
-                else:
-                    # Batch state is either: RUNNING, PENDING, CANCELLING, or UNSPECIFIED
-                    self.log.info(
-                        f"Batch {self.batch_id} is in state {result.state.name}."
-                        "Waiting for state change..."
-                    )
-                    result = hook.wait_for_operation(timeout=self.timeout, operation=result)
-
+        # wait_for_operation doesn't fail if the job is cancelled so we will check for it here which also
+        # finds a cancelling|canceled job from wait_for_batch
         batch_id = self.batch_id or result.name.split("/")[-1]
+        if result.state == Batch.State.FAILED:
+            raise AirflowException(f"Batch job {batch_id} failed.  Driver Logs: {link}")
+        if result.state in (Batch.State.CANCELLED, Batch.State.CANCELLING):
+            raise AirflowException(f"Batch job {batch_id} was cancelled. Driver logs: {link}")
+        self.log.info("Batch job %s completed. Driver logs: %s", batch_id, link)
         DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id)
         return Batch.to_dict(result)
 
