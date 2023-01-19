@@ -32,8 +32,10 @@ DRY_RUN = True if CI else False
 
 def create_branch(version_branch):
     if confirm_action(f"Create version branch: {version_branch}?"):
-        run_command(["git", "checkout", "main"], check=True)
-        run_command(["git", "checkout", "-b", f"v{version_branch}-test"], check=True)
+        run_command(["git", "checkout", "main"], dry_run_override=DRY_RUN, check=True)
+        run_command(
+            ["git", "checkout", "-b", f"v{version_branch}-test"], dry_run_override=DRY_RUN, check=True
+        )
         console_print(f"Created branch: v{version_branch}-test")
 
 
@@ -90,7 +92,7 @@ def push_test_and_stable_branch(version_branch):
 
 def checkout_main():
     if confirm_action("We now need to checkout main. Continue?"):
-        run_command(["git", "checkout", "main"])
+        run_command(["git", "checkout", "main"], dry_run_override=DRY_RUN, check=True)
         run_command(["git", "pull"])
 
 
@@ -134,7 +136,7 @@ def instruction_update_version_branch(version_branch):
 
 def create_constraints(version_branch):
     if confirm_action("Do you want to create branches from the constraints main?"):
-        run_command(["git", "checkout", "constraints-main"], check=True)
+        run_command(["git", "checkout", "constraints-main"], dry_run_override=DRY_RUN, check=True)
         run_command(
             ["git", "checkout", "-b", f"constraints-{version_branch}"], dry_run_override=DRY_RUN, check=True
         )
@@ -149,6 +151,7 @@ def create_constraints(version_branch):
 @click.command(
     name="create-minor-branch",
     help="Create a new version branch and update the default branches in main",
+    hidden=True,
 )
 @click.option("--version-branch", help="The version branch you want to create e.g 2-4", required=True)
 @option_answer
@@ -170,7 +173,7 @@ def create_minor_version_branch(version_branch):
     create_branch(version_branch)
     # Build ci image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.7"], check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.7"], dry_run_override=DRY_RUN, check=True)
     # Update default branches
     update_default_branch(version_branch)
     # Commit changes

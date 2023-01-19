@@ -173,7 +173,7 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
     if confirm_action("Prepare pypi packages?"):
         console_print("Preparing PyPI packages")
         os.chdir(repo_root)
-        run_command(["git", "checkout", f"{version}"], check=True)
+        run_command(["git", "checkout", f"{version}"], dry_run_override=DRY_RUN, check=True)
         run_command(
             [
                 "breeze",
@@ -264,6 +264,7 @@ def create_issue_for_testing(version, previous_version, github_token):
     name="start-rc-process",
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",
+    hidden=True,
 )
 @click.option("--version", required=True, help="The release candidate version e.g. 2.4.3rc1")
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")
@@ -310,7 +311,7 @@ def publish_release_candidate(version, previous_version, github_token):
     git_clean()
     # Build the latest image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.7"], check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.7"], dry_run_override=DRY_RUN, check=True)
     # Create the tarball
     tarball_release(version, version_without_rc)
     # Create the artifacts
