@@ -27,6 +27,7 @@ from unittest import mock
 import pytest
 import requests
 import tenacity
+from aioresponses import aioresponses
 from requests.adapters import Response
 
 from airflow.exceptions import AirflowException
@@ -392,6 +393,21 @@ class TestKeepAlive:
             http_send.assert_called()
 
 
+send_email_test = mock.Mock()
+
+
+@pytest.fixture
+def aioresponse():
+    """
+    Creates an mock async API response.
+    This comes from a mock library specific to the aiohttp package:
+    https://github.com/pnuckowski/aioresponses
+
+    """
+    with aioresponses() as async_response:
+        yield async_response
+
+
 @pytest.mark.asyncio
 async def test_do_api_call_async_non_retryable_error(aioresponse):
     """Test api call asynchronously with non retryable error."""
@@ -470,6 +486,3 @@ async def test_async_post_request_with_error_code(aioresponse):
     with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
         with pytest.raises(AirflowException):
             await hook.run("v1/test")
-
-
-send_email_test = mock.Mock()
