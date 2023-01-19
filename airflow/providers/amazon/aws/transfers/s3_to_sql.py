@@ -120,8 +120,7 @@ class S3ToSqlOperator(BaseOperator):
     @cached_property
     def db_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
-        conn = BaseHook.get_connection(self.sql_conn_id)
-        hook = conn.get_hook()
+        hook = BaseHook.get_hook(self.sql_conn_id)
         if not callable(getattr(hook, "insert_rows", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have an `insert_rows` method."
