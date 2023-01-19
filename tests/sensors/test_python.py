@@ -23,6 +23,7 @@ from datetime import date
 import pytest
 
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.sensors.base import PokeReturnValue
 from airflow.sensors.python import PythonSensor
 from tests.operators.test_python import BasePythonTest
 
@@ -40,6 +41,16 @@ class TestPythonSensor(BasePythonTest):
     def test_python_sensor_raise(self):
         with pytest.raises(ZeroDivisionError):
             self.run_as_task(lambda: 1 / 0)
+
+    def test_python_sensor_xcom(self):
+        with self.dag:
+            task = self.opcls(
+                task_id=self.task_id,
+                python_callable=lambda: PokeReturnValue(True, "xcom"),
+                **self.default_kwargs(),
+            )
+        poke_result = task.poke({})
+        assert poke_result.xcom_value == "xcom"
 
     def test_python_callable_arguments_are_templatized(self):
         """Test PythonSensor op_args are templatized"""
