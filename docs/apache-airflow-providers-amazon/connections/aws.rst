@@ -67,7 +67,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. All parameters are optional.
 
-    * ``service_config``: json used for specifying information about different AWS services, such as S3 or STS.
+    * ``service_config``: json used to specify configuration/parameters for different AWS services, such as S3 or STS.
 
     The following extra parameters used to create an initial :external:py:class:`boto3.session.Session`:
 
