@@ -102,7 +102,10 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
     assert containers[0].env[0].name == "__PYTHON_SCRIPT"
     assert containers[0].env[0].value
     assert containers[0].env[1].name == "__PYTHON_INPUT"
-    assert not containers[0].env[1].value
+
+    # Ensure we pass input through a b64 encoded env var
+    decoded_input = pickle.loads(base64.b64decode(containers[0].env[1].value))
+    assert decoded_input == {"args": [], "kwargs": {}}
 
 
 def test_kubernetes_with_input_output(

@@ -115,8 +115,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             input_filename = os.path.join(tmp_dir, "script.in")
 
             with open(input_filename, "wb") as file:
-                if self.op_args or self.op_kwargs:
-                    self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
+                self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
 
             py_source = self._get_python_source()
             jinja_context = {
