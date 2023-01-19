@@ -154,6 +154,16 @@ def truncate_task_duration(task_duration):
     return int(task_duration) if task_duration > 10.0 else round(task_duration, 3)
 
 
+def sanitize_args(args: dict[str, str]) -> dict[str, str]:
+    """
+    Remove all parameters starting with `_`
+
+    :param args: arguments of request
+    :return: copy of the dictionary passed as input with args starting with `_` removed.
+    """
+    return {key: value for key, value in args.items() if not key.startswith("_")}
+
+
 def get_safe_url(url):
     """Given a user-supplied URL, ensure it points to our web server"""
     if not url:
@@ -769,15 +779,9 @@ class Airflow(AirflowBaseView):
 
             dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
             user_permissions = g.user.perms
-            all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
             can_create_dag_run = (
                 permissions.ACTION_CAN_CREATE,
                 permissions.RESOURCE_DAG_RUN,
-            ) in user_permissions
-
-            all_dags_deletable = (
-                permissions.ACTION_CAN_DELETE,
-                permissions.RESOURCE_DAG,
             ) in user_permissions
 
             dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
@@ -789,16 +793,9 @@ class Airflow(AirflowBaseView):
                 dataset_triggered_next_run_info = {}
 
             for dag in dags:
-                dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
-                if all_dags_editable:
-                    dag.can_edit = True
-                else:
-                    dag.can_edit = (permissions.ACTION_CAN_EDIT, dag_resource_name) in user_permissions
+                dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id, g.user)
                 dag.can_trigger = dag.can_edit and can_create_dag_run
-                if all_dags_deletable:
-                    dag.can_delete = True
-                else:
-                    dag.can_delete = (permissions.ACTION_CAN_DELETE, dag_resource_name) in user_permissions
+                dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id, g.user)
 
             dagtags = session.query(func.distinct(DagTag.name)).all()
             tags = [
@@ -1182,7 +1179,7 @@ class Airflow(AirflowBaseView):
     )
     def legacy_code(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.code", **request.args))
+        return redirect(url_for("Airflow.code", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/code")
     @auth.has_access(
@@ -1229,7 +1226,7 @@ class Airflow(AirflowBaseView):
     )
     def legacy_dag_details(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.dag_details", **request.args))
+        return redirect(url_for("Airflow.dag_details", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/details")
     @auth.has_access(
@@ -2641,7 +2638,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def dag(self, dag_id):
         """Redirect to default DAG view."""
-        kwargs = {**request.args, "dag_id": dag_id}
+        kwargs = {**sanitize_args(request.args), "dag_id": dag_id}
         return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/legacy_tree")
@@ -2656,7 +2653,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def legacy_tree(self):
         """Redirect to the replacement - grid view."""
-        return redirect(url_for("Airflow.grid", **request.args))
+        return redirect(url_for("Airflow.grid", **sanitize_args(request.args)))
 
     @expose("/tree")
     @auth.has_access(
@@ -2670,7 +2667,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def tree(self):
         """Redirect to the replacement - grid view. Kept for backwards compatibility."""
-        return redirect(url_for("Airflow.grid", **request.args))
+        return redirect(url_for("Airflow.grid", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/grid")
     @auth.has_access(
@@ -2749,7 +2746,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def legacy_calendar(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.calendar", **request.args))
+        return redirect(url_for("Airflow.calendar", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/calendar")
     @auth.has_access(
@@ -2890,7 +2887,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def legacy_graph(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.graph", **request.args))
+        return redirect(url_for("Airflow.graph", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/graph")
     @auth.has_access(
@@ -3007,7 +3004,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def legacy_duration(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.duration", **request.args))
+        return redirect(url_for("Airflow.duration", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/duration")
     @auth.has_access(
@@ -3168,7 +3165,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def legacy_tries(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.tries", **request.args))
+        return redirect(url_for("Airflow.tries", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/tries")
     @auth.has_access(
@@ -3263,7 +3260,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def legacy_landing_times(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.landing_times", **request.args))
+        return redirect(url_for("Airflow.landing_times", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/landing-times")
     @auth.has_access(
@@ -3385,7 +3382,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def legacy_gantt(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.gantt", **request.args))
+        return redirect(url_for("Airflow.gantt", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/gantt")
     @auth.has_access(
@@ -3833,7 +3830,7 @@ class Airflow(AirflowBaseView):
     )
     def legacy_audit_log(self):
         """Redirect from url param."""
-        return redirect(url_for("Airflow.audit_log", **request.args))
+        return redirect(url_for("Airflow.audit_log", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/audit_log")
     @auth.has_access(
@@ -3920,61 +3917,58 @@ class ConfigurationView(AirflowBaseView):
         """Shows configuration."""
         raw = request.args.get("raw") == "true"
         title = "Airflow Configuration"
-        subtitle = AIRFLOW_CONFIG
+        expose_config = conf.get("webserver", "expose_config").lower()
 
-        expose_config = conf.get("webserver", "expose_config")
-
-        # Don't show config when expose_config variable is False in airflow config
-        # Don't show sensitive config values if expose_config variable is 'non-sensitive-only'
-        # in airflow config
-        if expose_config.lower() == "non-sensitive-only":
-            from airflow.configuration import SENSITIVE_CONFIG_VALUES
-
-            updater = configupdater.ConfigUpdater()
-            updater.read(AIRFLOW_CONFIG)
-            for sect, key in SENSITIVE_CONFIG_VALUES:
-                if updater.has_option(sect, key):
-                    updater[sect][key].value = "< hidden >"
-            config = str(updater)
-
-            table = [
-                (section, key, str(value), source)
-                for section, parameters in conf.as_dict(True, False).items()
-                for key, (value, source) in parameters.items()
-            ]
-        elif expose_config.lower() in ["true", "t", "1"]:
-
-            with open(AIRFLOW_CONFIG) as file:
-                config = file.read()
-            table = [
-                (section, key, str(value), source)
-                for section, parameters in conf.as_dict(True, True).items()
-                for key, (value, source) in parameters.items()
-            ]
-        else:
-            config = (
-                "# Your Airflow administrator chose not to expose the "
-                "configuration, most likely for security reasons."
-            )
-            table = None
-
+        # TODO remove "if raw" usage in Airflow 3.0. Configuration can be fetched via the REST API.
         if raw:
-            return Response(response=config, status=200, mimetype="application/text")
-        else:
-            code_html = Markup(
-                highlight(
-                    config,
-                    lexers.IniLexer(),  # Lexer call
-                    HtmlFormatter(noclasses=True),
+            if expose_config == "non-sensitive-only":
+                from airflow.configuration import SENSITIVE_CONFIG_VALUES
+
+                updater = configupdater.ConfigUpdater()
+                updater.read(AIRFLOW_CONFIG)
+                for sect, key in SENSITIVE_CONFIG_VALUES:
+                    if updater.has_option(sect, key):
+                        updater[sect][key].value = "< hidden >"
+                config = str(updater)
+            elif expose_config in {"true", "t", "1"}:
+                with open(AIRFLOW_CONFIG) as file:
+                    config = file.read()
+            else:
+                config = (
+                    "# Your Airflow administrator chose not to expose the configuration, "
+                    "most likely for security reasons."
                 )
+
+            return Response(
+                response=config,
+                status=200,
+                mimetype="application/text",
+                headers={"Deprecation": "Endpoint will be removed in Airflow 3.0, use the REST API instead."},
             )
+
+        if expose_config in {"non-sensitive-only", "true", "t", "1"}:
+            display_sensitive = expose_config != "non-sensitive-only"
+
+            table = [
+                (section, key, str(value), source)
+                for section, parameters in conf.as_dict(True, display_sensitive).items()
+                for key, (value, source) in parameters.items()
+            ]
+
+            return self.render_template(
+                template="airflow/config.html",
+                title=title,
+                table=table,
+            )
+
+        else:
             return self.render_template(
                 "airflow/config.html",
-                pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
-                code_html=code_html,
                 title=title,
-                subtitle=subtitle,
-                table=table,
+                hide_config_msg=(
+                    "Your Airflow administrator chose not to expose the configuration, "
+                    "most likely for security reasons."
+                ),
             )
 
 

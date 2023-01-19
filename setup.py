@@ -216,7 +216,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
-    "eventlet>=0.9.7",
+    "eventlet>=0.33.3",
     "gevent>=0.13",
     "greenlet>=0.4.9",
 ]
@@ -371,15 +371,8 @@ devel_only = [
     "click>=8.0",
     "coverage",
     "filelock",
-    "flake8>=3.9.0",
-    "flake8-colors",
-    "flake8-implicit-str-concat",
     "gitpython",
     "ipdb",
-    # make sure that we are using stable sorting order from 5.* version (some changes were introduced
-    # in 5.11.3. Black is not compatible yet, so we need to limit isort
-    # we can remove the limit when black and isort agree on the order
-    "isort==5.11.2",
     "jira",
     "jsondiff",
     "mongomock",
@@ -410,6 +403,7 @@ devel_only = [
     "pytest-httpx",
     "requests_mock",
     "rich-click>=1.5",
+    "ruff>=0.0.219",
     "semver",
     "time-machine",
     "towncrier",

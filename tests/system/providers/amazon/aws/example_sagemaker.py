@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerAutoMLOperator,
+    SageMakerCreateExperimentOperator,
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
     SageMakerProcessingOperator,
@@ -54,7 +55,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerTuningSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_sagemaker"
 
@@ -200,6 +201,7 @@ def set_up(env_id, role_arn):
     model_package_group_name = f"{env_id}-group"
     pipeline_name = f"{env_id}-pipe"
     auto_ml_job_name = f"{env_id}-automl"
+    experiment_name = f"{env_id}-experiment"
 
     input_data_S3_key = f"{env_id}/processed-input-data"
     prediction_output_s3_key = f"{env_id}/transform"
@@ -303,6 +305,7 @@ def set_up(env_id, role_arn):
             }
         ],
         "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"},
+        "ExperimentConfig": {"ExperimentName": experiment_name},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
         "StoppingCondition": {"MaxRuntimeInSeconds": 60},
@@ -409,6 +412,7 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="model_package_group_name", value=model_package_group_name)
     ti.xcom_push(key="pipeline_name", value=pipeline_name)
     ti.xcom_push(key="auto_ml_job_name", value=auto_ml_job_name)
+    ti.xcom_push(key="experiment_name", value=experiment_name)
     ti.xcom_push(key="model_config", value=model_config)
     ti.xcom_push(key="model_name", value=model_name)
     ti.xcom_push(key="inference_code_image", value=knn_image_uri)
@@ -433,17 +437,6 @@ def delete_ecr_repository(repository_name):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_logs(env_id):
-    generated_logs = [
-        # Format: ('log group name', 'log stream prefix')
-        ("/aws/sagemaker/ProcessingJobs", env_id),
-        ("/aws/sagemaker/TrainingJobs", env_id),
-        ("/aws/sagemaker/TransformJobs", env_id),
-    ]
-    purge_logs(generated_logs)
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_model_group(group_name, model_version_arn):
     sgmk_client = boto3.client("sagemaker")
     # need to destroy model registered in group first
@@ -455,6 +448,21 @@ def delete_model_group(group_name, model_version_arn):
 def delete_pipeline(pipeline_name):
     sgmk_client = boto3.client("sagemaker")
     sgmk_client.delete_pipeline(PipelineName=pipeline_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_experiment(name):
+    sgmk_client = boto3.client("sagemaker")
+    trials = sgmk_client.list_trials(ExperimentName=name)
+    trials_names = [s["TrialName"] for s in trials["TrialSummaries"]]
+    for trial in trials_names:
+        components = sgmk_client.list_trial_components(TrialName=trial)
+        components_names = [s["TrialComponentName"] for s in components["TrialComponentSummaries"]]
+        for component in components_names:
+            sgmk_client.disassociate_trial_component(TrialComponentName=component, TrialName=trial)
+            sgmk_client.delete_trial_component(TrialComponentName=component)
+        sgmk_client.delete_trial(TrialName=trial)
+    sgmk_client.delete_experiment(ExperimentName=name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -482,9 +490,10 @@ with DAG(
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
+    env_id = test_context[ENV_ID_KEY]
 
     test_setup = set_up(
-        env_id=test_context[ENV_ID_KEY],
+        env_id=env_id,
         role_arn=test_context[ROLE_ARN_KEY],
     )
 
@@ -543,6 +552,12 @@ with DAG(
         pipeline_exec_arn=start_pipeline2.output,
     )
     # [END howto_sensor_sagemaker_pipeline]
+
+    # [START howto_operator_sagemaker_experiment]
+    create_experiment = SageMakerCreateExperimentOperator(
+        task_id="create_experiment", name=test_setup["experiment_name"]
+    )
+    # [END howto_operator_sagemaker_experiment]
 
     # [START howto_operator_sagemaker_processing]
     preprocess_raw_data = SageMakerProcessingOperator(
@@ -633,6 +648,15 @@ with DAG(
         force_delete=True,
     )
 
+    log_cleanup = prune_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            ("/aws/sagemaker/ProcessingJobs", env_id),
+            ("/aws/sagemaker/TrainingJobs", env_id),
+            ("/aws/sagemaker/TransformJobs", env_id),
+        ]
+    )
+
     chain(
         # TEST SETUP
         test_context,
@@ -646,6 +670,7 @@ with DAG(
         start_pipeline2,
         stop_pipeline1,
         await_pipeline2,
+        create_experiment,
         preprocess_raw_data,
         train_model,
         await_training,
@@ -660,9 +685,10 @@ with DAG(
         delete_model_group(test_setup["model_package_group_name"], register_model.output),
         delete_model,
         delete_bucket,
-        delete_logs(test_context[ENV_ID_KEY]),
+        delete_experiment(test_setup["experiment_name"]),
         delete_pipeline(test_setup["pipeline_name"]),
         delete_docker_image(test_setup["docker_image"]),
+        log_cleanup,
     )
 
     from tests.system.utils.watcher import watcher
