@@ -122,6 +122,6 @@ class S3ToSqlOperator(BaseOperator):
         hook = conn.get_hook()
         if not callable(getattr(hook, "insert_rows", None)):
             raise AirflowException(
-                "This hook is not supported. The hook class must have  an `insert_rows` method."
+                "This hook is not supported. The hook class must have an `insert_rows` method."
             )
         return hook
