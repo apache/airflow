@@ -32,6 +32,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+    from pandas import DataFrame
 
 
 class FILE_FORMAT(enum.Enum):
@@ -127,22 +128,18 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
-    def _fix_dtypes(df, file_format: FILE_FORMAT) -> None:
+    def _fix_dtypes(df: DataFrame, file_format: FILE_FORMAT) -> None:
         """
         Mutate DataFrame to set dtypes for float columns containing NaN values.
         Set dtype of object to str to allow for downstream transformations.
         """
         try:
             import numpy as np
-            from pandas import DataFrame, Float64Dtype, Int64Dtype
+            from pandas import Float64Dtype, Int64Dtype
         except ImportError as e:
             from airflow.exceptions import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(e)
-
-        # DataFrame type checking should be postponed because of imports order
-        if not isinstance(df, DataFrame):
-            raise TypeError('The given dataframe is not a valid pandas DataFrame')
 
         for col in df:
 
