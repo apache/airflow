@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.sensors.base import BaseSensorOperator
@@ -61,10 +62,13 @@ class GlueJobSensor(BaseSensorOperator):
         self.errored_states: list[str] = ["FAILED", "STOPPED", "TIMEOUT"]
         self.next_log_token: str | None = None
 
+    @cached_property
+    def hook(self):
+        return GlueJobHook(aws_conn_id=self.aws_conn_id)
+
     def poke(self, context: Context):
-        hook = GlueJobHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)
-        job_state = hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
+        job_state = self.hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
         job_failed = False
 
         try:
@@ -80,7 +84,7 @@ class GlueJobSensor(BaseSensorOperator):
                 return False
         finally:
             if self.verbose:
-                self.next_log_token = hook.print_job_logs(
+                self.next_log_token = self.hook.print_job_logs(
                     job_name=self.job_name,
                     run_id=self.run_id,
                     job_failed=job_failed,

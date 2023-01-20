@@ -21,9 +21,11 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
+from deprecated import deprecated
 from jsonpath_ng import parse
 from typing_extensions import Literal
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
@@ -111,8 +113,6 @@ class SqsSensor(BaseSensorOperator):
 
         self.message_filtering_config = message_filtering_config
 
-        self.hook: SqsHook | None = None
-
     def poll_sqs(self, sqs_conn: BaseAwsConnection) -> Collection:
         """
         Poll SQS queue to retrieve messages.
@@ -152,13 +152,11 @@ class SqsSensor(BaseSensorOperator):
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
-        sqs_conn = self.get_hook().get_conn()
-
         message_batch: list[Any] = []
 
         # perform multiple SQS call to retrieve messages in series
         for _ in range(self.num_batches):
-            messages = self.poll_sqs(sqs_conn=sqs_conn)
+            messages = self.poll_sqs(sqs_conn=self.hook.conn)
 
             if not len(messages):
                 continue
@@ -173,7 +171,7 @@ class SqsSensor(BaseSensorOperator):
                     {"Id": message["MessageId"], "ReceiptHandle": message["ReceiptHandle"]}
                     for message in messages
                 ]
-                response = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
+                response = self.hook.conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
                 if "Successful" not in response:
                     raise AirflowException(
@@ -185,13 +183,14 @@ class SqsSensor(BaseSensorOperator):
         context["ti"].xcom_push(key="messages", value=message_batch)
         return True
 
+    @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> SqsHook:
         """Create and return an SqsHook"""
-        if self.hook:
-            return self.hook
-
-        self.hook = SqsHook(aws_conn_id=self.aws_conn_id)
         return self.hook
+
+    @cached_property
+    def hook(self) -> SqsHook:
+        return SqsHook(aws_conn_id=self.aws_conn_id)
 
     def filter_messages(self, messages):
         if self.message_filtering == "literal":
