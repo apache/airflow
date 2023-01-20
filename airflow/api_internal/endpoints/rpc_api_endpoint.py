@@ -33,9 +33,11 @@ log = logging.getLogger(__name__)
 @functools.lru_cache()
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.models.dag import DagModel
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
+        DagModel.get_paused_dag_ids,
     ]
     return {f"{func.__module__}.{func.__name__}": func for func in functions}
 
