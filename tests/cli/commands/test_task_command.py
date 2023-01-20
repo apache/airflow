@@ -29,6 +29,7 @@ from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from unittest import mock
+from unittest.mock import sentinel
 
 import pendulum
 import pytest
@@ -37,10 +38,12 @@ from parameterized import parameterized
 from airflow import DAG
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
+from airflow.cli.commands.task_command import LoggerMutationHelper
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -390,6 +393,67 @@ class TestCliTasks:
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
 
+    def test_mapped_task_render(self):
+        """
+        tasks render should render and displays templated fields for a given mapping task
+        """
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "0",
+                    ]
+                )
+            )
+        # the dag test_mapped_classic has op_args=[[1], [2], [3]], so the first mapping task should have
+        # op_args=[1]
+        output = stdout.getvalue()
+        assert "[1]" in output
+        assert "[2]" not in output
+        assert "[3]" not in output
+        assert "property: op_args" in output
+
+    def test_mapped_task_render_with_template(self, dag_maker):
+        """
+        tasks render should render and displays templated fields for a given mapping task
+        """
+        with dag_maker() as dag:
+            templated_command = """
+            {% for i in range(5) %}
+                echo "{{ ds }}"
+                echo "{{ macros.ds_add(ds, 7)}}"
+            {% endfor %}
+            """
+            commands = [templated_command, "echo 1"]
+
+            BashOperator.partial(task_id="some_command").expand(bash_command=commands)
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_dag",
+                        "some_command",
+                        "2022-01-01",
+                        "--map-index",
+                        "0",
+                    ]
+                ),
+                dag=dag,
+            )
+
+        output = stdout.getvalue()
+        assert 'echo "2022-01-01"' in output
+        assert 'echo "2022-01-08"' in output
+
     def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
         """
         tasks run should return an AirflowException when invalid pickle_id is passed
@@ -600,6 +664,48 @@ class TestLogsfromTaskRunCommand:
                 external_executor_id="ABCD12345",
             )
 
+    @pytest.mark.parametrize("is_k8s", ["true", ""])
+    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s):
+        """
+        When running task --local as k8s executor pod, all logging should make it to stdout.
+        Otherwise, all logging after "running TI" is redirected to logs (and the actual log
+        file content is tested elsewhere in this module).
+
+        Unfortunately, to test stdout, we have to test this by running as a subprocess because
+        the stdout redirection & log capturing behavior is not compatible with pytest's stdout
+        capturing behavior.  Running as subprocess takes pytest out of the equation and
+        verifies with certainty the behavior.
+        """
+        import subprocess
+
+        with mock.patch.dict("os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s):
+            with subprocess.Popen(
+                args=["airflow", *self.task_args, "-S", self.dag_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            ) as process:
+                output, err = process.communicate()
+        lines = []
+        found_start = False
+        for line_ in output.splitlines():
+            line = line_.decode("utf-8")
+            if "Running <TaskInstance: test_logging_dag.test_task test_run" in line:
+                found_start = True
+            if found_start:
+                lines.append(line)
+        if is_k8s:
+            # 10 is arbitrary, but, with enough padding to hopefully not be flakey
+            assert len(lines) > 10
+            self.assert_log_line("Starting attempt 1 of 1", lines)
+            self.assert_log_line("Exporting env vars", lines)
+            self.assert_log_line("Log from DAG Logger", lines)
+            self.assert_log_line("Log from TI Logger", lines)
+            self.assert_log_line("Log from Print statement", lines, expect_from_logging_mixin=True)
+            self.assert_log_line("Task exited with return code 0", lines)
+        else:
+            # when not k8s executor pod, most output is redirected to logs
+            assert len(lines) == 1
+
     @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
     def test_logging_with_run_task(self):
         with conf_vars({("core", "dags_folder"): self.dag_path}):
@@ -772,3 +878,68 @@ def test_context_with_run():
         text == "_AIRFLOW_PARSING_CONTEXT_DAG_ID=test_parsing_context\n"
         "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
     )
+
+
+class TestLoggerMutationHelper:
+    @pytest.mark.parametrize("target_name", ["test_apply_target", None])
+    def test_apply(self, target_name):
+        """
+        Handlers, level and propagate should be applied on target.
+        """
+        src = logging.getLogger(f"test_apply_source_{target_name}")
+        src.propagate = False
+        src.addHandler(sentinel.handler)
+        src.setLevel(-1)
+        obj = LoggerMutationHelper(src)
+        tgt = logging.getLogger("test_apply_target")
+        obj.apply(tgt)
+        assert tgt.handlers == [sentinel.handler]
+        assert tgt.propagate is False if target_name else True  # root propagate unchanged
+        assert tgt.level == -1
+
+    def test_apply_no_replace(self):
+        """
+        Handlers, level and propagate should be applied on target.
+        """
+        src = logging.getLogger("test_apply_source_no_repl")
+        tgt = logging.getLogger("test_apply_target_no_repl")
+        h1 = logging.Handler()
+        h1.name = "h1"
+        h2 = logging.Handler()
+        h2.name = "h2"
+        h3 = logging.Handler()
+        h3.name = "h3"
+        src.handlers[:] = [h1, h2]
+        tgt.handlers[:] = [h2, h3]
+        LoggerMutationHelper(src).apply(tgt, replace=False)
+        assert tgt.handlers == [h2, h3, h1]
+
+    def test_move(self):
+        """Move should apply plus remove source handler, set propagate to True"""
+        src = logging.getLogger("test_move_source")
+        src.propagate = False
+        src.addHandler(sentinel.handler)
+        src.setLevel(-1)
+        obj = LoggerMutationHelper(src)
+        tgt = logging.getLogger("test_apply_target")
+        obj.move(tgt)
+        assert tgt.handlers == [sentinel.handler]
+        assert tgt.propagate is False
+        assert tgt.level == -1
+        assert src.propagate is True and obj.propagate is False
+        assert src.level == obj.level
+        assert src.handlers == [] and obj.handlers == tgt.handlers
+
+    def test_reset(self):
+        src = logging.getLogger("test_move_reset")
+        src.propagate = True
+        src.addHandler(sentinel.h1)
+        src.setLevel(-1)
+        obj = LoggerMutationHelper(src)
+        src.propagate = False
+        src.addHandler(sentinel.h2)
+        src.setLevel(-2)
+        obj.reset()
+        assert src.propagate is True
+        assert src.handlers == [sentinel.h1]
+        assert src.level == -1

@@ -406,6 +406,12 @@ cd "${AIRFLOW_REPO_ROOT}"
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
 
+If you see `ModuleNotFoundError: No module named 'docs'`, set:
+
+```
+export PYTHONPATH=.:${PYTHONPATH}
+```
+
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
@@ -803,7 +809,7 @@ svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
 SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/providers"
 
 # If some packages have been excluded, remove them now
-# Check the packages are there (replace <provider> with the name of the provider that you remove
+# Check the packages are there (replace <provider> with the name of the provider that you remove)
 ls ${SOURCE_DIR}/*<provider>*
 # Remove them
 svn rm ${SOURCE_DIR}/*<provider>*
@@ -839,6 +845,26 @@ svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n")"
 Verify that the packages appear in
 [providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
+You are expected to see all latest versions of providers.
+The ones you are about to release (with new version) and the ones that are not part of the current release.
+
+Troubleshoot:
+In case that while viewing the packages in dist/release you see that a provider has files from current version and release version it probably means that you wanted to exclude the new version of provider from release but didn't remove all providers files as expected in previous step.
+Since you already commit to SVN you need to recover files from previous version with svn copy (svn merge will not work since you don't have copy of the file locally)
+for example:
+
+```
+svn copy https://dist.apache.org/repos/dist/release/airflow/providers/apache_airflow_providers_docker-3.4.0-py3-none-any.whl@59404
+https://dist.apache.org/repos/dist/release/airflow/providers/apache_airflow_providers_docker-3.4.0-py3-none-any.whl
+```
+
+Where `59404` is the revision we want to copy the file from. Then you can commit again.
+You can also add  `-m "undeleted file"` to the `svn copy` to commit in 1 step.
+
+Then remove from svn the files of the new provider version that you wanted to exclude from release.
+If you had this issue you will need also to make adjustments in the next step to remove the provider from listed in twine check.
+This is simply by removing the relevant files locally.
+
 
 ## Publish the packages to PyPI
 
@@ -848,6 +874,11 @@ By that time the packages should be in your dist folder.
 cd ${AIRFLOW_REPO_ROOT}
 git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 ```
+
+example `git checkout providers-amazon/7.0.0rc2`
+
+Note you probably will see message `You are in 'detached HEAD' state.`
+This is expected, the RC tag is most likely behind the main branch.
 
 * Verify the artifacts that would be uploaded:
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,6 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-flake8 "$@"
+from __future__ import annotations
+
+from impala.dbapi import connect
+from impala.interface import Connection
+
+from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+
+class ImpalaHook(DbApiHook):
+    """Interact with Apache Impala through impyla."""
+
+    conn_name_attr = "impala_conn_id"
+    default_conn_name = "impala_default"
+    conn_type = "impala"
+    hook_name = "Impala"
+
+    def get_conn(self) -> Connection:
+        connection = self.get_connection(self.impala_conn_id)  # pylint: disable=no-member
+        return connect(
+            host=connection.host,
+            port=connection.port,
+            user=connection.login,
+            password=connection.password,
+            database=connection.schema,
+            **connection.extra_dejson,
+        )

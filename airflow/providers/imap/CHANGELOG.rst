@@ -29,7 +29,7 @@ Changelog
 
 Misc
 ~~~~
-   * ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

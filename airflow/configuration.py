@@ -206,6 +206,7 @@ class AirflowConfigParser(ConfigParser):
         ("metrics", "stat_name_handler"): ("scheduler", "stat_name_handler", "2.0.0"),
         ("metrics", "statsd_datadog_enabled"): ("scheduler", "statsd_datadog_enabled", "2.0.0"),
         ("metrics", "statsd_datadog_tags"): ("scheduler", "statsd_datadog_tags", "2.0.0"),
+        ("metrics", "statsd_datadog_metrics_tags"): ("scheduler", "statsd_datadog_metrics_tags", "2.6.0"),
         ("metrics", "statsd_custom_client_path"): ("scheduler", "statsd_custom_client_path", "2.0.0"),
         ("scheduler", "parsing_processes"): ("scheduler", "max_threads", "1.10.14"),
         ("scheduler", "scheduler_idle_sleep_time"): ("scheduler", "processor_poll_interval", "2.2.0"),
@@ -1149,8 +1150,8 @@ class AirflowConfigParser(ConfigParser):
             if not display_sensitive and env_var != self._env_var_name("core", "unit_test_mode"):
                 # Don't hide cmd/secret values here
                 if not env_var.lower().endswith("cmd") and not env_var.lower().endswith("secret"):
-                    opt = "< hidden >"
-
+                    if (section, key) in self.sensitive_config_values:
+                        opt = "< hidden >"
             elif raw:
                 opt = opt.replace("%", "%%")
             if display_source:

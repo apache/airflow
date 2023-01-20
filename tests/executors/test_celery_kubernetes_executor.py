@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
@@ -31,8 +31,17 @@ KUBERNETES_QUEUE = CeleryKubernetesExecutor.KUBERNETES_QUEUE
 
 
 class TestCeleryKubernetesExecutor:
+    def test_supports_pickling(self):
+        assert CeleryKubernetesExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert not CeleryKubernetesExecutor.supports_sentry
+
     def test_is_local_default_value(self):
         assert not CeleryKubernetesExecutor.is_local
+
+    def test_serve_logs_default_value(self):
+        assert not CeleryKubernetesExecutor.serve_logs
 
     def test_queued_tasks(self):
         celery_executor_mock = mock.MagicMock()
@@ -71,15 +80,10 @@ class TestCeleryKubernetesExecutor:
         celery_executor_mock.start.assert_called()
         k8s_executor_mock.start.assert_called()
 
-    @parameterized.expand(
-        [
-            ("any-other-queue",),
-            (KUBERNETES_QUEUE,),
-        ]
-    )
+    @pytest.mark.parametrize("test_queue", ["any-other-queue", KUBERNETES_QUEUE])
     @mock.patch.object(CeleryExecutor, "queue_command")
     @mock.patch.object(KubernetesExecutor, "queue_command")
-    def test_queue_command(self, test_queue, k8s_queue_cmd, celery_queue_cmd):
+    def test_queue_command(self, k8s_queue_cmd, celery_queue_cmd, test_queue):
         kwargs = dict(
             command=["airflow", "run", "dag"],
             priority=1,
@@ -100,12 +104,7 @@ class TestCeleryKubernetesExecutor:
             celery_queue_cmd.assert_called_once_with(simple_task_instance, *kwarg_values)
             k8s_queue_cmd.assert_not_called()
 
-    @parameterized.expand(
-        [
-            ("any-other-queue",),
-            (KUBERNETES_QUEUE,),
-        ]
-    )
+    @pytest.mark.parametrize("test_queue", ["any-other-queue", KUBERNETES_QUEUE])
     def test_queue_task_instance(self, test_queue):
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
@@ -134,13 +133,14 @@ class TestCeleryKubernetesExecutor:
             celery_executor_mock.queue_task_instance.assert_called_once_with(**kwargs)
             k8s_executor_mock.queue_task_instance.assert_not_called()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "celery_has, k8s_has, cke_has",
         [
             (True, True, True),
             (False, True, True),
             (True, False, True),
             (False, False, False),
-        ]
+        ],
     )
     def test_has_tasks(self, celery_has, k8s_has, cke_has):
         celery_executor_mock = mock.MagicMock()
@@ -155,7 +155,7 @@ class TestCeleryKubernetesExecutor:
         if not celery_has:
             k8s_executor_mock.has_task.assert_called_once_with(ti)
 
-    @parameterized.expand([(1, 0), (0, 1), (2, 1)])
+    @pytest.mark.parametrize("num_k8s, num_celery", [(1, 0), (0, 1), (2, 1)])
     def test_adopt_tasks(self, num_k8s, num_celery):
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()

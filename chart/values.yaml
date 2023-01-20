@@ -600,6 +600,9 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  # annotations for the worker resource
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to workers objects and pods
@@ -717,6 +720,9 @@ scheduler:
   topologySpreadConstraints: []
 
   priorityClassName: ~
+
+  # annotations for scheduler deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -1030,6 +1036,9 @@ webserver:
   tolerations: []
   topologySpreadConstraints: []
 
+  # annotations for webserver deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific webserver app
@@ -1128,6 +1137,9 @@ triggerer:
 
   priorityClassName: ~
 
+  # annotations for the triggerer deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to triggerer objects and pods
@@ -1225,6 +1237,9 @@ dagProcessor:
   topologySpreadConstraints: []
 
   priorityClassName: ~
+
+  # annotations for the dag processor deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -1328,6 +1343,9 @@ flower:
 
   priorityClassName: ~
 
+  # annotations for the flower deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to flower objects and pods
@@ -1408,6 +1426,9 @@ pgbouncer:
   args: ~
   auth_type: md5
   auth_file: /etc/pgbouncer/users.txt
+
+  # annotations to be added to the PgBouncer deployment
+  annotations: {}
 
   # Create ServiceAccount
   serviceAccount:

@@ -223,6 +223,7 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 Installation
 ============
 
+Set your working directory to root of (this) cloned repository.
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
@@ -239,7 +240,7 @@ Those are all available commands for Breeze and details about the commands are d
   :width: 100%
   :alt: Breeze commands
 
-Breeze installed this way is linked to your checked out sources of Airflow so Breeze will
+Breeze installed this way is linked to your checked out sources of Airflow, so Breeze will
 automatically use latest version of sources from ``./dev/breeze``. Sometimes, when dependencies are
 updated ``breeze`` commands with offer you to run self-upgrade.
 
@@ -490,6 +491,13 @@ Those are all available flags of ``static-checks`` command:
     get broken, in which case you should run ``breeze stop`` to clean up the cache.
 
 
+.. note::
+
+    You cannot change Python version for static checks that are run within Breeze containers.
+    The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
+    The main reason is to keep consistency in the results of static checks and to make sure that
+    our code is fine when running the lowest supported version.
+
 Starting Airflow
 ----------------
 
@@ -735,7 +743,7 @@ For example this will only run kerberos tests:
 
 .. code-block:: bash
 
-   breeze testing integration-tests --integration Kerberos
+   breeze testing integration-tests --integration kerberos
 
 
 Here is the detailed set of options for the ``breeze testing integration-tests`` command.

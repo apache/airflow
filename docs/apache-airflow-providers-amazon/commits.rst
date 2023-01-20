@@ -28,14 +28,38 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.1.0
+.....
+
+Latest change: 2023-01-13
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`923bcd2865 <https://github.com/apache/airflow/commit/923bcd28656b0a1af52305ccb8e18329ff9d70e3>`_  2023-01-13   ``new operator to create a sagemaker experiment (#28837)``
+`3e4e5b1fdb <https://github.com/apache/airflow/commit/3e4e5b1fdba5e98ddafc89d47a92a5bbfa41ebe7>`_  2023-01-13   ``Add ''configuration_overrides'' to templated fields (#28920)``
+`9a643363e9 <https://github.com/apache/airflow/commit/9a643363e982b7c37d3c7f9015cd7869bc2935c2>`_  2023-01-12   ``Avoid circular import from S3HookUriParseFailure (#28908)``
+`ce858a5d71 <https://github.com/apache/airflow/commit/ce858a5d719fb1dff85ad7e4747f0777404d1f56>`_  2023-01-12   ``Switch to ruff for faster static checks (#28893)``
+`870ecd477a <https://github.com/apache/airflow/commit/870ecd477af3774546bd82bb71921a03914a2b64>`_  2023-01-11   ``Add a new SSM hook and use it in the System Test context builder (#28755)``
+`3baa40d72c <https://github.com/apache/airflow/commit/3baa40d72cf97e1c2770c6c2dd5a0b7c82f96c30>`_  2023-01-10   ``Use compat for cached_property in AWS Batch modules (#28835)``
+`3eee33ac8c <https://github.com/apache/airflow/commit/3eee33ac8cb74cfbb08bce9090e9c601cf98da44>`_  2023-01-06   ``Apply "unify bucket and key" before "provide bucket" (#28710)``
+`3a7cb66784 <https://github.com/apache/airflow/commit/3a7cb66784894b414a4c8d6e5020030fe90d8384>`_  2023-01-06   ``Update S3ToRedshiftOperator docs to inform users about multiple key functionality (#28705)``
+`a9493c1317 <https://github.com/apache/airflow/commit/a9493c13173f6108c02c42d2f4f60b82b5ccc71a>`_  2023-01-06   ``Add waiter config params to emr.add_job_flow_steps (#28464)``
+`ce188e5093 <https://github.com/apache/airflow/commit/ce188e509389737b3c0bdc282abea2425281c2b7>`_  2023-01-05   ``Refactor waiter function and improve unit tests (#28753)``
+`e8533d295e <https://github.com/apache/airflow/commit/e8533d295e6d25296e23d8e1b8c07a441df55964>`_  2023-01-05   ``Add AWS Sagemaker Auto ML operator and sensor (#28472)``
+`8c5ee5e3c1 <https://github.com/apache/airflow/commit/8c5ee5e3c10f24f4d9700dbb43480e836bc9984a>`_  2023-01-04   ``Better exception raised in case of numpy missing (#28722)``
+`9ab9c18d68 <https://github.com/apache/airflow/commit/9ab9c18d687b61a8b86bde2767369697288d8082>`_  2023-01-04   ``Don't call get_connection from provide_bucket_name (#28716)``
+=================================================================================================  ===========  ==============================================================================================
+
 7.0.0
 .....
 
-Latest change: 2022-12-30
+Latest change: 2023-01-02
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
 `3ce7cbbda1 <https://github.com/apache/airflow/commit/3ce7cbbda178799c6a07bed9ca695957affdff98>`_  2022-12-30   ``add description of breaking changes (#28582)``
 `297aa7480e <https://github.com/apache/airflow/commit/297aa7480e1ffd9bf1be1b89aea29b7e721cd64d>`_  2022-12-23   ``Add execution role parameter to AddStepsOperator (#28484)``
 `38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``

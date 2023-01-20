@@ -39,6 +39,10 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+  {{- if .Values.flower.annotations }}
+  annotations:
+    {{- toYaml .Values.flower.annotations | nindent 4 }}
+  {{- end }}
 spec:
   replicas: 1
   {{- if $revisionHistoryLimit }}
