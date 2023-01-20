@@ -24,6 +24,7 @@ import io
 import logging
 import re
 import shutil
+import warnings
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -64,7 +65,17 @@ def provide_bucket_name(func: T) -> T:
 
         if "bucket_name" not in bound_args.arguments:
             self = args[0]
-            if self.conn_config and self.conn_config.schema:
+
+            if "bucket_name" in self.service_config:
+                bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
+            elif self.conn_config and self.conn_config.schema:
+                warnings.warn(
+                    "s3 conn_type, and the associated schema field, is deprecated."
+                    " Please use aws conn_type instead, and specify `bucket_name`"
+                    " in `service_config.s3` within `extras`.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
                 bound_args.arguments["bucket_name"] = self.conn_config.schema
 
         return func(*bound_args.args, **bound_args.kwargs)
