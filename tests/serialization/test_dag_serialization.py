@@ -1202,6 +1202,8 @@ class TestStringifiedDAGs:
             "wait_for_downstream": False,
             "wait_for_past_depends_before_skipping": False,
             "weight_rule": "downstream",
+            "template_all_fields": False,
+            "exclude_fields_from_template": None,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
