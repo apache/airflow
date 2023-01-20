@@ -21,7 +21,9 @@ import functools
 import json
 import logging
 from typing import Any, Callable
+
 from flask import Response
+
 from airflow.api_connexion.types import APIResponse
 from airflow.serialization.serialized_objects import BaseSerialization
 
