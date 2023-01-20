@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -62,8 +63,11 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
+    @cached_property
+    def hook(self):
+        return EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
     def poke(self, context: Context):
-        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
-        instance_state = ec2_hook.get_instance_state(instance_id=self.instance_id)
+        instance_state = self.hook.get_instance_state(instance_id=self.instance_id)
         self.log.info("instance state: %s", instance_state)
         return instance_state == self.target_state
