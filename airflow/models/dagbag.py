@@ -37,6 +37,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
+    AirflowClusterPolicyError,
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
@@ -440,6 +441,10 @@ class DagBag(LoggingMixin):
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = f"Invalid timetable expression: {exception}"
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
+            except AirflowClusterPolicyError as exception:
+                self.log.exception("Failed to bag_dag: %s", dag.fileloc)
+                self.import_errors[dag.fileloc] = f"Error on cluster policy itself: {exception}"
+                self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             except (
                 AirflowClusterPolicyViolation,
                 AirflowDagCycleException,
@@ -475,11 +480,17 @@ class DagBag(LoggingMixin):
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
-        # Check policies
-        settings.dag_policy(dag)
+        try:
+            # Check policies
+            settings.dag_policy(dag)
 
-        for task in dag.tasks:
-            settings.task_policy(task)
+            for task in dag.tasks:
+                settings.task_policy(task)
+        except AirflowClusterPolicyViolation:
+            raise
+        except Exception as e:
+            self.log.exception(e)
+            raise AirflowClusterPolicyError(e)
 
         subdags = dag.subdags
 
