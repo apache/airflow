@@ -367,7 +367,6 @@ class TestBaseOperator:
 
     def test_render_template_all_templatable_fields_with_multiple_exlusions(self):
         """Verify if template all fields is working correctly with multiple exclusions."""
-
         task = MockOperator(
             task_id="op1",
             template_all_fields=True,
