@@ -743,7 +743,7 @@ For example this will only run kerberos tests:
 
 .. code-block:: bash
 
-   breeze testing integration-tests --integration Kerberos
+   breeze testing integration-tests --integration kerberos
 
 
 Here is the detailed set of options for the ``breeze testing integration-tests`` command.
