@@ -141,7 +141,7 @@ Name                                                Description
 ``scheduler.tasks.running``                         Number of tasks running in executor
 ``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)
-                                                    with respect to pool limits, dag concurrency, executor state,
+                                                    with respect to pool limits, DAG concurrency, executor state,
                                                     and priority.
 ``executor.open_slots``                             Number of open slots on executor
 ``executor.queued_tasks``                           Number of queued tasks on executor

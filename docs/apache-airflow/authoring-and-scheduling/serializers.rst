@@ -20,7 +20,7 @@ Serialization
 
 To support data exchange, like arguments, between tasks, Airflow needs to serialize the data to be exchanged and
 deserialize it again when required in a downstream task. Serialization also happens so that the webserver and
-the scheduler (as opposed to the dag processor) do no need to read the DAG file. This is done for security purposes
+the scheduler (as opposed to the DAG processor) do no need to read the DAG file. This is done for security purposes
 and efficiency.
 
 Serialization is a surprisingly hard job. Python out of the box only has support for serialization of primitives,

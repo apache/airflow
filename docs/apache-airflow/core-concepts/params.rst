@@ -21,8 +21,8 @@ Params
 ======
 
 Params are how Airflow provides runtime configuration to tasks.
-When you trigger a DAG manually, you can modify its Params before the dagrun starts.
-If the user-supplied values don't pass validation, Airflow shows a warning instead of creating the dagrun.
+When you trigger a DAG manually, you can modify its Params before the DAG run starts.
+If the user-supplied values don't pass validation, Airflow shows a warning instead of creating the DAG run.
 (For scheduled runs, the default values are used.)
 
 Adding Params to a DAG
@@ -115,7 +115,7 @@ You can also add Params to individual tasks.
         python_callable=print_it,
     )
 
-If there's already a dag param with that name, the task-level default will take precedence over the dag-level default.
+If there's already a DAG param with that name, the task-level default will take precedence over the DAG-level default.
 If a user supplies their own value when the DAG was triggered, Airflow ignores all defaults and uses the user's value.
 
 JSON Schema Validation

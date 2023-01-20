@@ -65,8 +65,8 @@ the :doc:`Celery executor <../core-concepts/executor/celery>`.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
-the same configuration and dags. Airflow sends simple instructions such as "execute task X of dag Y", but
-does not send any dag files or configuration. You can use a simple cronjob or any other mechanism to sync
+the same configuration and DAGs. Airflow sends simple instructions such as "execute task X of DAG Y", but
+does not send any DAG files or configuration. You can use a simple cronjob or any other mechanism to sync
 DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
 
 

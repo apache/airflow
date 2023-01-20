@@ -95,7 +95,7 @@ With these requirements in mind, here are some examples of basic ``pod_template_
 
     The examples below should work when using default Airflow configuration values. However, many custom
     configuration values need to be explicitly passed to the pod via this template too. This includes,
-    but is not limited to, sql configuration, required Airflow connections, dag folder path and
+    but is not limited to, sql configuration, required Airflow connections, DAGs folder path and
     logging settings. See :doc:`../../configurations-ref` for details.
 
 Storing DAGs in the image:
@@ -181,7 +181,7 @@ Here is an example of a task with both features:
             print_stuff()
 
 
-Managing dags and logs
+Managing DAGs and logs
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Use of persistent volumes is optional and depends on your configuration.
@@ -190,9 +190,9 @@ Use of persistent volumes is optional and depends on your configuration.
 
 To get the DAGs into the workers, you can:
 
-  - Include dags in the image.
-  - Use ``git-sync`` which, before starting the worker container, will run a ``git pull`` of the dags repository.
-  - Storing dags on a persistent volume, which can be mounted on all workers.
+  - Include DAGs in the image.
+  - Use ``git-sync`` which, before starting the worker container, will run a ``git pull`` of the DAGs repository.
+  - Storing DAGs on a persistent volume, which can be mounted on all workers.
 
 - **Logs**:
 

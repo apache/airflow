@@ -47,7 +47,7 @@ Your DAGs will start executing once the scheduler is running successfully.
     Subsequent DAG Runs are created according to your DAG's :doc:`timetable <../authoring-and-scheduling/timetable>`.
 
 
-For dags with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
+For DAGs with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
 has ended. This technique makes sure that whatever data is required for that period is fully available before the DAG is executed.
 In the UI, it appears as if Airflow is running your tasks a day **late**
 
@@ -180,7 +180,7 @@ different processes. In order to fine-tune your scheduler, you need to include a
 * The logic and definition of your DAG structure:
     * how many DAG files you have
     * how many DAGs you have in your files
-    * how large the DAG files are (remember dag parser needs to read and parse the file every n seconds)
+    * how large the DAG files are (remember DAG parser needs to read and parse the file every n seconds)
     * how complex they are (i.e. how fast they can be parsed, how many tasks and dependencies they have)
     * whether parsing your DAG file involves importing a lot of libraries or heavy processing at the top level
       (Hint! It should not. See :ref:`best_practices/top_level_code`)

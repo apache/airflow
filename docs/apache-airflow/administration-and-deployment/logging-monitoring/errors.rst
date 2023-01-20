@@ -72,7 +72,7 @@ in favor of ``data_interval_start``.
 Breadcrumbs
 ------------
 
-When a task fails with an error `breadcrumbs <https://docs.sentry.io/platforms/python/enriching-events/breadcrumbs/>`__ will be added for the other tasks in the current dag run.
+When a task fails with an error `breadcrumbs <https://docs.sentry.io/platforms/python/enriching-events/breadcrumbs/>`__ will be added for the other tasks in the current DAG run.
 
 ======================================= ==============================================================
 Name                                    Description
