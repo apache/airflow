@@ -62,6 +62,7 @@ from sqlalchemy.sql import expression
 
 import airflow.templates
 from airflow import settings, utils
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
 from airflow.exceptions import (
@@ -1297,6 +1298,48 @@ class DAG(LoggingMixin):
             _schedule_interval = self.schedule_interval
         return _schedule_interval
 
+    @staticmethod
+    @provide_session
+    def _fetch_callback(dag: DAG, dagrun: DagRun, success=True, reason=None, session=NEW_SESSION):
+        """
+        Fetch the appropriate callbacks depending on the value of success, namely the
+        on_failure_callback or on_success_callback. This method gets the context of a
+        single TaskInstance part of this DagRun and returns it along the list of callbacks
+
+        :param dag: DAG object
+        :param dagrun: DagRun object
+        :param success: Flag to specify if failure or success callback should be called
+        :param reason: Completion reason
+        :param session: Database session
+        """
+        callbacks = dag.on_success_callback if success else dag.on_failure_callback
+        if callbacks:
+            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+            tis = dagrun.get_task_instances(session=session)
+            ti = tis[-1]  # get first TaskInstance of DagRun
+            ti.task = dag.get_task(ti.task_id)
+            context = ti.get_template_context(session=session)
+            context.update({"reason": reason})
+            return callbacks, context
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def fetch_callback(dag_id: str, run_id: str, success=True, reason=None, session=NEW_SESSION):
+        """
+        Get DAG and DagRun objects before calling _fetch_callback method
+
+        :param dag_id: The dag_id of the DAG to find.
+        :param run_id: The run_id of the DagRun to find.
+        :param success: Flag to specify if failure or success callback should be called
+        :param reason: Completion reason
+        :param session: Database session
+        """
+        dag = DagModel.get_dagmodel(dag_id=dag_id, session=session)
+        dagrun = DAG._fetch_dagrun(dag_id=dag_id, run_id=run_id, session=session)
+        # TODO: need serialization here
+        return DAG._fetch_callback(dag=dag, dagrun=dagrun, success=success, reason=reason, session=session)
+
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=NEW_SESSION):
         """
@@ -1313,21 +1356,27 @@ class DAG(LoggingMixin):
         :param reason: Completion reason
         :param session: Database session
         """
-        callbacks = self.on_success_callback if success else self.on_failure_callback
-        if callbacks:
-            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-            tis = dagrun.get_task_instances(session=session)
-            ti = tis[-1]  # get first TaskInstance of DagRun
-            ti.task = self.get_task(ti.task_id)
-            context = ti.get_template_context(session=session)
-            context.update({"reason": reason})
-            for callback in callbacks:
-                self.log.info("Executing dag callback function: %s", callback)
-                try:
-                    callback(context)
-                except Exception:
-                    self.log.exception("failed to invoke dag state update callback")
-                    Stats.incr("dag.callback_exceptions")
+        callbacks, context = DAG._fetch_callback(
+            dag=self, dagrun=dagrun, success=success, reason=reason, session=session
+        )
+        DAG.execute_callback(callbacks, context)
+
+    @staticmethod
+    def execute_callback(callbacks, context):
+        """
+        Triggers the callbacks with the given context
+
+        :param callbacks: List of callbacks to call
+        :param context: Context to pass to all callbacks
+        """
+        for callback in callbacks:
+            # TODO: Address when https://github.com/apache/airflow/pull/28502 is merged
+            # self.log.info("Executing dag callback function: %s", callback)
+            try:
+                callback(context)
+            except Exception:
+                # self.log.exception("failed to invoke dag state update callback")
+                Stats.incr("dag.callback_exceptions")
 
     def get_active_runs(self):
         """
@@ -1366,17 +1415,19 @@ class DAG(LoggingMixin):
 
         return query.scalar()
 
+    @staticmethod
     @provide_session
-    def get_dagrun(
-        self,
+    def _fetch_dagrun(
+        dag_id: str,
         execution_date: datetime | None = None,
         run_id: str | None = None,
         session: Session = NEW_SESSION,
     ):
         """
-        Returns the dag run for a given execution date or run_id if it exists, otherwise
+        Returns the dag run of a dag for a given execution date or run_id if it exists, otherwise
         none.
 
+        :param dag_id: The dag_id of the DAG to find.
         :param execution_date: The execution date of the DagRun to find.
         :param run_id: The run_id of the DagRun to find.
         :param session:
@@ -1386,10 +1437,21 @@ class DAG(LoggingMixin):
             raise TypeError("You must provide either the execution_date or the run_id")
         query = session.query(DagRun)
         if execution_date:
-            query = query.filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
+            query = query.filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
         if run_id:
-            query = query.filter(DagRun.dag_id == self.dag_id, DagRun.run_id == run_id)
+            query = query.filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
         return query.first()
+
+    @provide_session
+    def get_dagrun(
+        self,
+        execution_date: datetime | None = None,
+        run_id: str | None = None,
+        session: Session = NEW_SESSION,
+    ):
+        return DAG._fetch_dagrun(
+            dag_id=self.dag_id, execution_date=execution_date, run_id=run_id, session=session
+        )
 
     @provide_session
     def get_dagruns_between(self, start_date, end_date, session=NEW_SESSION):

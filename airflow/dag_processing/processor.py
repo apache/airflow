@@ -680,10 +680,20 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
         dag = dagbag.dags[request.dag_id]
-        dag_run = dag.get_dagrun(run_id=request.run_id, session=session)
-        dag.handle_callback(
-            dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
+        callbacks, context = (
+            DAG.fetch_callback(
+                dag_id=dag.dag_id,
+                run_id=request.run_id,
+                success=not request.is_failure_callback,
+                reason=request.msg,
+                session=session,
+            )
+            or None,
+            None,
         )
+
+        if callbacks and context:
+            DAG.execute_callback(callbacks, context)
 
     def _execute_task_callbacks(self, dagbag: DagBag | None, request: TaskCallbackRequest, session: Session):
         if not request.is_failure_callback:
