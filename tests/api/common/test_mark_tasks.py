@@ -71,7 +71,7 @@ class TestMarkTasks:
         ]
 
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup_tests(self):
 
         clear_db_runs()
         drs = _create_dagruns(

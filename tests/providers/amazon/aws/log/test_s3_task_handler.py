@@ -45,7 +45,7 @@ def s3mock():
 class TestS3TaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
-    def setup(self, create_log_template, tmp_path_factory):
+    def setup_tests(self, create_log_template, tmp_path_factory):
         self.remote_log_base = "s3://bucket/remote/log/location"
         self.remote_log_location = "s3://bucket/remote/log/location/1.log"
         self.remote_log_key = "remote/log/location/1.log"
