@@ -26,7 +26,6 @@ import requests
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.typing_compat import ParamSpec
 
 PS = ParamSpec("PS")
@@ -67,7 +66,7 @@ class InternalApiConfig:
         InternalApiConfig._internal_api_endpoint = internal_api_endpoint
 
 
-def internal_api_call(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
+def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """Decorator for methods which may be executed in database isolation mode.
 
     If [core]database_access_isolation is true then such method are not executed locally,
@@ -94,21 +93,20 @@ def internal_api_call(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
         return response.content
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> RT | None:
+    def wrapper(*args, **kwargs) -> RT:
         use_internal_api = InternalApiConfig.get_use_internal_api()
         if not use_internal_api:
             return func(*args, **kwargs)
+
+        from airflow.serialization.serialized_objects import BaseSerialization  # avoid circular import
 
         bound = inspect.signature(func).bind(*args, **kwargs)
         arguments_dict = dict(bound.arguments)
         if "session" in arguments_dict:
             del arguments_dict["session"]
         args_json = json.dumps(BaseSerialization.serialize(arguments_dict))
-        method_name = f"{func.__module__}.{func.__name__}"
+        method_name = f"{func.__module__}.{func.__qualname__}"
         result = make_jsonrpc_request(method_name, args_json)
-        if result:
-            return BaseSerialization.deserialize(json.loads(result))
-        else:
-            return None
+        return BaseSerialization.deserialize(json.loads(result))
 
     return wrapper

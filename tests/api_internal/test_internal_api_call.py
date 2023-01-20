@@ -55,17 +55,17 @@ class TestInternalApiConfig:
         assert InternalApiConfig.get_internal_api_endpoint() == "http://localhost:8888/internal_api/v1/rpcapi"
 
 
-@internal_api_call
-def fake_method() -> str:
-    return "local-call"
-
-
-@internal_api_call
-def fake_method_with_params(dag_id: str, task_id: int) -> str:
-    return f"local-call-with-params-{dag_id}-{task_id}"
-
-
 class TestInternalApiCall:
+    @staticmethod
+    @internal_api_call
+    def fake_method() -> str:
+        return "local-call"
+
+    @staticmethod
+    @internal_api_call
+    def fake_method_with_params(dag_id: str, task_id: int) -> str:
+        return f"local-call-with-params-{dag_id}-{task_id}"
+
     @conf_vars(
         {
             ("core", "database_access_isolation"): "false",
@@ -74,7 +74,7 @@ class TestInternalApiCall:
     )
     @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_local_call(self, mock_requests):
-        result = fake_method()
+        result = TestInternalApiCall.fake_method()
 
         assert result == "local-call"
         mock_requests.post.assert_not_called()
@@ -94,12 +94,12 @@ class TestInternalApiCall:
 
         mock_requests.post.return_value = response
 
-        result = fake_method()
+        result = TestInternalApiCall.fake_method()
         assert result == "remote-call"
         expected_data = json.dumps(
             {
                 "jsonrpc": "2.0",
-                "method": "tests.api_internal.test_internal_api_call.fake_method",
+                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall.fake_method",
                 "params": json.dumps(BaseSerialization.serialize({})),
             }
         )
@@ -124,12 +124,13 @@ class TestInternalApiCall:
 
         mock_requests.post.return_value = response
 
-        result = fake_method_with_params("fake-dag", task_id=123)
+        result = TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123)
         assert result == "remote-call"
         expected_data = json.dumps(
             {
                 "jsonrpc": "2.0",
-                "method": "tests.api_internal.test_internal_api_call.fake_method_with_params",
+                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
+                "fake_method_with_params",
                 "params": json.dumps(
                     BaseSerialization.serialize(
                         {

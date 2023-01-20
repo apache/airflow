@@ -62,6 +62,7 @@ from sqlalchemy.sql import expression
 
 import airflow.templates
 from airflow import settings, utils
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
 from airflow.exceptions import (
@@ -3259,6 +3260,7 @@ class DagModel(Base):
         return self.is_paused
 
     @staticmethod
+    @internal_api_call
     @provide_session
     def get_paused_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
         """
