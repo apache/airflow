@@ -123,6 +123,7 @@ with models.DAG(
     # [START howto_bigquery_start_transfer]
     gcp_bigquery_start_transfer = BigQueryDataTransferServiceStartTransferRunsOperator(
         task_id="gcp_bigquery_start_transfer",
+        project_id=PROJECT_ID,
         transfer_config_id=transfer_config_id,
         requested_run_time={"seconds": int(time.time() + 60)},
     )

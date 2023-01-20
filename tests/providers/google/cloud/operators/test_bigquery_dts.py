@@ -89,12 +89,19 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
 
 
 class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.TestCase):
+    OPERATOR_MODULE_PATH = "airflow.providers.google.cloud.operators.bigquery_dts"
+
     @mock.patch(
-        "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
+        f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator"
+        f"._wait_for_transfer_to_be_done",
+        mock.MagicMock(),
+    )
+    @mock.patch(
+        f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook",
         **{
             "return_value.start_manual_transfer_runs.return_value": StartManualTransferRunsResponse(
                 runs=[TransferRun(name=RUN_NAME)]
-            )
+            ),
         },
     )
     def test_execute(self, mock_hook):
@@ -115,3 +122,25 @@ class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.Test
             timeout=None,
         )
         ti.xcom_push.assert_called_with(execution_date=None, key="run_id", value="123")
+
+    @mock.patch(
+        f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook",
+        **{
+            "return_value.start_manual_transfer_runs.return_value": StartManualTransferRunsResponse(
+                runs=[TransferRun(name=RUN_NAME)]
+            ),
+        },
+    )
+    @mock.patch(f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator.defer")
+    def test_defer_mode(self, _, defer_method):
+        op = BigQueryDataTransferServiceStartTransferRunsOperator(
+            transfer_config_id=TRANSFER_CONFIG_ID,
+            task_id="id",
+            project_id=PROJECT_ID,
+            deferrable=True,
+        )
+        ti = mock.MagicMock()
+
+        op.execute({"ti": ti})
+
+        defer_method.assert_called_once()
