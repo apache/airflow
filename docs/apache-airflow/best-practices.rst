@@ -252,7 +252,7 @@ Good example:
 
   @task
   def my_task():
-      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan dags.
+      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan DAGs.
       print(var)
 
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`

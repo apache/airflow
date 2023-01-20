@@ -748,7 +748,7 @@ Packaging DAGs
 
 While simpler DAGs are usually only in a single Python file, it is not uncommon that more complex DAGs might be spread across multiple files and have dependencies that should be shipped with them ("vendored").
 
-You can either do this all inside of the ``DAG_FOLDER``, with a standard filesystem layout, or you can package the DAG and all of its Python files up as a single zip file. For instance, you could ship two dags along with a dependency they need as a zip file with the following contents::
+You can either do this all inside of the ``DAG_FOLDER``, with a standard filesystem layout, or you can package the DAG and all of its Python files up as a single zip file. For instance, you could ship two DAGs along with a dependency they need as a zip file with the following contents::
 
     my_dag1.py
     my_dag2.py

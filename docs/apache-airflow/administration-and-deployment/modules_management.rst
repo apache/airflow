@@ -121,7 +121,7 @@ scheduler looks for DAGs. It should contain either regular expressions (the defa
 for the paths that should be ignored. You do not need to have that file in any other folder in
 ``PYTHONPATH`` (and also you can only keep shared code in the other folders, not the actual DAGs).
 
-In the example above the dags are only in ``my_custom_dags`` folder, the ``common_package`` should not be
+In the example above the DAGs are only in ``my_custom_dags`` folder, the ``common_package`` should not be
 scanned by scheduler when searching for DAGS, so we should ignore ``common_package`` folder. You also
 want to ignore the ``base_dag.py`` if you keep a base DAG there that ``my_dag1.py`` and ``my_dag2.py`` derives
 from. Your ``.airflowignore`` should look then like this:
@@ -167,7 +167,7 @@ There are a few gotchas you should be careful about when you import your code.
 Use unique top package name
 ...........................
 
-It is recommended that you always put your dags/common files in a subpackage which is unique to your
+It is recommended that you always put your DAGs/common files in a subpackage which is unique to your
 deployment (``my_company`` in the example below). It is far too easy to use generic names for the
 folders that will clash with other packages already present in the system. For example if you
 create ``airflow/operators`` subfolder it will not be accessible because Airflow already has a package
@@ -184,7 +184,7 @@ This is tempting to do something like that it in ``my_dag1.py``:
 
    from .base_dag import BaseDag  # NEVER DO THAT!!!!
 
-You should import such shared dag using full path (starting from the directory which is added to
+You should import such shared DAG using full path (starting from the directory which is added to
 ``PYTHONPATH``):
 
 .. code-block:: python

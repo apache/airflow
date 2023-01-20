@@ -61,7 +61,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
     # Visit localhost:8080 in the browser and use the admin account details
     # shown on the terminal to login.
-    # Enable the example_bash_operator dag in the home page
+    # Enable the example_bash_operator DAG in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.
