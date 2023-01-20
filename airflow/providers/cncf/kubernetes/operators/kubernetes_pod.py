@@ -26,10 +26,8 @@ import secrets
 import string
 import warnings
 from contextlib import AbstractContextManager
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
-import pytz
 from kubernetes.client import CoreV1Api, models as k8s
 from slugify import slugify
 from urllib3.exceptions import HTTPError
@@ -63,6 +61,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
+from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -575,7 +574,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def invoke_defer_method(self):
         """Method to easily redefine triggers which are being used in child classes."""
-        trigger_start_time = datetime.now(tz=pytz.UTC)
+        trigger_start_time = utcnow()
         self.defer(
             trigger=KubernetesPodTrigger(
                 pod_name=self.pod.metadata.name,

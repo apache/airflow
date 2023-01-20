@@ -26,8 +26,6 @@ from kubernetes import client, config, watch
 from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
-from kubernetes_asyncio.client import ApiException
-from kubernetes_asyncio.config import load_kube_config_from_dict
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
@@ -480,7 +478,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
-            await load_kube_config_from_dict(self.config_dict)
+            await async_config.load_kube_config_from_dict(self.config_dict)
             return async_client.ApiClient()
 
         if kubeconfig is not None:
@@ -517,13 +515,13 @@ class AsyncKubernetesHook(KubernetesHook):
         if field_name.startswith("extra__"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the 'extra__kubernetes__' prefix "
-                f"when using this method."
+                "when using this method."
             )
         extras = await self.get_conn_extras()
         if field_name in extras:
-            return extras[field_name] or None
+            return extras.get(field_name)
         prefixed_name = f"extra__kubernetes__{field_name}"
-        return extras.get(prefixed_name) or None
+        return extras.get(prefixed_name)
 
     @contextlib.asynccontextmanager
     async def get_conn(self) -> async_client.ApiClient:
@@ -563,7 +561,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 await v1_api.delete_namespaced_pod(
                     name=name, namespace=namespace, body=client.V1DeleteOptions()
                 )
-            except ApiException as e:
+            except async_client.ApiException as e:
                 # If the pod is already deleted
                 if e.status != 404:
                     raise
