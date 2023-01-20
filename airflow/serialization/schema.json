@@ -253,6 +253,17 @@
         "doc_json":  { "type": "string" },
         "doc_yaml":  { "type": "string" },
         "doc_rst":  { "type": "string" },
+        "template_all_fields":  { "type": "boolean" },
+        "exclude_fields_from_template":  {
+          "anyOf": [
+            { "type": "string"},
+              { "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+          ]
+        },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
         "expand_input": { "type": "object" },
         "partial_kwargs": { "type": "object" }
