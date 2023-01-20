@@ -66,14 +66,14 @@ class EksBaseSensor(BaseSensorOperator):
     :param cluster_name: The name of the Cluster
     :param target_state: Will return successfully when that state is reached.
     :param target_state_type: The enum containing the states,
-    will be used to convert the target state if it has to be converted from a string
+        will be used to convert the target state if it has to be converted from a string
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    If this is None or empty then the default boto3 behaviour is used. If
-    running Airflow in a distributed manner and aws_conn_id is None or
-    empty, then the default boto3 configuration would be used (and must be
-    maintained on each worker node).
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then the default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region: Which AWS region the connection should use.
-    If this is None or empty then the default boto3 behaviour is used.
+        If this is None or empty then the default boto3 behaviour is used.
     """
 
     def __init__(
