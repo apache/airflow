@@ -468,7 +468,7 @@ repos:
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/config_templates/default_airflow.cfg$|
           ^airflow/config_templates/config.yml$|
-          ^docs/*.*$|
+          ^docs/.*$|
           ^tests/providers/|
           ^.pre-commit-config\.yaml$|
           ^.*RELEASE_NOTES\.rst$|
