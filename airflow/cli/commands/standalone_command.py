@@ -175,8 +175,7 @@ class StandaloneCommand:
             return [
                 executor_name
                 for executor_name in ExecutorLoader.executors.keys()
-                if executor_name != "DaskExecutor"
-                and database in ExecutorLoader.load_executor(executor_name).standalone_command_backends
+                if database in ExecutorLoader.load_executor(executor_name).standalone_command_backends
             ][0]
         except IndexError:
             return executor_constants.LOCAL_EXECUTOR
