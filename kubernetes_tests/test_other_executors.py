@@ -20,14 +20,14 @@ import time
 
 import pytest
 
-from kubernetes_tests.test_base import EXECUTOR, TestBase  # isort:skip (needed to workaround isort bug)
+from kubernetes_tests.test_base import EXECUTOR, BaseK8STest  # isort:skip (needed to workaround isort bug)
 
 
 # These tests are here because only KubernetesExecutor can run the tests in
 # test_kubernetes_executor.py
 # Also, the skipping is necessary as there's no gain in running these tests in KubernetesExecutor
 @pytest.mark.skipif(EXECUTOR == "KubernetesExecutor", reason="Does not run on KubernetesExecutor")
-class TestCeleryAndLocalExecutor(TestBase):
+class TestCeleryAndLocalExecutor(BaseK8STest):
     def test_integration_run_dag(self):
         dag_id = "example_bash_operator"
         dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)

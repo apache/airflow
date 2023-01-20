@@ -3321,6 +3321,7 @@ class DagModel(Base):
         return self.is_paused
 
     @staticmethod
+    @internal_api_call
     @provide_session
     def get_paused_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
         """

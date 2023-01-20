@@ -530,6 +530,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         )
 
     @property
+    def service_config(self) -> dict:
+        service_name = self.client_type or self.resource_type
+        return self.conn_config.get_service_config(service_name)
+
+    @property
     def region_name(self) -> str | None:
         """AWS Region Name read-only property."""
         return self.conn_config.region_name
