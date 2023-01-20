@@ -453,6 +453,7 @@ repos:
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^tests/cli/commands/test_webserver_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
+          ^tests/cli/commands/test_internal_api_command.py$|
           ^airflow/config_templates/default_airflow.cfg$|
           ^airflow/config_templates/config.yml$|
           ^docs/*.*$|
