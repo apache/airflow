@@ -262,10 +262,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         # Sensors in `poke` mode can block execution of DAGs when running
         # with single process executor, thus we change the mode to`reschedule`
         # to allow parallel task being scheduled and executed
-        executor_name = conf.get("core", "executor")
-        executor = ExecutorLoader.load_executor(executor_name)
+        executor, _ = ExecutorLoader.import_default_executor_cls()
         if executor.change_sensor_mode_to_reschedule:
-            self.log.warning("%s changes sensor mode to 'reschedule'.", executor_name)
+            self.log.warning("%s changes sensor mode to 'reschedule'.", executor.__name__)
             task.mode = "reschedule"
         return task
 
