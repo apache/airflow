@@ -21,14 +21,20 @@ import json
 import os
 from time import monotonic, sleep
 from typing import Any, Dict, Sequence
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urljoin
 
 import google.auth
+from aiohttp import ClientSession
+from gcloud.aio.auth import AioSession, Token
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 Operation = Dict[str, Any]
 
@@ -154,12 +160,14 @@ class DataFusionHook(GoogleBaseHook):
 
     @staticmethod
     def _check_response_status_and_data(response, message: str) -> None:
-        if response.status != 200:
+        if response.status == 404:
+            raise AirflowNotFoundException(message)
+        elif response.status != 200:
             raise AirflowException(message)
         if response.data is None:
             raise AirflowException(
                 "Empty response received. Please, check for possible root "
-                "causes of this behavior either in DAG code or on Cloud Datafusion side"
+                "causes of this behavior either in DAG code or on Cloud DataFusion side"
             )
 
     def get_conn(self) -> Resource:
@@ -418,7 +426,7 @@ class DataFusionHook(GoogleBaseHook):
         :param pipeline_name: Your pipeline name.
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
         :param runtime_args: Optional runtime JSON args to be passed to the pipeline
-        :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
+        :param namespace: if your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
         """
@@ -469,3 +477,88 @@ class DataFusionHook(GoogleBaseHook):
         self._check_response_status_and_data(
             response, f"Stopping a pipeline failed with code {response.status}"
         )
+
+
+class DataFusionAsyncHook(GoogleBaseAsyncHook):
+    """Class to get asynchronous hook for DataFusion"""
+
+    sync_hook_class = DataFusionHook
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+
+    @staticmethod
+    def _base_url(instance_url: str, namespace: str) -> str:
+        return urljoin(f"{instance_url}/", f"v3/namespaces/{quote(namespace)}/apps/")
+
+    async def _get_link(self, url: str, session):
+        async with Token(scopes=self.scopes) as token:
+            session_aio = AioSession(session)
+            headers = {
+                "Authorization": f"Bearer {await token.get()}",
+            }
+            try:
+                pipeline = await session_aio.get(url=url, headers=headers)
+            except AirflowException:
+                pass  # Because the pipeline may not be visible in system yet
+
+        return pipeline
+
+    async def get_pipeline(
+        self,
+        instance_url: str,
+        namespace: str,
+        pipeline_name: str,
+        pipeline_id: str,
+        session,
+    ):
+        base_url_link = self._base_url(instance_url, namespace)
+        url = urljoin(
+            base_url_link, f"{quote(pipeline_name)}/workflows/DataPipelineWorkflow/runs/{quote(pipeline_id)}"
+        )
+        return await self._get_link(url=url, session=session)
+
+    async def get_pipeline_status(
+        self,
+        pipeline_name: str,
+        instance_url: str,
+        pipeline_id: str,
+        namespace: str = "default",
+        success_states: list[str] | None = None,
+    ) -> str:
+        """
+        Gets a Cloud Data Fusion pipeline status asynchronously.
+
+        :param pipeline_name: Your pipeline name.
+        :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
+        :param pipeline_id: Unique pipeline ID associated with specific pipeline
+        :param namespace: if your pipeline belongs to a Basic edition instance, the namespace ID
+            is always default. If your pipeline belongs to an Enterprise edition instance, you
+            can create a namespace.
+        :param success_states: If provided the operator will wait for pipeline to be in one of
+            the provided states.
+        """
+        success_states = success_states or SUCCESS_STATES
+        async with ClientSession() as session:
+            try:
+                pipeline = await self.get_pipeline(
+                    instance_url=instance_url,
+                    namespace=namespace,
+                    pipeline_name=pipeline_name,
+                    pipeline_id=pipeline_id,
+                    session=session,
+                )
+                self.log.info("Response pipeline: %s", pipeline)
+                pipeline = await pipeline.json(content_type=None)
+                current_pipeline_state = pipeline["status"]
+
+                if current_pipeline_state in success_states:
+                    pipeline_status = "success"
+                elif current_pipeline_state in FAILURE_STATES:
+                    pipeline_status = "failed"
+                else:
+                    pipeline_status = "pending"
+            except OSError:
+                pipeline_status = "pending"
+            except Exception as e:
+                self.log.info("Retrieving pipeline status finished with errors...")
+                pipeline_status = str(e)
+            return pipeline_status
