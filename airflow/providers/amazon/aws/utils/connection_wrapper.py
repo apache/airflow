@@ -125,6 +125,9 @@ class AwsConnectionWrapper(LoggingMixin):
     def conn_repr(self):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
 
+    def get_service_config(self, service_name):
+        return self.extra_dejson.get("service_config", {}).get(service_name, {})
+
     def __post_init__(self, conn: Connection):
         if isinstance(conn, type(self)):
             # For every field with init=False we copy reference value from original wrapper
