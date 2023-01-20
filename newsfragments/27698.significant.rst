@@ -1,1 +1,0 @@
-Begin deprecation of helm env var GIT_SYNC_WAIT in favor of GIT_SYNC_PERIOD. This is due to update of git-sync version.

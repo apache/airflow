@@ -680,7 +680,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.4.0"
+                            "default": "v3.6.3"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -5353,11 +5353,6 @@
                             "default": "tests/dags"
                         },
                         "wait": {
-                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository. (Deprecated. Use 'period')",
-                            "type": "integer",
-                            "default": 5
-                        },
-                        "period": {
                             "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
                             "type": "integer",
                             "default": 5
@@ -5442,7 +5437,7 @@
                             },
                             "examples": [
                                 {
-                                    "name": "GIT_SYNC_SYNC_TIMEOUT",
+                                    "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
                                 }
                             ]
