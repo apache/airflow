@@ -20,9 +20,9 @@
 Params
 ======
 
-Params enable you to provide runtime configuration to tasks. You can configure Params when you trigger a DAG.
-If the user-supplied values don't pass validation, Airflow shows a warning instead of creating the DAG run.
-For scheduled runs, the default values are used.
+Params enable you to provide runtime configuration to tasks. You can configure default Params in your DAG
+code and supply additional Params, or overwrite Param values, at runtime when you trigger a DAG. Param values
+are validated with JSON Schema. For scheduled DAG runs, default Param values are used.
 
 DAG-level Params
 ----------------
