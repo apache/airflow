@@ -19,20 +19,21 @@ from __future__ import annotations
 
 import datetime
 import logging
+import multiprocessing as mp
 import os
 import re
 import signal
 import threading
 import time
 import uuid
-from multiprocessing import Value
+import warnings
 from unittest import mock
 from unittest.mock import patch
 
 import psutil
 import pytest
 
-from airflow import settings
+from airflow import DAG, settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.local_task_job import SIGSEGV_MESSAGE, LocalTaskJob
@@ -767,44 +768,6 @@ class TestLocalTaskJob:
         assert failed_deps[0].dep_name == "Previous Dagrun State"
         assert not failed_deps[0].passed
 
-    @pytest.mark.quarantined
-    def test_process_sigterm_works_with_retries(self, caplog, dag_maker):
-        """
-        Test that ensures that task runner sets tasks to retry when they(task runner)
-         receive sigterm
-        """
-        # use shared memory value so we can properly track value change even if
-        # it's been updated across processes.
-        retry_callback_called = Value("i", 0)
-
-        def retry_callback(context):
-            with retry_callback_called.get_lock():
-                retry_callback_called.value += 1
-            assert context["dag_run"].dag_id == "test_mark_failure_2"
-
-        def task_function(ti):
-            while not ti.pid:
-                time.sleep(0.1)
-            os.kill(psutil.Process(os.getpid()).ppid(), signal.SIGTERM)
-
-        with dag_maker(dag_id="test_mark_failure_2"):
-            task = PythonOperator(
-                task_id="test_on_failure",
-                python_callable=task_function,
-                retries=1,
-                on_retry_callback=retry_callback,
-            )
-        dag_maker.create_dagrun()
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
-        ti.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
-        settings.engine.dispose()
-        with timeout(10):
-            job1.run()
-        assert retry_callback_called.value == 1
-        assert "Received SIGTERM. Terminating subprocesses" in caplog.text
-        assert "Task exited with return code 143" in caplog.text
-
     def test_process_sigsegv_error_message(self, caplog, dag_maker):
         """Test that shows error if process failed with segmentation fault."""
         caplog.set_level(logging.CRITICAL, logger="local_task_job.py")
@@ -864,4 +827,126 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
 
     job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
     with assert_queries_count(18):
+        job.run()
+
+
+class TestSigtermOnRunner:
+    """Test receive SIGTERM Task Runner."""
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
+    @pytest.mark.parametrize(
+        "daemon", [pytest.param(True, id="daemon"), pytest.param(False, id="non-daemon")]
+    )
+    @pytest.mark.parametrize(
+        "mp_method",
+        [
+            pytest.param(
+                "fork", marks=pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
+            ),
+            pytest.param("spawn"),
+        ],
+    )
+    def test_process_sigterm_works_with_retries(self, mp_method, daemon, clear_db, request, capfd):
+        """Test that ensures that task runner sets tasks to retry when task runner receive SIGTERM."""
+        mp_context = mp.get_context(mp_method)
+
+        # Use shared memory value, so we can properly track value change
+        # even if it's been updated across processes.
+        retry_callback_called = mp_context.Value("i", 0)
+        task_started = mp_context.Value("i", 0)
+
+        dag_id = f"test_task_runner_sigterm_{mp_method}_{'' if daemon else 'non_'}daemon"
+        task_id = "test_on_retry_callback"
+        execution_date = DEFAULT_DATE
+        run_id = f"test-{execution_date.date().isoformat()}"
+
+        # Run LocalTaskJob in separate process
+        proc = mp_context.Process(
+            target=self._sigterm_local_task_runner,
+            args=(dag_id, task_id, run_id, execution_date, task_started, retry_callback_called),
+            name="LocalTaskJob-TestProcess",
+            daemon=daemon,
+        )
+        proc.start()
+
+        try:
+            with timeout(10, "Timeout during waiting start LocalTaskJob"):
+                while task_started.value == 0:
+                    time.sleep(0.2)
+            os.kill(proc.pid, signal.SIGTERM)
+
+            with timeout(10, "Timeout during waiting callback"):
+                while retry_callback_called.value == 0:
+                    time.sleep(0.2)
+        finally:
+            proc.kill()
+
+        assert retry_callback_called.value == 1
+        with create_session() as session:
+            ti = (
+                session.query(TaskInstance)
+                .filter(
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.run_id == run_id,
+                )
+                .one()
+            )
+        assert ti.state == State.UP_FOR_RETRY
+
+        pytest_capture = request.config.option.capture
+        if pytest_capture == "no":
+            # Since we run `LocalTaskJob` in the separate process we can grab ut easily by `caplog`.
+            # However, we could grab it from stdout/stderr but only if `-s` flag set, see:
+            # https://github.com/pytest-dev/pytest/issues/5997
+            captured = capfd.readouterr()
+            for msg in [
+                "Received SIGTERM. Terminating subprocesses",
+                "Task exited with return code 143",
+            ]:
+                assert msg in captured.out or msg in captured.err
+        else:
+            warnings.warn(
+                f"Skip test logs in stdout/stderr when capture enabled: {pytest_capture}, "
+                f"please pass `-s` option.",
+                UserWarning,
+            )
+
+    @staticmethod
+    def _sigterm_local_task_runner(
+        dag_id,
+        task_id,
+        run_id,
+        execution_date,
+        is_started,
+        callback_value,
+    ):
+        """Helper function which create infinity task and run it by LocalTaskJob."""
+        settings.engine.pool.dispose()
+        settings.engine.dispose()
+
+        def retry_callback(context):
+            assert context["dag_run"].dag_id == dag_id
+            with callback_value.get_lock():
+                callback_value.value += 1
+
+        def task_function():
+            with is_started.get_lock():
+                is_started.value = 1
+
+            while True:
+                time.sleep(0.1)
+
+        with DAG(dag_id=dag_id, schedule=None, start_date=execution_date) as dag:
+            task = PythonOperator(
+                task_id=task_id,
+                python_callable=task_function,
+                retries=1,
+                on_retry_callback=retry_callback,
+            )
+
+        dag.create_dagrun(state=State.RUNNING, run_id=run_id, execution_date=execution_date)
+        ti = TaskInstance(task=task, execution_date=execution_date)
+        ti.refresh_from_db()
+        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         job.run()
