@@ -20,11 +20,11 @@ import time
 
 import pytest
 
-from kubernetes_tests.test_base import EXECUTOR, TestBase  # isort:skip (needed to workaround isort bug)
+from kubernetes_tests.test_base import EXECUTOR, BaseK8STest  # isort:skip (needed to workaround isort bug)
 
 
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
-class TestKubernetesExecutor(TestBase):
+class TestKubernetesExecutor(BaseK8STest):
     @pytest.mark.execution_timeout(300)
     def test_integration_run_dag(self):
         dag_id = "example_kubernetes_executor"

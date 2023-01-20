@@ -21,11 +21,11 @@ import re
 import subprocess
 import tempfile
 import time
-import unittest
 from datetime import datetime
 from pathlib import Path
 from subprocess import check_call, check_output
 
+import pytest
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
@@ -41,12 +41,29 @@ print(f"Executor: {EXECUTOR}")
 print()
 
 
-class TestBase(unittest.TestCase):
+class BaseK8STest:
+    """Base class for K8S Tests."""
+
+    host: str = KUBERNETES_HOST_PORT
+    temp_dir = Path(tempfile.gettempdir())  # Refers to global temp directory, in linux it usual "/tmp"
+    session: requests.Session
+    test_id: str
+
+    @pytest.fixture(autouse=True)
+    def base_tests_setup(self, request):
+        # Replacement for unittests.TestCase.id()
+        self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
+        self.session = self._get_session_with_retries()
+        try:
+            self._ensure_airflow_webserver_is_healthy()
+            yield
+        finally:
+            self.session.close()
+
     def _describe_resources(self, namespace: str):
         kubeconfig_basename = os.path.basename(os.environ.get("KUBECONFIG", "default"))
         output_file_path = (
-            Path(tempfile.gettempdir())
-            / f"k8s_test_resources_{namespace}_{kubeconfig_basename}_{self.id()}.txt"
+            self.temp_dir / f"k8s_test_resources_{namespace}_{kubeconfig_basename}_{self.test_id}.txt"
         )
         print(f"Dumping resources to {output_file_path}")
         ci = os.environ.get("CI")
@@ -127,14 +144,6 @@ class TestBase(unittest.TestCase):
             f"Giving up. The webserver of Airflow was not healthy after {max_tries} tries "
             f"with {timeout_seconds} s delays"
         )
-
-    def setUp(self):
-        self.host = KUBERNETES_HOST_PORT
-        self.session = self._get_session_with_retries()
-        self._ensure_airflow_webserver_is_healthy()
-
-    def tearDown(self):
-        self.session.close()
 
     def monitor_task(self, host, dag_run_id, dag_id, task_id, expected_final_state, timeout):
         tries = 0
