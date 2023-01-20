@@ -256,12 +256,8 @@
         "template_all_fields":  { "type": "boolean" },
         "exclude_fields_from_template":  {
           "anyOf": [
-            { "type": "string"},
-              { "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
           ]
         },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
