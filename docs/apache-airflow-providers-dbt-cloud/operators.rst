@@ -48,8 +48,8 @@ When ``wait_for_termination`` is True and ``deferrable`` is True,
 we submit the job and ``defer`` using Triggerer. This will release the worker slot leading to savings in
 resource utilization while the job is running.
 
-When ``wait_for_termination`` is False and ``deferrable`` is False, we just submit the job and
-do not track the job status.
+When ``wait_for_termination`` is False and ``deferrable`` is False, we just submit the job and can only
+track the job status with the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`.
 
 
 While ``schema_override`` and ``steps_override`` are explicit, optional parameters for the
