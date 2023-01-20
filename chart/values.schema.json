@@ -5200,15 +5200,41 @@
                     "type": "boolean",
                     "default": true
                 },
-                "postgresqlPassword": {
-                    "description": "PostgreSQL password.",
-                    "type": "string",
-                    "default": "postgres"
-                },
-                "postgresqlUsername": {
-                    "description": "PostgreSQL username.",
-                    "type": "string",
-                    "default": "postgres"
+                "auth": {
+                    "description": "PostgreSQL authentication values.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "enablePostgresUser": {
+                            "description": "Assign a password to the 'postgres' admin user. Otherwise, remote access will be blocked for this user",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "postgresPassword": {
+                            "description": "Password for the 'postgres' admin user.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": "postgres"
+                        },
+                        "username": {
+                            "description": "Name for a custom user to create",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "password": {
+                            "description": "Password for the custom user to create.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
                 }
             }
         },

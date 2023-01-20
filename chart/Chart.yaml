@@ -34,7 +34,8 @@ keywords:
   - scheduler
 dependencies:
   - name: postgresql
-    version: 10.5.3
+    version: 12.1.9
+    repository: https://charts.bitnami.com/bitnami
     condition: postgresql.enabled
 maintainers:
   - email: dev@airflow.apache.org

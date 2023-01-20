@@ -28,7 +28,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Secret", "test-rbac-pgbouncer-stats"),
     ("ConfigMap", "test-rbac-airflow-config"),
     ("ConfigMap", "test-rbac-statsd"),
-    ("Service", "test-rbac-postgresql-headless"),
+    ("Service", "test-rbac-postgresql-hl"),
     ("Service", "test-rbac-postgresql"),
     ("Service", "test-rbac-statsd"),
     ("Service", "test-rbac-webserver"),
@@ -89,6 +89,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     CUSTOM_CREATE_USER_JOBS_NAME,
     CUSTOM_MIGRATE_DATABASE_JOBS_NAME,
     CUSTOM_REDIS_NAME,
+    CUSTOM_POSTGRESQL_NAME,
 ) = (
     "TestScheduler",
     "TestWebserver",
@@ -101,6 +102,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     "TestCreateUserJob",
     "TestMigrateDatabaseJob",
     "TestRedis",
+    "TestPostgresql",
 )
 
 
@@ -254,6 +256,7 @@ class TestRBAC:
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
+                "postgresql": {"serviceAccount": {"create": True, "name": CUSTOM_POSTGRESQL_NAME}},
                 "pgbouncer": {
                     "enabled": True,
                     "serviceAccount": {
@@ -289,6 +292,7 @@ class TestRBAC:
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
+                "postgresql": {"serviceAccount": {"name": CUSTOM_POSTGRESQL_NAME}},
                 "pgbouncer": {
                     "enabled": True,
                     "serviceAccount": {

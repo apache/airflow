@@ -940,7 +940,7 @@ All parameters of the command are here:
 Running k8s tests
 .................
 
-You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those testa are placed
+You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those tests are placed
 in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
 you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
 for all clusters in parallel.
