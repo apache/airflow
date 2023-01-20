@@ -1230,7 +1230,12 @@ class TaskInstance(Base, LoggingMixin):
         self.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
-            Stats.incr("previously_succeeded", 1, 1)
+            Stats.incr(
+                "previously_succeeded",
+                1,
+                1,
+                tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id},
+            )
 
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
@@ -1533,7 +1538,9 @@ class TaskInstance(Base, LoggingMixin):
             self.task.post_execute(context=context, result=result)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", 1, 1)
-        Stats.incr("ti_successes")
+        Stats.incr(
+            "ti_successes", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}
+        )
 
     def _run_finished_callback(
         self,
@@ -1797,7 +1804,9 @@ class TaskInstance(Base, LoggingMixin):
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f"operator_failures_{self.operator}")
-        Stats.incr("ti_failures")
+        Stats.incr(
+            "ti_failures", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}
+        )
         if not test_mode:
             session.add(Log(State.FAILED, self))
 

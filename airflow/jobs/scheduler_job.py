@@ -686,7 +686,10 @@ class SchedulerJob(BaseJob):
             ti_requeued = ti.queued_by_job_id != self.id or self.executor.has_task(ti)
 
             if ti_queued and not ti_requeued:
-                Stats.incr("scheduler.tasks.killed_externally")
+                Stats.incr(
+                    "scheduler.tasks.killed_externally",
+                    tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id},
+                )
                 msg = (
                     "Executor reports task instance %s finished (%s) although the "
                     "task says its %s. (Info: %s) Was the task killed externally?"
@@ -1564,7 +1567,9 @@ class SchedulerJob(BaseJob):
             )
             self.log.error("Detected zombie job: %s", request)
             self.executor.send_callback(request)
-            Stats.incr("zombies_killed")
+            Stats.incr(
+                "zombies_killed", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
+            )
 
     @staticmethod
     def _generate_zombie_message_details(ti: TaskInstance):

@@ -261,9 +261,14 @@ class TestSchedulerJob:
         self.scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_has_calls(
             [
-                mock.call("scheduler.tasks.killed_externally"),
+                mock.call(
+                    "scheduler.tasks.killed_externally",
+                    tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id},
+                ),
                 mock.call("operator_failures_EmptyOperator"),
-                mock.call("ti_failures"),
+                mock.call(
+                    "ti_failures", tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id}
+                ),
             ],
             any_order=True,
         )
@@ -318,9 +323,12 @@ class TestSchedulerJob:
         self.scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_has_calls(
             [
-                mock.call("scheduler.tasks.killed_externally"),
+                mock.call(
+                    "scheduler.tasks.killed_externally",
+                    tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1},
+                ),
                 mock.call("operator_failures_EmptyOperator"),
-                mock.call("ti_failures"),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1}),
             ],
             any_order=True,
         )
@@ -366,7 +374,14 @@ class TestSchedulerJob:
         )
         self.scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
         self.scheduler_job.executor.callback_sink.reset_mock()
-        mock_stats_incr.assert_called_once_with("scheduler.tasks.killed_externally")
+        mock_stats_incr.assert_called_once_with(
+            "scheduler.tasks.killed_externally",
+            tags={
+                "dag_id": "test_process_executor_events_with_callback",
+                "run_id": "test",
+                "task_id": "dummy_task",
+            },
+        )
 
     @mock.patch("airflow.jobs.scheduler_job.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job.Stats.incr")

@@ -1324,7 +1324,10 @@ class TestDag:
             dag.handle_callback(dag_run, success=False)
             dag.handle_callback(dag_run, success=True)
 
-        mock_stats.incr.assert_called_with("dag.callback_exceptions")
+        mock_stats.incr.assert_called_with(
+            "dag.callback_exceptions",
+            tags={"dag_id": "test_dag_callback_crash", "run_id": "manual__2015-01-02T00:00:00+00:00"},
+        )
 
         dag.clear()
         self._clean_up(dag_id)
