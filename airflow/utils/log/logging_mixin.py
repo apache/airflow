@@ -77,7 +77,7 @@ class LoggingMixin:
         return obj._log
 
     @classmethod
-    def get_log(cls) -> Logger:
+    def logger(cls) -> Logger:
         """Returns a logger."""
         return LoggingMixin._get_log(cls, cls)
 

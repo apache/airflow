@@ -379,9 +379,9 @@ class DagFileProcessor(LoggingMixin):
         """
         dagbag = DagFileProcessor._get_dagbag(dag_folder)
         dag = dagbag.get_dag(dag_id)
-        cls.get_log().info("Running SLA Checks for %s", dag.dag_id)
+        cls.logger().info("Running SLA Checks for %s", dag.dag_id)
         if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
-            cls.get_log().info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
+            cls.logger().info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
         qry = (
@@ -483,13 +483,13 @@ class DagFileProcessor(LoggingMixin):
                     else [dag.sla_miss_callback]
                 )
                 for callback in callbacks:
-                    cls.get_log().info("Calling SLA miss callback %s", callback)
+                    cls.logger().info("Calling SLA miss callback %s", callback)
                     try:
                         callback(dag, task_list, blocking_task_list, slas, blocking_tis)
                         notification_sent = True
                     except Exception:
                         Stats.incr("sla_callback_notification_failure")
-                        cls.get_log().exception(
+                        cls.logger().exception(
                             "Could not call sla_miss_callback(%s) for DAG %s",
                             callback.func_name,  # type: ignore[attr-defined]
                             dag.dag_id,
@@ -508,7 +508,7 @@ class DagFileProcessor(LoggingMixin):
                     task = dag.get_task(sla.task_id)
                 except TaskNotFound:
                     # task already deleted from DAG, skip it
-                    cls.get_log().warning(
+                    cls.logger().warning(
                         "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.", sla.task_id
                     )
                     continue
@@ -528,7 +528,7 @@ class DagFileProcessor(LoggingMixin):
                     notification_sent = True
                 except Exception:
                     Stats.incr("sla_email_notification_failure")
-                    cls.get_log().exception(
+                    cls.logger().exception(
                         "Could not send SLA Miss email notification for DAG %s", dag.dag_id
                     )
             # If we sent any notification, update the sla_miss table
@@ -739,7 +739,7 @@ class DagFileProcessor(LoggingMixin):
         try:
             return DagBag(file_path, include_examples=False)
         except Exception:
-            cls.get_log().exception("Failed at reloading the DAG file %s", file_path)
+            cls.logger().exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr("dag_file_refresh_error", 1, 1)
             raise
 
