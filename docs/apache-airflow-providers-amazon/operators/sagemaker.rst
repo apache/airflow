@@ -24,7 +24,7 @@ machine learning service. With Amazon SageMaker, data scientists and developers
 can quickly build and train machine learning models, and then deploy them into a
 production-ready hosted environment.
 
-Airflow provides operators to create and interact with SageMaker Jobs.
+Airflow provides operators to create and interact with SageMaker Jobs and Pipelines.
 
 Prerequisite Tasks
 ------------------
@@ -146,6 +146,82 @@ To create an Amazon Sagemaker endpoint you can use
     :start-after: [START howto_operator_sagemaker_endpoint]
     :end-before: [END howto_operator_sagemaker_endpoint]
 
+.. _howto/operator:SageMakerStartPipelineOperator:
+
+Start an Amazon SageMaker pipeline execution
+============================================
+
+To trigger an execution run for an already-defined Amazon Sagemaker pipeline, you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerStartPipelineOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_start_pipeline]
+    :end-before: [END howto_operator_sagemaker_start_pipeline]
+
+.. _howto/operator:SageMakerStopPipelineOperator:
+
+Stop an Amazon SageMaker pipeline execution
+===========================================
+
+To stop an Amazon Sagemaker pipeline execution that is currently running, you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerStopPipelineOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_stop_pipeline]
+    :end-before: [END howto_operator_sagemaker_stop_pipeline]
+
+.. _howto/operator:SageMakerRegisterModelVersionOperator:
+
+Register a Sagemaker Model Version
+==================================
+
+To register a model version, you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerRegisterModelVersionOperator`.
+The result of executing this operator is a model package.
+A model package is a reusable model artifacts abstraction that packages all ingredients necessary for inference.
+It consists of an inference specification that defines the inference image to use along with a model weights location.
+A model package group is a collection of model packages.
+You can use this operator to add a new version and model package to the group for every DAG run.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_register]
+    :end-before: [END howto_operator_sagemaker_register]
+
+.. _howto/operator:SageMakerAutoMLOperator:
+
+Launch an AutoML experiment
+===========================
+
+To launch an AutoML experiment, a.k.a. SageMaker Autopilot, you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerAutoMLOperator`.
+An AutoML experiment will take some input data in CSV and the column it should learn to predict,
+and train models on it without needing human supervision.
+The output is placed in an S3 bucket, and automatically deployed if configured for it.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_auto_ml]
+    :end-before: [END howto_operator_sagemaker_auto_ml]
+
+.. _howto/operator:SageMakerCreateExperimentOperator:
+
+Create an Experiment for later use
+==================================
+
+To create a SageMaker experiment, you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerCreateExperimentOperator`.
+This creates an experiment so that it's ready to be associated with processing, training and transform jobs.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_experiment]
+    :end-before: [END howto_operator_sagemaker_experiment]
+
 Sensors
 -------
 
@@ -204,6 +280,34 @@ you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerEnd
     :dedent: 4
     :start-after: [START howto_sensor_sagemaker_endpoint]
     :end-before: [END howto_sensor_sagemaker_endpoint]
+
+.. _howto/sensor:SageMakerPipelineSensor:
+
+Wait on an Amazon SageMaker pipeline execution state
+====================================================
+
+To check the state of an Amazon Sagemaker pipeline execution until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerPipelineSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sagemaker_pipeline]
+    :end-before: [END howto_sensor_sagemaker_pipeline]
+
+.. _howto/sensor:SageMakerAutoMLSensor:
+
+Wait on an Amazon SageMaker AutoML experiment state
+===================================================
+
+To check the state of an Amazon Sagemaker AutoML job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerAutoMLSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_auto_ml]
+    :end-before: [END howto_operator_sagemaker_auto_ml]
 
 Reference
 ---------

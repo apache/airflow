@@ -26,6 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
+from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -51,10 +53,17 @@ class EmrAddStepsOperator(BaseOperator):
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
+    :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     """
 
-    template_fields: Sequence[str] = ("job_flow_id", "job_flow_name", "cluster_states", "steps")
+    template_fields: Sequence[str] = (
+        "job_flow_id",
+        "job_flow_name",
+        "cluster_states",
+        "steps",
+        "execution_role_arn",
+    )
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"steps": "json"}
     ui_color = "#f9c915"
@@ -69,9 +78,12 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
+        execution_role_arn: str | None = None,
         **kwargs,
     ):
-        if not (job_flow_id is None) ^ (job_flow_name is None):
+        if not exactly_one(job_flow_id is None, job_flow_name is None):
             raise AirflowException("Exactly one of job_flow_id or job_flow_name must be specified.")
         super().__init__(**kwargs)
         cluster_states = cluster_states or []
@@ -82,6 +94,9 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.execution_role_arn = execution_role_arn
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -111,8 +126,179 @@ class EmrAddStepsOperator(BaseOperator):
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
+        return emr_hook.add_job_flow_steps(
+            job_flow_id=job_flow_id,
+            steps=steps,
+            wait_for_completion=self.wait_for_completion,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
+            execution_role_arn=self.execution_role_arn,
+        )
 
-        return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=True)
+
+class EmrStartNotebookExecutionOperator(BaseOperator):
+    """
+    An operator that starts an EMR notebook execution.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrStartNotebookExecutionOperator`
+
+    :param editor_id: The unique identifier of the EMR notebook to use for notebook execution.
+    :param relative_path: The path and file name of the notebook file for this execution,
+        relative to the path specified for the EMR notebook.
+    :param cluster_id: The unique identifier of the EMR cluster the notebook is attached to.
+    :param service_role: The name or ARN of the IAM role that is used as the service role
+        for Amazon EMR (the EMR role) for the notebook execution.
+    :param notebook_execution_name: Optional name for the notebook execution.
+    :param notebook_params: Input parameters in JSON format passed to the EMR notebook at
+        runtime for execution.
+    :param: notebook_instance_security_group_id: The unique identifier of the Amazon EC2
+        security group to associate with the EMR notebook for this notebook execution.
+    :param: master_instance_security_group_id: Optional unique ID of an EC2 security
+        group to associate with the master instance of the EMR cluster for this notebook execution.
+    :param tags: Optional list of key value pair to associate with the notebook execution.
+    :param waiter_countdown: Total amount of time the operator will wait for the notebook to stop.
+        Defaults to 25 * 60 seconds.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the notebook.
+        Defaults to 60 seconds.
+    """
+
+    template_fields: Sequence[str] = (
+        "editor_id",
+        "cluster_id",
+        "relative_path",
+        "service_role",
+        "notebook_execution_name",
+        "notebook_params",
+        "notebook_instance_security_group_id",
+        "master_instance_security_group_id",
+        "tags",
+    )
+
+    def __init__(
+        self,
+        editor_id: str,
+        relative_path: str,
+        cluster_id: str,
+        service_role: str,
+        notebook_execution_name: str | None = None,
+        notebook_params: str | None = None,
+        notebook_instance_security_group_id: str | None = None,
+        master_instance_security_group_id: str | None = None,
+        tags: list | None = None,
+        wait_for_completion: bool = False,
+        aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.editor_id = editor_id
+        self.relative_path = relative_path
+        self.service_role = service_role
+        self.notebook_execution_name = notebook_execution_name or f"emr_notebook_{uuid4()}"
+        self.notebook_params = notebook_params or ""
+        self.notebook_instance_security_group_id = notebook_instance_security_group_id or ""
+        self.tags = tags or []
+        self.wait_for_completion = wait_for_completion
+        self.cluster_id = cluster_id
+        self.aws_conn_id = aws_conn_id
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
+        self.master_instance_security_group_id = master_instance_security_group_id
+
+    def execute(self, context: Context):
+        execution_engine = {
+            "Id": self.cluster_id,
+            "Type": "EMR",
+            "MasterInstanceSecurityGroupId": self.master_instance_security_group_id or "",
+        }
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+
+        response = emr_hook.conn.start_notebook_execution(
+            EditorId=self.editor_id,
+            RelativePath=self.relative_path,
+            NotebookExecutionName=self.notebook_execution_name,
+            NotebookParams=self.notebook_params,
+            ExecutionEngine=execution_engine,
+            ServiceRole=self.service_role,
+            NotebookInstanceSecurityGroupId=self.notebook_instance_security_group_id,
+            Tags=self.tags,
+        )
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Starting notebook execution failed: {response}")
+
+        self.log.info("Notebook execution started: %s", response["NotebookExecutionId"])
+        notebook_execution_id = response["NotebookExecutionId"]
+        if self.wait_for_completion:
+            waiter(
+                get_state_callable=emr_hook.conn.describe_notebook_execution,
+                get_state_args={"NotebookExecutionId": notebook_execution_id},
+                parse_response=["NotebookExecution", "Status"],
+                desired_state={"RUNNING", "FINISHED"},
+                failure_states={"FAILED"},
+                object_type="notebook execution",
+                action="starting",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
+            )
+        return notebook_execution_id
+
+
+class EmrStopNotebookExecutionOperator(BaseOperator):
+    """
+    An operator that stops a running EMR notebook execution.
+
+     .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrStopNotebookExecutionOperator`
+
+    :param notebook_execution_id: The unique identifier of the notebook execution.
+    :param wait_for_completion: If True, the operator will wait for the notebook.
+        to be in a STOPPED or FINISHED state. Defaults to False.
+    :param aws_conn_id: aws connection to use.
+    :param waiter_countdown: Total amount of time the operator will wait for the notebook to stop.
+        Defaults to 25 * 60 seconds.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the notebook.
+        Defaults to 60 seconds.
+    """
+
+    template_fields: Sequence[str] = ("notebook_execution_id",)
+
+    def __init__(
+        self,
+        notebook_execution_id: str,
+        wait_for_completion: bool = False,
+        aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.notebook_execution_id = notebook_execution_id
+        self.wait_for_completion = wait_for_completion
+        self.aws_conn_id = aws_conn_id
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
+
+    def execute(self, context: Context) -> None:
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+        emr_hook.conn.stop_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
+
+        if self.wait_for_completion:
+            waiter(
+                get_state_callable=emr_hook.conn.describe_notebook_execution,
+                get_state_args={"NotebookExecutionId": self.notebook_execution_id},
+                parse_response=["NotebookExecution", "Status"],
+                desired_state={"STOPPED", "FINISHED"},
+                failure_states={"FAILED"},
+                object_type="notebook execution",
+                action="stopped",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
+            )
 
 
 class EmrEksCreateClusterOperator(BaseOperator):
@@ -205,6 +391,7 @@ class EmrContainerOperator(BaseOperator):
         "execution_role_arn",
         "release_label",
         "job_driver",
+        "configuration_overrides",
     )
     ui_color = "#f9c915"
 
@@ -497,11 +684,17 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
     :param release_label: The EMR release version associated with the application.
     :param job_type: The type of application you want to start, such as Spark or Hive.
-    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
+    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True.
+        If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied when
+        waiting for the application to be in the ``CREATED`` state.
     :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
     :param aws_conn_id: AWS connection to use
+    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+        the application to start. Defaults to 25 minutes.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
+        Defaults to 60 seconds.
     """
 
     def __init__(
@@ -512,6 +705,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         config: dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
@@ -520,6 +715,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.kwargs = kwargs
         self.config = config or {}
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -544,7 +741,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.log.info("EMR serverless application created: %s", application_id)
 
         # This should be replaced with a boto waiter when available.
-        self.hook.waiter(
+        waiter(
             get_state_callable=self.hook.conn.get_application,
             get_state_args={"applicationId": application_id},
             parse_response=["application", "state"],
@@ -552,6 +749,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
             object_type="application",
             action="created",
+            countdown=self.waiter_countdown,
+            check_interval_seconds=self.waiter_check_interval_seconds,
         )
 
         self.log.info("Starting application %s", application_id)
@@ -559,7 +758,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            self.hook.waiter(
+            waiter(
                 get_state_callable=self.hook.conn.get_application,
                 get_state_args={"applicationId": application_id},
                 parse_response=["application", "state"],
@@ -567,6 +766,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type="application",
                 action="started",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
             )
 
         return application_id
@@ -588,8 +789,14 @@ class EmrServerlessStartJobOperator(BaseOperator):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
+        If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied
+        when waiting for the application be to in the ``STARTED`` state.
     :param aws_conn_id: AWS connection to use.
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
+    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+        the job finish. Defaults to 25 minutes.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the job.
+        Defaults to 60 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -610,6 +817,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         name: str | None = None,
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
@@ -620,6 +829,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
         self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -636,7 +847,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.hook.conn.start_application(applicationId=self.application_id)
 
-            self.hook.waiter(
+            waiter(
                 get_state_callable=self.hook.conn.get_application,
                 get_state_args={"applicationId": self.application_id},
                 parse_response=["application", "state"],
@@ -644,6 +855,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type="application",
                 action="started",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
             )
 
         response = self.hook.conn.start_job_run(
@@ -662,7 +875,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.log.info("EMR serverless job started: %s", response["jobRunId"])
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            self.hook.waiter(
+            waiter(
                 get_state_callable=self.hook.conn.get_job_run,
                 get_state_args={
                     "applicationId": self.application_id,
@@ -673,6 +886,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
                 object_type="job",
                 action="run",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
             )
         return response["jobRunId"]
 
@@ -688,6 +903,10 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
     :param application_id: ID of the EMR Serverless application to delete.
     :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
     :param aws_conn_id: AWS connection to use
+    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+        the application be deleted. Defaults to 25 minutes.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
+        Defaults to 60 seconds.
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -697,11 +916,15 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         application_id: str,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
         self.wait_for_completion = wait_for_completion
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
         super().__init__(**kwargs)
 
     @cached_property
@@ -714,7 +937,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         self.hook.conn.stop_application(applicationId=self.application_id)
 
         # This should be replaced with a boto waiter when available.
-        self.hook.waiter(
+        waiter(
             get_state_callable=self.hook.conn.get_application,
             get_state_args={
                 "applicationId": self.application_id,
@@ -724,6 +947,8 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
             failure_states=set(),
             object_type="application",
             action="stopped",
+            countdown=self.waiter_countdown,
+            check_interval_seconds=self.waiter_check_interval_seconds,
         )
 
         self.log.info("Deleting application: %s", self.application_id)
@@ -734,7 +959,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
 
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            self.hook.waiter(
+            waiter(
                 get_state_callable=self.hook.conn.get_application,
                 get_state_args={"applicationId": self.application_id},
                 parse_response=["application", "state"],
@@ -742,6 +967,8 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
                 failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type="application",
                 action="deleted",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
             )
 
         self.log.info("EMR serverless application deleted")

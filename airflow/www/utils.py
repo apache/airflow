@@ -53,7 +53,10 @@ from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
+    from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.operators import ColumnOperators
+
+    from airflow.www.fab_security.sqla.manager import SecurityManager
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -82,7 +85,11 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-priority = [
+def get_try_count(try_number: int, state: State):
+    return try_number + 1 if state in [State.DEFERRED, State.UP_FOR_RESCHEDULE] else try_number
+
+
+priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,
     TaskInstanceState.UPSTREAM_FAILED,
     TaskInstanceState.UP_FOR_RETRY,
@@ -116,12 +123,6 @@ def get_mapped_summary(parent_instance, task_instances):
         max((ti.end_date for ti in task_instances if ti.end_date), default=None)
     )
 
-    try_count = (
-        parent_instance._try_number
-        if parent_instance._try_number != 0 or parent_instance.state in State.running
-        else parent_instance._try_number + 1
-    )
-
     return {
         "task_id": parent_instance.task_id,
         "run_id": parent_instance.run_id,
@@ -129,21 +130,28 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": try_count,
+        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
     }
+
+
+def get_dag_run_conf(dag_run_conf: Any) -> tuple[str | None, bool]:
+    conf: str | None = None
+
+    conf_is_json: bool = False
+    if isinstance(dag_run_conf, str):
+        conf = dag_run_conf
+    elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
+        conf = json.dumps(dag_run_conf, sort_keys=True)
+        conf_is_json = True
+
+    return conf, conf_is_json
 
 
 def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
-    conf: str | None = None
-    conf_is_json: bool = False
-    if isinstance(dag_run.conf, str):
-        conf = dag_run.conf
-    elif isinstance(dag_run.conf, (dict, list)) and any(dag_run.conf):
-        conf = json.dumps(dag_run.conf, sort_keys=True)
-        conf_is_json = True
+    conf, conf_is_json = get_dag_run_conf(dag_run.conf)
 
     return {
         "run_id": dag_run.run_id,
@@ -159,7 +167,7 @@ def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
         "external_trigger": dag_run.external_trigger,
         "conf": conf,
         "conf_is_json": conf_is_json,
-        "notes": dag_run.notes,
+        "note": dag_run.note,
     }
 
 
@@ -706,7 +714,7 @@ class CustomSQLAInterface(SQLAInterface):
 
     """
 
-    def __init__(self, obj, session=None):
+    def __init__(self, obj, session: Session | None = None):
         super().__init__(obj, session=session)
 
         def clean_column_names():
@@ -717,10 +725,10 @@ class CustomSQLAInterface(SQLAInterface):
 
         clean_column_names()
         # Support for AssociationProxy in search and list columns
-        for desc in self.obj.__mapper__.all_orm_descriptors:
+        for obj_attr, desc in self.obj.__mapper__.all_orm_descriptors.items():
             if not isinstance(desc, AssociationProxy):
                 continue
-            proxy_instance = getattr(self.obj, desc.value_attr)
+            proxy_instance = getattr(self.obj, obj_attr)
             if hasattr(proxy_instance.remote_attr.prop, "columns"):
                 self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
                 self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
@@ -814,10 +822,24 @@ class UIAlert:
         self.html = html
         self.message = Markup(message) if html else message
 
-    def should_show(self, securitymanager) -> bool:
-        """Determine if the user should see the message based on their role membership"""
+    def should_show(self, securitymanager: SecurityManager) -> bool:
+        """Determine if the user should see the message.
+
+        The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
+        set in ``webserver_config.py``, An anonymous user would have the
+        ``AUTH_ROLE_PUBLIC`` role.
+        """
         if self.roles:
-            user_roles = {r.name for r in securitymanager.current_user.roles}
+            current_user = securitymanager.current_user
+            if current_user is not None:
+                user_roles = {r.name for r in securitymanager.current_user.roles}
+            elif "AUTH_ROLE_PUBLIC" in securitymanager.appbuilder.get_app.config:
+                # If the current_user is anonymous, assign AUTH_ROLE_PUBLIC role (if it exists) to them
+                user_roles = {securitymanager.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}
+            else:
+                # Unable to obtain user role - default to not showing
+                return False
+
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 import pytest
@@ -26,16 +25,12 @@ from airflow.providers.tableau.hooks.tableau import TableauJobFinishCode
 from airflow.providers.tableau.operators.tableau import TableauOperator
 
 
-class TestTableauOperator(unittest.TestCase):
+class TestTableauOperator:
     """
     Test class for TableauOperator
     """
 
-    def setUp(self):
-        """
-        setup
-        """
-
+    def setup_method(self):
         self.mocked_workbooks = []
         self.mock_datasources = []
 

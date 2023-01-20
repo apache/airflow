@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2022-12-28
+
+=================================================================================================  ===========  ==========================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================
+`0e349d80bb <https://github.com/apache/airflow/commit/0e349d80bb329300b45875cdff8f8fc52141e82b>`_  2022-12-28   ``Add FTPSFileTransmitOperator (#28318)``
+`39f501d4f4 <https://github.com/apache/airflow/commit/39f501d4f4e87635c80d97bb599daf61096d23b8>`_  2022-12-06   ``Add 'FTPFileTransmitOperator' (#26974)``
+=================================================================================================  ===========  ==========================================
+
 3.2.0
 .....
 
-Latest change: 2022-10-23
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
 `f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``

@@ -24,6 +24,33 @@
 Changelog
 ---------
 
+4.2.1
+.....
+
+Misc
+~~~~
+* ``Remove outdated compat imports/code from providers (#28507)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add _serialize_cell method to TrinoHook and PrestoHook (#27724)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
 4.1.0
 .....
 

@@ -29,6 +29,7 @@ from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from unittest import mock
+from unittest.mock import sentinel
 
 import pendulum
 import pytest
@@ -37,10 +38,12 @@ from parameterized import parameterized
 from airflow import DAG
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
+from airflow.cli.commands.task_command import LoggerMutationHelper
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -94,6 +97,7 @@ class TestCliTasks:
     def teardown_class(cls) -> None:
         clear_db_runs()
 
+    @pytest.mark.execution_timeout(120)
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
             args = self.parser.parse_args(["tasks", "list", dag_id])
@@ -256,6 +260,7 @@ class TestCliTasks:
             mark_success=False,
             ignore_all_deps=True,
             ignore_depends_on_past=False,
+            wait_for_past_depends_before_skipping=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
             pickle_id=None,
@@ -388,6 +393,67 @@ class TestCliTasks:
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
 
+    def test_mapped_task_render(self):
+        """
+        tasks render should render and displays templated fields for a given mapping task
+        """
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "0",
+                    ]
+                )
+            )
+        # the dag test_mapped_classic has op_args=[[1], [2], [3]], so the first mapping task should have
+        # op_args=[1]
+        output = stdout.getvalue()
+        assert "[1]" in output
+        assert "[2]" not in output
+        assert "[3]" not in output
+        assert "property: op_args" in output
+
+    def test_mapped_task_render_with_template(self, dag_maker):
+        """
+        tasks render should render and displays templated fields for a given mapping task
+        """
+        with dag_maker() as dag:
+            templated_command = """
+            {% for i in range(5) %}
+                echo "{{ ds }}"
+                echo "{{ macros.ds_add(ds, 7)}}"
+            {% endfor %}
+            """
+            commands = [templated_command, "echo 1"]
+
+            BashOperator.partial(task_id="some_command").expand(bash_command=commands)
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_dag",
+                        "some_command",
+                        "2022-01-01",
+                        "--map-index",
+                        "0",
+                    ]
+                ),
+                dag=dag,
+            )
+
+        output = stdout.getvalue()
+        assert 'echo "2022-01-01"' in output
+        assert 'echo "2022-01-08"' in output
+
     def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
         """
         tasks run should return an AirflowException when invalid pickle_id is passed
@@ -498,8 +564,8 @@ class TestCliTasks:
         task_command.task_clear(args)
 
 
-class TestLogsfromTaskRunCommand(unittest.TestCase):
-    def setUp(self) -> None:
+class TestLogsfromTaskRunCommand:
+    def setup_method(self) -> None:
         self.dag_id = "test_logging_dag"
         self.task_id = "test_task"
         self.run_id = "test_run"
@@ -531,7 +597,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         except OSError:
             pass
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         root = self.root_logger
         root.setLevel(self.root_level)
         root.handlers[:] = self.root_handlers
@@ -571,6 +637,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             pickle_id=None,
             ignore_all_deps=False,
             ignore_depends_on_past=False,
+            wait_for_past_depends_before_skipping=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
             pool=None,
@@ -590,17 +657,57 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 pickle_id=None,
                 ignore_all_deps=False,
                 ignore_depends_on_past=False,
+                wait_for_past_depends_before_skipping=False,
                 ignore_task_deps=False,
                 ignore_ti_state=False,
                 pool=None,
                 external_executor_id="ABCD12345",
             )
 
+    @pytest.mark.parametrize("is_k8s", ["true", ""])
+    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s):
+        """
+        When running task --local as k8s executor pod, all logging should make it to stdout.
+        Otherwise, all logging after "running TI" is redirected to logs (and the actual log
+        file content is tested elsewhere in this module).
+
+        Unfortunately, to test stdout, we have to test this by running as a subprocess because
+        the stdout redirection & log capturing behavior is not compatible with pytest's stdout
+        capturing behavior.  Running as subprocess takes pytest out of the equation and
+        verifies with certainty the behavior.
+        """
+        import subprocess
+
+        with mock.patch.dict("os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s):
+            with subprocess.Popen(
+                args=["airflow", *self.task_args, "-S", self.dag_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            ) as process:
+                output, err = process.communicate()
+        lines = []
+        found_start = False
+        for line_ in output.splitlines():
+            line = line_.decode("utf-8")
+            if "Running <TaskInstance: test_logging_dag.test_task test_run" in line:
+                found_start = True
+            if found_start:
+                lines.append(line)
+        if is_k8s:
+            # 10 is arbitrary, but, with enough padding to hopefully not be flakey
+            assert len(lines) > 10
+            self.assert_log_line("Starting attempt 1 of 1", lines)
+            self.assert_log_line("Exporting env vars", lines)
+            self.assert_log_line("Log from DAG Logger", lines)
+            self.assert_log_line("Log from TI Logger", lines)
+            self.assert_log_line("Log from Print statement", lines, expect_from_logging_mixin=True)
+            self.assert_log_line("Task exited with return code 0", lines)
+        else:
+            # when not k8s executor pod, most output is redirected to logs
+            assert len(lines) == 1
+
     @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
     def test_logging_with_run_task(self):
-        #  We are not using self.assertLogs as we want to verify what actually is stored in the Log file
-        # as that is what gets displayed
-
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
 
@@ -644,12 +751,8 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             session.delete(pool)
             session.commit()
 
-    # For this test memory spins out of control on Python 3.6. TODO(potiuk): FIXME")
-    @pytest.mark.quarantined
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self):
-        # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
-        # as that is what gets displayed
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
 
@@ -665,10 +768,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
 
-        assert (
-            f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
-            f"'{self.task_id}', '{self.execution_date_str}'," in logs
-        )
+        assert f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', '{self.task_id}'," in logs
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
             f"task_id={self.task_id}, execution_date=20170101T000000" in logs
@@ -696,7 +796,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                     pass
 
     @mock.patch.object(task_command, "_run_task_by_selected_method")
-    def test_root_logger_restored(self, run_task_mock):
+    def test_root_logger_restored(self, run_task_mock, caplog):
         """Verify that the root logging context is restored"""
 
         logger = logging.getLogger("foo.bar")
@@ -711,19 +811,18 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             ("logging", "logging_level"): "INFO",
         }
 
-        with conf_vars(config):
-            with self.assertLogs(level=logging.WARNING) as captured:
+        with caplog.at_level(level=logging.WARNING):
+            with conf_vars(config):
                 logger.warning("not redirected")
                 task_command.task_run(self.parser.parse_args(self.task_args))
-
-                assert captured.output == ["WARNING:foo.bar:not redirected"]
+                assert "not redirected" in caplog.text
                 assert self.root_logger.level == logging.WARNING
 
         assert self.root_logger.handlers == self.root_handlers
 
-    @pytest.mark.quarantined
     @mock.patch.object(task_command, "_run_task_by_selected_method")
-    def test_disable_handler_modifying(self, run_task_mock):
+    @pytest.mark.parametrize("do_not_modify_handler", [True, False])
+    def test_disable_handler_modifying(self, run_task_mock, caplog, do_not_modify_handler):
         """If [core] donot_modify_handlers is set to True, the root logger is untouched"""
         from airflow import settings
 
@@ -738,16 +837,18 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             ("core", "dags_folder"): self.dag_path,
             ("logging", "logging_level"): "INFO",
         }
-        old_value = settings.DONOT_MODIFY_HANDLERS
-        settings.DONOT_MODIFY_HANDLERS = True
-
-        with conf_vars(config):
-            with self.assertLogs(level=logging.WARNING) as captured:
-                task_command.task_run(self.parser.parse_args(self.task_args))
-
-                assert captured.output == ["WARNING:foo.bar:not redirected"]
-
-        settings.DONOT_MODIFY_HANDLERS = old_value
+        with caplog.at_level(logging.WARNING, logger="foo.bar"):
+            with conf_vars(config):
+                old_value = settings.DONOT_MODIFY_HANDLERS
+                settings.DONOT_MODIFY_HANDLERS = do_not_modify_handler
+                try:
+                    task_command.task_run(self.parser.parse_args(self.task_args))
+                    if do_not_modify_handler:
+                        assert "not redirected" in caplog.text
+                    else:
+                        assert "not redirected" not in caplog.text
+                finally:
+                    settings.DONOT_MODIFY_HANDLERS = old_value
 
 
 def test_context_with_run():
@@ -777,3 +878,68 @@ def test_context_with_run():
         text == "_AIRFLOW_PARSING_CONTEXT_DAG_ID=test_parsing_context\n"
         "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
     )
+
+
+class TestLoggerMutationHelper:
+    @pytest.mark.parametrize("target_name", ["test_apply_target", None])
+    def test_apply(self, target_name):
+        """
+        Handlers, level and propagate should be applied on target.
+        """
+        src = logging.getLogger(f"test_apply_source_{target_name}")
+        src.propagate = False
+        src.addHandler(sentinel.handler)
+        src.setLevel(-1)
+        obj = LoggerMutationHelper(src)
+        tgt = logging.getLogger("test_apply_target")
+        obj.apply(tgt)
+        assert tgt.handlers == [sentinel.handler]
+        assert tgt.propagate is False if target_name else True  # root propagate unchanged
+        assert tgt.level == -1
+
+    def test_apply_no_replace(self):
+        """
+        Handlers, level and propagate should be applied on target.
+        """
+        src = logging.getLogger("test_apply_source_no_repl")
+        tgt = logging.getLogger("test_apply_target_no_repl")
+        h1 = logging.Handler()
+        h1.name = "h1"
+        h2 = logging.Handler()
+        h2.name = "h2"
+        h3 = logging.Handler()
+        h3.name = "h3"
+        src.handlers[:] = [h1, h2]
+        tgt.handlers[:] = [h2, h3]
+        LoggerMutationHelper(src).apply(tgt, replace=False)
+        assert tgt.handlers == [h2, h3, h1]
+
+    def test_move(self):
+        """Move should apply plus remove source handler, set propagate to True"""
+        src = logging.getLogger("test_move_source")
+        src.propagate = False
+        src.addHandler(sentinel.handler)
+        src.setLevel(-1)
+        obj = LoggerMutationHelper(src)
+        tgt = logging.getLogger("test_apply_target")
+        obj.move(tgt)
+        assert tgt.handlers == [sentinel.handler]
+        assert tgt.propagate is False
+        assert tgt.level == -1
+        assert src.propagate is True and obj.propagate is False
+        assert src.level == obj.level
+        assert src.handlers == [] and obj.handlers == tgt.handlers
+
+    def test_reset(self):
+        src = logging.getLogger("test_move_reset")
+        src.propagate = True
+        src.addHandler(sentinel.h1)
+        src.setLevel(-1)
+        obj = LoggerMutationHelper(src)
+        src.propagate = False
+        src.addHandler(sentinel.h2)
+        src.setLevel(-2)
+        obj.reset()
+        assert src.propagate is True
+        assert src.handlers == [sentinel.h1]
+        assert src.level == -1

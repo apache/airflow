@@ -18,11 +18,15 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Iterator
 from unittest import mock
+from unittest.mock import Mock
 
 import pytest
 
+from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.ti_deps.dep_context import DepContext
@@ -126,7 +130,7 @@ class TestTriggerRuleDep:
         ti = get_task_instance(TriggerRule.ALWAYS)
         assert TriggerRuleDep().is_met(ti=ti)
 
-    def test_one_success_tr_success(self, get_task_instance):
+    def test_one_success_tr_success(self, session, get_task_instance):
         """
         One-success trigger rule success
         """
@@ -143,12 +147,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_one_success_tr_failure(self, get_task_instance):
+    def test_one_success_tr_failure(self, session, get_task_instance):
         """
         One-success trigger rule failure
         """
@@ -165,13 +169,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_one_failure_tr_failure(self, get_task_instance):
+    def test_one_failure_tr_failure(self, session, get_task_instance):
         """
         One-failure trigger rule failure
         """
@@ -188,13 +192,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_one_failure_tr_success(self, get_task_instance):
+    def test_one_failure_tr_success(self, session, get_task_instance):
         """
         One-failure trigger rule success
         """
@@ -211,12 +215,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_one_failure_tr_success_no_failed(self, get_task_instance):
+    def test_one_failure_tr_success_no_failed(self, session, get_task_instance):
         """
         One-failure trigger rule success
         """
@@ -233,12 +237,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_one_done_tr_success(self, get_task_instance):
+    def test_one_done_tr_success(self, session, get_task_instance):
         """
         One-done trigger rule success
         """
@@ -255,12 +259,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_one_done_tr_success_with_failed(self, get_task_instance):
+    def test_one_done_tr_success_with_failed(self, session, get_task_instance):
         """
         One-done trigger rule success
         """
@@ -277,12 +281,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_one_done_tr_skip(self, get_task_instance):
+    def test_one_done_tr_skip(self, session, get_task_instance):
         """
         One-done trigger rule skip
         """
@@ -299,13 +303,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_one_done_tr_upstream_failed(self, get_task_instance):
+    def test_one_done_tr_upstream_failed(self, session, get_task_instance):
         """
         One-done trigger rule upstream_failed
         """
@@ -322,13 +326,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_all_success_tr_success(self, get_task_instance):
+    def test_all_success_tr_success(self, session, get_task_instance):
         """
         All-success trigger rule success
         """
@@ -345,12 +349,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_all_success_tr_failure(self, get_task_instance):
+    def test_all_success_tr_failure(self, session, get_task_instance):
         """
         All-success trigger rule failure
         """
@@ -367,7 +371,7 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
@@ -377,7 +381,7 @@ class TestTriggerRuleDep:
         "flag_upstream_failed, expected_ti_state",
         [(True, TaskInstanceState.SKIPPED), (False, None)],
     )
-    def test_all_success_tr_skip(self, get_task_instance, flag_upstream_failed, expected_ti_state):
+    def test_all_success_tr_skip(self, session, get_task_instance, flag_upstream_failed, expected_ti_state):
         """
         All-success trigger rule fails when some upstream tasks are skipped.
         """
@@ -394,15 +398,79 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
         assert ti.state == expected_ti_state
 
+    def test_all_success_tr_skip_wait_for_past_depends_before_skipping(self, session, get_task_instance):
+        """
+        All-success trigger rule fails when some upstream tasks are skipped. The state of the ti
+        should not be set to SKIPPED when flag_upstream_failed is True and
+        wait_for_past_depends_before_skipping is True and the past depends are not met.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_SUCCESS,
+            success=["FakeTaskID"],
+            skipped=["OtherFakeTaskID"],
+            failed=0,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+        )
+        ti.task.xcom_pull.return_value = None
+        xcom_mock = Mock(return_value=None)
+        with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
+            dep_statuses = tuple(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=ti,
+                    dep_context=DepContext(
+                        flag_upstream_failed=True, wait_for_past_depends_before_skipping=True
+                    ),
+                    session=session,
+                )
+            )
+            assert len(dep_statuses) == 1
+            assert not dep_statuses[0].passed
+            assert ti.state is None
+
+    def test_all_success_tr_skip_wait_for_past_depends_before_skipping_past_depends_met(
+        self, session, get_task_instance
+    ):
+        """
+        All-success trigger rule fails when some upstream tasks are skipped. The state of the ti
+        should be set to SKIPPED when flag_upstream_failed is True and
+        wait_for_past_depends_before_skipping is True and the past depends are met.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_SUCCESS,
+            success=["FakeTaskID"],
+            skipped=["OtherFakeTaskID"],
+            failed=0,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+        )
+        ti.task.xcom_pull.return_value = None
+        xcom_mock = Mock(return_value=True)
+        with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
+            dep_statuses = tuple(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=ti,
+                    dep_context=DepContext(
+                        flag_upstream_failed=True, wait_for_past_depends_before_skipping=True
+                    ),
+                    session=session,
+                )
+            )
+            assert len(dep_statuses) == 1
+            assert not dep_statuses[0].passed
+            assert ti.state == TaskInstanceState.SKIPPED
+
     @pytest.mark.parametrize("flag_upstream_failed", [True, False])
-    def test_none_failed_tr_success(self, get_task_instance, flag_upstream_failed):
+    def test_none_failed_tr_success(self, session, get_task_instance, flag_upstream_failed):
         """
         All success including skip trigger rule success
         """
@@ -419,13 +487,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
         assert ti.state is None
 
-    def test_none_failed_tr_failure(self, get_task_instance):
+    def test_none_failed_tr_failure(self, session, get_task_instance):
         """
         All success including skip trigger rule failure
         """
@@ -442,13 +510,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_none_failed_min_one_success_tr_success(self, get_task_instance):
+    def test_none_failed_min_one_success_tr_success(self, session, get_task_instance):
         """
         All success including skip trigger rule success
         """
@@ -465,12 +533,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_none_failed_min_one_success_tr_skipped(self, get_task_instance):
+    def test_none_failed_min_one_success_tr_skipped(self, session, get_task_instance):
         """
         All success including all upstream skips trigger rule success
         """
@@ -487,7 +555,7 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=True),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
@@ -510,13 +578,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_all_failed_tr_success(self, get_task_instance):
+    def test_all_failed_tr_success(self, session, get_task_instance):
         """
         All-failed trigger rule success
         """
@@ -533,12 +601,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_all_failed_tr_failure(self, get_task_instance):
+    def test_all_failed_tr_failure(self, session, get_task_instance):
         """
         All-failed trigger rule failure
         """
@@ -555,13 +623,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_all_done_tr_success(self, get_task_instance):
+    def test_all_done_tr_success(self, session, get_task_instance):
         """
         All-done trigger rule success
         """
@@ -578,12 +646,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_all_skipped_tr_failure(self, get_task_instance):
+    def test_all_skipped_tr_failure(self, session, get_task_instance):
         """
         All-skipped trigger rule failure
         """
@@ -600,14 +668,14 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
     @pytest.mark.parametrize("flag_upstream_failed", [True, False])
-    def test_all_skipped_tr_success(self, get_task_instance, flag_upstream_failed):
+    def test_all_skipped_tr_success(self, session, get_task_instance, flag_upstream_failed):
         """
         All-skipped trigger rule success
         """
@@ -624,12 +692,12 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
-    def test_all_done_tr_failure(self, get_task_instance):
+    def test_all_done_tr_failure(self, session, get_task_instance):
         """
         All-done trigger rule failure
         """
@@ -648,14 +716,14 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
     @pytest.mark.parametrize("flag_upstream_failed", [True, False])
-    def test_none_skipped_tr_success(self, get_task_instance, flag_upstream_failed):
+    def test_none_skipped_tr_success(self, session, get_task_instance, flag_upstream_failed):
         """
         None-skipped trigger rule success
         """
@@ -672,13 +740,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 0
 
     @pytest.mark.parametrize("flag_upstream_failed", [True, False])
-    def test_none_skipped_tr_failure(self, get_task_instance, flag_upstream_failed):
+    def test_none_skipped_tr_failure(self, session, get_task_instance, flag_upstream_failed):
         """
         None-skipped trigger rule failure
         """
@@ -695,13 +763,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_none_skipped_tr_failure_empty(self, get_task_instance):
+    def test_none_skipped_tr_failure_empty(self, session, get_task_instance):
         """
         None-skipped trigger rule fails until all upstream tasks have completed execution
         """
@@ -720,13 +788,13 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_unknown_tr(self, get_task_instance):
+    def test_unknown_tr(self, session, get_task_instance):
         """
         Unknown trigger rules should cause this dep to fail
         """
@@ -745,7 +813,7 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                session=mock.Mock(),
+                session=session,
             )
         )
         assert len(dep_statuses) == 1
@@ -774,11 +842,13 @@ class TestTriggerRuleDep:
         tis["op4"].state = TaskInstanceState.SUCCESS
         tis["op5"].state = TaskInstanceState.SUCCESS
 
+        def _get_finished_tis(task_id: str) -> Iterator[TaskInstance]:
+            return (ti for ti in tis.values() if ti.task_id in tis[task_id].task.upstream_task_ids)
+
         # check handling with cases that tasks are triggered from backfill with no finished tasks
-        finished_tis = tis.values()
-        assert _UpstreamTIStates.calculate(ti=tis["op2"], finished_tis=finished_tis) == (1, 0, 0, 0, 0, 1)
-        assert _UpstreamTIStates.calculate(ti=tis["op4"], finished_tis=finished_tis) == (1, 0, 1, 0, 0, 2)
-        assert _UpstreamTIStates.calculate(ti=tis["op5"], finished_tis=finished_tis) == (2, 0, 1, 0, 0, 3)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op2")) == (1, 0, 0, 0, 0, 1)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op4")) == (1, 0, 1, 0, 0, 2)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op5")) == (2, 0, 1, 0, 0, 3)
 
         dr.update_state(session=session)
         assert dr.state == DagRunState.SUCCESS
@@ -894,3 +964,82 @@ class TestTriggerRuleDep:
         )
 
         assert len(dep_statuses) == 0
+
+
+def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
+    from airflow.decorators import task, task_group
+
+    with dag_maker(session=session):
+
+        @task
+        def t(x):
+            return x
+
+        @task_group
+        def tg(x):
+            t1 = t.override(task_id="t1")(x=x)
+            return t.override(task_id="t2")(x=t1)
+
+        t2 = tg.expand(x=[1, 2, 3])
+        t.override(task_id="t3")(x=t2)
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    def _one_scheduling_decision_iteration() -> dict[tuple[str, int], TaskInstance]:
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        return {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+
+    # Initial decision.
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t1", 0), ("tg.t1", 1), ("tg.t1", 2)]
+
+    # After running the first t1, the first t2 becomes immediately available.
+    tis["tg.t1", 0].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t1", 1), ("tg.t1", 2), ("tg.t2", 0)]
+
+    # Similarly for the subsequent t2 instances.
+    tis["tg.t1", 2].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t1", 1), ("tg.t2", 0), ("tg.t2", 2)]
+
+    # But running t2 partially does not make t3 available.
+    tis["tg.t1", 1].run()
+    tis["tg.t2", 0].run()
+    tis["tg.t2", 2].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t2", 1)]
+
+    # Only after all t2 instances are run does t3 become available.
+    tis["tg.t2", 1].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("t3", -1)]
+
+
+def test_mapped_task_check_before_expand(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def t(x):
+            return x
+
+        @task_group
+        def tg(a):
+            b = t.override(task_id="t2")(a)
+            c = t.override(task_id="t3")(b)
+            return c
+
+        tg.expand(a=t([1, 2, 3]))
+
+    dr: DagRun = dag_maker.create_dagrun()
+    result_iterator = TriggerRuleDep()._evaluate_trigger_rule(
+        # t3 depends on t2, which depends on t1 for expansion. Since t1 has not
+        # yet run, t2 has not expanded yet, and we need to guarantee this lack
+        # of expansion does not fail the dependency-checking logic.
+        ti=next(ti for ti in dr.task_instances if ti.task_id == "tg.t3" and ti.map_index == -1),
+        dep_context=DepContext(),
+        session=session,
+    )
+    results = list(result_iterator)
+    assert len(results) == 1
+    assert results[0].passed is False

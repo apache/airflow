@@ -15,13 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
 """
 Unit Tests for the Google Calendar Hook
 """
+from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.suite.hooks.calendar import GoogleCalendarHook
@@ -46,8 +44,8 @@ NUM_RETRIES = 5
 API_RESPONSE = {"test": "response"}
 
 
-class TestGoogleCalendarHook(unittest.TestCase):
-    def setUp(self):
+class TestGoogleCalendarHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -60,7 +58,7 @@ class TestGoogleCalendarHook(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"kind": "calendar#events", "nextPageToken": None, "items": [EVENT]}
         result = self.hook.get_events(calendar_id=CALENDAR_ID)
-        self.assertEqual(result, [EVENT])
+        assert result == [EVENT]
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         get_method.assert_called_once_with(
             calendarId=CALENDAR_ID,

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -29,10 +28,8 @@ TEST_CONN_ID = "test_segment"
 WRITE_KEY = "foo"
 
 
-class TestSegmentHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestSegmentHook:
+    def setup_method(self):
         self.conn = conn = mock.MagicMock()
         conn.write_key = WRITE_KEY
         self.expected_write_key = WRITE_KEY

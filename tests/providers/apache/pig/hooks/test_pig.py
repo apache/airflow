@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -25,10 +24,8 @@ import pytest
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
 
 
-class TestPigCliHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestPigCliHook:
+    def setup_method(self):
         self.extra_dejson = mock.MagicMock()
         self.extra_dejson.get.return_value = None
         self.conn = mock.MagicMock()

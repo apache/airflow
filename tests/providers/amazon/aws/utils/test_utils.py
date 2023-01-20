@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest import TestCase
 
 import pytz
 
@@ -33,7 +32,7 @@ DT = datetime(2000, 1, 1, tzinfo=pytz.UTC)
 EPOCH = 946_684_800
 
 
-class TestUtils(TestCase):
+class TestUtils:
     def test_trim_none_values(self):
         input_object = {
             "test": "test",

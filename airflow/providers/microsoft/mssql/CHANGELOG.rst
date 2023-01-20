@@ -24,6 +24,28 @@
 Changelog
 ---------
 
+3.3.2
+.....
+
+Misc
+~~~~
+* ``Re-enable 'pymsql' on ARM as it now builds cleanly (#28530)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
 3.3.0
 .....
 

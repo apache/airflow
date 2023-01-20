@@ -325,7 +325,7 @@ def build_docs(
 ):
     """Build documentation in the container."""
     if for_production and not clean_build:
-        get_console().print("\n[warning]When building docs for production, clan-build is forced\n")
+        get_console().print("\n[warning]When building docs for production, clean-build is forced\n")
         clean_build = True
     perform_environment_checks()
     cleanup_python_generated_files()
@@ -549,7 +549,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
             sys.exit(1)
         if shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            return 1
+            sys.exit(1)
     command_result = run_command(
         cmd, env=env_variables, text=True, check=False, output_outside_the_group=True
     )

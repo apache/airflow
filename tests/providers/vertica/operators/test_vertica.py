@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.vertica.operators.vertica import VerticaOperator
 
 
-class TestVerticaOperator(unittest.TestCase):
+class TestVerticaOperator:
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_execute(self, mock_get_db_hook):
         sql = "select a, b, c"
@@ -36,5 +35,4 @@ class TestVerticaOperator(unittest.TestCase):
             handler=fetch_all_handler,
             parameters=None,
             return_last=True,
-            split_statements=False,
         )

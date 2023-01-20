@@ -81,7 +81,7 @@ const DagRun = ({ runId }: Props) => {
     externalTrigger,
     conf,
     confIsJson,
-    notes,
+    note,
   } = run;
   const graphParams = new URLSearchParamsWrapper({
     execution_date: executionDate,
@@ -117,7 +117,7 @@ const DagRun = ({ runId }: Props) => {
           <NotesAccordion
             dagId={dagId}
             runId={runId}
-            initialValue={notes}
+            initialValue={note}
             key={dagId + runId}
           />
         </Box>
@@ -144,12 +144,14 @@ const DagRun = ({ runId }: Props) => {
                 {runType}
               </Td>
             </Tr>
-            <Tr>
-              <Td>Run duration</Td>
-              <Td>
-                {formatDuration(getDuration(startDate, endDate))}
-              </Td>
-            </Tr>
+            {startDate && (
+              <Tr>
+                <Td>Run duration</Td>
+                <Td>
+                  {formatDuration(getDuration(startDate, endDate))}
+                </Td>
+              </Tr>
+            )}
             {lastSchedulingDecision && (
               <Tr>
                 <Td>Last scheduling decision</Td>

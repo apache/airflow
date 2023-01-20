@@ -23,6 +23,7 @@ import logging
 import os
 import pickle
 import re
+import sys
 from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
@@ -33,8 +34,8 @@ from unittest.mock import patch
 import jinja2
 import pendulum
 import pytest
+import time_machine
 from dateutil.relativedelta import relativedelta
-from freezegun import freeze_time
 from sqlalchemy import inspect
 
 import airflow
@@ -42,7 +43,12 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
+from airflow.exceptions import (
+    AirflowException,
+    DuplicateTaskIdFound,
+    ParamValidationError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
@@ -97,12 +103,14 @@ class TestDag:
     def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        clear_db_datasets()
         self.patcher_dag_code = mock.patch("airflow.models.dag.DagCode.bulk_sync_to_db")
         self.patcher_dag_code.start()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        clear_db_datasets()
         self.patcher_dag_code.stop()
 
     @staticmethod
@@ -939,6 +947,55 @@ class TestDag:
             .all()
         ) == {(task_id, dag_id1, d2_orm.id)}
 
+    def test_bulk_write_to_db_unorphan_datasets(self):
+        """
+        Datasets can lose their last reference and be orphaned, but then if a reference to them reappears, we
+        need to un-orphan those datasets
+        """
+        with create_session() as session:
+            # Create four datasets - two that have references and two that are unreferenced and marked as
+            # orphans
+            dataset1 = Dataset(uri="ds1")
+            dataset2 = Dataset(uri="ds2")
+            session.add(DatasetModel(uri=dataset2.uri, is_orphaned=True))
+            dataset3 = Dataset(uri="ds3")
+            dataset4 = Dataset(uri="ds4")
+            session.add(DatasetModel(uri=dataset4.uri, is_orphaned=True))
+            session.flush()
+
+            dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1])
+            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[dataset3])
+
+            DAG.bulk_write_to_db([dag1], session=session)
+
+            # Double check
+            non_orphaned_datasets = [
+                dataset.uri
+                for dataset in session.query(DatasetModel.uri)
+                .filter(~DatasetModel.is_orphaned)
+                .order_by(DatasetModel.uri)
+            ]
+            assert non_orphaned_datasets == ["ds1", "ds3"]
+            orphaned_datasets = [
+                dataset.uri
+                for dataset in session.query(DatasetModel.uri)
+                .filter(DatasetModel.is_orphaned)
+                .order_by(DatasetModel.uri)
+            ]
+            assert orphaned_datasets == ["ds2", "ds4"]
+
+            # Now add references to the two unreferenced datasets
+            dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1, dataset2])
+            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[dataset3, dataset4])
+
+            DAG.bulk_write_to_db([dag1], session=session)
+
+            # and count the orphans and non-orphans
+            non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
+            assert non_orphaned_dataset_count == 4
+            orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
+            assert orphaned_dataset_count == 0
+
     def test_sync_to_db(self):
         dag = DAG(
             "dag",
@@ -1267,7 +1324,10 @@ class TestDag:
             dag.handle_callback(dag_run, success=False)
             dag.handle_callback(dag_run, success=True)
 
-        mock_stats.incr.assert_called_with("dag.callback_exceptions")
+        mock_stats.incr.assert_called_with(
+            "dag.callback_exceptions",
+            tags={"dag_id": "test_dag_callback_crash", "run_id": "manual__2015-01-02T00:00:00+00:00"},
+        )
 
         dag.clear()
         self._clean_up(dag_id)
@@ -1945,7 +2005,7 @@ my_postgres_conn:
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
-    @freeze_time(timezone.datetime(2020, 1, 5))
+    @time_machine.travel(timezone.datetime(2020, 1, 5), tick=False)
     def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self):
         """
         Test that the dag file processor does not create multiple dagruns
@@ -1965,7 +2025,7 @@ my_postgres_conn:
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 5)
 
-    @freeze_time(timezone.datetime(2020, 5, 4))
+    @time_machine.travel(timezone.datetime(2020, 5, 4))
     def test_next_dagrun_info_timedelta_schedule_and_catchup_true(self):
         """
         Test that the dag file processor creates multiple dagruns
@@ -2689,6 +2749,20 @@ class TestDagDecorator:
         dag = xcom_pass_to_op()
         assert dag.params["value"] == value
 
+    def test_warning_location(self):
+        # NOTE: This only works as long as there is some warning we can emit from `DAG()`
+        @dag_decorator(schedule_interval=None)
+        def mydag():
+            ...
+
+        with pytest.warns(RemovedInAirflow3Warning) as warnings:
+            line = sys._getframe().f_lineno + 1
+            mydag()
+
+        w = warnings.pop(RemovedInAirflow3Warning)
+        assert w.filename == __file__
+        assert w.lineno == line
+
 
 @pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
 def test_dag_timetable_match_schedule_interval(timetable):
@@ -3076,3 +3150,23 @@ def test_dag_uses_timetable_for_run_id(session):
     )
 
     assert dag_run.run_id == "abc"
+
+
+@pytest.mark.parametrize(
+    "run_id_type",
+    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.DATASET_TRIGGERED],
+)
+def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
+    dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
+    run_id = run_id_type.generate_run_id(DEFAULT_DATE)
+    with pytest.raises(ValueError) as ctx:
+        dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=DagRunState.QUEUED,
+        )
+    assert str(ctx.value) == (
+        f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
+    )

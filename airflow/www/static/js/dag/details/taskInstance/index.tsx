@@ -101,7 +101,7 @@ const TaskInstance = ({
       isPreferedTabDisplayed = true;
       break;
     case 1:
-      isPreferedTabDisplayed = !isGroup;
+      isPreferedTabDisplayed = !isGroup || (isGroup && !!isMapped);
       break;
     default:
       isPreferedTabDisplayed = false;
@@ -139,7 +139,7 @@ const TaskInstance = ({
           <Tab>
             <Text as="strong">Details</Text>
           </Tab>
-          {isMappedTaskSummary && (
+          {isMappedTaskSummary && !isGroup && (
             <Tab>
               <Text as="strong">Mapped Tasks</Text>
             </Tab>
@@ -174,7 +174,7 @@ const TaskInstance = ({
                   runId={runId}
                   taskId={taskId}
                   mapIndex={instance.mapIndex}
-                  initialValue={instance.notes}
+                  initialValue={instance.note}
                   key={dagId + runId + taskId + instance.mapIndex}
                 />
               )}
@@ -218,7 +218,7 @@ const TaskInstance = ({
 
           {/* Mapped Task Instances Tab */}
           {
-            isMappedTaskSummary && (
+            isMappedTaskSummary && !isGroup && (
               <TabPanel>
                 <MappedInstances
                   dagId={dagId}

@@ -35,13 +35,15 @@ class ReadyToRescheduleDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         """
-        Determines whether a task is ready to be rescheduled. Only tasks in
-        NONE state with at least one row in task_reschedule table are
-        handled by this dependency class, otherwise this dependency is
-        considered as passed. This dependency fails if the latest reschedule
-        request's reschedule date is still in future.
+        Determines whether a task is ready to be rescheduled.
+        Only tasks in NONE state with at least one row in task_reschedule table are
+        handled by this dependency class, otherwise this dependency is considered as passed.
+        This dependency fails if the latest reschedule request's reschedule date is still
+        in the future.
         """
-        is_mapped = ti.task.is_mapped
+        from airflow.models.mappedoperator import MappedOperator
+
+        is_mapped = isinstance(ti.task, MappedOperator)
         if not is_mapped and not getattr(ti.task, "reschedule", False):
             # Mapped sensors don't have the reschedule property (it can only
             # be calculated after unmapping), so we don't check them here.

@@ -24,19 +24,20 @@ import httpx
 class Client:
     """Base API client for all API clients."""
 
-    def __init__(self, api_base_url, auth=None, session=None):
+    def __init__(self, api_base_url, auth=None, session: httpx.Client | None = None):
         self._api_base_url = api_base_url
         self._session: httpx.Client = session or httpx.Client()
         if auth:
             self._session.auth = auth
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
+    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
         """Create a dag run for the specified dag.
 
         :param dag_id:
         :param run_id:
         :param conf:
         :param execution_date:
+        :param replace_microseconds:
         :return:
         """
         raise NotImplementedError()

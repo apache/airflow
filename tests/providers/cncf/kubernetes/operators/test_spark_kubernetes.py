@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest.mock import patch
 
 from airflow import DAG
@@ -239,8 +238,8 @@ TEST_APPLICATION_DICT_WITH_GENERATE_NAME = {
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.delete_namespaced_custom_object")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
 @patch("airflow.utils.context.Context")
-class TestSparkKubernetesOperator(unittest.TestCase):
-    def setUp(self):
+class TestSparkKubernetesOperator:
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="kubernetes_default_kube_config",

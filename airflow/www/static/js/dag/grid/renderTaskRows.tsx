@@ -44,6 +44,7 @@ interface RowProps {
   openGroupIds?: string[];
   onToggleGroups?: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  isParentMapped?: boolean;
 }
 
 const renderTaskRows = ({
@@ -85,7 +86,7 @@ const TaskInstances = ({
           className={`js-${runId}`}
           data-selected={isSelected}
           transition="background-color 0.2s"
-          key={`${runId}-${task.id}-${instance ? instance.notes : ''}`}
+          key={`${runId}-${task.id}-${instance ? instance.note : ''}`}
           bg={isSelected ? 'blue.100' : undefined}
         >
           {instance
@@ -95,7 +96,7 @@ const TaskInstances = ({
                 group={task}
                 onSelect={onSelect}
                 isActive={hoveredTaskState === undefined || hoveredTaskState === instance.state}
-                containsNotes={!!instance.notes}
+                containsNotes={!!instance.note}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}
@@ -114,6 +115,7 @@ const Row = (props: RowProps) => {
     openGroupIds = [],
     onToggleGroups = () => {},
     hoveredTaskState,
+    isParentMapped,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -168,7 +170,7 @@ const Row = (props: RowProps) => {
           <TaskName
             onToggle={memoizedToggle}
             isGroup={isGroup}
-            isMapped={task.isMapped}
+            isMapped={task.isMapped && !isParentMapped}
             label={task.label || task.id || ''}
             isOpen={isOpen}
             level={level}
@@ -191,7 +193,10 @@ const Row = (props: RowProps) => {
       </Tr>
       {isGroup && isOpen && (
         renderTaskRows({
-          ...props, level: level + 1, openParentCount: openParentCount + 1,
+          ...props,
+          level: level + 1,
+          openParentCount: openParentCount + 1,
+          isParentMapped: task.isMapped,
         })
       )}
     </>

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import gzip
+import json
 import logging
 from io import BytesIO as IO
 from itertools import chain
@@ -29,11 +30,49 @@ from flask import after_this_request, g, request
 from pendulum.parsing.exceptions import ParserError
 
 from airflow.models import Log
+from airflow.utils.log import secrets_masker
 from airflow.utils.session import create_session
 
 T = TypeVar("T", bound=Callable)
 
 logger = logging.getLogger(__name__)
+
+
+def _mask_variable_fields(extra_fields):
+    """
+    The variable requests values and args comes in this form:
+    [('key', 'key_content'),('val', 'val_content'), ('description', 'description_content')]
+    So we need to mask the 'val_content' field if 'key_content' is in the mask list.
+    """
+    result = []
+    keyname = None
+    for k, v in extra_fields:
+        if k == "key":
+            keyname = v
+            result.append((k, v))
+        elif keyname and k == "val":
+            x = secrets_masker.redact(v, keyname)
+            result.append((k, x))
+            keyname = None
+        else:
+            result.append((k, v))
+    return result
+
+
+def _mask_connection_fields(extra_fields):
+    """Mask connection fields"""
+    result = []
+    for k, v in extra_fields:
+        if k == "extra":
+            try:
+                extra = json.loads(v)
+                extra = [(k, secrets_masker.redact(v, k)) for k, v in extra.items()]
+                result.append((k, json.dumps(dict(extra))))
+            except json.JSONDecodeError:
+                result.append((k, "Encountered non-JSON in `extra` field"))
+        else:
+            result.append((k, secrets_masker.redact(v, k)))
+    return result
 
 
 def action_logging(func: Callable | None = None, event: str | None = None) -> Callable[[T], T]:
@@ -52,10 +91,14 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
 
                 fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [
-                    (k, v)
+                    (k, secrets_masker.redact(v, k))
                     for k, v in chain(request.values.items(multi=True), request.view_args.items())
                     if k not in fields_skip_logging
                 ]
+                if event and event.startswith("variable."):
+                    extra_fields = _mask_variable_fields(extra_fields)
+                if event and event.startswith("connection."):
+                    extra_fields = _mask_connection_fields(extra_fields)
 
                 params = {k: v for k, v in chain(request.values.items(), request.view_args.items())}
 

@@ -70,15 +70,6 @@ def test_home(capture_templates, admin_client):
     assert templates[0].local_context["state_color"] == state_color_mapping
 
 
-def test_home_filter_tags(admin_client):
-    with admin_client:
-        admin_client.get("home?tags=example&tags=data", follow_redirects=True)
-        assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
-
-        admin_client.get("home?reset_tags", follow_redirects=True)
-        assert flask.session[FILTER_TAGS_COOKIE] is None
-
-
 def test_home_status_filter_cookie(admin_client):
     with admin_client:
         admin_client.get("home", follow_redirects=True)
@@ -118,7 +109,33 @@ def client_single_dag(app, user_single_dag):
     )
 
 
+@pytest.fixture(scope="module")
+def user_single_dag_edit(app):
+    """Create User that can edit DAG resource only a single DAG"""
+    return create_user(
+        app,
+        username="user_single_dag_edit",
+        role_name="role_single_dag",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("filter_test_1")),
+        ],
+    )
+
+
+@pytest.fixture()
+def client_single_dag_edit(app, user_single_dag_edit):
+    """Client for User that can only edit the first DAG from TEST_FILTER_DAG_IDS"""
+    return client_with_login(
+        app,
+        username="user_single_dag_edit",
+        password="user_single_dag_edit",
+    )
+
+
 TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
+TEST_TAGS = ["example", "test", "team", "group"]
 
 
 def _process_file(file_path, session):
@@ -128,13 +145,13 @@ def _process_file(file_path, session):
 
 @pytest.fixture()
 def working_dags(tmpdir):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}')"
+    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
 
     with create_session() as session:
-        for dag_id in TEST_FILTER_DAG_IDS:
+        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
-                f.writelines(dag_contents_template.format(dag_id))
+                f.writelines(dag_contents_template.format(dag_id, tag))
             _process_file(filename, session)
 
 
@@ -146,6 +163,15 @@ def broken_dags(tmpdir, working_dags):
             with open(filename, "w") as f:
                 f.writelines("airflow DAG")
             _process_file(filename, session)
+
+
+def test_home_filter_tags(working_dags, admin_client):
+    with admin_client:
+        admin_client.get("home?tags=example&tags=data", follow_redirects=True)
+        assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
+
+        admin_client.get("home?reset_tags", follow_redirects=True)
+        assert flask.session[FILTER_TAGS_COOKIE] is None
 
 
 def test_home_importerrors(broken_dags, user_client):
@@ -193,6 +219,17 @@ def test_home_dag_list_search(working_dags, user_client):
     check_content_not_in_response("dag_id=a_first_dag_id_asc", resp)
 
 
+def test_home_dag_edit_permissions(capture_templates, working_dags, client_single_dag_edit):
+    with capture_templates() as templates:
+        client_single_dag_edit.get("home", follow_redirects=True)
+
+    dags = templates[0].local_context["dags"]
+    assert len(dags) > 0
+    dag_edit_perm_tuple = [(dag.dag_id, dag.can_edit) for dag in dags]
+    assert ("filter_test_1", True) in dag_edit_perm_tuple
+    assert ("filter_test_2", False) in dag_edit_perm_tuple
+
+
 def test_home_robots_header_in_response(user_client):
     # Responses should include X-Robots-Tag header
     resp = user_client.get("home", follow_redirects=True)
@@ -202,6 +239,11 @@ def test_home_robots_header_in_response(user_client):
 @pytest.mark.parametrize(
     "client, flash_message, expected",
     [
+        ("anonymous_client", UIAlert("hello world"), True),
+        ("anonymous_client", UIAlert("hello world", roles=["Viewer"]), True),
+        ("anonymous_client", UIAlert("hello world", roles=["User"]), False),
+        ("anonymous_client", UIAlert("hello world", roles=["Viewer", "User"]), True),
+        ("anonymous_client", UIAlert("hello world", roles=["Admin"]), False),
         ("user_client", UIAlert("hello world"), True),
         ("user_client", UIAlert("hello world", roles=["User"]), True),
         ("user_client", UIAlert("hello world", roles=["User", "Admin"]), True),

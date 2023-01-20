@@ -497,7 +497,7 @@ class BaseXCom(Base, LoggingMixin):
         elif dag_ids is not None:
             query = query.filter(cls.dag_id == dag_ids)
 
-        if isinstance(map_indexes, range) and abs(map_indexes.step) == 1:
+        if isinstance(map_indexes, range) and map_indexes.step == 1:
             query = query.filter(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
         elif is_container(map_indexes):
             query = query.filter(cls.map_index.in_(map_indexes))
@@ -722,6 +722,26 @@ class LazyXComAccess(collections.abc.Sequence):
             z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
             return all(x == y for x, y in z)
         return NotImplemented
+
+    def __getstate__(self) -> Any:
+        # We don't want to go to the trouble of serializing the entire Query
+        # object, including its filters, hints, etc. (plus SQLAlchemy does not
+        # provide a public API to inspect a query's contents). Converting the
+        # query into a SQL string is the best we can get. Theoratically we can
+        # do the same for count(), but I think it should be performant enough to
+        # calculate only that eagerly.
+        with self._get_bound_query() as query:
+            statement = query.statement.compile(
+                query.session.get_bind(),
+                # This inlines all the values into the SQL string to simplify
+                # cross-process commuinication as much as possible.
+                compile_kwargs={"literal_binds": True},
+            )
+            return (str(statement), query.count())
+
+    def __setstate__(self, state: Any) -> None:
+        statement, self._len = state
+        self._query = Query(XCom.value).from_statement(text(statement))
 
     def __len__(self):
         if self._len is None:

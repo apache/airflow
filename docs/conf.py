@@ -172,6 +172,13 @@ elif PACKAGE_NAME == "helm-chart":
 elif PACKAGE_NAME == "docker-stack":
     # No extra extensions
     pass
+elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
+    extensions.extend(
+        [
+            "extra_provider_files_with_substitutions",
+            "autoapi.extension",
+        ]
+    )
 else:
     extensions.append("autoapi.extension")
 # List of patterns, relative to source directory, that match files and
@@ -214,17 +221,18 @@ if PACKAGE_NAME == "apache-airflow":
 
     browsable_packages = {
         "hooks",
+        "decorators",
         "example_dags",
         "executors",
-        "models",
         "operators",
         "providers",
         "secrets",
         "sensors",
         "timetables",
+        "triggers",
         "utils",
     }
-    browseable_utils = {"dag_parsing_context.py"}
+    browsable_utils: set[str] = set()
 
     root = ROOT_DIR / "airflow"
     for path in root.iterdir():
@@ -233,9 +241,9 @@ if PACKAGE_NAME == "apache-airflow":
         if path.is_dir() and path.name not in browsable_packages:
             exclude_patterns.append(f"_api/airflow/{path.name}")
 
-    # Don't include all of utils, just the specific ones we include in python-api-ref
+    # Don't include all of utils, just the specific ones we decoded to include
     for path in (root / "utils").iterdir():
-        if path.name not in browseable_utils:
+        if path.name not in browsable_utils:
             exclude_patterns.append(_get_rst_filepath_from_path(path))
 elif PACKAGE_NAME != "docker-stack":
     exclude_patterns.extend(
@@ -298,7 +306,8 @@ if PACKAGE_NAME == "apache-airflow":
         "installation/installing-from-pypi.html",
         "installation/installing-from-sources.html",
     ]
-
+if PACKAGE_NAME.startswith("apache-airflow-providers"):
+    manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
     # Replace "|version|" inside ```` quotes
     manual_substitutions_in_generated_html = ["build.html"]
@@ -389,15 +398,15 @@ if PACKAGE_NAME == "apache-airflow":
     # the config has been templated, not before
     # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
     keys_to_format = ["default", "example"]
-    for conf_section in configs:
-        for option in conf_section["options"]:
+    for conf_name, conf_section in configs.items():
+        for option_name, option in conf_section["options"].items():
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
                     option[key] = option[key].replace("{{", "{").replace("}}", "}")
     # Sort options, config and deprecated options for JINJA variables to display
-    for config in configs:
-        config["options"] = sorted(config["options"], key=lambda o: o["name"])
-    configs = sorted(configs, key=lambda l: l["name"])
+    for section_name, config in configs.items():
+        config["options"] = {k: v for k, v in sorted(config["options"].items())}
+    configs = {k: v for k, v in sorted(configs.items())}
     for section in deprecated_options:
         deprecated_options[section] = {k: v for k, v in sorted(deprecated_options[section].items())}
 
@@ -625,41 +634,6 @@ intersphinx_mapping = {
         "sqlalchemy",
     ]
 }
-if PACKAGE_NAME in ("apache-airflow-providers-google", "apache-airflow"):
-    intersphinx_mapping.update(
-        {
-            pkg_name: (
-                f"{THIRD_PARTY_INDEXES[pkg_name]}/",
-                (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",),
-            )
-            for pkg_name in [
-                "google-api-core",
-                "google-cloud-automl",
-                "google-cloud-bigquery",
-                "google-cloud-bigquery-datatransfer",
-                "google-cloud-bigquery-storage",
-                "google-cloud-bigtable",
-                "google-cloud-container",
-                "google-cloud-core",
-                "google-cloud-datacatalog",
-                "google-cloud-datastore",
-                "google-cloud-dlp",
-                "google-cloud-kms",
-                "google-cloud-language",
-                "google-cloud-monitoring",
-                "google-cloud-pubsub",
-                "google-cloud-redis",
-                "google-cloud-spanner",
-                "google-cloud-speech",
-                "google-cloud-storage",
-                "google-cloud-tasks",
-                "google-cloud-texttospeech",
-                "google-cloud-translate",
-                "google-cloud-videointelligence",
-                "google-cloud-vision",
-            ]
-        }
-    )
 
 # -- Options for sphinx.ext.viewcode -------------------------------------------
 # See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html

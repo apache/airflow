@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import time
+from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -26,17 +27,17 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class DataSyncHook(AwsBaseHook):
     """
     Interact with AWS DataSync.
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("datasync") <DataSync.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-        :class:`~airflow.providers.amazon.aws.operators.datasync.DataSyncOperator`
-
     :param wait_interval_seconds: Time to wait between two
         consecutive calls to check TaskExecution status. Defaults to 30 seconds.
     :raises ValueError: If wait_interval_seconds is not between 0 and 15*60 seconds.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     TASK_EXECUTION_INTERMEDIATE_STATES = (
@@ -60,25 +61,31 @@ class DataSyncHook(AwsBaseHook):
         self.wait_interval_seconds = wait_interval_seconds
 
     def create_location(self, location_uri: str, **create_location_kwargs) -> str:
-        r"""Creates a new location.
+        """
+        Creates a new location.
 
-        :param str location_uri: Location URI used to determine the location type (S3, SMB, NFS, EFS).
-        :param create_location_kwargs: Passed to ``boto.create_location_xyz()``.
-            See AWS boto3 datasync documentation.
-        :return str: LocationArn of the created Location.
+        .. seealso::
+            - :external+boto3:py:meth:`DataSync.Client.create_location_s3`
+            - :external+boto3:py:meth:`DataSync.Client.create_location_smb`
+            - :external+boto3:py:meth:`DataSync.Client.create_location_nfs`
+            - :external+boto3:py:meth:`DataSync.Client.create_location_efs`
+
+        :param location_uri: Location URI used to determine the location type (S3, SMB, NFS, EFS).
+        :param create_location_kwargs: Passed to ``DataSync.Client.create_location_*`` methods.
+        :return: LocationArn of the created Location.
         :raises AirflowException: If location type (prefix from ``location_uri``) is invalid.
         """
-        typ = location_uri.split(":")[0]
-        if typ == "smb":
+        schema = urlsplit(location_uri).scheme
+        if schema == "smb":
             location = self.get_conn().create_location_smb(**create_location_kwargs)
-        elif typ == "s3":
+        elif schema == "s3":
             location = self.get_conn().create_location_s3(**create_location_kwargs)
-        elif typ == "nfs":
-            location = self.get_conn().create_loction_nfs(**create_location_kwargs)
-        elif typ == "efs":
-            location = self.get_conn().create_loction_efs(**create_location_kwargs)
+        elif schema == "nfs":
+            location = self.get_conn().create_location_nfs(**create_location_kwargs)
+        elif schema == "efs":
+            location = self.get_conn().create_location_efs(**create_location_kwargs)
         else:
-            raise AirflowException(f"Invalid location type: {typ}")
+            raise AirflowException(f"Invalid/Unsupported location type: {schema}")
         self._refresh_locations()
         return location["LocationArn"]
 
@@ -88,9 +95,9 @@ class DataSyncHook(AwsBaseHook):
         """
         Return all LocationArns which match a LocationUri.
 
-        :param str location_uri: Location URI to search for, eg ``s3://mybucket/mypath``
-        :param bool case_sensitive: Do a case sensitive search for location URI.
-        :param bool ignore_trailing_slash: Ignore / at the end of URI when matching.
+        :param location_uri: Location URI to search for, eg ``s3://mybucket/mypath``
+        :param case_sensitive: Do a case sensitive search for location URI.
+        :param ignore_trailing_slash: Ignore / at the end of URI when matching.
         :return: List of LocationArns.
         :raises AirflowBadRequest: if ``location_uri`` is empty
         """
@@ -132,10 +139,13 @@ class DataSyncHook(AwsBaseHook):
     def create_task(
         self, source_location_arn: str, destination_location_arn: str, **create_task_kwargs
     ) -> str:
-        r"""Create a Task between the specified source and destination LocationArns.
+        """Create a Task between the specified source and destination LocationArns.
 
-        :param str source_location_arn: Source LocationArn. Must exist already.
-        :param str destination_location_arn: Destination LocationArn. Must exist already.
+        .. seealso::
+            - :external+boto3:py:meth:`DataSync.Client.create_task`
+
+        :param source_location_arn: Source LocationArn. Must exist already.
+        :param destination_location_arn: Destination LocationArn. Must exist already.
         :param create_task_kwargs: Passed to ``boto.create_task()``. See AWS boto3 datasync documentation.
         :return: TaskArn of the created Task
         """
@@ -148,17 +158,23 @@ class DataSyncHook(AwsBaseHook):
         return task["TaskArn"]
 
     def update_task(self, task_arn: str, **update_task_kwargs) -> None:
-        r"""Update a Task.
+        """Update a Task.
 
-        :param str task_arn: The TaskArn to update.
+        .. seealso::
+            - :external+boto3:py:meth:`DataSync.Client.update_task`
+
+        :param task_arn: The TaskArn to update.
         :param update_task_kwargs: Passed to ``boto.update_task()``, See AWS boto3 datasync documentation.
         """
         self.get_conn().update_task(TaskArn=task_arn, **update_task_kwargs)
 
     def delete_task(self, task_arn: str) -> None:
-        r"""Delete a Task.
+        """Delete a Task.
 
-        :param str task_arn: The TaskArn to delete.
+        .. seealso::
+            - :external+boto3:py:meth:`DataSync.Client.delete_task`
+
+        :param task_arn: The TaskArn to delete.
         """
         self.get_conn().delete_task(TaskArn=task_arn)
 
@@ -185,9 +201,8 @@ class DataSyncHook(AwsBaseHook):
         Return list of TaskArns for which use any one of the specified
         source LocationArns and any one of the specified destination LocationArns.
 
-        :param list source_location_arns: List of source LocationArns.
-        :param list destination_location_arns: List of destination LocationArns.
-        :return: list
+        :param source_location_arns: List of source LocationArns.
+        :param destination_location_arns: List of destination LocationArns.
         :raises AirflowBadRequest: if ``source_location_arns`` or ``destination_location_arns`` are empty.
         """
         if not source_location_arns:
@@ -207,13 +222,16 @@ class DataSyncHook(AwsBaseHook):
         return result
 
     def start_task_execution(self, task_arn: str, **kwargs) -> str:
-        r"""
+        """
         Start a TaskExecution for the specified task_arn.
         Each task can have at most one TaskExecution.
+        Additional keyword arguments send to ``start_task_execution`` boto3 method.
 
-        :param str task_arn: TaskArn
+        .. seealso::
+            - :external+boto3:py:meth:`DataSync.Client.start_task_execution`
+
+        :param task_arn: TaskArn
         :return: TaskExecutionArn
-        :param kwargs: kwargs sent to ``boto3.start_task_execution()``
         :raises ClientError: If a TaskExecution is already busy running for this ``task_arn``.
         :raises AirflowBadRequest: If ``task_arn`` is empty.
         """
@@ -226,7 +244,10 @@ class DataSyncHook(AwsBaseHook):
         """
         Cancel a TaskExecution for the specified ``task_execution_arn``.
 
-        :param str task_execution_arn: TaskExecutionArn.
+        .. seealso::
+            - :external+boto3:py:meth:`DataSync.Client.cancel_task_execution`
+
+        :param task_execution_arn: TaskExecutionArn.
         :raises AirflowBadRequest: If ``task_execution_arn`` is empty.
         """
         if not task_execution_arn:
@@ -237,7 +258,10 @@ class DataSyncHook(AwsBaseHook):
         """
         Get description for the specified ``task_arn``.
 
-        :param str task_arn: TaskArn
+        .. seealso::
+            - :external+boto3:py:meth:`DataSync.Client.describe_task`
+
+        :param task_arn: TaskArn
         :return: AWS metadata about a task.
         :raises AirflowBadRequest: If ``task_arn`` is empty.
         """
@@ -249,7 +273,10 @@ class DataSyncHook(AwsBaseHook):
         """
         Get description for the specified ``task_execution_arn``.
 
-        :param str task_execution_arn: TaskExecutionArn
+        .. seealso::
+            - :external+boto3:py:meth:`DataSync.Client.describe_task_execution`
+
+        :param task_execution_arn: TaskExecutionArn
         :return: AWS metadata about a task execution.
         :raises AirflowBadRequest: If ``task_execution_arn`` is empty.
         """
@@ -259,7 +286,7 @@ class DataSyncHook(AwsBaseHook):
         """
         Get current TaskExecutionArn (if one exists) for the specified ``task_arn``.
 
-        :param str task_arn: TaskArn
+        :param task_arn: TaskArn
         :return: CurrentTaskExecutionArn for this ``task_arn`` or None.
         :raises AirflowBadRequest: if ``task_arn`` is empty.
         """
@@ -275,8 +302,8 @@ class DataSyncHook(AwsBaseHook):
         Wait for Task Execution status to be complete (SUCCESS/ERROR).
         The ``task_execution_arn`` must exist, or a boto3 ClientError will be raised.
 
-        :param str task_execution_arn: TaskExecutionArn
-        :param int max_iterations: Maximum number of iterations before timing out.
+        :param task_execution_arn: TaskExecutionArn
+        :param max_iterations: Maximum number of iterations before timing out.
         :return: Result of task execution.
         :raises AirflowTaskTimeout: If maximum iterations is exceeded.
         :raises AirflowBadRequest: If ``task_execution_arn`` is empty.

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from qds_sdk.commands import PrestoCommand
 
@@ -38,7 +38,7 @@ def get_result_mock(fp, inline, delim, fetch, arguments):
         fp.write(bytearray(RESULTS_WITH_NO_HEADER, "utf-8"))
 
 
-class TestQuboleHook(TestCase):
+class TestQuboleHook:
     def test_add_string_to_tags(self):
         tags = {"dag_id", "task_id"}
         add_tags(tags, "string")

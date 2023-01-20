@@ -30,11 +30,13 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 class QuickSightHook(AwsBaseHook):
     """
     Interact with Amazon QuickSight.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("quicksight") <QuickSight.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
+
     .. seealso::
-    :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     NON_TERMINAL_STATES = {"INITIALIZED", "QUEUED", "RUNNING"}
@@ -57,6 +59,9 @@ class QuickSightHook(AwsBaseHook):
     ) -> dict:
         """
         Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets
+
+        .. seealso::
+            - :external+boto3:py:meth:`QuickSight.Client.create_ingestion`
 
         :param data_set_id:  ID of the dataset used in the ingestion.
         :param ingestion_id: ID for the ingestion.
@@ -94,6 +99,9 @@ class QuickSightHook(AwsBaseHook):
     def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> str:
         """
         Get the current status of QuickSight Create Ingestion API.
+
+        .. seealso::
+            - :external+boto3:py:meth:`QuickSight.Client.describe_ingestion`
 
         :param aws_account_id: An AWS Account ID
         :param data_set_id: QuickSight Data Set ID

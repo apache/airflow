@@ -425,7 +425,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
         """
-        dataset_reference = dataset_reference or {"datasetReference": {}}
+        dataset_reference = dataset_reference or {}
+
+        if "datasetReference" not in dataset_reference:
+            dataset_reference["datasetReference"] = {}
 
         for param, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
             specified_param = dataset_reference["datasetReference"].get(param)
@@ -1769,6 +1772,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "nullMarker",
                 "quote",
                 "encoding",
+                "preserveAsciiControlCharacters",
             ],
             "DATASTORE_BACKUP": ["projectionFields"],
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],

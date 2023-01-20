@@ -28,14 +28,58 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.3
+.....
+
+Latest change: 2023-01-09
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`9a7f07491e <https://github.com/apache/airflow/commit/9a7f07491e603123182adfd5706fbae524e33c0d>`_  2023-01-09   ``Handle non-compliant behaviour of Exasol cursor (#28744)``
+=================================================================================================  ===========  ============================================================
+
+1.3.2
+.....
+
+Latest change: 2023-01-02
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`2e7b9f5504 <https://github.com/apache/airflow/commit/2e7b9f550403cc6937b3210aaaf9e80e3e944445>`_  2022-12-29   ``Defer to hook setting for split_statements in SQLExecuteQueryOperator (#28635)``
+`f115b207bc <https://github.com/apache/airflow/commit/f115b207bc844c10569b2df6fc9acfa32a3c7f41>`_  2022-12-18   ``fIx isort problems introduced by recent isort release (#28434)``
+`a6cda7cd23 <https://github.com/apache/airflow/commit/a6cda7cd230ef22f7fe042d6d5e9f78c660c4a75>`_  2022-12-10   ``Fix template rendering for Common SQL operators (#28202)``
+`6852f3fbea <https://github.com/apache/airflow/commit/6852f3fbea5dd0fa6b8a289d2f9f11dd2159053d>`_  2022-12-05   ``Add pre-commits preventing accidental API changes in common.sql (#27962)``
+`a158fbb6bd <https://github.com/apache/airflow/commit/a158fbb6bde07cd20003680a4cf5e7811b9eda98>`_  2022-11-28   ``Clarify docstrings for updated DbApiHook (#27966)``
+=================================================================================================  ===========  ==================================================================================
+
+1.3.1
+.....
+
+Latest change: 2022-11-26
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
+`db5375bea7 <https://github.com/apache/airflow/commit/db5375bea7a0564c12f56c91e1c8c7b6c049698c>`_  2022-11-26   ``Fixing the behaviours of SQL Hooks and Operators finally (#27912)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`ea306c9462 <https://github.com/apache/airflow/commit/ea306c9462615d6b215d43f7f17d68f4c62951b1>`_  2022-11-24   ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+`dbb4b59dcb <https://github.com/apache/airflow/commit/dbb4b59dcbc8b57243d1588d45a4d2717c3e7758>`_  2022-11-23   ``Restore removed (but used) methods in common.sql (#27843)``
+=================================================================================================  ===========  ==============================================================================
+
 1.3.0
 .....
 
-Latest change: 2022-11-14
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `3ae98b824d <https://github.com/apache/airflow/commit/3ae98b824db437b2db928a73ac8b50c0a2f80124>`_  2022-11-14   ``Use unused SQLCheckOperator.parameters in SQLCheckOperator.execute. (#27599)``
 `5c37b503f1 <https://github.com/apache/airflow/commit/5c37b503f118b8ad2585dff9949dd8fdb96689ed>`_  2022-10-31   ``Use DbApiHook.run for DbApiHook.get_records and DbApiHook.get_first (#26944)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``

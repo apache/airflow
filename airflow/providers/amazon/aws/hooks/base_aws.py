@@ -25,10 +25,16 @@ This module contains Base AWS Hook.
 from __future__ import annotations
 
 import datetime
+import inspect
 import json
 import logging
+import os
+import uuid
 import warnings
+from copy import deepcopy
 from functools import wraps
+from os import PathLike
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
 import boto3
@@ -39,6 +45,7 @@ import tenacity
 from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
@@ -47,6 +54,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
+from airflow.providers_manager import ProvidersManager
+from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 
@@ -66,7 +76,7 @@ class BaseSessionFactory(LoggingMixin):
     creation or to support custom federation.
 
     .. seealso::
-        :ref:`howto/connection:aws:session-factory`
+        - :ref:`howto/connection:aws:session-factory`
     """
 
     def __init__(
@@ -368,8 +378,8 @@ class BaseSessionFactory(LoggingMixin):
 
 class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     """
-    Interact with AWS.
-    This class is a thin wrapper around the boto3 python library.
+    Generic class for interact with AWS.
+    This class provide a thin wrapper around the boto3 python library.
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -379,8 +389,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-    :param client_type: boto3.client client_type. Eg 's3', 'emr' etc
-    :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
+    :param client_type: Reference to :external:py:meth:`boto3.client service_name \
+        <boto3.session.Session.client>`, e.g. 'emr', 'batch', 's3', etc.
+        Mutually exclusive with ``resource_type``.
+    :param resource_type: Reference to :external:py:meth:`boto3.resource service_name \
+        <boto3.session.Session.resource>`, e.g. 's3', 'ec2', 'dynamodb', etc.
+        Mutually exclusive with ``client_type``.
     :param config: Configuration for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
@@ -408,6 +422,92 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self._config = config
         self._verify = verify
 
+    @classmethod
+    def _get_provider_version(cls) -> str:
+        """Checks the Providers Manager for the package version."""
+        try:
+            manager = ProvidersManager()
+            hook = manager.hooks[cls.conn_type]
+            if not hook:
+                # This gets caught immediately, but without it MyPy complains
+                # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
+                # on the following line and static checks fail.
+                raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
+            provider = manager.providers[hook.package_name]
+            return provider.version
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "Unknown"
+
+    @staticmethod
+    def _find_class_name(target_function_name: str) -> str:
+        """
+        Given a frame off the stack, return the name of the class which made the call.
+        Note: This method may raise a ValueError or an IndexError, but the calling
+        method is catching and handling those.
+        """
+        stack = inspect.stack()
+        # Find the index of the most recent frame which called the provided function name.
+        target_frame_index = [frame.function for frame in stack].index(target_function_name)
+        # Pull that frame off the stack.
+        target_frame = stack[target_frame_index][0]
+        # Get the local variables for that frame.
+        frame_variables = target_frame.f_locals["self"]
+        # Get the class object for that frame.
+        frame_class_object = frame_variables.__class__
+        # Return the name of the class object.
+        return frame_class_object.__name__
+
+    def _get_caller(self, target_function_name: str = "execute") -> str:
+        """Given a function name, walk the stack and return the name of the class which called it last."""
+        try:
+            caller = self._find_class_name(target_function_name)
+            if caller == "BaseSensorOperator":
+                # If the result is a BaseSensorOperator, then look for whatever last called "poke".
+                return self._get_caller("poke")
+            return caller
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "Unknown"
+
+    @staticmethod
+    def _generate_dag_key() -> str:
+        """
+        The Object Identifier (OID) namespace is used to salt the dag_id value.
+        That salted value is used to generate a SHA-1 hash which, by definition,
+        can not (reasonably) be reversed.  No personal data can be inferred or
+        extracted from the resulting UUID.
+        """
+        try:
+            dag_id = os.environ["AIRFLOW_CTX_DAG_ID"]
+            return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "00000000-0000-0000-0000-000000000000"
+
+    @staticmethod
+    def _get_airflow_version() -> str:
+        """Fetch and return the current Airflow version."""
+        try:
+            # This can be a circular import under specific configurations.
+            # Importing locally to either avoid or catch it if it does happen.
+            from airflow import __version__ as airflow_version
+
+            return airflow_version
+        except Exception:
+            # Under no condition should an error here ever cause an issue for the user.
+            return "Unknown"
+
+    def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
+        user_agent_extra_values = [
+            f"Airflow/{self._get_airflow_version()}",
+            f"AmPP/{self._get_provider_version()}",
+            f"Caller/{self._get_caller()}",
+            f"DagRunKey/{self._generate_dag_key()}",
+            existing_user_agent_extra or "",
+        ]
+        return " ".join(user_agent_extra_values).strip()
+
     @cached_property
     def conn_config(self) -> AwsConnectionWrapper:
         """Get the Airflow Connection object and wrap it in helper (cached)."""
@@ -430,14 +530,19 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         )
 
     @property
+    def service_config(self) -> dict:
+        service_name = self.client_type or self.resource_type
+        return self.conn_config.get_service_config(service_name)
+
+    @property
     def region_name(self) -> str | None:
         """AWS Region Name read-only property."""
         return self.conn_config.region_name
 
     @property
-    def config(self) -> Config | None:
+    def config(self) -> Config:
         """Configuration for botocore client read-only property."""
-        return self.conn_config.botocore_config
+        return self.conn_config.botocore_config or botocore.config.Config()
 
     @property
     def verify(self) -> bool | str | None:
@@ -450,6 +555,23 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             conn=self.conn_config, region_name=region_name, config=self.config
         ).create_session()
 
+    def _get_config(self, config: Config | None = None) -> Config:
+        """
+        No AWS Operators use the config argument to this method.
+        Keep backward compatibility with other users who might use it
+        """
+        if config is None:
+            config = deepcopy(self.config)
+
+        # ignore[union-attr] is required for this block to appease MyPy
+        # because the user_agent_extra field is generated at runtime.
+        user_agent_config = Config(
+            user_agent_extra=self._generate_user_agent_extra_field(
+                existing_user_agent_extra=config.user_agent_extra  # type: ignore[union-attr]
+            )
+        )
+        return config.merge(user_agent_config)  # type: ignore[union-attr]
+
     def get_client_type(
         self,
         region_name: str | None = None,
@@ -457,15 +579,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         client_type = self.client_type
-
-        # No AWS Operators use the config argument to this method.
-        # Keep backward compatibility with other users who might use it
-        if config is None:
-            config = self.config
-
         session = self.get_session(region_name=region_name)
         return session.client(
-            client_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+            client_type,
+            endpoint_url=self.conn_config.endpoint_url,
+            config=self._get_config(config),
+            verify=self.verify,
         )
 
     def get_resource_type(
@@ -475,15 +594,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         resource_type = self.resource_type
-
-        # No AWS Operators use the config argument to this method.
-        # Keep backward compatibility with other users who might use it
-        if config is None:
-            config = self.config
-
         session = self.get_session(region_name=region_name)
         return session.resource(
-            resource_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+            resource_type,
+            endpoint_url=self.conn_config.endpoint_url,
+            config=self._get_config(config),
+            verify=self.verify,
         )
 
     @cached_property
@@ -493,7 +609,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         :return: boto3.client or boto3.resource
         """
-        if not ((not self.client_type) ^ (not self.resource_type)):
+        if not exactly_one(self.client_type, self.resource_type):
             raise ValueError(
                 f"Either client_type={self.client_type!r} or "
                 f"resource_type={self.resource_type!r} must be provided, not both."
@@ -661,15 +777,66 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         except Exception as e:
             return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
 
+    @cached_property
+    def waiter_path(self) -> PathLike[str] | None:
+        path = Path(__file__).parents[1].joinpath(f"waiters/{self.client_type}.json").resolve()
+        return path if path.exists() else None
+
+    def get_waiter(self, waiter_name: str) -> Waiter:
+        """
+        First checks if there is a custom waiter with the provided waiter_name and
+        uses that if it exists, otherwise it will check the service client for a
+        waiter that matches the name and pass that through.
+
+        :param waiter_name: The name of the waiter.  The name should exactly match the
+            name of the key in the waiter model file (typically this is CamelCase).
+        """
+        if self.waiter_path and (waiter_name in self._list_custom_waiters()):
+            # Technically if waiter_name is in custom_waiters then self.waiter_path must
+            # exist but MyPy doesn't like the fact that self.waiter_path could be None.
+            with open(self.waiter_path) as config_file:
+                config = json.load(config_file)
+                return BaseBotoWaiter(client=self.conn, model_config=config).waiter(waiter_name)
+        # If there is no custom waiter found for the provided name,
+        # then try checking the service's official waiters.
+        return self.conn.get_waiter(waiter_name)
+
+    def list_waiters(self) -> list[str]:
+        """Returns a list containing the names of all waiters for the service, official and custom."""
+        return [*self._list_official_waiters(), *self._list_custom_waiters()]
+
+    def _list_official_waiters(self) -> list[str]:
+        return self.conn.waiter_names
+
+    def _list_custom_waiters(self) -> list[str]:
+        if not self.waiter_path:
+            return []
+        with open(self.waiter_path) as config_file:
+            model_config = json.load(config_file)
+            return WaiterModel(model_config).waiter_names
+
 
 class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
     """
-    Interact with AWS.
-    This class is a thin wrapper around the boto3 python library
-    with basic conn annotation.
+    Base class for interact with AWS.
+    This class provide a thin wrapper around the boto3 python library.
 
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param client_type: Reference to :external:py:meth:`boto3.client service_name \
+        <boto3.session.Session.client>`, e.g. 'emr', 'batch', 's3', etc.
+        Mutually exclusive with ``resource_type``.
+    :param resource_type: Reference to :external:py:meth:`boto3.resource service_name \
+        <boto3.session.Session.resource>`, e.g. 's3', 'ec2', 'dynamodb', etc.
+        Mutually exclusive with ``client_type``.
+    :param config: Configuration for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
 

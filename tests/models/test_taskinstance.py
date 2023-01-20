@@ -21,6 +21,7 @@ import datetime
 import operator
 import os
 import pathlib
+import pickle
 import signal
 import sys
 import urllib
@@ -32,10 +33,10 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow import models, settings
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
     AirflowException,
@@ -77,6 +78,7 @@ from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
+from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -539,11 +541,11 @@ class TestTaskInstance:
         assert ti.next_kwargs is None
         assert ti.state == state
 
-    @freeze_time("2021-09-19 04:56:35", as_kwarg="frozen_time")
-    def test_retry_delay(self, dag_maker, frozen_time=None):
+    def test_retry_delay(self, dag_maker, time_machine):
         """
         Test that retry delays are respected
         """
+        time_machine.move_to("2021-09-19 04:56:35", tick=False)
         with dag_maker(dag_id="test_retry_handling"):
             task = BashOperator(
                 task_id="test_retry_handling_op",
@@ -568,12 +570,12 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
-        frozen_time.tick(delta=datetime.timedelta(seconds=3))
+        time_machine.coordinates.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        frozen_time.tick(delta=datetime.datetime.resolution)
+        time_machine.coordinates.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
 
@@ -731,7 +733,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -831,7 +833,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -930,7 +932,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -998,7 +1000,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -1863,6 +1865,29 @@ class TestTaskInstance:
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
 
+    def test_mapped_current_state(self, dag_maker):
+        with dag_maker(dag_id="test_mapped_current_state") as _:
+            from airflow.decorators import task
+
+            @task()
+            def raise_an_exception(placeholder: int):
+                if placeholder == 0:
+                    raise AirflowFailException("failing task")
+                else:
+                    pass
+
+            _ = raise_an_exception.expand(placeholder=[0, 1])
+
+        tis = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
+        for task_instance in tis:
+            if task_instance.map_index == 0:
+                with pytest.raises(AirflowFailException):
+                    task_instance.run()
+                assert task_instance.current_state() == TaskInstanceState.FAILED
+            else:
+                task_instance.run()
+                assert task_instance.current_state() == TaskInstanceState.SUCCESS
+
     def test_outlet_datasets_skipped(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
@@ -2304,21 +2329,23 @@ class TestTaskInstance:
             called = True
             assert context["dag_run"].dag_id == "test_dagrun_execute_callback"
 
-        ti = create_task_instance(
-            dag_id="test_execute_callback",
-            on_execute_callback=on_execute_callable,
-            state=State.RUNNING,
-        )
+        for i, callback_input in enumerate([[on_execute_callable], on_execute_callable]):
 
-        session = settings.Session()
+            ti = create_task_instance(
+                dag_id=f"test_execute_callback_{i}",
+                on_execute_callback=callback_input,
+                state=State.RUNNING,
+            )
 
-        session.merge(ti)
-        session.commit()
+            session = settings.Session()
 
-        ti._run_raw_task()
-        assert called
-        ti.refresh_from_db()
-        assert ti.state == State.SUCCESS
+            session.merge(ti)
+            session.commit()
+
+            ti._run_raw_task()
+            assert called
+            ti.refresh_from_db()
+            assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
         "finished_state, callback_type",
@@ -2339,20 +2366,25 @@ class TestTaskInstance:
             raise KeyError
             completed = True
 
-        ti = create_task_instance(
-            end_date=timezone.utcnow() + datetime.timedelta(days=10),
-            on_success_callback=on_finish_callable,
-            on_retry_callback=on_finish_callable,
-            on_failure_callback=on_finish_callable,
-            state=finished_state,
-        )
-        ti._log = mock.Mock()
-        ti._run_finished_callback(on_finish_callable, {}, callback_type)
+        for i, callback_input in enumerate([[on_finish_callable], on_finish_callable]):
 
-        assert called
-        assert not completed
-        expected_message = f"Error when executing {callback_type} callback"
-        ti.log.exception.assert_called_once_with(expected_message)
+            ti = create_task_instance(
+                dag_id=f"test_finish_callback_{i}",
+                end_date=timezone.utcnow() + datetime.timedelta(days=10),
+                on_success_callback=callback_input,
+                on_retry_callback=callback_input,
+                on_failure_callback=callback_input,
+                state=finished_state,
+            )
+            ti._log = mock.Mock()
+            ti._run_finished_callback(callback_input, {}, callback_type)
+
+            assert called
+            assert not completed
+            callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
+            callback_name = qualname(callback_name).split(".")[-1]
+            expected_message = f"Error when executing {callback_name} callback"
+            ti.log.exception.assert_called_once_with(expected_message)
 
     @provide_session
     def test_handle_failure(self, create_dummy_dag, session=None):
@@ -2474,7 +2506,9 @@ class TestTaskInstance:
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
 
-        Stats_incr.assert_any_call("ti_failures")
+        Stats_incr.assert_any_call(
+            "ti_failures", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
+        )
         Stats_incr.assert_any_call("operator_failures_EmptyOperator")
 
     def test_handle_failure_task_undefined(self, create_task_instance):
@@ -2537,7 +2571,7 @@ class TestTaskInstance:
         ti.task = task
         with patch.object(TI, "log") as log, pytest.raises(AirflowException):
             ti.run()
-        assert len(log.error.mock_calls) == 1
+        log.error.assert_called_once()
         assert log.error.call_args[0] == ("Task failed with exception",)
         exc_info = log.error.call_args[1]["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename
@@ -2778,7 +2812,6 @@ class TestTaskInstance:
             "next_kwargs": None,
             "next_method": None,
             "updated_at": None,
-            "notes": None,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values}
@@ -3003,24 +3036,39 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         assert dag_maker.session.query(TaskMap).count() == 0
 
-    @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
-    def test_not_recorded_if_irrelevant(self, dag_maker, xcom_value):
+    @pytest.mark.parametrize("xcom_1", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
+    @pytest.mark.parametrize("xcom_4", [[1, 2, 3], {"a": 1, "b": 2}])
+    def test_not_recorded_if_irrelevant(self, dag_maker, xcom_1, xcom_4):
         """Return value should only be recorded if a mapped downstream uses the it."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
 
             @dag.task()
             def push_1():
-                return xcom_value
+                return xcom_1
 
             @dag.task()
             def push_2():
                 return [-1, -2]
 
             @dag.task()
+            def push_3():
+                return ["x", "y"]
+
+            @dag.task()
+            def push_4():
+                return xcom_4
+
+            @dag.task()
             def show(arg1, arg2):
                 print(arg1, arg2)
 
+            @task_group()
+            def tg(arg):
+                show(arg1=task_3, arg2=arg)
+
+            task_3 = push_3()
             show.partial(arg1=push_1()).expand(arg2=push_2())
+            tg.expand(arg=push_4())
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
 
@@ -3029,6 +3077,12 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         tis["push_2"].run()
         assert dag_maker.session.query(TaskMap).count() == 1
+
+        tis["push_3"].run()
+        assert dag_maker.session.query(TaskMap).count() == 1
+
+        tis["push_4"].run()
+        assert dag_maker.session.query(TaskMap).count() == 2
 
     @pytest.mark.parametrize(
         "return_value, exception_type, error_message",
@@ -3081,6 +3135,76 @@ class TestTaskInstanceRecordTaskMapXComPush:
                 return return_value
 
             MockOperator.partial(task_id="pull").expand_kwargs(push())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
+        with pytest.raises(exception_type) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_task_group_expand_error_if_unmappable_type(
+        self,
+        dag_maker,
+        return_value,
+        exception_type,
+        error_message,
+    ):
+        """If an unmappable return value is used , fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_task_group_expand_error_if_unmappable_type") as dag:
+
+            @dag.task()
+            def push():
+                return return_value
+
+            @task_group
+            def tg(arg):
+                MockOperator(task_id="pull", arg1=arg)
+
+            tg.expand(arg=push())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
+        with pytest.raises(exception_type) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_task_group_expand_kwargs_error_if_unmappable_type(
+        self,
+        dag_maker,
+        return_value,
+        exception_type,
+        error_message,
+    ):
+        """If an unmappable return value is used, fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_task_group_expand_kwargs_error_if_unmappable_type") as dag:
+
+            @dag.task()
+            def push():
+                return return_value
+
+            @task_group
+            def tg(arg):
+                MockOperator(task_id="pull", arg1=arg)
+
+            tg.expand_kwargs(push())
 
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
         with pytest.raises(exception_type) as ctx:
@@ -3476,6 +3600,67 @@ class TestMappedTaskInstanceReceiveValue:
         with out.open() as f:
             out_lines = [line.strip() for line in f]
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
+
+
+def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
+    backend = os.environ.get("BACKEND")
+    if backend == "mssql":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.[key] = 'xxx'",
+        ]
+    elif backend == "mysql":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
+        ]
+    elif backend == "postgres":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
+        ]
+    elif backend == "sqlite":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
+        ]
+    else:
+        raise RuntimeError(f"unknown backend {backend!r}")
+
+
+def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="t")
+
+    run: DagRun = dag_maker.create_dagrun()
+    run.get_task_instance("t", session=session).xcom_push("xxx", 123, session=session)
+
+    query = session.query(XCom.value).filter_by(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        task_id="t",
+        map_index=-1,
+        key="xxx",
+    )
+
+    original = LazyXComAccess.build_from_xcom_query(query)
+    processed = pickle.loads(pickle.dumps(original))
+
+    # After the object went through pickling, the underlying ORM query should be
+    # replaced by one backed by a literal SQL string with all variables binded.
+    sql_lines = [line.strip() for line in str(processed._query.statement.compile(None)).splitlines()]
+    assert sql_lines == _get_lazy_xcom_access_expected_sql_lines()
+
+    assert len(processed) == 1
+    assert list(processed) == [123]
 
 
 @mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)

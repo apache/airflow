@@ -22,8 +22,13 @@ from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
-import numpy as np
-import pandas as pd
+try:
+    import numpy as np
+    import pandas as pd
+except ImportError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException

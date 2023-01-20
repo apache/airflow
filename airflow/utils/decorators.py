@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 import warnings
 from collections import deque
 from functools import wraps
@@ -83,3 +84,24 @@ def _balance_parens(after_decorator):
         elif current == ")":
             num_paren = num_paren - 1
     return "".join(after_decorator)
+
+
+class _autostacklevel_warn:
+    def __init__(self):
+        self.warnings = __import__("warnings")
+
+    def __getattr__(self, name):
+        return getattr(self.warnings, name)
+
+    def __dir__(self):
+        return dir(self.warnings)
+
+    def warn(self, message, category=None, stacklevel=1, source=None):
+        self.warnings.warn(message, category, stacklevel + 2, source)
+
+
+def fixup_decorator_warning_stack(func):
+    if func.__globals__.get("warnings") is sys.modules["warnings"]:
+        # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
+        # `warnings.warn` to ignore the decorator.
+        func.__globals__["warnings"] = _autostacklevel_warn()
