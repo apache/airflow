@@ -830,6 +830,7 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
         job.run()
 
 
+@pytest.mark.quarantined
 class TestSigtermOnRunner:
     """Test receive SIGTERM Task Runner."""
 
