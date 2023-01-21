@@ -35,7 +35,7 @@ There are three main types of cluster policy:
   task running in a DagRun. The ``task_policy`` defined is applied to all the task instances that will be
   executed in the future.
 * ``task_instance_mutation_hook``: Takes a :class:`~airflow.models.taskinstance.TaskInstance` parameter called
-  ``task_instance``. The ``task_instance_mutation`` applies not to a task but to the instance of a task that
+  ``task_instance``. The ``task_instance_mutation_hook`` applies not to a task but to the instance of a task that
   relates to a particular DagRun. It is executed in a "worker", not in the dag file processor, just before the
   task instance is executed. The policy is only applied to the currently executed run (i.e. instance) of that
   task.
