@@ -107,6 +107,7 @@ class S3ToSqlOperator(BaseOperator):
         with NamedTemporaryFile() as local_tempfile:
 
             s3_obj.download_fileobj(local_tempfile)
+            local_tempfile.flush()
             local_tempfile.seek(0)
 
             self.db_hook.insert_rows(
