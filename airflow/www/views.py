@@ -186,7 +186,12 @@ def get_safe_url(url):
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     """Get Execution Data, Base Date & Number of runs from a Request"""
     date_time = www_request.args.get("execution_date")
-    if date_time:
+    run_id = www_request.args.get("run_id")
+    # First check run id, then check execution date, if not fall back on the latest dagrun
+    if run_id:
+        dagrun = dag.get_dagrun(run_id=run_id, session=session)
+        date_time = dagrun.execution_date
+    elif date_time:
         date_time = _safe_parse_datetime(date_time)
     else:
         date_time = dag.get_latest_execution_date(session=session) or timezone.utcnow()
@@ -194,6 +199,8 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     base_date = www_request.args.get("base_date")
     if base_date:
         base_date = _safe_parse_datetime(base_date)
+    elif run_id:
+        base_date = (timezone.utcnow() + timedelta(seconds=1)).replace(microsecond=0)
     else:
         # The DateTimeField widget truncates milliseconds and would loose
         # the first dag run. Round to next second.

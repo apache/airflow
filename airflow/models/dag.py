@@ -1328,7 +1328,9 @@ class DAG(LoggingMixin):
                     callback(context)
                 except Exception:
                     self.log.exception("failed to invoke dag state update callback")
-                    Stats.incr("dag.callback_exceptions")
+                    Stats.incr(
+                        "dag.callback_exceptions", tags={"dag_id": dagrun.dag_id, "run_id": dagrun.run_id}
+                    )
 
     def get_active_runs(self):
         """
