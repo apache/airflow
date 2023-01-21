@@ -100,23 +100,26 @@ class SFTPOperator(BaseOperator):
         self.operation = operation
         self.confirm = confirm
         self.create_intermediate_dirs = create_intermediate_dirs
+        self.local_filepath = local_filepath
+        self.remote_filepath = remote_filepath
 
-        self.local_filepath_was_str = False
-        if isinstance(local_filepath, str):
-            self.local_filepath = [local_filepath]
-            self.local_filepath_was_str = True
+    def execute(self, context: Any) -> str | list[str] | None:
+        local_filepath_was_str = False
+        if isinstance(self.local_filepath, str):
+            local_filepath_array = [self.local_filepath]
+            local_filepath_was_str = True
         else:
-            self.local_filepath = local_filepath
+            local_filepath_array = self.local_filepath
 
-        if isinstance(remote_filepath, str):
-            self.remote_filepath = [remote_filepath]
+        if isinstance(self.remote_filepath, str):
+            remote_filepath_array = [self.remote_filepath]
         else:
-            self.remote_filepath = remote_filepath
+            remote_filepath_array = self.remote_filepath
 
-        if len(self.local_filepath) != len(self.remote_filepath):
+        if len(local_filepath_array) != len(remote_filepath_array):
             raise ValueError(
-                f"{len(self.local_filepath)} paths in local_filepath "
-                f"!= {len(self.remote_filepath)} paths in remote_filepath"
+                f"{len(local_filepath_array)} paths in local_filepath "
+                f"!= {len(remote_filepath_array)} paths in remote_filepath"
             )
 
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
@@ -145,7 +148,6 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook = SFTPHook(ssh_hook=self.ssh_hook)
 
-    def execute(self, context: Any) -> str | list[str] | None:
         file_msg = None
         try:
             if self.ssh_conn_id:
@@ -168,23 +170,23 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook.remote_host = self.remote_host
 
-            for local_filepath, remote_filepath in zip(self.local_filepath, self.remote_filepath):
+            for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
                 if self.operation.lower() == SFTPOperation.GET:
-                    local_folder = os.path.dirname(local_filepath)
+                    local_folder = os.path.dirname(_local_filepath)
                     if self.create_intermediate_dirs:
                         Path(local_folder).mkdir(parents=True, exist_ok=True)
-                    file_msg = f"from {remote_filepath} to {local_filepath}"
+                    file_msg = f"from {_remote_filepath} to {_local_filepath}"
                     self.log.info("Starting to transfer %s", file_msg)
-                    self.sftp_hook.retrieve_file(remote_filepath, local_filepath)
+                    self.sftp_hook.retrieve_file(_remote_filepath, _local_filepath)
                 else:
-                    remote_folder = os.path.dirname(remote_filepath)
+                    remote_folder = os.path.dirname(_remote_filepath)
                     if self.create_intermediate_dirs:
                         self.sftp_hook.create_directory(remote_folder)
-                    file_msg = f"from {local_filepath} to {remote_filepath}"
+                    file_msg = f"from {_local_filepath} to {_remote_filepath}"
                     self.log.info("Starting to transfer file %s", file_msg)
-                    self.sftp_hook.store_file(remote_filepath, local_filepath, confirm=self.confirm)
+                    self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
 
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
-        return self.local_filepath[0] if self.local_filepath_was_str else self.local_filepath
+        return local_filepath_array[0] if local_filepath_was_str else local_filepath_array
