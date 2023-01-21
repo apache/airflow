@@ -142,9 +142,9 @@ This is so these CI/CD services can perform updates without issues and preserve 
 This also applies if you install the chart using ``--wait`` in your ``helm install`` command.
 
 .. note::
-    While deploying this Helm chart with Argo, you might encounter issues with ``DB Migrations`` not running automatically on upgrade.
+    While deploying this Helm chart with Argo, you might encounter issues with database migrations not running automatically on upgrade.
 
-To ensure DB Migrations with Argo CD, you will need to:
+To ensure database migrations with Argo CD, you will need to add:
 
 .. code-block::yaml
 
@@ -155,7 +155,7 @@ To ensure DB Migrations with Argo CD, you will need to:
 and, equivalent configurations in case of Flux CD
 
 .. note::
-    This will ensure that DB Migrations run when Airflow Docker image is upgraded. This approach has a limitation that the Db Migrations will run every time there is a ``Sync`` event in Argo. This is a trade off for automation at the cost of some computational loss.
+    This will ensure database migrations run when the Airflow Docker image is upgraded. This approach has a limitation in that the database migrations will run every time there is a ``Sync`` event in Argo. This is a trade-off for automation at the cost of some computational loss.
 
 .. warning::
-    While deploying with Argo CD, you may encounter issues  with ``(built-in)Redis secrets`` (when you use Celery or CeleryKubernetesExecutor) not being rotated properly after Airflow pods restart. It's recommended that you bring your own Redis. See `Celery Backend <production-guide#celery-backend>`__
+    While deploying with Argo CD, you may encounter issues with (built-in) Redis secrets (when you use the Celery(Kubernetes)Executor) not being rotated properly after Airflow pods restart. It's recommended that you bring your own Redis. See `Celery Backend <production-guide#celery-backend>`__
