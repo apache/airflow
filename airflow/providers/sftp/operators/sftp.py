@@ -104,10 +104,8 @@ class SFTPOperator(BaseOperator):
         self.remote_filepath = remote_filepath
 
     def execute(self, context: Any) -> str | list[str] | None:
-        local_filepath_was_str = False
         if isinstance(self.local_filepath, str):
             local_filepath_array = [self.local_filepath]
-            local_filepath_was_str = True
         else:
             local_filepath_array = self.local_filepath
 
@@ -189,4 +187,4 @@ class SFTPOperator(BaseOperator):
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
-        return local_filepath_array[0] if local_filepath_was_str else local_filepath_array
+        return self.local_filepath
