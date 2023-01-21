@@ -451,6 +451,10 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("max_active_tis_per_dag")
 
     @property
+    def max_active_tis_per_dagrun(self) -> int | None:
+        return self.partial_kwargs.get("max_active_tis_per_dagrun")
+
+    @property
     def resources(self) -> Resources | None:
         return self.partial_kwargs.get("resources")
 
