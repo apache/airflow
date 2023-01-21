@@ -24,7 +24,6 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -107,6 +106,7 @@ class S3ToSqlOperator(BaseOperator):
         with NamedTemporaryFile() as local_tempfile:
 
             s3_obj.download_fileobj(local_tempfile)
+            local_tempfile.flush()
             local_tempfile.seek(0)
 
             self.db_hook.insert_rows(
@@ -118,7 +118,7 @@ class S3ToSqlOperator(BaseOperator):
             )
 
     @cached_property
-    def db_hook(self) -> DbApiHook:
+    def db_hook(self):
         self.log.debug("Get connection for %s", self.sql_conn_id)
         hook = BaseHook.get_hook(self.sql_conn_id)
         if not callable(getattr(hook, "insert_rows", None)):
