@@ -437,23 +437,9 @@ class DagBag(LoggingMixin):
             try:
                 dag.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
-            except AirflowTimetableInvalid as exception:
+            except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = f"Invalid timetable expression: {exception}"
-                self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
-            except AirflowClusterPolicyError as exception:
-                self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = f"Error on cluster policy itself: {exception}"
-                self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
-            except (
-                AirflowClusterPolicyViolation,
-                AirflowDagCycleException,
-                AirflowDagDuplicatedIdException,
-                AirflowDagInconsistent,
-                ParamValidationError,
-            ) as exception:
-                self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = str(exception)
+                self.import_errors[dag.fileloc] = str(e)
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             else:
                 found_dags.append(dag)
