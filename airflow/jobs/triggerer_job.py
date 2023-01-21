@@ -33,7 +33,6 @@ from sqlalchemy import func
 from airflow.configuration import conf
 from airflow.jobs.base_job import BaseJob
 from airflow.models.trigger import Trigger
-from airflow.settings import DONOT_MODIFY_HANDLERS
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
@@ -63,6 +62,10 @@ If this value is true, trigger logging is configured to use TriggerHandlerWrappe
 """
 
 logger = logging.getLogger(__name__)
+
+
+DISABLE_WRAPPER = conf.getboolean("logging", "disable_trigger_handler_wrapper", fallback=False)
+DISABLE_LISTENER = conf.getboolean("logging", "disable_trigger_handler_queue_listener", fallback=False)
 
 
 def configure_trigger_log_handler():
@@ -212,10 +215,21 @@ class TriggererJob(BaseJob):
         else:
             raise ValueError(f"Capacity number {capacity} is invalid")
 
-        if not DONOT_MODIFY_HANDLERS:
+        if DISABLE_WRAPPER:
+            self.log.warning(
+                "Skipping trigger log configuration; disabled by param "
+                "`disable_trigger_handler_wrapper=True`."
+            )
+        else:
             configure_trigger_log_handler()
-        self.listener = setup_queue_listener()
-
+        self.listener = None
+        if DISABLE_LISTENER:
+            self.log.warning(
+                "Skipping trigger logger queue listener; disabled by param "
+                "`disable_trigger_handler_queue_listener=True`."
+            )
+        else:
+            self.listener = setup_queue_listener()
         # Set up runner async thread
         self.runner = TriggerRunner()
 
