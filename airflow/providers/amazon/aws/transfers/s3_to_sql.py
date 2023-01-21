@@ -24,6 +24,8 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
+
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -118,9 +120,9 @@ class S3ToSqlOperator(BaseOperator):
             )
 
     @cached_property
-    def db_hook(self):
+    def db_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
-        hook = BaseHook.get_hook(self.sql_conn_id)
+        hook: DbApiHook = BaseHook.get_hook(self.sql_conn_id)
         if not callable(getattr(hook, "insert_rows", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have an `insert_rows` method."
