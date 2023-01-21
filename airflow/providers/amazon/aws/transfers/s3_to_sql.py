@@ -100,7 +100,6 @@ class S3ToSqlOperator(BaseOperator):
 
         self.log.info("Loading %s to SQL table %s...", self.s3_key, self.table)
 
-        db_hook = self._get_hook()
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         s3_obj = s3_hook.get_key(key=self.s3_key, bucket_name=self.s3_bucket)
 
