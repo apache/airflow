@@ -1325,6 +1325,8 @@ class SchedulerJob(BaseJob):
             )
 
             dag_run.notify_dagrun_state_changed()
+            duration = dag_run.end_date - dag_run.start_date
+            Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
             return callback_to_execute
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
