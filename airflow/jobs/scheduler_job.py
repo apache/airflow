@@ -221,26 +221,31 @@ class SchedulerJob(BaseJob):
 
     def __get_concurrency_maps(
         self, states: list[TaskInstanceState], session: Session
-    ) -> tuple[DefaultDict[str, int], DefaultDict[tuple[str, str], int]]:
+    ) -> tuple[
+        DefaultDict[str, int], DefaultDict[tuple[str, str], int], DefaultDict[tuple[str, str, str], int]
+    ]:
         """
         Get the concurrency maps.
 
         :param states: List of states to query for
-        :return: A map from (dag_id, task_id) to # of task instances and
-         a map from (dag_id, task_id) to # of task instances in the given state list
+        :return: A map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
+         to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
+         to # of task instances in the given state list in the each DAG run
         """
-        ti_concurrency_query: list[tuple[str, str, int]] = (
-            session.query(TI.task_id, TI.dag_id, func.count("*"))
+        ti_concurrency_query: list[tuple[str, str, str, int]] = (
+            session.query(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
             .filter(TI.state.in_(states))
-            .group_by(TI.task_id, TI.dag_id)
+            .group_by(TI.task_id, TI.run_id, TI.dag_id)
         ).all()
         dag_map: DefaultDict[str, int] = defaultdict(int)
         task_map: DefaultDict[tuple[str, str], int] = defaultdict(int)
+        task_dagrun_map: DefaultDict[tuple[str, str, str], int] = defaultdict(int)
         for result in ti_concurrency_query:
-            task_id, dag_id, count = result
+            task_id, run_id, dag_id, count = result
             dag_map[dag_id] += count
-            task_map[(dag_id, task_id)] = count
-        return dag_map, task_map
+            task_map[(dag_id, task_id)] += count
+            task_dagrun_map[(dag_id, run_id, task_id)] = count
+        return dag_map, task_map, task_dagrun_map
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
@@ -251,6 +256,8 @@ class SchedulerJob(BaseJob):
         - DAG max_active_tasks
         - executor state
         - priority
+        - max active tis per DAG
+        - max active tis per DAG run
 
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
@@ -294,7 +301,8 @@ class SchedulerJob(BaseJob):
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         dag_active_tasks_map: DefaultDict[str, int]
         task_concurrency_map: DefaultDict[tuple[str, str], int]
-        dag_active_tasks_map, task_concurrency_map = self.__get_concurrency_maps(
+        task_dagrun_concurrency_map: DefaultDict[tuple[str, str, str], int]
+        dag_active_tasks_map, task_concurrency_map, task_dagrun_concurrency_map = self.__get_concurrency_maps(
             states=list(EXECUTION_STATES), session=session
         )
 
@@ -304,7 +312,7 @@ class SchedulerJob(BaseJob):
 
         # dag and task ids that can't be queued because of concurrency limits
         starved_dags: set[str] = set()
-        starved_tasks: set[tuple[str, str]] = set()
+        starved_tasks: set[tuple[str, str, str]] = set()
 
         pool_num_starving_tasks: DefaultDict[str, int] = defaultdict(int)
 
@@ -336,7 +344,9 @@ class SchedulerJob(BaseJob):
                 query = query.filter(not_(TI.dag_id.in_(starved_dags)))
 
             if starved_tasks:
-                task_filter = tuple_in_condition((TaskInstance.dag_id, TaskInstance.task_id), starved_tasks)
+                task_filter = tuple_in_condition(
+                    (TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id), starved_tasks
+                )
                 query = query.filter(not_(task_filter))
 
             query = query.limit(max_tis)
@@ -406,7 +416,7 @@ class SchedulerJob(BaseJob):
 
                     pool_num_starving_tasks[pool_name] += 1
                     num_starving_tasks_total += 1
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    starved_tasks.add((task_instance.dag_id, task_instance.run_id, task_instance.task_id))
                     continue
 
                 if task_instance.pool_slots > open_slots:
@@ -420,7 +430,7 @@ class SchedulerJob(BaseJob):
                     )
                     pool_num_starving_tasks[pool_name] += 1
                     num_starving_tasks_total += 1
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    starved_tasks.add((task_instance.dag_id, task_instance.run_id, task_instance.task_id))
                     # Though we can execute tasks with lower priority if there's enough room
                     continue
 
@@ -480,13 +490,40 @@ class SchedulerJob(BaseJob):
                                 " this task has been reached.",
                                 task_instance,
                             )
-                            starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                            starved_tasks.add(
+                                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                            )
+                            continue
+
+                    task_dagrun_concurrency_limit: int | None = None
+                    if serialized_dag.has_task(task_instance.task_id):
+                        task_dagrun_concurrency_limit = serialized_dag.get_task(
+                            task_instance.task_id
+                        ).max_active_tis_per_dagrun
+
+                    if task_dagrun_concurrency_limit is not None:
+                        current_task_dagrun_concurrency = task_dagrun_concurrency_map[
+                            (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                        ]
+
+                        if current_task_dagrun_concurrency >= task_dagrun_concurrency_limit:
+                            self.log.info(
+                                "Not executing %s since the task concurrency per DAG run for"
+                                " this task has been reached.",
+                                task_instance,
+                            )
+                            starved_tasks.add(
+                                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                            )
                             continue
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
                 dag_active_tasks_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
+                task_dagrun_concurrency_map[
+                    (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                ] += 1
 
                 pool_stats["open"] = open_slots
 
