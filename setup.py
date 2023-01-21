@@ -387,7 +387,7 @@ devel_only = [
     # It contains a number of potential breaking changes but none of them looks breaking our use
     # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
     # TODO: upgrade it and remove the limit
-    "pytest~=6.0",
+    "pytest~=7.2.1",
     "pytest-asyncio",
     "pytest-capture-warnings",
     "pytest-cov",
