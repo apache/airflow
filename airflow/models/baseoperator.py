@@ -70,7 +70,7 @@ from airflow.models.abstractoperator import (
     AbstractOperator,
     TaskStateChangeCallback,
 )
-from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
+from airflow.models.mappedoperator import MappedOperator, OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -610,6 +610,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
     :param template_all_fields: If set to True, all eligible fields will be rendered using Jinja2.
+        Number of fields to be rendered is limited by [core] max_num_rendered_ti_fields_per_task
+        configuration.
     :param exclude_fields_from_template: Used to exclude fields from being rendered using Jinja2
         when template_all_fields is set to True. Accepts one field as a string or multiple fields
             with a list of strings.
@@ -1199,23 +1201,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             jinja_env = self.get_template_env()
 
         if self.template_all_fields:
-            templatable_fields = (
-                set(self.__dict__.keys())
+            template_fields = (
+                {key for key in self.__dict__.keys() if isinstance(getattr(self, key), str)}
                 - set(BaseOperator.__dict__.keys())
-                - set(partial(operator_class=self.__class__, task_id=self.task_id).kwargs.keys())
+                - set(MappedOperator.__dict__.keys())
             )
 
             if self.exclude_fields_from_template:
                 if isinstance(self.exclude_fields_from_template, str):
-                    templatable_fields -= {self.exclude_fields_from_template}
+                    template_fields -= {self.exclude_fields_from_template}
                 elif isinstance(self.exclude_fields_from_template, list):
-                    templatable_fields -= set(self.exclude_fields_from_template)
-
-            template_fields = [
-                templatable_field
-                for templatable_field in templatable_fields
-                if isinstance(getattr(self, templatable_field), str)
-            ]
+                    template_fields -= set(self.exclude_fields_from_template)
 
             self._do_render_template_fields(self, template_fields, context, jinja_env, set())
         else:
