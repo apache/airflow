@@ -63,7 +63,7 @@ take precedence over task-level params.
 Referencing Params in a Task
 ----------------------------
 
-Params can be referenced in :ref:`templated strings <templates-ref>`. For example:
+Params can be referenced in :ref:`templated strings <templates-ref>` under ``params``. For example:
 
 .. code-block::
    :emphasize-lines: 4
