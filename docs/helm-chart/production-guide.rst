@@ -295,6 +295,10 @@ By default, the chart will deploy Redis. However, you can use any supported Cele
   data:
     brokerUrl: redis://redis-user:password@redis-host:6379/0
 
+.. note::
+  It is recommended that you bring your own Redis when using in production. The built-in Redis instance is more suitable (and intended) for experimentation use only by enabling you to deploy Airflow quickly.
+
+
 For more information about setting up a Celery broker, refer to the
 exhaustive `Celery documentation on the topic <http://docs.celeryproject.org/en/latest/getting-started/>`_.
 
