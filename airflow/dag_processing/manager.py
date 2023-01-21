@@ -42,6 +42,7 @@ from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 import airflow.models
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
@@ -725,7 +726,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             try:
                 self.log.debug("Removing old import errors")
-                self.clear_nonexistent_import_errors()
+                DagFileProcessorManager.clear_nonexistent_import_errors(file_paths=self._file_paths)
             except Exception:
                 self.log.exception("Error removing old import errors")
 
@@ -769,16 +770,19 @@ class DagFileProcessorManager(LoggingMixin):
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = time.monotonic()
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def clear_nonexistent_import_errors(self, session):
+    def clear_nonexistent_import_errors(file_paths: list[str] | None, session=NEW_SESSION):
         """
         Clears import errors for files that no longer exist.
 
+        :param file_paths: list of paths to DAG definition files
         :param session: session for ORM operations
         """
         query = session.query(errors.ImportError)
-        if self._file_paths:
-            query = query.filter(~errors.ImportError.filename.in_(self._file_paths))
+        if file_paths:
+            query = query.filter(~errors.ImportError.filename.in_(file_paths))
         query.delete(synchronize_session="fetch")
         session.commit()
 
