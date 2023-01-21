@@ -40,6 +40,9 @@ console = Console(width=400, color_system="standard")
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 PROVIDERS_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
+USE_AIRFLOW_VERSION = os.environ.get("USE_AIRFLOW_VERSION") or ""
+IS_AIRFLOW_VERSION_PROVIDED = re.match("^(\d+)\.(\d+)\.(\d+)\S*$", USE_AIRFLOW_VERSION)
+
 
 class EntityType(Enum):
     Operators = "Operators"
@@ -271,15 +274,17 @@ def import_all_classes(
                 exception_str = traceback.format_exc()
                 tracebacks.append((modinfo.name, exception_str))
     if tracebacks:
-        console.print(
-            """
+        if IS_AIRFLOW_VERSION_PROVIDED:
+            console.print(
+                f"""
 [red]ERROR: There were some import errors[/]
 
-[yellow]If the job is about installing providers in 2.2.0, most likely you are using features that[/]
-[yellow]are not available in Airflow 2.2.0 and you must implement them in backwards-compatible way![/]
+[yellow]Detected that this job is about installing providers in {USE_AIRFLOW_VERSION}[/],
+[yellow]most likely you are using features that are not available in Airflow {USE_AIRFLOW_VERSION}[/]
+[yellow]and you must implement them in backwards-compatible way![/]
 
 """,
-        )
+            )
         console.print("[red]----------------------------------------[/]")
         for package, trace in tracebacks:
             console.print(f"Exception when importing: {package}\n\n")
@@ -805,15 +810,12 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "widgets"], check=True)
     console.print("[bright_blue]List all extra links[/]\n")
     subprocess.run(["airflow", "providers", "links"], check=True)
-    if os.environ.get("USE_AIRFLOW_VERSION", None) == "2.1.0":
-        console.print("[info]Skip commands not available in Airflow 2.1.0[/]")
-    else:
-        console.print("[bright_blue]List all logging[/]\n")
-        subprocess.run(["airflow", "providers", "logging"], check=True)
-        console.print("[bright_blue]List all secrets[/]\n")
-        subprocess.run(["airflow", "providers", "secrets"], check=True)
-        console.print("[bright_blue]List all auth backends[/]\n")
-        subprocess.run(["airflow", "providers", "auth"], check=True)
+    console.print("[bright_blue]List all logging[/]\n")
+    subprocess.run(["airflow", "providers", "logging"], check=True)
+    console.print("[bright_blue]List all secrets[/]\n")
+    subprocess.run(["airflow", "providers", "secrets"], check=True)
+    console.print("[bright_blue]List all auth backends[/]\n")
+    subprocess.run(["airflow", "providers", "auth"], check=True)
 
 
 if __name__ == "__main__":
