@@ -167,7 +167,8 @@ class GoogleBaseHook(BaseHook):
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
+        domain-wide delegation enabled. This parameter should be utilized only by gsuite hooks and the
+        credentials provider util, otherwise it should be left as None.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.

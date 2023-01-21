@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import Any, AsyncIterator, Sequence
 
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook
@@ -68,6 +69,10 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
         self.poll_interval = poll_interval
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.success_states = success_states
 
