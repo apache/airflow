@@ -22,14 +22,14 @@ from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
+    S3CreateObjectOperator,
     S3DeleteBucketOperator,
     S3DeleteObjectsOperator,
-    S3CreateObjectOperator,
 )
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator, SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder, ENV_ID_KEY
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests.system.utils.watcher import watcher
 
 sys_test_context_task = SystemTestContextBuilder().build()
