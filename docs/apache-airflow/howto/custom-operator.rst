@@ -29,7 +29,7 @@ You can create any operator you want by extending the :class:`airflow.models.bas
 There are two methods that you need to override in a derived class:
 
 * Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
-  You can specify the ``default_args`` in the dag file. See :ref:`Default args <concepts-default-arguments>` for more details.
+  You can specify the ``default_args`` in the DAG file. See :ref:`Default args <concepts-default-arguments>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the
   Airflow context as a parameter that can be used to read config values.

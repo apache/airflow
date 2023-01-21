@@ -187,3 +187,9 @@ Information on how to set a static webserver secret key can be found here:
 https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
 
 {{- end }}
+
+{{- if or .Values.postgresql.postgresqlUsername .Values.postgresql.postgresqlPassword }}
+
+   {{ fail "postgresql.postgresqlUsername and postgresql.postgresqlPassword are no longer supported. If you wish to use the 'postgres' user, set its password with postgresql.auth.postgresPassword. If you wish to create a different user, do so with postgresql.auth.username and postgresql.auth.password." }}
+
+{{- end }}
