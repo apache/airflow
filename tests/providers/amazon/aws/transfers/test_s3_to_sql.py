@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-from airflow.exceptions import AirflowException
 
 import pytest
 from sqlalchemy import or_
 
 from airflow import configuration, models
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.utils import db
 from airflow.utils.session import create_session
