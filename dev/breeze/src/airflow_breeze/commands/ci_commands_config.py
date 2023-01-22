@@ -36,6 +36,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze ci free-space": [],
     "breeze ci selective-check": [
         {
             "name": "Selective check flags",
@@ -69,4 +70,5 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze ci resource-check": [],
 }

@@ -426,8 +426,9 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
-      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
       - run: breeze setup version
+      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
+      - run: breeze setup check-all-params-in-groups
 
   tests-www:
     timeout-minutes: 10

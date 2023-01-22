@@ -112,6 +112,8 @@ class VerboseOption(ParamType):
     Stores and allows to retrieve verbose option
     """
 
+    name = "VerboseOption"
+
     def convert(self, value, param, ctx):
         set_verbose(coerce_bool_value(value))
         return super().convert(value, param, ctx)
@@ -121,6 +123,8 @@ class DryRunOption(ParamType):
     """
     Stores and allows to retrieve dry_run option
     """
+
+    name = "DryRunOption"
 
     def convert(self, value, param, ctx):
         set_dry_run(coerce_bool_value(value))

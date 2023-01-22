@@ -74,7 +74,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-token",
                 "--github-username",
                 "--platform",
-                "--login-to-github-registry",
                 "--push",
                 "--empty-image",
                 "--prepare-buildx-cache",

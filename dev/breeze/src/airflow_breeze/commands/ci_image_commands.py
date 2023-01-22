@@ -255,12 +255,11 @@ def build(
 @option_verify
 @option_wait_for_image
 @option_image_tag_for_pulling
-@option_include_success_outputs
 @option_tag_as_latest
 @option_github_repository
 @option_verbose
 @option_dry_run
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra-pytest-args", nargs=-1, type=click.UNPROCESSED)
 def pull(
     python: str,
     run_in_parallel: bool,

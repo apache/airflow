@@ -473,6 +473,108 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
     return 1
 
 
+COMMON_PARAM_NAMES = ["--help", "--verbose", "--dry-run", "--answer"]
+COMMAND_PATH_PREFIX = "dev/breeze/src/airflow_breeze/commands/"
+
+
+def command_path(command: str) -> str:
+    return COMMAND_PATH_PREFIX + command.replace("-", "_") + "_commands.py"
+
+
+def command_path_config(command: str) -> str:
+    return COMMAND_PATH_PREFIX + command.replace("-", "_") + "_commands_config.py"
+
+
+def find_options_in_options_list(option: str, option_list: list[list[str]]) -> int | None:
+    for i, options in enumerate(option_list):
+        if option in options:
+            return i
+    return None
+
+
+def check_params(command: str, subcommand: str | None, command_dict: dict[str, Any]) -> bool:
+    import rich_click
+
+    get_console().print(
+        f"[info]Checking if params are in groups for specified command :{command}"
+        + (f" {subcommand}." if subcommand else ".")
+    )
+    errors_detected = False
+    options = rich_click.rich_click.OPTION_GROUPS
+    rich_click_key = "breeze " + command + (f" {subcommand}" if subcommand else "")
+    if rich_click_key not in options:
+        get_console().print(
+            f"[error]The command `{rich_click_key}` not found in dictionaries "
+            f"defined in rich click configuration."
+        )
+        get_console().print(f"[warning]Please add it to the `{command_path_config(command)}`.")
+        return False
+    rich_click_param_groups = options[rich_click_key]
+    defined_param_names = [
+        param["opts"] for param in command_dict["params"] if param["param_type_name"] == "option"
+    ]
+    for group in rich_click_param_groups:
+        if "options" in group:
+            for param in group["options"]:
+                index = find_options_in_options_list(param, defined_param_names)
+                if index is not None:
+                    del defined_param_names[index]
+                else:
+                    get_console().print(
+                        f"[error]Parameter `{param}` is not defined as option in {command_path(command)} in "
+                        f"`{rich_click_key}`, but is present in the "
+                        f"`{rich_click_key}` group in `{command_path_config(command)}`."
+                    )
+                    get_console().print(
+                        "[warning]Please remove it from there od add parameter in "
+                        "the command. NOTE! This error might be printed when the option is"
+                        "added twice in the command definition!."
+                    )
+                    errors_detected = True
+    for param in COMMON_PARAM_NAMES:
+        index = find_options_in_options_list(param, defined_param_names)
+        if index is not None:
+            del defined_param_names[index]
+    if defined_param_names:
+        for param in defined_param_names:
+            get_console().print(
+                f"[error]Parameter `{param}` is defined in `{command_path(command)}` in "
+                f"`{rich_click_key}`, but does not belong to any group options "
+                f"in `{rich_click_key}` group in `{command_path_config(command)}` and is not common."
+            )
+            get_console().print("[warning]Please add it to relevant group or create new group there.")
+        errors_detected = True
+    return errors_detected
+
+
+def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
+    Console(width=int(SCREENSHOT_WIDTH), color_system="standard")
+    env = os.environ.copy()
+    env["AIRFLOW_SOURCES_ROOT"] = str(AIRFLOW_SOURCES_ROOT)
+    env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
+    env["TERM"] = "xterm-256color"
+    env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
+    with Context(main) as ctx:
+        the_context_dict = ctx.to_info_dict()
+    commands_dict = the_context_dict["command"]["commands"]
+    if commands:
+        commands_list = list(commands)
+    else:
+        commands_list = commands_dict.keys()
+    errors_detected = False
+    for command in commands_list:
+        current_command_dict = commands_dict[command]
+        if "commands" in current_command_dict:
+            subcommands = current_command_dict["commands"]
+            for subcommand in sorted(subcommands.keys()):
+                if check_params(command, subcommand, subcommands[subcommand]):
+                    errors_detected = True
+        else:
+            if check_params(command, None, current_command_dict):
+                errors_detected = True
+    return 1 if errors_detected else 0
+
+
 @setup.command(name="regenerate-command-images", help="Regenerate breeze command images.")
 @click.option("--force", is_flag=True, help="Forces regeneration of all images", envvar="FORCE")
 @click.option(
@@ -495,4 +597,19 @@ def regenerate_command_images(command: tuple[str, ...], force: bool, check_only:
     return_code = regenerate_help_images_for_all_commands(
         commands=command, check_only=check_only, force=force
     )
+    sys.exit(return_code)
+
+
+@setup.command(name="check-all-params-in-groups", help="Check that all parameters are put in groups.")
+@click.option(
+    "--command",
+    help="Command(s) to regenerate images for (optional, might be repeated)",
+    show_default=True,
+    multiple=True,
+    type=BetterChoice(get_commands()),
+)
+@option_verbose
+@option_dry_run
+def check_all_params_in_groups(command: tuple[str, ...]):
+    return_code = check_that_all_params_are_in_groups(commands=command)
     sys.exit(return_code)
