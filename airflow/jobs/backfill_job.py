@@ -609,6 +609,20 @@ class BackfillJob(BaseJob):
                                     "Not scheduling since Task concurrency limit is reached."
                                 )
 
+                        if task.max_active_tis_per_dagrun:
+                            num_running_task_instances_in_task_dagrun = DAG.get_num_task_instances(
+                                dag_id=self.dag_id,
+                                run_id=ti.run_id,
+                                task_ids=[task.task_id],
+                                states=self.STATES_COUNT_AS_RUNNING,
+                                session=session,
+                            )
+
+                            if num_running_task_instances_in_task_dagrun >= task.max_active_tis_per_dagrun:
+                                raise TaskConcurrencyLimitReached(
+                                    "Not scheduling since Task concurrency per DAG run limit is reached."
+                                )
+
                         _per_task_process(key, ti, session)
                         session.commit()
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
