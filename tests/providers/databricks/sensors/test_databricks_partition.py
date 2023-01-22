@@ -18,6 +18,7 @@
 #
 from __future__ import annotations
 
+import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -34,8 +35,6 @@ DEFAULT_SQL_ENDPOINT = "sql_warehouse_default"
 DEFAULT_PARTITION = {"date": "2023-01-01"}
 
 TIMESTAMP_TEST = datetime.now() - timedelta(days=30)
-
-import unittest
 
 sql_sensor = DatabricksPartitionSensor(
     databricks_conn_id=DEFAULT_CONN_ID,
