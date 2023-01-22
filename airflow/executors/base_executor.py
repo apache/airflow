@@ -113,7 +113,6 @@ class BaseExecutor(LoggingMixin):
     callback_sink: BaseCallbackSink | None = None
 
     is_local: bool = False
-    standalone_command_backends: list[str] = []
     change_sensor_mode_to_reschedule: bool = False
 
     def __init__(self, parallelism: int = PARALLELISM):
