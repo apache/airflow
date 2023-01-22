@@ -143,14 +143,14 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
     def _check_table_changes(self, context: Context) -> bool:
         if self.catalog is not None:
             complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
-            self.log.info("Table name generated from arguments: %s", complete_table_name)
+            self.log.debug("Table name generated from arguments: %s", complete_table_name)
         else:
             raise AirflowException("Catalog name not specified, aborting query execution.")
         prev_version = -1
         if context is not None:
             lookup_key = complete_table_name
             prev_data = self.get_previous_version(lookup_key=lookup_key, context=context)
-            self.log.info("prev_data: %s, type=%s", str(prev_data), type(prev_data))
+            self.log.debug("prev_data: %s, type=%s", str(prev_data), type(prev_data))
             if isinstance(prev_data, int):
                 prev_version = prev_data
             elif prev_data is not None:
@@ -158,10 +158,14 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             version = self.get_current_table_version(
                 table_name=complete_table_name, time_range=self.timestamp
             )
-            self.log.info("Current table version: %s", version)
-            result = prev_version <= version
+            self.log.debug("Current table version: %s", version)
+            if prev_version <= version:
+                result = True
+            else:
+                result = False
             if prev_version != version:
                 self.set_version(lookup_key=lookup_key, version=version, context=context)
+            self.log.debug("Result: %s", result)
             return result
 
     def poke(self, context: Context) -> bool:
