@@ -1380,7 +1380,9 @@ class TestSchedulerJob:
         session.flush()
 
         assert State.RUNNING == dr1.state
-        assert 2 == DAG.get_num_task_instances(dag_id, dag.task_ids, states=[State.RUNNING], session=session)
+        assert 2 == DAG.get_num_task_instances(
+            dag_id, task_ids=dag.task_ids, states=[State.RUNNING], session=session
+        )
 
         # create second dag run
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
@@ -1401,7 +1403,7 @@ class TestSchedulerJob:
         ti3.refresh_from_db()
         ti4.refresh_from_db()
         assert 3 == DAG.get_num_task_instances(
-            dag_id, dag.task_ids, states=[State.RUNNING, State.QUEUED], session=session
+            dag_id, task_ids=dag.task_ids, states=[State.RUNNING, State.QUEUED], session=session
         )
         assert State.RUNNING == ti1.state
         assert State.RUNNING == ti2.state
