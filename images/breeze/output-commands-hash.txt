@@ -11,9 +11,9 @@ ci:resource-check:1d4fe47dff9fc64ac1648ec4beb2d85c
 ci:selective-check:3a085894f24cb909812fbc8253a21e13
 ci:9884bf4cef3e70270068de89b9d5df2f
 ci-image:build:f8d0fafe7246ca7ac412df8c520908a3
-ci-image:pull:8d67d5ff546d99178497d50e38f5eb22
+ci-image:pull:c16c6e57c748bfe9b365b4ffafb18472
 ci-image:verify:aee88f55e8837028d19316356e29b009
-ci-image:6ea662b02888efd868fa919c2c704cd1
+ci-image:0c727b84a764e09c54e461b30ad0410b
 cleanup:231de69d5f47ba29c883164e4575e310
 compile-www-assets:c8a8c4f002f7246d0541897fc7c70313
 exec:42bbd3c1659128b0341ae118c3482da2
@@ -44,11 +44,12 @@ release-management:release-prod-images:c9bc40938e0efad49e51ef66e83f9527
 release-management:verify-provider-packages:88bd609aff6d09d52ab8d80d6e055e7b
 release-management:07fecd3ed21621993c55ac2487a412ce
 setup:autocomplete:03343478bf1d0cf9c101d454cdb63b68
+setup:check-all-params-in-groups:af8367c0efadadbef80844672e62dd1a
 setup:config:3ffcd35dd24b486ddf1d08b797e3d017
-setup:regenerate-command-images:ab2d83c339fa3a42b0c819b6b6cc88ae
+setup:regenerate-command-images:d18a745ea79cecf05dd84bfc3920c5c4
 setup:self-upgrade:d02f70c7a230eae3463ceec2056b63fa
 setup:version:123b462a421884dc2320ffc5e54b2478
-setup:fbabee281b69f818091d780b24bd815a
+setup:edf5b96953fb28b3440a9a228b134910
 shell:76e0f530b7af514a2aad3032b6516c46
 start-airflow:06d4aeb5f1b65f6b975f3f915558d0b3
 static-checks:d20293484c293d721728713350a23b00
