@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-20T17:18:10Z
+# This constraints file was automatically generated on 2023-01-22T10:53:41Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -177,9 +177,9 @@ bitarray==2.6.2
 black==23.1a1
 bleach==5.0.1
 blinker==1.5
-boto3==1.26.53
+boto3==1.26.54
 boto==2.49.0
-botocore==1.29.53
+botocore==1.29.54
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -229,7 +229,7 @@ ecdsa==0.18.0
 elasticsearch-dbapi==0.2.9
 elasticsearch-dsl==7.4.0
 elasticsearch==7.13.4
-email-validator==1.3.0
+email-validator==1.3.1
 entrypoints==0.4
 eralchemy2==1.3.6
 eventlet==0.33.3
@@ -410,7 +410,7 @@ pandas-gbq==0.17.9
 pandas==1.5.3
 papermill==2.4.0
 parameterized==0.8.1
-paramiko==2.12.0
+paramiko==3.0.0
 parso==0.8.3
 partd==1.3.0
 pathable==0.4.3
@@ -480,7 +480,7 @@ pytest==6.2.5
 python-arango==7.5.5
 python-daemon==2.3.2
 python-dateutil==2.8.2
-python-dotenv==0.21.0
+python-dotenv==0.21.1
 python-http-client==3.3.7
 python-jenkins==1.7.0
 python-jose==3.3.0
@@ -511,7 +511,7 @@ rfc3986==1.5.0
 rich-click==1.6.1
 rich==13.2.0
 rsa==4.9
-ruff==0.0.227
+ruff==0.0.229
 s3transfer==0.6.0
 sarif-om==1.0.4
 sasl==0.3.1
