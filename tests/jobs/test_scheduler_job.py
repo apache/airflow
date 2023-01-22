@@ -1230,6 +1230,34 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    def test_find_executable_task_instances_task_concurrency_per_dagrun_for_first(self, dag_maker):
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_id = "SchedulerJobTest.test_find_executable_task_instances_task_concurrency_per_dagrun_for_first"
+
+        with dag_maker(dag_id=dag_id):
+            op1a = EmptyOperator(task_id="dummy1-a", priority_weight=2, max_active_tis_per_dagrun=1)
+            op1b = EmptyOperator(task_id="dummy1-b", priority_weight=1)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+
+        ti1a = dr1.get_task_instance(op1a.task_id, session)
+        ti1b = dr1.get_task_instance(op1b.task_id, session)
+        ti2a = dr2.get_task_instance(op1a.task_id, session)
+        ti1a.state = State.RUNNING
+        ti1b.state = State.SCHEDULED
+        ti2a.state = State.SCHEDULED
+        session.flush()
+
+        # Schedule ti with higher priority,
+        # because it's running in a different DAG run with 0 active tis
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
+        assert 1 == len(res)
+        assert res[0].key == ti2a.key
+
+        session.rollback()
+
     def test_find_executable_task_instances_negative_open_pool_slots(self, dag_maker):
         """
         Pools with negative open slots should not block other pools.
