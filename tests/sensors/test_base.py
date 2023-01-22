@@ -30,7 +30,7 @@ from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
-    # DASK_EXECUTOR,
+    DASK_EXECUTOR,
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
@@ -702,6 +702,7 @@ class TestBaseSensor:
             (LOCAL_EXECUTOR, LocalExecutor, "poke"),
             (LOCAL_KUBERNETES_EXECUTOR, LocalKubernetesExecutor, "poke"),
             (SEQUENTIAL_EXECUTOR, SequentialExecutor, "poke"),
+            (DASK_EXECUTOR, DebugExecutor, "poke"),
         ],
         ids=[
             CELERY_EXECUTOR,
@@ -711,6 +712,7 @@ class TestBaseSensor:
             LOCAL_EXECUTOR,
             LOCAL_KUBERNETES_EXECUTOR,
             SEQUENTIAL_EXECUTOR,
+            DASK_EXECUTOR,
         ],
     )
     def test_prepare_for_execution(self, executor_cls_mode):
