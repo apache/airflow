@@ -56,7 +56,6 @@ from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetMode
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
@@ -2929,16 +2928,16 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     ]
 
 
-@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
+@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ("test-run-id", None)])
 def test_set_task_instance_state_failed_downstream(run_id, execution_date, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state to failed but doesn't clear downstream
     tasks since the state to be set is already failed."""
 
     start_date = datetime_tz(2020, 1, 1)
     with dag_maker("test_set_task_instance_state", start_date=start_date, session=session) as dag:
-        task_1 = DummyOperator(task_id="task_1")
-        task_2 = DummyOperator(task_id="task_2")
-        task_3 = DummyOperator(task_id="task_3")
+        task_1 = EmptyOperator(task_id="task_1")
+        task_2 = EmptyOperator(task_id="task_2")
+        task_3 = EmptyOperator(task_id="task_3")
 
         task_1 >> task_2 >> task_3
 
