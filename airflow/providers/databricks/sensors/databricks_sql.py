@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from typing import Any, Callable, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
