@@ -46,6 +46,7 @@ from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -260,10 +261,10 @@ class BaseXCom(Base, LoggingMixin):
         session.add(new)
         session.flush()
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def get_value(
-        cls,
         *,
         ti_key: TaskInstanceKey,
         key: str | None = None,
@@ -284,7 +285,7 @@ class BaseXCom(Base, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-        return cls.get_one(
+        return BaseXCom.get_one(
             key=key,
             task_id=ti_key.task_id,
             dag_id=ti_key.dag_id,
@@ -294,9 +295,9 @@ class BaseXCom(Base, LoggingMixin):
         )
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def get_one(
-        cls,
         *,
         key: str | None = None,
         dag_id: str | None = None,
@@ -337,9 +338,9 @@ class BaseXCom(Base, LoggingMixin):
         """
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def get_one(
-        cls,
         execution_date: datetime.datetime,
         key: str | None = None,
         task_id: str | None = None,
@@ -349,10 +350,10 @@ class BaseXCom(Base, LoggingMixin):
     ) -> Any | None:
         """:sphinx-autoapi-skip:"""
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def get_one(
-        cls,
         execution_date: datetime.datetime | None = None,
         key: str | None = None,
         task_id: str | None = None,
@@ -368,7 +369,7 @@ class BaseXCom(Base, LoggingMixin):
             raise ValueError("Exactly one of ti_key, run_id, or execution_date must be passed")
 
         if run_id:
-            query = cls.get_many(
+            query = BaseXCom.get_many(
                 run_id=run_id,
                 key=key,
                 task_ids=task_id,
@@ -384,7 +385,7 @@ class BaseXCom(Base, LoggingMixin):
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-                query = cls.get_many(
+                query = BaseXCom.get_many(
                     execution_date=execution_date,
                     key=key,
                     task_ids=task_id,
@@ -397,15 +398,14 @@ class BaseXCom(Base, LoggingMixin):
         else:
             raise RuntimeError("Should not happen?")
 
-        result = query.with_entities(cls.value).first()
+        result = query.with_entities(BaseXCom.value).first()
         if result:
-            return cls.deserialize_value(result)
+            return BaseXCom.deserialize_value(result)
         return None
 
     @overload
-    @classmethod
+    @staticmethod
     def get_many(
-        cls,
         *,
         run_id: str,
         key: str | None = None,
@@ -438,12 +438,13 @@ class BaseXCom(Base, LoggingMixin):
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.
+        :param limit: Limiting returning XComs
         """
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def get_many(
-        cls,
         execution_date: datetime.datetime,
         key: str | None = None,
         task_ids: str | Iterable[str] | None = None,
@@ -455,10 +456,10 @@ class BaseXCom(Base, LoggingMixin):
     ) -> Query:
         """:sphinx-autoapi-skip:"""
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def get_many(
-        cls,
         execution_date: datetime.datetime | None = None,
         key: str | None = None,
         task_ids: str | Iterable[str] | None = None,
@@ -482,40 +483,42 @@ class BaseXCom(Base, LoggingMixin):
             message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
 
-        query = session.query(cls).join(cls.dag_run)
+        query = session.query(BaseXCom).join(BaseXCom.dag_run)
 
         if key:
-            query = query.filter(cls.key == key)
+            query = query.filter(BaseXCom.key == key)
 
         if is_container(task_ids):
-            query = query.filter(cls.task_id.in_(task_ids))
+            query = query.filter(BaseXCom.task_id.in_(task_ids))
         elif task_ids is not None:
-            query = query.filter(cls.task_id == task_ids)
+            query = query.filter(BaseXCom.task_id == task_ids)
 
         if is_container(dag_ids):
-            query = query.filter(cls.dag_id.in_(dag_ids))
+            query = query.filter(BaseXCom.dag_id.in_(dag_ids))
         elif dag_ids is not None:
-            query = query.filter(cls.dag_id == dag_ids)
+            query = query.filter(BaseXCom.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
-            query = query.filter(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
+            query = query.filter(
+                BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
+            )
         elif is_container(map_indexes):
-            query = query.filter(cls.map_index.in_(map_indexes))
+            query = query.filter(BaseXCom.map_index.in_(map_indexes))
         elif map_indexes is not None:
-            query = query.filter(cls.map_index == map_indexes)
+            query = query.filter(BaseXCom.map_index == map_indexes)
 
         if include_prior_dates:
             if execution_date is not None:
                 query = query.filter(DagRun.execution_date <= execution_date)
             else:
                 dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
-                query = query.filter(cls.execution_date <= dr.c.execution_date)
+                query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
         elif execution_date is not None:
             query = query.filter(DagRun.execution_date == execution_date)
         else:
-            query = query.filter(cls.run_id == run_id)
+            query = query.filter(BaseXCom.run_id == run_id)
 
-        query = query.order_by(DagRun.execution_date.desc(), cls.timestamp.desc())
+        query = query.order_by(DagRun.execution_date.desc(), BaseXCom.timestamp.desc())
         if limit:
             return query.limit(limit)
         return query
@@ -533,9 +536,9 @@ class BaseXCom(Base, LoggingMixin):
         session.commit()
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def clear(
-        cls,
         *,
         dag_id: str,
         task_id: str,
@@ -558,9 +561,9 @@ class BaseXCom(Base, LoggingMixin):
         """
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def clear(
-        cls,
         execution_date: pendulum.DateTime,
         dag_id: str,
         task_id: str,
@@ -568,10 +571,10 @@ class BaseXCom(Base, LoggingMixin):
     ) -> None:
         """:sphinx-autoapi-skip:"""
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def clear(
-        cls,
         execution_date: pendulum.DateTime | None = None,
         dag_id: str | None = None,
         task_id: str | None = None,
@@ -605,7 +608,7 @@ class BaseXCom(Base, LoggingMixin):
                 .scalar()
             )
 
-        query = session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
             query = query.filter_by(map_index=map_index)
         query.delete()
