@@ -45,24 +45,34 @@ sql_sensor = DatabricksTableChangesSensor(
 
 
 class TestDatabricksTableChangesSensor:
-    @mock.patch.object(DatabricksTableChangesSensor, "_check_table_changes")
-    @mock.patch.object(DatabricksTableChangesSensor, "get_current_table_version")
-    @mock.patch.object(DatabricksTableChangesSensor, "get_previous_version")
-    def test_poke_changes_success(
+    @mock.patch.object(DatabricksTableChangesSensor, "_check_table_changes", return_value=True)
+    @mock.patch.object(DatabricksTableChangesSensor, "get_current_table_version", return_value=1)
+    @mock.patch.object(DatabricksTableChangesSensor, "get_previous_version", return_value=1)
+    def test_poke_changes_success_same_version(
         self, mock_check_table_changes, mock_get_current_table_version, mock_get_previous_version
     ):
-        mock_check_table_changes.return_value = True
-        mock_get_current_table_version.return_value = 1
-        mock_get_previous_version.return_value = 1
         assert sql_sensor.poke({}) == 1
 
-    @mock.patch.object(DatabricksTableChangesSensor, "_check_table_changes")
-    @mock.patch.object(DatabricksTableChangesSensor, "get_current_table_version")
-    @mock.patch.object(DatabricksTableChangesSensor, "get_previous_version")
-    def test_poke_changes_failure_false(
+    @mock.patch.object(DatabricksTableChangesSensor, "_check_table_changes", return_value=False)
+    @mock.patch.object(DatabricksTableChangesSensor, "get_current_table_version", return_value=1)
+    @mock.patch.object(DatabricksTableChangesSensor, "get_previous_version", return_value=1)
+    def test_poke_changes_failure(
         self, mock_check_table_changes, mock_get_current_table_version, mock_get_previous_version
     ):
-        mock_check_table_changes({}).return_value = False
-        mock_get_current_table_version.return_value = 1
-        mock_get_previous_version.return_value = 1
         assert sql_sensor.poke({}) != 1
+
+    @mock.patch.object(DatabricksTableChangesSensor, "_check_table_changes", return_value=True)
+    @mock.patch.object(DatabricksTableChangesSensor, "get_current_table_version", return_value=2)
+    @mock.patch.object(DatabricksTableChangesSensor, "get_previous_version", return_value=1)
+    def test_poke_changes_success_new_version(
+        self, mock_check_table_changes, mock_get_current_table_version, mock_get_previous_version
+    ):
+        assert sql_sensor.poke({}) == 1
+
+    @mock.patch.object(DatabricksTableChangesSensor, "_check_table_changes", return_value=True)
+    @mock.patch.object(DatabricksTableChangesSensor, "get_current_table_version", return_value=1)
+    @mock.patch.object(DatabricksTableChangesSensor, "get_previous_version", return_value=None)
+    def test_poke_changes_success_first_version(
+        self, mock_check_table_changes, mock_get_current_table_version, mock_get_previous_version
+    ):
+        assert sql_sensor.poke({}) == 1
