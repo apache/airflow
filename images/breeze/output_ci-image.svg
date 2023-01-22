@@ -19,14 +19,14 @@
         font-weight: 700;
     }
 
-    .terminal-985073313-matrix {
+    .breeze-ci-image-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-985073313-title {
+    .breeze-ci-image-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
@@ -41,55 +41,55 @@
     </style>
 
     <defs>
-    <clipPath id="terminal-985073313-clip-terminal">
+    <clipPath id="breeze-ci-image-clip-terminal">
       <rect x="0" y="0" width="1463.0" height="316.2" />
     </clipPath>
-    <clipPath id="terminal-985073313-line-0">
+    <clipPath id="breeze-ci-image-line-0">
     <rect x="0" y="1.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-1">
+<clipPath id="breeze-ci-image-line-1">
     <rect x="0" y="25.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-2">
+<clipPath id="breeze-ci-image-line-2">
     <rect x="0" y="50.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-3">
+<clipPath id="breeze-ci-image-line-3">
     <rect x="0" y="74.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-4">
+<clipPath id="breeze-ci-image-line-4">
     <rect x="0" y="99.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-5">
+<clipPath id="breeze-ci-image-line-5">
     <rect x="0" y="123.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-6">
+<clipPath id="breeze-ci-image-line-6">
     <rect x="0" y="147.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-7">
+<clipPath id="breeze-ci-image-line-7">
     <rect x="0" y="172.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-8">
+<clipPath id="breeze-ci-image-line-8">
     <rect x="0" y="196.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-9">
+<clipPath id="breeze-ci-image-line-9">
     <rect x="0" y="221.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-10">
+<clipPath id="breeze-ci-image-line-10">
     <rect x="0" y="245.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-985073313-line-11">
+<clipPath id="breeze-ci-image-line-11">
     <rect x="0" y="269.9" width="1464" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="365.2" rx="8"/><text class="terminal-985073313-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;ci-image</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="365.2" rx="8"/><text class="breeze-ci-image-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;ci-image</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-985073313-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#breeze-ci-image-clip-terminal)">
     
     <g class="breeze-ci-image-matrix">
     <text class="breeze-ci-image-r2" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-ci-image-line-0)">
