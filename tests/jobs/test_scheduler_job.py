@@ -3982,6 +3982,52 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
+        "state,start_date,end_date",
+        [
+            [State.NONE, None, None],
+            [
+                State.UP_FOR_RETRY,
+                timezone.utcnow() - datetime.timedelta(minutes=30),
+                timezone.utcnow() - datetime.timedelta(minutes=15),
+            ],
+            [
+                State.UP_FOR_RESCHEDULE,
+                timezone.utcnow() - datetime.timedelta(minutes=30),
+                timezone.utcnow() - datetime.timedelta(minutes=15),
+            ],
+        ],
+    )
+    def test_dag_file_processor_process_task_instances_with_max_active_tis_per_dagrun(
+        self, state, start_date, end_date, dag_maker
+    ):
+        """
+        Test if _process_task_instances puts the right task instances into the
+        mock_list.
+        """
+        with dag_maker(dag_id="test_scheduler_process_execute_task_with_max_active_tis_per_dagrun"):
+            BashOperator(task_id="dummy", max_active_tis_per_dagrun=2, bash_command="echo Hi")
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.MagicMock()
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+        )
+        assert dr is not None
+
+        with create_session() as session:
+            ti = dr.get_task_instances(session=session)[0]
+            ti.state = state
+            ti.start_date = start_date
+            ti.end_date = end_date
+
+            self.scheduler_job._schedule_dag_run(dr, session)
+            assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 1
+
+            session.refresh(ti)
+            assert ti.state == State.SCHEDULED
+
+    @pytest.mark.parametrize(
         "state, start_date, end_date",
         [
             [State.NONE, None, None],
