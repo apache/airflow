@@ -781,9 +781,12 @@ class DagFileProcessorManager(LoggingMixin):
         :param session: session for ORM operations
         """
         query = session.query(errors.ImportError)
-        files = list_py_file_paths(self._dag_directory, include_examples=False, include_zip_paths=True)
-        if files:
-            query = query.filter(~errors.ImportError.filename.in_(files))
+        if file_paths:
+            for file_path in file_paths:
+                if file_path.endswith(".zip"):
+                    query = query.filter(~(errors.ImportError.filename.startswith(file_path)))
+                else:
+                    query = query.filter(errors.ImportError.filename != file_path)
         query.delete(synchronize_session="fetch")
         session.commit()
 

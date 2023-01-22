@@ -186,7 +186,7 @@ class TestDagFileProcessorManager:
         UNPARSEABLE_DAG_FILE_CONTENTS = "an invalid airflow DAG"
         TEMP_DAG_FILENAME = "temp_dag.py"
 
-        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+        zip_filename = os.path.join(tmpdir, "test.zip")
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
 
@@ -208,12 +208,15 @@ class TestDagFileProcessorManager:
             import_errors = session.query(errors.ImportError).all()
             assert len(import_errors) == 1
 
-            manager.clear_nonexistent_import_errors(session)
+            manager.clear_nonexistent_import_errors(manager.file_paths, session)
             import_errors = session.query(errors.ImportError).all()
             assert len(import_errors) == 1
 
             os.remove(zip_filename)
-            manager.clear_nonexistent_import_errors(session)
+            manager.last_dag_dir_refresh_time = timezone.utcnow() - timedelta(minutes=10)
+            manager._refresh_dag_dir()
+
+            manager.clear_nonexistent_import_errors(manager.file_paths, session)
             import_errors = session.query(errors.ImportError).all()
             assert len(import_errors) == 0
 
