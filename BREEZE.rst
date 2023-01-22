@@ -328,15 +328,6 @@ so you can change it at any place, and run
 
 inside container, to enable modified tmux configurations.
 
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=78">
-        <img src="images/breeze/overlayed_breeze_installation.png" width="640"
-             alt="Airflow Breeze - Installation">
-      </a>
-    </div>
-
 Regular development tasks
 =========================
 
@@ -368,15 +359,6 @@ default settings.
 
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=389">
-        <img src="images/breeze/overlayed_breeze_select_backend_python.png" width="640"
-             alt="Airflow Breeze - Selecting Python and Backend version">
-      </a>
-    </div>
 
 Building the documentation
 --------------------------
@@ -421,15 +403,6 @@ Those are all available flags of ``build-docs`` command:
   :width: 100%
   :alt: Breeze build documentation
 
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1760">
-        <img src="images/breeze/overlayed_breeze_build_docs.png" width="640"
-             alt="Airflow Breeze - Build docs">
-      </a>
-    </div>
 
 Running static checks
 ---------------------
@@ -1379,6 +1352,18 @@ check if there are any images that need regeneration.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_regenerate-command-images.svg
   :width: 100%
   :alt: Breeze setup regenerate-command-images
+
+Breeze check-all-params-in-groups
+...................
+
+When you add a breeze command or modify a parameter, you are also supposed to make sure that "rich groups"
+for the command is present and that all parameters are assigned to the right group so they can be
+nicely presented in ``--help`` output. You can check that via ``check-all-params-in-groups`` command.
+
+.. image:: ./images/breeze/output_setup_check-all-params-in-groups.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_check-all-params-in-groups.svg
+  :width: 100%
+  :alt: Breeze setup check-all-params-in-group
 
 
 CI tasks
