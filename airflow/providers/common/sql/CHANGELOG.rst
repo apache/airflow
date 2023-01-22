@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+1.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Handle non-compliant behaviour of Exasol cursor (#28744)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.3.2
 .....
 

@@ -115,6 +115,8 @@ class BaseExecutor(LoggingMixin):
     is_local: bool = False
     change_sensor_mode_to_reschedule: bool = False
 
+    serve_logs: bool = False
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism

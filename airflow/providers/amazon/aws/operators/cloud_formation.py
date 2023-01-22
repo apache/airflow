@@ -35,7 +35,6 @@ class CloudFormationCreateStackOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudFormationCreateStackOperator`
 
-
     :param stack_name: stack name (templated)
     :param cloudformation_parameters: parameters to be passed to CloudFormation.
     :param aws_conn_id: aws connection to uses

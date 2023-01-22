@@ -46,6 +46,12 @@ SECURITY_CONFIGURATION = {
             "EnableApplicationScopedIAMRole": True,
         },
     },
+    # Use IMDSv2 for greater security, see the following doc for more details:
+    # https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-create-security-configuration.html
+    "InstanceMetadataServiceConfiguration": {
+        "MinimumInstanceMetadataServiceVersion": 2,
+        "HttpPutResponseHopLimit": 2,
+    },
 }
 
 # [START howto_operator_emr_steps_config]

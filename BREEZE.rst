@@ -491,6 +491,13 @@ Those are all available flags of ``static-checks`` command:
     get broken, in which case you should run ``breeze stop`` to clean up the cache.
 
 
+.. note::
+
+    You cannot change Python version for static checks that are run within Breeze containers.
+    The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
+    The main reason is to keep consistency in the results of static checks and to make sure that
+    our code is fine when running the lowest supported version.
+
 Starting Airflow
 ----------------
 
@@ -736,7 +743,7 @@ For example this will only run kerberos tests:
 
 .. code-block:: bash
 
-   breeze testing integration-tests --integration Kerberos
+   breeze testing integration-tests --integration kerberos
 
 
 Here is the detailed set of options for the ``breeze testing integration-tests`` command.
@@ -933,7 +940,7 @@ All parameters of the command are here:
 Running k8s tests
 .................
 
-You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those testa are placed
+You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those tests are placed
 in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
 you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
 for all clusters in parallel.
