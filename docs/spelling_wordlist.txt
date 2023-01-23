@@ -339,6 +339,9 @@ dask
 dat
 Databricks
 databricks
+DatabricksPartitionSensor
+DatabricksSqlSensor
+DatabricksTableChangesSensor
 datacenter
 dataclass
 Datadog
