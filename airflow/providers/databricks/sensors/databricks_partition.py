@@ -43,7 +43,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         If not specified, ``http_path`` must be provided as described above.
     :param session_configuration: An optional dictionary of Spark session parameters. If not specified,
         it could be specified in the Databricks connection's extra parameters.
-    :param http_headers: An optional list of (k, v) pairs that will be set 
+    :param http_headers: An optional list of (k, v) pairs that will be set
         as HTTP headers on every request. (templated)
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated)
     :param schema: An optional initial schema to use. Requires DBR version 9.0+ (templated)
