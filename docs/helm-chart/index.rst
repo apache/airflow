@@ -154,4 +154,4 @@ To ensure database migrations with Argo CD, you will need to add:
 
 This will ensure database migrations run when the Airflow Docker image is upgraded. This approach has a limitation in that the database migrations will run every time there is a ``Sync`` event in Argo. This is a trade-off for automation at the cost of some computational loss.
 
-If you use the Celery(Kubernetes)Executor, and using the built-in Redis, it is recommended that you use setup a static Redis password either by supplying ``redis.passwordSecretName`` and ``redis.data.brokerUrlSecretName`` or ``redis.password``.  See `Celery Backend <production-guide#celery-backend>`__ for more information about managing Celery Backend
+If you use the Celery(Kubernetes)Executor, and using the built-in Redis, it is recommended that you setup a static Redis password either by supplying ``redis.passwordSecretName`` and ``redis.data.brokerUrlSecretName`` or ``redis.password``.  See `Celery Backend <production-guide#celery-backend>`__ for more information about managing Celery Backend
