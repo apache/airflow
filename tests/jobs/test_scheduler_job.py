@@ -1258,6 +1258,38 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    def test_find_executable_task_instances_not_enough_task_concurrency_per_dagrun_for_first(self, dag_maker):
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_id = (
+            "SchedulerJobTest"
+            ".test_find_executable_task_instances_not_enough_task_concurrency_per_dagrun_for_first"
+        )
+
+        with dag_maker(dag_id=dag_id):
+            op1a = EmptyOperator.partial(
+                task_id="dummy1-a", priority_weight=2, max_active_tis_per_dagrun=1
+            ).expand_kwargs([{"inputs": 1}, {"inputs": 2}])
+            op1b = EmptyOperator(task_id="dummy1-b", priority_weight=1)
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        ti1a0 = dr.get_task_instance(op1a.task_id, session, map_index=0)
+        ti1a1 = dr.get_task_instance(op1a.task_id, session, map_index=1)
+        ti1b = dr.get_task_instance(op1b.task_id, session)
+        ti1a0.state = State.RUNNING
+        ti1a1.state = State.SCHEDULED
+        ti1b.state = State.SCHEDULED
+        session.flush()
+
+        # Schedule ti with lower priority,
+        # because the one with higher priority is limited by a concurrency limit
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
+        assert 1 == len(res)
+        assert res[0].key == ti1b.key
+
+        session.rollback()
+
     def test_find_executable_task_instances_negative_open_pool_slots(self, dag_maker):
         """
         Pools with negative open slots should not block other pools.
