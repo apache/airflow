@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import time
 import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
@@ -239,17 +240,24 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.step = step
         self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> str:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
         response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
 
-        with open(self.output_file_name, "w") as file:
+        output_file_path = Path(self.output_file_name)
+        output_file_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_file_path.open(mode="w") as file:
+            self.log.info(
+                "Writing %s artifact for job run %s to %s.", self.path, self.run_id, self.output_file_name
+            )
             if self.path.endswith(".json"):
                 json.dump(response.json(), file)
             else:
                 file.write(response.text)
+
+        return self.output_file_name
 
 
 class DbtCloudListJobsOperator(BaseOperator):
