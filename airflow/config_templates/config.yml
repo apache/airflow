@@ -917,14 +917,14 @@ metrics:
       default: ~
     statsd_influxdb_enabled:
       description: |
-        To enable sending airflow metrics with Statsd-InfluxDB tagging convention.
+        To enable sending airflow metrics with StatsD-Influxdb tagging convention.
       version_added: 2.6.0
       type: boolean
       example: ~
       default: "False"
     statsd_aggregation_optimized_naming_enabled:
       description: |
-        To enable metric naming convention optimized for tagging aggregation, which 
+        To enable metric naming convention optimized for tagging aggregation, which
         adds attributes like 'dag_id' as tags rather than inside the metric name.
       version_added: 2.6.0
       type: boolean
