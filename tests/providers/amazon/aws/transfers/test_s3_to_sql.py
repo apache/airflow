@@ -76,9 +76,9 @@ class TestS3ToSqlTransfer:
         return bad_hook
 
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.NamedTemporaryFile")
-    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.DbApiHook.insert_rows")
+    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.BaseHook")
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.get_key")
-    def test_execute(self, mock_get_key, mock_insert_rows, mock_tempfile, mock_parser):
+    def test_execute(self, mock_get_key, mock_hook, mock_tempfile, mock_parser):
 
         S3ToSqlOperator(parser=mock_parser, **self.s3_to_sql_transfer_kwargs).execute({})
 
@@ -93,7 +93,7 @@ class TestS3ToSqlTransfer:
 
         mock_parser.assert_called_once_with(mock_tempfile.return_value.__enter__.return_value.name)
 
-        mock_insert_rows.assert_called_once_with(
+        mock_hook.get_hook.return_value.insert_rows.assert_called_once_with(
             table=self.s3_to_sql_transfer_kwargs["table"],
             schema=self.s3_to_sql_transfer_kwargs["schema"],
             target_fields=self.s3_to_sql_transfer_kwargs["column_list"],
