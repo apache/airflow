@@ -536,7 +536,9 @@ class DagFileProcessor(LoggingMixin):
                     notification_sent = True
                 except Exception:
                     Stats.incr("sla_email_notification_failure", tags={"dag_id": dag.dag_id})
-                    cls.logger().exception("Could not send SLA Miss email notification for DAG %s", dag.dag_id)
+                    cls.logger().exception(
+                        "Could not send SLA Miss email notification for DAG %s", dag.dag_id
+                    )
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:
