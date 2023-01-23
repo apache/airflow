@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import sys
-import unittest
 from asyncio import Future
 
 import pytest
@@ -312,12 +311,20 @@ def mock_async_gke_cluster_client():
 
 
 class TestAsyncGKEHook:
+    @staticmethod
+    def make_get_client_awaitable(mock_obj, result):
+        if sys.version_info < (3, 8):
+            f = Future()
+            f.set_result(result)
+            mock_obj.return_value = f
+        else:
+            mock_obj.return_value = result
+        return mock_obj
+
     @pytest.mark.asyncio
     @mock.patch(f"{ASYNC_HOOK_STRING}._get_client")
     async def test_get_operation(self, mock_get_client, async_gke_hook, mock_async_gke_cluster_client):
-        f = Future()
-        f.set_result(mock_async_gke_cluster_client)
-        mock_get_client.return_value = f
+        self.make_get_client_awaitable(mock_get_client, mock_async_gke_cluster_client)
 
         await async_gke_hook.get_operation(
             operation_name=OPERATION_NAME,
