@@ -293,11 +293,12 @@ class TestClearTasks:
         assert ti1.try_number == 2
         assert ti1.max_tries == 3
 
-    def test_clear_task_instances_in_multiple_dags(self, dag_maker):
+    def test_clear_task_instances_in_multiple_dags(self, dag_maker, session):
         with dag_maker(
             "test_clear_task_instances_in_multiple_dags0",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            session=session,
         ) as dag0:
             task0 = EmptyOperator(task_id="task0")
 
@@ -310,11 +311,12 @@ class TestClearTasks:
             "test_clear_task_instances_in_multiple_dags1",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            session=session,
         ) as dag1:
             task1 = EmptyOperator(task_id="task1", retries=2)
 
         # Write secondary DAG to the database so it can be found by clear_task_instances().
-        SerializedDagModel.write_dag(dag1)
+        SerializedDagModel.write_dag(dag1, session=session)
 
         dr1 = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -326,15 +328,14 @@ class TestClearTasks:
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
-        ti0.run()
-        ti1.run()
+        ti0.run(session=session)
+        ti1.run(session=session)
 
-        with create_session() as session:
-            qry = session.query(TI).filter(TI.dag_id.in_((dag0.dag_id, dag1.dag_id))).all()
-            clear_task_instances(qry, session, dag=dag0)
+        qry = session.query(TI).filter(TI.dag_id.in_((dag0.dag_id, dag1.dag_id))).all()
+        clear_task_instances(qry, session, dag=dag0)
 
-        ti0.refresh_from_db()
-        ti1.refresh_from_db()
+        ti0.refresh_from_db(session=session)
+        ti1.refresh_from_db(session=session)
         # Next try to run will be try 2
         assert ti0.try_number == 2
         assert ti0.max_tries == 1
