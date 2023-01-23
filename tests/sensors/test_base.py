@@ -24,6 +24,23 @@ import pytest
 import time_machine
 
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
+from airflow.executors.celery_executor import CeleryExecutor
+from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
+from airflow.executors.debug_executor import DebugExecutor
+from airflow.executors.executor_constants import (
+    CELERY_EXECUTOR,
+    CELERY_KUBERNETES_EXECUTOR,
+    DASK_EXECUTOR,
+    DEBUG_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+    LOCAL_EXECUTOR,
+    LOCAL_KUBERNETES_EXECUTOR,
+    SEQUENTIAL_EXECUTOR,
+)
+from airflow.executors.kubernetes_executor import KubernetesExecutor
+from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import TaskReschedule
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
@@ -674,6 +691,50 @@ class TestBaseSensor:
             key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
         )
         assert actual_xcom_value is None
+
+    @pytest.mark.parametrize(
+        "executor_cls_mode",
+        [
+            (CELERY_EXECUTOR, CeleryExecutor, "poke"),
+            (CELERY_KUBERNETES_EXECUTOR, CeleryKubernetesExecutor, "poke"),
+            (DEBUG_EXECUTOR, DebugExecutor, "reschedule"),
+            (KUBERNETES_EXECUTOR, KubernetesExecutor, "poke"),
+            (LOCAL_EXECUTOR, LocalExecutor, "poke"),
+            (LOCAL_KUBERNETES_EXECUTOR, LocalKubernetesExecutor, "poke"),
+            (SEQUENTIAL_EXECUTOR, SequentialExecutor, "poke"),
+            (DASK_EXECUTOR, DebugExecutor, "poke"),
+        ],
+        ids=[
+            CELERY_EXECUTOR,
+            CELERY_KUBERNETES_EXECUTOR,
+            DEBUG_EXECUTOR,
+            KUBERNETES_EXECUTOR,
+            LOCAL_EXECUTOR,
+            LOCAL_KUBERNETES_EXECUTOR,
+            SEQUENTIAL_EXECUTOR,
+            DASK_EXECUTOR,
+        ],
+    )
+    def test_prepare_for_execution(self, executor_cls_mode):
+        """
+        Should change mode of the task to reschedule if using DEBUG_EXECUTOR
+        """
+        executor_name, executor_cls, mode = executor_cls_mode
+        sensor = DummySensor(
+            task_id=SENSOR_OP,
+            return_value=None,
+            poke_interval=10,
+            timeout=60,
+            exponential_backoff=True,
+            max_wait=timedelta(seconds=30),
+        )
+        with patch("airflow.configuration.conf.get") as get, patch(
+            "airflow.executors.executor_loader.ExecutorLoader.load_executor"
+        ) as load_executor:
+            get.return_value = executor_name
+            load_executor.return_value = executor_cls
+            task = sensor.prepare_for_execution()
+            assert task.mode == mode
 
 
 @poke_mode_only
