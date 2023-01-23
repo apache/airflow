@@ -42,6 +42,7 @@ class DebugExecutor(BaseExecutor):
     """
 
     _terminated = threading.Event()
+    change_sensor_mode_to_reschedule: bool = True
 
     def __init__(self):
         super().__init__()
