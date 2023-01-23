@@ -30,7 +30,6 @@ from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.logging_command_executor import CommandExecutor
 
 GCP_AI_KEY = "gcp_ai.json"
-GCP_AUTOML_KEY = "gcp_automl.json"
 GCP_BIGQUERY_KEY = "gcp_bigquery.json"
 GCP_BIGTABLE_KEY = "gcp_bigtable.json"
 GCP_CLOUD_BUILD_KEY = "gcp_cloud_build.json"
