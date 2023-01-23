@@ -26,7 +26,7 @@ from flask import Response
 
 from airflow.api_connexion.types import APIResponse
 from airflow.dag_processing.manager import DagFileProcessorManager
-from airflow.models import XCom
+from airflow.models import Variable, XCom
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -45,6 +45,9 @@ def _initialize_map() -> dict[str, Callable]:
         XCom.get_one,
         XCom.get_many,
         XCom.clear,
+        Variable.set,
+        Variable.update,
+        Variable.delete,
     ]
     return {f"{func.__module__}.{func.__name__}": func for func in functions}
 
