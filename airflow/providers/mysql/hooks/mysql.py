@@ -78,7 +78,7 @@ class MySqlHook(DbApiHook):
         if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
             conn.autocommit = autocommit
         else:
-            conn.autocommit(autocommit)
+            conn.autocommit(autocommit)  # type: ignore[operator]
 
     def get_autocommit(self, conn: MySQLConnectionTypes) -> bool:
         """
@@ -93,7 +93,7 @@ class MySqlHook(DbApiHook):
         if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
             return conn.autocommit
         else:
-            return conn.get_autocommit()
+            return conn.get_autocommit()  # type: ignore[union-attr]
 
     def _get_conn_config_mysql_client(self, conn: Connection) -> dict:
         conn_config = {
@@ -199,7 +199,7 @@ class MySqlHook(DbApiHook):
             """
         )
         conn.commit()
-        conn.close()
+        conn.close()  # type: ignore[misc]
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dump a database table into a tab-delimited file."""
@@ -212,7 +212,7 @@ class MySqlHook(DbApiHook):
             """
         )
         conn.commit()
-        conn.close()
+        conn.close()  # type: ignore[misc]
 
     @staticmethod
     def _serialize_cell(cell: object, conn: Connection | None = None) -> Any:
@@ -283,4 +283,4 @@ class MySqlHook(DbApiHook):
 
         cursor.close()
         conn.commit()
-        conn.close()
+        conn.close()  # type: ignore[misc]

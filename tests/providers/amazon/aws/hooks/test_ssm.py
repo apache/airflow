@@ -33,11 +33,13 @@ PARAM_VALUE = "value"
 DEFAULT_VALUE = "default"
 
 
-@mock_ssm
 class TestSsmHooks:
-    def setup(self):
-        self.hook = SsmHook(region_name=REGION)
-        self.hook.conn.put_parameter(Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True)
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        with mock_ssm():
+            self.hook = SsmHook(region_name=REGION)
+            self.hook.conn.put_parameter(Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True)
+            yield
 
     def test_hook(self) -> None:
         assert self.hook.conn is not None

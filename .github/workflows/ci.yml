@@ -426,8 +426,9 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
-      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
       - run: breeze setup version
+      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
+      - run: breeze setup check-all-params-in-groups
 
   tests-www:
     timeout-minutes: 10
@@ -982,7 +983,8 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.default-branch != 'main'}}"
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1041,7 +1043,8 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.default-branch != 'main'}}"
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash

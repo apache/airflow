@@ -70,24 +70,24 @@ def create_context(task) -> Context:
     )
 
 
-def get_kubeconfig_path():
+@pytest.fixture(scope="session")
+def kubeconfig_path():
     kubeconfig_path = os.environ.get("KUBECONFIG")
     return kubeconfig_path if kubeconfig_path else os.path.expanduser("~/.kube/config")
 
 
-def get_label():
-    test = os.environ.get("PYTEST_CURRENT_TEST")
-    test = test.split(" ", 1)[0]  # if invoked from setup, will have suffix ' (setup)', e.g.
-    label = "".join(filter(str.isalnum, test)).lower()
+@pytest.fixture
+def test_label(request):
+    label = "".join(filter(str.isalnum, f"{request.node.cls.__name__}.{request.node.name}")).lower()
     return label[-63:]
 
 
 @pytest.mark.execution_timeout(180)
 class TestKubernetesPodOperatorSystem:
-    def setup(self):
-        self.maxDiff = None
+    @pytest.fixture(autouse=True)
+    def setup_tests(self, test_label):
         self.api_client = ApiClient()
-        self.labels = {"test_label": get_label()}
+        self.labels = {"test_label": test_label}
         self.expected_pod = {
             "apiVersion": "v1",
             "kind": "Pod",
@@ -96,7 +96,7 @@ class TestKubernetesPodOperatorSystem:
                 "name": ANY,
                 "annotations": {},
                 "labels": {
-                    "test_label": get_label(),
+                    "test_label": test_label,
                     "kubernetes_pod_operator": "True",
                     "airflow_version": airflow_version.replace("+", "-"),
                     "airflow_kpo_in_cluster": "False",
@@ -130,22 +130,20 @@ class TestKubernetesPodOperatorSystem:
                 "volumes": [],
             },
         }
+        yield
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
+        client.delete_collection_namespaced_pod(namespace="default", grace_period_seconds=0)
 
     def _get_labels_selector(self) -> str | None:
         if not self.labels:
             return None
         return ",".join([f"{key}={value}" for key, value in enumerate(self.labels)])
 
-    def teardown(self) -> None:
-        hook = KubernetesHook(conn_id=None, in_cluster=False)
-        client = hook.core_v1_client
-        client.delete_collection_namespaced_pod(namespace="default", grace_period_seconds=0)
-
-    def test_do_xcom_push_defaults_false(self):
+    def test_do_xcom_push_defaults_false(self, kubeconfig_path):
         with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
             new_config_path = f.name
-        old_config_path = get_kubeconfig_path()
-        shutil.copy(old_config_path, new_config_path)
+        shutil.copy(kubeconfig_path, new_config_path)
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -159,11 +157,10 @@ class TestKubernetesPodOperatorSystem:
         )
         assert not k.do_xcom_push
 
-    def test_config_path_move(self):
+    def test_config_path_move(self, kubeconfig_path):
         with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
             new_config_path = f.name
-        old_config_path = get_kubeconfig_path()
-        shutil.copy(old_config_path, new_config_path)
+        shutil.copy(kubeconfig_path, new_config_path)
 
         k = KubernetesPodOperator(
             namespace="default",
@@ -637,8 +634,8 @@ class TestKubernetesPodOperatorSystem:
             self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
             assert self.expected_pod == actual_pod
 
-    def test_xcom_push(self):
-        expected = {"test_label": get_label(), "buzz": 2}
+    def test_xcom_push(self, test_label):
+        expected = {"test_label": test_label, "buzz": 2}
         args = [f"echo '{json.dumps(expected)}' > /airflow/xcom/return.json"]
         k = KubernetesPodOperator(
             namespace="default",
@@ -708,7 +705,7 @@ class TestKubernetesPodOperatorSystem:
             param({"env_name": "value"}, id="backcompat"),  # todo: remove?
         ],
     )
-    def test_pod_template_file_with_overrides_system(self, input):
+    def test_pod_template_file_with_overrides_system(self, input, test_label):
         fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
@@ -723,7 +720,7 @@ class TestKubernetesPodOperatorSystem:
         result = k.execute(context)
         assert result is not None
         assert k.pod.metadata.labels == {
-            "test_label": get_label(),
+            "test_label": test_label,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": "False",
             "dag_id": "dag",
@@ -735,11 +732,11 @@ class TestKubernetesPodOperatorSystem:
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
-    def test_pod_template_file_with_full_pod_spec(self):
+    def test_pod_template_file_with_full_pod_spec(self, test_label):
         fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-                labels={"test_label": get_label(), "fizz": "buzz"},
+                labels={"test_label": test_label, "fizz": "buzz"},
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -764,7 +761,7 @@ class TestKubernetesPodOperatorSystem:
         assert result is not None
         assert k.pod.metadata.labels == {
             "fizz": "buzz",
-            "test_label": get_label(),
+            "test_label": test_label,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": "False",
             "dag_id": "dag",
@@ -776,10 +773,10 @@ class TestKubernetesPodOperatorSystem:
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
-    def test_full_pod_spec(self):
+    def test_full_pod_spec(self, test_label):
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-                labels={"test_label": get_label(), "fizz": "buzz"}, namespace="default", name="test-pod"
+                labels={"test_label": test_label, "fizz": "buzz"}, namespace="default", name="test-pod"
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -809,7 +806,7 @@ class TestKubernetesPodOperatorSystem:
         assert result is not None
         assert k.pod.metadata.labels == {
             "fizz": "buzz",
-            "test_label": get_label(),
+            "test_label": test_label,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": "False",
             "dag_id": "dag",
@@ -887,6 +884,7 @@ class TestKubernetesPodOperatorSystem:
         extract_xcom_mock,
         await_xcom_sidecar_container_start_mock,
         caplog,
+        test_label,
     ):
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
@@ -929,7 +927,7 @@ class TestKubernetesPodOperatorSystem:
             "metadata": {
                 "annotations": {},
                 "labels": {
-                    "test_label": get_label(),
+                    "test_label": test_label,
                     "airflow_kpo_in_cluster": "False",
                     "dag_id": "dag",
                     "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",

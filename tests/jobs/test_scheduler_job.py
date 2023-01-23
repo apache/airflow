@@ -42,6 +42,8 @@ from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.executor_constants import MOCK_EXECUTOR
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.local_task_job import LocalTaskJob
@@ -113,6 +115,10 @@ def load_examples():
         yield
 
 
+# Patch the MockExecutor into the dict of known executors in the Loader
+@patch.dict(
+    ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
+)
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
@@ -255,9 +261,14 @@ class TestSchedulerJob:
         self.scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_has_calls(
             [
-                mock.call("scheduler.tasks.killed_externally"),
+                mock.call(
+                    "scheduler.tasks.killed_externally",
+                    tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id},
+                ),
                 mock.call("operator_failures_EmptyOperator"),
-                mock.call("ti_failures"),
+                mock.call(
+                    "ti_failures", tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id}
+                ),
             ],
             any_order=True,
         )
@@ -312,9 +323,12 @@ class TestSchedulerJob:
         self.scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_has_calls(
             [
-                mock.call("scheduler.tasks.killed_externally"),
+                mock.call(
+                    "scheduler.tasks.killed_externally",
+                    tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1},
+                ),
                 mock.call("operator_failures_EmptyOperator"),
-                mock.call("ti_failures"),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1}),
             ],
             any_order=True,
         )
@@ -360,7 +374,14 @@ class TestSchedulerJob:
         )
         self.scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
         self.scheduler_job.executor.callback_sink.reset_mock()
-        mock_stats_incr.assert_called_once_with("scheduler.tasks.killed_externally")
+        mock_stats_incr.assert_called_once_with(
+            "scheduler.tasks.killed_externally",
+            tags={
+                "dag_id": "test_process_executor_events_with_callback",
+                "run_id": "test",
+                "task_id": "dummy_task",
+            },
+        )
 
     @mock.patch("airflow.jobs.scheduler_job.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job.Stats.incr")

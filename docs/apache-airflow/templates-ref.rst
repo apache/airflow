@@ -51,7 +51,7 @@ Variable                                    Type                  Description
                                             | ``None``            | Added in version 2.3.
 ``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful DAG run.
                                             | ``None``            | Added in version 2.3.
-``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful dag run (if available).
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful DAG run (if available).
                                             | ``None``
 ``{{ dag }}``                               DAG                   The currently running DAG.
 ``{{ task }}``                              BaseOperator          | The currently running task.
@@ -99,7 +99,7 @@ Deprecated Variable                     Description
 ``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
 ``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
-``{{ prev_execution_date_success }}``   execution date from prior successful dag run
+``{{ prev_execution_date_success }}``   execution date from prior successful DAG run
 
 =====================================   ====================================
 
