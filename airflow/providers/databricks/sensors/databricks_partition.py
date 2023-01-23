@@ -35,10 +35,10 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
     """Sensor to detect the existence of partitions in a Delta table.
 
     :param databricks_conn_id: Reference to :ref:`Databricks connection id<howto/connection:databricks>` (templated).
-    :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster. If not specified, 
+    :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster. If not specified,
         it should be either specified in the Databricks connection's extra parameters, or ``sql_endpoint_name`` must be specified.
     :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path`` must be provided as described above.
-    :param session_configuration: An optional dictionary of Spark session parameters. If not specified, 
+    :param session_configuration: An optional dictionary of Spark session parameters. If not specified,
         it could be specified in the Databricks connection's extra parameters.
     :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers on every request. (templated)
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated)

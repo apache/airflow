@@ -100,8 +100,8 @@ sensors:
     python-modules:
       - airflow.providers.databricks.sensors.databricks_partition
   - integration-name: Databricks Table Changes
-    python-modules:  
-      - airlfow.providers.databricks.sensors.databricks_table_changes
+    python-modules:
+      - airflow.providers.databricks.sensors.databricks_table_changes
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook

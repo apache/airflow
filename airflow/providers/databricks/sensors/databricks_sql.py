@@ -32,7 +32,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
     """Generic SQL sensor for Databricks
 
     :param databricks_conn_id: connection id from Airflow to databricks, defaults to DatabricksSqlHook.default_conn_name
-    :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.If not specified, 
+    :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.If not specified,
         it should be either specified in the Databricks connection's extra parameters, or ``sql_endpoint_name`` must be specified.
     :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path`` must
         be provided as described above.
