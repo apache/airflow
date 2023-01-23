@@ -23,7 +23,6 @@ import shutil
 import subprocess
 import sys
 import textwrap
-from functools import lru_cache
 from pathlib import Path
 
 import jinja2
@@ -35,41 +34,18 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
-PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+
+from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip # noqa E402
+from common_precommit_black_utils import black_format  # isort: skip # noqa E402
+
+PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "providers"
 COMMON_SQL_ROOT = PROVIDERS_ROOT / "common" / "sql"
-OUT_DIR = AIRFLOW_SOURCES_ROOT / "out"
+OUT_DIR = AIRFLOW_SOURCES_ROOT_PATH / "out"
 
 COMMON_SQL_PACKAGE_PREFIX = "airflow.providers.common.sql."
 
 console = Console(width=400, color_system="standard")
-
-
-@lru_cache(maxsize=None)
-def black_mode():
-    from black import Mode, parse_pyproject_toml, target_version_option_callback
-
-    config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT, "pyproject.toml"))
-
-    target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
-    )
-
-    return Mode(
-        target_versions=target_versions,
-        line_length=config.get("line_length", Mode.line_length),
-        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
-        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
-        experimental_string_processing=bool(
-            config.get("experimental_string_processing", Mode.experimental_string_processing)
-        ),
-    )
-
-
-def black_format(content) -> str:
-    from black import format_str
-
-    return format_str(content, mode=black_mode())
 
 
 class ConsoleDiff(difflib.Differ):
@@ -116,12 +92,31 @@ def summarize_changes(results: list[str]) -> tuple[int, int]:
     return removals, additions
 
 
-def post_process_historically_publicised_methods(stub_file_path: Path, line: str, new_lines: list[str]):
+def post_process_line(stub_file_path: Path, line: str, new_lines: list[str]) -> None:
+    """
+    Post process line of the stub file.
+
+    Stubgen is not a perfect tool for generating stub files, but it is good starting point. We have to
+    modify the stub files to make them more useful for us (as the approach of stubgen developers is not
+    very open to add more options or features that are not very generic).
+
+    The patching that we currently perform:
+      * we add noqa to Incomplete imports from _typeshed (IntelliJ _typeshed does not like it)
+      * we add historically published methods
+      * fixes missing Union imports (see https://github.com/python/mypy/issues/12929)
+
+
+    :param stub_file_path: path of the file we process
+    :param line: line to post-process
+    :param new_lines: new_lines - this is where we add post-processed lines
+    """
     if stub_file_path.relative_to(OUT_DIR) == Path("common") / "sql" / "operators" / "sql.pyi":
-        if line.strip().startswith("parse_boolean: Incomplete"):
+        stripped_line = line.strip()
+        if stripped_line.startswith("parse_boolean: Incomplete"):
             # Handle Special case - historically we allow _parse_boolean to be part of the public API,
             # and we handle it via parse_boolean = _parse_boolean which produces Incomplete entry in the
-            # stub - we replace the Incomplete method with both API methods that should be allowed
+            # stub - we replace the Incomplete method with both API methods that should be allowed.
+            # We also strip empty lines to let black figure out where to add them.
             #
             # We can remove those when we determine it is not risky for the community - when we determine
             # That most of the historically released providers have a way to easily update them, and they
@@ -130,10 +125,16 @@ def post_process_historically_publicised_methods(stub_file_path: Path, line: str
             # provider to 2.*, the old providers (mainly google providers) might still use them.
             new_lines.append("def _parse_boolean(val: str) -> str | bool: ...")
             new_lines.append("def parse_boolean(val: str) -> str | bool: ...")
-        elif line.strip() == "class SQLExecuteQueryOperator(BaseSQLOperator):":
+        elif stripped_line == "class SQLExecuteQueryOperator(BaseSQLOperator):":
             # The "_raise_exception" method is really part of the public API and should not be removed
             new_lines.append(line)
             new_lines.append("    def _raise_exception(self, exception_string: str) -> Incomplete: ...")
+        elif stripped_line.startswith("from _typeshed import Incomplete"):
+            new_lines.append(line + "  # noqa: F401")
+        elif stripped_line.startswith("from typing import") and "Union" not in line:
+            new_lines.append(line + ", Union")
+        elif stripped_line == "":
+            pass
         else:
             new_lines.append(line)
     else:
@@ -141,31 +142,41 @@ def post_process_historically_publicised_methods(stub_file_path: Path, line: str
 
 
 def post_process_generated_stub_file(
-    module_name: str, stub_file_path: Path, lines: list[str], patch_historical_methods=False
+    module_name: str, stub_file_path: Path, lines: list[str], patch_generated_file=False
 ):
     """
-    Post process the stub file - add the preamble and optionally patch historical methods.
-    Adding preamble always, makes sure that we can update the preamble and have it automatically updated
-    in generated files even if no API specification changes.
+    Post process the stub file:
+    * adding (or replacing) preamble (makes sure we can replace preamble with new one in old files)
+    * optionally patch the generated file
 
     :param module_name: name of the module of the file
     :param stub_file_path: path of the stub fil
     :param lines: lines that were read from the file (with stripped comments)
-    :param patch_historical_methods:  whether we should patch historical methods
+    :param patch_generated_file:  whether we should patch generated file
     :return: resulting lines of the file after post-processing
     """
     template = jinja2.Template(PREAMBLE)
     new_lines = template.render(module_name=module_name).splitlines()
     for line in lines:
-        if patch_historical_methods:
-            post_process_historically_publicised_methods(stub_file_path, line, new_lines)
+        if patch_generated_file:
+            post_process_line(stub_file_path, line, new_lines)
         else:
             new_lines.append(line)
     return new_lines
 
 
+def write_pyi_file(pyi_file_path: Path, content: str) -> None:
+    """
+    Writes the content to the file.
+
+    :param pyi_file_path: path of the file to write
+    :param content: content to write (will be properly formatted)
+    """
+    pyi_file_path.write_text(black_format(content, is_pyi=True), encoding="utf-8")
+
+
 def read_pyi_file_content(
-    module_name: str, pyi_file_path: Path, patch_historical_methods=False
+    module_name: str, pyi_file_path: Path, patch_generated_files=False
 ) -> list[str] | None:
     """
     Reads stub file content with post-processing and optionally patching historical methods. The comments
@@ -176,7 +187,7 @@ def read_pyi_file_content(
 
     :param module_name: name of the module in question
     :param pyi_file_path: the path of the file to read
-    :param patch_historical_methods: whether the historical methods should be patched
+    :param patch_generated_files: whether the historical methods should be patched
     :return: list of lines of post-processed content or None if the file should be deleted.
     """
     lines_no_comments = [
@@ -196,7 +207,7 @@ def read_pyi_file_content(
         console.print(f"[yellow]Skip {pyi_file_path} as it is an empty stub for __init__.py file")
         return None
     return post_process_generated_stub_file(
-        module_name, pyi_file_path, lines, patch_historical_methods=patch_historical_methods
+        module_name, pyi_file_path, lines, patch_generated_file=patch_generated_files
     )
 
 
@@ -209,63 +220,67 @@ def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple
     """
     _removals, _additions = 0, 0
     rel_path = generated_stub_path.relative_to(OUT_DIR)
-    target_path = PROVIDERS_ROOT / rel_path
+    stub_file_target_path = PROVIDERS_ROOT / rel_path
     module_name = "airflow.providers." + os.fspath(rel_path.with_suffix("")).replace(os.path.sep, ".")
     generated_pyi_content = read_pyi_file_content(
-        module_name, generated_stub_path, patch_historical_methods=True
+        module_name, generated_stub_path, patch_generated_files=True
     )
     if generated_pyi_content is None:
         os.unlink(generated_stub_path)
-        if target_path.exists():
+        if stub_file_target_path.exists():
             console.print(
-                f"[red]The {target_path} file is missing in generated files: but we are deleting it because"
-                " it is an empty __init__.pyi file."
+                f"[red]The {stub_file_target_path} file is missing in generated files: "
+                "but we are deleting it because it is an empty __init__.pyi file."
             )
             if _force_override:
                 console.print(
-                    f"[yellow]The file {target_path} has been removed as changes are force-overridden"
+                    f"[yellow]The file {stub_file_target_path} has been removed "
+                    "as changes are force-overridden"
                 )
-                os.unlink(target_path)
+                os.unlink(stub_file_target_path)
             return 1, 0
         else:
             console.print(
                 f"[blue]The {generated_stub_path} file is an empty __init__.pyi file, we just ignore it."
             )
             return 0, 0
-    if not target_path.exists():
-        console.print(f"[yellow]New file {target_path} has been missing. Treated as addition.")
-        target_path.write_text("\n".join(generated_pyi_content), encoding="utf-8")
+    if not stub_file_target_path.exists():
+        console.print(f"[yellow]New file {stub_file_target_path} has been missing. Treated as addition.")
+        write_pyi_file(stub_file_target_path, "\n".join(generated_pyi_content) + "\n")
         return 0, 1
-    target_pyi_content = read_pyi_file_content(module_name, target_path, patch_historical_methods=False)
+    target_pyi_content = read_pyi_file_content(
+        module_name, stub_file_target_path, patch_generated_files=False
+    )
     if target_pyi_content is None:
         target_pyi_content = []
     if generated_pyi_content != target_pyi_content:
-        console.print(f"[yellow]The {target_path} has changed.")
+        console.print(f"[yellow]The {stub_file_target_path} has changed.")
         diff = ConsoleDiff()
         comparison_results = list(diff.compare(target_pyi_content, generated_pyi_content))
         _removals, _additions = summarize_changes(comparison_results)
         console.print(
-            f"[bright_blue]Summary of the generated changes in common.sql stub API file {target_path}:[/]\n"
+            "[bright_blue]Summary of the generated changes in common.sql "
+            f"stub API file {stub_file_target_path}:[/]\n"
         )
         console.print(textwrap.indent("\n".join(comparison_results), " " * 4))
         if _removals == 0 or force_override:
-            console.print(f"[yellow]The {target_path} has been updated\n")
-            console.print(f"[yellow]* additions: {additions}[/]")
-            console.print(f"[yellow]* removals: {removals}[/]")
-            target_path.write_text("\n".join(generated_pyi_content), encoding="utf-8")
+            console.print(f"[yellow]The {stub_file_target_path} has been updated\n")
+            console.print(f"[yellow]* additions: {total_additions}[/]")
+            console.print(f"[yellow]* removals: {total_removals}[/]")
+            write_pyi_file(stub_file_target_path, "\n".join(generated_pyi_content) + "\n")
             console.print(
-                f"\n[bright_blue]The {target_path} file has been updated automatically.[/]\n"
+                f"\n[bright_blue]The {stub_file_target_path} file has been updated automatically.[/]\n"
                 "\n[yellow]Make sure to commit the changes.[/]"
             )
     else:
         if force_override:
-            target_path.write_text("\n".join(generated_pyi_content), encoding="utf-8")
+            write_pyi_file(stub_file_target_path, "\n".join(generated_pyi_content) + "\n")
             console.print(
-                f"\n[bright_blue]The {target_path} file has been updated automatically.[/]\n"
+                f"\n[bright_blue]The {stub_file_target_path} file has been updated automatically.[/]\n"
                 "\n[yellow]Make sure to commit the changes.[/]"
             )
         else:
-            console.print(f"[green]OK. The {target_path} has not changed.")
+            console.print(f"[green]OK. The {stub_file_target_path} has not changed.")
     return _removals, _additions
 
 
@@ -318,18 +333,20 @@ if __name__ == "__main__":
     shutil.rmtree(OUT_DIR, ignore_errors=True)
 
     subprocess.run(
-        ["stubgen", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("**/*.py")]], cwd=AIRFLOW_SOURCES_ROOT
+        ["stubgen", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("**/*.py")]],
+        cwd=AIRFLOW_SOURCES_ROOT_PATH,
     )
-    removals, additions = 0, 0
+    total_removals, total_additions = 0, 0
     _force_override = os.environ.get("UPDATE_COMMON_SQL_API") == "1"
     if _force_override:
         console.print("\n[yellow]The committed stub APIs are force-updated\n")
+    # reformat the generated stubs first
     for stub_path in OUT_DIR.rglob("**/*.pyi"):
-        stub_path.write_text(black_format(stub_path.read_text(encoding="utf-8")), encoding="utf-8")
+        write_pyi_file(stub_path, stub_path.read_text(encoding="utf-8"))
     for stub_path in OUT_DIR.rglob("**/*.pyi"):
         _new_removals, _new_additions = compare_stub_files(stub_path, force_override=_force_override)
-        removals += _new_removals
-        additions += _new_additions
+        total_removals += _new_removals
+        total_additions += _new_additions
     for target_path in COMMON_SQL_ROOT.rglob("*.pyi"):
         generated_path = OUT_DIR / target_path.relative_to(PROVIDERS_ROOT)
         if not generated_path.exists():
@@ -337,21 +354,21 @@ if __name__ == "__main__":
                 f"[red]The {target_path} file is missing in generated files:. "
                 f"This is treated as breaking change."
             )
-            removals += 1
+            total_removals += 1
             if _force_override:
                 console.print(
                     f"[yellow]The file {target_path} has been removed as changes are force-overridden"
                 )
                 os.unlink(target_path)
-    if not removals and not additions:
+    if not total_removals and not total_additions:
         console.print("\n[green]All OK. The common.sql APIs did not change[/]")
         sys.exit(0)
-    if removals:
+    if total_removals:
         if not _force_override:
             console.print(
                 f"\n[red]ERROR! As you can see above, there are changes in the common.sql stub API files.\n"
-                f"[red]* additions: {additions}[/]\n"
-                f"[red]* removals: {removals}[/]\n"
+                f"[red]* additions: {total_additions}[/]\n"
+                f"[red]* removals: {total_removals}[/]\n"
             )
             console.print(
                 "[bright_blue]Make sure to review the removals and changes for back-compatibility.[/]\n"
@@ -366,15 +383,15 @@ if __name__ == "__main__":
         else:
             console.print(
                 f"\n[bright_blue]As you can see above, there are changes in the common.sql API:[/]\n\n"
-                f"[bright_blue]* additions: {additions}[/]\n"
-                f"[bright_blue]* removals: {removals}[/]\n"
+                f"[bright_blue]* additions: {total_additions}[/]\n"
+                f"[bright_blue]* removals: {total_removals}[/]\n"
             )
             console.print("[yellow]You've set UPDATE_COMMON_SQL_API to 1 to update the API.[/]\n\n")
             console.print("[yellow]So the files were updated automatically.")
     else:
         console.print(
             f"\n[yellow]There are only additions in the API extracted from the common.sql code[/]\n\n"
-            f"[bright_blue]* additions: {additions}[/]\n"
+            f"[bright_blue]* additions: {total_additions}[/]\n"
         )
         console.print("[bright_blue]So the files were updated automatically.")
     sys.exit(1)
