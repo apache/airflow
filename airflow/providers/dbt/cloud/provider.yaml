@@ -34,6 +34,8 @@ versions:
 dependencies:
   - apache-airflow>=2.3.0
   - apache-airflow-providers-http
+  - asgiref
+  - aiohttp
 
 integrations:
   - integration-name: dbt Cloud
