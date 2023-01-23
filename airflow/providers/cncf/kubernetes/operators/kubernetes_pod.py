@@ -167,7 +167,7 @@ class KubernetesPodOperator(BaseOperator):
         during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
-    :param get_logs: get the stdout of the container as logs of the tasks.
+    :param get_logs: get the stdout of the base container as logs of the tasks.
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
@@ -206,9 +206,15 @@ class KubernetesPodOperator(BaseOperator):
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
+    :param base_container_name: The name of the base container in the pod. This container's logs
+        will appear as part of this task's logs if get_logs is True. Defaults to None. If None,
+        will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
+        container name to use.
     """
 
+    # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
+
     POD_CHECKED_KEY = "already_checked"
 
     template_fields: Sequence[str] = (
@@ -272,6 +278,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
+        base_container_name: str | None = None,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -338,6 +345,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
+        self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
 
     @cached_property
     def _incluster_namespace(self):
@@ -498,12 +506,12 @@ class KubernetesPodOperator(BaseOperator):
             if self.get_logs:
                 self.pod_manager.fetch_container_logs(
                     pod=self.pod,
-                    container_name=self.BASE_CONTAINER_NAME,
+                    container_name=self.base_container_name,
                     follow=True,
                 )
             else:
                 self.pod_manager.await_container_completion(
-                    pod=self.pod, container_name=self.BASE_CONTAINER_NAME
+                    pod=self.pod, container_name=self.base_container_name
                 )
 
             if self.do_xcom_push:
@@ -535,7 +543,7 @@ class KubernetesPodOperator(BaseOperator):
             if self.log_events_on_failure:
                 self._read_pod_log_events(pod, reraise=False)
             self.process_pod_deletion(remote_pod, reraise=False)
-            error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
+            error_message = get_container_termination_message(remote_pod, self.base_container_name)
             raise AirflowException(
                 f"Pod {pod and pod.metadata.name} returned a failure:\n{error_message}\n"
                 f"remote_pod: {remote_pod}"
@@ -621,7 +629,7 @@ class KubernetesPodOperator(BaseOperator):
                 containers=[
                     k8s.V1Container(
                         image=self.image,
-                        name=self.BASE_CONTAINER_NAME,
+                        name=self.base_container_name,
                         command=self.cmds,
                         ports=self.ports,
                         image_pull_policy=self.image_pull_policy,

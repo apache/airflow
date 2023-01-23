@@ -1151,3 +1151,135 @@ class TestKubernetesPodOperatorSystem:
                 do_xcom_push=False,
                 resources=resources,
             )
+
+    def test_changing_base_container_name_with_get_logs(self):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            get_logs=True,
+            base_container_name="apple-sauce",
+        )
+        assert k.base_container_name == "apple-sauce"
+        context = create_context(k)
+        with mock.patch.object(
+            k.pod_manager, "fetch_container_logs", wraps=k.pod_manager.fetch_container_logs
+        ) as mock_fetch_container_logs:
+            k.execute(context)
+
+        assert mock_fetch_container_logs.call_args[1]["container_name"] == "apple-sauce"
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
+        assert self.expected_pod["spec"] == actual_pod["spec"]
+
+    def test_changing_base_container_name_no_logs(self):
+        """
+        This test checks BOTH a modified base container name AND the get_logs=False flow,
+        and as a result, also checks that the flow works with fast containers
+        See https://github.com/apache/airflow/issues/26796
+        """
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            get_logs=False,
+            base_container_name="apple-sauce",
+        )
+        assert k.base_container_name == "apple-sauce"
+        context = create_context(k)
+        with mock.patch.object(
+            k.pod_manager, "await_container_completion", wraps=k.pod_manager.await_container_completion
+        ) as mock_await_container_completion:
+            k.execute(context)
+
+        assert mock_await_container_completion.call_args[1]["container_name"] == "apple-sauce"
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
+        assert self.expected_pod["spec"] == actual_pod["spec"]
+
+    def test_changing_base_container_name_no_logs_long(self):
+        """
+        Similar to test_changing_base_container_name_no_logs, but ensures that
+        pods running longer than 1 second work too.
+        See https://github.com/apache/airflow/issues/26796
+        """
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["sleep 3"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            get_logs=False,
+            base_container_name="apple-sauce",
+        )
+        assert k.base_container_name == "apple-sauce"
+        context = create_context(k)
+        with mock.patch.object(
+            k.pod_manager, "await_container_completion", wraps=k.pod_manager.await_container_completion
+        ) as mock_await_container_completion:
+            k.execute(context)
+
+        assert mock_await_container_completion.call_args[1]["container_name"] == "apple-sauce"
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
+        self.expected_pod["spec"]["containers"][0]["args"] = ["sleep 3"]
+        assert self.expected_pod["spec"] == actual_pod["spec"]
+
+    def test_changing_base_container_name_failure(self):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["exit"],
+            arguments=["1"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            base_container_name="apple-sauce",
+        )
+        assert k.base_container_name == "apple-sauce"
+        context = create_context(k)
+
+        class ShortCircuitException(Exception):
+            pass
+
+        with mock.patch(
+            "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.get_container_termination_message",
+            side_effect=ShortCircuitException(),
+        ) as mock_get_container_termination_message:
+            with pytest.raises(ShortCircuitException):
+                k.execute(context)
+
+        assert mock_get_container_termination_message.call_args[0][1] == "apple-sauce"
+
+    def test_base_container_name_init_precedence(self):
+        assert (
+            KubernetesPodOperator(base_container_name="apple-sauce", task_id=str(uuid4())).base_container_name
+            == "apple-sauce"
+        )
+        assert (
+            KubernetesPodOperator(task_id=str(uuid4())).base_container_name
+            == KubernetesPodOperator.BASE_CONTAINER_NAME
+        )
+
+        class MyK8SPodOperator(KubernetesPodOperator):
+            BASE_CONTAINER_NAME = "tomato-sauce"
+
+        assert (
+            MyK8SPodOperator(base_container_name="apple-sauce", task_id=str(uuid4())).base_container_name
+            == "apple-sauce"
+        )
+        assert MyK8SPodOperator(task_id=str(uuid4())).base_container_name == "tomato-sauce"
