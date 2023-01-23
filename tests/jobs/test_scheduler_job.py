@@ -3339,7 +3339,7 @@ class TestSchedulerJob:
         assert dr.state == State.RUNNING
 
         stats_timing.assert_called_once_with(
-            "dagrun.schedule_delay.test_start_dag_runs", datetime.timedelta(seconds=9)
+            "dagrun.schedule_delay", datetime.timedelta(seconds=9), name_tags=collections.OrderedDict({"dag_id": "test_start_dag_runs"})
         )
 
         assert dag.get_last_dagrun().creating_job_id == self.scheduler_job.id

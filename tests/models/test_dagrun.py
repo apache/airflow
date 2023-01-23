@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import OrderedDict
 import datetime
 from typing import Mapping
 from unittest import mock
@@ -888,15 +889,15 @@ class TestDagRun:
             with mock.patch.object(Stats, "timing") as stats_mock:
                 dag_run.update_state(session)
 
-            metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
+            metric_name = f"dagrun"
 
             if expected:
                 true_delay = ti.start_date - dag_run.data_interval_end
-                sched_delay_stat_call = call(metric_name, true_delay)
+                sched_delay_stat_call = call(metric_name, true_delay, name_tags=OrderedDict({"dag_id": f"{dag.dag_id}"}), stat_suffix="first_task_scheduling_delay")
                 assert sched_delay_stat_call in stats_mock.mock_calls
             else:
                 # Assert that we never passed the metric
-                sched_delay_stat_call = call(metric_name, mock.ANY)
+                sched_delay_stat_call = call(metric_name, mock.ANY, name_tags=OrderedDict({"dag_id": f"{dag.dag_id}"}), stat_suffix="first_task_scheduling_delay")
                 assert sched_delay_stat_call not in stats_mock.mock_calls
         finally:
             # Don't write anything to the DB
