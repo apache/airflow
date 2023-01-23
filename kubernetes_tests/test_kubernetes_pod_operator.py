@@ -1181,9 +1181,9 @@ class TestKubernetesPodOperatorSystem:
 
     def test_changing_base_container_name_no_logs(self):
         """
-        This test checks BOTH a modified base container name AND the get_logs=False flow..
-          and as a result, also checks that the flow works with fast containers
-          See #26796
+        This test checks BOTH a modified base container name AND the get_logs=False flow,
+        and as a result, also checks that the flow works with fast containers
+        See https://github.com/apache/airflow/issues/26796
         """
         k = KubernetesPodOperator(
             namespace="default",
