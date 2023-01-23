@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import fetch_one_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow.utils.context import Context
@@ -48,10 +48,11 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated)
     :param schema: An optional initial schema to use. Requires DBR version 9.0+ (templated)
     :param table_name: Table name to generate the SQL query.
-    :param partition_name: Partition to check, defaults to {"date": datetime.now().date()}
-    :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
+    :param partition_name: Partition to check.
+    :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_one_handler
     :param caller: String passed to name a hook to Databricks, defaults to "DatabricksPartitionSensor"
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
+    :param partition_operator: Comparison operator for partitions.
     """
 
     template_fields: Sequence[str] = (
@@ -74,10 +75,11 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         catalog: str = "",
         schema: str = "default",
         table_name: str = "",
-        partition_name: dict = {"date": "2023-1-1"},
-        handler: Callable[[Any], Any] = fetch_all_handler,
+        partition_name: dict,
+        handler: Callable[[Any], Any] = fetch_one_handler,
         caller: str = "DatabricksPartitionSensor",
         client_parameters: dict[str, Any] | None = None,
+        partition_operator: str = "=",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -94,6 +96,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         self.client_parameters = client_parameters or {}
         self.hook_params = kwargs.pop("hook_params", {})
         self.handler = handler
+        self.partition_operator = partition_operator
 
     def _get_hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
@@ -123,17 +126,21 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
             self.log.debug("Table name generated from arguments: %s", complete_table_name)
         else:
             raise AirflowException("Catalog name not specified, aborting query execution.")
-        partition_columns = list(self._sql_sensor(f"describe detail {complete_table_name}")[0][7])
+        partition_columns = self._sql_sensor(f"describe detail {complete_table_name}")[7]
         self.log.debug("table_info: %s", partition_columns)
         if len(partition_columns) < 1:
             raise AirflowException("Table %s does not have partitions", complete_table_name)
         partitions_list = []
         for partition_col, partition_value in self.partition_name.items():
             if partition_col in partition_columns:
+                if isinstance(partition_value, list):
+                    partitions_list.append(f"""{partition_col} in {tuple(partition_value)}""")
                 if isinstance(partition_value, (int, float, complex)):
-                    partitions_list.append(f"""{partition_col}={partition_value}""")
-                else:
-                    partitions_list.append(f"""{partition_col}=\"{partition_value}\"""")
+                    partitions_list.append(f"""{partition_col}{self.partition_operator}{partition_value}""")
+                if isinstance(partition_value, str):
+                    partitions_list.append(
+                        f"""{partition_col}{self.partition_operator}\"{partition_value}\""""
+                    )
             else:
                 raise AirflowException(
                     "Column %s not part of table partitions: %s", partition_col, partition_columns
