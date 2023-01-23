@@ -80,6 +80,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             boto3_client=self.hook.get_conn(),
         )
 
+            use_queues=not getattr(ti, "is_trigger_log_context", False),
     def close(self):
         """Close the handler responsible for the upload of the local log file to Cloudwatch."""
         # When application exit, system shuts down all handlers by
