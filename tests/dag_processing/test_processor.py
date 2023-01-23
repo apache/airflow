@@ -304,7 +304,7 @@ class TestDagFileProcessor:
             "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
         )
 
-    @patch.object(DagFileProcessor, "get_log")
+    @patch.object(DagFileProcessor, "logger")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_callback_exception(
@@ -392,7 +392,7 @@ class TestDagFileProcessor:
         assert email1 in send_email_to
         assert email2 not in send_email_to
 
-    @patch.object(DagFileProcessor, "get_log")
+    @patch.object(DagFileProcessor, "logger")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.utils.email.send_email")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
