@@ -239,10 +239,9 @@ class FileTaskHandler(logging.Handler):
             executor = ExecutorLoader.get_default_executor()
             task_log = None
 
-            if hasattr(executor, "get_task_log"):
-                task_log = executor.get_task_log(ti=ti, log=log)
-                if isinstance(task_log, tuple):
-                    return task_log
+            task_log = executor.get_task_log(ti=ti, log=log)
+            if isinstance(task_log, tuple):
+                return task_log
 
             if task_log is None:
                 log += "*** Failed to fetch log from executor. Falling back to fetching log from worker.\n"
