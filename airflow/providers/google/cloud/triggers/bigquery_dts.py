@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import Any, AsyncIterator, Sequence
 
 from google.cloud.bigquery_datatransfer_v1 import TransferRun, TransferState
@@ -64,6 +65,10 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         self.run_id = run_id
         self.poll_interval = poll_interval
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import Sequence
 
 from google.cloud.dataproc_v1 import JobStatus
@@ -51,6 +52,10 @@ class DataprocBaseTrigger(BaseTrigger):
         self.project_id = project_id
         self.region = region
         self.polling_interval_seconds = polling_interval_seconds
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.hook = DataprocAsyncHook(
             delegate_to=self.delegate_to,

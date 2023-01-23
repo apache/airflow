@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from glob import glob
 from typing import TYPE_CHECKING, Sequence
 
@@ -85,6 +86,10 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.bucket = bucket
         self.gcp_conn_id = gcp_conn_id
         self.mime_type = mime_type
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 from typing import Any, Sequence
@@ -132,6 +133,10 @@ class GoogleCalendarToGCSOperator(BaseOperator):
         self.updated_min = updated_min
         self.destination_bucket = destination_bucket
         self.destination_path = destination_path
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

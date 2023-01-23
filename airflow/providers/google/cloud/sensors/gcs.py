@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import textwrap
+import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Callable, Sequence
 
@@ -81,6 +82,10 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.bucket = bucket
         self.object = object
         self.google_cloud_conn_id = google_cloud_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.retry = retry
@@ -205,6 +210,10 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         self.object = object
         self.ts_func = ts_func
         self.google_cloud_conn_id = google_cloud_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -264,6 +273,10 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self.bucket = bucket
         self.prefix = prefix
         self.google_cloud_conn_id = google_cloud_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self._matches: list[str] = []
         self.impersonation_chain = impersonation_chain
@@ -363,6 +376,10 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.google_cloud_conn_id = google_cloud_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.last_activity_time = None
         self.impersonation_chain = impersonation_chain

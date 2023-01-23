@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
@@ -68,6 +69,10 @@ class CloudComposerEnvironmentSensor(BaseSensorOperator):
         self.operation_name = operation_name
         self.pooling_period_seconds = pooling_period_seconds
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

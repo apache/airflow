@@ -21,6 +21,7 @@ from __future__ import annotations
 import abc
 import json
 import os
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -142,6 +143,10 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.schema = schema
         self.parameters = parameters
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.upload_metadata = upload_metadata

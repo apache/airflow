@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from time import monotonic, sleep
 from typing import Any, Dict, Sequence
 from urllib.parse import quote, urlencode, urljoin
@@ -69,6 +70,10 @@ class DataFusionHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,

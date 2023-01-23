@@ -22,6 +22,7 @@ Google Cloud Storage operator.
 from __future__ import annotations
 
 import os
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -123,6 +124,11 @@ class ADLSToGCSOperator(ADLSListOperator):
         self.dest_gcs = dest_gcs
         self.replace = replace
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'google_impersonation_chain'",
+                DeprecationWarning,
+            )
         self.delegate_to = delegate_to
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain

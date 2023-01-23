@@ -18,6 +18,7 @@
 """This module contains Google BigQuery to Google Cloud Storage operator."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import Conflict
@@ -126,6 +127,10 @@ class BigQueryToGCSOperator(BaseOperator):
         self.field_delimiter = field_delimiter
         self.print_header = print_header
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.labels = labels
         self.location = location

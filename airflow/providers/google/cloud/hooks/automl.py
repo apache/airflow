@@ -24,6 +24,7 @@ This module contains a Google AutoML hook.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -67,6 +68,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,

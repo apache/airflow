@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import Any, AsyncIterator, Sequence
 
 from google.cloud.devtools.cloudbuild_v1.types import Build
@@ -60,6 +61,10 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.poll_interval = poll_interval
 

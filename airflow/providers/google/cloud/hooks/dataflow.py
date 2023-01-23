@@ -524,6 +524,10 @@ class DataflowHook(GoogleBaseHook):
         self.wait_until_finished = wait_until_finished
         self.job_id: str | None = None
         self.beam_hook = BeamHook(BeamRunnerType.DataflowRunner)
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,

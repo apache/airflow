@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Spanner Hook."""
 from __future__ import annotations
 
+import warnings
 from typing import Callable, Sequence
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
@@ -46,6 +47,10 @@ class SpannerHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,

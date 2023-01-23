@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from typing import Any, Sequence
 
 from googleapiclient.discovery import Resource, build
@@ -43,6 +44,10 @@ class DatastoreHook(GoogleBaseHook):
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,

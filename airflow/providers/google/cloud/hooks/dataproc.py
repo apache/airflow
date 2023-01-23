@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import time
 import uuid
+import warnings
 from typing import Any, Sequence
 
 from google.api_core.client_options import ClientOptions
@@ -210,6 +211,10 @@ class DataprocHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(gcp_conn_id, delegate_to, impersonation_chain)
 
     def get_cluster_client(self, region: str | None = None) -> ClusterControllerClient:
