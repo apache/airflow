@@ -1212,7 +1212,8 @@ class TestKubernetesPodOperatorSystem:
     def test_changing_base_container_name_no_logs_long(self):
         """
         Similar to test_changing_base_container_name_no_logs, but ensures that
-        pods running longer than 1 second work too. See #26796
+        pods running longer than 1 second work too.
+        See https://github.com/apache/airflow/issues/26796
         """
         k = KubernetesPodOperator(
             namespace="default",
