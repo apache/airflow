@@ -26,8 +26,7 @@ from flask import Response
 
 from airflow.api_connexion.types import APIResponse
 from airflow.dag_processing.manager import DagFileProcessorManager
-from airflow.models import Variable
-from airflow.models import XCom
+from airflow.models import Variable, XCom
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
