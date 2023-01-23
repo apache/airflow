@@ -15,27 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import hashlib
-import inspect
+import sys
 from typing import Any
 
 # Check if "usedforsecurity" is available for hashlib
-sig = inspect.getfullargspec(hashlib.new)
-HAS_USEDFORSECURITY = "usedforsecurity" in sig.kwonlyargs
+if sys.version_info >= (3, 9):
+    HAS_USEDFORSECURITY = True
+else:
+    HAS_USEDFORSECURITY = False
 
 
-def md5(data: Any, used_for_security: bool = None):
+def md5(data: Any, used_for_security: bool | None = None):
     """Safely allows calling the hashlib.md5 function with the "usedforsecurity" param.
 
     Args:
         data (Any): The data to hash.
-        used_for_security (bool, optional): The value to pass to the md5 function's "usedforsecurity" param. Defaults to None.
+        used_for_security (bool, optional): The value to pass to the md5 function's "usedforsecurity" param.
+            Defaults to None.
 
     Returns:
         _Hash: The hashed value.
     """
     if HAS_USEDFORSECURITY and used_for_security is not None:
-        return hashlib.md5(data, usedforsecurity=used_for_security)
+        return hashlib.md5(data, usedforsecurity=used_for_security)  # type: ignore
     else:
         return hashlib.md5(data)
