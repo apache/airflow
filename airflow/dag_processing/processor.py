@@ -56,8 +56,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    import multiprocessing.context
-
     from airflow.models.operator import Operator
 
 
