@@ -441,7 +441,9 @@ class DagFileProcessor(LoggingMixin):
                         timestamp=ts,
                     )
                     sla_misses.append(sla_miss)
-                    Stats.incr("sla_missed")
+                    Stats.incr(
+                        "sla_missed", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
+                    )
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()
@@ -488,10 +490,16 @@ class DagFileProcessor(LoggingMixin):
                         callback(dag, task_list, blocking_task_list, slas, blocking_tis)
                         notification_sent = True
                     except Exception:
-                        Stats.incr("sla_callback_notification_failure")
+                        Stats.incr(
+                            "sla_callback_notification_failure",
+                            tags={
+                                "dag_id": dag.dag_id,
+                                "func_name": callback.__name__,
+                            },
+                        )
                         cls.logger().exception(
                             "Could not call sla_miss_callback(%s) for DAG %s",
-                            callback.func_name,  # type: ignore[attr-defined]
+                            callback.__name__,
                             dag.dag_id,
                         )
             email_content = f"""\
@@ -527,10 +535,8 @@ class DagFileProcessor(LoggingMixin):
                     email_sent = True
                     notification_sent = True
                 except Exception:
-                    Stats.incr("sla_email_notification_failure")
-                    cls.logger().exception(
-                        "Could not send SLA Miss email notification for DAG %s", dag.dag_id
-                    )
+                    Stats.incr("sla_email_notification_failure", tags={"dag_id": dag.dag_id})
+                    cls.logger().exception("Could not send SLA Miss email notification for DAG %s", dag.dag_id)
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:
@@ -775,6 +781,8 @@ class DagFileProcessor(LoggingMixin):
         try:
             dagbag = DagFileProcessor._get_dagbag(file_path)
         except Exception:
+            self.log.exception("Failed at reloading the DAG file %s", file_path)
+            Stats.incr("dag_file_refresh_error", 1, 1, tags={"file_path": file_path})
             return 0, 0
 
         if len(dagbag.dags) > 0:

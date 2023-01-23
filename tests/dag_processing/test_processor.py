@@ -248,7 +248,9 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 1
-        mock_stats_incr.assert_called_with("sla_missed")
+        mock_stats_incr.assert_called_with(
+            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
+        )
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
@@ -298,7 +300,9 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 2
-        mock_stats_incr.assert_called_with("sla_missed")
+        mock_stats_incr.assert_called_with(
+            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
+        )
 
     @patch.object(DagFileProcessor, "get_log")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
@@ -312,7 +316,9 @@ class TestDagFileProcessor:
         """
         session = settings.Session()
 
-        sla_callback = MagicMock(side_effect=RuntimeError("Could not call function"))
+        sla_callback = MagicMock(
+            __name__="function_name", side_effect=RuntimeError("Could not call function")
+        )
 
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
 
@@ -343,10 +349,13 @@ class TestDagFileProcessor:
             assert sla_callback.called
             mock_log.exception.assert_called_once_with(
                 "Could not call sla_miss_callback(%s) for DAG %s",
-                sla_callback.func_name,  # type: ignore[attr-defined]
+                sla_callback.__name__,
                 f"test_sla_miss_{i}",
             )
-            mock_stats_incr.assert_called_once_with("sla_callback_notification_failure")
+            mock_stats_incr.assert_called_once_with(
+                "sla_callback_notification_failure",
+                tags={"dag_id": f"test_sla_miss_{i}", "func_name": sla_callback.__name__},
+            )
 
     @mock.patch("airflow.dag_processing.processor.send_email")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
@@ -423,7 +432,9 @@ class TestDagFileProcessor:
         mock_log.exception.assert_called_once_with(
             "Could not send SLA Miss email notification for DAG %s", "test_sla_miss"
         )
-        mock_stats_incr.assert_called_once_with("sla_email_notification_failure")
+        mock_stats_incr.assert_called_once_with(
+            "sla_email_notification_failure", tags={"dag_id": "test_sla_miss"}
+        )
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_deleted_task(self, mock_get_dagbag, create_dummy_dag):
