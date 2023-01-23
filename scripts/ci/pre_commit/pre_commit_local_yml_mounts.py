@@ -20,18 +20,20 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
-
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from Airflow
+
+from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip # noqa E402
+
+sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
 sys.path.insert(
-    0, str(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src")
+    0, str(AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src")
 )  # make sure setup is imported from Airflow
 # flake8: noqa: F401
+from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS  # isort: skip # noqa E402
 
-from common_precommit_utils import insert_documentation  # isort: skip
+from common_precommit_utils import insert_documentation  # isort: skip # noqa E402
 
-sys.path.append(str(AIRFLOW_SOURCES_DIR))
+sys.path.append(str(AIRFLOW_SOURCES_ROOT_PATH))
 
 MOUNTS_HEADER = (
     "        # START automatically generated volumes from "
@@ -43,9 +45,7 @@ MOUNTS_FOOTER = (
 )
 
 if __name__ == "__main__":
-    from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
-
-    local_mount_file_path = AIRFLOW_SOURCES_DIR / "scripts" / "ci" / "docker-compose" / "local.yml"
+    local_mount_file_path = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose" / "local.yml"
     PREFIX = "      "
     volumes = []
     for (src, dest) in VOLUMES_FOR_SELECTED_MOUNTS:

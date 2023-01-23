@@ -23,7 +23,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import get_directory_hash  # isort: skip # noqa
+from common_precommit_utils import get_directory_hash  # isort: skip # noqa E402
+from common_precommit_black_utils import black_format  # isort: skip # noqa E402
 
 AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
 WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www" / "hash.txt"

@@ -21,7 +21,8 @@ import os
 import re
 from pathlib import Path
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
+AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
+AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
 
 
 def filter_out_providers_on_non_main_branch(files: list[str]) -> list[str]:

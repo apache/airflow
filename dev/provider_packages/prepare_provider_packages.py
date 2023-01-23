@@ -46,6 +46,7 @@ from typing import Any, Generator, Iterable, NamedTuple
 import jsonschema
 import rich_click as click
 import semver as semver
+from black import Mode, TargetVersion, format_str, parse_pyproject_toml
 from packaging.version import Version
 from rich.console import Console
 from rich.syntax import Syntax
@@ -1387,29 +1388,16 @@ def update_commits_rst(
 
 
 @lru_cache(maxsize=None)
-def black_mode():
-    from black import Mode, parse_pyproject_toml, target_version_option_callback
-
+def black_mode() -> Mode:
     config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT_PATH, "pyproject.toml"))
-
-    target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
-    )
-
+    target_versions = {TargetVersion[val.upper()] for val in config.get("target_version", ())}
     return Mode(
         target_versions=target_versions,
         line_length=config.get("line_length", Mode.line_length),
-        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
-        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
-        experimental_string_processing=bool(
-            config.get("experimental_string_processing", Mode.experimental_string_processing)
-        ),
     )
 
 
 def black_format(content) -> str:
-    from black import format_str
-
     return format_str(content, mode=black_mode())
 
 
