@@ -31,6 +31,7 @@ from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
+from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -134,7 +135,10 @@ class LocalTaskJob(BaseJob):
 
         signal.signal(signal.SIGSEGV, segfault_signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
-        signal.signal(signal.SIGUSR2, sigusr2_debug_handler)
+
+        if not IS_WINDOWS:
+            # This is not supported on Windows systems
+            signal.signal(signal.SIGUSR2, sigusr2_debug_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
             mark_success=self.mark_success,
