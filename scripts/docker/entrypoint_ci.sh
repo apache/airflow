@@ -45,6 +45,35 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 : "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
 
+function wait_for_asset_compilation() {
+    if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Waiting for asset compilation to complete in the background.${COLOR_RESET}"
+        echo
+        local counter=0
+        while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
+            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            sleep 1
+            ((counter=counter+1))
+            if [[ ${counter} == "30" ]]; then
+                echo
+                echo "${COLOR_YELLOW}The asset compilation is taking too long.${COLOR_YELLOW}"
+                echo """
+If it does not complete soon, you might want to stop it and remove file lock:
+   * press Ctrl-C
+   * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
+"""
+            fi
+            if [[ ${counter} == "60" ]]; then
+                echo
+                echo "${COLOR_RED}The asset compilation is taking too long. Exiting.${COLOR_RED}"
+                echo
+                exit 1
+            fi
+        done
+    fi
+}
+
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
@@ -232,6 +261,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+        wait_for_asset_compilation
         # shellcheck source=scripts/in_container/bin/run_tmux
         exec run_tmux
     fi
@@ -302,7 +332,7 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 # - so that we do not skip any in the future if new directories are added
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d)
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -336,6 +366,7 @@ else
     WWW_TESTS=("tests/www")
     HELM_CHART_TESTS=("tests/charts")
     INTEGRATION_TESTS=("tests/integration")
+    SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
@@ -346,6 +377,14 @@ else
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
         "${WWW_TESTS[@]}"
+        "${SYSTEM_TESTS[@]}"
+    )
+
+    NO_PROVIDERS_INTEGRATION_TESTS=(
+        "tests/integration/api"
+        "tests/integration/cli"
+        "tests/integration/executors"
+        "tests/integration/security"
     )
 
     if [[ ${TEST_TYPE:=""} == "CLI" ]]; then
@@ -363,7 +402,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
-        SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
+        if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
+            SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
+        else
+            SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
         find_all_other_tests
         SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")

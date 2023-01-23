@@ -20,7 +20,18 @@
 Dynamic DAG Generation
 ======================
 
-To have a task repeated based on the output/result of a previous task see :doc:`/authoring-and-scheduling/dynamic-task-mapping`.
+This document describes creation of DAGs that have a structure generated dynamically, but where the number of
+tasks in the DAG does not change between DAG Runs. If you want to implement a DAG where number of Tasks (or
+Task Groups as of Airflow 2.6) can change based on the output/result of previous tasks, see
+:doc:`/authoring-and-scheduling/dynamic-task-mapping`.
+
+.. note:: Consistent sequence of generating tasks and task groups
+
+    In all cases where you generate DAGs dynamically, you should make sure that Tasks and Task Groups
+    are generated with consistent sequence every time the DAG is generated, otherwise you might end up with
+    Tasks and Task Groups changing their sequence in the Grid View every time you refresh the page.
+    This can be achieved for example by using a stable sorting mechanism in your Database queries or by using
+    ``sorted()`` function in Python.
 
 Dynamic DAGs with environment variables
 .......................................
@@ -34,7 +45,7 @@ on how to make best use of Airflow Variables in your DAGs using Jinja templates 
 
 For example you could set ``DEPLOYMENT`` variable differently for your production and development
 environments. The variable ``DEPLOYMENT`` could be set to ``PROD`` in your production environment and to
-``DEV`` in your development environment. Then you could build your dag differently in production and
+``DEV`` in your development environment. Then you could build your DAG differently in production and
 development environment, depending on the value of the environment variable.
 
 .. code-block:: python
@@ -187,7 +198,7 @@ a single DAG object (when executing the task).
 
 The :py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` return the current parsing
 context. The context is of :py:class:`~airflow.utils.dag_parsing_context.AirflowParsingContext` and
-in case only single dag/task is needed, it contains ``dag_id`` and ``task_id`` fields set.
+in case only single DAG/task is needed, it contains ``dag_id`` and ``task_id`` fields set.
 In case "full" parsing is needed (for example in DAG File Processor), ``dag_id`` and ``task_id``
 of the context are set to ``None``.
 

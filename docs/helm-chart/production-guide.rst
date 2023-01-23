@@ -34,32 +34,53 @@ can be found at :doc:`Set up a Database Backend <apache-airflow:howto/set-up-dat
     When using the helm chart, you do not need to initialize the db with ``airflow db init``
     as outlined in :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
 
-First disable the Postgres in Docker container:
+First disable Postgres so the chart won't deploy its own Postgres container:
 
 .. code-block:: yaml
 
   postgresql:
     enabled: false
 
-To provide the database credentials to Airflow, store the credentials in a Kubernetes secret. Note that
+To provide the database credentials to Airflow, you have 2 options - in your values file or in a Kubernetes Secret.
+
+Values file
+^^^^^^^^^^^
+
+This is the simpler options, as the chart will create a Kubernetes Secret for you. However, keep in mind your credentials will be in your values file.
+
+.. code-block:: yaml
+
+  data:
+    metadataConnection:
+      user: <username>
+      pass: <password>
+      protocol: postgresql
+      host: <hostname>
+      port: 5432
+      db: <database name>
+
+
+Kubernetes Secret
+^^^^^^^^^^^^^^^^^
+
+You can also store the credentials in a Kubernetes Secret you create. Note that
 special characters in the username/password must be URL encoded.
 
 .. code-block:: bash
 
   kubectl create secret generic mydatabase --from-literal=connection=postgresql://user:pass@host:5432/db
 
-Helm defaults to fetching the value from a secret named ``[RELEASE NAME]-airflow-metadata``, but you can
-configure the secret name:
+Finally, configure the chart to use the secret you created:
 
 .. code-block:: yaml
 
   data:
     metadataSecretName: mydatabase
 
-.. _production-guide:pgbouncer:
-
 .. warning::
   If you use ``CeleryExecutor`` and Airflow version < ``2.4``, keep in mind that ``resultBackendSecretName`` expects a url that starts with ``db+postgresql://``, while ``metadataSecretName`` expects ``postgresql://`` and won't work with ``db+postgresql://``. You'll need to create separate secrets with the correct scheme. For Airflow version >= ``2.4`` it is possible to omit the result backend secret, as Airflow will use ``sql_alchemy_conn`` (specified in ``metadataSecret``) with a db+ scheme prefix by default.
+
+.. _production-guide:pgbouncer:
 
 PgBouncer
 ---------

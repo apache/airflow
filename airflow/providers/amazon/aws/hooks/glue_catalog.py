@@ -26,13 +26,16 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class GlueCatalogHook(AwsBaseHook):
     """
-    Interact with AWS Glue Catalog
+    Interact with AWS Glue Data Catalog.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - `AWS Glue Data Catalog \
+        <https://docs.aws.amazon.com/glue/latest/dg/components-overview.html#data-catalog-intro>`__
     """
 
     def __init__(self, *args, **kwargs):
@@ -48,6 +51,9 @@ class GlueCatalogHook(AwsBaseHook):
     ) -> set[tuple]:
         """
         Retrieves the partition values for a table.
+
+        .. seealso::
+            - :external+boto3:py:class:`Glue.Paginator.GetPartitions`
 
         :param database_name: The name of the catalog database where the partitions reside.
         :param table_name: The name of the partitions' table.
@@ -81,15 +87,15 @@ class GlueCatalogHook(AwsBaseHook):
         """
         Checks whether a partition exists
 
+        .. code-block:: python
+
+            hook = GlueCatalogHook()
+            t = "static_babynames_partitioned"
+            hook.check_for_partition("airflow", t, "ds='2015-01-01'")
+
         :param database_name: Name of hive database (schema) @table belongs to
         :param table_name: Name of hive table @partition belongs to
-        :expression: Expression that matches the partitions to check for
-            (eg `a = 'b' AND c = 'd'`)
-
-        >>> hook = GlueCatalogHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hook.check_for_partition('airflow', t, "ds='2015-01-01'")
-        True
+        :expression: Expression that matches the partitions to check for, e.g.: ``a = 'b' AND c = 'd'``
         """
         partitions = self.get_partitions(database_name, table_name, expression, max_items=1)
 
@@ -99,12 +105,17 @@ class GlueCatalogHook(AwsBaseHook):
         """
         Get the information of the table
 
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_table`
+
+        .. code-block:: python
+
+            hook = GlueCatalogHook()
+            r = hook.get_table("db", "table_foo")
+            r["Name"] = "table_foo"
+
         :param database_name: Name of hive database (schema) @table belongs to
         :param table_name: Name of hive table
-
-        >>> hook = GlueCatalogHook()
-        >>> r = hook.get_table('db', 'table_foo')
-        >>> r['Name'] = 'table_foo'
         """
         result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
 
@@ -112,11 +123,13 @@ class GlueCatalogHook(AwsBaseHook):
 
     def get_table_location(self, database_name: str, table_name: str) -> str:
         """
-        Get the physical location of the table
+        Get the physical location of the table.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_table`
 
         :param database_name: Name of hive database (schema) @table belongs to
         :param table_name: Name of hive table
-        :return: str
         """
         table = self.get_table(database_name, table_name)
 
@@ -126,18 +139,21 @@ class GlueCatalogHook(AwsBaseHook):
         """
         Gets a Partition
 
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_partition`
+
+        .. code-block:: python
+
+            hook = GlueCatalogHook()
+            partition = hook.get_partition("db", "table", ["string"])
+            partition["Values"]
+
         :param database_name: Database name
         :param table_name: Database's Table name
         :param partition_values: List of utf-8 strings that define the partition
             Please see official AWS documentation for further information.
             https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-GetPartition
-
-
         :raises: AirflowException
-
-        >>> hook = GlueCatalogHook()
-        >>> partition = hook.get_partition('db', 'table', ['string'])
-        >>> partition['Values']
         """
         try:
             response = self.get_conn().get_partition(
@@ -150,20 +166,23 @@ class GlueCatalogHook(AwsBaseHook):
 
     def create_partition(self, database_name: str, table_name: str, partition_input: dict) -> dict:
         """
-        Creates a new Partition
+        Creates a new Partition.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.create_partition`
+
+        .. code-block:: python
+
+            hook = GlueCatalogHook()
+            partition_input = {"Values": []}
+            hook.create_partition(database_name="db", table_name="table", partition_input=partition_input)
 
         :param database_name: Database name
         :param table_name: Database's Table name
         :param partition_input: Definition of how the partition is created
             Please see official AWS documentation for further information.
             https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html#aws-glue-api-catalog-partitions-CreatePartition
-
-
         :raises: AirflowException
-
-        >>> hook = GlueCatalogHook()
-        >>> partition_input = {"Values": []}
-        >>> hook.create_partition(database_name="db", table_name="table", partition_input=partition_input)
         """
         try:
             return self.get_conn().create_partition(

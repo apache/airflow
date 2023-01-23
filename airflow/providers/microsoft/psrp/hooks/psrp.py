@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
 from typing import Any, Callable, Generator
+from warnings import warn
 from weakref import WeakKeyDictionary
 
 from pypsrp.host import PSHost
@@ -215,11 +216,33 @@ class PsrpHook(BaseHook):
             if local_context:
                 self.__exit__(None, None, None)
 
-    def invoke_cmdlet(self, name: str, use_local_scope=None, **parameters: dict[str, str]) -> PowerShell:
+    def invoke_cmdlet(
+        self,
+        name: str,
+        use_local_scope: bool | None = None,
+        arguments: list[str] | None = None,
+        parameters: dict[str, str] | None = None,
+        **kwargs: str,
+    ) -> PowerShell:
         """Invoke a PowerShell cmdlet and return session."""
+        if kwargs:
+            if parameters:
+                raise ValueError("**kwargs not allowed when 'parameters' is used at the same time.")
+            warn(
+                "Passing **kwargs to 'invoke_cmdlet' is deprecated "
+                "and will be removed in a future release. Please use 'parameters' "
+                "instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            parameters = kwargs
+
         with self.invoke() as ps:
             ps.add_cmdlet(name, use_local_scope=use_local_scope)
-            ps.add_parameters(parameters)
+            for argument in arguments or ():
+                ps.add_argument(argument)
+            if parameters:
+                ps.add_parameters(parameters)
         return ps
 
     def invoke_powershell(self, script: str) -> PowerShell:

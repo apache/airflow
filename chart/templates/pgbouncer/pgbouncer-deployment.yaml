@@ -37,6 +37,10 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+  {{- if .Values.pgbouncer.annotations }}
+  annotations:
+  {{- toYaml .Values.pgbouncer.annotations | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ .Values.pgbouncer.replicas | default "1" }}
   {{- if $revisionHistoryLimit }}

@@ -32,7 +32,7 @@ def fix_provider_references(app, exception):
             continue
         with open(path) as input_file:
             content = input_file.readlines()
-        with open(path, "wt") as output_file:
+        with open(path, "w") as output_file:
             for line in content:
                 output_file.write(line.replace("|version|", app.config.version))
 
@@ -43,4 +43,5 @@ def setup(app):
 
     return {
         "parallel_write_safe": True,
+        "parallel_read_safe": True,
     }

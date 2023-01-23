@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 
 import pytest
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient
@@ -27,11 +26,7 @@ from google.cloud.devtools.cloudbuild_v1.types import Build, BuildStep
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildAsyncHook
 from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
+from tests.providers.google.cloud.utils.compat import async_mock
 
 CLOUD_BUILD_PATH = "airflow.providers.google.cloud.hooks.cloud_build.{}"
 TEST_PROJECT_ID = "cloud-build-project"
@@ -117,8 +112,8 @@ def test_async_create_build_trigger_serialization_should_execute_successfully():
 
 
 @pytest.mark.asyncio
-@mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
-@mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
+@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+@async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
 async def test_async_create_build_trigger_triggers_on_success_should_execute_successfully(
     mock_get_build, hook
 ):
@@ -154,8 +149,8 @@ async def test_async_create_build_trigger_triggers_on_success_should_execute_suc
 
 
 @pytest.mark.asyncio
-@mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
-@mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
+@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+@async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
 async def test_async_create_build_trigger_triggers_on_running_should_execute_successfully(
     mock_get_build, hook, caplog
 ):
@@ -189,8 +184,8 @@ async def test_async_create_build_trigger_triggers_on_running_should_execute_suc
 
 
 @pytest.mark.asyncio
-@mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
-@mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
+@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+@async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
 async def test_async_create_build_trigger_triggers_on_error_should_execute_successfully(
     mock_get_build, hook, caplog
 ):
@@ -217,7 +212,7 @@ async def test_async_create_build_trigger_triggers_on_error_should_execute_succe
 
 
 @pytest.mark.asyncio
-@mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_cloud_build"))
+@async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_cloud_build"))
 async def test_async_create_build_trigger_triggers_on_excp_should_execute_successfully(mock_build_inst):
     """
     Test that CloudBuildCreateBuildTrigger fires the correct event in case of an error.

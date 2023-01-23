@@ -42,7 +42,7 @@ class S3ToRedshiftOperator(BaseOperator):
     :param schema: reference to a specific schema in redshift database
     :param table: reference to a specific table in redshift database
     :param s3_bucket: reference to a specific S3 bucket
-    :param s3_key: reference to a specific S3 key
+    :param s3_key: key prefix that selects single or multiple objects from S3
     :param redshift_conn_id: reference to a specific redshift database
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``

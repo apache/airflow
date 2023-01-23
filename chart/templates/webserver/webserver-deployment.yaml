@@ -37,6 +37,10 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+{{- if .Values.webserver.annotations }}
+  annotations:
+    {{- toYaml .Values.webserver.annotations | nindent 4 }}
+{{- end }}
 spec:
   replicas: {{ .Values.webserver.replicas }}
   {{- if $revisionHistoryLimit }}
