@@ -383,18 +383,12 @@ devel_only = [
     "pre-commit",
     "pypsrp",
     "pygithub",
-    # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
-    # It contains a number of potential breaking changes but none of them looks breaking our use
-    # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
-    # TODO: upgrade it and remove the limit
-    "pytest~=6.0",
+    "pytest",
     "pytest-asyncio",
     "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
-    # We should attempt to remove the limit when we upgrade Pytest
-    # TODO: remove the limit when we upgrade pytest
-    "pytest-rerunfailures~=9.1",
+    "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
     "python-jose",
