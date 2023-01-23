@@ -23,11 +23,12 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import Action, ArgumentError, RawTextHelpFormatter
+from argparse import Action, ArgumentError
 from functools import lru_cache
 from typing import Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
+from rich_argparse import RichHelpFormatter, RawTextRichHelpFormatter
 
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
@@ -2201,7 +2202,7 @@ dag_cli_commands: list[CLICommand] = [
 DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
 
 
-class AirflowHelpFormatter(argparse.HelpFormatter):
+class AirflowHelpFormatter(RichHelpFormatter):
     """
     Custom help formatter to display help message.
 
@@ -2275,7 +2276,7 @@ def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> Non
     sub_proc = subparsers.add_parser(
         sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
     )
-    sub_proc.formatter_class = RawTextHelpFormatter
+    sub_proc.formatter_class = RawTextRichHelpFormatter
 
     if isinstance(sub, GroupCommand):
         _add_group_command(sub, sub_proc)
