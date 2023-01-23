@@ -1,1 +1,0 @@
-If you are using gevent for your webserver deployment and used local settings to monkeypatch gevent, you might want to replace local settings patching with an ``_AIRFLOW_PATCH_GEVENT`` environment variable set to 1 in your webserver. This ensures gevent patching is done as early as possible.

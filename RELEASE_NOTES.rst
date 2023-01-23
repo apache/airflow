@@ -21,6 +21,119 @@
 
 .. towncrier release notes start
 
+Airflow 2.5.1 (2023-01-20)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Trigger gevent ``monkeypatching`` via environment variable (#28283)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+  If you are using gevent for your webserver deployment and used local settings to ``monkeypatch`` gevent,
+  you might want to replace local settings patching with an ``_AIRFLOW_PATCH_GEVENT`` environment variable
+  set to 1 in your webserver. This ensures gevent patching is done as early as possible. (#8212)
+
+Bug Fixes
+^^^^^^^^^
+- Fix masking of non-sensitive environment variables (#28802)
+- Remove swagger-ui extra from connexion and install ``swagger-ui-dist`` via npm package (#28788)
+- Fix ``UIAlert`` should_show when ``AUTH_ROLE_PUBLIC`` set (#28781)
+- Only patch single label when adopting pod (#28776)
+- Update CSRF token to expire with session (#28730)
+- Fix "airflow tasks render" cli command for mapped task instances (#28698)
+- Allow XComArgs for ``external_task_ids`` of ExternalTaskSensor (#28692)
+- Row-lock TIs to be removed during mapped task expansion (#28689)
+- Handle ConnectionReset exception in Executor cleanup (#28685)
+- Fix description of output redirection for access_log for gunicorn (#28672)
+- Add back join to zombie query that was dropped in #28198 (#28544)
+- Fix calendar view for CronTriggerTimeTable dags (#28411)
+- After running the DAG the employees table is empty. (#28353)
+- Fix ``DetachedInstanceError`` when finding zombies in Dag Parsing process (#28198)
+- Nest header blocks in ``divs`` to fix ``dagid`` copy nit on dag.html (#28643)
+- Fix UI caret direction (#28624)
+- Guard not-yet-expanded ti in trigger rule dep (#28592)
+- Move TI ``setNote`` endpoints under TaskInstance in OpenAPI (#28566)
+- Consider previous run in ``CronTriggerTimetable`` (#28532)
+- Ensure correct log dir in file task handler (#28477)
+- Fix bad pods pickled in executor_config (#28454)
+- Add ``ensure_ascii=False`` in trigger dag run API (#28451)
+- Add setters to MappedOperator on_*_callbacks (#28313)
+- Fix ``ti._try_number`` for deferred and up_for_reschedule tasks (#26993)
+- separate ``callModal`` from dag.js (#28410)
+- A manual run can't look like a scheduled one (#28397)
+- Dont show task/run durations when there is no start_date (#28395)
+- Maintain manual scroll position in task logs (#28386)
+- Correctly select a mapped task's "previous" task (#28379)
+- Trigger gevent ``monkeypatching`` via environment variable (#28283)
+- Fix db clean warnings (#28243)
+- Make arguments 'offset' and 'length' not required (#28234)
+- Make live logs reading work for "other" k8s executors (#28213)
+- Add custom pickling hooks to ``LazyXComAccess`` (#28191)
+- fix next run datasets error (#28165)
+- Ensure that warnings from ``@dag`` decorator are reported in dag file (#28153)
+- Do not warn when airflow dags tests command is used (#28138)
+- Ensure the ``dagbag_size`` metric decreases when files are deleted (#28135)
+- Improve run/task grid view actions (#28130)
+- Make BaseJob.most_recent_job favor "running" jobs (#28119)
+- Don't emit FutureWarning when code not calling old key (#28109)
+- Add ``airflow.api.auth.backend.session`` to backend sessions in compose (#28094)
+- Resolve false warning about calling conf.get on moved item (#28075)
+- Return list of tasks that will be changed (#28066)
+- Handle bad zip files nicely when parsing DAGs. (#28011)
+- Prevent double loading of providers from local paths (#27988)
+- Fix deadlock when chaining multiple empty mapped tasks (#27964)
+- fix: current_state method on TaskInstance doesn't filter by map_index (#27898)
+- Don't log CLI actions if db not initialized (#27851)
+- Make sure we can get out of a faulty scheduler state (#27834)
+- dagrun, ``next_dagruns_to_examine``, add MySQL index hint (#27821)
+- Handle DAG disappearing mid-flight when dag verification happens (#27720)
+- fix: continue checking sla (#26968)
+- Allow generation of connection URI to work when no conn type (#26765)
+
+Misc/Internal
+^^^^^^^^^^^^^
+- Remove limit for ``dnspython`` after eventlet got fixed (#29004)
+- Limit ``dnspython`` to < ``2.3.0`` until eventlet incompatibility is solved (#28962)
+- Add automated version replacement in example dag indexes (#28090)
+- Cleanup and do housekeeping with plugin examples (#28537)
+- Limit ``SQLAlchemy`` to below ``2.0`` (#28725)
+- Bump ``json5`` from ``1.0.1`` to ``1.0.2`` in ``/airflow/www`` (#28715)
+- Fix some docs on using sensors with taskflow (#28708)
+- Change Architecture and OperatingSystem classes into ``Enums`` (#28627)
+- Add doc-strings and small improvement to email util (#28634)
+- Fix ``Connection.get_extra`` type (#28594)
+- navbar, cap dropdown size, and add scroll bar (#28561)
+- Emit warnings for ``conf.get*`` from the right source location (#28543)
+- Move MyPY plugins of ours to dev folder (#28498)
+- Add retry to ``purge_inactive_dag_warnings`` (#28481)
+- Re-enable Plyvel on ARM as it now builds cleanly (#28443)
+- Add SIGUSR2 handler for LocalTaskJob and workers to aid debugging (#28309)
+- Convert ``test_task_command`` to Pytest and ``unquarantine`` tests in it (#28247)
+- Make invalid characters exception more readable (#28181)
+- Bump decode-uri-component from ``0.2.0`` to ``0.2.2`` in ``/airflow/www`` (#28080)
+- Use asserts instead of exceptions for executor not started (#28019)
+- Simplify dataset ``subgraph`` logic (#27987)
+- Order TIs by ``map_index`` (#27904)
+- Additional info about Segmentation Fault in ``LocalTaskJob`` (#27381)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Mention mapped operator in cluster policy doc (#28885)
+- Slightly improve description of Dynamic DAG generation preamble (#28650)
+- Restructure Docs  (#27235)
+- Update scheduler docs about low priority tasks (#28831)
+- Clarify that versioned constraints are fixed at release time (#28762)
+- Clarify about docker compose (#28729)
+- Adding an example dag for dynamic task mapping (#28325)
+- Use docker compose v2 command (#28605)
+- Add AIRFLOW_PROJ_DIR to docker-compose example (#28517)
+- Remove outdated Optional Provider Feature outdated documentation (#28506)
+- Add documentation for [core] mp_start_method config (#27993)
+- Documentation for the LocalTaskJob return code counter (#27972)
+- Note which versions of Python are supported (#27798)
+
+
 Airflow 2.5.0 (2022-12-02)
 --------------------------
 
