@@ -384,7 +384,7 @@ class SafeStatsdLogger:
         *,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
     ):
         """Increment stat."""
         if self.allow_list_validator.test(stat):
@@ -402,7 +402,7 @@ class SafeStatsdLogger:
         *,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
     ):
         """Decrement stat."""
         if self.allow_list_validator.test(stat):
@@ -421,7 +421,7 @@ class SafeStatsdLogger:
         *,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
     ):
         """Gauge stat."""
         if self.allow_list_validator.test(stat):
@@ -438,7 +438,7 @@ class SafeStatsdLogger:
         *,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
     ):
         """Stats timing."""
         if self.allow_list_validator.test(stat):
@@ -454,7 +454,7 @@ class SafeStatsdLogger:
         *args,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
         **kwargs,
     ):
         """Timer metric that can be cancelled."""
@@ -488,7 +488,7 @@ class SafeDogStatsdLogger:
         *,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
     ):
         """Increment stat."""
         if self.metrics_tags and isinstance(tags, dict):
@@ -509,7 +509,7 @@ class SafeDogStatsdLogger:
         *,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
     ):
         """Decrement stat."""
         if self.metrics_tags and isinstance(tags, dict):
@@ -531,7 +531,7 @@ class SafeDogStatsdLogger:
         *,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
     ):
         """Gauge stat."""
         if self.metrics_tags and isinstance(tags, dict):
@@ -551,7 +551,7 @@ class SafeDogStatsdLogger:
         *,
         tags: dict[str, str] | None = None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
     ):
         """Stats timing."""
         if self.metrics_tags and isinstance(tags, dict):
@@ -572,7 +572,7 @@ class SafeDogStatsdLogger:
         *args,
         tags=None,
         name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str = None,
+        stat_suffix: str | None = None,
         **kwargs,
     ):
         """Timer metric that can be cancelled."""
