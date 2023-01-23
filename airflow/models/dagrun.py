@@ -20,7 +20,7 @@ from __future__ import annotations
 import itertools
 import os
 import warnings
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
 
@@ -876,7 +876,12 @@ class DagRun(Base, LoggingMixin):
                 data_interval_end = dag.get_run_data_interval(self).end
                 true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
-                    Stats.timing(f"dagrun", true_delay, name_tags=OrderedDict({"dag_id": f"{dag.dag_id}"}), stat_suffix="first_task_scheduling_delay")
+                    Stats.timing(
+                        "dagrun",
+                        true_delay,
+                        name_tags=OrderedDict({"dag_id": f"{dag.dag_id}"}),
+                        stat_suffix="first_task_scheduling_delay",
+                    )
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
