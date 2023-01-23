@@ -63,7 +63,7 @@ def upgrade():
     try:
         from airflow.configuration import conf
 
-        concurrency = conf.getint("core", "dag_concurrency", fallback=16)
+        concurrency = conf.getint("core", "max_active_tasks_per_dag", fallback=16)
     except:  # noqa
         concurrency = 16
 
