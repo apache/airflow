@@ -19,14 +19,55 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.papermill.operators.papermill import PapermillOperator
+import pytest
+
+from airflow.providers.papermill.operators.papermill import NoteBook, PapermillOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
+TEST_INPUT_URL = "/foo/bar"
+TEST_OUTPUT_URL = "/spam/egg"
+
+
+class TestNoteBook:
+    """Test NoteBook object."""
+
+    def test_templated_fields(self):
+        assert hasattr(NoteBook, "template_fields")
+        assert "parameters" in NoteBook.template_fields
 
 
 class TestPapermillOperator:
+    """Test PapermillOperator."""
+
+    def test_mandatory_attributes(self):
+        """Test missing Input or Output notebooks."""
+        with pytest.raises(ValueError, match="Input notebook is not specified"):
+            PapermillOperator(task_id="missing_input_nb", output_nb="foo-bar")
+
+        with pytest.raises(ValueError, match="Output notebook is not specified"):
+            PapermillOperator(task_id="missing_input_nb", input_nb="foo-bar")
+
+    @pytest.mark.parametrize(
+        "output_nb",
+        [
+            pytest.param(TEST_OUTPUT_URL, id="output-as-string"),
+            pytest.param(NoteBook(TEST_OUTPUT_URL), id="output-as-notebook-object"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "input_nb",
+        [
+            pytest.param(TEST_INPUT_URL, id="input-as-string"),
+            pytest.param(NoteBook(TEST_INPUT_URL), id="input-as-notebook-object"),
+        ],
+    )
+    def test_notebooks_objects(self, input_nb, output_nb):
+        """Test different type of Input/Output notebooks arguments."""
+        op = PapermillOperator(task_id="test_notebooks_objects", input_nb=input_nb, output_nb=output_nb)
+        assert op.input_nb.url == TEST_INPUT_URL
+        assert op.output_nb.url == TEST_OUTPUT_URL
+
     @patch("airflow.providers.papermill.operators.papermill.pm")
     def test_execute(self, mock_papermill):
         in_nb = "/tmp/does_not_exist"
@@ -57,26 +98,41 @@ class TestPapermillOperator:
             report_mode=True,
         )
 
-    def test_render_template(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG("test_render_template", default_args=args)
-
-        operator = PapermillOperator(
-            task_id="render_dag_test",
+    def test_render_template(self, create_task_instance_of_operator):
+        """Test rendering fields."""
+        ti = create_task_instance_of_operator(
+            PapermillOperator,
             input_nb="/tmp/{{ dag.dag_id }}.ipynb",
             output_nb="/tmp/out-{{ dag.dag_id }}.ipynb",
-            parameters={"msgs": "dag id is {{ dag.dag_id }}!"},
-            kernel_name="python3",
-            language_name="python",
-            dag=dag,
+            parameters={"msgs": "dag id is {{ dag.dag_id }}!", "test_dt": "{{ ds }}"},
+            kernel_name="{{ params.kernel_name }}",
+            language_name="{{ params.language_name }}",
+            # Additional parameters for render fields
+            params={
+                "kernel_name": "python3",
+                "language_name": "python",
+            },
+            # TI Settings
+            dag_id="test_render_template",
+            task_id="render_dag_test",
+            execution_date=DEFAULT_DATE,
         )
+        task = ti.render_templates()
 
-        ti = TaskInstance(operator, run_id="papermill_test")
-        ti.dag_run = DagRun(execution_date=DEFAULT_DATE)
-        ti.render_templates()
+        # Test render Input/Output notebook attributes
+        assert task.input_nb.url == "/tmp/test_render_template.ipynb"
+        assert task.input_nb.parameters == {
+            "msgs": "dag id is test_render_template!",
+            "test_dt": DEFAULT_DATE.date().isoformat(),
+        }
+        assert task.output_nb.url == "/tmp/out-test_render_template.ipynb"
+        assert task.output_nb.parameters == {}
 
-        assert "/tmp/test_render_template.ipynb" == operator.input_nb
-        assert "/tmp/out-test_render_template.ipynb" == operator.output_nb
-        assert {"msgs": "dag id is test_render_template!"} == operator.parameters
-        assert "python3" == operator.kernel_name
-        assert "python" == operator.language_name
+        # Test render other templated attributes
+        assert task.parameters == task.input_nb.parameters
+        assert "python3" == task.kernel_name
+        assert "python" == task.language_name
+
+        # Test render Lineage inlets/outlets
+        assert task.inlets[0] == task.input_nb
+        assert task.outlets[0] == task.output_nb
