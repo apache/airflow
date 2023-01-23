@@ -18,6 +18,7 @@
 """This module contains Google Datastore operators."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
@@ -100,6 +101,10 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         super().__init__(**kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.cloud_storage_conn_id = cloud_storage_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.bucket = bucket
         self.namespace = namespace
@@ -209,6 +214,10 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.datastore_conn_id = datastore_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.bucket = bucket
         self.file = file
@@ -293,6 +302,10 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         self.partial_keys = partial_keys
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -356,6 +369,10 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         self.transaction_options = transaction_options
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -419,6 +436,10 @@ class CloudDatastoreCommitOperator(BaseOperator):
         self.body = body
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -482,6 +503,10 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         self.transaction = transaction
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -543,6 +568,10 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         self.body = body
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -602,6 +631,10 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
 
         self.name = name
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -658,6 +691,10 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
 
         self.name = name
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
