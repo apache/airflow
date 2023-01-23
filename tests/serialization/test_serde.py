@@ -104,17 +104,34 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
-    def test_ser_iterables(self):
+    def test_ser_collections(self):
         i = [1, 2]
-        e = serialize(i)
+        e = deserialize(serialize(i))
         assert i == e
 
         i = ("a", "b", "a", "c")
-        e = serialize(i)
+        e = deserialize(serialize(i))
         assert i == e
 
         i = {2, 3}
-        e = serialize(i)
+        e = deserialize(serialize(i))
+        assert i == e
+
+        i = frozenset({6, 7})
+        e = deserialize(serialize(i))
+        assert i == e
+
+    def test_der_collections_compat(self):
+        i = [1, 2]
+        e = deserialize(i)
+        assert i == e
+
+        i = ("a", "b", "a", "c")
+        e = deserialize(i)
+        assert i == e
+
+        i = {2, 3}
+        e = deserialize(i)
         assert i == e
 
     def test_ser_plain_dict(self):

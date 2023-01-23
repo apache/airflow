@@ -105,14 +105,8 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
         return o
 
-    # tuples and plain dicts are iterated over recursively
-    if isinstance(o, _builtin_collections):
-        s = [serialize(d, depth + 1) for d in o]
-        if isinstance(o, tuple):
-            return tuple(s)
-        if isinstance(o, set):
-            return set(s)
-        return s
+    if isinstance(o, list):
+        return [serialize(d, depth + 1) for d in o]
 
     if isinstance(o, dict):
         if CLASSNAME in o or SCHEMA_ID in o:
@@ -181,8 +175,16 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if isinstance(o, _primitives):
         return o
 
+    # tuples, sets are included here for backwards compatibility
     if isinstance(o, _builtin_collections):
-        return [deserialize(d) for d in o]
+        col = [deserialize(d) for d in o]
+        if isinstance(o, tuple):
+            return tuple(col)
+
+        if isinstance(o, set):
+            return set(col)
+
+        return col
 
     if not isinstance(o, dict):
         raise TypeError()
