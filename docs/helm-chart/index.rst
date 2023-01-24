@@ -144,7 +144,7 @@ This also applies if you install the chart using ``--wait`` in your ``helm insta
 .. note::
     While deploying this Helm chart with Argo, you might encounter issues with database migrations not running automatically on upgrade.
 
-To ensure database migrations with Argo CD, you will need to add:
+To run database migrations with Argo CD automatically, you will need to add:
 
 .. code-block:: yaml
 
