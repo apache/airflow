@@ -105,3 +105,7 @@ def get_stderr_console(output: Output | None = None) -> Console:
         theme=get_theme(),
         record=True if recording_file else False,
     )
+
+
+def console_print(*message) -> None:
+    return get_console().print(*message)
