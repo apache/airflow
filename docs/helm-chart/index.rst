@@ -152,6 +152,6 @@ To run database migrations with Argo CD automatically, you will need to add:
         jobAnnotations:
             "argocd.argoproj.io/hook": Sync
 
-This will run database migrations when the Airflow Docker image is upgraded. This approach has a limitation in that the database migrations will run every time there is a ``Sync`` event in Argo. This is a trade-off for automation at the cost of some computational loss.
+This will run database migrations every time there is a ``Sync`` event in Argo CD. While it is not ideal to run the migrations on every sync, it is a tradeoff that allows them to be run automatically.
 
 If you use the Celery(Kubernetes)Executor with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``redis.data.brokerUrlSecretName`` or ``redis.password``.
