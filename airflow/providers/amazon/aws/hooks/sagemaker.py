@@ -1154,19 +1154,35 @@ class SageMakerHook(AwsBaseHook):
         :return: Status of the pipeline execution after the operation.
             One of 'Executing'|'Stopping'|'Stopped'|'Failed'|'Succeeded'.
         """
-        try:
-            self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
-        except ClientError as ce:
-            # we have to rely on the message to catch the right error here, because its type
-            # (ValidationException) is shared with other kinds of error (for instance, badly formatted ARN)
-            if (
-                not fail_if_not_running
-                and "Only pipelines with 'Executing' status can be stopped" in ce.response["Error"]["Message"]
-            ):
-                self.log.warning("Cannot stop pipeline execution, as it was not running: %s", ce)
-            else:
-                self.log.error(ce)
-                raise
+        retries = 2  # i.e. 3 calls max, 1 initial + 2 retries
+        while True:
+            try:
+                self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
+                break
+            except ClientError as ce:
+                # this can happen if the pipeline was transitioning between steps at that moment
+                if ce.response["Error"]["Code"] == "ConflictException" and retries > 0:
+                    retries = retries - 1
+                    self.log.warning(
+                        "Got a conflict exception when trying to stop the pipeline, "
+                        "retrying %s more times. Error was: %s",
+                        retries,
+                        ce,
+                    )
+                    time.sleep(0.3)  # error is due to a race condition, so it should be very transient
+                    continue
+                # we have to rely on the message to catch the right error here, because its type
+                # (ValidationException) is shared with other kinds of errors (e.g. badly formatted ARN)
+                if (
+                    not fail_if_not_running
+                    and "Only pipelines with 'Executing' status can be stopped"
+                    in ce.response["Error"]["Message"]
+                ):
+                    self.log.warning("Cannot stop pipeline execution, as it was not running: %s", ce)
+                else:
+                    self.log.error(ce)
+                    raise
+                break
 
         res = self.describe_pipeline_exec(pipeline_exec_arn)
 

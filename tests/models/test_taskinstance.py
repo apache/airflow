@@ -2506,7 +2506,9 @@ class TestTaskInstance:
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
 
-        Stats_incr.assert_any_call("ti_failures")
+        Stats_incr.assert_any_call(
+            "ti_failures", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
+        )
         Stats_incr.assert_any_call("operator_failures_EmptyOperator")
 
     def test_handle_failure_task_undefined(self, create_task_instance):

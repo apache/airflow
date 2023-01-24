@@ -544,11 +544,10 @@ Misc
 * ``Cleanup Google provider CHANGELOG.rst (#23390)``
 * ``migrate system test gcs_to_bigquery into new design (#22753)``
 * ``Add example DAG for demonstrating usage of GCS sensors (#22808)``
-
-   * ``Clean up in-line f-string concatenation (#23591)``
-   * ``Bump pre-commit hook versions (#22887)``
-   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
-   * ``Fix new MyPy errors in main (#22884)``
+* ``Clean up in-line f-string concatenation (#23591)``
+* ``Bump pre-commit hook versions (#22887)``
+* ``Use new Breese for building, pulling and verifying the images. (#23104)``
+* ``Fix new MyPy errors in main (#22884)``
 
 6.8.0
 .....

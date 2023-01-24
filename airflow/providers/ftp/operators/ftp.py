@@ -84,28 +84,8 @@ class FTPFileTransmitOperator(BaseOperator):
         self.ftp_conn_id = ftp_conn_id
         self.operation = operation
         self.create_intermediate_dirs = create_intermediate_dirs
-
-        if isinstance(local_filepath, str):
-            self.local_filepath = [local_filepath]
-        else:
-            self.local_filepath = local_filepath
-
-        if isinstance(remote_filepath, str):
-            self.remote_filepath = [remote_filepath]
-        else:
-            self.remote_filepath = remote_filepath
-
-        if len(self.local_filepath) != len(self.remote_filepath):
-            raise ValueError(
-                f"{len(self.local_filepath)} paths in local_filepath "
-                f"!= {len(self.remote_filepath)} paths in remote_filepath"
-            )
-
-        if self.operation.lower() not in [FTPOperation.GET, FTPOperation.PUT]:
-            raise TypeError(
-                f"Unsupported operation value {self.operation}, "
-                f"expected {FTPOperation.GET} or {FTPOperation.PUT}."
-            )
+        self.local_filepath = local_filepath
+        self.remote_filepath = remote_filepath
 
     @cached_property
     def hook(self) -> FTPHook:
@@ -114,21 +94,45 @@ class FTPFileTransmitOperator(BaseOperator):
 
     def execute(self, context: Any) -> str | list[str] | None:
         file_msg = None
-        for local_filepath, remote_filepath in zip(self.local_filepath, self.remote_filepath):
+
+        if isinstance(self.local_filepath, str):
+            local_filepath_array = [self.local_filepath]
+        else:
+            local_filepath_array = self.local_filepath
+
+        if isinstance(self.remote_filepath, str):
+            remote_filepath_array = [self.remote_filepath]
+        else:
+            remote_filepath_array = self.remote_filepath
+
+        if len(local_filepath_array) != len(remote_filepath_array):
+            raise ValueError(
+                f"{len(local_filepath_array)} paths in local_filepath "
+                f"!= {len(remote_filepath_array)} paths in remote_filepath"
+            )
+
+        if self.operation.lower() not in [FTPOperation.GET, FTPOperation.PUT]:
+            raise TypeError(
+                f"Unsupported operation value {self.operation}, "
+                f"expected {FTPOperation.GET} or {FTPOperation.PUT}."
+            )
+
+        for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
             if self.operation.lower() == FTPOperation.GET:
-                local_folder = os.path.dirname(local_filepath)
+                local_folder = os.path.dirname(_local_filepath)
                 if self.create_intermediate_dirs:
                     Path(local_folder).mkdir(parents=True, exist_ok=True)
-                file_msg = f"from {remote_filepath} to {local_filepath}"
+                file_msg = f"from {_remote_filepath} to {_local_filepath}"
                 self.log.info("Starting to transfer %s", file_msg)
-                self.hook.retrieve_file(remote_filepath, local_filepath)
+                self.hook.retrieve_file(_remote_filepath, _local_filepath)
             else:
-                remote_folder = os.path.dirname(remote_filepath)
+                remote_folder = os.path.dirname(_remote_filepath)
                 if self.create_intermediate_dirs:
                     self.hook.create_directory(remote_folder)
-                file_msg = f"from {local_filepath} to {remote_filepath}"
+                file_msg = f"from {_local_filepath} to {_remote_filepath}"
                 self.log.info("Starting to transfer file %s", file_msg)
-                self.hook.store_file(remote_filepath, local_filepath)
+                self.hook.store_file(_remote_filepath, _local_filepath)
+
         return self.local_filepath
 
 
