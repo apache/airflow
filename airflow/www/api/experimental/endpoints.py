@@ -89,11 +89,11 @@ def trigger_dag(dag_id):
     if "run_id" in data:
         run_id = data["run_id"]
 
-    conf = None
-    if "conf" in data:
-        conf = data["conf"]
-        if not isinstance(conf, dict):
-            error_message = "Dag Run conf must be a dictionary object, other types are not supported"
+    params = None
+    if "params" in data:
+        params = data["params"]
+        if not isinstance(params, dict):
+            error_message = "Dag Run params must be a dictionary object, other types are not supported"
             log.error(error_message)
             response = jsonify({"error": error_message})
             response.status_code = 400
@@ -122,7 +122,7 @@ def trigger_dag(dag_id):
         replace_microseconds = to_boolean(data["replace_microseconds"])
 
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
+        dr = trigger.trigger_dag(dag_id, run_id, params, execution_date, replace_microseconds)
     except AirflowException as err:
         log.error(err)
         response = jsonify(error=f"{err}")

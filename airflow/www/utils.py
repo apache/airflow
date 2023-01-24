@@ -134,24 +134,24 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def get_dag_run_conf(dag_run_conf: Any) -> tuple[str | None, bool]:
-    conf: str | None = None
+def get_dag_run_params(dag_run_params: Any) -> tuple[str | None, bool]:
+    params: str | None = None
 
-    conf_is_json: bool = False
-    if isinstance(dag_run_conf, str):
-        conf = dag_run_conf
-    elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
-        conf = json.dumps(dag_run_conf, sort_keys=True)
-        conf_is_json = True
+    params_is_json: bool = False
+    if isinstance(dag_run_params, str):
+        params = dag_run_params
+    elif isinstance(dag_run_params, (dict, list)) and any(dag_run_params):
+        params = json.dumps(dag_run_params, sort_keys=True)
+        params_is_json = True
 
-    return conf, conf_is_json
+    return params, params_is_json
 
 
 def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
-    conf, conf_is_json = get_dag_run_conf(dag_run.conf)
+    params, params_is_json = get_dag_run_params(dag_run.params)
 
     return {
         "run_id": dag_run.run_id,
@@ -165,8 +165,8 @@ def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
         "run_type": dag_run.run_type,
         "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
         "external_trigger": dag_run.external_trigger,
-        "conf": conf,
-        "conf_is_json": conf_is_json,
+        "params": params,
+        "params_is_json": params_is_json,
         "note": dag_run.note,
     }
 

@@ -66,7 +66,7 @@ const DagRun = ({ runId }: Props) => {
   const detailsRef = useRef<HTMLDivElement>(null);
   const offsetHeight = useOffsetHeight(detailsRef);
   const run = dagRuns.find((dr) => dr.runId === runId);
-  const { onCopy, hasCopied } = useClipboard(run?.conf || '');
+  const { onCopy, hasCopied } = useClipboard(run?.params || '');
   if (!run) return null;
   const {
     executionDate,
@@ -79,8 +79,8 @@ const DagRun = ({ runId }: Props) => {
     endDate,
     queuedAt,
     externalTrigger,
-    conf,
-    confIsJson,
+    params,
+    paramsIsJson,
     note,
   } = run;
   const graphParams = new URLSearchParamsWrapper({
@@ -207,14 +207,14 @@ const DagRun = ({ runId }: Props) => {
               </Td>
             </Tr>
             <Tr>
-              <Td>Run config</Td>
+              <Td>Params</Td>
               {
-                confIsJson
+                paramsIsJson
                   ? (
                     <Td>
                       <Flex>
                         <ReactJson
-                          src={JSON.parse(conf ?? '')}
+                          src={JSON.parse(params ?? '')}
                           name={false}
                           theme="rjv-default"
                           iconStyle="triangle"
@@ -228,7 +228,7 @@ const DagRun = ({ runId }: Props) => {
                       </Flex>
                     </Td>
                   )
-                  : <Td>{conf ?? 'None'}</Td>
+                  : <Td>{params ?? 'None'}</Td>
               }
             </Tr>
           </Tbody>

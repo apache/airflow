@@ -58,20 +58,13 @@
         </select>
       </div>
     </div>
-    <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
-    <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
+    <label for="parmas">Configuration JSON (Optional, must be a dict object)</label>
+    <textarea class="form-control" name="params" id="json">{{ params }}</textarea>
 
     <br />
 
     <p>
-      To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
-      {% if is_dag_run_conf_overrides_params %}
-        As <code>core.dag_run_conf_overrides_params</code> is set to <code>True</code>, so passing any configuration
-        here will override task params which can be accessed via <code>{{ '{{ params }}' }}</code>.
-      {% else %}
-        As <code>core.dag_run_conf_overrides_params</code> is set to <code>False</code>, so passing any configuration
-        here won't override task params.
-      {% endif %}
+      To access parameters in your DAG use <code>{{ '{{ params }}' }}</code>.
     </p>
     <div class="form-group">
       <label class="switch-label">

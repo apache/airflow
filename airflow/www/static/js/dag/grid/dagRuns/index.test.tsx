@@ -43,8 +43,8 @@ const generateRuns = (length: number): DagRun[] => (
     lastSchedulingDecision: datestring,
     executionDate: datestring,
     externalTrigger: false,
-    conf: null,
-    confIsJson: false,
+    params: null,
+    paramsIsJson: false,
     note: 'someRandomValue',
   }))
 );
@@ -64,8 +64,8 @@ describe('Test DagRuns', () => {
         executionDate: '2021-11-08T21:14:19.704433+00:00',
         lastSchedulingDecision: datestring,
         externalTrigger: false,
-        conf: null,
-        confIsJson: false,
+        params: null,
+        paramsIsJson: false,
         note: 'someRandomValue',
       },
       {
@@ -80,8 +80,8 @@ describe('Test DagRuns', () => {
         executionDate: '2021-11-08T21:14:19.704433+00:00',
         lastSchedulingDecision: datestring,
         externalTrigger: false,
-        conf: null,
-        confIsJson: false,
+        params: null,
+        paramsIsJson: false,
         note: 'someRandomValue',
       },
     ];

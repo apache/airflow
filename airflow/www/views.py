@@ -1946,7 +1946,7 @@ class Airflow(AirflowBaseView):
         run_id = request.values.get("run_id")
         origin = get_safe_url(request.values.get("origin"))
         unpause = request.values.get("unpause")
-        request_conf = request.values.get("conf")
+        request_params = request.values.get("params")
         request_execution_date = request.values.get("execution_date", default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -1960,48 +1960,47 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         recent_runs = (
-            session.query(DagRun.conf, func.max(DagRun.execution_date))
+            session.query(DagRun.params, func.max(DagRun.execution_date))
             .filter(
                 DagRun.dag_id == dag_id,
                 DagRun.run_type == DagRunType.MANUAL,
-                DagRun.conf.isnot(None),
+                DagRun.params.isnot(None),
             )
-            .group_by(DagRun.conf)
+            .group_by(DagRun.params)
             .order_by(func.max(DagRun.execution_date).desc())
             .limit(5)
             .all()
         )
 
-        recent_confs = [getattr(run, "conf") for run in recent_runs]
-        recent_confs = [conf[0] for conf in map(wwwutils.get_dag_run_conf, recent_confs) if conf[1]]
+        recent_params = [getattr(run, "params") for run in recent_runs]
+        recent_params = [params[0] for params in map(wwwutils.get_dag_run_params, recent_params) if params[1]]
 
         if request.method == "GET":
-            # Populate conf textarea with conf requests parameter, or dag.params
-            default_conf = ""
+            # Populate params textarea with params requests parameter
+            default_params = ""
 
             doc_md = wwwutils.wrapped_markdown(getattr(dag, "doc_md", None))
             form = DateTimeForm(data={"execution_date": request_execution_date})
 
-            if request_conf:
-                default_conf = request_conf
+            if request_params:
+                default_params = request_params
             else:
                 try:
-                    default_conf = json.dumps(
+                    default_params = json.dumps(
                         {str(k): v.resolve(suppress_exception=True) for k, v in dag.params.items()},
                         indent=4,
                         ensure_ascii=False,
                     )
                 except TypeError:
-                    flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
+                    flash("Could not pre-populate params field due to non-JSON-serializable data-types")
             return self.render_template(
                 "airflow/trigger.html",
                 dag_id=dag_id,
                 origin=origin,
-                conf=default_conf,
+                params=default_params,
                 doc_md=doc_md,
                 form=form,
-                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                recent_confs=recent_confs,
+                recent_params=recent_params,
             )
 
         try:
@@ -2013,10 +2012,9 @@ class Airflow(AirflowBaseView):
                 "airflow/trigger.html",
                 dag_id=dag_id,
                 origin=origin,
-                conf=request_conf,
+                params=request_params,
                 form=form,
-                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                recent_confs=recent_confs,
+                recent_params=recent_params,
             )
 
         dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
@@ -2036,21 +2034,21 @@ class Airflow(AirflowBaseView):
                 "warning",
             )
 
-        run_conf = {}
-        if request_conf:
+        params = {}
+        if request_params:
             try:
-                run_conf = json.loads(request_conf)
-                if not isinstance(run_conf, dict):
+                params = json.loads(request_params)
+                if not isinstance(params, dict):
                     flash("Invalid JSON configuration, must be a dict", "error")
                     form = DateTimeForm(data={"execution_date": execution_date})
                     return self.render_template(
                         "airflow/trigger.html",
                         dag_id=dag_id,
                         origin=origin,
-                        conf=request_conf,
+                        params=request_params,
                         form=form,
                         is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                        recent_confs=recent_confs,
+                        recent_params=recent_params,
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
@@ -2059,10 +2057,9 @@ class Airflow(AirflowBaseView):
                     "airflow/trigger.html",
                     dag_id=dag_id,
                     origin=origin,
-                    conf=request_conf,
+                    params=request_params,
                     form=form,
-                    is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                    recent_confs=recent_confs,
+                    recent_params=recent_params,
                 )
 
         if unpause and dag.is_paused:
@@ -2074,7 +2071,7 @@ class Airflow(AirflowBaseView):
                 execution_date=execution_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
                 state=State.QUEUED,
-                conf=run_conf,
+                params=params,
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 run_id=run_id,
@@ -2086,9 +2083,8 @@ class Airflow(AirflowBaseView):
                 "airflow/trigger.html",
                 dag_id=dag_id,
                 origin=origin,
-                conf=request_conf,
+                params=request_params,
                 form=form,
-                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
 
         flash(f"Triggered {dag_id}, it should start any moment now.")
@@ -5003,7 +4999,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "end_date",
         "note",
         "external_trigger",
-        "conf",
+        "params",
         "duration",
     ]
     search_columns = [
@@ -5027,7 +5023,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "run_id",
-        "conf",
+        "params",
         "note",
     ]
 
@@ -5043,7 +5039,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "end_date",
         "note",
         "external_trigger",
-        "conf",
+        "params",
     ]
 
     base_order = ("execution_date", "desc")
@@ -5071,7 +5067,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at": wwwutils.datetime_f("queued_at"),
         "dag_id": wwwutils.dag_link,
         "run_id": wwwutils.dag_run_link,
-        "conf": wwwutils.json_f("conf"),
+        "params": wwwutils.json_f("params"),
         "duration": duration_f,
     }
 
