@@ -25,15 +25,19 @@ from kubernetes import client
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.resource_convert.configmap import (
+    convert_configmap,
+    convert_configmap_to_volume,
+)
+from airflow.providers.cncf.kubernetes.resource_convert.env_variable import convert_env_vars
+from airflow.providers.cncf.kubernetes.resource_convert.secret import (
+    convert_image_pull_secrets,
+    convert_secret,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-from airflow.providers.cncf.kubernetes.resource_convert.secret import convert_secret, convert_image_pull_secrets
-from airflow.providers.cncf.kubernetes.resource_convert.configmap import convert_configmap, convert_configmap_to_volume
-from airflow.providers.cncf.kubernetes.resource_convert.env_variable import convert_env_vars
-
-from airflow.compat.functools import cached_property
 
 
 def should_retry_start_spark_job(exception: BaseException) -> bool:
@@ -50,17 +54,24 @@ class SparkJobSpec:
         self.update_resources()
 
     def validate(self):
-        if self.spec.get('dynamicAllocation', {}).get('enabled'):
+        if self.spec.get("dynamicAllocation", {}).get("enabled"):
             if not all(
-                [self.spec['dynamicAllocation']['initialExecutors'], self.spec['dynamicAllocation']['minExecutors'], self.spec['dynamicAllocation']['maxExecutors']]
+                [
+                    self.spec["dynamicAllocation"]["initialExecutors"],
+                    self.spec["dynamicAllocation"]["minExecutors"],
+                    self.spec["dynamicAllocation"]["maxExecutors"],
+                ]
             ):
                 raise AirflowException("Make sure initial/min/max value for dynamic allocation is passed")
 
     def update_resources(self):
-        if self.spec['driver'].get('container_resources'):
-            spark_resources = SparkResources(self.spec['driver'].pop('container_resources'), self.spec['executor'].pop('container_resources'))
-            self.spec['driver'].update(spark_resources.resources['driver'])
-            self.spec['executor'].update(spark_resources.resources['executor'])
+        if self.spec["driver"].get("container_resources"):
+            spark_resources = SparkResources(
+                self.spec["driver"].pop("container_resources"),
+                self.spec["executor"].pop("container_resources"),
+            )
+            self.spec["driver"].update(spark_resources.resources["driver"])
+            self.spec["executor"].update(spark_resources.resources["executor"])
 
 
 class KubernetesSpec:
@@ -70,7 +81,9 @@ class KubernetesSpec:
 
     def set_attribute(self):
         self.env_vars = convert_env_vars(self.env_vars) if self.env_vars else []
-        self.image_pull_secrets = convert_image_pull_secrets(self.image_pull_secrets) if self.image_pull_secrets else []
+        self.image_pull_secrets = (
+            convert_image_pull_secrets(self.image_pull_secrets) if self.image_pull_secrets else []
+        )
         if self.config_map_mounts:
             vols, vols_mounts = convert_configmap_to_volume(self.config_map_mounts)
             self.volumes.extend(vols)
@@ -90,9 +103,9 @@ class SparkResources:
         executor: dict = None,
     ):
         self.default = {
-            'gpu': {'name': None, 'quantity': 0},
-            'cpu': {'request': None, 'limit': None},
-            'memory': {'request': None, 'limit': None}
+            "gpu": {"name": None, "quantity": 0},
+            "cpu": {"request": None, "limit": None},
+            "memory": {"request": None, "limit": None},
         }
         self.driver = deepcopy(self.default)
         self.executor = deepcopy(self.default)
@@ -105,75 +118,80 @@ class SparkResources:
     @property
     def resources(self):
         """Return job resources"""
-        return {'driver': self.driver_resources, 'executor': self.executor_resources}
+        return {"driver": self.driver_resources, "executor": self.executor_resources}
 
     @property
     def driver_resources(self):
         """Return resources to use"""
         driver = {}
-        if self.driver['cpu'].get('request'):
-            driver['cores'] = self.driver['cpu']['request']
-        if self.driver['cpu'].get('limit'):
-            driver['coreLimit'] = self.driver['cpu']['limit']
-        if self.driver['memory'].get('limit'):
-            driver['memory'] = self.driver['memory']['limit']
-        if self.driver['gpu'].get('name') and self.driver['gpu'].get('quantity'):
-            driver['gpu'] = {'name': self.driver['gpu']['name'], 'quantity': self.driver['gpu']['quantity']}
+        if self.driver["cpu"].get("request"):
+            driver["cores"] = self.driver["cpu"]["request"]
+        if self.driver["cpu"].get("limit"):
+            driver["coreLimit"] = self.driver["cpu"]["limit"]
+        if self.driver["memory"].get("limit"):
+            driver["memory"] = self.driver["memory"]["limit"]
+        if self.driver["gpu"].get("name") and self.driver["gpu"].get("quantity"):
+            driver["gpu"] = {"name": self.driver["gpu"]["name"], "quantity": self.driver["gpu"]["quantity"]}
         return driver
 
     @property
     def executor_resources(self):
         """Return resources to use"""
         executor = {}
-        if self.executor['cpu'].get('request'):
-            executor['cores'] = self.executor['cpu']['request']
-        if self.executor['cpu'].get('limit'):
-            executor['coreLimit'] = self.executor['cpu']['limit']
-        if self.executor['memory'].get('limit'):
-            executor['memory'] = self.executor['memory']['limit']
-        if self.executor['gpu'].get('name') and self.executor['gpu'].get('quantity'):
-            executor['gpu'] = {'name': self.executor['gpu']['name'], 'quantity': self.executor['gpu']['quantity']}
+        if self.executor["cpu"].get("request"):
+            executor["cores"] = self.executor["cpu"]["request"]
+        if self.executor["cpu"].get("limit"):
+            executor["coreLimit"] = self.executor["cpu"]["limit"]
+        if self.executor["memory"].get("limit"):
+            executor["memory"] = self.executor["memory"]["limit"]
+        if self.executor["gpu"].get("name") and self.executor["gpu"].get("quantity"):
+            executor["gpu"] = {
+                "name": self.executor["gpu"]["name"],
+                "quantity": self.executor["gpu"]["quantity"],
+            }
         return executor
 
     def convert_resources(self):
-        if isinstance(self.driver['memory'].get('limit'), str):
-            if 'G' in self.driver['memory']['limit'] or 'Gi' in self.driver['memory']['limit']:
-                self.driver['memory']['limit'] = float(self.driver['memory']['limit'].rstrip('Gi G')) * 1024
-            elif 'm' in self.driver['memory']['limit']:
-                self.driver['memory']['limit'] = float(self.driver['memory']['limit'].rstrip('m'))
+        if isinstance(self.driver["memory"].get("limit"), str):
+            if "G" in self.driver["memory"]["limit"] or "Gi" in self.driver["memory"]["limit"]:
+                self.driver["memory"]["limit"] = float(self.driver["memory"]["limit"].rstrip("Gi G")) * 1024
+            elif "m" in self.driver["memory"]["limit"]:
+                self.driver["memory"]["limit"] = float(self.driver["memory"]["limit"].rstrip("m"))
             # Adjusting the memory value as operator adds 40% to the given value
-            self.driver['memory']['limit'] = str(int(self.driver['memory']['limit'] / 1.4)) + 'm'
+            self.driver["memory"]["limit"] = str(int(self.driver["memory"]["limit"] / 1.4)) + "m"
 
-        if isinstance(self.executor['memory'].get('limit'), str):
-            if 'G' in self.executor['memory']['limit'] or 'Gi' in self.executor['memory']['limit']:
-                self.executor['memory']['limit'] = float(self.executor['memory']['limit'].rstrip('Gi G')) * 1024
-            elif 'm' in self.executor['memory']['limit']:
-                self.executor['memory']['limit'] = float(self.executor['memory']['limit'].rstrip('m'))
+        if isinstance(self.executor["memory"].get("limit"), str):
+            if "G" in self.executor["memory"]["limit"] or "Gi" in self.executor["memory"]["limit"]:
+                self.executor["memory"]["limit"] = (
+                    float(self.executor["memory"]["limit"].rstrip("Gi G")) * 1024
+                )
+            elif "m" in self.executor["memory"]["limit"]:
+                self.executor["memory"]["limit"] = float(self.executor["memory"]["limit"].rstrip("m"))
             # Adjusting the memory value as operator adds 40% to the given value
-            self.executor['memory']['limit'] = str(int(self.executor['memory']['limit'] / 1.4)) + 'm'
+            self.executor["memory"]["limit"] = str(int(self.executor["memory"]["limit"] / 1.4)) + "m"
 
-        if self.driver['cpu'].get('request'):
-            self.driver['cpu']['request'] = int(float(self.driver['cpu']['request']))
-        if self.driver['cpu'].get('limit'):
-            self.driver['cpu']['limit'] = str(self.driver['cpu']['limit'])
-        if self.executor['cpu'].get('request'):
-            self.executor['cpu']['request'] = int(float(self.executor['cpu']['request']))
-        if self.executor['cpu'].get('limit'):
-            self.executor['cpu']['limit'] = str(self.executor['cpu']['limit'])
+        if self.driver["cpu"].get("request"):
+            self.driver["cpu"]["request"] = int(float(self.driver["cpu"]["request"]))
+        if self.driver["cpu"].get("limit"):
+            self.driver["cpu"]["limit"] = str(self.driver["cpu"]["limit"])
+        if self.executor["cpu"].get("request"):
+            self.executor["cpu"]["request"] = int(float(self.executor["cpu"]["request"]))
+        if self.executor["cpu"].get("limit"):
+            self.executor["cpu"]["limit"] = str(self.executor["cpu"]["limit"])
 
-        if self.driver['gpu'].get('quantity'):
-            self.driver['gpu']['quantity'] = int(float(driver['gpu']['quantity']))
-        if self.executor['gpu'].get('quantity'):
-            self.executor['gpu']['quantity'] = int(float(self.executor['gpu']['quantity']))
+        if self.driver["gpu"].get("quantity"):
+            self.driver["gpu"]["quantity"] = int(float(driver["gpu"]["quantity"]))
+        if self.executor["gpu"].get("quantity"):
+            self.executor["gpu"]["quantity"] = int(float(self.executor["gpu"]["quantity"]))
 
 
 class CustomObjectStatus:
     """Status of the PODs"""
 
-    SUBMITTED = 'SUBMITTED'
-    RUNNING = 'RUNNING'
-    FAILED = 'FAILED'
-    SUCCEEDED = 'SUCCEEDED'
+    SUBMITTED = "SUBMITTED"
+    RUNNING = "RUNNING"
+    FAILED = "FAILED"
+    SUCCEEDED = "SUCCEEDED"
 
 
 class CustomObjectLauncher(LoggingMixin):
@@ -196,13 +214,13 @@ class CustomObjectLauncher(LoggingMixin):
         self.namespace = namespace
         self.template_body = template_body
         self.body: dict = self.get_body()
-        self.kind = self.body['kind']
-        self.plural = f'{self.kind.lower()}s'
-        if self.body.get('apiVersion'):
-            self.api_group, self.api_version = self.body.get('apiVersion').split("/")
+        self.kind = self.body["kind"]
+        self.plural = f"{self.kind.lower()}s"
+        if self.body.get("apiVersion"):
+            self.api_group, self.api_version = self.body.get("apiVersion").split("/")
         else:
-            self.api_group = self.body['apiGroup']
-            self.api_version = self.body['version']
+            self.api_group = self.body["apiGroup"]
+            self.api_version = self.body["version"]
         self._client = kube_client
         self.custom_obj_api = custom_obj_api
         self.spark_obj_spec: dict = {}
@@ -213,24 +231,24 @@ class CustomObjectLauncher(LoggingMixin):
         return PodManager(kube_client=self._client)
 
     def get_body(self):
-        self.body: dict = SparkJobSpec(**self.template_body['spark'])
-        self.body.metadata = {'name': self.name, 'namespace': self.namespace}
-        if self.template_body.get('kubernetes'):
-            k8s_spec: dict = KubernetesSpec(**self.template_body['kubernetes'])
-            self.body.spec['volumes'] = k8s_spec.volumes
+        self.body: dict = SparkJobSpec(**self.template_body["spark"])
+        self.body.metadata = {"name": self.name, "namespace": self.namespace}
+        if self.template_body.get("kubernetes"):
+            k8s_spec: dict = KubernetesSpec(**self.template_body["kubernetes"])
+            self.body.spec["volumes"] = k8s_spec.volumes
             if k8s_spec.image_pull_secrets:
-                self.body.spec['imagePullSecrets'] = k8s_spec.image_pull_secrets
-            for item in ['driver', 'executor']:
+                self.body.spec["imagePullSecrets"] = k8s_spec.image_pull_secrets
+            for item in ["driver", "executor"]:
                 # Env List
-                self.body.spec[item]['env'] = k8s_spec.env_vars
-                self.body.spec[item]['envFrom'] = k8s_spec.env_from
+                self.body.spec[item]["env"] = k8s_spec.env_vars
+                self.body.spec[item]["envFrom"] = k8s_spec.env_from
                 # Volumes
-                self.body.spec[item]['volumeMounts'] = k8s_spec.volume_mounts
+                self.body.spec[item]["volumeMounts"] = k8s_spec.volume_mounts
                 # Add affinity
-                self.body.spec[item]['affinity'] = k8s_spec.affinity
-                self.body.spec[item]['tolerations'] = k8s_spec.tolerations
+                self.body.spec[item]["affinity"] = k8s_spec.affinity
+                self.body.spec[item]["tolerations"] = k8s_spec.tolerations
                 # Labels
-                self.body.spec[item]['labels'] = self.body.spec['labels']
+                self.body.spec[item]["labels"] = self.body.spec["labels"]
 
         return self.body.__dict__
 
@@ -251,10 +269,10 @@ class CustomObjectLauncher(LoggingMixin):
         """
         try:
             if image:
-                self.body['spec']['image'] = image
+                self.body["spec"]["image"] = image
             if code_path:
-                self.body['spec']['mainApplicationFile'] = code_path
-            self.log.debug('Spark Job Creation Request Submitted')
+                self.body["spec"]["mainApplicationFile"] = code_path
+            self.log.debug("Spark Job Creation Request Submitted")
             self.spark_obj_spec = self.custom_obj_api.create_namespaced_custom_object(
                 group=self.api_group,
                 version=self.api_version,
@@ -262,20 +280,21 @@ class CustomObjectLauncher(LoggingMixin):
                 plural=self.plural,
                 body=self.body,
             )
-            self.log.debug('Spark Job Creation Response: %s', self.spark_obj_spec)
+            self.log.debug("Spark Job Creation Response: %s", self.spark_obj_spec)
 
             # Wait for the driver pod to come alive
             self.pod_spec = k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
-                    labels=self.spark_obj_spec['spec']['driver']['labels'],
-                    name=self.spark_obj_spec['metadata']['name'] + '-driver',
-                    namespace=self.namespace
+                    labels=self.spark_obj_spec["spec"]["driver"]["labels"],
+                    name=self.spark_obj_spec["metadata"]["name"] + "-driver",
+                    namespace=self.namespace,
                 )
             )
             curr_time = dt.now()
             while self.spark_job_not_running(self.spark_obj_spec):
                 self.log.warning(
-                    "Spark job submitted but not yet started. job_id: %s", self.spark_obj_spec['metadata']['name']
+                    "Spark job submitted but not yet started. job_id: %s",
+                    self.spark_obj_spec["metadata"]["name"],
                 )
                 self.check_pod_start_failure()
                 delta = dt.now() - curr_time
@@ -284,7 +303,7 @@ class CustomObjectLauncher(LoggingMixin):
                     raise AirflowException(f"Job took too long to start. pod status: {pod_status}")
                 time.sleep(10)
         except Exception as e:
-            self.log.exception('Exception when attempting to create spark job')
+            self.log.exception("Exception when attempting to create spark job")
             raise e
 
         return self.pod_spec, self.spark_obj_spec
@@ -295,14 +314,16 @@ class CustomObjectLauncher(LoggingMixin):
             group=self.api_group,
             version=self.api_version,
             namespace=self.namespace,
-            name=spark_obj_spec['metadata']['name'],
+            name=spark_obj_spec["metadata"]["name"],
             plural=self.plural,
         )
-        driver_state = spark_job_info.get('status', {}).get('applicationState', {}).get('state', 'SUBMITTED')
+        driver_state = spark_job_info.get("status", {}).get("applicationState", {}).get("state", "SUBMITTED")
         if driver_state == CustomObjectStatus.FAILED:
-            err = spark_job_info.get('status', {}).get('applicationState', {}).get('errorMessage', 'N/A')
+            err = spark_job_info.get("status", {}).get("applicationState", {}).get("errorMessage", "N/A")
             try:
-                self.pod_manager.fetch_container_logs(pod=self.pod_spec, container_name='spark-kubernetes-driver')
+                self.pod_manager.fetch_container_logs(
+                    pod=self.pod_spec, container_name="spark-kubernetes-driver"
+                )
             except:
                 pass
             raise AirflowException(f"Spark Job Failed.\nSparkJob Error stack:\n{err}")
@@ -310,17 +331,19 @@ class CustomObjectLauncher(LoggingMixin):
 
     def check_pod_start_failure(self):
         try:
-            waiting_status = self.pod_manager.read_pod(self.pod_spec).status.container_statuses[0].state.waiting
+            waiting_status = (
+                self.pod_manager.read_pod(self.pod_spec).status.container_statuses[0].state.waiting
+            )
             waiting_reason = waiting_status.reason
             waiting_message = waiting_status.message
         except Exception:
             return
-        if waiting_reason != 'ContainerCreating':
+        if waiting_reason != "ContainerCreating":
             raise AirflowException(f"Spark Job Failed.\nStatus: {waiting_reason}\nError: {waiting_message}")
 
     def delete_spark_job(self, spark_job_name=None):
         """Deletes spark job"""
-        spark_job_name = spark_job_name or self.spark_obj_spec.get('metadata', {}).get('name')
+        spark_job_name = spark_job_name or self.spark_obj_spec.get("metadata", {}).get("name")
         if not spark_job_name:
             self.log.warning("Spark job not found: %s", spark_job_name)
             return

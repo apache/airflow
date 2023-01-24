@@ -16,27 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+
 import json
 import re
-import sys
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
-from typing import TYPE_CHECKING
 import jinja2
-
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
-from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
-from airflow.utils.helpers import prune_dict
-
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
-
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -70,19 +66,19 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
     """
 
-    template_fields = ['application_file', 'namespace', 'template_spec']
+    template_fields = ["application_file", "namespace", "template_spec"]
     template_fields_renderers = {"template_spec": "py"}
-    template_ext = ('yaml', 'yml', 'json')
-    ui_color = '#f4a460'
+    template_ext = ("yaml", "yml", "json")
+    ui_color = "#f4a460"
 
     def __init__(
         self,
         *,
-        image: Optional[str] = None,
-        code_path: Optional[str] = None,
-        namespace: str = 'default',
-        name: str = 'default',
-        application_file: Optional[str] = None,
+        image: str | None = None,
+        code_path: str | None = None,
+        namespace: str = "default",
+        name: str = "default",
+        application_file: str | None = None,
         template_spec=None,
         get_logs: bool = True,
         do_xcom_push: bool = False,
@@ -91,10 +87,10 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         log_events_on_failure: bool = False,
         reattach_on_restart: bool = True,
         delete_on_termination: bool = True,
-        kubernetes_conn_id: str = 'kubernetes_default',
+        kubernetes_conn_id: str = "kubernetes_default",
         **kwargs,
     ) -> None:
-        if kwargs.get('xcom_push') is not None:
+        if kwargs.get("xcom_push") is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(name=name, **kwargs)
         self.image = image
@@ -114,18 +110,18 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.template_body = self.manage_template_specs()
 
     def _render_nested_template_fields(
-            self,
-            content: Any,
-            context: Context,
-            jinja_env: jinja2.Environment,
-            seen_oids: set,
-        ) -> None:
-            if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
-                seen_oids.add(id(content))
-                self._do_render_template_fields(content, ('value', 'name'), context, jinja_env, seen_oids)
-                return
+        self,
+        content: Any,
+        context: Context,
+        jinja_env: jinja2.Environment,
+        seen_oids: set,
+    ) -> None:
+        if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
+            seen_oids.add(id(content))
+            self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
+            return
 
-            super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
+        super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
     def manage_template_specs(self):
         if self.application_file:
@@ -133,22 +129,22 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         elif self.template_spec:
             template_body = self.template_spec
         else:
-            raise AirflowException('either application_file or template_spec should be passed')
-        if 'spark' not in template_body:
-            template_body = {'spark': template_body}
+            raise AirflowException("either application_file or template_spec should be passed")
+        if "spark" not in template_body:
+            template_body = {"spark": template_body}
         return template_body
 
     def create_job_name(self):
         initial_name = PodGenerator.make_unique_pod_id(self.task_id)[:MAX_LABEL_LEN]
-        return re.sub(r'[^a-z0-9-]+', '-', initial_name.lower())
+        return re.sub(r"[^a-z0-9-]+", "-", initial_name.lower())
 
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
-        filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != 'try_number'}
-        return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
+        filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != "try_number"}
+        return ",".join([label_id + "=" + label for label_id, label in sorted(filtered_labels.items())])
 
     @staticmethod
-    def create_labels_for_pod(context: Optional[dict] = None, include_try_number: bool = True) -> dict:
+    def create_labels_for_pod(context: dict | None = None, include_try_number: bool = True) -> dict:
         """
         Generate labels for the pod to track the pod in case of Operator crash
         :param include_try_number: add try number to labels
@@ -158,29 +154,29 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         if not context:
             return {}
 
-        ti = context['ti']
-        run_id = context['run_id']
+        ti = context["ti"]
+        run_id = context["run_id"]
 
         labels = {
-            'dag_id': ti.dag_id,
-            'task_id': ti.task_id,
-            'run_id': run_id,
-            'spark_kubernetes_operator': 'True',
+            "dag_id": ti.dag_id,
+            "task_id": ti.task_id,
+            "run_id": run_id,
+            "spark_kubernetes_operator": "True",
             # 'execution_date': context['ts'],
             # 'try_number': context['ti'].try_number,
         }
 
         # If running on Airflow 2.3+:
-        map_index = getattr(ti, 'map_index', -1)
+        map_index = getattr(ti, "map_index", -1)
         if map_index >= 0:
-            labels['map_index'] = map_index
+            labels["map_index"] = map_index
 
         if include_try_number:
             labels.update(try_number=ti.try_number)
 
         # In the case of sub dags this is just useful
-        if context['dag'].is_subdag:
-            labels['parent_dag_id'] = context['dag'].parent_dag.dag_id
+        if context["dag"].is_subdag:
+            labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():
@@ -194,23 +190,23 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     @staticmethod
     def _try_numbers_match(context, pod) -> bool:
-        return pod.metadata.labels['try_number'] == context['ti'].try_number
+        return pod.metadata.labels["try_number"] == context["ti"].try_number
 
     def find_spark_job(self, context):
         labels = self.create_labels_for_pod(context, include_try_number=False)
-        label_selector = self._get_pod_identifying_label_string(labels) + ',spark-role=driver'
+        label_selector = self._get_pod_identifying_label_string(labels) + ",spark-role=driver"
         pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
 
         pod = None
         if len(pod_list) > 1:  # and self.reattach_on_restart:
-            raise AirflowException(f'More than one pod running with labels: {label_selector}')
+            raise AirflowException(f"More than one pod running with labels: {label_selector}")
         elif len(pod_list) == 1:
             pod = pod_list[0]
             self.log.info(
                 "Found matching driver pod %s with labels %s", pod.metadata.name, pod.metadata.labels
             )
-            self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
-            self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
+            self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
+            self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
         return pod
 
     def get_or_create_spark_crd(self, launcher: CustomObjectLauncher, context) -> k8s.V1Pod:
@@ -220,9 +216,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 return driver_pod
 
         driver_pod, spark_obj_spec = launcher.start_spark_job(
-            image=self.image,
-            code_path=self.code_path,
-            startup_timeout=self.startup_timeout_seconds
+            image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
         )
         return driver_pod
 
@@ -235,8 +229,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:
-                self.log.info("Deleting spark job: %s", pod.metadata.name.replace('-driver', ''))
-                self.launcher.delete_spark_job(pod.metadata.name.replace('-driver', ''))
+                self.log.info("Deleting spark job: %s", pod.metadata.name.replace("-driver", ""))
+                self.launcher.delete_spark_job(pod.metadata.name.replace("-driver", ""))
             else:
                 self.log.info("skipping deleting spark job: %s", pod.metadata.name)
 
@@ -244,9 +238,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def hook(self) -> KubernetesHook:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
-            in_cluster=self.in_cluster or self.template_body.get('kubernetes', {}).get('in_cluster', False),
-            config_file=self.config_file or self.template_body.get('kubernetes', {}).get('kube_config_file', None),
-            cluster_context=self.cluster_context or self.template_body.get('kubernetes', {}).get('cluster_context', None),
+            in_cluster=self.in_cluster or self.template_body.get("kubernetes", {}).get("in_cluster", False),
+            config_file=self.config_file
+            or self.template_body.get("kubernetes", {}).get("kube_config_file", None),
+            cluster_context=self.cluster_context
+            or self.template_body.get("kubernetes", {}).get("cluster_context", None),
         )
         return hook
 
@@ -259,7 +255,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return CustomObjectsApi()
 
     def execute(self, context: Context):
-        self.log.info('Creating sparkApplication.')
+        self.log.info("Creating sparkApplication.")
         self.launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
@@ -268,7 +264,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             template_body=self.template_body,
         )
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
-        self.BASE_CONTAINER_NAME = 'spark-kubernetes-driver'
+        self.BASE_CONTAINER_NAME = "spark-kubernetes-driver"
         self.pod_request_obj = self.launcher.pod_spec
 
         return super().execute(context=context)
@@ -286,4 +282,4 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def dry_run(self) -> None:
         """Prints out the spark job that would be created by this operator."""
-        print(prune_dict(self.launcher.body, mode='strict'))
+        print(prune_dict(self.launcher.body, mode="strict"))

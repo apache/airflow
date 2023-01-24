@@ -18,15 +18,15 @@
 ---
 spark:
   apiVersion: sparkoperator.k8s.io/v1beta2
-  version: v1beta2
   kind: SparkApplication
-  apiGroup: sparkoperator.k8s.io
   metadata:
-    namespace: default
+    name: default_yaml_template
   spec:
     type: Python
+    image: 'gcr.io/spark-operator/spark:v2.4.5'
     pythonVersion: "3"
     mode: cluster
+    mainApplicationFile: 'local:///opt/test.py'
     sparkVersion: 3.0.0
     successfulRunHistoryLimit: 1
     restartPolicy:
@@ -47,11 +47,10 @@ spark:
           name: null
           quantity: 0
         cpu:
-          request: null
-          limit: null
+          request: 1
+          limit: 1200m
         memory:
-          request: null
-          limit: null
+          limit: 512m
     executor:
       instances: 1
       container_resources:
@@ -59,11 +58,10 @@ spark:
           name: null
           quantity: 0
         cpu:
-          request: null
+          request: 1
           limit: null
         memory:
-          request: null
-          limit: null
+          limit: 512m
 kubernetes:
   # example:
   # env_vars:

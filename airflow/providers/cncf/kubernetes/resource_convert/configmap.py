@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from kubernetes.client import models as k8s
 from typing import Dict, List, Tuple
+
+from kubernetes.client import models as k8s
 
 
 def convert_configmap(configmap_name) -> k8s.V1EnvFromSource:

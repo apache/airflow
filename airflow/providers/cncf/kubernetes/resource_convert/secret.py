@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List
+from __future__ import annotations
 
 from kubernetes.client import models as k8s
 
@@ -29,7 +29,7 @@ def convert_secret(secret_name: str) -> k8s.V1EnvFromSource:
     return k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_name))
 
 
-def convert_image_pull_secrets(image_pull_secrets: str) -> List[k8s.V1LocalObjectReference]:
+def convert_image_pull_secrets(image_pull_secrets: str) -> list[k8s.V1LocalObjectReference]:
     """
     Converts a PodRuntimeInfoEnv into an k8s.V1EnvVar
 
