@@ -98,10 +98,8 @@ class AppflowBaseOperator(BaseOperator):
         self.connector_type = self._get_connector_type()
         if self.flow_update:
             self._update_flow()
-            # previous code had a wait between update and run without explaining why.
-            # since I don't have a way to actually test this behavior,
-            # I'm reproducing it out of fear of breaking workflows.
-            # It might be unnecessary.
+            # while schedule flows will pick up the update right away, on-demand flows might use out of date
+            # info if triggered right after an update, so we need to wait a bit for the DB to be consistent.
             sleep(AppflowBaseOperator.UPDATE_PROPAGATION_TIME)
 
         self._run_flow(context)
