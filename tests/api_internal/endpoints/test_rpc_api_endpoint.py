@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from typing import Generator
 from unittest import mock
 
@@ -33,11 +32,6 @@ TEST_METHOD_NAME = "test_method"
 TEST_METHOD_WITH_LOG_NAME = "test_method_with_log"
 
 mock_test_method = mock.MagicMock()
-mock_test_method_with_log = mock.MagicMock()
-
-
-def method_with_log(*args, log, **kwargs):
-    return mock_test_method_with_log(*args, **kwargs, log=log)
 
 
 @pytest.fixture(scope="session")
@@ -67,18 +61,16 @@ class TestRpcApiEndpoint:
         ) as mock_initialize_map:
             mock_initialize_map.return_value = {
                 TEST_METHOD_NAME: mock_test_method,
-                TEST_METHOD_WITH_LOG_NAME: method_with_log,
             }
             yield mock_initialize_map
 
     @pytest.mark.parametrize(
-        "input_data, method_result, method_params, expected_logger, expected_mock, expected_code",
+        "input_data, method_result, method_params, expected_mock, expected_code",
         [
             (
                 {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": ""},
                 "test_me",
                 {},
-                False,
                 mock_test_method,
                 200,
             ),
@@ -86,7 +78,6 @@ class TestRpcApiEndpoint:
                 {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": ""},
                 None,
                 {},
-                False,
                 mock_test_method,
                 200,
             ),
@@ -98,23 +89,12 @@ class TestRpcApiEndpoint:
                 },
                 ("dag_id_15", "fake-task", 1),
                 {"dag_id": 15, "task_id": "fake-task"},
-                False,
                 mock_test_method,
-                200,
-            ),
-            (
-                {"jsonrpc": "2.0", "method": TEST_METHOD_WITH_LOG_NAME, "params": ""},
-                "test_me",
-                {},
-                True,
-                mock_test_method_with_log,
                 200,
             ),
         ],
     )
-    def test_method(
-        self, input_data, method_result, method_params, expected_logger, expected_mock, expected_code
-    ):
+    def test_method(self, input_data, method_result, method_params, expected_mock, expected_code):
         if method_result:
             expected_mock.return_value = method_result
 
@@ -127,13 +107,6 @@ class TestRpcApiEndpoint:
         if method_result:
             response_data = BaseSerialization.deserialize(json.loads(response.data))
             assert response_data == method_result
-
-        if expected_logger:
-            args, kwargs = expected_mock.call_args
-            logger = kwargs["log"]
-            assert isinstance(logger, logging.Logger)
-            assert logger.name == "airflow.internal_api.method_with_log"
-            method_params["log"] = logger
 
         expected_mock.assert_called_once_with(**method_params)
 

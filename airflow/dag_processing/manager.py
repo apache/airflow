@@ -497,18 +497,17 @@ class DagFileProcessorManager(LoggingMixin):
                 last_parsed=last_parsed,
                 dag_directory=self.get_dag_directory(),
                 processor_timeout=self._processor_timeout,
-                log=self.log,
             )
             self.last_deactivate_stale_dags_time = timezone.utcnow()
 
-    @staticmethod
+    @classmethod
     @internal_api_call
     @provide_session
     def deactivate_stale_dags(
+        cls,
         last_parsed: dict[str, datetime | None],
         dag_directory: str,
         processor_timeout: timedelta,
-        log: logging.Logger,
         session: Session = NEW_SESSION,
     ):
         """
@@ -532,7 +531,7 @@ class DagFileProcessorManager(LoggingMixin):
                 dag.fileloc in last_parsed
                 and (dag.last_parsed_time + processor_timeout) < last_parsed[dag.fileloc]
             ):
-                log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
+                cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
                 to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
@@ -542,11 +541,11 @@ class DagFileProcessorManager(LoggingMixin):
                 .update({DagModel.is_active: False}, synchronize_session="fetch")
             )
             if deactivated:
-                log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+                cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
             for dag_id in to_deactivate:
                 SerializedDagModel.remove_dag(dag_id)
-                log.info("Deleted DAG %s in serialized_dag table", dag_id)
+                cls.logger().info("Deleted DAG %s in serialized_dag table", dag_id)
 
     def _run_parsing_loop(self):
         # In sync mode we want timeout=None -- wait forever until a message is received
