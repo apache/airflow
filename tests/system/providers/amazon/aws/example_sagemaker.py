@@ -148,7 +148,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         dockerfile.write(
             f"""
-            FROM amazonlinux
+            FROM public.ecr.aws/amazonlinux/amazonlinux
             COPY {preprocessing_script.name.split('/')[2]} /preprocessing.py
             ADD credentials /credentials
             ENV AWS_SHARED_CREDENTIALS_FILE=/credentials
@@ -161,8 +161,12 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         docker_build_and_push_commands = f"""
             cp /root/.aws/credentials /tmp/credentials &&
+            # login to public ecr repo containing amazonlinux image
+            docker login --username {username} --password {password} public.ecr.aws
             docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
             rm /tmp/credentials &&
+
+            # login again, this time to the private repo we created to hold that specific image
             aws ecr get-login-password --region {ecr_region} |
             docker login --username {username} --password {password} {repository_uri} &&
             docker push {repository_uri}
