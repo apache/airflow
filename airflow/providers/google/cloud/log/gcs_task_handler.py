@@ -25,6 +25,7 @@ from google.cloud import storage  # type: ignore[attr-defined]
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
+from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -86,7 +87,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """Returns GCSHook if remote_log_conn_id configured."""
         conn_id = conf.get("logging", "remote_log_conn_id", fallback=None)
         if conn_id:
-            return GCSHook(gcp_conn_id=conn_id)
+            try:
+                return GCSHook(gcp_conn_id=conn_id)
+            except AirflowNotFoundException:
+                pass
+        return None
 
     @cached_property
     def client(self) -> storage.Client:
