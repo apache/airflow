@@ -282,7 +282,6 @@ def list_py_file_paths(
     directory: str | pathlib.Path,
     safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
     include_examples: bool | None = None,
-    include_zip_paths: bool = False,
 ) -> list[str]:
     """
     Traverse a directory and look for Python files.
@@ -293,7 +292,6 @@ def list_py_file_paths(
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
     :param include_examples: include example DAGs
-    :param zip_paths: include path to python files inside zip files
     :return: a list of paths to Python files in the specified directory
     """
     if include_examples is None:
@@ -304,7 +302,7 @@ def list_py_file_paths(
     elif os.path.isfile(directory):
         file_paths = [str(directory)]
     elif os.path.isdir(directory):
-        file_paths.extend(find_dag_file_paths(directory, safe_mode, include_zip_paths))
+        file_paths.extend(find_dag_file_paths(directory, safe_mode))
     if include_examples:
         from airflow import example_dags
 
@@ -313,7 +311,7 @@ def list_py_file_paths(
     return file_paths
 
 
-def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool, include_zip_paths: bool) -> list[str]:
+def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> list[str]:
     """Finds file paths of all DAG files."""
     file_paths = []
 
@@ -326,12 +324,6 @@ def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool, include_
                 continue
             if not might_contain_dag(file_path, safe_mode):
                 continue
-            if include_zip_paths and zipfile.is_zipfile(file_path):
-                with zipfile.ZipFile(file_path) as current_zip_file:
-                    for zip_info in current_zip_file.infolist():
-                        mod_name, ext = os.path.splitext(zip_info.filename)
-                        if ext == ".py":
-                            file_path = os.path.join(file_path, zip_info.filename)
 
             file_paths.append(file_path)
         except Exception:
