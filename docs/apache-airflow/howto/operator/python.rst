@@ -225,11 +225,29 @@ Jinja templating can be used in same way as described for the PythonOperator.
 PythonSensor
 ============
 
-Use the :class:`~airflow.sensors.python.PythonSensor` to use arbitrary callable for sensing. The callable
-should return True when it succeeds, False otherwise.
+A sensor to wait for an arbitrary callable to return ``True`` is available via ``@task.sensor`` and
+``airflow.sensors.python.PythonSensor``. The callable should return a boolean ``True`` or ``False``,
+indicating whether the condition is met. For example:
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
-    :language: python
-    :dedent: 4
-    :start-after: [START example_python_sensors]
-    :end-before: [END example_python_sensors]
+.. code-block:: python
+
+    import datetime
+
+    from airflow.decorators import dag, task
+    from airflow.sensors.python import PythonSensor
+
+
+    @dag(start_date=datetime.datetime(2023, 1, 1), schedule=None)
+    def example():
+        @task.sensor
+        def wait_for_success():
+            return datetime.datetime.now().minute % 2 == 0
+
+        wait_for_success()
+        PythonSensor(task_id="wait_for_even_minute", python_callable=wait_for_success)
+
+
+    example()
+
+This code sample will give two tasks waiting for the same condition to be ``True``, (1) TaskFlow API sensor
+using ``@task.sensor`` and (2) classic PythonSensor referring to the callable.

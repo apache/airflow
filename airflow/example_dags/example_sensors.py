@@ -99,13 +99,11 @@ with DAG(
         task_id="create_file_after_3_seconds", bash_command="sleep 3; touch /tmp/temporary_file_for_testing"
     )
 
-    # [START example_python_sensors]
     t8 = PythonSensor(task_id="success_sensor_python", python_callable=success_callable)
 
     t9 = PythonSensor(
         task_id="failure_timeout_sensor_python", timeout=3, soft_fail=True, python_callable=failure_callable
     )
-    # [END example_python_sensors]
 
     # [START example_day_of_week_sensor]
     t10 = DayOfWeekSensor(
