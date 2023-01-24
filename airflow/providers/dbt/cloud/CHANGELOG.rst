@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Use entire tenant domain name in dbt Cloud connection (#28890)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.3.0
 .....
 

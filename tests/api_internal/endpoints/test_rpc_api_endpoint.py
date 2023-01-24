@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import json
+from typing import Generator
 from unittest import mock
 
 import pytest
 from flask import Flask
 
-from airflow.api_internal.endpoints import rpc_api_endpoint
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.www import app
 from tests.test_utils.config import conf_vars
@@ -50,12 +50,16 @@ def minimal_app_for_internal_api() -> Flask:
 
 class TestRpcApiEndpoint:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, minimal_app_for_internal_api: Flask) -> None:
-        rpc_api_endpoint.METHODS_MAP[TEST_METHOD_NAME] = mock_test_method
+    def setup_attrs(self, minimal_app_for_internal_api: Flask) -> Generator:
         self.app = minimal_app_for_internal_api
         self.client = self.app.test_client()  # type:ignore
         mock_test_method.reset_mock()
         mock_test_method.side_effect = None
+        with mock.patch(
+            "airflow.api_internal.endpoints.rpc_api_endpoint._initialize_map"
+        ) as mock_initialize_map:
+            mock_initialize_map.return_value = {TEST_METHOD_NAME: mock_test_method}
+            yield mock_initialize_map
 
     @pytest.mark.parametrize(
         "input_data, method_result, method_params, expected_code",

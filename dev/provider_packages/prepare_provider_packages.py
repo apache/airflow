@@ -46,6 +46,7 @@ from typing import Any, Generator, Iterable, NamedTuple
 import jsonschema
 import rich_click as click
 import semver as semver
+from black import Mode, TargetVersion, format_str, parse_pyproject_toml
 from packaging.version import Version
 from rich.console import Console
 from rich.syntax import Syntax
@@ -124,6 +125,12 @@ PY3 = sys.version_info[0] == 3
 console = Console(width=400, color_system="standard")
 
 
+class PluginInfo(NamedTuple):
+    name: str
+    package_name: str
+    class_name: str
+
+
 class ProviderPackageDetails(NamedTuple):
     provider_package_id: str
     full_package_name: str
@@ -133,6 +140,7 @@ class ProviderPackageDetails(NamedTuple):
     provider_description: str
     versions: list[str]
     excluded_python_versions: list[str]
+    plugins: list[PluginInfo]
 
 
 class EntityType(Enum):
@@ -1014,6 +1022,17 @@ def get_all_changes_for_package(
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
+    plugins: list[PluginInfo] = []
+    if "plugins" in provider_info:
+        for plugin in provider_info["plugins"]:
+            package_name, class_name = plugin["plugin-class"].rsplit(".", maxsplit=1)
+            plugins.append(
+                PluginInfo(
+                    name=plugin["name"],
+                    package_name=package_name,
+                    class_name=class_name,
+                )
+            )
     return ProviderPackageDetails(
         provider_package_id=provider_package_id,
         full_package_name=f"airflow.providers.{provider_package_id}",
@@ -1023,6 +1042,7 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
         provider_description=provider_info["description"],
         versions=provider_info["versions"],
         excluded_python_versions=provider_info.get("excluded-python-versions") or [],
+        plugins=plugins,
     )
 
 
@@ -1099,6 +1119,7 @@ def get_provider_jinja_context(
         "CHANGELOG": changelog,
         "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
         "PYTHON_REQUIRES": python_requires,
+        "PLUGINS": provider_details.plugins,
     }
     return context
 
@@ -1108,7 +1129,7 @@ def prepare_readme_file(context):
         template_name="PROVIDER_README", context=context, extension=".rst"
     )
     readme_file_path = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.rst")
-    with open(readme_file_path, "wt") as readme_file:
+    with open(readme_file_path, "w") as readme_file:
         readme_file.write(readme_content)
 
 
@@ -1180,7 +1201,7 @@ def mark_latest_changes_as_documentation_only(provider_package_id: str, latest_c
         "as doc-only changes!"
     )
     with open(
-        os.path.join(provider_details.source_provider_package_path, ".latest-doc-only-change.txt"), "tw"
+        os.path.join(provider_details.source_provider_package_path, ".latest-doc-only-change.txt"), "w"
     ) as f:
         f.write(latest_change.full_hash + "\n")
         # exit code 66 marks doc-only change marked
@@ -1309,7 +1330,7 @@ def replace_content(file_path, old_text, new_text, provider_package_id):
         try:
             if os.path.isfile(file_path):
                 copyfile(file_path, temp_file_path)
-            with open(file_path, "wt") as readme_file:
+            with open(file_path, "w") as readme_file:
                 readme_file.write(new_text)
             console.print()
             console.print(f"Generated {file_path} file for the {provider_package_id} provider")
@@ -1367,29 +1388,16 @@ def update_commits_rst(
 
 
 @lru_cache(maxsize=None)
-def black_mode():
-    from black import Mode, parse_pyproject_toml, target_version_option_callback
-
+def black_mode() -> Mode:
     config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT_PATH, "pyproject.toml"))
-
-    target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
-    )
-
+    target_versions = {TargetVersion[val.upper()] for val in config.get("target_version", ())}
     return Mode(
         target_versions=target_versions,
         line_length=config.get("line_length", Mode.line_length),
-        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
-        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
-        experimental_string_processing=bool(
-            config.get("experimental_string_processing", Mode.experimental_string_processing)
-        ),
     )
 
 
 def black_format(content) -> str:
-    from black import format_str
-
     return format_str(content, mode=black_mode())
 
 
@@ -1399,7 +1407,7 @@ def prepare_setup_py_file(context):
     setup_py_content = render_template(
         template_name=setup_py_template_name, context=context, extension=".py", autoescape=False
     )
-    with open(setup_py_file_path, "wt") as setup_py_file:
+    with open(setup_py_file_path, "w") as setup_py_file:
         setup_py_file.write(black_format(setup_py_content))
 
 
@@ -1413,7 +1421,7 @@ def prepare_setup_cfg_file(context):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(setup_cfg_file_path, "wt") as setup_cfg_file:
+    with open(setup_cfg_file_path, "w") as setup_cfg_file:
         setup_cfg_file.write(setup_cfg_content)
 
 
@@ -1432,7 +1440,7 @@ def prepare_get_provider_info_py_file(context, provider_package_id: str):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(get_provider_file_path, "wt") as get_provider_file:
+    with open(get_provider_file_path, "w") as get_provider_file:
         get_provider_file.write(black_format(get_provider_content))
 
 
@@ -1445,7 +1453,7 @@ def prepare_manifest_in_file(context):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(target, "wt") as fh:
+    with open(target, "w") as fh:
         fh.write(content)
 
 
@@ -1838,7 +1846,7 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
         console.print(
             f"[green]Appending the provider {package_id} changelog for `{latest_version}` version.[/]"
         )
-    with open(changelog_path, "wt") as changelog:
+    with open(changelog_path, "w") as changelog:
         changelog.write("\n".join(new_changelog_lines))
         changelog.write("\n")
 

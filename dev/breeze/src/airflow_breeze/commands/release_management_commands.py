@@ -34,6 +34,9 @@ from rich.progress import Progress
 from rich.syntax import Syntax
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.minor_release_command import create_minor_version_branch
+from airflow_breeze.commands.release_candidate_command import publish_release_candidate
+from airflow_breeze.commands.release_command import airflow_release
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -778,6 +781,7 @@ def get_prs_for_package(package_id: str) -> list[int]:
     help="Only consider package ids with packages prepared in the dist folder",
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@click.option("--disable-progress", is_flag=True, help="Disable progress bar")
 @argument_packages
 def generate_issue_content(
     packages: list[str],
@@ -785,6 +789,7 @@ def generate_issue_content(
     suffix: str,
     only_available_in_dist: bool,
     excluded_pr_list: str,
+    disable_progress: bool,
 ):
     import jinja2
     import yaml
@@ -809,14 +814,14 @@ def generate_issue_content(
         all_prs: set[int] = set()
         provider_prs: dict[str, list[int]] = {}
         if only_available_in_dist:
-            files_in_dist = os.listdir(str(APACHE_AIRFLOW_GITHUB_REPOSITORY / "dist"))
+            files_in_dist = os.listdir(str(AIRFLOW_SOURCES_ROOT / "dist"))
         prepared_package_ids = []
         for package_id in packages:
             if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
                 get_console().print(f"Extracting PRs for provider {package_id}")
                 prepared_package_ids.append(package_id)
             else:
-                get_console.print(
+                get_console().print(
                     f"Skipping extracting PRs for provider {package_id} as it is missing in dist"
                 )
                 continue
@@ -826,7 +831,7 @@ def generate_issue_content(
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
-        with Progress(console=get_console()) as progress:
+        with Progress(console=get_console(), disable=disable_progress) as progress:
             task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
             pr_list = list(all_prs)
             for i in range(len(pr_list)):
@@ -887,3 +892,9 @@ def generate_issue_content(
                 users.add("@" + pr.user.login)
         get_console().print("All users involved in the PRs:")
         get_console().print(" ".join(users))
+
+
+# AIRFLOW RELEASE COMMANDS
+release_management.add_command(publish_release_candidate)
+release_management.add_command(airflow_release)
+release_management.add_command(create_minor_version_branch)

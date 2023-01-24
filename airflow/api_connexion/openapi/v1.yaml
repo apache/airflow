@@ -229,7 +229,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.4.0'
+  version: '2.5.1'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -599,7 +599,7 @@ paths:
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: set_task_instance_note
-      tags: [DAG]
+      tags: [TaskInstance]
       requestBody:
         description: Parameters of set Task Instance note.
         required: true
@@ -639,7 +639,7 @@ paths:
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: set_mapped_task_instance_note
-      tags: [DAG]
+      tags: [TaskInstance]
       requestBody:
         description: Parameters of set Task Instance note.
         required: true
@@ -4492,7 +4492,9 @@ components:
       properties:
         total_entries:
           type: integer
-          description: Count of objects in the current result set.
+          description: |
+            Count of total objects in the current result set before pagination parameters
+            (limit, offset) are applied.
 
     # Enums
     TaskState:

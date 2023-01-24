@@ -34,7 +34,7 @@ Airflow supports the following database engine versions, so make sure which vers
 
 * PostgreSQL: 11, 12, 13, 14, 15
 * MySQL: 5.7, 8
-* MsSQL: 2017, 2019
+* MSSQL (Experimental): 2017, 2019
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -260,7 +260,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 
 
-.. spelling::
+.. spelling:word-list::
 
      hba
 
@@ -375,4 +375,4 @@ What's next?
 ------------
 
 By default, Airflow uses ``SequentialExecutor``, which does not provide parallelism. You should consider
-configuring a different :doc:`executor </executor/index>` for better performance.
+configuring a different :doc:`executor </core-concepts/executor/index>` for better performance.

@@ -345,6 +345,19 @@ class TestPgbouncer:
         )
         assert 2 == jmespath.search("spec.replicas", docs[0])
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestPgbouncerConfig:
     def test_config_not_created_by_default(self):

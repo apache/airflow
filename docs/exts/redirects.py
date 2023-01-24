@@ -74,3 +74,4 @@ def setup(app):
     """Setup plugin"""
     app.add_config_value("redirects_file", "redirects", "env")
     app.connect("builder-inited", generate_redirects)
+    return {"version": "builtin", "parallel_read_safe": True, "parallel_write_safe": True}

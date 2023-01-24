@@ -20,7 +20,7 @@ Writing logs
 
 This is a summary of all Apache Airflow Community provided implementations of writing task logs
 exposed via community-managed providers. You can also see logging options available in the core Airflow in
-:doc:`apache-airflow:logging-monitoring/logging-tasks` and here you can see those
+:doc:`apache-airflow:administration-and-deployment/logging-monitoring/logging-tasks` and here you can see those
 provided by the community-managed providers:
 
 .. airflow-logging::

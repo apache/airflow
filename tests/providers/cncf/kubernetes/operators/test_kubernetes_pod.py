@@ -87,7 +87,7 @@ def create_context(task, persist_to_db=False, map_index=None):
 @pytest.mark.execution_timeout(300)
 class TestKubernetesPodOperator:
     @pytest.fixture(autouse=True)
-    def setup(self, dag_maker):
+    def setup_tests(self, dag_maker):
         self.create_pod_patch = patch(f"{POD_MANAGER_CLASS}.create_pod")
         self.await_pod_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_start")
         self.await_pod_completion_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
