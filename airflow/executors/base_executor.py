@@ -106,11 +106,16 @@ class BaseExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = False
+    supports_pickling: bool = True
+    supports_sentry: bool = False
 
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None
 
     is_local: bool = False
+    change_sensor_mode_to_reschedule: bool = False
+
+    serve_logs: bool = False
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()

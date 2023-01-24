@@ -30,9 +30,9 @@ import sys
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
-    import tty
-    import termios
     import pty
+    import termios
+    import tty
 
 from contextlib import contextmanager
 from typing import Generator

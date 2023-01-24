@@ -229,7 +229,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.4.0'
+  version: '2.5.1'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -4492,7 +4492,9 @@ components:
       properties:
         total_entries:
           type: integer
-          description: Count of objects in the current result set.
+          description: |
+            Count of total objects in the current result set before pagination parameters
+            (limit, offset) are applied.
 
     # Enums
     TaskState:

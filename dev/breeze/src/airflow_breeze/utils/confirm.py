@@ -98,3 +98,20 @@ def user_confirm(
             if quit_allowed:
                 return Answer.QUIT
             sys.exit(1)
+
+
+def confirm_action(
+    message: str,
+    timeout: float | None = None,
+    default_answer: Answer | None = Answer.NO,
+    quit_allowed: bool = True,
+    abort: bool = False,
+) -> bool:
+    answer = user_confirm(message, timeout, default_answer, quit_allowed)
+    if answer == Answer.YES:
+        return True
+    elif abort:
+        sys.exit(1)
+    elif answer == Answer.QUIT:
+        sys.exit(1)
+    return False

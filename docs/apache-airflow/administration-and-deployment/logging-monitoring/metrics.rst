@@ -121,6 +121,10 @@ Name                                                                   Descripti
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
 ``triggers.succeeded``                                                 Number of triggers that have fired at least one event
+``dataset.updates``                                                    Number of updated datasets
+``dataset.orphaned``                                                   Number of datasets marked as orphans because they are no longer referenced in DAG
+                                                                       schedule parameters or task outlets
+``dataset.triggered_dagruns``                                          Number of DAG runs triggered by a dataset update
 ====================================================================== ================================================================
 
 Gauges
@@ -137,7 +141,7 @@ Name                                                Description
 ``scheduler.tasks.running``                         Number of tasks running in executor
 ``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)
-                                                    with respect to pool limits, dag concurrency, executor state,
+                                                    with respect to pool limits, DAG concurrency, executor state,
                                                     and priority.
 ``executor.open_slots``                             Number of open slots on executor
 ``executor.queued_tasks``                           Number of queued tasks on executor

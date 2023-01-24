@@ -216,7 +216,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
-    "eventlet>=0.9.7",
+    "eventlet>=0.33.3",
     "gevent>=0.13",
     "greenlet>=0.4.9",
 ]
@@ -371,15 +371,8 @@ devel_only = [
     "click>=8.0",
     "coverage",
     "filelock",
-    "flake8>=3.9.0",
-    "flake8-colors",
-    "flake8-implicit-str-concat",
     "gitpython",
     "ipdb",
-    # make sure that we are using stable sorting order from 5.* version (some changes were introduced
-    # in 5.11.3. Black is not compatible yet, so we need to limit isort
-    # we can remove the limit when black and isort agree on the order
-    "isort==5.11.2",
     "jira",
     "jsondiff",
     "mongomock",
@@ -390,18 +383,12 @@ devel_only = [
     "pre-commit",
     "pypsrp",
     "pygithub",
-    # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
-    # It contains a number of potential breaking changes but none of them looks breaking our use
-    # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
-    # TODO: upgrade it and remove the limit
-    "pytest~=6.0",
+    "pytest",
     "pytest-asyncio",
     "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
-    # We should attempt to remove the limit when we upgrade Pytest
-    # TODO: remove the limit when we upgrade pytest
-    "pytest-rerunfailures~=9.1",
+    "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
     "python-jose",
@@ -410,6 +397,7 @@ devel_only = [
     "pytest-httpx",
     "requests_mock",
     "rich-click>=1.5",
+    "ruff>=0.0.219",
     "semver",
     "time-machine",
     "towncrier",
@@ -449,6 +437,9 @@ devel_hadoop = get_unique_dependency_list(
         devel,
         get_provider_dependencies("apache.hdfs"),
         get_provider_dependencies("apache.hive"),
+        get_provider_dependencies("apache.hdfs"),
+        get_provider_dependencies("apache.hive"),
+        get_provider_dependencies("apache.impala"),
         kerberos,
         get_provider_dependencies("presto"),
         webhdfs,
@@ -582,6 +573,7 @@ ALL_DB_PROVIDERS = [
     "apache.druid",
     "apache.hdfs",
     "apache.hive",
+    "apache.impala",
     "apache.pinot",
     "arangodb",
     "cloudant",

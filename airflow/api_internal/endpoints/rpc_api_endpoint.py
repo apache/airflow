@@ -17,23 +17,19 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 from inspect import signature
-from typing import Callable
+from typing import Any, Callable
 
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
-from airflow.dag_processing.manager import DagFileProcessorManager
-from airflow.dag_processing.processor import DagFileProcessor
+from airflow.models import Variable, XCom
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
-
-
-def _build_methods_map(list) -> dict:
-    return {f"{func.__module__}.{func.__name__}": func for func in list}
 
 
 def _in_parameters(func: Callable, parameter_name: str) -> bool:
@@ -47,17 +43,30 @@ def _in_parameters(func: Callable, parameter_name: str) -> bool:
         return False
 
 
-METHODS_MAP = _build_methods_map(
-    [
+@functools.lru_cache()
+def _initialize_map() -> dict[str, Callable]:
+    from airflow.dag_processing.manager import DagFileProcessorManager
+    from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.models.dag import DagModel
+
+    functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
+        DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
+        DagModel.get_paused_dag_ids,
+        DagFileProcessorManager.clear_nonexistent_import_errors,
+        XCom.get_value,
+        XCom.get_one,
+        XCom.get_many,
+        XCom.clear,
+        Variable.set,
+        Variable.update,
+        Variable.delete,
     ]
-)
+    return {f"{func.__module__}.{func.__name__}": func for func in functions}
 
 
-def internal_airflow_api(
-    body: dict,
-) -> APIResponse:
+def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handler for Internal API /internal_api/v1/rpcapi endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
@@ -65,12 +74,13 @@ def internal_airflow_api(
         log.error("Not jsonrpc-2.0 request.")
         return Response(response="Expected jsonrpc 2.0 request.", status=400)
 
-    method_name = str(body.get("method"))
-    if method_name not in METHODS_MAP:
+    methods_map = _initialize_map()
+    method_name = body.get("method")
+    if method_name not in methods_map:
         log.error("Unrecognized method: %s.", method_name)
         return Response(response=f"Unrecognized method: {method_name}.", status=400)
 
-    handler = METHODS_MAP[method_name]
+    handler = methods_map[method_name]
     params = {}
     try:
         if body.get("params"):

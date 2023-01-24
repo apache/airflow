@@ -17,13 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
-import unittest
 from unittest import mock
 
 import pytest
 from cryptography.fernet import Fernet
-from parameterized import parameterized
 
 from airflow import settings
 from airflow.models import Variable, crypto, variable
@@ -32,21 +31,16 @@ from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
-class TestVariable(unittest.TestCase):
-    def setUp(self):
+class TestVariable:
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
         crypto._fernet = None
         db.clear_db_variables()
-        patcher = mock.patch("airflow.models.variable.mask_secret", autospec=True)
-        self.mask_secret = patcher.start()
-
-        self.addCleanup(patcher.stop)
-
-    def tearDown(self):
-        crypto._fernet = None
-
-    @classmethod
-    def tearDownClass(cls):
+        with mock.patch("airflow.models.variable.mask_secret", autospec=True) as m:
+            self.mask_secret = m
+            yield
         db.clear_db_variables()
+        crypto._fernet = None
 
     @conf_vars({("core", "fernet_key"): ""})
     def test_variable_no_encryption(self):
@@ -73,7 +67,7 @@ class TestVariable(unittest.TestCase):
         assert test_var.is_encrypted
         assert test_var.val == "value"
 
-    @parameterized.expand(["value", ""])
+    @pytest.mark.parametrize("test_value", ["value", ""])
     def test_var_with_encryption_rotate_fernet_key(self, test_value):
         """
         Tests rotating encrypted variables.
@@ -104,15 +98,15 @@ class TestVariable(unittest.TestCase):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
 
-    def test_variable_set_with_env_variable(self):
+    def test_variable_set_with_env_variable(self, caplog):
+        caplog.set_level(logging.WARNING, logger=variable.log.name)
         Variable.set("key", "db-value")
-        with self.assertLogs(variable.log) as log_context:
-            with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
-                Variable.set("key", "new-db-value")
-                assert "env-value" == Variable.get("key")
-            assert "new-db-value" == Variable.get("key")
+        with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
+            Variable.set("key", "new-db-value")
+            assert "env-value" == Variable.get("key")
+        assert "new-db-value" == Variable.get("key")
 
-        assert log_context.records[0].message == (
+        assert caplog.messages[0] == (
             "The variable key is defined in the EnvironmentVariablesBackend secrets backend, "
             "which takes precedence over reading from the database. The value in the database "
             "will be updated, but to read it you have to delete the conflicting variable from "
@@ -120,19 +114,17 @@ class TestVariable(unittest.TestCase):
         )
 
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
-    def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets):
-
+    def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets, caplog):
+        caplog.set_level(logging.WARNING, logger=variable.log.name)
         mock_backend = mock.Mock()
         mock_backend.get_variable.return_value = "secret_val"
         mock_backend.__class__.__name__ = "MockSecretsBackend"
         mock_ensure_secrets.return_value = [mock_backend, MetastoreBackend]
 
-        with self.assertLogs(variable.log) as log_context:
-            Variable.set("key", "new-db-value")
-
+        Variable.set("key", "new-db-value")
         assert Variable.get("key") == "secret_val"
 
-        assert log_context.records[0].message == (
+        assert caplog.messages[0] == (
             "The variable key is defined in the MockSecretsBackend secrets backend, "
             "which takes precedence over reading from the database. The value in the database "
             "will be updated, but to read it you have to delete the conflicting variable from "
