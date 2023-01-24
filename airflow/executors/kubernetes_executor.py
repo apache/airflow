@@ -28,6 +28,7 @@ import logging
 import multiprocessing
 import time
 from collections import defaultdict
+from contextlib import suppress
 from datetime import timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
@@ -37,6 +38,7 @@ from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, PodMutationHookException, PodReconciliationError
 from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.kubernetes import pod_generator
@@ -770,6 +772,57 @@ class KubernetesExecutor(BaseExecutor):
             # We get multiple events once the pod hits a terminal state, and we only want to
             # do this once, so only do it when we remove the task from running
             self.event_buffer[key] = state, None
+
+    @staticmethod
+    def _get_pod_namespace(ti: TaskInstance):
+        pod_override = ti.executor_config.get("pod_override")
+        namespace = None
+        with suppress(Exception):
+            namespace = pod_override.metadata.namespace
+        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
+
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
+
+        try:
+            from airflow.kubernetes.pod_generator import PodGenerator
+
+            client = get_kube_client()
+
+            log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
+            selector = PodGenerator.build_selector_for_k8s_executor_pod(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                run_id=ti.run_id,
+                airflow_worker=ti.queued_by_job_id,
+            )
+            namespace = self._get_pod_namespace(ti)
+            pod_list = client.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=selector,
+            ).items
+            if not pod_list:
+                raise RuntimeError("Cannot find pod for ti %s", ti)
+            elif len(pod_list) > 1:
+                raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
+            res = client.read_namespaced_pod_log(
+                name=pod_list[0].metadata.name,
+                namespace=namespace,
+                container="base",
+                follow=False,
+                tail_lines=100,
+                _preload_content=False,
+            )
+
+            for line in res:
+                log += line.decode()
+
+            return log
+
+        except Exception as f:
+            log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
+            return log, {"end_of_log": True}
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
