@@ -344,7 +344,9 @@ def get_task_instances(
     )
     base_query = _apply_range_filter(base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
     base_query = _apply_range_filter(base_query, key=TI.duration, value_range=(duration_gte, duration_lte))
-    base_query = _apply_range_filter(base_query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte))
+    base_query = _apply_range_filter(
+        base_query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte)
+    )
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
