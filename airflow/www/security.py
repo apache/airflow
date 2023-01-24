@@ -237,7 +237,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             role_name = config["role"]
             perms = config["perms"]
             role = existing_roles.get(role_name) or self.add_role(role_name)
-
             for action_name, resource_name in perms:
                 perm = non_dag_perms.get((action_name, resource_name)) or self.create_permission(
                     action_name, resource_name
@@ -245,6 +244,34 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
                 if perm not in role.permissions:
                     self.add_permission_to_role(role, perm)
+
+    def patch_role_permissions(self, role: Role, permissions: list[tuple[str, str]]) -> None:
+        """
+        Compares existing role permissions against provided permissions
+        Removes permissions that don't exist in the provided permissions
+        Adds permissions that don't exist in the role's current permissions
+        :param role:
+        :param permissions:
+        """
+        existing_permissions = [(permission.action, permission.resource) for permission in role.permissions]
+        existing_permissions_set = set(
+            [(str(permission[0]), str(permission[1])) for permission in existing_permissions]
+        )
+
+        permissions_set = set([(str(permission[0]), str(permission[1])) for permission in permissions])
+
+        permissions_to_remove = existing_permissions_set.difference(permissions_set)
+        permissions_to_add = permissions_set.difference(existing_permissions_set)
+
+        for action, resource in permissions_to_remove:
+            permission = self.get_permission(action, resource)
+            if permission:
+                self.remove_permission_from_role(role, permission)
+
+        for action, resource in permissions_to_add:
+            permission = self.get_permission(action, resource)
+            if permission:
+                self.add_permission_to_role(role, permission)
 
     def delete_role(self, role_name):
         """

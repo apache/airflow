@@ -136,7 +136,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
     if "permissions" in data:
         perms = [(item["action"]["name"], item["resource"]["name"]) for item in data["permissions"] if item]
         _check_action_and_resource(security_manager, perms)
-        security_manager.bulk_sync_roles([{"role": role_name, "perms": perms}])
+        security_manager.patch_role_permissions(role, perms)
     new_name = data.get("name")
     if new_name is not None and new_name != role.name:
         security_manager.update_role(role_id=role.id, name=new_name)

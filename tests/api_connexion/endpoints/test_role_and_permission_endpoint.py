@@ -379,6 +379,52 @@ class TestPatchRole(TestRoleEndpoint):
 
         assert len(self.app.appbuilder.sm.find_role("already_exists").permissions) == 0
 
+    def test_patch_should_remove_permissions_not_in_update(self):
+        create_role(self.app, "testrole")
+
+        response = self.client.patch(
+            "/api/v1/roles/testrole",
+            json={
+                "name": "testrole",
+                "actions": [
+                    {"action": {"name": "can_delete"}, "resource": {"name": "DAGs"}},
+                    {"action": {"name": "can_edit"}, "resource": {"name": "Users"}},
+                ],
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+
+        updated_permissions = self.app.appbuilder.sm.find_role("testrole").permissions
+        updated_permissions = sorted(updated_permissions, key=lambda x: x.resource.name)
+        assert len(updated_permissions) == 2
+        assert updated_permissions[0].resource.name == "DAGs"
+        assert updated_permissions[0].action.name == "can_delete"
+        assert updated_permissions[1].resource.name == "Users"
+        assert updated_permissions[1].action.name == "can_edit"
+
+        response = self.client.patch(
+            "/api/v1/roles/testrole",
+            json={
+                "name": "testrole",
+                "actions": [
+                    {"action": {"name": "can_edit"}, "resource": {"name": "DAGs"}},
+                    {"action": {"name": "can_edit"}, "resource": {"name": "Users"}},
+                ],
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 200
+
+        updated_permissions = self.app.appbuilder.sm.find_role("testrole").permissions
+        updated_permissions = sorted(updated_permissions, key=lambda x: x.resource.name)
+        assert len(updated_permissions) == 2
+        assert updated_permissions[0].resource.name == "DAGs"
+        assert updated_permissions[0].action.name == "can_edit"
+        assert updated_permissions[1].resource.name == "Users"
+        assert updated_permissions[1].action.name == "can_edit"
+
     @pytest.mark.parametrize(
         "update_mask, payload, expected_name, expected_actions",
         [
