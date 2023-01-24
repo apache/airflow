@@ -37,7 +37,6 @@ from tests.system.providers.amazon.aws.utils.ec2 import (
     delete_nat_gateway,
     delete_route_table,
     delete_subnets,
-    get_default_vpc_id,
     remove_address_allocation,
 )
 
@@ -48,12 +47,14 @@ DAG_ID = "example_eks_with_fargate_in_one_step"
 CLUSTER_ROLE_ARN_KEY = "CLUSTER_ROLE_ARN"
 # See https://docs.aws.amazon.com/eks/latest/userguide/pod-execution-role.html
 FARGATE_POD_ROLE_ARN_KEY = "FARGATE_POD_ROLE_ARN"
+VPC_ID_KEY = "VPC_ID"
 PUBLIC_SUBNET_ID_KEY = "PUBLIC_SUBNET_ID"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
     .add_variable(CLUSTER_ROLE_ARN_KEY)
     .add_variable(FARGATE_POD_ROLE_ARN_KEY)
+    .add_variable(VPC_ID_KEY)
     .add_variable(PUBLIC_SUBNET_ID_KEY)
     .build()
 )
@@ -69,13 +70,13 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     cluster_role_arn = test_context[CLUSTER_ROLE_ARN_KEY]
     fargate_pod_role_arn = test_context[FARGATE_POD_ROLE_ARN_KEY]
+    vpc_id = test_context[VPC_ID_KEY]
     public_subnet_id = test_context[PUBLIC_SUBNET_ID_KEY]
 
     cluster_name = f"{env_id}-cluster"
     fargate_profile_name = f"{env_id}-profile"
     test_name = f"{env_id}_{DAG_ID}"
 
-    vpc_id = get_default_vpc_id()
     allocation = create_address_allocation()
     nat_gateway = create_nat_gateway(allocation_id=allocation, subnet_id=public_subnet_id)
     route_table = create_route_table(vpc_id=vpc_id, nat_gateway_id=nat_gateway, test_name=test_name)

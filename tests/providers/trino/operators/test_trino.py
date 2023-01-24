@@ -47,5 +47,4 @@ class TestTrinoOperator:
             handler=list,
             parameters=None,
             return_last=True,
-            split_statements=False,
         )

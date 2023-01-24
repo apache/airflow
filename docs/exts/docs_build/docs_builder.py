@@ -162,7 +162,7 @@ class AirflowDocsBuilder:
                 " ".join(shlex.quote(c) for c in build_cmd),
             )
             console.print(f"[info]{self.package_name:60}:[/] The output is hidden until an error occurs.")
-        with open(self.log_spelling_filename, "wt") as output:
+        with open(self.log_spelling_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
                 cwd=self._src_dir,
@@ -241,7 +241,7 @@ class AirflowDocsBuilder:
                 f"[info]{self.package_name:60}:[/] Running sphinx. "
                 f"The output is hidden until an error occurs."
             )
-        with open(self.log_build_filename, "wt") as output:
+        with open(self.log_build_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
                 cwd=self._src_dir,

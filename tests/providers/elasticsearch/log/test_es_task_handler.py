@@ -27,12 +27,11 @@ from unittest import mock
 from urllib.parse import quote
 
 import elasticsearch
-import freezegun
 import pendulum
 import pytest
 
 from airflow.configuration import conf
-from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler
+from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler, getattr_nested
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
@@ -554,7 +553,7 @@ class TestElasticsearchTaskHandler:
         assert self.es_task_handler.supports_external_link == expected
 
     @mock.patch("sys.__stdout__", new_callable=io.StringIO)
-    def test_dynamic_offset(self, stdout_mock, ti):
+    def test_dynamic_offset(self, stdout_mock, ti, time_machine):
         # arrange
         handler = ElasticsearchTaskHandler(
             base_log_folder=self.local_log_location,
@@ -578,12 +577,12 @@ class TestElasticsearchTaskHandler:
         t2, t3 = t1 + pendulum.duration(seconds=5), t1 + pendulum.duration(seconds=10)
 
         # act
-        with freezegun.freeze_time(t1):
-            ti.log.info("Test")
-        with freezegun.freeze_time(t2):
-            ti.log.info("Test2")
-        with freezegun.freeze_time(t3):
-            ti.log.info("Test3")
+        time_machine.move_to(t1, tick=False)
+        ti.log.info("Test")
+        time_machine.move_to(t2, tick=False)
+        ti.log.info("Test2")
+        time_machine.move_to(t3, tick=False)
+        ti.log.info("Test3")
 
         # assert
         first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().split("\n"))
@@ -591,3 +590,19 @@ class TestElasticsearchTaskHandler:
         assert first_log["asctime"] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert third_log["asctime"] == t3.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
+
+
+def test_safe_attrgetter():
+    class A:
+        ...
+
+    a = A()
+    a.b = "b"
+    a.c = None
+    a.x = a
+    a.x.d = "blah"
+    assert getattr_nested(a, "b", None) == "b"  # regular getattr
+    assert getattr_nested(a, "x.d", None) == "blah"  # nested val
+    assert getattr_nested(a, "aa", "heya") == "heya"  # respects non-none default
+    assert getattr_nested(a, "c", "heya") is None  # respects none value
+    assert getattr_nested(a, "aa", None) is None  # respects none default

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is an example dag for using the FTPFileTransmitOperator.
+This is an example dag for using the FTPFileTransmitOperator and FTPSFileTransmitOperator.
 """
 from __future__ import annotations
 
@@ -23,17 +23,21 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.ftp.operators.ftp import FTPFileTransmitOperator, FTPOperation
+from airflow.providers.ftp.operators.ftp import (
+    FTPFileTransmitOperator,
+    FTPOperation,
+    FTPSFileTransmitOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_ftp_put_get"
+DAG_ID = "example_ftp_ftps_put_get"
 
 with DAG(
     DAG_ID,
     schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "Ftp", "FtpFileTransmit"],
+    tags=["example", "Ftp", "FtpFileTransmit", "Ftps", "FtpsFileTransmit"],
 ) as dag:
     # [START howto_operator_ftp_put]
     ftp_put = FTPFileTransmitOperator(
@@ -57,7 +61,30 @@ with DAG(
     )
     # [END howto_operator_ftp_get]
 
+    # [START howto_operator_ftps_put]
+    ftps_put = FTPSFileTransmitOperator(
+        task_id="test_ftps_put",
+        ftp_conn_id="ftps_default",
+        local_filepath="/tmp/filepath",
+        remote_filepath="/remote_tmp/filepath",
+        operation=FTPOperation.PUT,
+        create_intermediate_dirs=True,
+    )
+    # [END howto_operator_ftps_put]
+
+    # [START howto_operator_ftps_get]
+    ftps_get = FTPSFileTransmitOperator(
+        task_id="test_ftps_get",
+        ftp_conn_id="ftps_default",
+        local_filepath="/tmp/filepath",
+        remote_filepath="/remote_tmp/filepath",
+        operation=FTPOperation.GET,
+        create_intermediate_dirs=True,
+    )
+    # [END howto_operator_ftps_get]
+
     ftp_put >> ftp_get
+    ftps_put >> ftps_get
 
     from tests.system.utils.watcher import watcher
 

@@ -56,6 +56,7 @@ class DepContext:
         dependencies. Overrides the other ignore_* parameters
     :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs (e.g. for
         Backfills)
+    :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
     :param ignore_in_retry_period: Ignore the retry period for task instances
     :param ignore_in_reschedule_period: Ignore the reschedule period for task instances
     :param ignore_unmapped_tasks: Ignore errors about mapped tasks not yet being expanded
@@ -69,12 +70,14 @@ class DepContext:
     flag_upstream_failed: bool = False
     ignore_all_deps: bool = False
     ignore_depends_on_past: bool = False
+    wait_for_past_depends_before_skipping: bool = False
     ignore_in_retry_period: bool = False
     ignore_in_reschedule_period: bool = False
     ignore_task_deps: bool = False
     ignore_ti_state: bool = False
     ignore_unmapped_tasks: bool = False
     finished_tis: list[TaskInstance] | None = None
+    description: str | None = None
 
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""

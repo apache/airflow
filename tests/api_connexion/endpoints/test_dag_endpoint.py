@@ -21,7 +21,6 @@ import unittest.mock
 from datetime import datetime
 
 import pytest
-from parameterized import parameterized
 
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -698,13 +697,14 @@ class TestGetDags(TestDagEndpoint):
             "total_entries": 2,
         } == response.json
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_dag_ids",
         [
             ("api/v1/dags?tags=t1", ["TEST_DAG_1", "TEST_DAG_3"]),
             ("api/v1/dags?tags=t2", ["TEST_DAG_2", "TEST_DAG_3"]),
             ("api/v1/dags?tags=t1,t2", ["TEST_DAG_1", "TEST_DAG_2", "TEST_DAG_3"]),
             ("api/v1/dags", ["TEST_DAG_1", "TEST_DAG_2", "TEST_DAG_3", "TEST_DAG_4"]),
-        ]
+        ],
     )
     def test_filter_dags_by_tags_works(self, url, expected_dag_ids):
         # test filter by tags
@@ -723,7 +723,8 @@ class TestGetDags(TestDagEndpoint):
 
         assert expected_dag_ids == dag_ids
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_dag_ids",
         [
             ("api/v1/dags?dag_id_pattern=DAG_1", {"TEST_DAG_1", "SAMPLE_DAG_1"}),
             ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {"SAMPLE_DAG_1", "SAMPLE_DAG_2"}),
@@ -731,7 +732,7 @@ class TestGetDags(TestDagEndpoint):
                 "api/v1/dags?dag_id_pattern=_DAG_",
                 {"TEST_DAG_1", "TEST_DAG_2", "SAMPLE_DAG_1", "SAMPLE_DAG_2"},
             ),
-        ]
+        ],
     )
     def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
         # test filter by tags
@@ -759,7 +760,8 @@ class TestGetDags(TestDagEndpoint):
         assert len(response.json["dags"]) == 1
         assert response.json["dags"][0]["dag_id"] == "TEST_DAG_1"
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_dag_ids",
         [
             ("api/v1/dags?limit=1", ["TEST_DAG_1"]),
             ("api/v1/dags?limit=2", ["TEST_DAG_1", "TEST_DAG_10"]),
@@ -785,7 +787,7 @@ class TestGetDags(TestDagEndpoint):
             ("api/v1/dags?limit=1&offset=5", ["TEST_DAG_5"]),
             ("api/v1/dags?limit=1&offset=1", ["TEST_DAG_10"]),
             ("api/v1/dags?limit=2&offset=2", ["TEST_DAG_2", "TEST_DAG_3"]),
-        ]
+        ],
     )
     def test_should_respond_200_and_handle_pagination(self, url, expected_dag_ids):
         self._create_dag_models(10)
@@ -965,7 +967,8 @@ class TestPatchDag(TestDagEndpoint):
         }
         assert response.json == expected_response
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, update_mask, error_message",
         [
             (
                 {
@@ -981,7 +984,7 @@ class TestPatchDag(TestDagEndpoint):
                 "update_mask=schedule_interval, description",
                 "Only `is_paused` field can be updated through the REST API",
             ),
-        ]
+        ],
     )
     def test_should_respond_400_for_invalid_fields_in_update_mask(self, payload, update_mask, error_message):
         dag_model = self._create_dag_model()
@@ -1190,21 +1193,6 @@ class TestPatchDags(TestDagEndpoint):
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
-                    "next_dagrun": None,
-                    "has_task_concurrency_limits": True,
-                    "next_dagrun_data_interval_start": None,
-                    "next_dagrun_data_interval_end": None,
-                    "max_active_runs": 16,
-                    "next_dagrun_create_after": None,
-                    "last_expired": None,
-                    "max_active_tasks": 16,
-                    "last_pickled": None,
-                    "default_view": None,
-                    "last_parsed_time": None,
-                    "scheduler_lock": None,
-                    "timetable_description": None,
-                    "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
@@ -1241,13 +1229,14 @@ class TestPatchDags(TestDagEndpoint):
             "total_entries": 2,
         } == response.json
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_dag_ids",
         [
             ("api/v1/dags?tags=t1&dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_3"]),
             ("api/v1/dags?tags=t2&dag_id_pattern=~", ["TEST_DAG_2", "TEST_DAG_3"]),
             ("api/v1/dags?tags=t1,t2&dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_2", "TEST_DAG_3"]),
             ("api/v1/dags?dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_2", "TEST_DAG_3", "TEST_DAG_4"]),
-        ]
+        ],
     )
     def test_filter_dags_by_tags_works(self, url, expected_dag_ids):
         # test filter by tags
@@ -1271,7 +1260,8 @@ class TestPatchDags(TestDagEndpoint):
 
         assert expected_dag_ids == dag_ids
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_dag_ids",
         [
             ("api/v1/dags?dag_id_pattern=DAG_1", {"TEST_DAG_1", "SAMPLE_DAG_1"}),
             ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {"SAMPLE_DAG_1", "SAMPLE_DAG_2"}),
@@ -1279,7 +1269,7 @@ class TestPatchDags(TestDagEndpoint):
                 "api/v1/dags?dag_id_pattern=_DAG_",
                 {"TEST_DAG_1", "TEST_DAG_2", "SAMPLE_DAG_1", "SAMPLE_DAG_2"},
             ),
-        ]
+        ],
     )
     def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
         # test filter by tags
@@ -1317,7 +1307,8 @@ class TestPatchDags(TestDagEndpoint):
         assert len(response.json["dags"]) == 1
         assert response.json["dags"][0]["dag_id"] == "TEST_DAG_1"
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_dag_ids",
         [
             ("api/v1/dags?limit=1&dag_id_pattern=~", ["TEST_DAG_1"]),
             ("api/v1/dags?limit=2&dag_id_pattern=~", ["TEST_DAG_1", "TEST_DAG_10"]),
@@ -1343,7 +1334,7 @@ class TestPatchDags(TestDagEndpoint):
             ("api/v1/dags?limit=1&offset=5&dag_id_pattern=~", ["TEST_DAG_5"]),
             ("api/v1/dags?limit=1&offset=1&dag_id_pattern=~", ["TEST_DAG_10"]),
             ("api/v1/dags?limit=2&offset=2&dag_id_pattern=~", ["TEST_DAG_2", "TEST_DAG_3"]),
-        ]
+        ],
     )
     def test_should_respond_200_and_handle_pagination(self, url, expected_dag_ids):
         self._create_dag_models(10)

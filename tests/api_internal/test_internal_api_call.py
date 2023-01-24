@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
+import pytest
 import requests
 
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
@@ -29,10 +29,12 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from tests.test_utils.config import conf_vars
 
 
-class TestInternalApiConfig(unittest.TestCase):
-    def setUp(self):
-        InternalApiConfig._initialized = False
+@pytest.fixture(autouse=True)
+def reset_init_api_config():
+    InternalApiConfig._initialized = False
 
+
+class TestInternalApiConfig:
     @conf_vars(
         {
             ("core", "database_access_isolation"): "false",
@@ -40,7 +42,7 @@ class TestInternalApiConfig(unittest.TestCase):
         }
     )
     def test_get_use_internal_api_disabled(self):
-        self.assertFalse(InternalApiConfig.get_use_internal_api())
+        assert InternalApiConfig.get_use_internal_api() is False
 
     @conf_vars(
         {
@@ -49,26 +51,20 @@ class TestInternalApiConfig(unittest.TestCase):
         }
     )
     def test_get_use_internal_api_enabled(self):
-        self.assertTrue(InternalApiConfig.get_use_internal_api())
-        self.assertEqual(
-            InternalApiConfig.get_internal_api_endpoint(),
-            "http://localhost:8888/internal_api/v1/rpcapi",
-        )
+        assert InternalApiConfig.get_use_internal_api() is True
+        assert InternalApiConfig.get_internal_api_endpoint() == "http://localhost:8888/internal_api/v1/rpcapi"
 
 
-@internal_api_call
-def fake_method() -> str:
-    return "local-call"
+class TestInternalApiCall:
+    @staticmethod
+    @internal_api_call
+    def fake_method() -> str:
+        return "local-call"
 
-
-@internal_api_call
-def fake_method_with_params(dag_id: str, task_id: int) -> str:
-    return f"local-call-with-params-{dag_id}-{task_id}"
-
-
-class TestInternalApiCall(unittest.TestCase):
-    def setUp(self):
-        InternalApiConfig._initialized = False
+    @staticmethod
+    @internal_api_call
+    def fake_method_with_params(dag_id: str, task_id: int) -> str:
+        return f"local-call-with-params-{dag_id}-{task_id}"
 
     @conf_vars(
         {
@@ -78,9 +74,9 @@ class TestInternalApiCall(unittest.TestCase):
     )
     @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_local_call(self, mock_requests):
-        result = fake_method()
+        result = TestInternalApiCall.fake_method()
 
-        self.assertEqual(result, "local-call")
+        assert result == "local-call"
         mock_requests.post.assert_not_called()
 
     @conf_vars(
@@ -98,12 +94,12 @@ class TestInternalApiCall(unittest.TestCase):
 
         mock_requests.post.return_value = response
 
-        result = fake_method()
-        self.assertEqual(result, "remote-call")
+        result = TestInternalApiCall.fake_method()
+        assert result == "remote-call"
         expected_data = json.dumps(
             {
                 "jsonrpc": "2.0",
-                "method": "tests.api_internal.test_internal_api_call.fake_method",
+                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall.fake_method",
                 "params": json.dumps(BaseSerialization.serialize({})),
             }
         )
@@ -128,12 +124,13 @@ class TestInternalApiCall(unittest.TestCase):
 
         mock_requests.post.return_value = response
 
-        result = fake_method_with_params("fake-dag", task_id=123)
-        self.assertEqual(result, "remote-call")
+        result = TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123)
+        assert result == "remote-call"
         expected_data = json.dumps(
             {
                 "jsonrpc": "2.0",
-                "method": "tests.api_internal.test_internal_api_call.fake_method_with_params",
+                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
+                "fake_method_with_params",
                 "params": json.dumps(
                     BaseSerialization.serialize(
                         {

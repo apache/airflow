@@ -22,6 +22,8 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 7.1.0
+  - 7.0.0
   - 6.2.0
   - 6.1.0
   - 6.0.0
@@ -59,7 +61,6 @@ dependencies:
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
-  - pandas>=0.17.1
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
   - mypy-boto3-appflow>=1.24.0
@@ -95,6 +96,10 @@ integrations:
     logo: /integration-logos/aws/Amazon-EC2_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/ec2.rst
+    tags: [aws]
+  - integration-name: Amazon Elastic Container Registry (ECR)
+    external-doc-url: https://aws.amazon.com/ecr/
+    logo: /integration-logos/aws/Amazon-Elastic-Container-Registry_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
@@ -190,6 +195,10 @@ integrations:
     logo: /integration-logos/aws/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/s3.rst
+    tags: [aws]
+  - integration-name: Amazon Systems Manager (SSM)
+    external-doc-url: https://aws.amazon.com/systems-manager/
+    logo: /integration-logos/aws/AWS-Systems-Manager_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
@@ -354,6 +363,9 @@ sensors:
       - airflow.providers.amazon.aws.sensors.glue
       - airflow.providers.amazon.aws.sensors.glue_crawler
       - airflow.providers.amazon.aws.sensors.glue_catalog_partition
+  - integration-name: AWS Lambda
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.lambda_function
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.sensors.rds
@@ -402,6 +414,9 @@ hooks:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.hooks.ec2
+  - integration-name: Amazon Elastic Container Registry (ECR)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.ecr
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.hooks.ecs
@@ -451,6 +466,9 @@ hooks:
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
+  - integration-name: Amazon Systems Manager (SSM)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.ssm
   - integration-name: Amazon SecretsManager
     python-modules:
       - airflow.providers.amazon.aws.hooks.secrets_manager
@@ -541,6 +559,10 @@ transfers:
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sql_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sql_to_s3
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Common SQL
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_sql.rst
+    python-module: airflow.providers.amazon.aws.transfers.s3_to_sql
 
 
 extra-links:
@@ -548,6 +570,8 @@ extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobDetailsLink
   - airflow.providers.amazon.aws.links.batch.BatchJobQueueLink
   - airflow.providers.amazon.aws.links.emr.EmrClusterLink
+  - airflow.providers.amazon.aws.links.emr.EmrLogsLink
+  - airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
 
 connection-types:
@@ -565,3 +589,8 @@ secrets-backends:
 logging:
   - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
   - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
+
+additional-extras:
+  - name: pandas
+    dependencies:
+      - pandas>=0.17.1

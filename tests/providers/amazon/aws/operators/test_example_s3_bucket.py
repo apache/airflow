@@ -19,7 +19,7 @@ from __future__ import annotations
 from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest, provide_aws_context
 
 
-class S3BucketExampleDagsSystemTest(AmazonSystemTest):
+class TestS3BucketExampleDagsSystem(AmazonSystemTest):
     """
     System tests for AWS S3 operators
     """

@@ -20,6 +20,7 @@
 #
 # IF YOU WANT TO MODIFY IT, YOU SHOULD MODIFY THE TEMPLATE
 # `pre_commit_ids_TEMPLATE.py.jinja2` IN the `dev/breeze/src/airflow_breeze` DIRECTORY
+from __future__ import annotations
 
 PRE_COMMIT_LIST = [
     "all",
@@ -52,6 +53,7 @@ PRE_COMMIT_LIST = [
     "check-newsfragments-are-valid",
     "check-no-providers-in-core-examples",
     "check-no-relative-imports",
+    "check-only-new-session-with-provide-session",
     "check-persist-credentials-disabled-in-github-workflows",
     "check-pre-commit-information-consistent",
     "check-provide-create-sessions-imports",
@@ -78,7 +80,6 @@ PRE_COMMIT_LIST = [
     "flynt",
     "identity",
     "insert-license",
-    "isort",
     "lint-chart-schema",
     "lint-css",
     "lint-dockerfile",
@@ -88,17 +89,15 @@ PRE_COMMIT_LIST = [
     "lint-openapi",
     "mixed-line-ending",
     "pretty-format-json",
-    "pydocstyle",
     "python-no-log-warn",
-    "pyupgrade",
     "replace-bad-characters",
     "rst-backticks",
-    "run-flake8",
+    "ruff",
     "run-mypy",
     "run-shellcheck",
-    "static-check-autoflake",
     "trailing-whitespace",
     "ts-compile-and-lint-javascript",
+    "update-black-version",
     "update-breeze-cmd-output",
     "update-breeze-readme-config-hash",
     "update-common-sql-api-stubs",
@@ -114,5 +113,4 @@ PRE_COMMIT_LIST = [
     "update-vendored-in-k8s-json-schema",
     "update-version",
     "yamllint",
-    "yesqa",
 ]

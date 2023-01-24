@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import signal
 import sys
@@ -27,20 +28,22 @@ from unittest import mock
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
+import time_machine
 from celery import Celery
 from celery.result import AsyncResult
-from freezegun import freeze_time
 from kombu.asynchronous import set_event_loop
-from parameterized import parameterized
 
 from airflow.configuration import conf
 from airflow.executors import celery_executor
+from airflow.executors.celery_executor import CeleryExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_utils import db
+
+FAKE_EXCEPTION_MSG = "Fake Exception"
 
 
 def _prepare_test_bodies():
@@ -52,7 +55,7 @@ def _prepare_test_bodies():
 class FakeCeleryResult:
     @property
     def state(self):
-        raise Exception()
+        raise Exception(FAKE_EXCEPTION_MSG)
 
     def task_id(self):
         return "task_id"
@@ -98,17 +101,21 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
-    @pytest.mark.quarantined
-    @pytest.mark.backend("mysql", "postgres")
-    def test_exception_propagation(self):
+    def test_supports_pickling(self):
+        assert CeleryExecutor.supports_pickling
 
-        with _prepare_app(), self.assertLogs(celery_executor.log) as cm:
+    def test_supports_sentry(self):
+        assert CeleryExecutor.supports_sentry
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_exception_propagation(self, caplog):
+        caplog.set_level(logging.ERROR, logger="airflow.executors.celery_executor.BulkStateFetcher")
+        with _prepare_app():
             executor = celery_executor.CeleryExecutor()
             executor.tasks = {"key": FakeCeleryResult()}
             executor.bulk_state_fetcher._get_many_using_multiprocessing(executor.tasks.values())
-
-        assert any(celery_executor.CELERY_FETCH_ERR_MSG_HEADER in line for line in cm.output)
-        assert any("Exception" in line for line in cm.output)
+        assert celery_executor.CELERY_FETCH_ERR_MSG_HEADER in caplog.text, caplog.record_tuples
+        assert FAKE_EXCEPTION_MSG in caplog.text, caplog.record_tuples
 
     @mock.patch("airflow.executors.celery_executor.CeleryExecutor.sync")
     @mock.patch("airflow.executors.celery_executor.CeleryExecutor.trigger_tasks")
@@ -123,11 +130,22 @@ class TestCeleryExecutor:
         ]
         mock_stats_gauge.assert_has_calls(calls)
 
-    @parameterized.expand(
-        ([["true"], ValueError], [["airflow", "version"], ValueError], [["airflow", "tasks", "run"], None])
+    @pytest.mark.parametrize(
+        "command, raise_exception",
+        [
+            pytest.param(["true"], True, id="wrong-command"),
+            pytest.param(["airflow", "tasks"], True, id="incomplete-command"),
+            pytest.param(["airflow", "tasks", "run"], False, id="complete-command"),
+        ],
     )
-    def test_command_validation(self, command, expected_exception):
-        # Check that we validate _on the receiving_ side, not just sending side
+    def test_command_validation(self, command, raise_exception):
+        """Check that we validate _on the receiving_ side, not just sending side"""
+        expected_context = contextlib.nullcontext()
+        if raise_exception:
+            expected_context = pytest.raises(
+                ValueError, match=r'The command must start with \["airflow", "tasks", "run"\]\.'
+            )
+
         with mock.patch(
             "airflow.executors.celery_executor._execute_in_subprocess"
         ) as mock_subproc, mock.patch(
@@ -136,13 +154,12 @@ class TestCeleryExecutor:
             "celery.app.task.Task.request"
         ) as mock_task:
             mock_task.id = "abcdef-124215-abcdef"
-            if expected_exception:
-                with pytest.raises(expected_exception):
-                    celery_executor.execute_command(command)
+            with expected_context:
+                celery_executor.execute_command(command)
+            if raise_exception:
                 mock_subproc.assert_not_called()
                 mock_fork.assert_not_called()
             else:
-                celery_executor.execute_command(command)
                 # One of these should be called.
                 assert mock_subproc.call_args == (
                     (command, "abcdef-124215-abcdef"),
@@ -162,7 +179,7 @@ class TestCeleryExecutor:
         assert executor.try_adopt_task_instances(tis) == tis
 
     @pytest.mark.backend("mysql", "postgres")
-    @freeze_time("2020-01-01")
+    @time_machine.travel("2020-01-01", tick=False)
     def test_try_adopt_task_instances(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -270,7 +287,7 @@ class TestCeleryExecutor:
         assert ti.external_executor_id is None
 
     @pytest.mark.backend("mysql", "postgres")
-    @freeze_time("2020-01-01")
+    @time_machine.travel("2020-01-01", tick=False)
     def test_pending_tasks_timeout_with_appropriate_config_setting(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 

@@ -540,8 +540,19 @@ ARG_IGNORE_DEPENDENCIES = Arg(
 )
 ARG_IGNORE_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-depends-on-past"),
-    help="Ignore depends_on_past dependencies (but respect upstream dependencies)",
+    help="Deprecated -- use `--depends-on-past ignore` instead. "
+    "Ignore depends_on_past dependencies (but respect upstream dependencies)",
     action="store_true",
+)
+ARG_DEPENDS_ON_PAST = Arg(
+    ("-d", "--depends-on-past"),
+    help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
+    "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
+    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
+    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
+    "skipping the task",
+    choices={"check", "ignore", "wait"},
+    default="check",
 )
 ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
@@ -654,7 +665,7 @@ ARG_DEBUG = Arg(
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get("webserver", "ACCESS_LOGFILE"),
-    help="The logfile to store the webserver access log. Use '-' to print to stderr",
+    help="The logfile to store the webserver access log. Use '-' to print to stdout",
 )
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
@@ -664,6 +675,50 @@ ARG_ERROR_LOGFILE = Arg(
 ARG_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     default=conf.get("webserver", "ACCESS_LOGFORMAT"),
+    help="The access log format for gunicorn logs",
+)
+
+
+# internal-api
+ARG_INTERNAL_API_PORT = Arg(
+    ("-p", "--port"),
+    default=9080,
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_INTERNAL_API_WORKERS = Arg(
+    ("-w", "--workers"),
+    default=4,
+    type=int,
+    help="Number of workers to run the Internal API-on",
+)
+ARG_INTERNAL_API_WORKERCLASS = Arg(
+    ("-k", "--workerclass"),
+    default="sync",
+    choices=["sync", "eventlet", "gevent", "tornado"],
+    help="The worker class to use for Gunicorn",
+)
+ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
+    ("-t", "--worker-timeout"),
+    default=120,
+    type=int,
+    help="The timeout for waiting on Internal API workers",
+)
+ARG_INTERNAL_API_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default="0.0.0.0",
+    help="Set the hostname on which to run the web server",
+)
+ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
+    ("-A", "--access-logfile"),
+    help="The logfile to store the access log. Use '-' to print to stdout",
+)
+ARG_INTERNAL_API_ERROR_LOGFILE = Arg(
+    ("-E", "--error-logfile"),
+    help="The logfile to store the error log. Use '-' to print to stderr",
+)
+ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
 
@@ -804,6 +859,12 @@ ARG_CONN_SERIALIZATION_FORMAT = Arg(
     choices=["json", "uri"],
 )
 ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
+ARG_CONN_OVERWRITE = Arg(
+    ("--overwrite",),
+    help="Overwrite existing entries if a conflict occurs",
+    required=False,
+    action="store_true",
+)
 
 # providers
 ARG_PROVIDER_NAME = Arg(
@@ -904,6 +965,10 @@ ARG_SECTION = Arg(
 ARG_OPTION = Arg(
     ("option",),
     help="The option name",
+)
+ARG_OPTIONAL_SECTION = Arg(
+    ("--section",),
+    help="The section name",
 )
 
 # kubernetes cleanup-pods
@@ -1322,6 +1387,7 @@ TASKS_COMMANDS = (
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_IGNORE_DEPENDS_ON_PAST,
+            ARG_DEPENDS_ON_PAST,
             ARG_SHIP_DAG,
             ARG_PICKLE,
             ARG_JOB_ID,
@@ -1586,6 +1652,7 @@ CONNECTIONS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_import"),
         args=(
             ARG_CONN_IMPORT,
+            ARG_CONN_OVERWRITE,
             ARG_VERBOSE,
         ),
     ),
@@ -1823,7 +1890,7 @@ CONFIG_COMMANDS = (
         name="list",
         help="List options for the configuration",
         func=lazy_load_command("airflow.cli.commands.config_command.show_config"),
-        args=(ARG_COLOR, ARG_VERBOSE),
+        args=(ARG_OPTIONAL_SECTION, ARG_COLOR, ARG_VERBOSE),
     ),
 )
 
@@ -1939,6 +2006,29 @@ airflow_commands: list[CLICommand] = [
             ARG_ACCESS_LOGFILE,
             ARG_ERROR_LOGFILE,
             ARG_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
+        ),
+    ),
+    ActionCommand(
+        name="internal-api",
+        help="Start a Airflow Internal API instance",
+        func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
+        args=(
+            ARG_INTERNAL_API_PORT,
+            ARG_INTERNAL_API_WORKERS,
+            ARG_INTERNAL_API_WORKERCLASS,
+            ARG_INTERNAL_API_WORKER_TIMEOUT,
+            ARG_INTERNAL_API_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_INTERNAL_API_ACCESS_LOGFILE,
+            ARG_INTERNAL_API_ERROR_LOGFILE,
+            ARG_INTERNAL_API_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,

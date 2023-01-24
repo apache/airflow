@@ -33,6 +33,8 @@ import uuid
 import warnings
 from copy import deepcopy
 from functools import wraps
+from os import PathLike
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
 import boto3
@@ -43,6 +45,7 @@ import tenacity
 from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
@@ -51,6 +54,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -72,7 +76,7 @@ class BaseSessionFactory(LoggingMixin):
     creation or to support custom federation.
 
     .. seealso::
-        :ref:`howto/connection:aws:session-factory`
+        - :ref:`howto/connection:aws:session-factory`
     """
 
     def __init__(
@@ -374,8 +378,8 @@ class BaseSessionFactory(LoggingMixin):
 
 class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     """
-    Interact with AWS.
-    This class is a thin wrapper around the boto3 python library.
+    Generic class for interact with AWS.
+    This class provide a thin wrapper around the boto3 python library.
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -385,8 +389,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-    :param client_type: boto3.client client_type. Eg 's3', 'emr' etc
-    :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
+    :param client_type: Reference to :external:py:meth:`boto3.client service_name \
+        <boto3.session.Session.client>`, e.g. 'emr', 'batch', 's3', etc.
+        Mutually exclusive with ``resource_type``.
+    :param resource_type: Reference to :external:py:meth:`boto3.resource service_name \
+        <boto3.session.Session.resource>`, e.g. 's3', 'ec2', 'dynamodb', etc.
+        Mutually exclusive with ``client_type``.
     :param config: Configuration for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
@@ -520,6 +528,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return AwsConnectionWrapper(
             conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
         )
+
+    @property
+    def service_config(self) -> dict:
+        service_name = self.client_type or self.resource_type
+        return self.conn_config.get_service_config(service_name)
 
     @property
     def region_name(self) -> str | None:
@@ -764,15 +777,66 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         except Exception as e:
             return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
 
+    @cached_property
+    def waiter_path(self) -> PathLike[str] | None:
+        path = Path(__file__).parents[1].joinpath(f"waiters/{self.client_type}.json").resolve()
+        return path if path.exists() else None
+
+    def get_waiter(self, waiter_name: str) -> Waiter:
+        """
+        First checks if there is a custom waiter with the provided waiter_name and
+        uses that if it exists, otherwise it will check the service client for a
+        waiter that matches the name and pass that through.
+
+        :param waiter_name: The name of the waiter.  The name should exactly match the
+            name of the key in the waiter model file (typically this is CamelCase).
+        """
+        if self.waiter_path and (waiter_name in self._list_custom_waiters()):
+            # Technically if waiter_name is in custom_waiters then self.waiter_path must
+            # exist but MyPy doesn't like the fact that self.waiter_path could be None.
+            with open(self.waiter_path) as config_file:
+                config = json.load(config_file)
+                return BaseBotoWaiter(client=self.conn, model_config=config).waiter(waiter_name)
+        # If there is no custom waiter found for the provided name,
+        # then try checking the service's official waiters.
+        return self.conn.get_waiter(waiter_name)
+
+    def list_waiters(self) -> list[str]:
+        """Returns a list containing the names of all waiters for the service, official and custom."""
+        return [*self._list_official_waiters(), *self._list_custom_waiters()]
+
+    def _list_official_waiters(self) -> list[str]:
+        return self.conn.waiter_names
+
+    def _list_custom_waiters(self) -> list[str]:
+        if not self.waiter_path:
+            return []
+        with open(self.waiter_path) as config_file:
+            model_config = json.load(config_file)
+            return WaiterModel(model_config).waiter_names
+
 
 class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
     """
-    Interact with AWS.
-    This class is a thin wrapper around the boto3 python library
-    with basic conn annotation.
+    Base class for interact with AWS.
+    This class provide a thin wrapper around the boto3 python library.
 
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param client_type: Reference to :external:py:meth:`boto3.client service_name \
+        <boto3.session.Session.client>`, e.g. 'emr', 'batch', 's3', etc.
+        Mutually exclusive with ``resource_type``.
+    :param resource_type: Reference to :external:py:meth:`boto3.resource service_name \
+        <boto3.session.Session.resource>`, e.g. 's3', 'ec2', 'dynamodb', etc.
+        Mutually exclusive with ``client_type``.
+    :param config: Configuration for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
 
