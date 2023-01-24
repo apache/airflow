@@ -118,6 +118,7 @@ class DagRun(Base, LoggingMixin):
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
     conf = Column(PickleType)
+    params = Column(PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
@@ -193,6 +194,7 @@ class DagRun(Base, LoggingMixin):
         start_date: datetime | None = None,
         external_trigger: bool | None = None,
         conf: Any | None = None,
+        params: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
         dag_hash: str | None = None,
@@ -211,6 +213,7 @@ class DagRun(Base, LoggingMixin):
         self.start_date = start_date
         self.external_trigger = external_trigger
         self.conf = conf or {}
+        self.params = params or {}
         if state is not None:
             self.state = state
         if queued_at is NOTSET:

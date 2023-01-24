@@ -115,6 +115,7 @@ class BackfillJob(BaseJob):
         delay_on_limit_secs=1.0,
         verbose=False,
         conf=None,
+        params=None,
         rerun_failed_tasks=False,
         run_backwards=False,
         run_at_least_once=False,
@@ -137,6 +138,7 @@ class BackfillJob(BaseJob):
         :param delay_on_limit_secs:
         :param verbose:
         :param conf: a dictionary which user could pass k-v pairs for backfill
+        :param params: a dictionary which user could pass k-v pairs for backfill
         :param rerun_failed_tasks: flag to whether to
                                    auto rerun the failed task in backfill
         :param run_backwards: Whether to process the dates from most to least recent
@@ -157,6 +159,7 @@ class BackfillJob(BaseJob):
         self.delay_on_limit_secs = delay_on_limit_secs
         self.verbose = verbose
         self.conf = conf
+        self.params = params
         self.rerun_failed_tasks = rerun_failed_tasks
         self.run_backwards = run_backwards
         self.run_at_least_once = run_at_least_once
@@ -321,6 +324,7 @@ class BackfillJob(BaseJob):
                 respect_dag_max_active_limit = False
             # Fixes --conf overwrite for backfills with already existing DagRuns
             run.conf = self.conf or {}
+            run.params = self.params or {}
             # start_date is cleared for existing DagRuns
             run.start_date = timezone.utcnow()
         else:
@@ -339,6 +343,7 @@ class BackfillJob(BaseJob):
             external_trigger=False,
             session=session,
             conf=self.conf,
+            params=self.params,
             run_type=DagRunType.BACKFILL_JOB,
             creating_job_id=self.id,
         )

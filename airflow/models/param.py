@@ -316,4 +316,6 @@ def process_params(
     if conf.getboolean("core", "dag_run_conf_overrides_params") and dag_run and dag_run.conf:
         logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
         params.update(dag_run.conf)
+    if dag_run and dag_run.params:
+        params.update(dag_run.params)
     return params.validate()

@@ -2399,6 +2399,7 @@ class DAG(LoggingMixin):
         delay_on_limit_secs=1.0,
         verbose=False,
         conf=None,
+        params=None,
         rerun_failed_tasks=False,
         run_backwards=False,
         run_at_least_once=False,
@@ -2422,6 +2423,7 @@ class DAG(LoggingMixin):
             dag run when max_active_runs limit has been reached
         :param verbose: Make logging output more verbose
         :param conf: user defined dictionary passed from CLI
+        :param params: user defined dictionary passed from CLI
         :param rerun_failed_tasks:
         :param run_backwards:
         :param run_at_least_once: If true, always run the DAG at least once even
@@ -2450,6 +2452,7 @@ class DAG(LoggingMixin):
             delay_on_limit_secs=delay_on_limit_secs,
             verbose=verbose,
             conf=conf,
+            params=params,
             rerun_failed_tasks=rerun_failed_tasks,
             run_backwards=run_backwards,
             run_at_least_once=run_at_least_once,
@@ -2473,6 +2476,7 @@ class DAG(LoggingMixin):
         self,
         execution_date: datetime | None = None,
         run_conf: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
         session: Session = NEW_SESSION,
@@ -2482,6 +2486,7 @@ class DAG(LoggingMixin):
 
         :param execution_date: execution date for the DAG run
         :param run_conf: configuration to pass to newly created dagrun
+        :param params: parameters to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
         :param variable_file_path: file path to a variable file in either yaml or json
         :param session: database connection (optional)
@@ -2527,6 +2532,7 @@ class DAG(LoggingMixin):
             run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
             session=session,
             conf=run_conf,
+            params=params,
         )
 
         tasks = self.task_dict
@@ -2553,6 +2559,7 @@ class DAG(LoggingMixin):
         start_date: datetime | None = None,
         external_trigger: bool | None = False,
         conf: dict | None = None,
+        params: dict | None = None,
         run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
         dag_hash: str | None = None,
@@ -2570,6 +2577,7 @@ class DAG(LoggingMixin):
         :param start_date: the date this dag run should be evaluated
         :param external_trigger: whether this dag run is externally triggered
         :param conf: Dict containing configuration/parameters to pass to the DAG
+        :param params: Dict containing parameters to pass to the DAG
         :param creating_job_id: id of the job creating this DagRun
         :param session: database session
         :param dag_hash: Hash of Serialized DAG
@@ -2628,9 +2636,15 @@ class DAG(LoggingMixin):
                 stacklevel=3,
             )
 
+        if conf:
+            warnings.warn(
+                "dag_run conf is deprecated. Please use params instead", DeprecationWarning, stacklevel=2
+            )
+
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
         copied_params.update(conf or {})
+        copied_params.update(params or {})
         copied_params.validate()
 
         run = DagRun(
@@ -2640,6 +2654,7 @@ class DAG(LoggingMixin):
             start_date=start_date,
             external_trigger=external_trigger,
             conf=conf,
+            params=params,
             state=state,
             run_type=run_type,
             dag_hash=dag_hash,
@@ -3654,6 +3669,7 @@ def _run_task(ti: TaskInstance, session):
 def _get_or_create_dagrun(
     dag: DAG,
     conf: dict[Any, Any] | None,
+    params: dict[Any, Any] | None,
     start_date: datetime,
     execution_date: datetime,
     run_id: str,
@@ -3664,6 +3680,7 @@ def _get_or_create_dagrun(
     This function is only meant for the `dag.test` function as a helper function.
     :param dag: Dag to be used to find dagrun
     :param conf: configuration to pass to newly created dagrun
+    :param params: parameters to pass to newly created dagrun
     :param start_date: start date of new dagrun, defaults to execution_date
     :param execution_date: execution_date for finding the dagrun
     :param run_id: run_id to pass to new dagrun
@@ -3686,6 +3703,7 @@ def _get_or_create_dagrun(
         start_date=start_date or execution_date,
         session=session,
         conf=conf,  # type: ignore
+        params=params,
     )
     log.info("created dagrun " + str(dr))
     return dr
