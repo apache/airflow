@@ -225,9 +225,9 @@ Jinja templating can be used in same way as described for the PythonOperator.
 PythonSensor
 ============
 
-A sensor to wait for an arbitrary callable to return ``True`` is available via ``@task.sensor`` and
-``airflow.sensors.python.PythonSensor``. The callable should return a boolean ``True`` or ``False``,
-indicating whether the condition is met. For example:
+A PythonSensor waits for a certain condition to be ``True``, for example to wait for a file to exist. The
+PythonSensor is available via ``@task.sensor`` and ``airflow.sensors.python.PythonSensor``. The callable
+should return a boolean ``True`` or ``False``, indicating whether a condition is met. For example:
 
 .. code-block:: python
 
@@ -249,5 +249,5 @@ indicating whether the condition is met. For example:
 
     example()
 
-This code sample will give two tasks waiting for the same condition to be ``True``, (1) TaskFlow API sensor
-using ``@task.sensor`` and (2) classic PythonSensor referring to the callable.
+This code sample will give two tasks waiting for the current minute to be even; (1) TaskFlow API sensor using
+``@task.sensor`` and (2) classic PythonSensor referring to the callable.
