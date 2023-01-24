@@ -26,8 +26,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-from airflow.configuration import AirflowConfigException, conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.logging_mixin import SetContextPropagate
@@ -146,23 +147,54 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    @staticmethod
-    def _should_check_k8s(queue):
-        """
-        If the task is running through kubernetes executor, return True.
+    def _get_task_log_from_worker(
+        self, ti: TaskInstance, log: str, log_relative_path: str
+    ) -> str | tuple[str, dict[str, bool]]:
+        import httpx
 
-        When logs aren't available locally, in this case we read from k8s pod logs.
-        """
-        executor = conf.get("core", "executor")
-        if executor == "KubernetesExecutor":
-            return True
-        elif executor == "LocalKubernetesExecutor":
-            if queue == conf.get("local_kubernetes_executor", "kubernetes_queue"):
-                return True
-        elif executor == "CeleryKubernetesExecutor":
-            if queue == conf.get("celery_kubernetes_executor", "kubernetes_queue"):
-                return True
-        return False
+        from airflow.utils.jwt_signer import JWTSigner
+
+        url = self._get_log_retrieval_url(ti, log_relative_path)
+        log += f"*** Fetching from: {url}\n"
+
+        try:
+            timeout = None  # No timeout
+            try:
+                timeout = conf.getint("webserver", "log_fetch_timeout_sec")
+            except (AirflowConfigException, ValueError):
+                pass
+
+            signer = JWTSigner(
+                secret_key=conf.get("webserver", "secret_key"),
+                expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
+                audience="task-instance-logs",
+            )
+            response = httpx.get(
+                url,
+                timeout=timeout,
+                headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+            )
+            response.encoding = "utf-8"
+
+            if response.status_code == 403:
+                log += (
+                    "*** !!!! Please make sure that all your Airflow components (e.g. "
+                    "schedulers, webservers and workers) have "
+                    "the same 'secret_key' configured in 'webserver' section and "
+                    "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
+                )
+                log += (
+                    "*** See more at https://airflow.apache.org/docs/apache-airflow/"
+                    "stable/configurations-ref.html#secret-key\n***"
+                )
+            # Check if the resource was properly fetched
+            response.raise_for_status()
+
+            log += "\n" + response.text
+            return log
+        except Exception as e:
+            log += f"*** Failed to fetch log file from worker. {str(e)}\n"
+            return log, {"end_of_log": True}
 
     def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
@@ -186,8 +218,6 @@ class FileTaskHandler(logging.Handler):
                              This is determined by the status of the TaskInstance
                  log_pos: (absolute) Char position to which the log is retrieved
         """
-        from airflow.utils.jwt_signer import JWTSigner
-
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
@@ -204,91 +234,23 @@ class FileTaskHandler(logging.Handler):
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
-        elif self._should_check_k8s(ti.queue):
-            try:
-                from airflow.kubernetes.kube_client import get_kube_client
-                from airflow.kubernetes.pod_generator import PodGenerator
-
-                client = get_kube_client()
-
-                log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
-                selector = PodGenerator.build_selector_for_k8s_executor_pod(
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    try_number=ti.try_number,
-                    map_index=ti.map_index,
-                    run_id=ti.run_id,
-                    airflow_worker=ti.queued_by_job_id,
-                )
-                namespace = self._get_pod_namespace(ti)
-                pod_list = client.list_namespaced_pod(
-                    namespace=namespace,
-                    label_selector=selector,
-                ).items
-                if not pod_list:
-                    raise RuntimeError("Cannot find pod for ti %s", ti)
-                elif len(pod_list) > 1:
-                    raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
-                res = client.read_namespaced_pod_log(
-                    name=pod_list[0].metadata.name,
-                    namespace=namespace,
-                    container="base",
-                    follow=False,
-                    tail_lines=100,
-                    _preload_content=False,
-                )
-
-                for line in res:
-                    log += line.decode()
-
-            except Exception as f:
-                log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
-                return log, {"end_of_log": True}
         else:
-            import httpx
+            log += f"*** Local log file does not exist: {location}\n"
+            executor = ExecutorLoader.get_default_executor()
+            task_log = None
 
-            url = self._get_log_retrieval_url(ti, log_relative_path)
-            log += f"*** Log file does not exist: {location}\n"
-            log += f"*** Fetching from: {url}\n"
-            try:
-                timeout = None  # No timeout
-                try:
-                    timeout = conf.getint("webserver", "log_fetch_timeout_sec")
-                except (AirflowConfigException, ValueError):
-                    pass
+            task_log = executor.get_task_log(ti=ti, log=log)
+            if isinstance(task_log, tuple):
+                return task_log
 
-                signer = JWTSigner(
-                    secret_key=conf.get("webserver", "secret_key"),
-                    expiration_time_in_seconds=conf.getint(
-                        "webserver", "log_request_clock_grace", fallback=30
-                    ),
-                    audience="task-instance-logs",
-                )
-                response = httpx.get(
-                    url,
-                    timeout=timeout,
-                    headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
-                )
-                response.encoding = "utf-8"
+            if task_log is None:
+                log += "*** Failed to fetch log from executor. Falling back to fetching log from worker.\n"
+                task_log = self._get_task_log_from_worker(ti, log, log_relative_path=log_relative_path)
 
-                if response.status_code == 403:
-                    log += (
-                        "*** !!!! Please make sure that all your Airflow components (e.g. "
-                        "schedulers, webservers and workers) have "
-                        "the same 'secret_key' configured in 'webserver' section and "
-                        "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
-                    )
-                    log += (
-                        "*** See more at https://airflow.apache.org/docs/apache-airflow/"
-                        "stable/configurations-ref.html#secret-key\n***"
-                    )
-                # Check if the resource was properly fetched
-                response.raise_for_status()
+            if isinstance(task_log, tuple):
+                return task_log
 
-                log += "\n" + response.text
-            except Exception as e:
-                log += f"*** Failed to fetch log file from worker. {str(e)}\n"
-                return log, {"end_of_log": True}
+            log = str(task_log)
 
         # Process tailing if log is not at it's end
         end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]

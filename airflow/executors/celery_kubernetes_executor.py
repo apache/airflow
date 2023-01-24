@@ -141,6 +141,12 @@ class CeleryKubernetesExecutor(LoggingMixin):
             cfg_path=cfg_path,
         )
 
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> None | str | tuple[str, dict[str, bool]]:
+        """Fetch task log from Kubernetes executor"""
+        if ti.queue == self.kubernetes_executor.kubernetes_queue:
+            return self.kubernetes_executor.get_task_log(ti=ti, log=log)
+        return None
+
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
         Checks if a task is either queued or running in either celery or kubernetes executor.

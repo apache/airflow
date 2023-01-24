@@ -21,7 +21,8 @@ import logging
 import logging.config
 import os
 import re
-from unittest.mock import patch
+from unittest import mock
+from unittest.mock import mock_open, patch
 
 import pytest
 from kubernetes.client import models as k8s
@@ -35,6 +36,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
@@ -220,6 +222,64 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
+    def test__read_from_location(self, create_task_instance):
+        """Test if local log file exists, then log is read from it"""
+        local_log_file_read = create_task_instance(
+            dag_id="dag_for_testing_local_log_read",
+            task_id="task_for_testing_local_log_read",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+        with patch("os.path.exists", return_value=True):
+            opener = mock_open(read_data="dummy test log data")
+            with patch("airflow.utils.log.file_task_handler.open", opener):
+                fth = FileTaskHandler("")
+                log = fth._read(ti=local_log_file_read, try_number=1)
+                assert len(log) == 2
+                assert "dummy test log data" in log[0]
+
+    @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.get_task_log")
+    def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance):
+        """Test for k8s executor, the log is read from get_task_log method"""
+        executor_name = "KubernetesExecutor"
+        ti = create_task_instance(
+            dag_id="dag_for_testing_k8s_executor_log_read",
+            task_id="task_for_testing_k8s_executor_log_read",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+
+        with conf_vars({("core", "executor"): executor_name}):
+            with patch("os.path.exists", return_value=False):
+                fth = FileTaskHandler("")
+                fth._read(ti=ti, try_number=1)
+                mock_k8s_get_task_log.assert_called_once_with(ti=ti, log=mock.ANY)
+
+    def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
+        """Test for executors which do not have `get_task_log` method, it fallbacks to reading
+        log from worker"""
+        executor_name = "CeleryExecutor"
+
+        ti = create_task_instance(
+            dag_id="dag_for_testing_celery_executor_log_read",
+            task_id="task_for_testing_celery_executor_log_read",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+
+        with conf_vars({("core", "executor"): executor_name}):
+            with patch("os.path.exists", return_value=False):
+                fth = FileTaskHandler("")
+
+                def mock_log_from_worker(ti, log, log_relative_path):
+                    return (log, {"end_of_log": True})
+
+                fth._get_task_log_from_worker = mock.Mock(side_effect=mock_log_from_worker)
+                log = fth._read(ti=ti, try_number=1)
+                fth._get_task_log_from_worker.assert_called_once()
+                assert "Local log file does not exist" in log[0]
+                assert "Failed to fetch log from executor. Falling back to fetching log from worker" in log[0]
+
     @pytest.mark.parametrize(
         "pod_override, namespace_to_call",
         [
@@ -231,7 +291,7 @@ class TestFileTaskLogHandler:
         ],
     )
     @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
-    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    @patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_read_from_k8s_under_multi_namespace_mode(
         self, mock_kube_client, pod_override, namespace_to_call
     ):
@@ -342,36 +402,3 @@ class TestLogUrl:
         log_url_ti.hostname = "hostname"
         url = FileTaskHandler._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
         assert url == "http://hostname:8793/log/DYNAMIC_PATH"
-
-
-@pytest.mark.parametrize(
-    "config, queue, expected",
-    [
-        (dict(AIRFLOW__CORE__EXECUTOR="LocalExecutor"), None, False),
-        (dict(AIRFLOW__CORE__EXECUTOR="LocalExecutor"), "kubernetes", False),
-        (dict(AIRFLOW__CORE__EXECUTOR="KubernetesExecutor"), None, True),
-        (dict(AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor"), "any", False),
-        (dict(AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor"), "kubernetes", True),
-        (
-            dict(
-                AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor",
-                AIRFLOW__CELERY_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE="hithere",
-            ),
-            "hithere",
-            True,
-        ),
-        (dict(AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor"), "any", False),
-        (dict(AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor"), "kubernetes", True),
-        (
-            dict(
-                AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor",
-                AIRFLOW__LOCAL_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE="hithere",
-            ),
-            "hithere",
-            True,
-        ),
-    ],
-)
-def test__should_check_k8s(config, queue, expected):
-    with patch.dict("os.environ", **config):
-        assert FileTaskHandler._should_check_k8s(queue) == expected
