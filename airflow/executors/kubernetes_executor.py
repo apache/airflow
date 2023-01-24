@@ -569,8 +569,6 @@ class KubernetesExecutor(BaseExecutor):
     def start(self) -> None:
         """Starts the executor."""
         self.log.info("Start Kubernetes executor")
-        if not self.job_id:
-            raise AirflowException("Could not get scheduler_job_id")
         self.scheduler_job_id = str(self.job_id)
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
         self.kube_client = get_kube_client()
