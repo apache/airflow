@@ -256,18 +256,20 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+        if: >
+          matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
       - name: "Push CI cache ${{ matrix.platform }}"
         run: >
           breeze ci-image build
@@ -278,7 +280,7 @@ jobs:
           --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-        if: needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Push CI latest image ${{ matrix.platform }}"
         run: >
           breeze ci-image build
@@ -287,18 +289,24 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
         # We only push "amd" image as it is really only needed for any kind of automated builds in CI
         # and currently there is not an easy way to make multi-platform image from two separate builds
-        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
-
+        if: >
+          matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+        if: >
+          always() && matrix.platform == 'linux/arm64' && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
       - name: "Clean docker cache for ${{ matrix.platform }}"
         run: docker system prune --all --force
-        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
+        if: >
+          matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
-        if: always() && needs.build-info.outputs.canary-run == 'true'
-
+        if: >
+          always() && needs.build-info.outputs.canary-run == 'true'
+          && needs.build-info.outputs.default-branch == 'main'
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:
     timeout-minutes: 5
@@ -418,8 +426,9 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
-      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
       - run: breeze setup version
+      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
+      - run: breeze setup check-all-params-in-groups
 
   tests-www:
     timeout-minutes: 10
@@ -573,6 +582,7 @@ jobs:
           COLUMNS: "250"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+          RUFF_FORMAT: "github"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -753,6 +763,42 @@ jobs:
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
+
+  test-airflow-release-commands:
+    timeout-minutes: 80
+    name: "Test Airflow release commands"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    if: needs.build-info.outputs.runs-on == 'self-hosted'
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Install required packages"
+        run: python -m pip install --editable ./dev/breeze/
+      - name: "Check Airflow create minor branch command"
+        run: breeze release-management create-minor-branch --version-branch 2-4 -a y
+      - name: "Check Airflow RC process command"
+        run: |
+          breeze release-management start-rc-process --version 2.4.3rc1 --previous-version 2.4.2  -a y
+      - name: "Check Airflow release process command"
+        run: |
+          breeze release-management start-release --release-candidate 2.4.3rc1 --previous-release 2.4.2 -a y
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
 
   tests-helm:
     timeout-minutes: 80
@@ -973,7 +1019,8 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.default-branch != 'main'}}"
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1032,7 +1079,8 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.default-branch != 'main'}}"
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash

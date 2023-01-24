@@ -77,7 +77,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".build", "/opt/airflow/.build"),
     (".coveragerc", "/opt/airflow/.coveragerc"),
     (".dockerignore", "/opt/airflow/.dockerignore"),
-    (".flake8", "/opt/airflow/.flake8"),
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),

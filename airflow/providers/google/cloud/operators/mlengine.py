@@ -206,6 +206,10 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         self._runtime_version = runtime_version
         self._signature_name = signature_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._labels = labels
         self._impersonation_chain = impersonation_chain
@@ -351,6 +355,10 @@ class MLEngineManageModelOperator(BaseOperator):
         self._model = model
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -417,6 +425,10 @@ class MLEngineCreateModelOperator(BaseOperator):
         self._project_id = project_id
         self._model = model
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -488,6 +500,10 @@ class MLEngineGetModelOperator(BaseOperator):
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -563,6 +579,10 @@ class MLEngineDeleteModelOperator(BaseOperator):
         self._model_name = model_name
         self._delete_contents = delete_contents
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -670,6 +690,10 @@ class MLEngineManageVersionOperator(BaseOperator):
         self._version = version or {}
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -765,6 +789,10 @@ class MLEngineCreateVersionOperator(BaseOperator):
         self._model_name = model_name
         self._version = version
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -853,6 +881,10 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         self._model_name = model_name
         self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -937,6 +969,10 @@ class MLEngineListVersionsOperator(BaseOperator):
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -1022,6 +1058,10 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         self._model_name = model_name
         self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -1176,6 +1216,10 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._job_dir = job_dir
         self._service_account = service_account
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._mode = mode
         self._labels = labels
@@ -1339,6 +1383,10 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         self._project_id = project_id
         self._job_id = job_id
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 

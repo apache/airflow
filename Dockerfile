@@ -44,7 +44,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.5.0"
+ARG AIRFLOW_VERSION="2.5.1"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
@@ -1025,7 +1025,8 @@ while true; do
     xargs -0 rm -f
 
   seconds=$(( $(date -u +%s) % EVERY))
-  (( seconds < 1 )) || sleep $((EVERY - seconds))
+  (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
+  sleep 1
 done
 EOF
 

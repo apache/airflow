@@ -41,12 +41,15 @@ class CeleryKubernetesExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = True
     supports_pickling: bool = True
     supports_sentry: bool = False
+    change_sensor_mode_to_reschedule: bool = False
 
     callback_sink: BaseCallbackSink | None = None
 
     KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
     is_local: bool = False
+
+    serve_logs: bool = False
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
@@ -137,6 +140,12 @@ class CeleryKubernetesExecutor(LoggingMixin):
             pool=pool,
             cfg_path=cfg_path,
         )
+
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> None | str | tuple[str, dict[str, bool]]:
+        """Fetch task log from Kubernetes executor"""
+        if ti.queue == self.kubernetes_executor.kubernetes_queue:
+            return self.kubernetes_executor.get_task_log(ti=ti, log=log)
+        return None
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
