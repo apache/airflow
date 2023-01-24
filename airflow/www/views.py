@@ -1795,7 +1795,7 @@ class Airflow(AirflowBaseView):
             msg = f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
             return redirect_or_json(origin, msg, "error", 400)
 
-        executor.job_id = "manual"
+        executor.job_id = None
         executor.start()
         executor.queue_task_instance(
             ti,
