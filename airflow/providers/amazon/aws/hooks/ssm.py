@@ -40,6 +40,7 @@ class SsmHook(AwsBaseHook):
     def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
         """
         Returns the value of the provided Parameter or an optional default.
+        Decrypt value for secure string Parameter.
 
         .. seealso::
             - :external+boto3:py:meth:`SSM.Client.get_parameter`
@@ -48,7 +49,7 @@ class SsmHook(AwsBaseHook):
         :param default: Optional default value to return if none is found.
         """
         try:
-            return self.conn.get_parameter(Name=parameter)["Parameter"]["Value"]
+            return self.conn.get_parameter(Name=parameter, WithDecryption=True)["Parameter"]["Value"]
         except self.conn.exceptions.ParameterNotFound:
             if isinstance(default, ArgNotSet):
                 raise

@@ -33,13 +33,19 @@ PARAM_VALUE = "value"
 DEFAULT_VALUE = "default"
 
 
-class TestSsmHooks:
-    @pytest.fixture(autouse=True)
-    def setup_tests(self):
+class TestSsmHook:
+    @pytest.fixture(
+        autouse=True,
+        params=[
+            pytest.param("String", id="unencrypted-string"),
+            pytest.param("SecureString", id="encrypted-string"),
+        ],
+    )
+    def setup_tests(self, request):
         with mock_ssm():
             self.hook = SsmHook(region_name=REGION)
             self.hook.conn.put_parameter(
-                Type="String", Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True
+                Type=request.param, Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True
             )
             yield
 
