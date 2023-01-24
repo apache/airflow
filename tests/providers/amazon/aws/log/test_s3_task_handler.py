@@ -138,7 +138,7 @@ class TestS3TaskHandler:
 
         assert 1 == len(log)
         assert len(log) == len(metadata)
-        assert "*** Log file does not exist:" in log[0][0][-1]
+        assert "*** Local log file does not exist:" in log[0][0][-1]
         assert {"end_of_log": True} == metadata[0]
 
     def test_s3_read_when_log_missing(self):
