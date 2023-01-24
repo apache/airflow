@@ -242,7 +242,10 @@ class GoogleBaseHook(BaseHook):
             keyfile_dict: str | None = self._get_field("keyfile_dict", None)
             keyfile_dict_json: dict[str, str] | None = None
             if keyfile_dict:
-                keyfile_dict_json = json.loads(keyfile_dict)
+                if isinstance(keyfile_dict, dict):
+                    keyfile_dict_json = keyfile_dict
+                else:
+                    keyfile_dict_json = json.loads(keyfile_dict)
         except json.decoder.JSONDecodeError:
             raise AirflowException("Invalid key JSON.")
         key_secret_name: str | None = self._get_field("key_secret_name", None)
@@ -491,7 +494,7 @@ class GoogleBaseHook(BaseHook):
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
         key_path: str | None = self._get_field("key_path", None)
-        keyfile_dict: str | None = self._get_field("keyfile_dict", None)
+        keyfile_dict: str | dict | None = self._get_field("keyfile_dict", None)
         if key_path and keyfile_dict:
             raise AirflowException(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
@@ -504,6 +507,8 @@ class GoogleBaseHook(BaseHook):
                 yield key_path
         elif keyfile_dict:
             with tempfile.NamedTemporaryFile(mode="w+t") as conf_file:
+                if isinstance(keyfile_dict, dict):
+                    keyfile_dict = json.dumps(keyfile_dict)
                 conf_file.write(keyfile_dict)
                 conf_file.flush()
                 with patch_environ({CREDENTIALS: conf_file.name}):
