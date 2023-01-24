@@ -62,6 +62,8 @@ if TYPE_CHECKING:
 class PREEMPTIBILITY(enum.Enum):
     """Possible VM type for preemptible workers."""
 
+    PREEMPTIBILITY_UNSPECIFIED = enum.auto()
+    NON_PREEMPTIBLE = enum.auto()
     PREEMPTIBLE = enum.auto()
     SPOT = enum.auto()
 
@@ -168,7 +170,9 @@ class ClusterGenerator:
         worker_disk_type: str = "pd-standard",
         worker_disk_size: int = 1024,
         num_preemptible_workers: int = 0,
-        preemptibility: Literal["preemptible", "spot"] = "preemptible",
+        preemptibility: Literal[
+            "preemptibility_unspecified", "non_preemptible", "preemptible", "spot"
+        ] = "preemptible",
         service_account: str | None = None,
         service_account_scopes: list[str] | None = None,
         idle_delete_ttl: int | None = None,
