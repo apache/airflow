@@ -28,6 +28,7 @@ import logging
 import multiprocessing
 import time
 from collections import defaultdict
+from contextlib import suppress
 from datetime import timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
@@ -37,6 +38,7 @@ from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, PodMutationHookException, PodReconciliationError
 from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.kubernetes import pod_generator
@@ -49,7 +51,7 @@ from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
@@ -57,10 +59,10 @@ POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 # TaskInstance key, command, configuration, pod_template_file
 KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
 
-# key, state, pod_id, namespace, resource_version
+# key, pod state, pod_id, namespace, resource_version
 KubernetesResultsType = Tuple[TaskInstanceKey, Optional[str], str, str, str]
 
-# pod_id, namespace, state, annotations, resource_version
+# pod_id, namespace, pod state, annotations, resource_version
 KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 
 
@@ -496,8 +498,8 @@ class KubernetesExecutor(BaseExecutor):
         """
         Clear tasks that were not yet launched, but were previously queued.
 
-        Tasks can end up in a "Queued" state through when a rescheduled/deferred
-        operator comes back up for execution (with the same try_number) before the
+        Tasks can end up in a "Queued" state when a rescheduled/deferred operator
+        comes back up for execution (with the same try_number) before the
         pod of its previous incarnation has been fully removed (we think).
 
         It's also possible when an executor abruptly shuts down (leaving a non-empty
@@ -512,7 +514,7 @@ class KubernetesExecutor(BaseExecutor):
 
         self.log.debug("Clearing tasks that have not been launched")
         query = session.query(TaskInstance).filter(
-            TaskInstance.state == State.QUEUED, TaskInstance.queued_by_job_id == self.job_id
+            TaskInstance.state == TaskInstanceState.QUEUED, TaskInstance.queued_by_job_id == self.job_id
         )
         if self.kubernetes_queue:
             query = query.filter(TaskInstance.queue == self.kubernetes_queue)
@@ -564,13 +566,11 @@ class KubernetesExecutor(BaseExecutor):
                 TaskInstance.task_id == ti.task_id,
                 TaskInstance.run_id == ti.run_id,
                 TaskInstance.map_index == ti.map_index,
-            ).update({TaskInstance.state: State.SCHEDULED})
+            ).update({TaskInstance.state: TaskInstanceState.SCHEDULED})
 
     def start(self) -> None:
         """Starts the executor."""
         self.log.info("Start Kubernetes executor")
-        if not self.job_id:
-            raise AirflowException("Could not get scheduler_job_id")
         self.scheduler_job_id = str(self.job_id)
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
         self.kube_client = get_kube_client()
@@ -621,7 +621,7 @@ class KubernetesExecutor(BaseExecutor):
             pod_template_file = executor_config.get("pod_template_file", None)
         else:
             pod_template_file = None
-        self.event_buffer[key] = (State.QUEUED, self.scheduler_job_id)
+        self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         self.task_queue.put((key, command, kube_executor_config, pod_template_file))
         # We keep a temporary local record that we've handled this so we don't
         # try and remove it from the QUEUED state while we process it
@@ -691,7 +691,7 @@ class KubernetesExecutor(BaseExecutor):
                     if e.status in (400, 422):
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
-                        self.change_state(key, State.FAILED, e)
+                        self.change_state(key, TaskInstanceState.FAILED, e)
                     else:
                         self.log.warning(
                             "ApiException when attempting to run task, re-queueing. Reason: %r. Message: %s",
@@ -772,6 +772,57 @@ class KubernetesExecutor(BaseExecutor):
             # We get multiple events once the pod hits a terminal state, and we only want to
             # do this once, so only do it when we remove the task from running
             self.event_buffer[key] = state, None
+
+    @staticmethod
+    def _get_pod_namespace(ti: TaskInstance):
+        pod_override = ti.executor_config.get("pod_override")
+        namespace = None
+        with suppress(Exception):
+            namespace = pod_override.metadata.namespace
+        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
+
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
+
+        try:
+            from airflow.kubernetes.pod_generator import PodGenerator
+
+            client = get_kube_client()
+
+            log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
+            selector = PodGenerator.build_selector_for_k8s_executor_pod(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                run_id=ti.run_id,
+                airflow_worker=ti.queued_by_job_id,
+            )
+            namespace = self._get_pod_namespace(ti)
+            pod_list = client.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=selector,
+            ).items
+            if not pod_list:
+                raise RuntimeError("Cannot find pod for ti %s", ti)
+            elif len(pod_list) > 1:
+                raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
+            res = client.read_namespaced_pod_log(
+                name=pod_list[0].metadata.name,
+                namespace=namespace,
+                container="base",
+                follow=False,
+                tail_lines=100,
+                _preload_content=False,
+            )
+
+            for line in res:
+                log += line.decode()
+
+            return log
+
+        except Exception as f:
+            log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
+            return log, {"end_of_log": True}
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]

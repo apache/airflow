@@ -81,7 +81,8 @@ class GoogleDriveHook(GoogleBaseHook):
         for current_folder in folders:
             self.log.debug("Looking for %s directory with %s parent", current_folder, current_parent)
             conditions = [
-                "mimeType = 'application/vnd.google-apps.folder'",
+                "trashed=false",
+                "mimeType='application/vnd.google-apps.folder'",
                 f"name='{current_folder}'",
                 f"'{current_parent}' in parents",
             ]

@@ -39,6 +39,7 @@ def _initialize_map() -> dict[str, Callable]:
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
+        DagFileProcessor.manage_slas,
         DagModel.get_paused_dag_ids,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         XCom.get_value,

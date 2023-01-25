@@ -38,7 +38,9 @@ class TestSsmHooks:
     def setup_tests(self):
         with mock_ssm():
             self.hook = SsmHook(region_name=REGION)
-            self.hook.conn.put_parameter(Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True)
+            self.hook.conn.put_parameter(
+                Type="String", Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True
+            )
             yield
 
     def test_hook(self) -> None:
