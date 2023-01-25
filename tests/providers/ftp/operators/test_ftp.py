@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import io
 from unittest import mock
 
 import pytest
@@ -34,6 +35,7 @@ DEFAULT_CONN_ID = "ftp_default"
 
 
 class TestFTPFileTransmitOperator:
+
     def setup_method(self):
         self.test_local_dir = "ftptmp"
         self.test_remote_dir = "/ftphome"
@@ -133,6 +135,40 @@ class TestFTPFileTransmitOperator:
         assert mock_put.call_count == 2
         for count, (args, _) in enumerate(mock_put.call_args_list):
             assert args == (remote_filepath[count], local_filepath[count])
+
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.create_directory")
+    def test_file_transfer_put_using_file_handler(self, mock_create_dir, mock_put):
+        file_handler = mock.Mock(spec=io.TextIOWrapper)
+
+        ftp_op = FTPFileTransmitOperator(
+            task_id="test_ftp_put",
+            ftp_conn_id=DEFAULT_CONN_ID,
+            local_filepath=file_handler,
+            remote_filepath=self.test_remote_filepath,
+            operation=FTPOperation.PUT,
+        )
+        ftp_op.execute(None)
+        assert not mock_create_dir.called
+        mock_put.assert_called_once_with(self.test_remote_filepath, file_handler)
+
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.create_directory")
+    def test_file_transfer_put_using_file_handler_list(self, mock_create_dir, mock_put):
+        file_handlers = [mock.Mock(spec=io.TextIOWrapper), mock.Mock(spec=io.TextIOWrapper)]
+        remote_filepath = [self.test_remote_filepath, self.test_remote_filename]
+
+        ftp_op = FTPFileTransmitOperator(
+            task_id="test_ftp_put",
+            ftp_conn_id=DEFAULT_CONN_ID,
+            local_filepath=file_handlers,
+            remote_filepath=remote_filepath,
+            operation=FTPOperation.PUT,
+        )
+        ftp_op.execute(None)
+        assert not mock_create_dir.called
+        for count, (args, _) in enumerate(mock_put.call_args_list):
+            assert args == (remote_filepath[count], file_handlers[count])
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
     def test_arg_checking(self, mock_put):
@@ -278,3 +314,37 @@ class TestFTPSFileTransmitOperator:
         assert mock_put.call_count == 2
         for count, (args, _) in enumerate(mock_put.call_args_list):
             assert args == (remote_filepath[count], local_filepath[count])
+
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.create_directory")
+    def test_file_transfer_put_using_file_handler(self, mock_create_dir, mock_put):
+        file_handler = mock.Mock(spec=io.TextIOWrapper)
+
+        ftp_op = FTPSFileTransmitOperator(
+            task_id="test_ftp_put",
+            ftp_conn_id=DEFAULT_CONN_ID,
+            local_filepath=file_handler,
+            remote_filepath=self.test_remote_filepath,
+            operation=FTPOperation.PUT,
+        )
+        ftp_op.execute(None)
+        assert not mock_create_dir.called
+        mock_put.assert_called_once_with(self.test_remote_filepath, file_handler)
+
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
+    @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.create_directory")
+    def test_file_transfer_put_using_file_handler_list(self, mock_create_dir, mock_put):
+        file_handlers = [mock.Mock(spec=io.TextIOWrapper), mock.Mock(spec=io.TextIOWrapper)]
+        remote_filepath = [self.test_remote_filepath, self.test_remote_filename]
+
+        ftp_op = FTPSFileTransmitOperator(
+            task_id="test_ftp_put",
+            ftp_conn_id=DEFAULT_CONN_ID,
+            local_filepath=file_handlers,
+            remote_filepath=remote_filepath,
+            operation=FTPOperation.PUT,
+        )
+        ftp_op.execute(None)
+        assert not mock_create_dir.called
+        for count, (args, _) in enumerate(mock_put.call_args_list):
+            assert args == (remote_filepath[count], file_handlers[count])

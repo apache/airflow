@@ -18,9 +18,10 @@
 """This module contains FTP operator."""
 from __future__ import annotations
 
+import io
 import os
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, List, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
@@ -74,7 +75,7 @@ class FTPFileTransmitOperator(BaseOperator):
         self,
         *,
         ftp_conn_id: str = "ftp_default",
-        local_filepath: str | list[str],
+        local_filepath: str | list[str] | io.TextIOWrapper | list[io.TextIOWrapper],
         remote_filepath: str | list[str],
         operation: str = FTPOperation.PUT,
         create_intermediate_dirs: bool = False,
@@ -93,17 +94,15 @@ class FTPFileTransmitOperator(BaseOperator):
         return FTPHook(ftp_conn_id=self.ftp_conn_id)
 
     def execute(self, context: Any) -> str | list[str] | None:
-        file_msg = None
-
-        if isinstance(self.local_filepath, str):
-            local_filepath_array = [self.local_filepath]
-        else:
+        if isinstance(self.local_filepath, List):
             local_filepath_array = self.local_filepath
-
-        if isinstance(self.remote_filepath, str):
-            remote_filepath_array = [self.remote_filepath]
         else:
+            local_filepath_array = [self.local_filepath]
+
+        if isinstance(self.remote_filepath, List):
             remote_filepath_array = self.remote_filepath
+        else:
+            remote_filepath_array = [self.remote_filepath]
 
         if len(local_filepath_array) != len(remote_filepath_array):
             raise ValueError(
@@ -117,11 +116,14 @@ class FTPFileTransmitOperator(BaseOperator):
                 f"expected {FTPOperation.GET} or {FTPOperation.PUT}."
             )
 
+        local_filepath = []
         for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
+            local_filepath.append(
+                os.path.dirname(_local_filepath) if isinstance(_local_filepath, str) else _local_filepath.name
+            )
             if self.operation.lower() == FTPOperation.GET:
-                local_folder = os.path.dirname(_local_filepath)
                 if self.create_intermediate_dirs:
-                    Path(local_folder).mkdir(parents=True, exist_ok=True)
+                    Path(local_filepath[-1]).mkdir(parents=True, exist_ok=True)
                 file_msg = f"from {_remote_filepath} to {_local_filepath}"
                 self.log.info("Starting to transfer %s", file_msg)
                 self.hook.retrieve_file(_remote_filepath, _local_filepath)
@@ -133,7 +135,7 @@ class FTPFileTransmitOperator(BaseOperator):
                 self.log.info("Starting to transfer file %s", file_msg)
                 self.hook.store_file(_remote_filepath, _local_filepath)
 
-        return self.local_filepath
+        return local_filepath
 
 
 class FTPSFileTransmitOperator(FTPFileTransmitOperator):

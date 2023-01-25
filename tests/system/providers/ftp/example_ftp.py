@@ -50,6 +50,17 @@ with DAG(
     )
     # [END howto_operator_ftp_put]
 
+    # [START howto_operator_ftp_put_with_file_handler]
+    ftp_put = FTPFileTransmitOperator(
+        task_id="test_ftp_put",
+        ftp_conn_id="ftp_default",
+        local_filepath=open("/tmp/filepath", mode="rb"),
+        remote_filepath="/remote_tmp/filepath",
+        operation=FTPOperation.PUT,
+        create_intermediate_dirs=True,
+    )
+    # [END howto_operator_ftp_put_with_file_handler]
+
     # [START howto_operator_ftp_get]
     ftp_get = FTPFileTransmitOperator(
         task_id="test_ftp_get",
@@ -60,6 +71,17 @@ with DAG(
         create_intermediate_dirs=True,
     )
     # [END howto_operator_ftp_get]
+
+    # [START howto_operator_ftp_get_with_file_handler]
+    ftp_get = FTPFileTransmitOperator(
+        task_id="test_ftp_get",
+        ftp_conn_id="ftp_default",
+        local_filepath=open("/tmp/filepath", mode="wb"),
+        remote_filepath="/remote_tmp/filepath",
+        operation=FTPOperation.GET,
+        create_intermediate_dirs=True,
+    )
+    # [END howto_operator_ftp_get_with_file_handler]
 
     # [START howto_operator_ftps_put]
     ftps_put = FTPSFileTransmitOperator(
@@ -72,6 +94,17 @@ with DAG(
     )
     # [END howto_operator_ftps_put]
 
+    # [START howto_operator_ftps_put_with_file_handler]
+    ftps_put = FTPSFileTransmitOperator(
+        task_id="test_ftps_put",
+        ftp_conn_id="ftps_default",
+        local_filepath=open("/tmp/filepath", mode="rb"),
+        remote_filepath="/remote_tmp/filepath",
+        operation=FTPOperation.PUT,
+        create_intermediate_dirs=True,
+    )
+    # [END howto_operator_ftps_put_with_file_handler]
+
     # [START howto_operator_ftps_get]
     ftps_get = FTPSFileTransmitOperator(
         task_id="test_ftps_get",
@@ -82,6 +115,17 @@ with DAG(
         create_intermediate_dirs=True,
     )
     # [END howto_operator_ftps_get]
+
+    # [START howto_operator_ftps_get_with_file_handler]
+    ftps_get = FTPSFileTransmitOperator(
+        task_id="test_ftps_get",
+        ftp_conn_id="ftps_default",
+        local_filepath=open("/tmp/filepath", mode="wb"),
+        remote_filepath="/remote_tmp/filepath",
+        operation=FTPOperation.GET,
+        create_intermediate_dirs=True,
+    )
+    # [END howto_operator_ftps_get_with_file_handler]
 
     ftp_put >> ftp_get
     ftps_put >> ftps_get

@@ -39,6 +39,12 @@ The below example shows how to use the FTPFileTransmitOperator to transfer a loc
     :start-after: [START howto_operator_ftp_put]
     :end-before: [END howto_operator_ftp_put]
 
+.. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ftp_put_with_file_handler]
+    :end-before: [END howto_operator_ftp_put_with_file_handler]
+
 The below example shows how to use the FTPFileTransmitOperator to pull a file from a remote FTP Server.
 
 .. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
@@ -46,6 +52,12 @@ The below example shows how to use the FTPFileTransmitOperator to pull a file fr
     :dedent: 4
     :start-after: [START howto_operator_ftp_get]
     :end-before: [END howto_operator_ftp_get]
+
+.. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ftp_get_with_file_handler]
+    :end-before: [END howto_operator_ftp_get_with_file_handler]
 
 .. _howto/operator:FTPSFileTransmitOperator:
 
@@ -69,6 +81,12 @@ The below example shows how to use the FTPSFileTransmitOperator to transfer a lo
     :start-after: [START howto_operator_ftps_put]
     :end-before: [END howto_operator_ftps_put]
 
+.. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ftps_put_with_file_handler]
+    :end-before: [END howto_operator_ftps_put_with_file_handler]
+
 The below example shows how to use the FTPSFileTransmitOperator to pull a file from a remote FTPS Server.
 
 .. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
@@ -76,3 +94,9 @@ The below example shows how to use the FTPSFileTransmitOperator to pull a file f
     :dedent: 4
     :start-after: [START howto_operator_ftps_get]
     :end-before: [END howto_operator_ftps_get]
+
+.. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ftps_get_with_file_handler]
+    :end-before: [END howto_operator_ftps_get_with_file_handler]
