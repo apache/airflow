@@ -38,7 +38,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     """
 
     trigger_should_wrap = True
-    trigger_should_queue = True
 
     def __init__(
         self,
