@@ -143,6 +143,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon Neptune
+    external-doc-url: https://aws.amazon.com/neptune/
+    logo: /integration-logos/aws/Amazon-Neptune_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/neptune.rst
+    tags: [aws]
   - integration-name: Amazon RDS
     external-doc-url: https://aws.amazon.com/rds/
     logo: /integration-logos/aws/Amazon-RDS_light-bg@4x.png
@@ -297,6 +303,9 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.aws_lambda
       - airflow.providers.amazon.aws.operators.lambda_function
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.operators.neptune
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
@@ -449,6 +458,9 @@ hooks:
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.neptune
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.hooks.rds
