@@ -28,7 +28,7 @@ from functools import lru_cache
 from typing import Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
-from rich_argparse import RichHelpFormatter, RawTextRichHelpFormatter
+from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
@@ -2209,37 +2209,36 @@ class AirflowHelpFormatter(RichHelpFormatter):
     It displays simple commands and groups of commands in separate sections.
     """
 
-    def _format_action(self, action: Action):
+    def _rich_format_action(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):
+            from rich.text import Text
 
-            parts = []
-            action_header = self._format_action_invocation(action)
-            action_header = "%*s%s\n" % (self._current_indent, "", action_header)
-            parts.append(action_header)
+            action_header = self._rich_format_action_invocation(action)
+            action_header.pad_left(self._current_indent)
+            yield action_header, None
 
             self._indent()
             subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
-            parts.append("\n")
-            parts.append("%*s%s:\n" % (self._current_indent, "", "Groups"))
+            yield Text("\n"), None
+            yield Text("%*s%s:" % (self._current_indent, "", "Groups")), None
             self._indent()
             for subaction in group_subcommands:
-                parts.append(self._format_action(subaction))
+                yield from self._rich_format_action(subaction)
             self._dedent()
 
-            parts.append("\n")
-            parts.append("%*s%s:\n" % (self._current_indent, "", "Commands"))
+            yield Text("\n"), None
+            yield Text("%*s%s:" % (self._current_indent, "", "Commands")), None
             self._indent()
 
             for subaction in action_subcommands:
-                parts.append(self._format_action(subaction))
+                yield from self._rich_format_action(subaction)
             self._dedent()
             self._dedent()
-
-            # return a single string
-            return self._join_parts(parts)
+        else:
+            yield from super()._rich_format_action(action)
 
         return super()._format_action(action)
 
