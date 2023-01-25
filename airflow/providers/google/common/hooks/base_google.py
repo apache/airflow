@@ -494,7 +494,7 @@ class GoogleBaseHook(BaseHook):
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
         key_path: str | None = self._get_field("key_path", None)
-        keyfile_dict: str | dict | None = self._get_field("keyfile_dict", None)
+        keyfile_dict: str | dict[str, str] | None = self._get_field("keyfile_dict", None)
         if key_path and keyfile_dict:
             raise AirflowException(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
