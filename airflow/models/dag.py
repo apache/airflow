@@ -1372,15 +1372,12 @@ class DAG(LoggingMixin):
         :param run_id: The run_id of the DagRun to find.
         """
         for callback in callbacks:
-            # TODO: Address when https://github.com/apache/airflow/pull/28502 is merged
-            # self.log.info("Executing dag callback function: %s", callback)
+            cls.logger().info("Executing dag callback function: %s", callback)
             try:
                 callback(context)
             except Exception:
-                # self.log.exception("failed to invoke dag state update callback")
-                Stats.incr(
-                    "dag.callback_exceptions", tags={"dag_id": dag_id, "run_id": run_id}
-                )
+                cls.logger().exception("failed to invoke dag state update callback")
+                Stats.incr("dag.callback_exceptions", tags={"dag_id": dag_id, "run_id": run_id})
 
     def get_active_runs(self):
         """

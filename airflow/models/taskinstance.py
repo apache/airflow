@@ -768,10 +768,11 @@ class TaskInstance(Base, LoggingMixin):
         session.merge(self)
         session.commit()
 
-    @staticmethod
+    @classmethod
     @internal_api_call
     @provide_session
     def get_task_instance(
+        cls,
         dag_id: str,
         run_id: str,
         task_id: str,
@@ -788,8 +789,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         if lock_for_update:
-            # TODO: pass the logger once resolved here https://github.com/apache/airflow/pull/28502
-            for attempt in run_with_db_retries(logger=None):
+            for attempt in run_with_db_retries(logger=cls.logger()):
                 with attempt:
                     return query.with_for_update().one_or_none()
             else:
@@ -1795,10 +1795,11 @@ class TaskInstance(Base, LoggingMixin):
             tb = tb.tb_next
         return tb or error.__traceback__
 
-    @staticmethod
+    @classmethod
     @internal_api_call
     @provide_session
     def fetch_handle_failure_context(
+        cls,
         dag_id: str,
         run_id: str,
         task_id: str,
@@ -1818,26 +1819,24 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         if ti is None:
-            raise AirflowException(f"Unable to fetch the task instance from the database. dag_id={dag_id},"
-                                   f"task_id={task_id}, run_id={run_id}, map_index={map_index}")
+            raise AirflowException(
+                f"Unable to fetch the task instance from the database. dag_id={dag_id},"
+                f"task_id={task_id}, run_id={run_id}, map_index={map_index}"
+            )
 
         if error:
             if isinstance(error, BaseException):
                 tb = TaskInstance.get_truncated_error_traceback(error, truncate_to=ti._execute_task)
-                # TODO address all log statements when https://github.com/apache/airflow/pull/28502 is merged
-                # self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
+                cls.logger().error("Task failed with exception", exc_info=(type(error), error, tb))
             else:
-                # self.log.error("%s", error)
-                pass
+                cls.logger().error("%s", error)
         if not test_mode:
             ti.refresh_from_db(session)
 
         ti.end_date = timezone.utcnow()
         ti.set_duration()
         Stats.incr(f"operator_failures_{ti.operator}")
-        Stats.incr(
-            "ti_failures", tags={"dag_id": dag_id, "run_id": run_id, "task_id": task_id}
-        )
+        Stats.incr("ti_failures", tags={"dag_id": dag_id, "run_id": run_id, "task_id": task_id})
         if not test_mode:
             session.add(Log(State.FAILED, ti))
 
@@ -1870,8 +1869,7 @@ class TaskInstance(Base, LoggingMixin):
             if getattr(ti, "task", None) and context:
                 task = ti.task.unmap((context, session))
         except Exception:
-            # self.log.error("Unable to unmap task to determine if we need to send an alert email")
-            pass
+            cls.logger().error("Unable to unmap task to determine if we need to send an alert email")
 
         if force_fail or not ti.is_eligible_to_retry():
             ti.state = State.FAILED
