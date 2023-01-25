@@ -51,7 +51,7 @@ from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
@@ -59,10 +59,10 @@ POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 # TaskInstance key, command, configuration, pod_template_file
 KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
 
-# key, state, pod_id, namespace, resource_version
+# key, pod state, pod_id, namespace, resource_version
 KubernetesResultsType = Tuple[TaskInstanceKey, Optional[str], str, str, str]
 
-# pod_id, namespace, state, annotations, resource_version
+# pod_id, namespace, pod state, annotations, resource_version
 KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 
 
@@ -498,8 +498,8 @@ class KubernetesExecutor(BaseExecutor):
         """
         Clear tasks that were not yet launched, but were previously queued.
 
-        Tasks can end up in a "Queued" state through when a rescheduled/deferred
-        operator comes back up for execution (with the same try_number) before the
+        Tasks can end up in a "Queued" state when a rescheduled/deferred operator
+        comes back up for execution (with the same try_number) before the
         pod of its previous incarnation has been fully removed (we think).
 
         It's also possible when an executor abruptly shuts down (leaving a non-empty
@@ -514,7 +514,7 @@ class KubernetesExecutor(BaseExecutor):
 
         self.log.debug("Clearing tasks that have not been launched")
         query = session.query(TaskInstance).filter(
-            TaskInstance.state == State.QUEUED, TaskInstance.queued_by_job_id == self.job_id
+            TaskInstance.state == TaskInstanceState.QUEUED, TaskInstance.queued_by_job_id == self.job_id
         )
         if self.kubernetes_queue:
             query = query.filter(TaskInstance.queue == self.kubernetes_queue)
@@ -566,7 +566,7 @@ class KubernetesExecutor(BaseExecutor):
                 TaskInstance.task_id == ti.task_id,
                 TaskInstance.run_id == ti.run_id,
                 TaskInstance.map_index == ti.map_index,
-            ).update({TaskInstance.state: State.SCHEDULED})
+            ).update({TaskInstance.state: TaskInstanceState.SCHEDULED})
 
     def start(self) -> None:
         """Starts the executor."""
@@ -621,7 +621,7 @@ class KubernetesExecutor(BaseExecutor):
             pod_template_file = executor_config.get("pod_template_file", None)
         else:
             pod_template_file = None
-        self.event_buffer[key] = (State.QUEUED, self.scheduler_job_id)
+        self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         self.task_queue.put((key, command, kube_executor_config, pod_template_file))
         # We keep a temporary local record that we've handled this so we don't
         # try and remove it from the QUEUED state while we process it
@@ -691,7 +691,7 @@ class KubernetesExecutor(BaseExecutor):
                     if e.status in (400, 422):
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
-                        self.change_state(key, State.FAILED, e)
+                        self.change_state(key, TaskInstanceState.FAILED, e)
                     else:
                         self.log.warning(
                             "ApiException when attempting to run task, re-queueing. Reason: %r. Message: %s",
