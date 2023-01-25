@@ -21,13 +21,17 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Callable
+from typing import Callable, cast
 
+from aiohttp import ClientSession
+from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from httplib2 import Response
+from requests import Session
 
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
@@ -132,7 +136,7 @@ class MLEngineHook(GoogleBaseHook):
             # 409 means there is an existing job with the same job ID.
             if e.resp.status == 409:
                 if use_existing_job_fn is not None:
-                    existing_job = self._get_job(project_id, job_id)
+                    existing_job = self.get_job(project_id, job_id)
                     if not use_existing_job_fn(existing_job):
                         self.log.error(
                             "Job with job_id %s already exist, but it does not match our expectation: %s",
@@ -146,6 +150,40 @@ class MLEngineHook(GoogleBaseHook):
                 raise
 
         return self._wait_for_job_done(project_id, job_id)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_job_without_waiting_result(
+        self,
+        body: dict,
+        project_id: str,
+    ):
+        """
+        Launches a MLEngine job and wait for it to reach a terminal state.
+
+        :param project_id: The Google Cloud project id within which MLEngine
+            job will be launched. If set to None or missing, the default project_id from the Google Cloud
+            connection is used.
+        :param body: MLEngine Job object that should be provided to the MLEngine
+            API, such as: ::
+
+                {
+                  'jobId': 'my_job_id',
+                  'trainingInput': {
+                    'scaleTier': 'STANDARD_1',
+                    ...
+                  }
+                }
+        :return: The MLEngine job_id of the object if the job successfully reach a
+            terminal state (which might be FAILED or CANCELLED state).
+        """
+        hook = self.get_conn()
+
+        self._append_label(body)
+
+        request = hook.projects().jobs().create(parent=f"projects/{project_id}", body=body)
+        job_id = body["jobId"]
+        request.execute(num_retries=self.num_retries)
+        return job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_job(
@@ -181,7 +219,7 @@ class MLEngineHook(GoogleBaseHook):
                 self.log.error("Failed to cancel MLEngine job: %s", e)
                 raise
 
-    def _get_job(self, project_id: str, job_id: str) -> dict:
+    def get_job(self, project_id: str, job_id: str) -> dict:
         """
         Gets a MLEngine job based on the job id.
 
@@ -223,7 +261,7 @@ class MLEngineHook(GoogleBaseHook):
         if interval <= 0:
             raise ValueError("Interval must be > 0")
         while True:
-            job = self._get_job(project_id, job_id)
+            job = self.get_job(project_id, job_id)
             if job["state"] in ["SUCCEEDED", "FAILED", "CANCELLED"]:
                 return job
             time.sleep(interval)
@@ -489,3 +527,70 @@ class MLEngineHook(GoogleBaseHook):
     def _append_label(self, model: dict) -> None:
         model["labels"] = model.get("labels", {})
         model["labels"]["airflow-version"] = _AIRFLOW_VERSION
+
+
+class MLEngineAsyncHook(GoogleBaseAsyncHook):
+    """Uses gcloud-aio library to retrieve Job details"""
+
+    sync_hook_class = MLEngineHook
+
+    def _check_fileds(
+        self,
+        job_id: str,
+        project_id: str | None = None,
+    ):
+        if not project_id:
+            raise AirflowException("Google Cloud project id is required.")
+        if not job_id:
+            raise AirflowException("An unique job id is required for Google MLEngine training job.")
+
+    async def _get_link(self, url: str, session: Session):
+        s = AioSession(session)
+        t = Token(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        headers = {
+            "Authorization": f"Bearer {t.get()}",
+            "accept": "application/json",
+            "accept-encoding": "gzip, deflate",
+            "user-agent": "(gzip)",
+            "x-goog-api-client": "gdcl/1.12.11 gl-python/3.8.15",
+        }
+        return await s.get(url=url, headers=headers)
+
+    async def get_job(self, job_id: str, session: Session, project_id: str | None = None):
+        """Get the specified job resource by job ID and project ID."""
+        self._check_fileds(project_id=project_id, job_id=job_id)
+
+        url = f"https://ml.googleapis.com/v1/projects/{project_id}/jobs/{job_id}"
+        return await self._get_link(url=url, session=session)
+
+    async def get_job_status(
+        self,
+        job_id: str,
+        project_id: str | None = None,
+    ) -> str | None:
+        """
+        Polls for job status asynchronously using gcloud-aio.
+
+        Note that an OSError is raised when Job results are still pending.
+        Exception means that Job finished with errors
+        """
+        self._check_fileds(project_id=project_id, job_id=job_id)
+
+        async with ClientSession() as s:
+            try:
+                job_response = await self.get_job(
+                    project_id=project_id, job_id=job_id, session=cast(Session, s)
+                )
+                json_response = await job_response.json()
+                self.log.info("Retrieving json_response: %s", json_response)
+
+                if json_response["state"] in ["SUCCEEDED", "FAILED", "CANCELLED"]:
+                    job_status = "success"
+                elif json_response["state"] in ["PREPARING", "RUNNING"]:
+                    job_status = "pending"
+            except OSError:
+                job_status = "pending"
+            except Exception as e:
+                self.log.info("Query execution finished with errors...")
+                job_status = str(e)
+            return job_status

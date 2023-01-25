@@ -47,7 +47,7 @@ from airflow.utils.trigger_rule import TriggerRule
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
-DAG_ID = "example_gcp_mlengine"
+DAG_ID = "async_example_gcp_mlengine"
 PREDICT_FILE_NAME = "predict.json"
 MODEL_NAME = f"example_mlengine_model_{ENV_ID}"
 BUCKET_NAME = f"example_mlengine_bucket_{ENV_ID}"
@@ -98,12 +98,12 @@ with models.DAG(
         bucket=BUCKET_NAME,
     )
 
-    # [START howto_operator_gcp_mlengine_training]
+    # [START howto_operator_gcp_mlengine_training_async]
     training = MLEngineStartTrainingJobOperator(
         task_id="training",
         project_id=PROJECT_ID,
         region="us-central1",
-        job_id="training-job-{{ ts_nodash }}-{{ params.model_name }}",
+        job_id="async_training-job-{{ ts_nodash }}-{{ params.model_name }}",
         runtime_version="1.15",
         python_version="3.7",
         job_dir=JOB_DIR,
@@ -111,8 +111,9 @@ with models.DAG(
         training_python_module=TRAINER_PY_MODULE,
         training_args=[],
         labels={"job_type": "training"},
+        deferrable=True,
     )
-    # [END howto_operator_gcp_mlengine_training]
+    # [END howto_operator_gcp_mlengine_training_async]
 
     # [START howto_operator_gcp_mlengine_create_model]
     create_model = MLEngineCreateModelOperator(
