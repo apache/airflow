@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import botocore.exceptions
 import pytest
 from moto import mock_ssm
@@ -44,8 +46,9 @@ class TestSsmHook:
     def setup_tests(self, request):
         with mock_ssm():
             self.hook = SsmHook(region_name=REGION)
+            self.param_type = request.param
             self.hook.conn.put_parameter(
-                Type=request.param, Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True
+                Type=self.param_type, Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True
             )
             yield
 
@@ -67,6 +70,14 @@ class TestSsmHook:
             assert self.hook.get_parameter_value(param_name, default=default_value) == expected_result
         else:
             assert self.hook.get_parameter_value(param_name) == expected_result
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.ssm.mask_secret")
+    def test_get_parameter_masking(self, mock_masker: mock.MagicMock):
+        self.hook.get_parameter_value(EXISTING_PARAM_NAME)
+        if self.param_type == "SecureString":
+            mock_masker.assert_called_once_with(PARAM_VALUE)
+        else:
+            mock_masker.assert_not_called()
 
     def test_get_parameter_value_param_does_not_exist_no_default_provided(self) -> None:
         with pytest.raises(botocore.exceptions.ClientError) as raised_exception:
