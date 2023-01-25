@@ -239,7 +239,7 @@ class GoogleBaseHook(BaseHook):
 
         key_path: str | None = self._get_field("key_path", None)
         try:
-            keyfile_dict: str | dict | None = self._get_field("keyfile_dict", None)
+            keyfile_dict: str | dict[str, str] | None = self._get_field("keyfile_dict", None)
             keyfile_dict_json: dict[str, str] | None = None
             if keyfile_dict:
                 if isinstance(keyfile_dict, dict):
