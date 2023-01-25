@@ -443,7 +443,7 @@ set as your environment variable.
 You can also pass the token as `--github-token` option in the script.
 
 ```shell script
-breeze release-management generate-issue-content --only-available-in-dist
+breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
 You can also generate the token by following
@@ -452,7 +452,7 @@ You can also generate the token by following
 If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
 
 ```shell script
-breeze release-management generate-issue-content --only-available-in-dist --suffix rc2
+breeze release-management generate-issue-content-providers --only-available-in-dist --suffix rc2
 ```
 
 

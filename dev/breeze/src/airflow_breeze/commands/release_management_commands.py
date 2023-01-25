@@ -761,7 +761,7 @@ def get_prs_for_package(package_id: str) -> list[int]:
 
 
 @release_management.command(
-    name="generate-issue-content", help="Generates content for issue to test the release."
+    name="generate-issue-content-providers", help="Generates content for issue to test the release."
 )
 @click.option(
     "--github-token",
@@ -783,7 +783,7 @@ def get_prs_for_package(package_id: str) -> list[int]:
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option("--disable-progress", is_flag=True, help="Disable progress bar")
 @argument_packages
-def generate_issue_content(
+def generate_issue_content_providers(
     packages: list[str],
     github_token: str,
     suffix: str,

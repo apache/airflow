@@ -37,7 +37,7 @@ prod-image:verify:31bc5efada1d70a0a31990025db1a093
 prod-image:4f98deab35e53ebddbdc9950a50555a4
 release-management:create-minor-branch:6a01066dce15e09fb269a8385626657c
 release-management:generate-constraints:ae30d6ad49a1b2c15b61cb29080fd957
-release-management:generate-issue-content:35ee0e755789aefd509f63e161aa150e
+release-management:generate-issue-content-providers:9b8b5b39e9310b01e6e0fb6b41483063
 release-management:prepare-airflow-package:3ac14ea6d2b09614959c0ec4fd564789
 release-management:prepare-provider-documentation:452b6165f09755d052501f6003ae3ea1
 release-management:prepare-provider-packages:c85c2997e01b7f9db95dc9a7abb9ea48
@@ -45,14 +45,14 @@ release-management:release-prod-images:c9bc40938e0efad49e51ef66e83f9527
 release-management:start-rc-process:6aafbaceabd7b67b9a1af4c2f59abc4c
 release-management:start-release:acb384d86e02ff5fde1bf971897be17c
 release-management:verify-provider-packages:88bd609aff6d09d52ab8d80d6e055e7b
-release-management:ce37a79b83b964ecf575b5aef0515462
+release-management:edbaabee1315498f15a27bd853bcd1cc
 setup:autocomplete:03343478bf1d0cf9c101d454cdb63b68
-setup:check-all-params-in-groups:5b3dc1f6e630510c8f52c3d0687b3b2a
+setup:check-all-params-in-groups:4d0f8c19cbdb56290055d863b08a3376
 setup:config:3ffcd35dd24b486ddf1d08b797e3d017
-setup:regenerate-command-images:10d5d83f294cd86245cd51d4185504bb
+setup:regenerate-command-images:15215e52342dd2f2e27a85726f40a820
 setup:self-upgrade:d02f70c7a230eae3463ceec2056b63fa
 setup:version:123b462a421884dc2320ffc5e54b2478
-setup:f383b9236f6141f95276136ccd9217f5
+setup:56a2ef337c354362760d247df5d05365
 shell:76e0f530b7af514a2aad3032b6516c46
 start-airflow:06d4aeb5f1b65f6b975f3f915558d0b3
 static-checks:d20293484c293d721728713350a23b00
