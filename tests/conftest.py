@@ -22,9 +22,10 @@ import subprocess
 import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
-import freezegun
 import pytest
+import time_machine
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -40,11 +41,15 @@ os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/air
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
+from tests.test_utils.db import clear_all  # noqa: E402
 
 from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
     trace_queries,
 )
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 @pytest.fixture()
@@ -158,7 +163,7 @@ def pytest_addoption(parser):
         action="append",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
-        "[cassandra,kerberos,mongo,openldap,rabbitmq,redis,statsd,trino]. ",
+        "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
     )
     group.addoption(
         "--backend",
@@ -191,6 +196,12 @@ def pytest_addoption(parser):
             f"displayed as a comma-separated list. Supported values: [f{allowed_trace_sql_columns_list}]"
         ),
         metavar="COLUMNS",
+    )
+    group.addoption(
+        "--no-db-cleanup",
+        action="store_false",
+        dest="db_cleanup",
+        help="Disable DB clear before each test module.",
     )
 
 
@@ -287,7 +298,7 @@ def skip_if_not_marked_with_backend(selected_backend, item):
         if selected_backend in backend_names:
             return
     pytest.skip(
-        f"The test is skipped because it does not have the right backend marker "
+        f"The test is skipped because it does not have the right backend marker. "
         f"Only tests marked with pytest.mark.backend('{selected_backend}') are run: {item}"
     )
 
@@ -396,7 +407,7 @@ def pytest_runtest_setup(item):
 @pytest.fixture
 def frozen_sleep(monkeypatch):
     """
-    Use freezegun to "stub" sleep, so that it takes no time, but that
+    Use time-machine to "stub" sleep, so that it takes no time, but that
     ``datetime.now()`` appears to move forwards
 
     If your module under test does ``import time`` and then ``time.sleep``::
@@ -412,21 +423,21 @@ def frozen_sleep(monkeypatch):
             monkeypatch.setattr('my_mod.sleep', frozen_sleep)
             my_mod.fn_under_test()
     """
-    freezegun_control = None
+    traveller = None
 
     def fake_sleep(seconds):
-        nonlocal freezegun_control
+        nonlocal traveller
         utcnow = datetime.utcnow()
-        if freezegun_control is not None:
-            freezegun_control.stop()
-        freezegun_control = freezegun.freeze_time(utcnow + timedelta(seconds=seconds))
-        freezegun_control.start()
+        if traveller is not None:
+            traveller.stop()
+        traveller = time_machine.travel(utcnow + timedelta(seconds=seconds))
+        traveller.start()
 
     monkeypatch.setattr("time.sleep", fake_sleep)
     yield fake_sleep
 
-    if freezegun_control is not None:
-        freezegun_control.stop()
+    if traveller is not None:
+        traveller.stop()
 
 
 @pytest.fixture(scope="session")
@@ -741,7 +752,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_type=None,
         data_interval=None,
         **kwargs,
-    ):
+    ) -> TaskInstance:
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -775,7 +786,7 @@ def create_task_instance_of_operator(dag_maker):
         execution_date=None,
         session=None,
         **operator_kwargs,
-    ):
+    ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, session=session):
             operator_class(**operator_kwargs)
         if execution_date is None:
@@ -852,3 +863,24 @@ def reset_logging_config():
 
     logging_config = import_string(settings.LOGGING_CLASS_PATH)
     logging.config.dictConfig(logging_config)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _clear_db(request):
+    """Clear DB before each test module run."""
+    if not request.config.option.db_cleanup:
+        return
+    dist_option = getattr(request.config.option, "dist", "no")
+    if dist_option != "no" or hasattr(request.config, "workerinput"):
+        # Skip if pytest-xdist detected (controller or worker)
+        return
+
+    try:
+        clear_all()
+    except Exception as ex:
+        exc_name_parts = [type(ex).__name__]
+        exc_module = type(ex).__module__
+        if exc_module != "builtins":
+            exc_name_parts.insert(0, exc_module)
+        extra_msg = "" if request.config.option.db_init else ", try to run with flag --with-db-init"
+        pytest.exit(f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}")

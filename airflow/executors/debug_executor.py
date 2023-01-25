@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DebugExecutor
+DebugExecutor.
 
 .. seealso::
     For more information on how the DebugExecutor works, take a look at the guide:
@@ -25,6 +25,7 @@ DebugExecutor
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
 from airflow.configuration import conf
@@ -42,6 +43,7 @@ class DebugExecutor(BaseExecutor):
     """
 
     _terminated = threading.Event()
+    change_sensor_mode_to_reschedule: bool = True
 
     def __init__(self):
         super().__init__()
@@ -92,6 +94,7 @@ class DebugExecutor(BaseExecutor):
         pickle_id: str | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         pool: str | None = None,
@@ -112,11 +115,17 @@ class DebugExecutor(BaseExecutor):
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Triggers tasks. Instead of calling exec_async we just
-        add task instance to tasks_to_run queue.
+        Triggers tasks.
+
+        Instead of calling exec_async we just add task instance to tasks_to_run queue.
 
         :param open_slots: Number of open slots
         """
+        if not self.queued_tasks:
+            # wait a bit if there are no tasks ready to be executed to avoid spinning too fast in the void
+            time.sleep(0.5)
+            return
+
         sorted_queue = sorted(
             self.queued_tasks.items(),
             key=lambda x: x[1][1],
@@ -129,10 +138,7 @@ class DebugExecutor(BaseExecutor):
             self.tasks_to_run.append(ti)  # type: ignore
 
     def end(self) -> None:
-        """
-        When the method is called we just set states of queued tasks
-        to UPSTREAM_FAILED marking them as not executed.
-        """
+        """Set states of queued tasks to UPSTREAM_FAILED marking them as not executed."""
         for ti in self.tasks_to_run:
             self.log.info("Setting %s to %s", ti.key, State.UPSTREAM_FAILED)
             ti.set_state(State.UPSTREAM_FAILED)

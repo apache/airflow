@@ -24,6 +24,44 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add hook for Azure Data Lake Storage Gen2 (#28262)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Hide 'extra' field in WASB connection form (#28914)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
+5.0.2
+.....
+
+Misc
+~~~~
+
+* ``Re-enable azure service bus on ARM as it now builds cleanly (#28442)``
+
+5.0.1
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make arguments 'offset' and 'length' not required (#28234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 5.0.0
 .....
 

@@ -23,6 +23,7 @@ import importlib
 import json
 import logging
 import os
+import sys
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
 from typing import Generator, Union
@@ -43,6 +44,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
+from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
@@ -52,6 +54,7 @@ from airflow.utils.cli import (
     get_dag_by_file_location,
     get_dag_by_pickle,
     get_dags,
+    should_ignore_depends_on_past,
     suppress_logs_and_warning,
 )
 from airflow.utils.dates import timezone
@@ -218,7 +221,7 @@ def _run_task_by_executor(args, dag, ti):
             print(e)
             raise e
     executor = ExecutorLoader.get_default_executor()
-    executor.job_id = "manual"
+    executor.job_id = None
     executor.start()
     print("Sending to executor.")
     executor.queue_task_instance(
@@ -226,7 +229,8 @@ def _run_task_by_executor(args, dag, ti):
         mark_success=args.mark_success,
         pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_depends_on_past=should_ignore_depends_on_past(args),
+        wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -242,7 +246,8 @@ def _run_task_by_local_task_job(args, ti):
         mark_success=args.mark_success,
         pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_depends_on_past=should_ignore_depends_on_past(args),
+        wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
@@ -280,39 +285,52 @@ def _extract_external_executor_id(args) -> str | None:
 
 
 @contextmanager
-def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
+def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]:
     """
-    Manage logging context for a task run.
+    Move handlers for task logging to root logger.
 
-    - Replace the root logger configuration with the airflow.task configuration
-      so we can capture logs from any custom loggers used in the task.
-
-    - Redirect stdout and stderr to the task instance log, as INFO and WARNING
-      level messages, respectively.
-
+    We want anything logged during task run to be propagated to task log handlers.
+    If running in a k8s executor pod, also keep the stream handler on root logger
+    so that logs are still emitted to stdout.
     """
-    modify = not settings.DONOT_MODIFY_HANDLERS
+    # nothing to do
+    if not ti.log.handlers or settings.DONOT_MODIFY_HANDLERS:
+        yield
+        return
 
-    if modify:
-        root_logger, task_logger = logging.getLogger(), logging.getLogger("airflow.task")
+    # Move task handlers to root and reset task logger and restore original logger settings after exit.
+    # If k8s executor, we need to ensure that root logger has a console handler, so that
+    # task logs propagate to stdout (this is how webserver retrieves them while task is running).
+    root_logger = logging.getLogger()
+    console_handler = next((h for h in root_logger.handlers if h.name == "console"), None)
+    with LoggerMutationHelper(root_logger), LoggerMutationHelper(ti.log) as task_helper:
+        task_helper.move(root_logger)
+        if IS_K8S_EXECUTOR_POD:
+            if console_handler and console_handler not in root_logger.handlers:
+                root_logger.addHandler(console_handler)
+        yield
 
-        orig_level = root_logger.level
-        root_logger.setLevel(task_logger.level)
-        orig_handlers = root_logger.handlers.copy()
-        root_logger.handlers[:] = task_logger.handlers
 
-    try:
+@contextmanager
+def _redirect_stdout_to_ti_log(ti: TaskInstance) -> Generator[None, None, None]:
+    """
+    Redirect stdout to ti logger.
+
+    Redirect stdout and stderr to the task instance log as INFO and WARNING
+    level messages, respectively.
+
+    If stdout already redirected (possible when task running with option
+    `--local`), don't redirect again.
+    """
+    # if sys.stdout is StreamLogWriter, it means we already redirected
+    # likely before forking in LocalTaskJob
+    if not isinstance(sys.stdout, StreamLogWriter):
         info_writer = StreamLogWriter(ti.log, logging.INFO)
         warning_writer = StreamLogWriter(ti.log, logging.WARNING)
-
         with redirect_stdout(info_writer), redirect_stderr(warning_writer):
             yield
-
-    finally:
-        if modify:
-            # Restore the root logger to its original state.
-            root_logger.setLevel(orig_level)
-            root_logger.handlers[:] = orig_handlers
+    else:
+        yield
 
 
 class TaskCommandMarker:
@@ -364,12 +382,6 @@ def task_run(args, dag=None):
 
     settings.MASK_SECRETS_IN_LOGS = True
 
-    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
-    # behind multiple open sleeping connections while heartbeating, which could
-    # easily exceed the database connection limit when
-    # processing hundreds of simultaneous tasks.
-    settings.reconfigure_orm(disable_connection_pool=True)
-
     get_listener_manager().hook.on_starting(component=TaskCommandMarker())
 
     if args.pickle:
@@ -388,11 +400,19 @@ def task_run(args, dag=None):
 
     log.info("Running %s on host %s", ti, hostname)
 
+    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
+    # behind multiple open sleeping connections while heartbeating, which could
+    # easily exceed the database connection limit when
+    # processing hundreds of simultaneous tasks.
+    # this should be last thing before running, to reduce likelihood of an open session
+    # which can cause trouble if running process in a fork.
+    settings.reconfigure_orm(disable_connection_pool=True)
+
     try:
         if args.interactive:
             _run_task_by_selected_method(args, dag, ti)
         else:
-            with _capture_task_logs(ti):
+            with _move_task_handlers_to_root(ti), _redirect_stdout_to_ti_log(ti):
                 _run_task_by_selected_method(args, dag, ti)
     finally:
         try:
@@ -592,21 +612,22 @@ def task_test(args, dag=None):
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
-def task_render(args):
+def task_render(args, dag=None):
     """Renders and displays templated fields for a given task."""
-    dag = get_dag(args.subdir, args.dag_id)
+    if not dag:
+        dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
     )
     ti.render_templates()
-    for attr in task.__class__.template_fields:
+    for attr in task.template_fields:
         print(
             textwrap.dedent(
                 f"""        # ----------------------------------------------------------
         # property: {attr}
         # ----------------------------------------------------------
-        {getattr(task, attr)}
+        {getattr(ti.task, attr)}
         """
             )
         )
@@ -641,3 +662,53 @@ def task_clear(args):
         include_subdags=not args.exclude_subdags,
         include_parentdag=not args.exclude_parentdag,
     )
+
+
+class LoggerMutationHelper:
+    """
+    Helper for moving and resetting handlers and other logger attrs.
+
+    :meta private:
+    """
+
+    def __init__(self, logger):
+        self.handlers = logger.handlers[:]
+        self.level = logger.level
+        self.propagate = logger.propagate
+        self.source_logger = logger
+
+    def apply(self, logger, replace=True):
+        """
+        Set ``logger`` with attrs stored on instance.
+
+        If ``logger`` is root logger, don't change propagate.
+        """
+        if replace:
+            logger.handlers[:] = self.handlers
+        else:
+            for h in self.handlers:
+                if h not in logger.handlers:
+                    logger.addHandler(h)
+        logger.level = self.level
+        if logger is not logging.getLogger():
+            logger.propagate = self.propagate
+
+    def move(self, logger, replace=True):
+        """
+        Replace ``logger`` attrs with those from source.
+
+        :param logger: target logger
+        :param replace: if True, remove all handlers from target first; otherwise add if not present.
+        """
+        self.apply(logger, replace=replace)
+        self.source_logger.propagate = True
+        self.source_logger.handlers[:] = []
+
+    def reset(self):
+        self.apply(self.source_logger)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.reset()

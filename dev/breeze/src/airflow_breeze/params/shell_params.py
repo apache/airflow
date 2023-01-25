@@ -105,16 +105,16 @@ class ShellParams:
     skip_constraints: bool = False
     start_airflow: str = "false"
     test_type: str | None = None
+    skip_provider_tests: bool = False
     use_airflow_version: str | None = None
     use_packages_from_dist: bool = False
     version_suffix_for_pypi: str = ""
     dry_run: bool = False
     verbose: bool = False
 
-    def clone_with_test(self, test_type: str, integration: tuple[str, ...]) -> ShellParams:
+    def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
         new_params.test_type = test_type
-        new_params.integration = integration if test_type == "Integration" else ()
         return new_params
 
     @property
@@ -152,16 +152,6 @@ class ShellParams:
     @property
     def airflow_sources(self):
         return AIRFLOW_SOURCES_ROOT
-
-    @property
-    def enabled_integrations(self) -> str:
-        if "all" in self.integration:
-            enabled_integration = " ".join(AVAILABLE_INTEGRATIONS)
-        elif len(self.integration) > 0:
-            enabled_integration = " ".join(self.integration)
-        else:
-            enabled_integration = ""
-        return enabled_integration
 
     @property
     def image_type(self) -> str:
@@ -254,6 +244,11 @@ class ShellParams:
         if len(integrations) > 0:
             for integration in integrations:
                 compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
+        if "trino" in integrations and "kerberos" not in integrations:
+            get_console().print(
+                "[warning]Adding `kerberos` integration as it is implicitly needed by trino",
+            )
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-kerberos.yml")
         return os.pathsep.join([os.fspath(f) for f in compose_file_list])
 
     @property

@@ -23,7 +23,10 @@ from glob import glob
 
 import jinja2
 
+# isort:off (needed to workaround isort bug)
 from docs.exts.provider_yaml_utils import load_package_data
+
+# isort:on (needed to workaround isort bug)
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))

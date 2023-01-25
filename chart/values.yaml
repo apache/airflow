@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.5.0"
+defaultAirflowTag: "2.5.1"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.5.0"
+airflowVersion: "2.5.1"
 
 # Images
 images:
@@ -68,6 +68,10 @@ images:
   # timeout (in seconds) for airflow-migrations to complete
   migrationsWaitTimeout: 60
   pod_template:
+    # Note that `images.pod_template.repository` and `images.pod_template.tag` parameters
+    # can be overridden in `config.kubernetes` section. So for these parameters to have effect
+    # `config.kubernetes.worker_container_repository` and `config.kubernetes.worker_container_tag`
+    # must be not set .
     repository: ~
     tag: ~
     pullPolicy: IfNotPresent
@@ -93,7 +97,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
-    tag: v3.4.0
+    tag: v3.6.3
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -242,6 +246,12 @@ allowPodLaunching: true
 env: []
 # - name: ""
 #   value: ""
+
+# Volumes for all airflow containers
+volumes: []
+
+# VolumeMounts for all airflow containers
+volumeMounts: []
 
 # Secrets for all airflow containers
 secret: []
@@ -594,6 +604,9 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  # annotations for the worker resource
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to workers objects and pods
@@ -711,6 +724,9 @@ scheduler:
   topologySpreadConstraints: []
 
   priorityClassName: ~
+
+  # annotations for scheduler deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -970,8 +986,10 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
+  # This string (can be templated) will be mounted into the Airflow Webserver
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
@@ -981,6 +999,7 @@ webserver:
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
+  webserverConfigConfigMapName: ~
 
   service:
     type: ClusterIP
@@ -1020,6 +1039,9 @@ webserver:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
+
+  # annotations for webserver deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -1119,6 +1141,9 @@ triggerer:
 
   priorityClassName: ~
 
+  # annotations for the triggerer deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to triggerer objects and pods
@@ -1216,6 +1241,9 @@ dagProcessor:
   topologySpreadConstraints: []
 
   priorityClassName: ~
+
+  # annotations for the dag processor deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -1319,6 +1347,9 @@ flower:
 
   priorityClassName: ~
 
+  # annotations for the flower deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to flower objects and pods
@@ -1399,6 +1430,9 @@ pgbouncer:
   args: ~
   auth_type: md5
   auth_file: /etc/pgbouncer/users.txt
+
+  # annotations to be added to the PgBouncer deployment
+  annotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1668,8 +1702,11 @@ cleanup:
 # Not recommended for production
 postgresql:
   enabled: true
-  postgresqlPassword: postgres
-  postgresqlUsername: postgres
+  auth:
+    enablePostgresUser: true
+    postgresPassword: postgres
+    username: ~
+    password: ~
 
 # Config settings to go into the mounted airflow.cfg
 #

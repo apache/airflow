@@ -45,9 +45,10 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/|versrion|/tests/system/providers/apache/hive>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/|version|/tests/system/providers/apache/hive>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hive/>
     Installing from sources <installing-providers-from-sources>
+    Macros <macros>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -65,7 +66,7 @@ Package apache-airflow-providers-apache-hive
 `Apache Hive <https://hive.apache.org/>`__
 
 
-Release: 4.1.1
+Release: 5.1.1
 
 Provider package
 ----------------
@@ -126,7 +127,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-hive 4.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-4.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-4.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-4.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-hive 4.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-4.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-4.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-4.1.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-hive 5.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-5.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-5.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-5.1.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hive 5.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-5.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-5.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-5.1.1-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/apache/hive/CHANGELOG.rst

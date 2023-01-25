@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import shlex
 import time
+import warnings
 from io import StringIO
 from typing import Any
 
@@ -122,6 +123,10 @@ class ComputeEngineSSHHook(SSHHook):
         self.use_oslogin = use_oslogin
         self.expire_time = expire_time
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self._conn: Any | None = None
 

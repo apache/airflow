@@ -21,7 +21,7 @@ import collections
 import logging
 import re
 import sys
-from typing import Any, Dict, Iterable, List, TextIO, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Generator, Iterable, List, TextIO, Tuple, TypeVar, Union
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
@@ -240,21 +240,59 @@ class SecretsMasker(logging.Filter):
         """
         return self._redact(item, name, depth=0)
 
-    def add_mask(self, secret: str | dict | Iterable, name: str | None = None):
-        """Add a new secret to be masked to this filter instance."""
+    @cached_property
+    def _mask_adapter(self) -> None | Callable:
+        """Pulls the secret mask adapter from config.
+
+        This lives in a function here to be cached and only hit the config once.
+        """
         from airflow.configuration import conf
 
-        test_mode: bool = conf.getboolean("core", "unit_test_mode")
+        return conf.getimport("logging", "secret_mask_adapter", fallback=None)
+
+    @cached_property
+    def _test_mode(self) -> bool:
+        """Pulls the unit test mode flag from config.
+
+        This lives in a function here to be cached and only hit the config once.
+        """
+        from airflow.configuration import conf
+
+        return conf.getboolean("core", "unit_test_mode")
+
+    def _adaptations(self, secret: str) -> Generator[str, None, None]:
+        """Yields the secret along with any adaptations to the secret that should be masked."""
+        yield secret
+
+        if self._mask_adapter:
+            # This can return an iterable of secrets to mask OR a single secret as a string
+            secret_or_secrets = self._mask_adapter(secret)
+            if not isinstance(secret_or_secrets, str):
+                # if its not a string, it must be an iterable
+                yield from secret_or_secrets
+            else:
+                yield secret_or_secrets
+
+    def add_mask(self, secret: str | dict | Iterable, name: str | None = None):
+        """Add a new secret to be masked to this filter instance."""
         if isinstance(secret, dict):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
-            if not secret or (test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
+            if not secret or (self._test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
                 return
-            pattern = re.escape(secret)
-            if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
-                self.patterns.add(pattern)
+
+            new_mask = False
+            for s in self._adaptations(secret):
+                if s:
+                    pattern = re.escape(s)
+                    if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
+                        self.patterns.add(pattern)
+                        new_mask = True
+
+            if new_mask:
                 self.replacer = re.compile("|".join(self.patterns))
+
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
                 self.add_mask(v, name)

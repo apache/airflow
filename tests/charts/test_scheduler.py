@@ -115,6 +115,20 @@ class TestScheduler:
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "test-volume" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
+        assert "test-volume" in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -693,6 +707,18 @@ class TestScheduler:
         assert 1 == len(docs)
         assert executor == docs[0]["metadata"]["labels"].get("executor")
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestSchedulerNetworkPolicy:
     def test_should_add_component_specific_labels(self):
@@ -711,6 +737,33 @@ class TestSchedulerNetworkPolicy:
 
 
 class TestSchedulerService:
+    @pytest.mark.parametrize(
+        "executor, creates_service",
+        [
+            ("LocalExecutor", True),
+            ("CeleryExecutor", False),
+            ("CeleryKubernetesExecutor", False),
+            ("KubernetesExecutor", False),
+            ("LocalKubernetesExecutor", True),
+        ],
+    )
+    def test_should_create_scheduler_service_for_specific_executors(self, executor, creates_service):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "scheduler": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-service.yaml"],
+        )
+        if creates_service:
+            assert jmespath.search("kind", docs[0]) == "Service"
+            assert "test_label" in jmespath.search("metadata.labels", docs[0])
+            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        else:
+            assert docs == []
+
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={

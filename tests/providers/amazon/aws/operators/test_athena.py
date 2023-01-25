@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -44,8 +43,8 @@ query_context = {"Database": MOCK_DATA["database"]}
 result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
 
 
-class TestAthenaOperator(unittest.TestCase):
-    def setUp(self):
+class TestAthenaOperator:
+    def setup_method(self):
         args = {
             "owner": "airflow",
             "start_date": DEFAULT_DATE,

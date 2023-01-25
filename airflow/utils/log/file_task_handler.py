@@ -21,21 +21,23 @@ from __future__ import annotations
 import logging
 import os
 import warnings
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-from airflow.configuration import AirflowConfigException, conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.utils.log.logging_mixin import SetContextPropagate
 
 
 class FileTaskHandler(logging.Handler):
@@ -61,10 +63,22 @@ class FileTaskHandler(logging.Handler):
                 # handler, not the one that calls super()__init__.
                 stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
+        self.maintain_propagate: bool = False
+        """
+        If true, overrides default behavior of setting propagate=False
+
+        :meta private:
+        """
 
     def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
+
+        Generally speaking returns None.  But if attr `maintain_propagate` has
+        been set to propagate, then returns sentinel MAINTAIN_PROPAGATE. This
+        has the effect of overriding the default behavior to set `propagate`
+        to False whenever set_context is called.  At time of writing, this
+        functionality is only used in unit testing.
 
         :param ti: task instance object
         """
@@ -73,7 +87,7 @@ class FileTaskHandler(logging.Handler):
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
-        return None
+        return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
     def emit(self, record):
         if self.handler:
@@ -91,16 +105,17 @@ class FileTaskHandler(logging.Handler):
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
-        str_tpl, jinja_tpl = parse_template_string(template)
+            str_tpl, jinja_tpl = parse_template_string(template)
 
-        if jinja_tpl:
-            if hasattr(ti, "task"):
-                context = ti.get_template_context()
-            else:
-                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-            context["try_number"] = try_number
-            return render_template_to_string(jinja_tpl, context)
-        elif str_tpl:
+            if jinja_tpl:
+                if hasattr(ti, "task"):
+                    context = ti.get_template_context(session=session)
+                else:
+                    context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
+                context["try_number"] = try_number
+                return render_template_to_string(jinja_tpl, context)
+
+        if str_tpl:
             try:
                 dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.
@@ -132,6 +147,55 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
+    def _get_task_log_from_worker(
+        self, ti: TaskInstance, log: str, log_relative_path: str
+    ) -> str | tuple[str, dict[str, bool]]:
+        import httpx
+
+        from airflow.utils.jwt_signer import JWTSigner
+
+        url = self._get_log_retrieval_url(ti, log_relative_path)
+        log += f"*** Fetching from: {url}\n"
+
+        try:
+            timeout = None  # No timeout
+            try:
+                timeout = conf.getint("webserver", "log_fetch_timeout_sec")
+            except (AirflowConfigException, ValueError):
+                pass
+
+            signer = JWTSigner(
+                secret_key=conf.get("webserver", "secret_key"),
+                expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
+                audience="task-instance-logs",
+            )
+            response = httpx.get(
+                url,
+                timeout=timeout,
+                headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+            )
+            response.encoding = "utf-8"
+
+            if response.status_code == 403:
+                log += (
+                    "*** !!!! Please make sure that all your Airflow components (e.g. "
+                    "schedulers, webservers and workers) have "
+                    "the same 'secret_key' configured in 'webserver' section and "
+                    "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
+                )
+                log += (
+                    "*** See more at https://airflow.apache.org/docs/apache-airflow/"
+                    "stable/configurations-ref.html#secret-key\n***"
+                )
+            # Check if the resource was properly fetched
+            response.raise_for_status()
+
+            log += "\n" + response.text
+            return log
+        except Exception as e:
+            log += f"*** Failed to fetch log file from worker. {str(e)}\n"
+            return log, {"end_of_log": True}
+
     def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
@@ -154,8 +218,6 @@ class FileTaskHandler(logging.Handler):
                              This is determined by the status of the TaskInstance
                  log_pos: (absolute) Char position to which the log is retrieved
         """
-        from airflow.utils.jwt_signer import JWTSigner
-
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
@@ -163,7 +225,6 @@ class FileTaskHandler(logging.Handler):
         location = os.path.join(self.local_base, log_relative_path)
 
         log = ""
-
         if os.path.exists(location):
             try:
                 with open(location, encoding="utf-8", errors="surrogateescape") as file:
@@ -173,97 +234,40 @@ class FileTaskHandler(logging.Handler):
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
                 return log, {"end_of_log": True}
-        elif conf.get("core", "executor") == "KubernetesExecutor":
-            try:
-                from airflow.kubernetes.kube_client import get_kube_client
-
-                kube_client = get_kube_client()
-
-                if len(ti.hostname) >= 63:
-                    # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
-                    # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
-                    # on any label of a FQDN.
-                    pod_list = kube_client.list_namespaced_pod(conf.get("kubernetes_executor", "namespace"))
-                    matches = [
-                        pod.metadata.name
-                        for pod in pod_list.items
-                        if pod.metadata.name.startswith(ti.hostname)
-                    ]
-                    if len(matches) == 1:
-                        if len(matches[0]) > len(ti.hostname):
-                            ti.hostname = matches[0]
-
-                log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
-
-                res = kube_client.read_namespaced_pod_log(
-                    name=ti.hostname,
-                    namespace=conf.get("kubernetes_executor", "namespace"),
-                    container="base",
-                    follow=False,
-                    tail_lines=100,
-                    _preload_content=False,
-                )
-
-                for line in res:
-                    log += line.decode()
-
-            except Exception as f:
-                log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
-                return log, {"end_of_log": True}
         else:
-            import httpx
+            log += f"*** Local log file does not exist: {location}\n"
+            executor = ExecutorLoader.get_default_executor()
+            task_log = None
 
-            url = self._get_log_retrieval_url(ti, log_relative_path)
-            log += f"*** Log file does not exist: {location}\n"
-            log += f"*** Fetching from: {url}\n"
-            try:
-                timeout = None  # No timeout
-                try:
-                    timeout = conf.getint("webserver", "log_fetch_timeout_sec")
-                except (AirflowConfigException, ValueError):
-                    pass
+            task_log = executor.get_task_log(ti=ti, log=log)
+            if isinstance(task_log, tuple):
+                return task_log
 
-                signer = JWTSigner(
-                    secret_key=conf.get("webserver", "secret_key"),
-                    expiration_time_in_seconds=conf.getint(
-                        "webserver", "log_request_clock_grace", fallback=30
-                    ),
-                    audience="task-instance-logs",
-                )
-                response = httpx.get(
-                    url,
-                    timeout=timeout,
-                    headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
-                )
-                response.encoding = "utf-8"
+            if task_log is None:
+                log += "*** Failed to fetch log from executor. Falling back to fetching log from worker.\n"
+                task_log = self._get_task_log_from_worker(ti, log, log_relative_path=log_relative_path)
 
-                if response.status_code == 403:
-                    log += (
-                        "*** !!!! Please make sure that all your Airflow components (e.g. "
-                        "schedulers, webservers and workers) have "
-                        "the same 'secret_key' configured in 'webserver' section and "
-                        "time is synchronized on all your machines (for example with ntpd) !!!!!\n***"
-                    )
-                    log += (
-                        "*** See more at https://airflow.apache.org/docs/apache-airflow/"
-                        "stable/configurations-ref.html#secret-key\n***"
-                    )
-                # Check if the resource was properly fetched
-                response.raise_for_status()
+            if isinstance(task_log, tuple):
+                return task_log
 
-                log += "\n" + response.text
-            except Exception as e:
-                log += f"*** Failed to fetch log file from worker. {str(e)}\n"
-                return log, {"end_of_log": True}
+            log = str(task_log)
 
         # Process tailing if log is not at it's end
-        end_of_log = ti.try_number != try_number or ti.state not in State.running
+        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
         log_pos = len(log)
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             log = log[previous_chars:]  # Cut off previously passed log test as new tail
 
         return log, {"end_of_log": end_of_log, "log_pos": log_pos}
+
+    @staticmethod
+    def _get_pod_namespace(ti: TaskInstance):
+        pod_override = ti.executor_config.get("pod_override")
+        namespace = None
+        with suppress(Exception):
+            namespace = pod_override.metadata.namespace
+        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
 
     @staticmethod
     def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
@@ -311,6 +315,35 @@ class FileTaskHandler(logging.Handler):
 
         return logs, metadata_array
 
+    def _prepare_log_folder(self, directory: Path):
+        """
+        Prepare the log folder and ensure its mode is 777.
+
+        To handle log writing when tasks are impersonated, the log files need to
+        be writable by the user that runs the Airflow command and the user
+        that is impersonated. This is mainly to handle corner cases with the
+        SubDagOperator. When the SubDagOperator is run, all of the operators
+        run under the impersonated user and create appropriate log files
+        as the impersonated user. However, if the user manually runs tasks
+        of the SubDagOperator through the UI, then the log files are created
+        by the user that runs the Airflow command. For example, the Airflow
+        run command may be run by the `airflow_sudoable` user, but the Airflow
+        tasks may be run by the `airflow` user. If the log files are not
+        writable by both users, then it's possible that re-running a task
+        via the UI (or vice versa) results in a permission error as the task
+        tries to write to a log file created by the other user.
+
+        Create the log file and give it group writable permissions
+        TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
+        operator is not compatible with impersonation (e.g. if a Celery executor is used
+        for a SubDag operator and the SubDag operator has a different owner than the
+        parent DAG)
+        """
+        mode = 0o777
+        directory.mkdir(mode=mode, parents=True, exist_ok=True)
+        if directory.stat().st_mode != mode:
+            directory.chmod(mode)
+
     def _init_file(self, ti):
         """
         Create log directory and give it correct permissions.
@@ -333,13 +366,7 @@ class FileTaskHandler(logging.Handler):
         # tries to write to a log file created by the other user.
         relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, relative_path)
-        directory = os.path.dirname(full_path)
-        # Create the log file and give it group writable permissions
-        # TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
-        # operator is not compatible with impersonation (e.g. if a Celery executor is used
-        # for a SubDag operator and the SubDag operator has a different owner than the
-        # parent DAG)
-        Path(directory).mkdir(mode=0o777, parents=True, exist_ok=True)
+        self._prepare_log_folder(Path(full_path).parent)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()

@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Misc
+~~~~
+
+* ``Limit dnspython to < 2.3.0 until eventlet incompatibitliy is solved (#28962)``
+* ``Remove limit for dnspython after eventlet got fixed (#29004)``
+
 3.1.0
 .....
 

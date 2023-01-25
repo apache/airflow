@@ -46,8 +46,14 @@ integrations:
     external-doc-url: https://pinot.apache.org/
     logo: /integration-logos/apache/pinot.png
     tags: [apache]
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-pinot/operators.rst
 
 hooks:
   - integration-name: Apache Pinot
     python-modules:
       - airflow.providers.apache.pinot.hooks.pinot
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.pinot.hooks.pinot.PinotHook
+    connection-type: pinot

@@ -31,6 +31,7 @@ from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
+from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -75,6 +76,7 @@ class LocalTaskJob(BaseJob):
         task_instance: TaskInstance,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
@@ -88,6 +90,7 @@ class LocalTaskJob(BaseJob):
         self.dag_id = task_instance.dag_id
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
+        self.wait_for_past_depends_before_skipping = wait_for_past_depends_before_skipping
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
         self.pool = pool
@@ -108,7 +111,7 @@ class LocalTaskJob(BaseJob):
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
-            """Setting kill signal handler"""
+            """Setting kill signal handler."""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
@@ -120,13 +123,28 @@ class LocalTaskJob(BaseJob):
             self.handle_task_exit(128 + signum)
             raise AirflowException("Segmentation Fault detected.")
 
+        def sigusr2_debug_handler(signum, frame):
+            import sys
+            import threading
+            import traceback
+
+            id2name = {th.ident: th.name for th in threading.enumerate()}
+            for threadId, stack in sys._current_frames().items():
+                print(id2name[threadId])
+                traceback.print_stack(f=stack)
+
         signal.signal(signal.SIGSEGV, segfault_signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+
+        if not IS_WINDOWS:
+            # This is not supported on Windows systems
+            signal.signal(signal.SIGUSR2, sigusr2_debug_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
             mark_success=self.mark_success,
             ignore_all_deps=self.ignore_all_deps,
             ignore_depends_on_past=self.ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=self.wait_for_past_depends_before_skipping,
             ignore_task_deps=self.ignore_task_deps,
             ignore_ti_state=self.ignore_ti_state,
             job_id=self.id,
@@ -188,9 +206,9 @@ class LocalTaskJob(BaseJob):
 
     def handle_task_exit(self, return_code: int) -> None:
         """
-        Handle case where self.task_runner exits by itself or is externally killed
+        Handle case where self.task_runner exits by itself or is externally killed.
 
-        Dont run any callbacks
+        Don't run any callbacks.
         """
         # Without setting this, heartbeat may get us
         self.terminating = True
@@ -207,7 +225,7 @@ class LocalTaskJob(BaseJob):
 
     @provide_session
     def heartbeat_callback(self, session=None):
-        """Self destruct task if state has been moved away from running externally"""
+        """Self destruct task if state has been moved away from running externally."""
         if self.terminating:
             # ensure termination if processes are created later
             self.task_runner.terminate()
@@ -271,9 +289,6 @@ class LocalTaskJob(BaseJob):
 
     @staticmethod
     def _enable_task_listeners():
-        """
-        Check if we have any registered listeners, then register sqlalchemy hooks for
-        TI state change if we do.
-        """
+        """Check for registered listeners, then register sqlalchemy hooks for TI state changes."""
         if get_listener_manager().has_listeners:
             register_task_instance_state_events()

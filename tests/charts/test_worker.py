@@ -115,6 +115,20 @@ class TestWorker:
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -666,6 +680,18 @@ class TestWorker:
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestWorkerKedaAutoScaler:
     def test_should_add_component_specific_labels(self):
@@ -732,3 +758,33 @@ class TestWorkerServiceAccount:
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    @pytest.mark.parametrize(
+        "executor, creates_service_account",
+        [
+            ("LocalExecutor", False),
+            ("CeleryExecutor", True),
+            ("CeleryKubernetesExecutor", True),
+            ("KubernetesExecutor", True),
+            ("LocalKubernetesExecutor", True),
+        ],
+    )
+    def test_should_create_worker_service_account_for_specific_executors(
+        self, executor, creates_service_account
+    ):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        if creates_service_account:
+            assert jmespath.search("kind", docs[0]) == "ServiceAccount"
+            assert "test_label" in jmespath.search("metadata.labels", docs[0])
+            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        else:
+            assert docs == []

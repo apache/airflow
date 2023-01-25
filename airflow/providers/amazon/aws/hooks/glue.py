@@ -34,7 +34,8 @@ FAILURE_LOG_FILTER = "?ERROR ?Exception"
 
 class GlueJobHook(AwsBaseHook):
     """
-    Interact with AWS Glue - create job, trigger, crawler
+    Interact with AWS Glue.
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :param job_name: unique job name per AWS account
@@ -46,6 +47,12 @@ class GlueJobHook(AwsBaseHook):
     :param region_name: aws region name (example: us-east-1)
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :param create_job_kwargs: Extra arguments for Glue Job Creation
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
@@ -92,13 +99,46 @@ class GlueJobHook(AwsBaseHook):
         kwargs["client_type"] = "glue"
         super().__init__(*args, **kwargs)
 
+    def create_glue_job_config(self) -> dict:
+        if self.s3_bucket is None:
+            raise ValueError("Could not initialize glue job, error: Specify Parameter `s3_bucket`")
+
+        default_command = {
+            "Name": "glueetl",
+            "ScriptLocation": self.script_location,
+        }
+        command = self.create_job_kwargs.pop("Command", default_command)
+
+        s3_log_path = f"s3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}"
+        execution_role = self.get_iam_execution_role()
+
+        ret_config = {
+            "Name": self.job_name,
+            "Description": self.desc,
+            "LogUri": s3_log_path,
+            "Role": execution_role["Role"]["Arn"],
+            "ExecutionProperty": {"MaxConcurrentRuns": self.concurrent_run_limit},
+            "Command": command,
+            "MaxRetries": self.retry_limit,
+            **self.create_job_kwargs,
+        }
+
+        if hasattr(self, "num_of_dpus"):
+            ret_config["MaxCapacity"] = self.num_of_dpus
+
+        return ret_config
+
     def list_jobs(self) -> list:
-        """:return: Lists of Jobs"""
-        conn = self.get_conn()
-        return conn.get_jobs()
+        """
+        Get list of Jobs.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_jobs`
+        """
+        return self.get_conn().get_jobs()
 
     def get_iam_execution_role(self) -> dict:
-        """:return: iam role for job execution"""
+        """Get IAM Role for job execution."""
         try:
             iam_client = self.get_session(region_name=self.region_name).client(
                 "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
@@ -116,32 +156,34 @@ class GlueJobHook(AwsBaseHook):
         run_kwargs: dict | None = None,
     ) -> dict[str, str]:
         """
-        Initializes connection with AWS Glue
-        to run job
-        :return:
+        Initializes connection with AWS Glue to run job.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.start_job_run`
         """
-        glue_client = self.get_conn()
         script_arguments = script_arguments or {}
         run_kwargs = run_kwargs or {}
 
         try:
-            job_name = self.get_or_create_glue_job()
-            return glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
-
+            job_name = self.create_or_update_glue_job()
+            return self.get_conn().start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
 
     def get_job_state(self, job_name: str, run_id: str) -> str:
         """
-        Get state of the Glue job. The job state can be
-        running, finished, failed, stopped or timeout.
+        Get state of the Glue job.
+        The job state can be running, finished, failed, stopped or timeout.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_job_run`
+
         :param job_name: unique job name per AWS account
         :param run_id: The job-run ID of the predecessor job run
         :return: State of the Glue job
         """
-        glue_client = self.get_conn()
-        job_run = glue_client.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
+        job_run = self.get_conn().get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
         return job_run["JobRun"]["JobRunState"]
 
     def print_job_logs(
@@ -191,9 +233,9 @@ class GlueJobHook(AwsBaseHook):
 
     def job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
         """
-        Waits until Glue job with job_name completes or
-        fails and return final state if finished.
-        Raises AirflowException when the job failed
+        Waits until Glue job with job_name completes or fails and return final state if finished.
+        Raises AirflowException when the job failed.
+
         :param job_name: unique job name per AWS account
         :param run_id: The job-run ID of the predecessor job run
         :param verbose: If True, more Glue Job Run logs show in the Airflow Task Logs.  (default: False)
@@ -231,54 +273,64 @@ class GlueJobHook(AwsBaseHook):
                         next_token=next_log_token,
                     )
 
-    def get_or_create_glue_job(self) -> str:
+    def has_job(self, job_name) -> bool:
         """
-        Creates(or just returns) and returns the Job name
+        Checks if the job already exists.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_job`
+
+        :param job_name: unique job name per AWS account
+        :return: Returns True if the job already exists and False if not.
+        """
+        self.log.info("Checking if job already exists: %s", job_name)
+
+        try:
+            self.get_conn().get_job(JobName=job_name)
+            return True
+        except self.get_conn().exceptions.EntityNotFoundException:
+            return False
+
+    def update_job(self, **job_kwargs) -> bool:
+        """
+        Updates job configurations.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.update_job`
+
+        :param job_kwargs: Keyword args that define the configurations used for the job
+        :return: True if job was updated and false otherwise
+        """
+        job_name = job_kwargs.pop("Name")
+        current_job = self.get_conn().get_job(JobName=job_name)["Job"]
+
+        update_config = {
+            key: value for key, value in job_kwargs.items() if current_job.get(key) != job_kwargs[key]
+        }
+        if update_config != {}:
+            self.log.info("Updating job: %s", job_name)
+            self.get_conn().update_job(JobName=job_name, JobUpdate=job_kwargs)
+            self.log.info("Updated configurations: %s", update_config)
+            return True
+        else:
+            return False
+
+    def create_or_update_glue_job(self) -> str | None:
+        """
+        Creates (or updates) and returns the Job name.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.update_job`
+            - :external+boto3:py:meth:`Glue.Client.create_job`
+
         :return:Name of the Job
         """
-        glue_client = self.get_conn()
-        try:
-            get_job_response = glue_client.get_job(JobName=self.job_name)
-            self.log.info("Job Already exist. Returning Name of the job")
-            return get_job_response["Job"]["Name"]
+        config = self.create_glue_job_config()
 
-        except glue_client.exceptions.EntityNotFoundException:
-            self.log.info("Job doesn't exist. Now creating and running AWS Glue Job")
-            if self.s3_bucket is None:
-                raise AirflowException("Could not initialize glue job, error: Specify Parameter `s3_bucket`")
-            s3_log_path = f"s3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}"
-            execution_role = self.get_iam_execution_role()
-            try:
-                default_command = {
-                    "Name": "glueetl",
-                    "ScriptLocation": self.script_location,
-                }
-                command = self.create_job_kwargs.pop("Command", default_command)
+        if self.has_job(self.job_name):
+            self.update_job(**config)
+        else:
+            self.log.info("Creating job: %s", self.job_name)
+            self.get_conn().create_job(**config)
 
-                if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
-                    create_job_response = glue_client.create_job(
-                        Name=self.job_name,
-                        Description=self.desc,
-                        LogUri=s3_log_path,
-                        Role=execution_role["Role"]["Arn"],
-                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                        Command=command,
-                        MaxRetries=self.retry_limit,
-                        **self.create_job_kwargs,
-                    )
-                else:
-                    create_job_response = glue_client.create_job(
-                        Name=self.job_name,
-                        Description=self.desc,
-                        LogUri=s3_log_path,
-                        Role=execution_role["Role"]["Arn"],
-                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                        Command=command,
-                        MaxRetries=self.retry_limit,
-                        MaxCapacity=self.num_of_dpus,
-                        **self.create_job_kwargs,
-                    )
-                return create_job_response["Name"]
-            except Exception as general_error:
-                self.log.error("Failed to create aws glue job, error: %s", general_error)
-                raise
+        return self.job_name
