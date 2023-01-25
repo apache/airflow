@@ -2241,6 +2241,19 @@ class AirflowHelpFormatter(RichHelpFormatter):
             yield from super()._rich_format_action(action)
 
 
+class LazyRichHelpFormatter(RawTextRichHelpFormatter):
+    """
+    Custom help formatter to display help message.
+
+    It resolves lazy help string before printing it using rich.
+    """
+
+    def add_argument(self, action: Action) -> None:
+        if isinstance(action.help, lazy_object_proxy.Proxy):
+            action.help = str(action.help)
+        return super().add_argument(action)
+
+
 @lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser."""
@@ -2273,7 +2286,7 @@ def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> Non
     sub_proc = subparsers.add_parser(
         sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
     )
-    sub_proc.formatter_class = RawTextRichHelpFormatter
+    sub_proc.formatter_class = LazyRichHelpFormatter
 
     if isinstance(sub, GroupCommand):
         _add_group_command(sub, sub_proc)
