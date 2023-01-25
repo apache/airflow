@@ -20,8 +20,6 @@ from __future__ import annotations
 from typing import Callable, Sequence
 
 from airflow.decorators.base import TaskDecorator, get_unique_task_id, task_decorator_factory
-from airflow.models.taskinstance import Context
-from airflow.sensors.base import PokeReturnValue
 from airflow.sensors.python import PythonSensor
 
 
@@ -56,9 +54,6 @@ class DecoratedSensorOperator(PythonSensor):
         kwargs.pop("multiple_outputs")
         kwargs["task_id"] = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
         super().__init__(**kwargs)
-
-    def poke(self, context: Context) -> PokeReturnValue | bool:
-        return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
 def sensor_task(python_callable: Callable | None = None, **kwargs) -> TaskDecorator:
