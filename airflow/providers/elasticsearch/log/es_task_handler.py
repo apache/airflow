@@ -32,7 +32,6 @@ import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -72,6 +71,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
     LOG_NAME = "Elasticsearch"
+
+    trigger_should_wrap = True
 
     def __init__(
         self,
@@ -121,18 +122,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
-
-    @cached_property
-    def trigger_should_wrap(self):
-        """
-        Tells triggerer_job that this handler supports individual triggerer logging.
-
-        Overriding this property is necessary when a handler does not implement _read_remote_logs.
-        Handlers which stream to the log sink, such as Cloudwatch and ElasticSearch, do not need
-        to lean on the behavior of FileTaskHandler which reads from all possible sources, so
-        they short-circuit this behavior by implementing _read directly.
-        """
-        return True
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:

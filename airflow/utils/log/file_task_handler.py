@@ -29,7 +29,6 @@ from urllib.parse import urljoin
 
 import pendulum
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
