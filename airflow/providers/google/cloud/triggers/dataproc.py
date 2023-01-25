@@ -20,16 +20,16 @@ from __future__ import annotations
 
 import asyncio
 import warnings
-from typing import Sequence
+from typing import Any, AsyncIterator, Sequence
 
-from google.cloud.dataproc_v1 import JobStatus
+from google.cloud.dataproc_v1 import ClusterStatus, JobStatus
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-class DataprocBaseTrigger(BaseTrigger):
+class DataprocSubmitTrigger(BaseTrigger):
     """
     Trigger that periodically polls information from Dataproc API to verify job status.
     Implementation leverages asynchronous transport.
@@ -65,7 +65,7 @@ class DataprocBaseTrigger(BaseTrigger):
 
     def serialize(self):
         return (
-            "airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger",
+            "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger",
             {
                 "job_id": self.job_id,
                 "project_id": self.project_id,
@@ -89,3 +89,63 @@ class DataprocBaseTrigger(BaseTrigger):
                     raise AirflowException(f"Dataproc job execution failed {self.job_id}")
             await asyncio.sleep(self.polling_interval_seconds)
         yield TriggerEvent({"job_id": self.job_id, "job_state": state})
+
+
+class DataprocClusterTrigger(BaseTrigger):
+    """
+    Trigger that periodically polls information from Dataproc API to verify status.
+    Implementation leverages asynchronous transport.
+    """
+
+    def __init__(
+        self,
+        cluster_name: str,
+        region: str,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        polling_interval_seconds: int = 10,
+    ):
+        super().__init__()
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.cluster_name = cluster_name
+        self.project_id = project_id
+        self.region = region
+        self.polling_interval_seconds = polling_interval_seconds
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger",
+            {
+                "cluster_name": self.cluster_name,
+                "project_id": self.project_id,
+                "region": self.region,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+                "polling_interval_seconds": self.polling_interval_seconds,
+            },
+        )
+
+    async def run(self) -> AsyncIterator["TriggerEvent"]:
+        hook = self._get_hook()
+        while True:
+            cluster = await hook.get_cluster(
+                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
+            )
+            state = cluster.status.state
+            self.log.info("Dataproc cluster: %s is in state: %s", self.cluster_name, state)
+            if state in (
+                ClusterStatus.State.ERROR,
+                ClusterStatus.State.RUNNING,
+            ):
+                break
+            self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
+            await asyncio.sleep(self.polling_interval_seconds)
+        yield TriggerEvent({"cluster_name": self.cluster_name, "cluster_state": state, "cluster": cluster})
+
+    def _get_hook(self) -> DataprocAsyncHook:
+        return DataprocAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )

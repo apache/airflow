@@ -54,7 +54,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitSparkSqlJobOperator,
     DataprocUpdateClusterOperator,
 )
-from airflow.providers.google.cloud.triggers.dataproc import DataprocBaseTrigger
+from airflow.providers.google.cloud.triggers.dataproc import DataprocClusterTrigger, DataprocSubmitTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
@@ -436,7 +436,6 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
-        mock_hook.return_value.create_cluster.result.return_value = None
         create_cluster_args = {
             "region": GCP_REGION,
             "project_id": GCP_PROJECT,
@@ -474,7 +473,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         # Test whether xcom push occurs before create cluster is called
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
+        to_dict_mock.assert_called_once_with(mock_hook().wait_for_operation())
         self.mock_ti.xcom_push.assert_called_once_with(
             key="conf",
             value=DATAPROC_CLUSTER_CONF_EXPECTED,
@@ -485,7 +484,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_in_gke(self, mock_hook, to_dict_mock):
         self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
-        mock_hook.return_value.create_cluster.result.return_value = None
+        mock_hook.return_value.create_cluster.return_value = None
         create_cluster_args = {
             "region": GCP_REGION,
             "project_id": GCP_PROJECT,
@@ -523,7 +522,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         # Test whether xcom push occurs before create cluster is called
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
+        to_dict_mock.assert_called_once_with(mock_hook().wait_for_operation())
         self.mock_ti.xcom_push.assert_called_once_with(
             key="conf",
             value=DATAPROC_CLUSTER_CONF_EXPECTED,
@@ -663,6 +662,51 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         mock_hook.return_value.diagnose_cluster.assert_called_once_with(
             region=GCP_REGION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
         )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_create_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
+        mock_hook.return_value.create_cluster.return_value = None
+        operator = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_config=CONFIG,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            delete_on_error=True,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.create_cluster.assert_called_once_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_config=CONFIG,
+            request_id=None,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            virtual_cluster_config=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+        assert isinstance(exc.value.trigger, DataprocClusterTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
 @pytest.mark.need_serialized_dag
@@ -961,7 +1005,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
         self.mock_ti.xcom_push.assert_not_called()
 
-        assert isinstance(exc.value.trigger, DataprocBaseTrigger)
+        assert isinstance(exc.value.trigger, DataprocSubmitTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -1150,6 +1194,50 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=self.mock_context)
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_create_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
+        mock_hook.return_value.update_cluster.return_value = None
+        operator = DataprocUpdateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster=CLUSTER,
+            update_mask=UPDATE_MASK,
+            request_id=REQUEST_ID,
+            graceful_decommission_timeout={"graceful_decommission_timeout": "600s"},
+            project_id=GCP_PROJECT,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.update_cluster.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster=CLUSTER,
+            update_mask=UPDATE_MASK,
+            request_id=REQUEST_ID,
+            graceful_decommission_timeout={"graceful_decommission_timeout": "600s"},
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+        assert isinstance(exc.value.trigger, DataprocClusterTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
 @pytest.mark.need_serialized_dag
