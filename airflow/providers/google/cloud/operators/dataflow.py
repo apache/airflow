@@ -159,6 +159,10 @@ class DataflowConfiguration:
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.impersonation_chain = impersonation_chain
@@ -370,6 +374,10 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.jar = jar
         self.multiple_jobs = multiple_jobs
@@ -632,6 +640,10 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.job = None
@@ -770,6 +782,10 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.location = location
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
@@ -884,6 +900,10 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self.location = location
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.drain_pipeline = drain_pipeline
         self.impersonation_chain = impersonation_chain
@@ -1070,6 +1090,10 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
@@ -1206,6 +1230,10 @@ class DataflowStopJobOperator(BaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: DataflowHook | None = None

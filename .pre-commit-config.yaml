@@ -146,6 +146,13 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
+  - repo: https://github.com/psf/black
+    rev: 22.12.0
+    hooks:
+      - id: black
+        name: Run black (python formatter)
+        args: [--config=./pyproject.toml]
+        exclude: ^airflow/_vendor/|^airflow/contrib/
   - repo: local
     hooks:
       - id: update-common-sql-api-stubs
@@ -175,15 +182,8 @@ repos:
         additional_dependencies: ['ruff==0.0.226']
         files: \.pyi?$
         exclude: ^airflow/_vendor/
-  - repo: https://github.com/psf/black
-    rev: 22.12.0
-    hooks:
-      - id: black
-        name: Run black (python formatter)
-        args: [--config=./pyproject.toml]
-        exclude: ^airflow/_vendor/|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.1
+    rev: 1.13.0
     hooks:
       - id: blacken-docs
         name: Run black on python code blocks in documentation files
@@ -237,7 +237,7 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
       - id: rst-backticks
         name: Check if RST files use double backticks for code
@@ -246,7 +246,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^airflow/_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.28.0
+    rev: v1.29.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -351,6 +351,7 @@ repos:
         language: python
         files: ^setup\.py$|^INSTALL$|^CONTRIBUTING\.rst$
         pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py

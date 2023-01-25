@@ -241,8 +241,10 @@
   },
   "dbt.cloud": {
     "deps": [
+      "aiohttp",
       "apache-airflow-providers-http",
-      "apache-airflow>=2.3.0"
+      "apache-airflow>=2.3.0",
+      "asgiref"
     ],
     "cross-providers-deps": [
       "http"

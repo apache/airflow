@@ -113,6 +113,7 @@ class BaseExecutor(LoggingMixin):
     callback_sink: BaseCallbackSink | None = None
 
     is_local: bool = False
+    change_sensor_mode_to_reschedule: bool = False
 
     serve_logs: bool = False
 
@@ -353,6 +354,15 @@ class BaseExecutor(LoggingMixin):
         :param executor_config: Configuration passed to the executor.
         """
         raise NotImplementedError()
+
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> None | str | tuple[str, dict[str, bool]]:
+        """
+        This method can be implemented by any child class to return the task logs.
+
+        :param ti: A TaskInstance object
+        :param log: log str
+        :return: logs or tuple of logs and meta dict
+        """
 
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""

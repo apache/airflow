@@ -21,6 +21,7 @@ import tempfile
 from unittest import mock
 
 import pytest
+from pytest import param
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
@@ -59,15 +60,25 @@ class TestGCSTaskHandler:
         )
         yield self.gcs_task_handler
 
-    @mock.patch(
-        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
-        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
-    )
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
     @mock.patch("google.cloud.storage.Client")
-    def test_hook(self, mock_client, mock_creds):
-        return_value = self.gcs_task_handler.client
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id")
+    @pytest.mark.parametrize("conn_id", [param("", id="no-conn"), param("my_gcs_conn", id="with-conn")])
+    def test_client_conn_id_behavior(self, mock_get_cred, mock_client, mock_hook, conn_id):
+        """When remote log conn id configured, hook will be used"""
+        mock_hook.return_value.get_credentials_and_project_id.return_value = ("test_cred", "test_proj")
+        mock_get_cred.return_value = ("test_cred", "test_proj")
+        with conf_vars({("logging", "remote_log_conn_id"): conn_id}):
+            return_value = self.gcs_task_handler.client
+        if conn_id:
+            mock_hook.assert_called_once_with(gcp_conn_id="my_gcs_conn")
+            mock_get_cred.assert_not_called()
+        else:
+            mock_hook.assert_not_called()
+            mock_get_cred.assert_called()
+
         mock_client.assert_called_once_with(
-            client_info=mock.ANY, credentials="TEST_CREDENTIALS", project="TEST_PROJECT_ID"
+            client_info=mock.ANY, credentials="test_cred", project="test_proj"
         )
         assert mock_client.return_value == return_value
 

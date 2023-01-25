@@ -1359,15 +1359,17 @@ class DAG(LoggingMixin):
         callbacks, context = DAG._fetch_callback(
             dag=self, dagrun=dagrun, success=success, reason=reason, session=session
         )
-        DAG.execute_callback(callbacks, context)
+        DAG.execute_callback(callbacks, context, self.dag_id, dagrun.run_id)
 
-    @staticmethod
-    def execute_callback(callbacks, context):
+    @classmethod
+    def execute_callback(cls, callbacks, context, dag_id: str, run_id: str):
         """
         Triggers the callbacks with the given context
 
         :param callbacks: List of callbacks to call
         :param context: Context to pass to all callbacks
+        :param dag_id: The dag_id of the DAG to find.
+        :param run_id: The run_id of the DagRun to find.
         """
         for callback in callbacks:
             # TODO: Address when https://github.com/apache/airflow/pull/28502 is merged
@@ -1376,7 +1378,9 @@ class DAG(LoggingMixin):
                 callback(context)
             except Exception:
                 # self.log.exception("failed to invoke dag state update callback")
-                Stats.incr("dag.callback_exceptions")
+                Stats.incr(
+                    "dag.callback_exceptions", tags={"dag_id": dag_id, "run_id": run_id}
+                )
 
     def get_active_runs(self):
         """
