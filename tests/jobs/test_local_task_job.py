@@ -830,11 +830,9 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
         job.run()
 
 
-@pytest.mark.quarantined
 class TestSigtermOnRunner:
-    """Test receive SIGTERM Task Runner."""
+    """Test receive SIGTERM on Task Runner."""
 
-    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
     @pytest.mark.parametrize(
         "daemon", [pytest.param(True, id="daemon"), pytest.param(False, id="non-daemon")]
     )
@@ -883,17 +881,10 @@ class TestSigtermOnRunner:
             proc.kill()
 
         assert retry_callback_called.value == 1
-        with create_session() as session:
-            ti = (
-                session.query(TaskInstance)
-                .filter(
-                    TaskInstance.dag_id == dag_id,
-                    TaskInstance.task_id == task_id,
-                    TaskInstance.run_id == run_id,
-                )
-                .one()
-            )
-        assert ti.state == State.UP_FOR_RETRY
+        # Internally callback finished before TaskInstance commit changes in DB (as of Jan 2022).
+        # So we can't easily check TaskInstance.state without any race conditions drawbacks,
+        # and fact that process with LocalTaskJob could be already killed.
+        # We could add state validation (`UP_FOR_RETRY`) if callback mechanism changed.
 
         pytest_capture = request.config.option.capture
         if pytest_capture == "no":
