@@ -438,7 +438,7 @@ def prepare_docker_build_cache_command(
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=tty"])
+    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=auto"])
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -475,7 +475,7 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
                 "build",
                 "--builder",
                 image_params.builder,
-                "--progress=tty",
+                "--progress=auto",
                 "--push" if image_params.push else "--load",
             ]
         )
