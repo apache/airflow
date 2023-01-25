@@ -678,6 +678,50 @@ ARG_ACCESS_LOGFORMAT = Arg(
     help="The access log format for gunicorn logs",
 )
 
+
+# internal-api
+ARG_INTERNAL_API_PORT = Arg(
+    ("-p", "--port"),
+    default=9080,
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_INTERNAL_API_WORKERS = Arg(
+    ("-w", "--workers"),
+    default=4,
+    type=int,
+    help="Number of workers to run the Internal API-on",
+)
+ARG_INTERNAL_API_WORKERCLASS = Arg(
+    ("-k", "--workerclass"),
+    default="sync",
+    choices=["sync", "eventlet", "gevent", "tornado"],
+    help="The worker class to use for Gunicorn",
+)
+ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
+    ("-t", "--worker-timeout"),
+    default=120,
+    type=int,
+    help="The timeout for waiting on Internal API workers",
+)
+ARG_INTERNAL_API_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default="0.0.0.0",
+    help="Set the hostname on which to run the web server",
+)
+ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
+    ("-A", "--access-logfile"),
+    help="The logfile to store the access log. Use '-' to print to stdout",
+)
+ARG_INTERNAL_API_ERROR_LOGFILE = Arg(
+    ("-E", "--error-logfile"),
+    help="The logfile to store the error log. Use '-' to print to stderr",
+)
+ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
+    help="The access log format for gunicorn logs",
+)
+
 # scheduler
 ARG_NUM_RUNS = Arg(
     ("-n", "--num-runs"),
@@ -1962,6 +2006,29 @@ airflow_commands: list[CLICommand] = [
             ARG_ACCESS_LOGFILE,
             ARG_ERROR_LOGFILE,
             ARG_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
+        ),
+    ),
+    ActionCommand(
+        name="internal-api",
+        help="Start a Airflow Internal API instance",
+        func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
+        args=(
+            ARG_INTERNAL_API_PORT,
+            ARG_INTERNAL_API_WORKERS,
+            ARG_INTERNAL_API_WORKERCLASS,
+            ARG_INTERNAL_API_WORKER_TIMEOUT,
+            ARG_INTERNAL_API_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_INTERNAL_API_ACCESS_LOGFILE,
+            ARG_INTERNAL_API_ERROR_LOGFILE,
+            ARG_INTERNAL_API_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,

@@ -17,14 +17,26 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+from asyncio import Future
 from copy import deepcopy
-from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 
-from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
+from airflow.providers.google.cloud.hooks.bigquery_dts import (
+    AsyncBiqQueryDataTransferServiceHook,
+    BiqQueryDataTransferServiceHook,
+)
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+
+if sys.version_info < (3, 8):
+    from asynctest import mock
+    from asynctest.mock import CoroutineMock as AsyncMock
+else:
+    from unittest import mock
+    from unittest.mock import AsyncMock
 
 CREDENTIALS = "test-creds"
 PROJECT_ID = "id"
@@ -117,4 +129,40 @@ class TestBigQueryDataTransferHook:
         name = f"projects/{PROJECT_ID}/transferConfigs/{TRANSFER_CONFIG_ID}/runs/{RUN_ID}"
         service_mock.assert_called_once_with(
             request=dict(name=name), metadata=(), retry=DEFAULT, timeout=None
+        )
+
+
+class TestAsyncBiqQueryDataTransferServiceHook:
+    HOOK_MODULE_PATH = "airflow.providers.google.cloud.hooks.bigquery_dts"
+
+    @pytest.fixture()
+    def mock_client(self):
+        with mock.patch(
+            f"{self.HOOK_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook._get_conn",
+            new_callable=AsyncMock,
+        ) as mock_client:
+            transfer_result = Future()
+            transfer_result.set_result(mock.MagicMock())
+
+            mock_client.return_value.get_transfer_run = mock.MagicMock(return_value=transfer_result)
+            yield mock_client
+
+    @pytest.fixture
+    def hook(self):
+        return AsyncBiqQueryDataTransferServiceHook()
+
+    @pytest.mark.asyncio
+    async def test_get_transfer_run(self, mock_client, hook):
+        await hook.get_transfer_run(
+            run_id=RUN_ID,
+            config_id=TRANSFER_CONFIG_ID,
+            project_id=PROJECT_ID,
+        )
+
+        name = f"projects/{PROJECT_ID}/transferConfigs/{TRANSFER_CONFIG_ID}/runs/{RUN_ID}"
+        mock_client.return_value.get_transfer_run.assert_called_once_with(
+            name=name,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
         )

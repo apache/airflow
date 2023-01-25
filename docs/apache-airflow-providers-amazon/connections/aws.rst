@@ -67,6 +67,8 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. All parameters are optional.
 
+    * ``service_config``: json used to specify configuration/parameters for different AWS services, such as S3 or STS.
+
     The following extra parameters used to create an initial :external:py:class:`boto3.session.Session`:
 
     * ``aws_access_key_id``: AWS access key ID used for the initial connection.
@@ -145,6 +147,18 @@ Snippet to create Connection and convert to URI
     # Test connection
     os.environ[env_key] = conn_uri
     print(conn.test_connection())
+
+
+  .. warning:: When using the Airflow CLI, a ``@`` may need to be added when:
+
+    - login
+    - password
+    - host
+    - port
+
+    are not given, see example below. This is a known airflow limitation.
+
+    ``airflow connections add aws_conn --conn-uri aws://@/?region_name=eu-west-1``
 
 Using instance profile
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -257,6 +271,23 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
       "assume_role_kwargs": { "something":"something" }
     }
 
+5. Using **service_config** to specify configuration for services such as S3, STS, and EMR
+
+.. code-block:: json
+
+    {
+      "service_config": {
+        "s3": {
+          "bucket_name": "awesome-bucket"
+        },
+        "sts": {
+          "endpoint_url": "https://example.org"
+        },
+        "emr": {
+          "job_flow_overrides": {"Name": "PiCalc", "ReleaseLabel": "emr-6.7.0"},
+          "endpoint_url": "https://emr.example.org"
+        }
+    }
 
 The following settings may be used within the ``assume_role_with_saml`` container in Extra.
 

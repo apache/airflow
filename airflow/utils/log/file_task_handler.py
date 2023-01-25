@@ -31,6 +31,7 @@ import pendulum
 
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.logging_mixin import SetContextPropagate
@@ -263,24 +264,6 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    @staticmethod
-    def _should_check_k8s(queue):
-        """
-        If the task is running through kubernetes executor, return True.
-
-        When logs aren't available locally, in this case we read from k8s pod logs.
-        """
-        executor = conf.get("core", "executor")
-        if executor == "KubernetesExecutor":
-            return True
-        elif executor == "LocalKubernetesExecutor":
-            if queue == conf.get("local_kubernetes_executor", "kubernetes_queue"):
-                return True
-        elif executor == "CeleryKubernetesExecutor":
-            if queue == conf.get("celery_kubernetes_executor", "kubernetes_queue"):
-                return True
-        return False
-
     def _read(
         self,
         ti: TaskInstance,
@@ -315,14 +298,22 @@ class FileTaskHandler(logging.Handler):
         remote_logs = []
         running_logs = []
         local_logs = []
+        executor_messages = []
+        executor_logs = []
+        served_logs = []
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
-        if ti.state == TaskInstanceState.RUNNING and self._should_check_k8s(ti.queue):
-            running_messages, running_logs = self._read_from_k8s_worker(ti)
+        if ti.state == TaskInstanceState.RUNNING:
+            executor = ExecutorLoader.get_default_executor()
+            response = executor.get_task_log(ti=ti)
+            if response:
+                executor_messages, executor_logs = response
+            if executor_messages:
+                messages_list.extend(messages_list)
         elif ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED):
-            running_messages, running_logs = self._read_from_logs_server(ti, worker_log_rel_path)
-            messages_list.extend(running_messages)
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
@@ -333,6 +324,8 @@ class FileTaskHandler(logging.Handler):
                 *local_logs,
                 *running_logs,
                 *remote_logs,
+                *(executor_logs or []),
+                *served_logs,
             )
         )
         log_pos = len(logs)
@@ -471,48 +464,6 @@ class FileTaskHandler(logging.Handler):
         for file in sorted(files):
             logs.append(Path(file).read_text())
         return messages, logs
-
-    def _read_from_k8s_worker(self, ti: TaskInstance):
-        messages = []
-        log = ""
-        try:
-            from airflow.kubernetes.kube_client import get_kube_client
-            from airflow.kubernetes.pod_generator import PodGenerator
-
-            client = get_kube_client()
-
-            messages.append(f"Trying to get logs (last 100 lines) from worker pod {ti.hostname}")
-            selector = PodGenerator.build_selector_for_k8s_executor_pod(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                try_number=ti.try_number,
-                map_index=ti.map_index,
-                run_id=ti.run_id,
-                airflow_worker=ti.queued_by_job_id,
-            )
-            namespace = self._get_pod_namespace(ti)
-            pod_list = client.list_namespaced_pod(
-                namespace=namespace,
-                label_selector=selector,
-            ).items
-            if not pod_list:
-                raise RuntimeError("Cannot find pod for ti %s", ti)
-            elif len(pod_list) > 1:
-                raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
-            res = client.read_namespaced_pod_log(
-                name=pod_list[0].metadata.name,
-                namespace=namespace,
-                container="base",
-                follow=False,
-                tail_lines=100,
-                _preload_content=False,
-            )
-
-            for line in res:
-                log += line.decode()
-        except Exception as e:
-            messages.append(f"Reading from k8s pod logs failed: {str(e)}")
-        return messages, log
 
     def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
         messages = []

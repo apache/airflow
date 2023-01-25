@@ -34,6 +34,7 @@ from airflow import AirflowException
 from airflow.exceptions import PodReconciliationError
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
@@ -654,7 +655,9 @@ class TestKubernetesExecutor:
         # First adoption
         reset_tis = executor.try_adopt_task_instances([mock_ti])
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="default", label_selector="airflow-worker=1"
+            namespace="default",
+            field_selector="status.phase!=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker=1,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once_with(mock_kube_client, pod, {ti_key: mock_ti})
         mock_adopt_completed_pods.assert_called_once()
@@ -672,7 +675,9 @@ class TestKubernetesExecutor:
 
         reset_tis = executor.try_adopt_task_instances([mock_ti])
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="default", label_selector="airflow-worker=10"
+            namespace="default",
+            field_selector="status.phase!=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once()  # Won't check args this time around as they get mutated
         mock_adopt_completed_pods.assert_called_once()
@@ -695,8 +700,16 @@ class TestKubernetesExecutor:
         assert mock_kube_client.list_namespaced_pod.call_count == 2
         mock_kube_client.list_namespaced_pod.assert_has_calls(
             [
-                mock.call(namespace="default", label_selector="airflow-worker=10"),
-                mock.call(namespace="default", label_selector="airflow-worker=40"),
+                mock.call(
+                    namespace="default",
+                    field_selector="status.phase!=Succeeded",
+                    label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
+                ),
+                mock.call(
+                    namespace="default",
+                    field_selector="status.phase!=Succeeded",
+                    label_selector="kubernetes_executor=True,airflow-worker=40,airflow_executor_done!=True",
+                ),
             ],
             any_order=True,
         )
@@ -1202,6 +1215,33 @@ class TestKubernetesExecutor:
         ti1.refresh_from_db()
         assert ti0.state == State.SCHEDULED
         assert ti1.state == State.QUEUED
+
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_get_task_log(self, mock_get_kube_client, create_task_instance_of_operator):
+        """fetch task log from pod"""
+        mock_kube_client = mock_get_kube_client.return_value
+
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_", b"b_", b"c_"]
+        mock_pod = mock.Mock()
+        mock_pod.metadata.name = "x"
+        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
+
+        executor = KubernetesExecutor()
+        log = executor.get_task_log(ti=ti, log="test_init_log")
+
+        mock_kube_client.read_namespaced_pod_log.assert_called_once()
+        assert "test_init_log" in log
+        assert "Trying to get logs (last 100 lines) from worker pod" in log
+        assert "a_b_c" in log
+
+        mock_kube_client.reset_mock()
+        mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
+
+        log = executor.get_task_log(ti=ti, log="test_init_log")
+        assert len(log) == 2
+        assert "error_fetching_pod_log" in log[0]
+        assert log[1]["end_of_log"]
 
     def test_supports_pickling(self):
         assert KubernetesExecutor.supports_pickling

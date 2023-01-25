@@ -970,9 +970,9 @@ extra-links:
   - airflow.providers.google.cloud.links.dataform.DataformRepositoryLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkspaceLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
-  - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
-  - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
-  - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
+  - airflow.providers.google.cloud.links.datafusion.DataFusionInstanceLink
+  - airflow.providers.google.cloud.links.datafusion.DataFusionPipelineLink
+  - airflow.providers.google.cloud.links.datafusion.DataFusionPipelinesLink
   - airflow.providers.google.cloud.links.cloud_sql.CloudSQLInstanceLink
   - airflow.providers.google.cloud.links.cloud_sql.CloudSQLInstanceDatabaseLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTaskLink
@@ -1034,6 +1034,11 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
+  - airflow.providers.google.cloud.links.automl.AutoMLDatasetLink
+  - airflow.providers.google.cloud.links.automl.AutoMLDatasetListLink
+  - airflow.providers.google.cloud.links.automl.AutoMLModelLink
+  - airflow.providers.google.cloud.links.automl.AutoMLModelTrainLink
+  - airflow.providers.google.cloud.links.automl.AutoMLModelPredictLink
   - airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink
