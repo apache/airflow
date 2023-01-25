@@ -2240,8 +2240,6 @@ class AirflowHelpFormatter(RichHelpFormatter):
         else:
             yield from super()._rich_format_action(action)
 
-        return super()._format_action(action)
-
 
 @lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
