@@ -177,8 +177,8 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         _, stderr = docker_build.communicate()
         if docker_build.returncode != 0:
             raise RuntimeError(
-                "Failed to push docker image to the repository.  The following error "
-                f"message may be useful, but can occasionally be misleading: {stderr}"
+                "Failed to prepare docker image for the preprocessing job.\n"
+                f"The following error happened while executing the sequence of bash commands:\n{stderr}"
             )
 
 
