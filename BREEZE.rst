@@ -1587,10 +1587,10 @@ Generating Provider Issue
 
 You can use Breeze to generate a provider issue when you release new providers.
 
-.. image:: ./images/breeze/output_release-management_generate-issue-content.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-issue-content.svg
+.. image:: ./images/breeze/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-issue-content-providers.svg
   :width: 100%
-  :alt: Breeze generate-issue-content
+  :alt: Breeze generate-issue-content-providers
 
 Preparing airflow packages
 ..........................
