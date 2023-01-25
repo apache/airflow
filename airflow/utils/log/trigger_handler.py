@@ -27,7 +27,7 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 
 ctx_task_instance: ContextVar = ContextVar("task_instance")
 ctx_trigger_id: ContextVar = ContextVar("trigger_id")
-ctx_close_handler: ContextVar = ContextVar("close_handler")
+ctx_trigger_end: ContextVar = ContextVar("trigger_end")
 ctx_indiv_trigger: ContextVar = ContextVar("__individual_trigger")
 
 
@@ -42,7 +42,7 @@ class TriggerMetadataFilter(logging.Filter):
         for var in (
             ctx_task_instance,
             ctx_trigger_id,
-            ctx_close_handler,
+            ctx_trigger_end,
             ctx_indiv_trigger,
         ):
             val = var.get(None)
@@ -73,6 +73,8 @@ class TriggererHandlerWrapper(logging.Handler):
     :meta private:
     """
 
+    trigger_should_queue = True
+
     def __init__(self, base_handler: FileTaskHandler, level=logging.NOTSET):
         super().__init__(level=level)
         self.base_handler: FileTaskHandler = base_handler
@@ -95,7 +97,7 @@ class TriggererHandlerWrapper(logging.Handler):
     def handle(self, record):
         if not getattr(record, ctx_indiv_trigger.name, None):
             return False
-        if record.close_handler:
+        if record.trigger_end:
             self.close_one(record.trigger_id)
             return False
         emit = self.filter(record)

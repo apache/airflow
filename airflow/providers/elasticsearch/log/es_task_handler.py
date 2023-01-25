@@ -123,7 +123,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
 
     @cached_property
-    def wrap_for_triggerer(self):
+    def trigger_should_wrap(self):
         """
         Tells triggerer_job that this handler supports individual triggerer logging.
 

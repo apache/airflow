@@ -25,6 +25,7 @@ import threading
 import time
 import warnings
 from collections import deque
+from copy import copy
 from queue import SimpleQueue
 from typing import TYPE_CHECKING, Deque
 
@@ -43,9 +44,9 @@ from airflow.utils.log.trigger_handler import (
     LocalQueueHandler,
     TriggererHandlerWrapper,
     TriggerMetadataFilter,
-    ctx_close_handler,
     ctx_indiv_trigger,
     ctx_task_instance,
+    ctx_trigger_end,
     ctx_trigger_id,
 )
 from airflow.utils.module_loading import import_string
@@ -54,9 +55,17 @@ from airflow.utils.session import provide_session
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
-USING_TRIGGERER_HANDLER_WRAPPER = False
+HANDLER_SUPPORTS_TRIGGERER = False
 """
-If this value is true, trigger logging is configured to use TriggerHandlerWrapper
+If this value is true, root handler is configured to log individual trigger messages
+visible in task logs.
+
+:meta private:
+"""
+
+SEND_TRIGGER_END_MARKER = True
+"""
+If handler natively supports triggers, may want to disable sending trigger end marker.
 
 :meta private:
 """
@@ -81,26 +90,50 @@ def configure_trigger_log_handler():
 
     :meta private:
     """
-    global USING_TRIGGERER_HANDLER_WRAPPER
+    global HANDLER_SUPPORTS_TRIGGERER
 
-    def should_wrap_for_triggerer(handler):
-        return getattr(handler, "wrap_for_triggerer", False)
+    def should_wrap(handler):
+        return handler.__dict__.get("trigger_should_wrap", False) or handler.__class__.__dict__.get(
+            "trigger_should_wrap", False
+        )
+
+    def should_queue(handler):
+        return handler.__dict__.get("trigger_should_queue", True) or handler.__class__.__dict__.get(
+            "trigger_should_queue", True
+        )
+
+    def send_trigger_end_marker(handler):
+        val = handler.__dict__.get("trigger_send_end_marker", None)
+        if val is not None:
+            return val
+
+        val = handler.__class__.__dict__.get("trigger_send_end_marker", None)
+        if val is not None:
+            return val
+        return True
+
+    def supports_triggerer(handler):
+        return (
+            should_wrap(handler)
+            or handler.__dict__.get("trigger_supported", False)
+            or handler.__class__.__dict__.get("trigger_supported", False)
+        )
 
     def get_task_handler_from_logger(logger_):
         for h in logger_.handlers:
-            if isinstance(h, FileTaskHandler) and not should_wrap_for_triggerer(h):
+            if isinstance(h, FileTaskHandler) and not supports_triggerer(h):
                 warnings.warn(
                     f"Handler {h.__class__.__name__} does not support "
                     "individual trigger logging. Please check the release notes "
                     "for your provider to see if a newer version supports "
                     "individual trigger logging."
                 )
-            if should_wrap_for_triggerer(h):
+            if supports_triggerer(h):
                 return h
 
     def find_suitable_task_handler():
         # check root logger then check airflow.task to see if a handler
-        # suitable for use with TriggerHandlerWrapper (has wrap_for_triggerer
+        # suitable for use with TriggerHandlerWrapper (has trigger_should_wrap
         # attr, likely inherits from FileTaskHandler)
         h = get_task_handler_from_logger(root_logger)
         if not h:
@@ -146,10 +179,17 @@ def configure_trigger_log_handler():
         return None
     if TYPE_CHECKING:
         assert isinstance(task_handler, FileTaskHandler)
-    wrapper_handler = add_handler_wrapper_to_root(task_handler)
-    filter_trigger_logs_from_other_root_handlers(wrapper_handler)
-    USING_TRIGGERER_HANDLER_WRAPPER = True
-    return None
+    if should_wrap(task_handler):
+        trigger_handler = add_handler_wrapper_to_root(task_handler)
+    else:
+        trigger_handler = copy(task_handler)
+        root_logger.addHandler(trigger_handler)
+    filter_trigger_logs_from_other_root_handlers(trigger_handler)
+    if send_trigger_end_marker(trigger_handler) is False:
+        global SEND_TRIGGER_END_MARKER
+        SEND_TRIGGER_END_MARKER = False
+    HANDLER_SUPPORTS_TRIGGERER = True
+    return should_queue(trigger_handler)
 
 
 def setup_queue_listener():
@@ -215,19 +255,22 @@ class TriggererJob(BaseJob):
         else:
             raise ValueError(f"Capacity number {capacity} is invalid")
 
+        should_queue = True
         if DISABLE_WRAPPER:
             self.log.warning(
                 "Skipping trigger log configuration; disabled by param "
                 "`disable_trigger_handler_wrapper=True`."
             )
         else:
-            configure_trigger_log_handler()
+            should_queue = configure_trigger_log_handler()
         self.listener = None
         if DISABLE_LISTENER:
             self.log.warning(
                 "Skipping trigger logger queue listener; disabled by param "
                 "`disable_trigger_handler_queue_listener=True`."
             )
+        elif should_queue is False:
+            self.log.warning("Skipping trigger logger queue listener; disabled by handler setting.")
         else:
             self.listener = setup_queue_listener()
         # Set up runner async thread
@@ -536,7 +579,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         # set logging context vars for routing to appropriate handler
         ctx_task_instance.set(trigger.task_instance)
         ctx_trigger_id.set(trigger.trigger_id)
-        ctx_close_handler.set(False)
+        ctx_trigger_end.set(False)
 
         # mark that we're in the context of an individual trigger so log records can be filtered
         ctx_indiv_trigger.set(True)
@@ -560,18 +603,19 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # allow triggers a chance to cleanup, either in that case or if
             # they exit cleanly.
             trigger.cleanup()
-            self.close_handler(trigger)
+            if SEND_TRIGGER_END_MARKER:
+                self.mark_trigger_end(trigger)
 
             # unsetting ctx_indiv_trigger var restores stdout logging
             ctx_indiv_trigger.set(None)
             self.log.info("trigger %s completed", name)
 
     @staticmethod
-    def close_handler(trigger):
-        if not USING_TRIGGERER_HANDLER_WRAPPER:
+    def mark_trigger_end(trigger):
+        if not HANDLER_SUPPORTS_TRIGGERER:
             return
-        ctx_close_handler.set(True)
-        trigger.log.log(level=100, msg="close handler")
+        ctx_trigger_end.set(True)
+        trigger.log.log(level=100, msg="trigger end")
 
     def update_triggers(self, requested_trigger_ids: set[int]):
         """

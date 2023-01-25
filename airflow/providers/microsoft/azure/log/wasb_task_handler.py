@@ -37,6 +37,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from Wasb remote storage.
     """
 
+    trigger_should_wrap = True
+    trigger_should_queue = True
+
     def __init__(
         self,
         base_log_folder: str,

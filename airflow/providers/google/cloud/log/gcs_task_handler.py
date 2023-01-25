@@ -62,6 +62,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
     """
+    trigger_should_wrap = True
+
 
     def __init__(
         self,

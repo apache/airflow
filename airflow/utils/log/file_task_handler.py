@@ -142,6 +142,8 @@ class FileTaskHandler(logging.Handler):
     :param filename_template: template filename string
     """
 
+    trigger_should_wrap = True
+
     def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
         self.handler: logging.FileHandler | None = None
@@ -202,18 +204,6 @@ class FileTaskHandler(logging.Handler):
         if job_id:
             full_path += f".{job_id}.log"
         return full_path
-
-    @cached_property
-    def wrap_for_triggerer(self):
-        """
-        If true, this handler has been updated to support individual logging as implemented
-        in triggerer_job.
-
-        :meta private:
-        """
-        # this is just the default inference since we added _read_remote_logs when implementing
-        # trigger logging in all handlers
-        return "_read_remote_logs" in self.__class__.__dict__
 
     def emit(self, record):
         if self.handler:
