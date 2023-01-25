@@ -170,7 +170,7 @@ Here we select completely unique records from the retrieved data, then we check 
               FROM employees_temp
           ) t
           ON CONFLICT ("Serial Number") DO UPDATE
-          SET "Serial Number" = excluded."Serial Number";
+          SET "Serial Number" = t."Serial Number";
       """
       try:
           postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
