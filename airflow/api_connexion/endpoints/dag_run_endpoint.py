@@ -162,7 +162,7 @@ def _fetch_dag_runs(
         "start_date",
         "end_date",
         "external_trigger",
-        "conf",
+        "params",
     ]
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     return query.offset(offset).limit(limit).all(), total_entries
@@ -314,7 +314,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 execution_date=logical_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
                 state=DagRunState.QUEUED,
-                conf=post_body.get("conf"),
+                params=post_body.get("params"),
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,

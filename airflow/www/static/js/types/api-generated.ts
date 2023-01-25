@@ -1037,7 +1037,7 @@ export interface components {
        * The value of this field can be set only when creating the object. If you try to modify the
        * field of an existing object, the request fails with an BAD_REQUEST error.
        */
-      conf?: { [key: string]: unknown };
+      params?: { [key: string]: unknown };
       /**
        * @description Contains manually entered notes by the user about the DagRun.
        *

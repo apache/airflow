@@ -2801,7 +2801,7 @@ components:
           type: boolean
           default: true
           readOnly: true
-        conf:
+        params:
           type: object
           description: |
             JSON object describing additional configuration parameters.

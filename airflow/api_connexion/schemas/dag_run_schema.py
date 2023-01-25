@@ -35,8 +35,8 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 
-class ConfObject(fields.Field):
-    """The conf field."""
+class ParamsObject(fields.Field):
+    """The params field."""
 
     def _serialize(self, value, attr, obj, **kwargs):
         if not value:
@@ -68,7 +68,7 @@ class DAGRunSchema(SQLAlchemySchema):
     end_date = auto_field(dump_only=True)
     state = DagStateField(dump_only=True)
     external_trigger = auto_field(dump_default=True, dump_only=True)
-    conf = ConfObject()
+    params = ParamsObject()
     data_interval_start = auto_field(dump_only=True)
     data_interval_end = auto_field(dump_only=True)
     last_scheduling_decision = auto_field(dump_only=True)
