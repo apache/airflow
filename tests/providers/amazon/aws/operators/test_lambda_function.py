@@ -84,10 +84,7 @@ class TestAwsLambdaInvokeFunctionOperator:
         assert lambda_operator.log_type == "None"
         assert lambda_operator.aws_conn_id == "aws_conn_test"
 
-    @patch(
-        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator.hook",
-        new_callable=mock.PropertyMock,
-    )
+    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     def test_invoke_lambda(self, hook_mock):
         operator = AwsLambdaInvokeFunctionOperator(
             task_id="task_test",
@@ -118,10 +115,7 @@ class TestAwsLambdaInvokeFunctionOperator:
             qualifier="f",
         )
 
-    @patch(
-        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator.hook",
-        new_callable=mock.PropertyMock,
-    )
+    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     def test_invoke_lambda_bad_http_code(self, hook_mock):
         operator = AwsLambdaInvokeFunctionOperator(
             task_id="task_test",
@@ -132,10 +126,7 @@ class TestAwsLambdaInvokeFunctionOperator:
         with pytest.raises(ValueError):
             operator.execute(None)
 
-    @patch(
-        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator.hook",
-        new_callable=mock.PropertyMock,
-    )
+    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     def test_invoke_lambda_function_error(self, hook_mock):
         operator = AwsLambdaInvokeFunctionOperator(
             task_id="task_test",
