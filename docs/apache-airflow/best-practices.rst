@@ -252,7 +252,7 @@ Good example:
 
   @task
   def my_task():
-      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan dags.
+      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan DAGs.
       print(var)
 
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
@@ -784,7 +784,7 @@ There are certain limitations and overhead introduced by this operator:
   a victim of "supply chain" attack where new version of a dependency might become malicious
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.operators.python.PythonVirtualenvOperator` in
 :ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`

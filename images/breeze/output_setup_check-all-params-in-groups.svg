@@ -1,0 +1,172 @@
+<svg class="rich-terminal" viewBox="0 0 1482 733.1999999999999" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .breeze-setup-check-all-params-in-groups-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .breeze-setup-check-all-params-in-groups-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .breeze-setup-check-all-params-in-groups-r1 { fill: #c5c8c6;font-weight: bold }
+.breeze-setup-check-all-params-in-groups-r2 { fill: #c5c8c6 }
+.breeze-setup-check-all-params-in-groups-r3 { fill: #d0b344;font-weight: bold }
+.breeze-setup-check-all-params-in-groups-r4 { fill: #68a0b3;font-weight: bold }
+.breeze-setup-check-all-params-in-groups-r5 { fill: #868887 }
+.breeze-setup-check-all-params-in-groups-r6 { fill: #8d7b39 }
+.breeze-setup-check-all-params-in-groups-r7 { fill: #98a84b;font-weight: bold }
+    </style>
+
+    <defs>
+    <clipPath id="breeze-setup-check-all-params-in-groups-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="682.1999999999999" />
+    </clipPath>
+    <clipPath id="breeze-setup-check-all-params-in-groups-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-8">
+    <rect x="0" y="196.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-9">
+    <rect x="0" y="221.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-10">
+    <rect x="0" y="245.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-11">
+    <rect x="0" y="269.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-12">
+    <rect x="0" y="294.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-13">
+    <rect x="0" y="318.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-14">
+    <rect x="0" y="343.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-15">
+    <rect x="0" y="367.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-16">
+    <rect x="0" y="391.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-17">
+    <rect x="0" y="416.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-18">
+    <rect x="0" y="440.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-19">
+    <rect x="0" y="465.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-20">
+    <rect x="0" y="489.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-21">
+    <rect x="0" y="513.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-22">
+    <rect x="0" y="538.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-23">
+    <rect x="0" y="562.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-24">
+    <rect x="0" y="587.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-25">
+    <rect x="0" y="611.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-setup-check-all-params-in-groups-line-26">
+    <rect x="0" y="635.9" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="731.2" rx="8"/><text class="breeze-setup-check-all-params-in-groups-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;setup&#160;check-all-params-in-groups</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#breeze-setup-check-all-params-in-groups-clip-terminal)">
+    
+    <g class="breeze-setup-check-all-params-in-groups-matrix">
+    <text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-0)">
+</text><text class="breeze-setup-check-all-params-in-groups-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-1)">Usage:&#160;</text><text class="breeze-setup-check-all-params-in-groups-r1" x="97.6" y="44.4" textLength="500.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-1)">breeze&#160;setup&#160;check-all-params-in-groups&#160;[</text><text class="breeze-setup-check-all-params-in-groups-r4" x="597.8" y="44.4" textLength="85.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-1)">OPTIONS</text><text class="breeze-setup-check-all-params-in-groups-r1" x="683.2" y="44.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-1)">]</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-1)">
+</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-2)">
+</text><text class="breeze-setup-check-all-params-in-groups-r2" x="12.2" y="93.2" textLength="536.8" clip-path="url(#breeze-setup-check-all-params-in-groups-line-3)">Check&#160;that&#160;all&#160;parameters&#160;are&#160;put&#160;in&#160;groups.</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-3)">
+</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-4)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-5)">╭─</text><text class="breeze-setup-check-all-params-in-groups-r5" x="24.4" y="142" textLength="414.8" clip-path="url(#breeze-setup-check-all-params-in-groups-line-5)">&#160;Check&#160;all&#160;params&#160;in&#160;groups&#160;flags&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="439.2" y="142" textLength="1000.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-5)">──────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-5)">─╮</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-5)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-6)">│</text><text class="breeze-setup-check-all-params-in-groups-r4" x="24.4" y="166.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-6)">-</text><text class="breeze-setup-check-all-params-in-groups-r4" x="36.6" y="166.4" textLength="97.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-6)">-command</text><text class="breeze-setup-check-all-params-in-groups-r2" x="183" y="166.4" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-6)">Command(s)&#160;to&#160;regenerate&#160;images&#160;for&#160;(optional,&#160;might&#160;be&#160;repeated)&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-6)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-6)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-7)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="190.8" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-7)">(main&#160;|&#160;build-docs&#160;|&#160;ci:find-newer-dependencies&#160;|&#160;ci:fix-ownership&#160;|&#160;ci:free-space&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-7)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-7)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="215.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-8)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="215.2" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-8)">ci:get-workflow-info&#160;|&#160;ci:resource-check&#160;|&#160;ci:selective-check&#160;|&#160;ci&#160;|&#160;ci-image:build&#160;|&#160;ci-image:pull&#160;|&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-8)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-8)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="239.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-9)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="239.6" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-9)">ci-image:verify&#160;|&#160;ci-image&#160;|&#160;cleanup&#160;|&#160;compile-www-assets&#160;|&#160;exec&#160;|&#160;k8s:build-k8s-image&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-9)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-9)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="264" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-10)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="264" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-10)">k8s:configure-cluster&#160;|&#160;k8s:create-cluster&#160;|&#160;k8s:delete-cluster&#160;|&#160;k8s:deploy-airflow&#160;|&#160;k8s:k9s&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="264" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-10)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-10)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="288.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-11)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="288.4" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-11)">k8s:logs&#160;|&#160;k8s:run-complete-tests&#160;|&#160;k8s:setup-env&#160;|&#160;k8s:shell&#160;|&#160;k8s:status&#160;|&#160;k8s:tests&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-11)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-11)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="312.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-12)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="312.8" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-12)">k8s:upload-k8s-image&#160;|&#160;k8s&#160;|&#160;prod-image:build&#160;|&#160;prod-image:pull&#160;|&#160;prod-image:verify&#160;|&#160;prod-image&#160;|&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="312.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-12)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-12)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="337.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-13)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="337.2" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-13)">release-management:create-minor-branch&#160;|&#160;release-management:generate-constraints&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="337.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-13)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="337.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-13)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="361.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-14)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="361.6" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-14)">release-management:generate-issue-content-providers&#160;|&#160;release-management:prepare-airflow-package&#160;|&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="361.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-14)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="361.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-14)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="386" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-15)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="386" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-15)">release-management:prepare-provider-documentation&#160;|&#160;release-management:prepare-provider-packages&#160;|&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="386" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-15)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="386" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-15)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="410.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-16)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="410.4" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-16)">release-management:release-prod-images&#160;|&#160;release-management:start-rc-process&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="410.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-16)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="410.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-16)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="434.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-17)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="434.8" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-17)">release-management:start-release&#160;|&#160;release-management:verify-provider-packages&#160;|&#160;release-management&#160;|&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="434.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-17)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="434.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-17)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="459.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-18)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="459.2" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-18)">setup:autocomplete&#160;|&#160;setup:check-all-params-in-groups&#160;|&#160;setup:config&#160;|&#160;setup:regenerate-command-images&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="459.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-18)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="459.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-18)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="483.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-19)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="483.6" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-19)">|&#160;setup:self-upgrade&#160;|&#160;setup:version&#160;|&#160;setup&#160;|&#160;shell&#160;|&#160;start-airflow&#160;|&#160;static-checks&#160;|&#160;stop&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="483.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-19)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="483.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-19)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="508" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-20)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="508" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-20)">testing:docker-compose-tests&#160;|&#160;testing:helm-tests&#160;|&#160;testing:integration-tests&#160;|&#160;testing:tests&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="508" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-20)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="508" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-20)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="532.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-21)">│</text><text class="breeze-setup-check-all-params-in-groups-r6" x="183" y="532.4" textLength="1256.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-21)">testing)&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="532.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-21)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="532.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-21)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="556.8" textLength="1464" clip-path="url(#breeze-setup-check-all-params-in-groups-line-22)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="556.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-22)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="581.2" textLength="24.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-23)">╭─</text><text class="breeze-setup-check-all-params-in-groups-r5" x="24.4" y="581.2" textLength="195.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-23)">&#160;Common&#160;options&#160;</text><text class="breeze-setup-check-all-params-in-groups-r5" x="219.6" y="581.2" textLength="1220" clip-path="url(#breeze-setup-check-all-params-in-groups-line-23)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1439.6" y="581.2" textLength="24.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-23)">─╮</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="581.2" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-23)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="605.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-24)">│</text><text class="breeze-setup-check-all-params-in-groups-r4" x="24.4" y="605.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-24)">-</text><text class="breeze-setup-check-all-params-in-groups-r4" x="36.6" y="605.6" textLength="97.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-24)">-verbose</text><text class="breeze-setup-check-all-params-in-groups-r7" x="158.6" y="605.6" textLength="24.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-24)">-v</text><text class="breeze-setup-check-all-params-in-groups-r2" x="207.4" y="605.6" textLength="585.6" clip-path="url(#breeze-setup-check-all-params-in-groups-line-24)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="605.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-24)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="605.6" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-24)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="630" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">│</text><text class="breeze-setup-check-all-params-in-groups-r4" x="24.4" y="630" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">-</text><text class="breeze-setup-check-all-params-in-groups-r4" x="36.6" y="630" textLength="48.8" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">-dry</text><text class="breeze-setup-check-all-params-in-groups-r4" x="85.4" y="630" textLength="48.8" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">-run</text><text class="breeze-setup-check-all-params-in-groups-r7" x="158.6" y="630" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">-</text><text class="breeze-setup-check-all-params-in-groups-r4" x="170.8" y="630" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">D</text><text class="breeze-setup-check-all-params-in-groups-r2" x="207.4" y="630" textLength="719.8" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="630" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="630" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-25)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="654.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-26)">│</text><text class="breeze-setup-check-all-params-in-groups-r4" x="24.4" y="654.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-26)">-</text><text class="breeze-setup-check-all-params-in-groups-r4" x="36.6" y="654.4" textLength="61" clip-path="url(#breeze-setup-check-all-params-in-groups-line-26)">-help</text><text class="breeze-setup-check-all-params-in-groups-r7" x="158.6" y="654.4" textLength="24.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-26)">-h</text><text class="breeze-setup-check-all-params-in-groups-r2" x="207.4" y="654.4" textLength="329.4" clip-path="url(#breeze-setup-check-all-params-in-groups-line-26)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-setup-check-all-params-in-groups-r5" x="1451.8" y="654.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-26)">│</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="654.4" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-26)">
+</text><text class="breeze-setup-check-all-params-in-groups-r5" x="0" y="678.8" textLength="1464" clip-path="url(#breeze-setup-check-all-params-in-groups-line-27)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-setup-check-all-params-in-groups-r2" x="1464" y="678.8" textLength="12.2" clip-path="url(#breeze-setup-check-all-params-in-groups-line-27)">
+</text>
+    </g>
+    </g>
+</svg>

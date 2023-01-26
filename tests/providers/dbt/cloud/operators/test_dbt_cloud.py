@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -301,7 +302,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         mock_get_artifact.return_value.json.return_value = {"data": "file contents"}
-        operator.execute(context={})
+        return_value = operator.execute(context={})
 
         mock_get_artifact.assert_called_once_with(
             run_id=RUN_ID,
@@ -309,6 +310,10 @@ class TestDbtCloudGetJobRunArtifactOperator:
             account_id=account_id,
             step=None,
         )
+
+        assert operator.output_file_name == f"{RUN_ID}_path-to-my-manifest.json"
+        assert os.path.exists(operator.output_file_name)
+        assert return_value == operator.output_file_name
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
@@ -328,7 +333,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         mock_get_artifact.return_value.json.return_value = {"data": "file contents"}
-        operator.execute(context={})
+        return_value = operator.execute(context={})
 
         mock_get_artifact.assert_called_once_with(
             run_id=RUN_ID,
@@ -336,6 +341,10 @@ class TestDbtCloudGetJobRunArtifactOperator:
             account_id=account_id,
             step=2,
         )
+
+        assert operator.output_file_name == f"{RUN_ID}_path-to-my-manifest.json"
+        assert os.path.exists(operator.output_file_name)
+        assert return_value == operator.output_file_name
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
@@ -354,7 +363,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         mock_get_artifact.return_value.text = "file contents"
-        operator.execute(context={})
+        return_value = operator.execute(context={})
 
         mock_get_artifact.assert_called_once_with(
             run_id=RUN_ID,
@@ -362,6 +371,10 @@ class TestDbtCloudGetJobRunArtifactOperator:
             account_id=account_id,
             step=None,
         )
+
+        assert operator.output_file_name == f"{RUN_ID}_path-to-my-model.sql"
+        assert os.path.exists(operator.output_file_name)
+        assert return_value == operator.output_file_name
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
@@ -381,7 +394,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         mock_get_artifact.return_value.text = "file contents"
-        operator.execute(context={})
+        return_value = operator.execute(context={})
 
         mock_get_artifact.assert_called_once_with(
             run_id=RUN_ID,
@@ -389,6 +402,41 @@ class TestDbtCloudGetJobRunArtifactOperator:
             account_id=account_id,
             step=2,
         )
+
+        assert operator.output_file_name == f"{RUN_ID}_path-to-my-model.sql"
+        assert os.path.exists(operator.output_file_name)
+        assert return_value == operator.output_file_name
+
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
+    @pytest.mark.parametrize(
+        "conn_id, account_id",
+        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    def test_get_artifact_with_specified_output_file(self, mock_get_artifact, conn_id, account_id, tmp_path):
+        operator = DbtCloudGetJobRunArtifactOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=conn_id,
+            run_id=RUN_ID,
+            account_id=account_id,
+            path="run_results.json",
+            dag=self.dag,
+            output_file_name=tmp_path / "run_results.json",
+        )
+
+        mock_get_artifact.return_value.json.return_value = {"data": "file contents"}
+        return_value = operator.execute(context={})
+
+        mock_get_artifact.assert_called_once_with(
+            run_id=RUN_ID,
+            path="run_results.json",
+            account_id=account_id,
+            step=None,
+        )
+
+        assert operator.output_file_name == tmp_path / "run_results.json"
+        assert os.path.exists(operator.output_file_name)
+        assert return_value == operator.output_file_name
 
 
 class TestDbtCloudListJobsOperator:
