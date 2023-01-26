@@ -485,6 +485,9 @@ def stop(preserve_volumes: bool):
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, env=env_variables)
+    if not preserve_volumes:
+        command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute, env=env_variables)
 
 
 @main.command(name="exec", help="Joins the interactive shell of running airflow container.")
