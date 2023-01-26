@@ -1032,10 +1032,21 @@ export interface components {
       /** @default true */
       external_trigger?: boolean;
       /**
+       * @deprecated
+       * @description JSON object describing additional configuration parameters.
+       * The value of this field can be set only when creating the object. If you try to modify the
+       * field of an existing object, the request fails with an BAD_REQUEST error.
+       *
+       * *Deprecated since version 2.6.0*&#58; Use 'params' instead.
+       */
+      conf?: { [key: string]: unknown };
+      /**
        * @description JSON object describing additional configuration parameters.
        *
        * The value of this field can be set only when creating the object. If you try to modify the
        * field of an existing object, the request fails with an BAD_REQUEST error.
+       *
+       * *New in version 2.6.0*
        */
       params?: { [key: string]: unknown };
       /**

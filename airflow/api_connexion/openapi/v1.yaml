@@ -2801,6 +2801,15 @@ components:
           type: boolean
           default: true
           readOnly: true
+        conf:
+          type: object
+          description: |
+            JSON object describing additional configuration parameters.
+            The value of this field can be set only when creating the object. If you try to modify the
+            field of an existing object, the request fails with an BAD_REQUEST error.
+
+            *Deprecated since version 2.6.0*&#58; Use 'params' instead.
+          deprecated: true
         params:
           type: object
           description: |
@@ -2808,6 +2817,8 @@ components:
 
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
+
+            *New in version 2.6.0*
         note:
           type: string
           description: |
