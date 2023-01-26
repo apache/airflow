@@ -34,7 +34,8 @@ FAILURE_LOG_FILTER = "?ERROR ?Exception"
 
 class GlueJobHook(AwsBaseHook):
     """
-    Interact with AWS Glue - create job, trigger, crawler
+    Interact with AWS Glue.
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :param job_name: unique job name per AWS account
@@ -46,6 +47,12 @@ class GlueJobHook(AwsBaseHook):
     :param region_name: aws region name (example: us-east-1)
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :param create_job_kwargs: Extra arguments for Glue Job Creation
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
@@ -122,11 +129,16 @@ class GlueJobHook(AwsBaseHook):
         return ret_config
 
     def list_jobs(self) -> list:
-        """:return: Lists of Jobs"""
+        """
+        Get list of Jobs.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_jobs`
+        """
         return self.get_conn().get_jobs()
 
     def get_iam_execution_role(self) -> dict:
-        """:return: iam role for job execution"""
+        """Get IAM Role for job execution."""
         try:
             iam_client = self.get_session(region_name=self.region_name).client(
                 "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
@@ -144,9 +156,10 @@ class GlueJobHook(AwsBaseHook):
         run_kwargs: dict | None = None,
     ) -> dict[str, str]:
         """
-        Initializes connection with AWS Glue
-        to run job
-        :return:
+        Initializes connection with AWS Glue to run job.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.start_job_run`
         """
         script_arguments = script_arguments or {}
         run_kwargs = run_kwargs or {}
@@ -160,8 +173,12 @@ class GlueJobHook(AwsBaseHook):
 
     def get_job_state(self, job_name: str, run_id: str) -> str:
         """
-        Get state of the Glue job. The job state can be
-        running, finished, failed, stopped or timeout.
+        Get state of the Glue job.
+        The job state can be running, finished, failed, stopped or timeout.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_job_run`
+
         :param job_name: unique job name per AWS account
         :param run_id: The job-run ID of the predecessor job run
         :return: State of the Glue job
@@ -216,9 +233,9 @@ class GlueJobHook(AwsBaseHook):
 
     def job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
         """
-        Waits until Glue job with job_name completes or
-        fails and return final state if finished.
-        Raises AirflowException when the job failed
+        Waits until Glue job with job_name completes or fails and return final state if finished.
+        Raises AirflowException when the job failed.
+
         :param job_name: unique job name per AWS account
         :param run_id: The job-run ID of the predecessor job run
         :param verbose: If True, more Glue Job Run logs show in the Airflow Task Logs.  (default: False)
@@ -258,7 +275,10 @@ class GlueJobHook(AwsBaseHook):
 
     def has_job(self, job_name) -> bool:
         """
-        Checks if the job already exists
+        Checks if the job already exists.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_job`
 
         :param job_name: unique job name per AWS account
         :return: Returns True if the job already exists and False if not.
@@ -273,7 +293,10 @@ class GlueJobHook(AwsBaseHook):
 
     def update_job(self, **job_kwargs) -> bool:
         """
-        Updates job configurations
+        Updates job configurations.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.update_job`
 
         :param job_kwargs: Keyword args that define the configurations used for the job
         :return: True if job was updated and false otherwise
@@ -294,7 +317,12 @@ class GlueJobHook(AwsBaseHook):
 
     def create_or_update_glue_job(self) -> str | None:
         """
-        Creates(or updates) and returns the Job name
+        Creates (or updates) and returns the Job name.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.update_job`
+            - :external+boto3:py:meth:`Glue.Client.create_job`
+
         :return:Name of the Job
         """
         config = self.create_glue_job_config()

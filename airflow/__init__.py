@@ -116,3 +116,4 @@ if STATICA_HACK:  # pragma: no cover
     from airflow.models.dag import DAG
     from airflow.models.xcom_arg import XComArg
     from airflow.exceptions import AirflowException
+    from airflow.models.dataset import Dataset

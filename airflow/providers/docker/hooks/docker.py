@@ -172,7 +172,10 @@ class DockerHook(BaseHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "reauth": BooleanField(lazy_gettext("Disable SSL")),
+            "reauth": BooleanField(
+                lazy_gettext("Reauthenticate"),
+                description="Whether or not to refresh existing authentication on the Docker server.",
+            ),
             "email": StringField(lazy_gettext("Email"), widget=BS3TextFieldWidget()),
         }
 

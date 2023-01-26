@@ -851,6 +851,13 @@ metrics:
       type: string
       example: ~
       default: ""
+    statsd_datadog_metrics_tags:
+      description: |
+        Set to False to disable metadata tags for some of the emitted metrics
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
     statsd_custom_client_path:
       description: |
         If you want to utilise your own custom StatsD client set the relevant
