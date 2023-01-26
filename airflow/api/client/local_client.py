@@ -28,11 +28,14 @@ from airflow.models.pool import Pool
 class Client(api_client.Client):
     """Local API client implementation."""
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
+    def trigger_dag(
+        self, dag_id, run_id=None, conf=None, params=None, execution_date=None, replace_microseconds=True
+    ):
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
             run_id=run_id,
             conf=conf,
+            params=params,
             execution_date=execution_date,
             replace_microseconds=replace_microseconds,
         )

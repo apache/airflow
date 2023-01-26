@@ -33,6 +33,7 @@ def _trigger_dag(
     dag_bag: DagBag,
     run_id: str | None = None,
     conf: dict | str | None = None,
+    params: dict | str | None = None,
     execution_date: datetime | None = None,
     replace_microseconds: bool = True,
 ) -> list[DagRun | None]:
@@ -42,6 +43,7 @@ def _trigger_dag(
     :param dag_bag: DAG Bag model
     :param run_id: ID of the dag_run
     :param conf: configuration
+    :param params: dagrun params
     :param execution_date: date of execution
     :param replace_microseconds: whether microseconds should be zeroed
     :return: list of triggered dags
@@ -80,6 +82,8 @@ def _trigger_dag(
     run_conf = None
     if conf:
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
+    if params:
+        params = params if isinstance(params, dict) else json.loads(params)
 
     dag_runs = []
     dags_to_run = [dag] + dag.subdags
@@ -89,6 +93,7 @@ def _trigger_dag(
             execution_date=execution_date,
             state=DagRunState.QUEUED,
             conf=run_conf,
+            params=params,
             external_trigger=True,
             dag_hash=dag_bag.dags_hash.get(dag_id),
             data_interval=data_interval,
@@ -102,6 +107,7 @@ def trigger_dag(
     dag_id: str,
     run_id: str | None = None,
     conf: dict | str | None = None,
+    params: dict | str | None = None,
     execution_date: datetime | None = None,
     replace_microseconds: bool = True,
 ) -> DagRun | None:
@@ -110,6 +116,7 @@ def trigger_dag(
     :param dag_id: DAG ID
     :param run_id: ID of the dag_run
     :param conf: configuration
+    :param params: dagrun params
     :param execution_date: date of execution
     :param replace_microseconds: whether microseconds should be zeroed
     :return: first dag run triggered - even if more than one Dag Runs were triggered or None
@@ -124,6 +131,7 @@ def trigger_dag(
         dag_bag=dagbag,
         run_id=run_id,
         conf=conf,
+        params=params,
         execution_date=execution_date,
         replace_microseconds=replace_microseconds,
     )

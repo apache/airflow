@@ -81,7 +81,9 @@ def dag_backfill(args, dag=None):
     run_conf = None
     if args.conf:
         run_conf = json.loads(args.conf)
-
+    params = None
+    if args.params:
+        params = json.loads(args.params)
     for dag in dags:
         if args.task_regex:
             dag = dag.partial_subset(
@@ -124,6 +126,7 @@ def dag_backfill(args, dag=None):
                     delay_on_limit_secs=args.delay_on_limit,
                     verbose=args.verbose,
                     conf=run_conf,
+                    params=params,
                     rerun_failed_tasks=args.rerun_failed_tasks,
                     run_backwards=args.run_backwards,
                     continue_on_failures=args.continue_on_failures,
@@ -146,6 +149,7 @@ def dag_trigger(args):
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
+            params=args.params,
             execution_date=args.exec_date,
             replace_microseconds=args.replace_microseconds,
         )
@@ -459,9 +463,12 @@ def dag_test(args, dag=None, session=None):
             run_conf = json.loads(args.conf)
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
+    params = None
+    if args.params:
+        params = json.loads(args.params)
     execution_date = args.execution_date or timezone.utcnow()
     dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
+    dag.test(execution_date=execution_date, run_conf=run_conf, params=params, session=session)
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun

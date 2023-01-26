@@ -54,12 +54,15 @@ class Client(api_client.Client):
             raise OSError(data.get("error", "Server error"))
         return resp.json()
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
+    def trigger_dag(
+        self, dag_id, run_id=None, conf=None, params=None, execution_date=None, replace_microseconds=True
+    ):
         """Trigger a DAG run.
 
         :param dag_id: The ID of the DAG to trigger.
         :param run_id: The ID of the DAG run to create. If not provided, a default ID will be generated.
         :param conf: A dictionary containing configuration data to pass to the DAG run.
+        :param params: A dictionary containing configuration data to pass to the DAG params.
         :param execution_date: The execution date for the DAG run, in the format "YYYY-MM-DDTHH:MM:SS".
         :param replace_microseconds: Whether to replace microseconds in the execution date with zeros.
         :return: A message indicating the status of the DAG run trigger.
@@ -69,6 +72,7 @@ class Client(api_client.Client):
         data = {
             "run_id": run_id,
             "conf": conf,
+            "params": params,
             "execution_date": execution_date,
             "replace_microseconds": replace_microseconds,
         }

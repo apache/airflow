@@ -432,6 +432,7 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
+ARG_PARAMS = Arg(("-p", "--params"), help="JSON string that gets pickled into the DagRun's params attribute")
 ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
 ARG_REPLACE_MICRO = Arg(
     ("--no-replace-microseconds",),
@@ -1154,7 +1155,16 @@ DAGS_COMMANDS = (
         name="trigger",
         help="Trigger a DAG run",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE, ARG_VERBOSE, ARG_REPLACE_MICRO),
+        args=(
+            ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_RUN_ID,
+            ARG_CONF,
+            ARG_PARAMS,
+            ARG_EXEC_DATE,
+            ARG_VERBOSE,
+            ARG_REPLACE_MICRO,
+        ),
     ),
     ActionCommand(
         name="delete",
@@ -1248,6 +1258,7 @@ DAGS_COMMANDS = (
             ARG_DRY_RUN,
             ARG_VERBOSE,
             ARG_CONF,
+            ARG_PARAMS,
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
@@ -1281,6 +1292,7 @@ DAGS_COMMANDS = (
             ARG_DAG_ID,
             ARG_EXECUTION_DATE_OPTIONAL,
             ARG_CONF,
+            ARG_PARAMS,
             ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
