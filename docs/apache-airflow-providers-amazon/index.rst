@@ -37,6 +37,12 @@ Content
     Python API <_api/airflow/providers/amazon/index>
 
 .. toctree::
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests Dashboard <https://aws-mwaa.github.io/open-source/system-tests/dashboard.html>
+
+.. toctree::
     :hidden:
     :caption: System tests
 

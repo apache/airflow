@@ -112,7 +112,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
-    "breeze release-management generate-issue-content": [
+    "breeze release-management generate-issue-content-providers": [
         {
             "name": "Generate issue content flags",
             "options": [
