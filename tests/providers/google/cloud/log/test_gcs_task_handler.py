@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import tempfile
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from pytest import param
@@ -90,15 +91,17 @@ class TestGCSTaskHandler:
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
     def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds):
+        mock_obj = MagicMock()
+        mock_obj.name = "remote/log/location/1.log"
+        mock_client.return_value.list_blobs.return_value = [mock_obj]
         mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
 
         logs, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
-
-        assert "*** Reading remote log from gs://bucket/remote/log/location/1.log.\nCONTENT\n" == logs
-        assert {"end_of_log": True} == metadata
+        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT" == logs
+        assert {"end_of_log": False, "log_pos": 7} == metadata
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",

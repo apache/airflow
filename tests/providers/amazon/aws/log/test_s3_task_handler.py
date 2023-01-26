@@ -127,19 +127,20 @@ class TestS3TaskHandler:
     def test_read(self):
         self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
         log, metadata = self.s3_task_handler.read(self.ti)
-        assert (
-            log[0][0][-1]
-            == "*** Reading remote log from s3://bucket/remote/log/location/1.log.\nLog line\n\n"
-        )
-        assert metadata == [{"end_of_log": True}]
+        actual = log[0][0][-1]
+        expected = "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\nLog line"
+        assert actual == expected
+        assert metadata == [{"end_of_log": False, "log_pos": 8}]
 
     def test_read_when_s3_log_missing(self):
         log, metadata = self.s3_task_handler.read(self.ti)
 
         assert 1 == len(log)
         assert len(log) == len(metadata)
-        assert "*** Logs not found locally" in log[0][0][-1]
-        assert {"end_of_log": True} == metadata[0]
+        actual = log[0][0][-1]
+        expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [running]>\n"  # noqa: E501
+        assert actual == expected
+        assert {"end_of_log": False, "log_pos": 0} == metadata[0]
 
     def test_s3_read_when_log_missing(self):
         handler = self.s3_task_handler
