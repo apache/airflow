@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -80,7 +80,7 @@ class EksBaseSensor(BaseSensorOperator):
         self,
         *,
         cluster_name: str,
-        target_state: Any,
+        target_state: ClusterStates | NodegroupStates | FargateProfileStates,
         target_state_type: type,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
@@ -97,13 +97,13 @@ class EksBaseSensor(BaseSensorOperator):
         )
 
     @cached_property
-    def hook(self):
+    def hook(self) -> EksHook:
         return EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         state = self.get_state()
         self.log.info("Current state: %s", state)
         if state in (self.get_terminal_states() - {self.target_state}):
@@ -114,7 +114,7 @@ class EksBaseSensor(BaseSensorOperator):
         return state == self.target_state
 
     @abstractmethod
-    def get_state(self) -> Any:
+    def get_state(self) -> ClusterStates | NodegroupStates | FargateProfileStates:
         ...
 
     @abstractmethod
@@ -153,7 +153,7 @@ class EksClusterStateSensor(EksBaseSensor):
     ):
         super().__init__(target_state=target_state, target_state_type=ClusterStates, **kwargs)
 
-    def get_state(self) -> Any:
+    def get_state(self) -> ClusterStates:
         return self.hook.get_cluster_state(clusterName=self.cluster_name)
 
     def get_terminal_states(self) -> frozenset:
@@ -200,7 +200,7 @@ class EksFargateProfileStateSensor(EksBaseSensor):
         super().__init__(target_state=target_state, target_state_type=FargateProfileStates, **kwargs)
         self.fargate_profile_name = fargate_profile_name
 
-    def get_state(self) -> Any:
+    def get_state(self) -> FargateProfileStates:
         return self.hook.get_fargate_profile_state(
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
@@ -249,7 +249,7 @@ class EksNodegroupStateSensor(EksBaseSensor):
         super().__init__(target_state=target_state, target_state_type=NodegroupStates, **kwargs)
         self.nodegroup_name = nodegroup_name
 
-    def get_state(self) -> Any:
+    def get_state(self) -> NodegroupStates:
         return self.hook.get_nodegroup_state(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
 
     def get_terminal_states(self) -> frozenset:
