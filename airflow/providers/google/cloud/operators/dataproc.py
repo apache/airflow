@@ -18,6 +18,7 @@
 """This module contains Google Dataproc operators."""
 from __future__ import annotations
 
+import enum
 import inspect
 import ntpath
 import os
@@ -27,6 +28,7 @@ import uuid
 import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Sequence
+from airflow.typing_compat import Literal
 
 from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -55,6 +57,15 @@ from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+class PREEMPTIBILITY(enum.Enum):
+    """Possible VM type for preemptible workers."""
+
+    PREEMPTIBILITY_UNSPECIFIED = enum.auto()
+    NON_PREEMPTIBLE = enum.auto()
+    PREEMPTIBLE = enum.auto()
+    SPOT = enum.auto()
 
 
 class ClusterGenerator:
@@ -104,6 +115,7 @@ class ClusterGenerator:
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param worker_disk_size: Disk size for the worker nodes
     :param num_preemptible_workers: The # of preemptible worker nodes to spin up
+    :param preemptibility: Preemptibility type to use for the preemptible worker nodes
     :param labels: dict of labels to add to the cluster
     :param zone: The zone where the cluster will be located. Set to None to auto-zone. (templated)
     :param network_uri: The network uri to be used for machine communication, cannot be
@@ -159,6 +171,9 @@ class ClusterGenerator:
         worker_disk_type: str = "pd-standard",
         worker_disk_size: int = 1024,
         num_preemptible_workers: int = 0,
+        preemptibility: Literal[
+            "preemptibility_unspecified", "non_preemptible", "preemptible", "spot"
+        ] = "preemptible",
         service_account: str | None = None,
         service_account_scopes: list[str] | None = None,
         idle_delete_ttl: int | None = None,
@@ -173,6 +188,7 @@ class ClusterGenerator:
         self.num_masters = num_masters
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
+        self.preemptibility = PREEMPTIBILITY[preemptibility.upper()]
         self.storage_bucket = storage_bucket
         self.init_actions_uris = init_actions_uris
         self.init_action_timeout = init_action_timeout
@@ -320,6 +336,7 @@ class ClusterGenerator:
                     "boot_disk_size_gb": self.worker_disk_size,
                 },
                 "is_preemptible": True,
+                "preemptibility": self.preemptibility,
             }
 
         if self.storage_bucket:
