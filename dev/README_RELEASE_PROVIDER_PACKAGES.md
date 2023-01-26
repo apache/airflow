@@ -939,7 +939,7 @@ Subject:
 
 ```shell script
 cat <<EOF
-Airflow Providers released on $(date "+%B %d, %Y") are ready
+Airflow Providers prepared on $(date "+%B %d, %Y") are ready
 EOF
 ```
 
@@ -980,3 +980,9 @@ Add the release data (version and date) at: https://reporter.apache.org/addrelea
 ## Close the testing status issue
 
 Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
+```shell script
+Thank you everyone.
+Providers are released
+I invite everyone to help improve providers for the next release, a list of open bugs can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Akind%3Abug+label%3Aarea%3Aproviders).
+```
