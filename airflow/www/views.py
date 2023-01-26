@@ -1948,7 +1948,6 @@ class Airflow(AirflowBaseView):
         unpause = request.values.get("unpause")
         request_params = request.values.get("params")
         request_execution_date = request.values.get("execution_date", default=timezone.utcnow().isoformat())
-        is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         dag_orm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
         if not dag_orm:
@@ -2047,7 +2046,6 @@ class Airflow(AirflowBaseView):
                         origin=origin,
                         params=request_params,
                         form=form,
-                        is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                         recent_params=recent_params,
                     )
             except json.decoder.JSONDecodeError:
