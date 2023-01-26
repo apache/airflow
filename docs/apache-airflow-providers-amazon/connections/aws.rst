@@ -20,8 +20,21 @@
 Amazon Web Services Connection
 ==============================
 
-The Amazon Web Services connection type enables the :ref:`AWS Integrations
-<AWS>`.
+The Amazon Web Services connection type enables the :ref:`AWS Integrations <AWS>`.
+
+.. important:: Amazon Web Services Connection could be tested in the UI/API or by call
+    :meth:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.test_connection`,
+    it is **important** to correct interpret result of this test.
+    During this test components of Amazon Provider invoke AWS Security Token Service API
+    `GetCallerIdentity <https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html>`__.
+    This service **only** could check is your credentials valid or not.
+    Unfortunately it is not possible to validate is this credentials has access to specific AWS service or not.
+
+    If you use Amazon Provider for communicate with AWS API compatible services (MinIO, LocalStack, etc.)
+    test connection failure **doesn't mean** that your connection has wrong credentials.
+    Many of compatible services provide only limited amount of AWS API services,
+    and most of them not implement AWS STS GetCallerIdentity method.
+
 
 Authenticating to AWS
 ---------------------
@@ -32,7 +45,6 @@ Alternatively, one can pass credentials in as a Connection initialisation parame
 To use IAM instance profile, create an "empty" connection (i.e. one with no AWS Access Key ID or AWS Secret Access Key
 specified, or ``aws://``).
 
-
 Default Connection IDs
 -----------------------
 
@@ -40,10 +52,18 @@ The default connection ID is ``aws_default``. If the environment/machine where y
 file credentials in ``/home/.aws/``, and the default connection has user and pass fields empty, it will take
 automatically the credentials from there.
 
-.. note:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``
+.. important:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``
     on install. This means that by default the ``aws_default`` connection used the ``us-east-1`` region.
     This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow,
     or via the ``AWS_DEFAULT_REGION`` environment variable.
+
+.. caution:: If you do not set ``[database] load_default_connections`` to ``True``
+    most probably you do not have ``aws_default``. By historical reason Amazon Provider
+    components (Hooks, Operators, Sensors, etc.) fallback to default boto3 credentials strategy
+    in case of missing Connection ID, this behaviour is deprecated and will be removed in a future releases.
+
+    If you need use default boto3 credential strategy (credentials in environment variables, IAM Profile, etc.)
+    please provide ``None`` instead of connection id.
 
 .. _howto/connection:aws:configuring-the-connection:
 
@@ -144,9 +164,8 @@ Snippet to create Connection and convert to URI
     print(f"{env_key}={conn_uri}")
     # AIRFLOW_CONN_SAMPLE_AWS_CONNECTION=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@/?region_name=eu-central-1
 
-    # Test connection
     os.environ[env_key] = conn_uri
-    print(conn.test_connection())
+    print(conn.test_connection())  # Validate connection credentials.
 
 
   .. warning:: When using the Airflow CLI, a ``@`` may need to be added when:
