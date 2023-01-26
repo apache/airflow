@@ -175,7 +175,8 @@ class BaseJob(Base, LoggingMixin):
     def on_kill(self):
         """Will be called when an external kill command is received."""
 
-    def heartbeat_callback(self, session=None):
+    @provide_session
+    def heartbeat_callback(self, session=None) -> None:
         """Callback that is called during heartbeat. This method should be overwritten."""
 
     def heartbeat(self, only_if_necessary: bool = False):

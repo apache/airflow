@@ -16,14 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING, Sequence
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+from deprecated import deprecated
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.sensors.base import BaseSensorOperator
@@ -62,10 +59,9 @@ class BatchSensor(BaseSensorOperator):
         self.job_id = job_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook: BatchClientHook | None = None
 
     def poke(self, context: Context) -> bool:
-        job_description = self.get_hook().get_job_description(self.job_id)
+        job_description = self.hook.get_job_description(self.job_id)
         state = job_description["status"]
 
         if state == BatchClientHook.SUCCESS_STATE:
@@ -79,16 +75,17 @@ class BatchSensor(BaseSensorOperator):
 
         raise AirflowException(f"Batch sensor failed. Unknown AWS Batch job status: {state}")
 
+    @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> BatchClientHook:
         """Create and return a BatchClientHook"""
-        if self.hook:
-            return self.hook
+        return self.hook
 
-        self.hook = BatchClientHook(
+    @cached_property
+    def hook(self) -> BatchClientHook:
+        return BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
         )
-        return self.hook
 
 
 class BatchComputeEnvironmentSensor(BaseSensorOperator):
@@ -132,7 +129,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         )
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.client.describe_compute_environments(
+        response = self.hook.client.describe_compute_environments(  # type: ignore[union-attr]
             computeEnvironments=[self.compute_environment]
         )
 
@@ -198,7 +195,9 @@ class BatchJobQueueSensor(BaseSensorOperator):
         )
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.client.describe_job_queues(jobQueues=[self.job_queue])
+        response = self.hook.client.describe_job_queues(  # type: ignore[union-attr]
+            jobQueues=[self.job_queue]
+        )
 
         if len(response["jobQueues"]) == 0:
             if self.treat_non_existing_as_deleted:

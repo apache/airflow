@@ -23,7 +23,7 @@ Templates reference
 Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section)
 
 The following come for free out of the box with Airflow.
-Additional custom macros can be added globally through :doc:`/plugins`, or at a DAG level through the
+Additional custom macros can be added globally through :doc:`authoring-and-scheduling/plugins`, or at a DAG level through the
 ``DAG.user_defined_macros`` argument.
 
 .. _templates:variables:
@@ -51,7 +51,7 @@ Variable                                    Type                  Description
                                             | ``None``            | Added in version 2.3.
 ``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful DAG run.
                                             | ``None``            | Added in version 2.3.
-``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful dag run (if available).
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful DAG run (if available).
                                             | ``None``
 ``{{ dag }}``                               DAG                   The currently running DAG.
 ``{{ task }}``                              BaseOperator          | The currently running task.
@@ -99,7 +99,7 @@ Deprecated Variable                     Description
 ``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
 ``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
-``{{ prev_execution_date_success }}``   execution date from prior successful dag run
+``{{ prev_execution_date_success }}``   execution date from prior successful DAG run
 
 =====================================   ====================================
 
@@ -176,9 +176,6 @@ Variable                            Description
 Some airflow specific macros are also defined:
 
 .. automodule:: airflow.macros
-    :members:
-
-.. automodule:: airflow.macros.hive
     :members:
 
 .. _pendulum.DateTime: https://pendulum.eustace.io/docs/#introduction

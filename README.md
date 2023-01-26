@@ -86,7 +86,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)           | Stable version (2.5.0)       |
+|                     | Main version (dev)           | Stable version (2.5.1)       |
 |---------------------|------------------------------|------------------------------|
 | Python              | 3.7, 3.8, 3.9, 3.10          | 3.7, 3.8, 3.9, 3.10          |
 | Platform            | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
@@ -158,15 +158,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.5.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.0/constraints-3.7.txt"
+pip install 'apache-airflow==2.5.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.1/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.5.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.0/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.5.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.1/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -259,8 +259,12 @@ packages:
   Chart to depend on minimal Airflow version.
 * **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR versions of Airflow.
   The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
-  all clients. The clients then can release their own PATCH releases with bugfixes,
-  independently of Airflow PATCH releases.
+  all clients. An airflow PATCH X.Y.Z release can be followed by a PATCH release of API clients, only
+  if this PATCH is relevant to the clients.
+  The clients then can release their own PATCH releases with bugfixes, independently of Airflow PATCH releases.
+  As a consequence, each API client will have its own PATCH version that may or may not be in sync with the Airflow
+  PATCH version. For a specific MAJOR/MINOR Airflow version, users should favor the latest PATCH version of clients
+  independently of their Airflow PATCH version.
 
 ## Version Life Cycle
 
@@ -271,7 +275,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.5.0                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.5.1                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -301,7 +305,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.5.0` images are Python 3.7 images. This means that default reference image will
+   and `apache/airflow:2.5.1` images are Python 3.7 images. This means that default reference image will
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 
@@ -317,7 +321,7 @@ we publish an Apache Airflow release. Those images contain:
 * Base OS with necessary packages to install Airflow (stable Debian OS)
 * Base Python installation in versions supported at the time of release for the MINOR version of
   Airflow released (so there could be different versions for 2.3 and 2.2 line for example)
-* Libraries required to connect to suppoerted Databases (again the set of databases supported depends
+* Libraries required to connect to supported Databases (again the set of databases supported depends
   on the MINOR version of Airflow.
 * Predefined set of popular providers (for details see the [Dockerfile](https://raw.githubusercontent.com/apache/airflow/main/Dockerfile)).
 * Possibility of building your own, custom image where the user can choose their own set of providers

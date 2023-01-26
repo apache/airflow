@@ -144,12 +144,14 @@ const DagRun = ({ runId }: Props) => {
                 {runType}
               </Td>
             </Tr>
-            <Tr>
-              <Td>Run duration</Td>
-              <Td>
-                {formatDuration(getDuration(startDate, endDate))}
-              </Td>
-            </Tr>
+            {startDate && (
+              <Tr>
+                <Td>Run duration</Td>
+                <Td>
+                  {formatDuration(getDuration(startDate, endDate))}
+                </Td>
+              </Tr>
+            )}
             {lastSchedulingDecision && (
               <Tr>
                 <Td>Last scheduling decision</Td>

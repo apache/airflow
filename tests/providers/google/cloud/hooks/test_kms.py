@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from base64 import b64decode, b64encode
 from collections import namedtuple
 from unittest import mock
@@ -57,8 +56,8 @@ def mock_init(
     pass
 
 
-class TestCloudKMSHook(unittest.TestCase):
-    def setUp(self):
+class TestCloudKMSHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_init,

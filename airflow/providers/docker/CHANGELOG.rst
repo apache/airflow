@@ -24,6 +24,34 @@
 Changelog
 ---------
 
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add correct widgets in Docker Hook (#28700)``
+* ``Make docker operators always use 'DockerHook' for API calls (#28363)``
+* ``Skip DockerOperator task when it returns a provided exit code (#28996)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix label name for 'reauth' field in Docker Connection (#28974)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add hostname argument to DockerOperator (#27822)``
+* ``Move min airflow version down for Docker Provider to 2.3.0 (#28648)``
+
 3.3.0
 .....
 

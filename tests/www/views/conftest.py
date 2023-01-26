@@ -29,7 +29,7 @@ from airflow.models import DagBag
 from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login
+from tests.test_utils.www import client_with_login, client_without_login
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -121,6 +121,11 @@ def viewer_client(app):
 @pytest.fixture()
 def user_client(app):
     return client_with_login(app, username="test_user", password="test_user")
+
+
+@pytest.fixture()
+def anonymous_client(app):
+    return client_without_login(app)
 
 
 class _TemplateWithContext(NamedTuple):

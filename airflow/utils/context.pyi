@@ -24,8 +24,9 @@
 # attributes are injected at runtime, and giving them a class would trigger
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
+from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Mapping, Union, overload
+from typing import Any, Collection, Container, Iterable, Mapping, overload
 
 from pendulum import DateTime
 
@@ -61,7 +62,7 @@ class Context(TypedDict, total=False):
     data_interval_start: DateTime
     ds: str
     ds_nodash: str
-    exception: Union[KeyboardInterrupt, Exception, str, None]
+    exception: KeyboardInterrupt | Exception | str | None
     execution_date: DateTime
     expanded_ti_count: int | None
     inlets: list
