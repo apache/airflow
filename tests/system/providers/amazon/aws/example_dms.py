@@ -367,9 +367,9 @@ with DAG(
     await_task_stop = DmsTaskCompletedSensor(
         task_id="await_task_stop",
         replication_task_arn=task_arn,
-        poke_interval=10,
     )
     # [END howto_sensor_dms_task_completed]
+    await_task_stop.poke_interval = 10
 
     # [START howto_operator_dms_delete_task]
     delete_task = DmsDeleteTaskOperator(

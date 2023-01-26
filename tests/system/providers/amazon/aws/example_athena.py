@@ -119,9 +119,9 @@ with DAG(
         query=query_read_table,
         database=athena_database,
         output_location=f"s3://{s3_bucket}/",
-        sleep_time=1,
     )
     # [END howto_operator_athena]
+    read_table.sleep_time = 1
 
     # [START howto_sensor_athena]
     await_query = AthenaSensor(
