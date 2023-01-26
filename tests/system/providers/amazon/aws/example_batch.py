@@ -178,6 +178,7 @@ with DAG(
         compute_environment=batch_job_compute_environment_name,
     )
     # [END howto_sensor_batch_compute_environment]
+    wait_for_compute_environment_valid.poke_interval = 1
 
     # [START howto_sensor_batch_job_queue]
     wait_for_job_queue_valid = BatchJobQueueSensor(
@@ -185,6 +186,7 @@ with DAG(
         job_queue=batch_job_queue_name,
     )
     # [END howto_sensor_batch_job_queue]
+    wait_for_job_queue_valid.poke_interval = 1
 
     # [START howto_operator_batch]
     submit_batch_job = BatchOperator(
@@ -209,11 +211,13 @@ with DAG(
     wait_for_compute_environment_disabled = BatchComputeEnvironmentSensor(
         task_id="wait_for_compute_environment_disabled",
         compute_environment=batch_job_compute_environment_name,
+        poke_interval=1,
     )
 
     wait_for_job_queue_modified = BatchJobQueueSensor(
         task_id="wait_for_job_queue_modified",
         job_queue=batch_job_queue_name,
+        poke_interval=1,
     )
 
     wait_for_job_queue_deleted = BatchJobQueueSensor(

@@ -527,6 +527,7 @@ with DAG(
     # [START howto_sensor_sagemaker_auto_ml]
     await_automl = SageMakerAutoMLSensor(job_name=test_setup["auto_ml_job_name"], task_id="await_auto_ML")
     # [END howto_sensor_sagemaker_auto_ml]
+    await_automl.poke_interval = 10
 
     # [START howto_operator_sagemaker_start_pipeline]
     start_pipeline1 = SageMakerStartPipelineOperator(
@@ -553,6 +554,7 @@ with DAG(
         pipeline_exec_arn=start_pipeline2.output,
     )
     # [END howto_sensor_sagemaker_pipeline]
+    await_pipeline2.poke_interval = 10
 
     # [START howto_operator_sagemaker_experiment]
     create_experiment = SageMakerCreateExperimentOperator(

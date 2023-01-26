@@ -352,6 +352,7 @@ with DAG(
         replication_task_arn=task_arn,
         target_statuses=["running"],
         termination_statuses=["stopped", "deleting", "failed"],
+        poke_interval=10,
     )
 
     # [START howto_operator_dms_stop_task]
@@ -368,6 +369,7 @@ with DAG(
         replication_task_arn=task_arn,
     )
     # [END howto_sensor_dms_task_completed]
+    await_task_stop.poke_interval = 10
 
     # [START howto_operator_dms_delete_task]
     delete_task = DmsDeleteTaskOperator(
