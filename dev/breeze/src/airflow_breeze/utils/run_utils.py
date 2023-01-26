@@ -413,16 +413,22 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
             pass
         try:
             with SoftFileLock(WWW_ASSET_COMPILE_LOCK, timeout=5):
-                with open(WWW_ASSET_OUT_FILE, "w") as f:
-                    return run_command(
+                with open(WWW_ASSET_OUT_FILE, "w") as output_file:
+                    result = run_command(
                         command_to_execute,
                         check=False,
                         no_output_dump_on_exception=True,
                         text=True,
                         env=env,
                         stderr=subprocess.STDOUT,
-                        stdout=f,
+                        stdout=output_file,
                     )
+                if result.returncode == 0:
+                    try:
+                        WWW_ASSET_OUT_FILE.unlink()
+                    except FileNotFoundError:
+                        pass
+                return result
         except Timeout:
             get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
             get_console().print("[warning]If you are sure there is no other compilation,[/]")
