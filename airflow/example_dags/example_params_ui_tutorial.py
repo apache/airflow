@@ -33,50 +33,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
 from airflow.models.taskinstance import TaskInstance
 
-HTML_COLOR_PICKER_CUSTOM_CODE = """
-<table width="100%" cellspacing="5"><tbody><tr><td>
-    <label for="r_{name}">Red:</label>
-</td><td width="80%">
-    <input id="r_{name}" type="range" min="0" max="255" value="0" onchange="u_{name}()"/>
-</td><td rowspan="3" style="padding-left: 10px;">
-    <div id="preview_{name}"
-      style="line-height: 40px; margin-bottom: 7px; width: 100%; background-color: {value};">&nbsp;</div>
-    <input class="form-control" type="text" maxlength="7" id="{name}" name="{name}" value="{value}"
-      onchange="v_{name}()" />
-</td></tr><tr><td>
-    <label for="g_{name}">Green:</label>
-</td><td>
-    <input id="g_{name}" type="range" min="0" max="255" value="0" onchange="u_{name}()"/>
-</td></tr><tr><td>
-    <label for="b_{name}">Blue:</label>
-</td><td>
-    <input id="b_{name}" type="range" min="0" max="255" value="0" onchange="u_{name}()"/>
-</td></tr></tbody></table>
-<script lang="javascript">
-    const hex_chars = "0123456789ABCDEF";
-    function i2hex(name) {
-        var i = document.getElementById(name).value;
-        return hex_chars.substr(parseInt(i / 16), 1) + hex_chars.substr(parseInt(i % 16), 1)
-    }
-    function u_{name}() {
-        document.getElementById("{name}").value = "#"+i2hex("r_{name}")+i2hex("g_{name}")+i2hex("b_{name}");
-        document.getElementById("preview_{name}").style.background = document.getElementById("{name}").value;
-        updateJSONconf();
-    }
-    function hex2i(text) {
-        return hex_chars.indexOf(text.substr(0,1)) * 16 + hex_chars.indexOf(text.substr(1,1));
-    }
-    function v_{name}() {
-        var value = document.getElementById("{name}").value.toUpperCase();
-        document.getElementById("r_{name}").value = hex2i(value.substr(1,2));
-        document.getElementById("g_{name}").value = hex2i(value.substr(3,2));
-        document.getElementById("b_{name}").value = hex2i(value.substr(5,2));
-        document.getElementById("preview_{name}").style.background = document.getElementById("{name}").value;
-    }
-    v_{name}();
-</script>
-"""
-
 with DAG(
     dag_id=Path(__file__).stem,
     description=__doc__[0 : __doc__.find(".")],
@@ -212,11 +168,55 @@ with DAG(
                 <li><code>{name}</code>: Name of the HTML input field that is expected.</li>
                 <li><code>{value}</code>:
                     (Default) value that should be displayed when showing/loading the form.</li>
-                <li>Note: If you have elements changing a value, call <code>updateJSONconf()</code>.</li>
+                <li>Note: If you have elements changing a value, call <code>updateJSONconf()</code> to update
+                    the form data to be posted as <code>dag_run.conf</code>.</li>
             </ul>
             Example: <code>&lt;input name='{name}' value='{value}' onchange='updateJSONconf()' /&gt;</code>
             """,
-            custom_html_form=HTML_COLOR_PICKER_CUSTOM_CODE,
+            custom_html_form="""
+            <table width="100%" cellspacing="5"><tbody><tr><td>
+                <label for="r_{name}">Red:</label>
+            </td><td width="80%">
+                <input id="r_{name}" type="range" min="0" max="255" value="0" onchange="u_{name}()"/>
+            </td><td rowspan="3" style="padding-left: 10px;">
+                <div id="preview_{name}"
+                style="line-height: 40px; margin-bottom: 7px; width: 100%; background-color: {value};"
+                >&nbsp;</div>
+                <input class="form-control" type="text" maxlength="7" id="{name}" name="{name}"
+                value="{value}" onchange="v_{name}()" />
+            </td></tr><tr><td>
+                <label for="g_{name}">Green:</label>
+            </td><td>
+                <input id="g_{name}" type="range" min="0" max="255" value="0" onchange="u_{name}()"/>
+            </td></tr><tr><td>
+                <label for="b_{name}">Blue:</label>
+            </td><td>
+                <input id="b_{name}" type="range" min="0" max="255" value="0" onchange="u_{name}()"/>
+            </td></tr></tbody></table>
+            <script lang="javascript">
+                const hex_chars = "0123456789ABCDEF";
+                const dgebi = document.getElementById;
+                function i2hex(name) {
+                    var i = dgebi(name).value;
+                    return hex_chars.substr(parseInt(i / 16), 1) + hex_chars.substr(parseInt(i % 16), 1)
+                }
+                function u_{name}() {
+                    dgebi("{name}").value = "#"+i2hex("r_{name}")+i2hex("g_{name}")+i2hex("b_{name}");
+                    dgebi("preview_{name}").style.background = dgebi("{name}").value;
+                    updateJSONconf();
+                }
+                function hex2i(text) {
+                    return hex_chars.indexOf(text.substr(0,1)) * 16 + hex_chars.indexOf(text.substr(1,1));
+                }
+                function v_{name}() {
+                    var value = dgebi("{name}").value.toUpperCase();
+                    dgebi("r_{name}").value = hex2i(value.substr(1,2));
+                    dgebi("g_{name}").value = hex2i(value.substr(3,2));
+                    dgebi("b_{name}").value = hex2i(value.substr(5,2));
+                    dgebi("preview_{name}").style.background = dgebi("{name}").value;
+                }
+                v_{name}();
+            </script>""",
             section="Special advanced stuff with form fields",
         ),
     },
@@ -229,6 +229,6 @@ with DAG(
         if not dag_run.conf:
             print("Uups, no parameters supplied as DagRun.conf, was the trigger w/o form?")
             raise AirflowSkipException("No DagRun.conf parameters supplied.")
-        print(f"This DAG was triggert with the following parameters:\n{json.dumps(dag_run.conf, indent=4)}")
+        print(f"This DAG was triggered with the following parameters:\n{json.dumps(dag_run.conf, indent=4)}")
 
     show_params()

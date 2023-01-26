@@ -58,6 +58,7 @@ function updateJSONconf() {
           }
         } catch (e) {
           // ignore JSON parsing errors
+          // we don't want to bother users during entry, error will be displayed before submit
         }
       } else if (Number.isNaN(elements[i].value)) {
         params[keyName] = elements[i].value;
@@ -76,11 +77,11 @@ function updateJSONconf() {
  */
 function initForm() {
   const formSectionsElement = document.getElementById('form_sections');
-  const formWithFields = (formSectionsElement != null);
+  const formHasFields = (formSectionsElement != null);
 
   // Initialize the Generated JSON form or JSON entry form
   const minHeight = 300;
-  const maxHeight = (formWithFields ? window.innerHeight / 2 : window.innerHeight) - 550;
+  const maxHeight = (formHasFields ? window.innerHeight / 2 : window.innerHeight) - 550;
   const height = maxHeight > minHeight ? maxHeight : minHeight;
   jsonForm = CodeMirror.fromTextArea(document.getElementById('json'), {
     lineNumbers: true,
@@ -90,7 +91,7 @@ function initForm() {
   });
   jsonForm.setSize(null, height);
 
-  if (formWithFields) {
+  if (formHasFields) {
     // Apply JSON formatting and linting to all object fields in the form
     const elements = document.getElementById('trigger_form');
     for (let i = 0; i < elements.length; i += 1) {
@@ -103,18 +104,12 @@ function initForm() {
             gutters: ['CodeMirror-lint-markers'],
             lint: true,
           });
-          /* eslint-disable no-unused-vars */
-          field.on('blur', (cm, change) => { updateJSONconf(); });
-          /* eslint-enable no-unused-vars */
+          field.on('blur', updateJSONconf);
           objectFields.set(elements[i].name, field);
         } else if (elements[i].type === 'checkbox') {
-          elements[i].addEventListener('change', () => {
-            updateJSONconf();
-          });
+          elements[i].addEventListener('change', updateJSONconf);
         } else {
-          elements[i].addEventListener('blur', () => {
-            updateJSONconf();
-          });
+          elements[i].addEventListener('blur', updateJSONconf);
         }
       }
     }
@@ -154,15 +149,11 @@ function initForm() {
 
     // Ensure layout is refreshed on generated JSON as well
     document.getElementById('generated_json_toggle').addEventListener('click', () => {
-      setTimeout(() => {
-        jsonForm.refresh();
-      }, 300);
+      setTimeout(jsonForm.refresh, 300);
     });
 
     // Update generated conf once
-    setTimeout(() => {
-      updateJSONconf();
-    }, 100);
+    setTimeout(updateJSONconf, 100);
   }
 }
 initForm();
