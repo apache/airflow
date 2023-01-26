@@ -22,7 +22,7 @@
 SqliteOperator
 ==============
 
-Use the :class:`~airflow.providers.sqlite.operators.SqliteOperator` to execute
+Use the :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` to execute
 Sqlite commands in a `Sqlite <https://sqlite.org/lang.html>`__ database.
 
 

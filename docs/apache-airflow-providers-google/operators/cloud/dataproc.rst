@@ -75,6 +75,14 @@ With this configuration we can create the cluster:
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
 
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_cluster_operator_async]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_operator_async]
+
 Generating Cluster Config
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 You can also generate **CLUSTER_CONFIG** using functional API,
@@ -110,6 +118,14 @@ To update a cluster you can use:
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_update_cluster_operator]
+
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_update_cluster_operator_async]
+    :end-before: [END how_to_cloud_dataproc_update_cluster_operator_async]
 
 Deleting a cluster
 ------------------
@@ -279,6 +295,16 @@ After Cluster was created you should add it to the Batch configuration.
     :start-after: [START how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
     :end-before: [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
 
+To check if operation succeeded you can use
+
+:class:`~airflow.providers.google.cloud.sensors.dataproc.DataprocBatchSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_batch_async_sensor]
+    :end-before: [END how_to_cloud_dataproc_batch_async_sensor]
+
 Get a Batch
 -----------
 
@@ -314,6 +340,18 @@ To delete a batch you can use:
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_delete_batch_operator]
     :end-before: [END how_to_cloud_dataproc_delete_batch_operator]
+
+Cancel a Batch Operation
+------------------------
+
+To cancel a operation you can use:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocCancelOperationOperator``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_cancel_operation_operator]
+    :end-before: [END how_to_cloud_dataproc_cancel_operation_operator]
 
 References
 ^^^^^^^^^^

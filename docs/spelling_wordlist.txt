@@ -1,3 +1,4 @@
+aarch
 abc
 accessor
 accountmaking
@@ -122,6 +123,7 @@ backfill
 backfillable
 backfilled
 backfilling
+backfilljob
 BackfillJobTest
 Backfills
 backfills
@@ -153,6 +155,7 @@ Beauchemin
 Behaviour
 behaviour
 behaviours
+BestCandidate
 Bigquery
 bigquery
 BigQueryHook
@@ -335,6 +338,7 @@ dat
 Databricks
 databricks
 datacenter
+dataclass
 Datadog
 datadog
 Dataflow
@@ -344,6 +348,9 @@ DataFrame
 Dataframe
 dataframe
 dataframes
+DataFusion
+Datafusion
+datafusion
 Datalake
 Datanodes
 datapipe
@@ -389,6 +396,7 @@ Decrypt
 decrypt
 decrypted
 Decrypts
+dedented
 deduplicate
 deduplication
 deepcopy
@@ -404,6 +412,7 @@ DependencyMixin
 deploymentUrl
 Deprecations
 deps
+deques
 deregister
 desc
 deserialization
@@ -564,6 +573,8 @@ Firestore
 firestore
 firstname
 Flink
+flink
+flinkDeployment
 FluentD
 fluentd
 fmt
@@ -633,6 +644,7 @@ Grpc
 gRPC
 grpc
 GSoD
+gsuite
 Gunicorn
 gz
 Gzip
@@ -747,6 +759,7 @@ IRSA
 isfile
 ish
 isn
+isort
 iterable
 iterables
 iteratively
@@ -849,8 +862,11 @@ LineItem
 lineterminator
 linter
 linux
+ListColumnSpecsPager
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
+ListTableSpecsPager
 Liveness
 liveness
 livy
@@ -1258,11 +1274,13 @@ schedulable
 schedulername
 schemas
 sdk
+sdks
 searchpath
 SearchResultGenerator
 SecretManagerClient
 secretRef
 secretRefs
+SecretsManagerBackend
 securable
 securecookie
 securestring
@@ -1350,7 +1368,7 @@ ssm
 Stackdriver
 stackdriver
 stacktrace
-Standarization
+StartManualTransferRunsResponse
 starttls
 StatefulSet
 StatefulSets
@@ -1417,6 +1435,7 @@ symlink
 symlinking
 symlinks
 sync'ed
+SynthesizeSpeechResponse
 sys
 syspath
 Systemd
@@ -1488,6 +1507,8 @@ tooltip
 tooltips
 traceback
 tracebacks
+TransferConfig
+TransferRun
 travis
 triage
 triaging

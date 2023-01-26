@@ -1324,7 +1324,10 @@ class TestDag:
             dag.handle_callback(dag_run, success=False)
             dag.handle_callback(dag_run, success=True)
 
-        mock_stats.incr.assert_called_with("dag.callback_exceptions")
+        mock_stats.incr.assert_called_with(
+            "dag.callback_exceptions",
+            tags={"dag_id": "test_dag_callback_crash", "run_id": "manual__2015-01-02T00:00:00+00:00"},
+        )
 
         dag.clear()
         self._clean_up(dag_id)
@@ -3147,3 +3150,23 @@ def test_dag_uses_timetable_for_run_id(session):
     )
 
     assert dag_run.run_id == "abc"
+
+
+@pytest.mark.parametrize(
+    "run_id_type",
+    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.DATASET_TRIGGERED],
+)
+def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
+    dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
+    run_id = run_id_type.generate_run_id(DEFAULT_DATE)
+    with pytest.raises(ValueError) as ctx:
+        dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=DagRunState.QUEUED,
+        )
+    assert str(ctx.value) == (
+        f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
+    )

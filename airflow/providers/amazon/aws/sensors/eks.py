@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
@@ -98,13 +99,15 @@ class EksClusterStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context: Context):
-        eks_hook = EksHook(
+    @cached_property
+    def hook(self):
+        return EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        cluster_state = eks_hook.get_cluster_state(clusterName=self.cluster_name)
+    def poke(self, context: Context):
+        cluster_state = self.hook.get_cluster_state(clusterName=self.cluster_name)
         self.log.info("Cluster state: %s", cluster_state)
         if cluster_state in (CLUSTER_TERMINAL_STATES - {self.target_state}):
             # If we reach a terminal state which is not the target state:
@@ -167,13 +170,15 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context: Context):
-        eks_hook = EksHook(
+    @cached_property
+    def hook(self):
+        return EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        fargate_profile_state = eks_hook.get_fargate_profile_state(
+    def poke(self, context: Context):
+        fargate_profile_state = self.hook.get_fargate_profile_state(
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
         self.log.info("Fargate profile state: %s", fargate_profile_state)
@@ -238,13 +243,15 @@ class EksNodegroupStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context: Context):
-        eks_hook = EksHook(
+    @cached_property
+    def hook(self):
+        return EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        nodegroup_state = eks_hook.get_nodegroup_state(
+    def poke(self, context: Context):
+        nodegroup_state = self.hook.get_nodegroup_state(
             clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
         )
         self.log.info("Nodegroup state: %s", nodegroup_state)

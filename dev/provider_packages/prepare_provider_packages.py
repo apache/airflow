@@ -41,15 +41,14 @@ from os.path import dirname, relpath
 from pathlib import Path
 from random import choice
 from shutil import copyfile
-from typing import Any, Generator, Iterable, NamedTuple, Union
+from typing import Any, Generator, Iterable, NamedTuple
 
 import jsonschema
 import rich_click as click
 import semver as semver
-from github import Github, Issue, PullRequest, UnknownObjectException
+from black import Mode, TargetVersion, format_str, parse_pyproject_toml
 from packaging.version import Version
 from rich.console import Console
-from rich.progress import Progress
 from rich.syntax import Syntax
 from yaml import safe_load
 
@@ -126,6 +125,12 @@ PY3 = sys.version_info[0] == 3
 console = Console(width=400, color_system="standard")
 
 
+class PluginInfo(NamedTuple):
+    name: str
+    package_name: str
+    class_name: str
+
+
 class ProviderPackageDetails(NamedTuple):
     provider_package_id: str
     full_package_name: str
@@ -135,6 +140,7 @@ class ProviderPackageDetails(NamedTuple):
     provider_description: str
     versions: list[str]
     excluded_python_versions: list[str]
+    plugins: list[PluginInfo]
 
 
 class EntityType(Enum):
@@ -1016,6 +1022,17 @@ def get_all_changes_for_package(
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
+    plugins: list[PluginInfo] = []
+    if "plugins" in provider_info:
+        for plugin in provider_info["plugins"]:
+            package_name, class_name = plugin["plugin-class"].rsplit(".", maxsplit=1)
+            plugins.append(
+                PluginInfo(
+                    name=plugin["name"],
+                    package_name=package_name,
+                    class_name=class_name,
+                )
+            )
     return ProviderPackageDetails(
         provider_package_id=provider_package_id,
         full_package_name=f"airflow.providers.{provider_package_id}",
@@ -1025,6 +1042,7 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
         provider_description=provider_info["description"],
         versions=provider_info["versions"],
         excluded_python_versions=provider_info.get("excluded-python-versions") or [],
+        plugins=plugins,
     )
 
 
@@ -1101,6 +1119,7 @@ def get_provider_jinja_context(
         "CHANGELOG": changelog,
         "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
         "PYTHON_REQUIRES": python_requires,
+        "PLUGINS": provider_details.plugins,
     }
     return context
 
@@ -1110,7 +1129,7 @@ def prepare_readme_file(context):
         template_name="PROVIDER_README", context=context, extension=".rst"
     )
     readme_file_path = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.rst")
-    with open(readme_file_path, "wt") as readme_file:
+    with open(readme_file_path, "w") as readme_file:
         readme_file.write(readme_content)
 
 
@@ -1182,7 +1201,7 @@ def mark_latest_changes_as_documentation_only(provider_package_id: str, latest_c
         "as doc-only changes!"
     )
     with open(
-        os.path.join(provider_details.source_provider_package_path, ".latest-doc-only-change.txt"), "tw"
+        os.path.join(provider_details.source_provider_package_path, ".latest-doc-only-change.txt"), "w"
     ) as f:
         f.write(latest_change.full_hash + "\n")
         # exit code 66 marks doc-only change marked
@@ -1311,7 +1330,7 @@ def replace_content(file_path, old_text, new_text, provider_package_id):
         try:
             if os.path.isfile(file_path):
                 copyfile(file_path, temp_file_path)
-            with open(file_path, "wt") as readme_file:
+            with open(file_path, "w") as readme_file:
                 readme_file.write(new_text)
             console.print()
             console.print(f"Generated {file_path} file for the {provider_package_id} provider")
@@ -1369,29 +1388,16 @@ def update_commits_rst(
 
 
 @lru_cache(maxsize=None)
-def black_mode():
-    from black import Mode, parse_pyproject_toml, target_version_option_callback
-
+def black_mode() -> Mode:
     config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT_PATH, "pyproject.toml"))
-
-    target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
-    )
-
+    target_versions = {TargetVersion[val.upper()] for val in config.get("target_version", ())}
     return Mode(
         target_versions=target_versions,
         line_length=config.get("line_length", Mode.line_length),
-        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
-        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
-        experimental_string_processing=bool(
-            config.get("experimental_string_processing", Mode.experimental_string_processing)
-        ),
     )
 
 
 def black_format(content) -> str:
-    from black import format_str
-
     return format_str(content, mode=black_mode())
 
 
@@ -1401,7 +1407,7 @@ def prepare_setup_py_file(context):
     setup_py_content = render_template(
         template_name=setup_py_template_name, context=context, extension=".py", autoescape=False
     )
-    with open(setup_py_file_path, "wt") as setup_py_file:
+    with open(setup_py_file_path, "w") as setup_py_file:
         setup_py_file.write(black_format(setup_py_content))
 
 
@@ -1415,7 +1421,7 @@ def prepare_setup_cfg_file(context):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(setup_cfg_file_path, "wt") as setup_cfg_file:
+    with open(setup_cfg_file_path, "w") as setup_cfg_file:
         setup_cfg_file.write(setup_cfg_content)
 
 
@@ -1434,7 +1440,7 @@ def prepare_get_provider_info_py_file(context, provider_package_id: str):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(get_provider_file_path, "wt") as get_provider_file:
+    with open(get_provider_file_path, "w") as get_provider_file:
         get_provider_file.write(black_format(get_provider_content))
 
 
@@ -1447,7 +1453,7 @@ def prepare_manifest_in_file(context):
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(target, "wt") as fh:
+    with open(target, "w") as fh:
         fh.write(content)
 
 
@@ -1840,7 +1846,7 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
         console.print(
             f"[green]Appending the provider {package_id} changelog for `{latest_version}` version.[/]"
         )
-    with open(changelog_path, "wt") as changelog:
+    with open(changelog_path, "w") as changelog:
         changelog.write("\n".join(new_changelog_lines))
         changelog.write("\n")
 
@@ -1868,166 +1874,6 @@ def update_changelogs(changelog_files: list[str], git_update: bool, base_branch:
     for changelog_file in changelog_files:
         package_id = get_package_from_changelog(changelog_file)
         _update_changelog(package_id=package_id, base_branch=base_branch, verbose=verbose)
-
-
-def get_prs_for_package(package_id: str) -> list[int]:
-    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
-    verify_provider_package(package_id)
-    changelog_path = verify_changelog_exists(package_id)
-    provider_details = get_provider_details(package_id)
-    current_release_version = provider_details.versions[0]
-    prs = []
-    with open(changelog_path) as changelog_file:
-        changelog_lines = changelog_file.readlines()
-        extract_prs = False
-        skip_line = False
-        for line in changelog_lines:
-            if skip_line:
-                # Skip first "....." header
-                skip_line = False
-                continue
-            if line.strip() == current_release_version:
-                extract_prs = True
-                skip_line = True
-                continue
-            if extract_prs:
-                if len(line) > 1 and all(c == "." for c in line.strip()):
-                    # Header for next version reached
-                    break
-                if line.startswith(".. Below changes are excluded from the changelog"):
-                    # The reminder of PRs is not important skipping it
-                    break
-                match_result = pr_matcher.match(line.strip())
-                if match_result:
-                    prs.append(int(match_result.group(1)))
-    return prs
-
-
-PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
-
-
-class ProviderPRInfo(NamedTuple):
-    provider_details: ProviderPackageDetails
-    pr_list: list[PullRequestOrIssue]
-
-
-def is_package_in_dist(dist_files: list[str], package: str) -> bool:
-    """Check if package has been prepared in dist folder."""
-    for file in dist_files:
-        if file.startswith(f'apache_airflow_providers_{package.replace(".","_")}') or file.startswith(
-            f'apache-airflow-providers-{package.replace(".","-")}'
-        ):
-            return True
-    return False
-
-
-@cli.command()
-@click.option(
-    "--github-token",
-    envvar="GITHUB_TOKEN",
-    help=textwrap.dedent(
-        """
-      GitHub token used to authenticate.
-      You can set omit it if you have GITHUB_TOKEN env variable set.
-      Can be generated with:
-      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
-    ),
-)
-@click.option("--suffix", default="rc1")
-@click.option(
-    "--only-available-in-dist",
-    is_flag=True,
-    help="Only consider package ids with packages prepared in the dist folder",
-)
-@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
-@argument_package_ids
-def generate_issue_content(
-    package_ids: list[str],
-    github_token: str,
-    suffix: str,
-    only_available_in_dist: bool,
-    excluded_pr_list: str,
-):
-    if not package_ids:
-        package_ids = get_all_providers()
-    """Generates content for issue to test the release."""
-    with with_group("Generates GitHub issue content with people who can test it"):
-        if excluded_pr_list:
-            excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
-        else:
-            excluded_prs = []
-        all_prs: set[int] = set()
-        provider_prs: dict[str, list[int]] = {}
-        if only_available_in_dist:
-            files_in_dist = os.listdir(str(DIST_PATH))
-        prepared_package_ids = []
-        for package_id in package_ids:
-            if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
-                console.print(f"Extracting PRs for provider {package_id}")
-                prepared_package_ids.append(package_id)
-            else:
-                console.print(f"Skipping extracting PRs for provider {package_id} as it is missing in dist")
-                continue
-            prs = get_prs_for_package(package_id)
-            provider_prs[package_id] = list(filter(lambda pr: pr not in excluded_prs, prs))
-            all_prs.update(provider_prs[package_id])
-        g = Github(github_token)
-        repo = g.get_repo("apache/airflow")
-        pull_requests: dict[int, PullRequestOrIssue] = {}
-        with Progress(console=console) as progress:
-            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
-            pr_list = list(all_prs)
-            for i in range(len(pr_list)):
-                pr_number = pr_list[i]
-                progress.console.print(
-                    f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
-                )
-                try:
-                    pull_requests[pr_number] = repo.get_pull(pr_number)
-                except UnknownObjectException:
-                    # Fallback to issue if PR not found
-                    try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
-                    except UnknownObjectException:
-                        console.print(f"[red]The PR #{pr_number} could not be found[/]")
-                progress.advance(task)
-        interesting_providers: dict[str, ProviderPRInfo] = {}
-        non_interesting_providers: dict[str, ProviderPRInfo] = {}
-        for package_id in prepared_package_ids:
-            pull_request_list = [pull_requests[pr] for pr in provider_prs[package_id] if pr in pull_requests]
-            provider_details = get_provider_details(package_id)
-            if pull_request_list:
-                interesting_providers[package_id] = ProviderPRInfo(provider_details, pull_request_list)
-            else:
-                non_interesting_providers[package_id] = ProviderPRInfo(provider_details, pull_request_list)
-        context = {
-            "interesting_providers": interesting_providers,
-            "date": datetime.now(),
-            "suffix": suffix,
-            "non_interesting_providers": non_interesting_providers,
-        }
-        issue_content = render_template(template_name="PROVIDER_ISSUE", context=context, extension=".md")
-        console.print()
-        console.print(
-            "[green]Below you can find the issue content that you can use "
-            "to ask contributor to test providers![/]"
-        )
-        console.print()
-        console.print()
-        console.print(
-            "Issue title: [yellow]Status of testing Providers that were "
-            f"prepared on { datetime.now().strftime('%B %d, %Y') }[/]"
-        )
-        console.print()
-        syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
-        console.print(syntax)
-        console.print()
-        users: set[str] = set()
-        for provider_info in interesting_providers.values():
-            for pr in provider_info.pr_list:
-                users.add("@" + pr.user.login)
-        console.print("All users involved in the PRs:")
-        console.print(" ".join(users))
 
 
 if __name__ == "__main__":

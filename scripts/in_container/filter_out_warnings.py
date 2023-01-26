@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import fileinput
+import sys
 
 suppress = False
 
@@ -29,3 +30,4 @@ for line in fileinput.input():
         suppress = False
     if not suppress:
         print(line, end="")
+        sys.stdout.flush()
