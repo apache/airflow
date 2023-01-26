@@ -46,6 +46,9 @@ here so that users affected can find the reason for the changes.
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 | Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request                         |
 +==============+=====================+=========================================+========================+==============================================+
+| 26 Jan 2023  | 2.5.1               | * Snoflake provider installed by        | Added the Snowflake    | https://github.com/apache/airflow/pull/29171 |
+|              |                     |   default                               | provider to the image  |                                              |
++--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 | 17 June 2022 | 2.2.5               | * The ``Authlib`` library downgraded    | Flask App Builder      | https://github.com/apache/airflow/pull/24516 |
 |              |                     |   from 1.0.1 to 0.15.5 version          | not compatible with    |                                              |
 |              | 2.3.0-2.3.2         |                                         | Authlib >= 1.0.0       |                                              |
