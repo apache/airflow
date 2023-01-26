@@ -102,6 +102,7 @@ with DAG(
         query=query_create_database,
         database=athena_database,
         output_location=f"s3://{s3_bucket}/",
+        sleep_time=1,
     )
 
     create_table = AthenaOperator(
@@ -109,6 +110,7 @@ with DAG(
         query=query_create_table,
         database=athena_database,
         output_location=f"s3://{s3_bucket}/",
+        sleep_time=1,
     )
 
     # [START howto_operator_athena]
@@ -117,6 +119,7 @@ with DAG(
         query=query_read_table,
         database=athena_database,
         output_location=f"s3://{s3_bucket}/",
+        sleep_time=1,
     )
     # [END howto_operator_athena]
 
@@ -133,6 +136,7 @@ with DAG(
         database=athena_database,
         output_location=f"s3://{s3_bucket}/",
         trigger_rule=TriggerRule.ALL_DONE,
+        sleep_time=1,
     )
 
     drop_database = AthenaOperator(
@@ -141,6 +145,7 @@ with DAG(
         database=athena_database,
         output_location=f"s3://{s3_bucket}/",
         trigger_rule=TriggerRule.ALL_DONE,
+        sleep_time=1,
     )
 
     delete_s3_bucket = S3DeleteBucketOperator(

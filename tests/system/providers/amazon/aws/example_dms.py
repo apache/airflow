@@ -352,6 +352,7 @@ with DAG(
         replication_task_arn=task_arn,
         target_statuses=["running"],
         termination_statuses=["stopped", "deleting", "failed"],
+        poke_interval=10,
     )
 
     # [START howto_operator_dms_stop_task]
@@ -366,6 +367,7 @@ with DAG(
     await_task_stop = DmsTaskCompletedSensor(
         task_id="await_task_stop",
         replication_task_arn=task_arn,
+        poke_interval=10,
     )
     # [END howto_sensor_dms_task_completed]
 
