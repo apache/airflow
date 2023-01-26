@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import subprocess
@@ -29,6 +28,7 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.operators.python import get_current_context
+from airflow.providers.amazon.aws.hooks.ecr import EcrHook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -136,11 +136,8 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
       - Has our data preprocessing script mounted and set as the entry point
     """
     ecr_region = repository_uri.split(".")[3]
-
-    # Fetch and parse ECR Token to be used for the docker push
-    token = boto3.client("ecr", region_name=ecr_region).get_authorization_token()
-    credentials = (base64.b64decode(token["authorizationData"][0]["authorizationToken"])).decode("utf-8")
-    username, password = credentials.split(":")
+    # Fetch ECR Token to be used for docker
+    creds = EcrHook(region_name=ecr_region).get_temporary_credentials()[0]
 
     with NamedTemporaryFile(mode="w+t") as preprocessing_script, NamedTemporaryFile(mode="w+t") as dockerfile:
         preprocessing_script.write(preprocess_script)
@@ -148,7 +145,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         dockerfile.write(
             f"""
-            FROM amazonlinux
+            FROM public.ecr.aws/amazonlinux/amazonlinux
             COPY {preprocessing_script.name.split('/')[2]} /preprocessing.py
             ADD credentials /credentials
             ENV AWS_SHARED_CREDENTIALS_FILE=/credentials
@@ -161,10 +158,14 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         docker_build_and_push_commands = f"""
             cp /root/.aws/credentials /tmp/credentials &&
+            # login to public ecr repo containing amazonlinux image
+            docker login --username {creds.username} --password {creds.password} public.ecr.aws
             docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
             rm /tmp/credentials &&
+
+            # login again, this time to the private repo we created to hold that specific image
             aws ecr get-login-password --region {ecr_region} |
-            docker login --username {username} --password {password} {repository_uri} &&
+            docker login --username {creds.username} --password {creds.password} {repository_uri} &&
             docker push {repository_uri}
             """
         docker_build = subprocess.Popen(
@@ -176,8 +177,8 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         _, stderr = docker_build.communicate()
         if docker_build.returncode != 0:
             raise RuntimeError(
-                "Failed to push docker image to the repository.  The following error "
-                f"message may be useful, but can occasionally be misleading: {stderr}"
+                "Failed to prepare docker image for the preprocessing job.\n"
+                f"The following error happened while executing the sequence of bash commands:\n{stderr}"
             )
 
 
