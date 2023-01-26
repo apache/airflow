@@ -21,17 +21,14 @@ Logging for Tasks
 =================
 
 Airflow writes logs for tasks in a way that allows you to see the logs for each task separately in the Airflow UI.
-Core Airflow implements writing and serving logs locally. However, you can also write logs to remote
-services via community providers, or write your own loggers.
-
-Below we describe the local task logging, the Apache Airflow Community also releases providers for many
+Core Airflow provides an interface FileTaskHandler, which writes task logs to file, and includes a mechanism to serve them from workers while tasks are running. The Apache Airflow Community also releases providers for many
 services (:doc:`apache-airflow-providers:index`) and some of them provide handlers that extend the logging
 capability of Apache Airflow. You can see all of these providers in :doc:`apache-airflow-providers:core-extensions/logging`.
 
-Writing logs Locally
---------------------
+Configuring logging
+-------------------
 
-You can specify the directory to place log files in ``airflow.cfg`` using
+For the default handler, FileTaskHandler, you can specify the directory to place log files in ``airflow.cfg`` using
 ``base_log_folder``. By default, logs are placed in the ``AIRFLOW_HOME``
 directory.
 
@@ -47,11 +44,14 @@ These patterns can be adjusted by :ref:`config:logging__log_filename_template`.
 
 In addition, you can supply a remote location to store current logs and backups.
 
-In the Airflow UI, remote logs take precedence over local logs when remote logging is enabled. If remote logs
-can not be found or accessed, local logs will be displayed. Note that logs
-are only sent to remote storage once a task is complete (including failure). In other words, remote logs for
-running tasks are unavailable (but local logs are available).
+Interleaving of logs
+--------------------
 
+Airflow's remote task logging handlers can broadly be separated into two categories: streaming handlers (such as ElasticSearch, AWS Cloudwatch, and GCP operations logging, formerly stackdriver) and blob storage handlers (e.g. S3, GCS, WASB).
+
+For blob storage handlers, depending on the state of the task, logs could be in a lot of different places and in multiple different files.  For this reason, we need to check all locations and interleave what we find.  To do this we need to be able to parse the timestamp for each line.  If you are using a custom formatter you may need to override the default parser by providing a callable name at Airflow setting ``logging > interleave_timestamp_parser``.
+
+For streaming handlers, no matter the task phase or location of execution, all log messages can be sent to the logging service with the same identifier so generally speaking there isn't a need to check multiple sources and interleave.
 
 Troubleshooting
 ---------------
@@ -122,15 +122,17 @@ When using remote logging, you can configure Airflow to show a link to an extern
 
 Some external systems require specific configuration in Airflow for redirection to work but others do not.
 
-Serving logs from workers
--------------------------
+Serving logs from workers and triggerer
+---------------------------------------
 
-Most task handlers send logs upon completion of a task. In order to view logs in real time, Airflow automatically starts an HTTP server to serve the logs in the following cases:
+Most task handlers send logs upon completion of a task. In order to view logs in real time, Airflow starts an HTTP server to serve the logs in the following cases:
 
 - If ``SequentialExecutor`` or ``LocalExecutor`` is used, then when ``airflow scheduler`` is running.
 - If ``CeleryExecutor`` is used, then when ``airflow worker`` is running.
 
-The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section. By default, it is ``8793``.
+In triggerer, logs are served unless the service is started with option ``--skip-serve-logs``.
+
+The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section, and option ``triggerer_log_server_port`` for triggerer.  Defaults are 8793 and 8794, respectively.
 Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``[webserver]`` section. You must ensure that the key matches so that communication can take place without problems.
 
 We are using `Gunicorn <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__.
