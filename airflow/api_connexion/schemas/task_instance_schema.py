@@ -49,7 +49,6 @@ class TaskInstanceSchema(SQLAlchemySchema):
     start_date = auto_field()
     end_date = auto_field()
     duration = auto_field()
-    updated_at = auto_field()
     state = TaskInstanceStateField()
     _try_number = auto_field(data_key="try_number")
     max_tries = auto_field()
