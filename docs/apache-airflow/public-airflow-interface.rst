@@ -245,24 +245,17 @@ Executors are the mechanism by which task instances get run. All executors are
 derived from :class:`~airflow.executors.base_executor.BaseExecutor`. There are several
 executor implementations built-in Airflow, each with its own unique characteristics and capabilities.
 
-Airflow has a set of Executors that are considered public. You are free to extend their functionality
-by extending them:
-
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
-
-  _api/airflow/executors/index
+The executor interface itself (the BaseExecutor class) is public, but the built-in executors are not (i.e. KubernetesExecutor, LocalExecutor, etc).  This means that, to use KubernetesExecutor as an example, we may make changes to KubernetesExecutor in minor or patch Airflow releases which could break an executor that subclasses KubernetesExecutor.  This is necessary to allow Airflow developers sufficient freedom to continue to improve the executors we offer.  Accordingly if you want to modify or extend a built-in executor, you should incorporate the full executor code into your project so that such changes will not break your derivative executor.
 
 You can read more about executors in :doc:`core-concepts/executor/index`.
 
 .. versionadded:: 2.6
 
-  Executor interface was available in earlier version of Airflow but only as of version 2.6 executors are
-  fully decoupled and Airflow does not rely on built-in set of executors.
-  You could have implemented (and succeeded) with implementing Executors before Airflow 2.6 and a number
-  of people succeeded in doing so, but there were some hard-coded behaviours that preferred in-built
+  The executor interface has been present in Airflow for quite some time but prior to 2.6, there was executor-specific
+  code elsewhere in the codebase.  As of version 2.6 executors are fully decoupled, in the sense that Airflow core no
+  longer needs to know about the behavior of specific executors.
+  You could have succeeded with implementing a custom executor before Airflow 2.6, and a number
+  of people did, but there were some hard-coded behaviours that preferred in-built
   executors, and custom executors could not provide full functionality that built-in executors had.
 
 Secrets Backends
