@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from botocore.exceptions import ClientError
-
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -49,8 +47,8 @@ class DynamoDBValueSensor(BaseSensorOperator):
         attribute_value: str,
         sort_key_name: Optional[str] = None,
         sort_key_value: Optional[str] = None,
-        aws_conn_id: str = "aws_default",
-        **kwargs,
+        aws_conn_id: str | None = DynamoDBHook.default_conn_name,
+        **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self.table_name = table_name
@@ -61,25 +59,25 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.sort_key_name = sort_key_name
         self.sort_key_value = sort_key_value
         self.aws_conn_id = aws_conn_id
-        self.hook = DynamoDBHook(aws_conn_id=self.aws_conn_id)
-        self.table = self.hook.get_conn().Table(table_name)
 
     def poke(self, context: Context) -> bool:
         """Test DynamoDB item for matching attribute value"""
-        try:
-            key = {self.partition_key_name: self.partition_key_value}
-            msg = f"Checking table {self.table_name} for item PK: {self.partition_key_name}={self.partition_key_value}"
+        key = {self.partition_key_name: self.partition_key_value}
+        msg = f"Checking table {self.table_name} for item Partition Key: {self.partition_key_name}={self.partition_key_value}"
 
-            if self.sort_key_value:
-                key[self.sort_key_name] = self.sort_key_value
-                msg += f" SK: {self.sort_key_name}={self.sort_key_value}"
+        if self.sort_key_value:
+            key[self.sort_key_name] = self.sort_key_value
+            msg += f" Sort Key: {self.sort_key_name}={self.sort_key_value}"
 
-            msg += f" attribute: {self.attribute_name}={self.attribute_value}"
+        msg += f" attribute: {self.attribute_name}={self.attribute_value}"
 
-            self.log.info(msg)
-            response = self.table.get_item(Key=key)
-            self.log.info(f"Response: {response}")
-            return response["Item"][self.attribute_name] == self.attribute_value
-        except ClientError as ex:
-            self.log.error('AWS request failed, check logs for more info: %s', ex)
-            return False
+        self.log.info(msg)
+        table = self.hook.get_conn().Table(self.table_name)
+        response = table.get_item(Key=key)
+        self.log.info(f"Response: {response}")
+        return response["Item"][self.attribute_name] == self.attribute_value
+
+    @cached_property
+    def hook(self) -> DynamoDBHook:
+        """Create and return a DynamoDBHook"""
+        return DynamoDBHook(self.aws_conn_id)
