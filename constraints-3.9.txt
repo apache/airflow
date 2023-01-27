@@ -445,7 +445,7 @@ prison==0.2.1
 prometheus-client==0.15.0
 prompt-toolkit==3.0.36
 proto-plus==1.19.6
-protobuf==3.20.0
+protobuf==3.20.3
 psutil==5.9.4
 psycopg2-binary==2.9.5
 psycopg2==2.9.5
