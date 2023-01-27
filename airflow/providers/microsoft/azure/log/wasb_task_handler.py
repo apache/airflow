@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import HttpResponseError
 
@@ -79,6 +79,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.
+        if TYPE_CHECKING:
+            assert self.handler is not None
+
         full_path = self.handler.baseFilename
         self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)

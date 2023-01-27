@@ -264,6 +264,7 @@ def _run_task_by_local_task_job(args, ti) -> TaskReturnCode | None:
             logging.shutdown()
     with suppress(ValueError):
         return TaskReturnCode(ret)
+    return None
 
 
 RAW_TASK_UNSUPPORTED_OPTION = [

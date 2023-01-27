@@ -155,7 +155,7 @@ class LocalTaskJob(BaseJob):
             external_executor_id=self.external_executor_id,
         ):
             self.log.info("Task is not able to be run")
-            return
+            return None
 
         return_code = None
         try:
