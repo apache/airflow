@@ -363,6 +363,6 @@ def test_process_form_invalid_extra_removed(admin_client):
 
     assert resp.status_code == 200
     with create_session() as session:
-        conn = session.query(Connection).get(1)
+        conn = session.get(Connection, 1)
 
     assert conn.extra == '{"foo": "bar"}'
