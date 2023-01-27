@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 from azure.common import AzureHttpError
@@ -100,8 +99,7 @@ class TestWasbTaskHandler:
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_read(self, mock_hook_cls, ti):
         mock_hook = mock_hook_cls.return_value
-        m = MagicMock(name="hello")
-        mock_hook.get_blobs_list.return_value = [m]
+        mock_hook.get_blobs_list.return_value = ["abc/hello.log"]
         mock_hook.read_file.return_value = "Log line"
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
         assert self.wasb_task_handler.read(ti) == (
@@ -109,9 +107,7 @@ class TestWasbTaskHandler:
                 [
                     (
                         "localhost",
-                        "*** Found remote logs:\n"
-                        "***   * wasb://wasb-container/<MagicMock name='hello' id='4947001104'>\n"
-                        "Log line",
+                        "*** Found remote logs:\n" "***   * wasb://wasb-container/abc/hello.log\n" "Log line",
                     )
                 ]
             ],
