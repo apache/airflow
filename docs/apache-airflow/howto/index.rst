@@ -32,7 +32,7 @@ configuring an Airflow environment.
     Using the CLI <usage-cli>
     add-dag-tags
     add-owner-links
-    notification
+    notifications
     set-config
     set-up-database
     operator/index
