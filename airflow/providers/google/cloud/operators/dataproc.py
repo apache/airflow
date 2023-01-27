@@ -2293,10 +2293,10 @@ class DataprocCreateBatchOperator(BaseOperator):
                     batch_id=self.batch_id,
                     region=self.region,
                     project_id=self.project_id,
-                    wait_time_interval=10,
                     retry=self.retry,
                     timeout=self.timeout,
                     metadata=self.metadata,
+                    wait_check_interval=self.wait_check_interval,
                 )
         # It is possible we don't have a result in the case where batch_id was not provide, one was generated
         # by chance, AlreadyExists was caught, but we can't reattach because we don't have the generated id

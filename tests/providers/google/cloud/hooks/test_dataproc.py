@@ -423,11 +423,11 @@ class TestDataprocHook:
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch"))
     def test_wait_for_batch(self, mock_batch):
         mock_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
-        self.hook.wait_for_batch(
+        result: Batch = self.hook.wait_for_batch(
             batch_id=BATCH_ID,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            wait_time_interval=1,
+            wait_check_interval=1,
             retry=DEFAULT,
             timeout=None,
             metadata=(),
@@ -440,6 +440,7 @@ class TestDataprocHook:
             timeout=None,
             metadata=(),
         )
+        assert result.state == Batch.State.SUCCEEDED
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch_client"))
     def test_delete_batch(self, mock_client):

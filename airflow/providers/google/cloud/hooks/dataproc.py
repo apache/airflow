@@ -991,7 +991,7 @@ class DataprocHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        wait_time_interval: int = 10,
+        wait_check_interval: int = 10,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -1009,7 +1009,7 @@ class DataprocHook(GoogleBaseHook):
             This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
-        :param wait_time_interval: The amount of time to pause between checks for completion
+        :param wait_check_interval: The amount of time to pause between checks for job completion
         :param retry: A retry object used to retry requests to get_batch.
             If ``None`` is specified, requests will not be retried.
         :param timeout: The amount of time, in seconds, to wait for the create_batch request to complete.
@@ -1025,6 +1025,9 @@ class DataprocHook(GoogleBaseHook):
             Batch.State.STATE_UNSPECIFIED,
         ]:
             try:
+                if not first_loop:
+                    time.sleep(wait_check_interval)
+                first_loop = False
                 self.log.debug("Waiting for batch %s", batch_id)
                 result = self.get_batch(
                     batch_id=batch_id,
@@ -1041,9 +1044,6 @@ class DataprocHook(GoogleBaseHook):
                     batch_id,
                     err,
                 )
-            if not first_loop:
-                time.sleep(wait_time_interval)
-                first_loop = False
 
         return result
 
