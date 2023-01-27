@@ -66,8 +66,7 @@ SAMPLE_DATA = r"""1,Caipirinha,Cachaca
 
 @task
 def create_connection(conn_id_name: str, cluster_id: str):
-    redshift_hook = RedshiftHook()
-    cluster_endpoint = redshift_hook.conn.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
+    cluster_endpoint = RedshiftHook().conn.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
     conn = Connection(
         conn_id=conn_id_name,
         conn_type="redshift",
@@ -88,19 +87,13 @@ def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
     default_vpc = client.describe_vpcs(Filters=[{"Name": "is-default", "Values": ["true"]}])["Vpcs"][0]
 
     security_group = client.create_security_group(
-        Description="Redshift-system-test",
-        GroupName=sec_group_name,
-        VpcId=default_vpc["VpcId"],
+        Description="Redshift-system-test", GroupName=sec_group_name, VpcId=default_vpc["VpcId"]
     )
     client.get_waiter("security_group_exists").wait(
-        GroupIds=[security_group["GroupId"]],
-        GroupNames=[sec_group_name],
-        WaiterConfig={"Delay": 15, "MaxAttempts": 4},
+        GroupIds=[security_group["GroupId"]], GroupNames=[sec_group_name]
     )
     client.authorize_security_group_ingress(
-        GroupId=security_group["GroupId"],
-        GroupName=sec_group_name,
-        IpPermissions=ip_permissions,
+        GroupId=security_group["GroupId"], GroupName=sec_group_name, IpPermissions=ip_permissions
     )
     return security_group["GroupId"]
 
