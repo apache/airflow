@@ -166,6 +166,7 @@ CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
         "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
         "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "is_preemptible": True,
+        "preemptibility": "PREEMPTIBLE"
     },
     "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
     "lifecycle_config": {

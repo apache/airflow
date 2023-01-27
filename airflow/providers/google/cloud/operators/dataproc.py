@@ -62,10 +62,10 @@ if TYPE_CHECKING:
 class PREEMPTIBILITY(enum.Enum):
     """Possible VM type for preemptible workers."""
 
-    PREEMPTIBILITY_UNSPECIFIED = enum.auto()
-    NON_PREEMPTIBLE = enum.auto()
-    PREEMPTIBLE = enum.auto()
-    SPOT = enum.auto()
+    PREEMPTIBILITY_UNSPECIFIED = "PREEMPTIBILITY_UNSPECIFIED"
+    NON_PREEMPTIBLE = "PREEMPTIBILITY_UNSPECIFIED"
+    PREEMPTIBLE = "NON_PREEMPTIBLE"
+    SPOT = "SPOT"
 
 
 class ClusterGenerator:
@@ -115,7 +115,7 @@ class ClusterGenerator:
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param worker_disk_size: Disk size for the worker nodes
     :param num_preemptible_workers: The # of preemptible worker nodes to spin up
-    :param preemptibility: Preemptibility type to use for the preemptible worker nodes
+    :param preemptibility: Compute engine machine type to use for the preemptible worker nodes
     :param labels: dict of labels to add to the cluster
     :param zone: The zone where the cluster will be located. Set to None to auto-zone. (templated)
     :param network_uri: The network uri to be used for machine communication, cannot be
@@ -188,7 +188,7 @@ class ClusterGenerator:
         self.num_masters = num_masters
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
-        self.preemptibility = PREEMPTIBILITY[preemptibility.upper()]
+        self.preemptibility = PREEMPTIBILITY[preemptibility.upper()].name
         self.storage_bucket = storage_bucket
         self.init_actions_uris = init_actions_uris
         self.init_action_timeout = init_action_timeout
