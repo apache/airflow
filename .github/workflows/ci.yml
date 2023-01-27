@@ -1138,43 +1138,6 @@ jobs:
           Post Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined"
         uses: ./.github/actions/post_tests
 
-  upload-coverage:
-    timeout-minutes: 15
-    name: "Upload coverage"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
-    continue-on-error: true
-    needs:
-      - build-info
-      - tests-postgres
-      - tests-sqlite
-      - tests-mysql
-      - tests-mssql
-      - tests-quarantined
-      - tests-integration-postgres
-      - tests-integration-mysql
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-    # Only upload coverage on merges to main
-    if: needs.build-info.outputs.run-coverage == 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-          submodules: recursive
-      - name: "Download all artifacts from the current build"
-        uses: actions/download-artifact@v3
-        with:
-          path: ./coverage-files
-      - name: "Removes unnecessary artifacts"
-        run: ls ./coverage-files | grep -v coverage | xargs rm -rfv
-      - name: "Upload all coverage reports to codecov"
-        uses: ./.github/actions/codecov-action
-        with:
-          directory: "./coverage-files"
-
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
