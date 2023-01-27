@@ -30,6 +30,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import partial
+from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
 from urllib.parse import quote
@@ -629,17 +630,19 @@ class TaskInstance(Base, LoggingMixin):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
-        dag: DAG | DagModel | None
+        dag: DAG | DagModel
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
-        if hasattr(self, "task") and hasattr(self.task, "dag"):
+        if hasattr(self, "task") and hasattr(self.task, "dag") and self.task.dag is not None:
             dag = self.task.dag
         else:
             dag = self.dag_model
 
         should_pass_filepath = not pickle_id and dag
-        path = None
+        path: PurePath | None = None
         if should_pass_filepath:
             if dag.is_subdag:
+                if TYPE_CHECKING:
+                    assert dag.parent_dag is not None
                 path = dag.parent_dag.relative_fileloc
             else:
                 path = dag.relative_fileloc
@@ -647,7 +650,6 @@ class TaskInstance(Base, LoggingMixin):
             if path:
                 if not path.is_absolute():
                     path = "DAGS_FOLDER" / path
-                path = str(path)
 
         return TaskInstance.generate_command(
             self.dag_id,
@@ -661,7 +663,7 @@ class TaskInstance(Base, LoggingMixin):
             ignore_ti_state=ignore_ti_state,
             local=local,
             pickle_id=pickle_id,
-            file_path=path,
+            file_path=str(path) if path else None,
             raw=raw,
             job_id=job_id,
             pool=pool,
@@ -1458,7 +1460,7 @@ class TaskInstance(Base, LoggingMixin):
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             session.commit()
-            return
+            return None
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
             # If a sensor in reschedule mode reaches timeout, task should not retry.
@@ -1475,7 +1477,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.clear_next_method_args()
                 session.merge(self)
                 session.commit()
-                return
+                return None
             else:
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
@@ -1504,6 +1506,7 @@ class TaskInstance(Base, LoggingMixin):
             if self.state == TaskInstanceState.SUCCESS:
                 self._register_dataset_changes(session=session)
             session.commit()
+        return None
 
     def _register_dataset_changes(self, *, session: Session) -> None:
         for obj in self.task.outlets or []:
