@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from azure.common import AzureHttpError
@@ -81,11 +82,11 @@ class TestWasbTaskHandler:
     def test_set_context_raw(self, ti):
         ti.raw = True
         self.wasb_task_handler.set_context(ti)
-        assert not self.wasb_task_handler.upload_on_close
+        assert self.wasb_task_handler.upload_on_close is False
 
     def test_set_context_not_raw(self, ti):
         self.wasb_task_handler.set_context(ti)
-        assert self.wasb_task_handler.upload_on_close
+        assert self.wasb_task_handler.upload_on_close is True
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_log_exists(self, mock_hook):
@@ -97,20 +98,24 @@ class TestWasbTaskHandler:
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
-    def test_wasb_read(self, mock_hook, ti):
-        mock_hook.return_value.read_file.return_value = "Log line"
+    def test_wasb_read(self, mock_hook_cls, ti):
+        mock_hook = mock_hook_cls.return_value
+        m = MagicMock(name="hello")
+        mock_hook.get_blobs_list.return_value = [m]
+        mock_hook.read_file.return_value = "Log line"
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
         assert self.wasb_task_handler.read(ti) == (
             [
                 [
                     (
                         "localhost",
-                        "*** Reading remote log from wasb://container/remote/log/location/1.log.\n"
-                        "Log line\n",
+                        "*** Found remote logs:\n"
+                        "***   * wasb://wasb-container/<MagicMock name='hello' id='4947001104'>\n"
+                        "Log line",
                     )
                 ]
             ],
-            [{"end_of_log": True}],
+            [{"end_of_log": False, "log_pos": 8}],
         )
 
     @mock.patch(

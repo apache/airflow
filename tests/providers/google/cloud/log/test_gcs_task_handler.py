@@ -100,7 +100,7 @@ class TestGCSTaskHandler:
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
-        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT" == logs
+        assert logs == "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT"
         assert {"end_of_log": False, "log_pos": 7} == metadata
 
     @mock.patch(
@@ -109,17 +109,23 @@ class TestGCSTaskHandler:
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_from_local(self, mock_blob, mock_client, mock_creds):
+    def test_should_read_from_local_on_logs_read_error(self, mock_blob, mock_client, mock_creds):
+        mock_obj = MagicMock()
+        mock_obj.name = "remote/log/location/1.log"
+        mock_client.return_value.list_blobs.return_value = [mock_obj]
         mock_blob.from_string.return_value.download_as_bytes.side_effect = Exception("Failed to connect")
 
         self.gcs_task_handler.set_context(self.ti)
         log, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
 
-        assert (
-            log == "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
-            f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n"
+        assert log == (
+            "*** Found remote logs:\n"
+            "***   * gs://bucket/remote/log/location/1.log\n"
+            "*** Unable to read remote log Failed to connect\n"
+            "*** Found local files:\n"
+            f"***   * {self.local_log_location}/1.log\n"
         )
-        assert metadata == {"end_of_log": False, "log_pos": 31 + len(self.local_log_location)}
+        assert metadata == {"end_of_log": False, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
@@ -230,7 +236,8 @@ class TestGCSTaskHandler:
                 mock.call.from_string().download_as_bytes(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
-                    "*** Previous log discarded: Fail to download\n\nMESSAGE\n", content_type="text/plain"
+                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",  # noqa: E501
+                    content_type="text/plain",
                 ),
             ],
             any_order=False,

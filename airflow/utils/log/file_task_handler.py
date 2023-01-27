@@ -147,7 +147,7 @@ class FileTaskHandler(logging.Handler):
     def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
         self.handler: logging.FileHandler | None = None
-        self.local_base = base_log_folder
+        self.local_base = Path(base_log_folder).resolve()
         if filename_template is not None:
             warnings.warn(
                 "Passing filename_template to a log handler is deprecated and has no effect",
@@ -293,14 +293,14 @@ class FileTaskHandler(logging.Handler):
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
-        messages_list = []
         worker_log_rel_path = self._render_filename(ti, try_number)
-        remote_logs = []
-        running_logs = []
-        local_logs = []
-        executor_messages = []
-        executor_logs = []
-        served_logs = []
+        messages_list: list[str] = []
+        remote_logs: list[str] = []
+        running_logs: list[str] = []
+        local_logs: list[str] = []
+        executor_messages: list[str] = []
+        executor_logs: list[str] = []
+        served_logs: list[str] = []
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)

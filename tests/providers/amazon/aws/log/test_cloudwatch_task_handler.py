@@ -161,10 +161,10 @@ class TestCloudwatchTaskHandler:
             mock_get_logs.side_effect = Exception("Failed to connect")
             log, metadata = self.cloudwatch_task_handler._read(self.ti, self.ti.try_number)
         expected_log = (
-            f"*** Unable to read remote logs from Cloudwatch (log_group: {self.remote_log_group}, "
-            f"log_stream: {self.remote_log_stream})\n*** Failed to connect\n\n"
-            # The value of "log_pos" is equal to the length of this next line
-            f"*** Found local files:\n***   * {self.local_log_location}/{self.remote_log_stream}\n"
+            f"*** Unable to read remote logs from Cloudwatch (log_group: {self.remote_log_group}, log_stream: {self.remote_log_stream})\n"  # noqa: E501
+            "*** Failed to connect\n\n"
+            "*** Found local files:\n"
+            f"***   * {self.local_log_location}/{self.remote_log_stream}\n"
         )
         assert log == expected_log
         assert metadata == {"end_of_log": False, "log_pos": 0}

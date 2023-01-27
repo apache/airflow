@@ -629,7 +629,7 @@ class TaskInstance(Base, LoggingMixin):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
-        dag: DAG | DagModel
+        dag: DAG | DagModel | None
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
         if hasattr(self, "task") and hasattr(self.task, "dag"):
             dag = self.task.dag
