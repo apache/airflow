@@ -50,7 +50,11 @@ from airflow.providers.google.cloud.links.dataproc import (
     DataprocLink,
     DataprocListLink,
 )
-from airflow.providers.google.cloud.triggers.dataproc import DataprocBatchTrigger, DataprocClusterTrigger, DataprocSubmitTrigger
+from airflow.providers.google.cloud.triggers.dataproc import (
+    DataprocBatchTrigger,
+    DataprocClusterTrigger,
+    DataprocSubmitTrigger,
+)
 from airflow.utils import timezone
 
 if TYPE_CHECKING:

@@ -23,7 +23,7 @@ from asyncio import Future
 import pytest
 from google.cloud.dataproc_v1 import Batch, ClusterStatus
 
-from airflow.providers.google.cloud.triggers.dataproc import DataprocClusterTrigger, DataprocBatchTrigger
+from airflow.providers.google.cloud.triggers.dataproc import DataprocBatchTrigger, DataprocClusterTrigger
 from airflow.triggers.base import TriggerEvent
 from tests.providers.google.cloud.utils.compat import async_mock
 
@@ -52,6 +52,7 @@ def trigger():
         polling_interval_seconds=TEST_POLL_INTERVAL,
     )
 
+
 @pytest.fixture
 def batch_trigger():
     trigger = DataprocBatchTrigger(
@@ -64,6 +65,7 @@ def batch_trigger():
     )
     return trigger
 
+
 @pytest.fixture()
 def async_get_cluster():
     def func(**kwargs):
@@ -74,6 +76,7 @@ def async_get_cluster():
         return f
 
     return func
+
 
 @pytest.fixture()
 def async_get_batch():
@@ -232,7 +235,9 @@ class TestDataprocBatchTrigger:
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
-    async def test_create_batch_run_loop_is_still_running(self, mock_hook, batch_trigger, caplog, async_get_batch):
+    async def test_create_batch_run_loop_is_still_running(
+        self, mock_hook, batch_trigger, caplog, async_get_batch
+    ):
         mock_hook.return_value = async_get_batch(state=Batch.State.RUNNING)
 
         caplog.set_level(logging.INFO)

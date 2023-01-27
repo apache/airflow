@@ -54,7 +54,11 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitSparkSqlJobOperator,
     DataprocUpdateClusterOperator,
 )
-from airflow.providers.google.cloud.triggers.dataproc import DataprocClusterTrigger, DataprocSubmitTrigger, DataprocBatchTrigger
+from airflow.providers.google.cloud.triggers.dataproc import (
+    DataprocBatchTrigger,
+    DataprocClusterTrigger,
+    DataprocSubmitTrigger,
+)
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
