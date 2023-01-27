@@ -15,41 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
+Notifications
+-------------
+This is a summary of all Apache Airflow Community provided implementations of notifications.
 
+Notifications allows you to send messages to external systems when a task instance/DAG changes state.
 
-How-to Guides
-=============
-
-Setting up the sandbox in the :doc:`/start` section was easy;
-building a production-grade environment requires a bit more work!
-
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
-
-.. toctree::
-    :maxdepth: 2
-
-    Using the CLI <usage-cli>
-    add-dag-tags
-    add-owner-links
-    notification
-    set-config
-    set-up-database
-    operator/index
-    timetable
-    custom-view-plugin
-    listener-plugin
-    customize-ui
-    custom-operator
-    create-custom-decorator
-    export-more-env-vars
-    connection
-    variable
-    run-behind-proxy
-    run-with-systemd
-    use-test-config
-    define-extra-link
-    email-config
-    dynamic-dag-generation
-    docker-compose/index
-    upgrading-from-1-10/index
+.. airflow-notifications::
+   :tags: None
+   :header-separator: "
