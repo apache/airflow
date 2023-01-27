@@ -88,18 +88,19 @@ let innerSvg = d3.select('#graph-svg g');
 const updateNodeLabels = (node, instances) => {
   let haveLabelsChanged = false;
   let { label } = node.value;
-  // Check if there is a count of mapped instances
-  if ((tasks[node.id] && tasks[node.id].is_mapped) || node.value.isMapped) {
-    const id = !!node.children && node.children.length ? node.children[0].id : node.value.id;
 
+  const isGroupMapped = node.value.isMapped;
+  const isTaskMapped = tasks[node.id] && tasks[node.id].is_mapped;
+
+  if (isTaskMapped || isGroupMapped) {
+    // get count from mapped_states or the first child's mapped_states
+    const id = isGroupMapped ? node.children[0].id : node.id;
+    const instance = instances[id];
     let count = ' ';
 
-    // get count from mapped_states or the first child's mapped_states
     // TODO: update this count for when we can nest mapped tasks inside of mapped task groups
-    if (instances[node.id] && instances[node.id].mapped_states) {
-      count = instances[node.id].mapped_states.length;
-    } else if (id && instances[id]) {
-      count = instances[id].mapped_states.length;
+    if (instance && instance.mapped_states) {
+      count = instance.mapped_states.length;
     }
 
     if (!label.includes(`[${count}]`)) {
