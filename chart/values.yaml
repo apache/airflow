@@ -1428,7 +1428,7 @@ pgbouncer:
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).
   args: ~
-  auth_type: md5
+  auth_type: scram-sha-256
   auth_file: /etc/pgbouncer/users.txt
 
   # annotations to be added to the PgBouncer deployment
