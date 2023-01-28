@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -53,7 +55,7 @@ class TestWasbTaskHandler:
     def setup_method(self):
         self.wasb_log_folder = "wasb://container/remote/log/location"
         self.remote_log_location = "remote/log/location/1.log"
-        self.local_log_location = "local/log/location"
+        self.local_log_location = str(Path(tempfile.tempdir) / "local/log/location")
         self.container_name = "wasb-container"
         self.wasb_task_handler = WasbTaskHandler(
             base_log_folder=self.local_log_location,
@@ -61,6 +63,9 @@ class TestWasbTaskHandler:
             wasb_container=self.container_name,
             delete_local_copy=True,
         )
+
+    def teardown_method(self):
+        self.wasb_task_handler.close()
 
     @conf_vars({("logging", "remote_log_conn_id"): "wasb_default"})
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
