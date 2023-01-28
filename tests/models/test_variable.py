@@ -250,7 +250,7 @@ class TestVariable:
 
             self.mask_secret.reset_mock()
 
-            session.query(Variable).get(var.id)
+            session.get(Variable, var.id)
 
             assert self.mask_secret.mock_calls == [
                 # We should have called it _again_ when loading from the DB

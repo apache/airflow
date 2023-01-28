@@ -3244,7 +3244,11 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=NEW_SESSION):
-        return session.query(DagModel).options(joinedload(DagModel.parent_dag)).get(dag_id)
+        return session.get(
+            DagModel,
+            dag_id,
+            options=[joinedload(DagModel.parent_dag)],
+        )
 
     @classmethod
     @provide_session

@@ -1598,13 +1598,14 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.query(TaskInstance).get(
+        mock_set_task_instance_state.return_value = session.get(
+            TaskInstance,
             {
                 "task_id": "print_the_context",
                 "dag_id": "example_python_operator",
                 "run_id": "TEST_DAG_RUN_ID",
                 "map_index": -1,
-            }
+            },
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
@@ -1636,13 +1637,14 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.query(TaskInstance).get(
+        mock_set_task_instance_state.return_value = session.get(
+            TaskInstance,
             {
                 "task_id": "print_the_context",
                 "dag_id": "example_python_operator",
                 "run_id": "TEST_DAG_RUN_ID",
                 "map_index": -1,
-            }
+            },
         )
         response = self.client.patch(
             self.ENDPOINT_URL,

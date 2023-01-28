@@ -730,7 +730,7 @@ class DagFileProcessor(LoggingMixin):
             from airflow.models.serialized_dag import SerializedDagModel
 
             try:
-                model = session.query(SerializedDagModel).get(simple_ti.dag_id)
+                model = session.get(SerializedDagModel, simple_ti.dag_id)
                 if model:
                     task = model.dag.get_task(simple_ti.task_id)
             except (exc.NoResultFound, TaskNotFound):
