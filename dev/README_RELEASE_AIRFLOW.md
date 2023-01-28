@@ -233,7 +233,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     pipx install -e ./dev/breeze
     ```
 
-- For major/minor version release,run the following commands to create the 'test' and 'stable' branches.
+- For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
     breeze release-management create-minor-branch --version-branch ${VERSION_BRANCH}
@@ -325,15 +325,7 @@ tied to an airflow release and therefore out of scope.
 
 If API clients are to be released in this airflow version:
 
-- Set environment variables (useful for the rest of the process)
-
-    ```shell script
-    # Set Version
-    export GO_API_CLIENT_VERSION=2.1.3
-    export PYTHON_API_CLIENT_VERSION=2.1.1
-    ```
-
-- Follow the specific release process of each API client to generate the artifacts and push to PyPI a
+- Follow the specific release process for each API client to generate the artifacts and push to PyPI a
     release candidate client package:
 
     - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
@@ -403,11 +395,6 @@ https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
-
-TODO:REMOVE PARAGRAPH IF NOT RELEVANT
-New API clients were generated:
-- Python ${PYTHON_API_CLIENT_VERSION}
-- GO ${GO_API_CLIENT_VERSION}
 
 Please vote accordingly:
 
