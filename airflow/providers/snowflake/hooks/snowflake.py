@@ -74,7 +74,7 @@ class SnowflakeHook(DbApiHook):
     """
     A client to interact with Snowflake.
 
-    This hook requires the snowflake_conn_id connection. The snowflake host, login,
+    This hook requires the snowflake_conn_id connection. The snowflake account, login,
     and, password field must be setup in the connection. Other inputs can be defined
     in the connection or hook instantiation.
 
@@ -143,7 +143,7 @@ class SnowflakeHook(DbApiHook):
         import json
 
         return {
-            "hidden_fields": ["port"],
+            "hidden_fields": ["port", "host"],
             "relabeling": {},
             "placeholders": {
                 "extra": json.dumps(
