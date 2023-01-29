@@ -150,6 +150,10 @@ def dag_trigger(args):
             replace_microseconds=args.replace_microseconds,
         )
         print(message)
+        AirflowConsole().print_as(
+            data=[message] if message is not None else [],
+            output=args.output,
+        )
     except OSError as err:
         raise AirflowException(err)
 
