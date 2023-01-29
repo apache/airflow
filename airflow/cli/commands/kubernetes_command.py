@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Kubernetes sub-commands"""
+"""Kubernetes sub-commands."""
 from __future__ import annotations
 
 import os
@@ -30,14 +30,13 @@ from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DagRun, TaskInstance
-from airflow.settings import pod_mutation_hook
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 
 
 @cli_utils.action_cli
 def generate_pod_yaml(args):
-    """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
+    """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
     execution_date = args.execution_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
@@ -58,8 +57,8 @@ def generate_pod_yaml(args):
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,
             base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+            with_mutation_hook=True,
         )
-        pod_mutation_hook(pod)
         api_client = ApiClient()
         date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
         yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
@@ -72,7 +71,7 @@ def generate_pod_yaml(args):
 
 @cli_utils.action_cli
 def cleanup_pods(args):
-    """Clean up k8s pods in evicted/failed/succeeded/pending states"""
+    """Clean up k8s pods in evicted/failed/succeeded/pending states."""
     namespace = args.namespace
 
     min_pending_minutes = args.min_pending_minutes
@@ -148,7 +147,7 @@ def cleanup_pods(args):
 
 
 def _delete_pod(name, namespace):
-    """Helper Function for cleanup_pods"""
+    """Helper Function for cleanup_pods."""
     core_v1 = client.CoreV1Api()
     delete_options = client.V1DeleteOptions()
     print(f'Deleting POD "{name}" from "{namespace}" namespace')

@@ -23,6 +23,7 @@ import gzip as gz
 import os
 import shutil
 import time
+import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
@@ -32,16 +33,21 @@ from tempfile import NamedTemporaryFile
 from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
+from aiohttp import ClientSession
+from gcloud.aio.storage import Storage
 from google.api_core.exceptions import NotFound
+from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage.retry import DEFAULT_RETRY
+from requests import Session
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
 
@@ -139,6 +145,10 @@ class GCSHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -533,18 +543,19 @@ class GCSHook(GoogleBaseHook):
         else:
             raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")
 
-    def exists(self, bucket_name: str, object_name: str) -> bool:
+    def exists(self, bucket_name: str, object_name: str, retry: Retry = DEFAULT_RETRY) -> bool:
         """
         Checks for the existence of a file in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
+        :param retry: (Optional) How to retry the RPC
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name)
-        return blob.exists()
+        return blob.exists(retry=retry)
 
     def get_blob_update_time(self, bucket_name: str, object_name: str):
         """
@@ -1171,3 +1182,14 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     # Remove leading '/' but NOT trailing one
     blob = parsed_url.path.lstrip("/")
     return bucket, blob
+
+
+class GCSAsyncHook(GoogleBaseAsyncHook):
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync"""
+
+    sync_hook_class = GCSHook
+
+    async def get_storage_client(self, session: ClientSession) -> Storage:
+        """Returns a Google Cloud Storage service object."""
+        with await self.service_file_as_context() as file:
+            return Storage(service_file=file, session=cast(Session, session))

@@ -24,6 +24,62 @@
 Changelog
 ---------
 
+1.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Handle non-compliant behaviour of Exasol cursor (#28744)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fIx isort problems introduced by recent isort release (#28434)``
+* ``Fix template rendering for Common SQL operators (#28202)``
+* ``Defer to hook setting for split_statements in SQLExecuteQueryOperator (#28635)``
+
+Misc
+~~~~
+
+* ``Clarify docstrings for updated DbApiHook (#27966)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commits preventing accidental API changes in common.sql (#27962)``
+
+1.3.1
+.....
+
+This release fixes a few errors that were introduced in common.sql operator while refactoring common parts:
+
+* ``_process_output`` method in ``SQLExecuteQueryOperator`` has now consistent semantics and typing, it
+  can also modify the returned (and stored in XCom) values in the operators that derive from the
+  ``SQLExecuteQueryOperator``).
+* descriptions of all returned results are stored as descriptions property in the DBApiHook
+* last description of the cursor whether to return single query results values are now exposed in
+  DBApiHook via last_description property.
+
+Lack of consistency in the operator caused ``1.3.0`` to be yanked - the ``1.3.0`` should not be used - if
+you have ``1.3.0`` installed, upgrade to ``1.3.1``.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Restore removed (but used) methods in common.sql (#27843)``
+* ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+* ``Fixing the behaviours of SQL Hooks and Operators finally (#27912)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
 1.3.0
 .....
 

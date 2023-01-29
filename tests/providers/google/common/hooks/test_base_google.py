@@ -20,9 +20,10 @@ from __future__ import annotations
 import json
 import os
 import re
-import unittest
 from io import StringIO
+from pathlib import Path
 from unittest import mock
+from unittest.mock import patch
 
 import google.auth
 import pytest
@@ -30,12 +31,12 @@ import tenacity
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError
 from google.cloud.exceptions import Forbidden
-from parameterized import parameterized
 
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import _DEFAULT_SCOPES
 from airflow.providers.google.common.hooks import base_google as hook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
@@ -47,6 +48,7 @@ except GoogleAuthError:
 
 MODULE_NAME = "airflow.providers.google.common.hooks.base_google"
 PROJECT_ID = "PROJECT_ID"
+ENV_VALUE = "/tmp/a"
 
 
 class NoForbiddenAfterCount:
@@ -73,7 +75,7 @@ def _retryable_test_with_temporary_quota_retry(thing):
     return thing()
 
 
-class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
+class TestQuotaRetry:
     def test_do_nothing_on_non_error(self):
         result = _retryable_test_with_temporary_quota_retry(lambda: 42)
         assert result, 42
@@ -109,7 +111,7 @@ class FallbackToDefaultProjectIdFixtureClass:
         return self.fixture_project_id
 
 
-class TestFallbackToDefaultProjectId(unittest.TestCase):
+class TestFallbackToDefaultProjectId:
     def test_no_arguments(self):
         gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
 
@@ -141,11 +143,8 @@ class TestFallbackToDefaultProjectId(unittest.TestCase):
         assert gcp_hook.mock.call_count == 0
 
 
-ENV_VALUE = "/tmp/a"
-
-
-class TestProvideGcpCredentialFile(unittest.TestCase):
-    def setUp(self):
+class TestProvideGcpCredentialFile:
+    def setup_method(self):
         with mock.patch(
             MODULE_NAME + ".GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -169,6 +168,37 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
             "Please provide only one value.",
         ):
             assert_gcp_credential_file_in_env(self.instance)
+
+    def test_provide_gcp_credential_keyfile_dict_json(self):
+        """
+        Historically, keyfile_dict had to be str in the conn extra.  Now it
+        can be dict and this is verified here.
+        """
+        conn_dict = {
+            "extra": {
+                "keyfile_dict": {"foo": "bar", "private_key": "hi"},  # notice keyfile_dict is dict not str
+            }
+        }
+
+        @GoogleBaseHook.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(instance):
+            assert Path(os.environ[CREDENTIALS]).read_text() == json.dumps(conn_dict["extra"]["keyfile_dict"])
+
+        with patch.dict("os.environ", AIRFLOW_CONN_MY_GOOGLE=json.dumps(conn_dict)):
+            # keyfile dict is handled in two different areas
+
+            hook = GoogleBaseHook("my_google")
+
+            # the first is in provide_gcp_credential_file
+            assert_gcp_credential_file_in_env(hook)
+
+            with patch("google.oauth2.service_account.Credentials.from_service_account_info") as m:
+                # the second is in get_credentials_and_project_id
+                hook.get_credentials_and_project_id()
+                m.assert_called_once_with(
+                    conn_dict["extra"]["keyfile_dict"],
+                    scopes=("https://www.googleapis.com/auth/cloud-platform",),
+                )
 
     def test_provide_gcp_credential_file_decorator_key_path(self):
         key_path = "/test/key-path"
@@ -250,8 +280,8 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         assert CREDENTIALS not in os.environ
 
 
-class TestProvideGcpCredentialFileAsContext(unittest.TestCase):
-    def setUp(self):
+class TestProvideGcpCredentialFileAsContext:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -322,8 +352,8 @@ class TestProvideGcpCredentialFileAsContext(unittest.TestCase):
         assert CREDENTIALS not in os.environ
 
 
-class TestGoogleBaseHook(unittest.TestCase):
-    def setUp(self):
+class TestGoogleBaseHook:
+    def setup_method(self):
         self.instance = hook.GoogleBaseHook()
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
@@ -482,8 +512,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         with pytest.raises(AirflowException, match=re.escape("Invalid key JSON.")):
             self.instance.get_credentials_and_project_id()
 
-    @unittest.skipIf(
-        not default_creds_available, "Default Google Cloud credentials not available to run tests"
+    @pytest.mark.skipif(
+        not default_creds_available, reason="Default Google Cloud credentials not available to run tests"
     )
     def test_default_creds_with_scopes(self):
         self.instance.extras = {
@@ -509,8 +539,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         assert "https://www.googleapis.com/auth/bigquery" in scopes
         assert "https://www.googleapis.com/auth/devstorage.read_only" in scopes
 
-    @unittest.skipIf(
-        not default_creds_available, "Default Google Cloud credentials not available to run tests"
+    @pytest.mark.skipif(
+        not default_creds_available, reason="Default Google Cloud credentials not available to run tests"
     )
     def test_default_creds_no_scopes(self):
         self.instance.extras = {"project": default_project}
@@ -625,26 +655,26 @@ class TestGoogleBaseHook(unittest.TestCase):
         http_authorized = self.instance._authorize().http
         assert http_authorized.timeout is not None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "impersonation_chain, target_principal, delegates",
         [
-            ("string", "ACCOUNT_1", "ACCOUNT_1", None),
-            ("single_element_list", ["ACCOUNT_1"], "ACCOUNT_1", []),
-            (
-                "multiple_elements_list",
+            pytest.param("ACCOUNT_1", "ACCOUNT_1", None, id="string"),
+            pytest.param(["ACCOUNT_1"], "ACCOUNT_1", [], id="single_element_list"),
+            pytest.param(
                 ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"],
                 "ACCOUNT_3",
                 ["ACCOUNT_1", "ACCOUNT_2"],
+                id="multiple_elements_list",
             ),
-        ]
+        ],
     )
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     def test_get_credentials_and_project_id_with_impersonation_chain(
         self,
-        _,
+        mock_get_creds_and_proj_id,
         impersonation_chain,
         target_principal,
         delegates,
-        mock_get_creds_and_proj_id,
     ):
         mock_credentials = mock.MagicMock()
         mock_get_creds_and_proj_id.return_value = (mock_credentials, PROJECT_ID)
@@ -663,8 +693,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         assert (mock_credentials, PROJECT_ID) == result
 
 
-class TestProvideAuthorizedGcloud(unittest.TestCase):
-    def setUp(self):
+class TestProvideAuthorizedGcloud:
+    def setup_method(self):
         with mock.patch(
             MODULE_NAME + ".GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -774,7 +804,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         )
 
 
-class TestNumRetry(unittest.TestCase):
+class TestNumRetry:
     def test_should_return_int_when_set_int_via_connection(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
         instance.extras = {

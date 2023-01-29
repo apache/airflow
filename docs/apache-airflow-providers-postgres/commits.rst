@@ -28,14 +28,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.4.0
+.....
+
+Latest change: 2022-12-12
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`cfd8bd9344 <https://github.com/apache/airflow/commit/cfd8bd9344a6ed17614a0da5453a0ae39a1d49dc>`_  2022-12-12   ``Bring back psycopg2-binary as dependency instead of psycopg (#28316)``
+=================================================================================================  ===========  ========================================================================
+
+5.3.1
+.....
+
+Latest change: 2022-11-26
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+=================================================================================================  ===========  ================================================================
+
 5.3.0
 .....
 
-Latest change: 2022-11-10
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  =========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `d7d206137b <https://github.com/apache/airflow/commit/d7d206137b2ff792b227e3549fcdf60469108992>`_  2022-11-10   ``PostgresHook: Added ON CONFLICT DO NOTHING statement when all target fields are primary keys (#26661)``
 `39caf1d5bc <https://github.com/apache/airflow/commit/39caf1d5bc5ec5ff653cf00b25d45e176709b59e>`_  2022-10-31   ``Rename schema to database in PostgresHook (#26744)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``

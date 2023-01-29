@@ -67,19 +67,13 @@ Here is an example configuration with more than 200GB disk space for Docker:
     </div>
 
 
-- **Docker is not running** - even if it is running with Docker Desktop. The version of
-  Docker Desktop released late October 2022 (4.13.0) has ``/var/run/docker.sock`` removed.
-  If you install 4.13.0 for the first time you will miss ``/var/run/docker.sock`` and you will get
-  "docker is not running" error. This was done too hastily and they are likely to
-  `add it back <https://github.com/docker/for-mac/issues/6529#issuecomment-1292135881i>`_ in the
-  next patchlevel, if you happen to see "docker is not running" when it is, you should not have
-  ``/var/run/docker.sock`` created. In order to fix it, check that you have
-  ``${HOME}/.docker/run/docker.sock`` and run the following command to fix it:
+- **Docker is not running** - even if it is running with Docker Desktop. This is an issue
+  specific to Docker Desktop 4.13.0 (released in late October 2022). Please upgrade Docker
+  Desktop to 4.13.1 or later to resolve the issue. For technical details, see also
+  `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
 
-.. code-block:: bash
-
-     sudo ln -sf "${HOME}/.docker/run/docker.sock" /var/run/docker.sock
-
+Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
+/CONTRIBUTORS_QUICK_START.rst>`__
 
 Docker Compose
 --------------
@@ -229,6 +223,7 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 Installation
 ============
 
+Set your working directory to root of (this) cloned repository.
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
@@ -245,7 +240,7 @@ Those are all available commands for Breeze and details about the commands are d
   :width: 100%
   :alt: Breeze commands
 
-Breeze installed this way is linked to your checked out sources of Airflow so Breeze will
+Breeze installed this way is linked to your checked out sources of Airflow, so Breeze will
 automatically use latest version of sources from ``./dev/breeze``. Sometimes, when dependencies are
 updated ``breeze`` commands with offer you to run self-upgrade.
 
@@ -333,15 +328,6 @@ so you can change it at any place, and run
 
 inside container, to enable modified tmux configurations.
 
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=78">
-        <img src="images/breeze/overlayed_breeze_installation.png" width="640"
-             alt="Airflow Breeze - Installation">
-      </a>
-    </div>
-
 Regular development tasks
 =========================
 
@@ -373,15 +359,6 @@ default settings.
 
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=389">
-        <img src="images/breeze/overlayed_breeze_select_backend_python.png" width="640"
-             alt="Airflow Breeze - Selecting Python and Backend version">
-      </a>
-    </div>
 
 Building the documentation
 --------------------------
@@ -426,15 +403,6 @@ Those are all available flags of ``build-docs`` command:
   :width: 100%
   :alt: Breeze build documentation
 
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1760">
-        <img src="images/breeze/overlayed_breeze_build_docs.png" width="640"
-             alt="Airflow Breeze - Build docs">
-      </a>
-    </div>
 
 Running static checks
 ---------------------
@@ -495,6 +463,13 @@ Those are all available flags of ``static-checks`` command:
     so that it can speed up static checks execution significantly. However, sometimes, the cache might
     get broken, in which case you should run ``breeze stop`` to clean up the cache.
 
+
+.. note::
+
+    You cannot change Python version for static checks that are run within Breeze containers.
+    The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
+    The main reason is to keep consistency in the results of static checks and to make sure that
+    our code is fine when running the lowest supported version.
 
 Starting Airflow
 ----------------
@@ -693,12 +668,12 @@ on how to run them.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
-Running unit/integration tests in groups
-........................................
+Running unit tests
+..................
 
-Another option you have is that you can also run tests via built-in ``breeze testing`` command.
+Another option you have is that you can also run tests via built-in ``breeze testing tests`` command.
 The iterative ``pytest`` command allows to run test individually, or by class or in any other way
-pytest allows to test them and run them interactively, but ``breeze testing`` command allows to
+pytest allows to test them and run them interactively, but ``breeze testing tests`` command allows to
 run the tests in the same test "types" that are used to run the tests in CI: for example Core, Always
 API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
 replicate this behaviour.
@@ -729,6 +704,28 @@ Here is the detailed set of options for the ``breeze testing tests`` command.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_tests.svg
   :width: 100%
   :alt: Breeze testing tests
+
+Running integration tests
+.........................
+
+You can also run integration tests via built-in ``breeze testing integration-tests`` command. Some of our
+tests require additional integrations to be started in docker-compose. The integration tests command will
+run the expected integration and tests that need that integration.
+
+For example this will only run kerberos tests:
+
+.. code-block:: bash
+
+   breeze testing integration-tests --integration kerberos
+
+
+Here is the detailed set of options for the ``breeze testing integration-tests`` command.
+
+.. image:: ./images/breeze/output_testing_integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_integration_tests.svg
+  :width: 100%
+  :alt: Breeze testing integration-tests
+
 
 Running Helm tests
 ..................
@@ -903,7 +900,7 @@ Checking status of the K8S cluster
 ..................................
 
 You can delete kubernetes cluster and airflow deployed in the current cluster
-via ``breeze k8s status`` command. It can be also checked fora all clusters created so far by passing
+via ``breeze k8s status`` command. It can be also checked for all clusters created so far by passing
 ``--all`` flag.
 
 All parameters of the command are here:
@@ -916,7 +913,7 @@ All parameters of the command are here:
 Running k8s tests
 .................
 
-You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those testa are placed
+You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those tests are placed
 in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
 you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
 for all clusters in parallel.
@@ -1089,7 +1086,7 @@ Dumping logs from all k8s clusters
 ..................................
 
 KinD allows to export logs from the running cluster so that you can troubleshoot your deployment.
-This can be done with ``breeze k8s logs`` command. Logs can be also dumped fora all clusters created
+This can be done with ``breeze k8s logs`` command. Logs can be also dumped for all clusters created
 so far by passing ``--all`` flag.
 
 All parameters of the command are here:
@@ -1356,6 +1353,18 @@ check if there are any images that need regeneration.
   :width: 100%
   :alt: Breeze setup regenerate-command-images
 
+Breeze check-all-params-in-groups
+...................
+
+When you add a breeze command or modify a parameter, you are also supposed to make sure that "rich groups"
+for the command is present and that all parameters are assigned to the right group so they can be
+nicely presented in ``--help`` output. You can check that via ``check-all-params-in-groups`` command.
+
+.. image:: ./images/breeze/output_setup_check-all-params-in-groups.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_check-all-params-in-groups.svg
+  :width: 100%
+  :alt: Breeze setup check-all-params-in-group
+
 
 CI tasks
 --------
@@ -1573,6 +1582,15 @@ All the command parameters are here:
   :width: 100%
   :alt: Breeze verify-provider-packages
 
+Generating Provider Issue
+.........................
+
+You can use Breeze to generate a provider issue when you release new providers.
+
+.. image:: ./images/breeze/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-issue-content-providers.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-providers
 
 Preparing airflow packages
 ..........................

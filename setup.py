@@ -49,7 +49,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = "2.5.0.dev0"
+version = "2.6.0.dev0"
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -216,7 +216,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
-    "eventlet>=0.9.7",
+    "eventlet>=0.33.3",
     "gevent>=0.13",
     "greenlet>=0.4.9",
 ]
@@ -275,6 +275,9 @@ doc = [
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-spelling>=7.3",
 ]
+doc_gen = [
+    "eralchemy2",
+]
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
@@ -301,7 +304,7 @@ ldap = [
     "ldap3>=2.5.1",
     "python-ldap",
 ]
-leveldb = ['plyvel; platform_machine != "aarch64"']
+leveldb = ["plyvel"]
 pandas = [
     "pandas>=0.17.1",
 ]
@@ -333,13 +336,14 @@ webhdfs = [
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
+    # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
+    # when you upgrade it here !!!!
     "mypy==0.971",
     "types-boto",
     "types-certifi",
     "types-croniter",
     "types-Deprecated",
     "types-docutils",
-    "types-freezegun",
     "types-paramiko",
     "types-protobuf",
     "types-python-dateutil",
@@ -367,14 +371,8 @@ devel_only = [
     "click>=8.0",
     "coverage",
     "filelock",
-    "flake8>=3.9.0",
-    "flake8-colors",
-    "flake8-implicit-str-concat",
-    "flaky",
-    "freezegun",
     "gitpython",
     "ipdb",
-    "isort",
     "jira",
     "jsondiff",
     "mongomock",
@@ -385,17 +383,12 @@ devel_only = [
     "pre-commit",
     "pypsrp",
     "pygithub",
-    # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
-    # It contains a number of potential breaking changes but none of them looks breaking our use
-    # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
-    # TODO: upgrade it and remove the limit
-    "pytest~=6.0",
+    "pytest",
     "pytest-asyncio",
+    "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
-    # We should attempt to remove the limit when we upgrade Pytest
-    # TODO: remove the limit when we upgrade pytest
-    "pytest-rerunfailures~=9.1",
+    "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
     "python-jose",
@@ -404,7 +397,9 @@ devel_only = [
     "pytest-httpx",
     "requests_mock",
     "rich-click>=1.5",
+    "ruff>=0.0.219",
     "semver",
+    "time-machine",
     "towncrier",
     "twine",
     "wheel",
@@ -442,6 +437,9 @@ devel_hadoop = get_unique_dependency_list(
         devel,
         get_provider_dependencies("apache.hdfs"),
         get_provider_dependencies("apache.hive"),
+        get_provider_dependencies("apache.hdfs"),
+        get_provider_dependencies("apache.hive"),
+        get_provider_dependencies("apache.impala"),
         kerberos,
         get_provider_dependencies("presto"),
         webhdfs,
@@ -575,6 +573,7 @@ ALL_DB_PROVIDERS = [
     "apache.druid",
     "apache.hdfs",
     "apache.hive",
+    "apache.impala",
     "apache.pinot",
     "arangodb",
     "cloudant",
@@ -623,7 +622,7 @@ EXTRAS_DEPENDENCIES["all"] = _all_dependencies_without_airflow_providers
 # This can be simplified to devel_hadoop + _all_dependencies due to inclusions
 # but we keep it for explicit sake. We are de-duplicating it anyway.
 devel_all = get_unique_dependency_list(
-    [_all_dependencies_without_airflow_providers, doc, devel, devel_hadoop]
+    [_all_dependencies_without_airflow_providers, doc, doc_gen, devel, devel_hadoop]
 )
 
 # Those are packages excluded for "all" dependencies
@@ -669,6 +668,7 @@ devel_ci = devel_all
 # Those are extras that we have to add for development purposes
 # They can be use to install some predefined set of dependencies.
 EXTRAS_DEPENDENCIES["doc"] = doc
+EXTRAS_DEPENDENCIES["doc_gen"] = doc_gen
 EXTRAS_DEPENDENCIES["devel"] = devel  # devel already includes doc
 EXTRAS_DEPENDENCIES["devel_hadoop"] = devel_hadoop  # devel_hadoop already includes devel
 EXTRAS_DEPENDENCIES["devel_all"] = devel_all
@@ -801,6 +801,10 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )
+    elif extra == "apache.hive":
+        # We moved the hive macros to the hive provider, and they are available in hive provider only as of
+        # 5.1.0 version only, so we have to make sure minimum version is used
+        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-hive>=5.1.0"]
     else:
         EXTRAS_DEPENDENCIES[extra] = [
             get_provider_package_name_from_package_id(package_name) for package_name in providers

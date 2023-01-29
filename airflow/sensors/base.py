@@ -32,6 +32,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
 )
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
@@ -57,6 +58,8 @@ def _is_metadatabase_mysql() -> bool:
 
 class PokeReturnValue:
     """
+    Optional return value for poke methods.
+
     Sensors can optionally return an instance of the PokeReturnValue class in the poke method.
     If an XCom value is supplied when the sensor is done, then the XCom value will be
     pushed through the operator return value.
@@ -101,7 +104,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     """
 
     ui_color: str = "#e6f1f2"
-    valid_modes = ["poke", "reschedule"]  # type: Iterable[str]
+    valid_modes: Iterable[str] = ["poke", "reschedule"]
 
     # Adds one additional dependency for all sensor operators that checks if a
     # sensor task instance can be rescheduled.
@@ -158,10 +161,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        """
-        Function that the sensors defined while deriving this class should
-        override.
-        """
+        """Function defined by the sensors while deriving this class should override."""
         raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
@@ -205,10 +205,15 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
             if run_duration() > self.timeout:
                 # If sensor is in soft fail mode but times out raise AirflowSkipException.
+                message = (
+                    f"Sensor has timed out; run duration of {run_duration()} seconds exceeds "
+                    f"the specified timeout of {self.timeout}."
+                )
+
                 if self.soft_fail:
-                    raise AirflowSkipException(f"Snap. Time is OUT. DAG id: {log_dag_id}")
+                    raise AirflowSkipException(message)
                 else:
-                    raise AirflowSensorTimeout(f"Snap. Time is OUT. DAG id: {log_dag_id}")
+                    raise AirflowSensorTimeout(message)
             if self.reschedule:
                 next_poke_interval = self._get_next_poke_interval(started_at, run_duration, try_number)
                 reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
@@ -253,11 +258,13 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     def prepare_for_execution(self) -> BaseOperator:
         task = super().prepare_for_execution()
+
         # Sensors in `poke` mode can block execution of DAGs when running
         # with single process executor, thus we change the mode to`reschedule`
         # to allow parallel task being scheduled and executed
-        if conf.get("core", "executor") == "DebugExecutor":
-            self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+        executor, _ = ExecutorLoader.import_default_executor_cls()
+        if executor.change_sensor_mode_to_reschedule:
+            self.log.warning("%s changes sensor mode to 'reschedule'.", executor.__name__)
             task.mode = "reschedule"
         return task
 
@@ -273,8 +280,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
 def poke_mode_only(cls):
     """
-    Class Decorator for child classes of BaseSensorOperator to indicate
-    that instances of this class are only safe to use poke mode.
+    Decorate a subclass of BaseSensorOperator with poke.
+
+    Indicate that instances of this class are only safe to use poke mode.
 
     Will decorate all methods in the class to assert they did not change
     the mode from 'poke'.

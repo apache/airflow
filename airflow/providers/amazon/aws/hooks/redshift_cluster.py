@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import Any, Sequence
 
 from botocore.exceptions import ClientError
@@ -25,15 +26,14 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class RedshiftHook(AwsBaseHook):
     """
-    Interact with AWS Redshift, using the boto3 library
+    Interact with Amazon Redshift.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("redshift") <Redshift.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
@@ -52,6 +52,9 @@ class RedshiftHook(AwsBaseHook):
     ) -> dict[str, Any]:
         """
         Creates a new cluster with the specified parameters
+
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.create_cluster`
 
         :param cluster_identifier: A unique identifier for the cluster.
         :param node_type: The node type to be provisioned for the cluster.
@@ -81,6 +84,9 @@ class RedshiftHook(AwsBaseHook):
         """
         Return status of a cluster
 
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.describe_clusters`
+
         :param cluster_identifier: unique identifier of a cluster
         :param skip_final_cluster_snapshot: determines cluster snapshot creation
         :param final_cluster_snapshot_identifier: Optional[str]
@@ -100,6 +106,9 @@ class RedshiftHook(AwsBaseHook):
         """
         Delete a cluster and optionally create a snapshot
 
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.delete_cluster`
+
         :param cluster_identifier: unique identifier of a cluster
         :param skip_final_cluster_snapshot: determines cluster snapshot creation
         :param final_cluster_snapshot_identifier: name of final cluster snapshot
@@ -117,6 +126,9 @@ class RedshiftHook(AwsBaseHook):
         """
         Gets a list of snapshots for a cluster
 
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.describe_cluster_snapshots`
+
         :param cluster_identifier: unique identifier of a cluster
         """
         response = self.get_conn().describe_cluster_snapshots(ClusterIdentifier=cluster_identifier)
@@ -130,6 +142,9 @@ class RedshiftHook(AwsBaseHook):
     def restore_from_cluster_snapshot(self, cluster_identifier: str, snapshot_identifier: str) -> str:
         """
         Restores a cluster from its snapshot
+
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.restore_from_cluster_snapshot`
 
         :param cluster_identifier: unique identifier of a cluster
         :param snapshot_identifier: unique identifier for a snapshot of a cluster
@@ -145,6 +160,9 @@ class RedshiftHook(AwsBaseHook):
         """
         Creates a snapshot of a cluster
 
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.create_cluster_snapshot`
+
         :param snapshot_identifier: unique identifier for a snapshot of a cluster
         :param cluster_identifier: unique identifier of a cluster
         :param retention_period: The number of days that a manual snapshot is retained.
@@ -157,16 +175,24 @@ class RedshiftHook(AwsBaseHook):
         )
         return response["Snapshot"] if response["Snapshot"] else None
 
-    def get_cluster_snapshot_status(self, snapshot_identifier: str, cluster_identifier: str):
+    def get_cluster_snapshot_status(self, snapshot_identifier: str, cluster_identifier: str | None = None):
         """
         Return Redshift cluster snapshot status. If cluster snapshot not found return ``None``
 
         :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
-        :param cluster_identifier: The unique identifier of the cluster the snapshot was created from
+        :param cluster_identifier: (deprecated) The unique identifier of the cluster
+            the snapshot was created from
         """
+        if cluster_identifier:
+            warnings.warn(
+                "Parameter `cluster_identifier` is deprecated."
+                "This option will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         try:
             response = self.get_conn().describe_cluster_snapshots(
-                ClusterIdentifier=cluster_identifier,
                 SnapshotIdentifier=snapshot_identifier,
             )
             snapshot = response.get("Snapshots")[0]

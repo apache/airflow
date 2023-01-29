@@ -75,6 +75,8 @@ REVISION_HEADS_MAP = {
     "2.4.1": "ecb43d2a1842",
     "2.4.2": "b0d31815b5a6",
     "2.4.3": "e07f49787c9d",
+    "2.5.0": "290244fb8b83",
+    "2.5.1": "290244fb8b83",
 }
 
 
@@ -312,6 +314,18 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="ftp_default",
+            conn_type="ftp",
+            host="localhost",
+            port=21,
+            login="airflow",
+            password="airflow",
+            extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="google_cloud_default",
             conn_type="google_cloud_platform",
             schema="default",
@@ -347,6 +361,7 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
     merge_conn(
         Connection(
             conn_id="kubernetes_default",
@@ -766,7 +781,6 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
         config,
         script,
     ) as env, settings.engine.connect() as connection:
-
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
         alembic_logger.setLevel(logging.WARNING)
@@ -1165,7 +1179,6 @@ def _create_table_as(
 def _move_dangling_data_to_new_table(
     session, source_table: Table, source_query: Query, target_table_name: str
 ):
-
     bind = session.get_bind()
     dialect_name = bind.dialect.name
 
@@ -1569,7 +1582,7 @@ def upgradedb(
         log.info("Creating tables")
         val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
         try:
-            # Reconfigure the ORM ot use _EXACTLY_ one connection, otherwise some db engines hang forever
+            # Reconfigure the ORM to use _EXACTLY_ one connection, otherwise some db engines hang forever
             # trying to ALTER TABLEs
             os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = "1"
             settings.reconfigure_orm(pool_class=sqlalchemy.pool.SingletonThreadPool)
@@ -1600,7 +1613,6 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         drop_airflow_models(connection)
-        drop_flask_models(connection)
         drop_airflow_moved_tables(session)
 
     if not skip_init:
@@ -1707,18 +1719,6 @@ def drop_airflow_moved_tables(session):
     for tbl in to_delete:
         tbl.drop(settings.engine, checkfirst=False)
         Base.metadata.remove(tbl)
-
-
-def drop_flask_models(connection):
-    """
-    Drops all Flask models.
-
-    :param connection: SQLAlchemy Connection
-    :return: None
-    """
-    from airflow.www.fab_security.sqla.models import Base
-
-    Base.metadata.drop_all(connection)
 
 
 @provide_session

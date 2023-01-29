@@ -17,15 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 
-class TestJdbcOperator(unittest.TestCase):
-    def setUp(self):
+class TestJdbcOperator:
+    def setup_method(self):
         self.kwargs = dict(sql="sql", task_id="test_jdbc_operator", dag=None)
 
     @patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
@@ -39,7 +38,6 @@ class TestJdbcOperator(unittest.TestCase):
             handler=fetch_all_handler,
             parameters=jdbc_operator.parameters,
             return_last=True,
-            split_statements=False,
         )
 
     @patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
@@ -51,5 +49,6 @@ class TestJdbcOperator(unittest.TestCase):
             sql=jdbc_operator.sql,
             autocommit=jdbc_operator.autocommit,
             parameters=jdbc_operator.parameters,
-            split_statements=False,
+            handler=None,
+            return_last=True,
         )

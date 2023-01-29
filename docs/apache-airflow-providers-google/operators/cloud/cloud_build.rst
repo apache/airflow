@@ -102,6 +102,14 @@ Trigger a build is performed with the
     :start-after: [START howto_operator_create_build_from_storage]
     :end-before: [END howto_operator_create_build_from_storage]
 
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_async.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_create_build_from_storage_async]
+    :end-before: [END howto_operator_create_build_from_storage_async]
+
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
@@ -121,6 +129,48 @@ you can pass wait=False as example shown below.
     :dedent: 4
     :start-after: [START howto_operator_create_build_without_wait]
     :end-before: [END howto_operator_create_build_without_wait]
+
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_async.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_create_build_without_wait_async]
+    :end-before: [END howto_operator_create_build_without_wait_async]
+
+In order to start a build on Cloud Build you can use a build configuration file. A build config file defines the fields
+that are needed for Cloud Build to perform your tasks. You can write the build config file using the YAML or the JSON syntax.
+
+.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_create_build_from_yaml_body]
+    :end-before: [END howto_operator_gcp_create_build_from_yaml_body]
+
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_async.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_gcp_create_build_from_yaml_body_async]
+    :end-before: [END howto_operator_gcp_create_build_from_yaml_body_async]
+
+In addition, a Cloud Build can refer to source stored in `Google Cloud Source Repositories <https://cloud.google.com/source-repositories/docs/>`__.
+Once build has started, it ill build the code in source repositories.
+
+.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_create_build_from_repo]
+    :end-before: [END howto_operator_create_build_from_repo]
+
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_async.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_create_build_from_repo_async]
+    :end-before: [END howto_operator_create_build_from_repo_async]
 
 .. _howto/operator:CloudBuildCreateBuildTriggerOperator:
 

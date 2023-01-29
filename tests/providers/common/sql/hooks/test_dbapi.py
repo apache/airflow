@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -36,10 +35,8 @@ class NonDbApiHook(BaseHook):
     pass
 
 
-class TestDbApiHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestDbApiHook:
+    def setup_method(self):
         self.cur = mock.MagicMock(
             rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
         )

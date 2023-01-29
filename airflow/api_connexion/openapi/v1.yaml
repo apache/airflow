@@ -229,7 +229,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.4.0'
+  version: '2.5.1'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -598,8 +598,8 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: set_task_instance_notes
-      tags: [DAG]
+      operationId: set_task_instance_note
+      tags: [TaskInstance]
       requestBody:
         description: Parameters of set Task Instance note.
         required: true
@@ -638,8 +638,8 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: set_mapped_task_instance_notes
-      tags: [DAG]
+      operationId: set_mapped_task_instance_note
+      tags: [TaskInstance]
       requestBody:
         description: Parameters of set Task Instance note.
         required: true
@@ -935,7 +935,7 @@ paths:
 
         *New in version 2.5.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: set_dag_run_notes
+      operationId: set_dag_run_note
       tags: [DAGRun]
       requestBody:
         description: Parameters of set DagRun note.
@@ -2808,7 +2808,7 @@ components:
 
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
-        notes:
+        note:
           type: string
           description: |
             Contains manually entered notes by the user about the DagRun.
@@ -2884,7 +2884,7 @@ components:
     SetDagRunNote:
       type: object
       properties:
-        notes:
+        note:
           description: Custom notes left by users for this Dag Run.
           type: string
 
@@ -3249,7 +3249,7 @@ components:
         triggerer_job:
           $ref: '#/components/schemas/Job'
           nullable: true
-        notes:
+        note:
           type: string
           description: |
             Contains manually entered notes by the user about the TaskInstance.
@@ -4174,9 +4174,9 @@ components:
     SetTaskInstanceNote:
       type: object
       required:
-        - notes
+        - note
       properties:
-        notes:
+        note:
           description: The custom note to set for this Task Instance.
           type: string
 
@@ -4492,7 +4492,9 @@ components:
       properties:
         total_entries:
           type: integer
-          description: Count of objects in the current result set.
+          description: |
+            Count of total objects in the current result set before pagination parameters
+            (limit, offset) are applied.
 
     # Enums
     TaskState:

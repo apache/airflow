@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.2.0
+    rev: v1.3.1
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -146,16 +146,44 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  # Keep version of black in sync wit blacken-docs and pre-commit-hook-names
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 22.12.0
     hooks:
       - id: black
         name: Run black (python formatter)
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/|^airflow/contrib/
+  - repo: local
+    hooks:
+      - id: update-common-sql-api-stubs
+        name: Check and update common.sql API stubs
+        entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
+        language: python
+        files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
+        additional_dependencies: ['rich>=12.4.4', 'mypy==0.971', 'black==22.12.0', 'jinja2']
+        pass_filenames: false
+        require_serial: true
+      - id: update-black-version
+        name: Update black versions everywhere
+        entry: ./scripts/ci/pre_commit/pre_commit_update_black_version.py
+        language: python
+        files: ^.pre-commit-config.yaml$
+        additional_dependencies: ['pyyaml']
+        pass_filenames: false
+        require_serial: true
+      - id: ruff
+        name: ruff
+        language: python
+        require_serial: true
+        pass_filenames: true
+        # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
+        # host CPU to it's fullest
+        entry: ruff --fix --no-update-check --force-exclude
+        additional_dependencies: ['ruff==0.0.226']
+        files: \.pyi?$
+        exclude: ^airflow/_vendor/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.1
+    rev: 1.13.0
     hooks:
       - id: blacken-docs
         name: Run black on python code blocks in documentation files
@@ -166,9 +194,9 @@ repos:
           - --target-version=py39
           - --target-version=py310
         alias: black
-        additional_dependencies: [black==22.3.0]
+        additional_dependencies: [black==22.12.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -208,16 +236,8 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
-  # TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v2.32.1
-    hooks:
-      - id: pyupgrade
-        name: Upgrade Python code automatically
-        args: ["--py37-plus"]
-        exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
       - id: rst-backticks
         name: Check if RST files use double backticks for code
@@ -226,49 +246,15 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^airflow/_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.26.3
+    rev: v1.29.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^airflow/_vendor/
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.10.1
-    hooks:
-      - id: isort
-        name: Run isort to sort imports in Python files
-  - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.1.1
-    hooks:
-      - id: pydocstyle
-        name: Run pydocstyle
-        args:
-          - --convention=pep257
-          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
-        exclude: |
-          (?x)
-          ^tests/.*\.py$|
-          ^scripts/.*\.py$|
-          ^dev|
-          ^provider_packages|
-          ^docker_tests|
-          ^kubernetes_tests|
-          .*example_dags/.*|
-          ^chart/.*\.py$|
-          ^airflow/_vendor/
-        additional_dependencies: ['toml']
-  - repo: https://github.com/asottile/yesqa
-    rev: v1.3.0
-    hooks:
-      - id: yesqa
-        name: Remove unnecessary noqa statements
-        exclude: |
-          (?x)
-          ^airflow/_vendor/
-        additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
-    rev: '0.76'
+    rev: '0.77'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -282,7 +268,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.1.0
+    rev: v2.2.2
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
@@ -305,11 +291,6 @@ repos:
         types: [file, text]
         exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
         additional_dependencies: ['rich>=12.4.4']
-      - id: static-check-autoflake
-        name: Remove all unused code
-        entry: autoflake --remove-all-unused-imports --ignore-init-module-imports --in-place
-        language: python
-        additional_dependencies: ['autoflake']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
         language: docker_image
@@ -370,6 +351,7 @@ repos:
         language: python
         files: ^setup\.py$|^INSTALL$|^CONTRIBUTING\.rst$
         pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
@@ -402,6 +384,19 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: check-links-to-example-dags-do-not-use-hardcoded-versions
+        name: Check that example dags do not use hard-coded version numbers
+        description: The links to example dags should use |version| as version specification
+        language: pygrep
+        entry: >
+          (?i)
+          .*https://github.*[0-9]/tests/system/providers|
+          .*https://github.*/main/tests/system/providers|
+          .*https://github.*/master/tests/system/providers|
+          .*https://github.*/main/airflow/providers/.*/example_dags/|
+          .*https://github.*/master/airflow/providers/.*/example_dags/
+        pass_filenames: true
+        files: ^docs/apache-airflow-providers-.*\.rst
       - id: check-safe-filter-usage-in-html
         language: pygrep
         name: Don't use safe in templates
@@ -424,6 +419,12 @@ repos:
         pass_filenames: true
         files: \.py$
         exclude: ^tests/|^airflow/_vendor/|^docs/
+      - id: check-only-new-session-with-provide-session
+        name: Check NEW_SESSION is only used with @provide_session
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_new_session_in_provide_session.py
+        pass_filenames: true
+        files: ^airflow/.+\.py$
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
@@ -446,15 +447,17 @@ repos:
           ^airflow/www/static/|
           ^airflow/providers/|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^tests/integration/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^tests/system/providers/apache/spark/example_spark_dag.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^tests/cli/commands/test_webserver_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
+          ^tests/cli/commands/test_internal_api_command.py$|
           ^airflow/config_templates/default_airflow.cfg$|
           ^airflow/config_templates/config.yml$|
-          ^docs/*.*$|
+          ^docs/.*$|
           ^tests/providers/|
           ^.pre-commit-config\.yaml$|
           ^.*RELEASE_NOTES\.rst$|
@@ -627,19 +630,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
-      - id: check-provider-yaml-valid
-        name: Validate providers.yaml files
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
-        language: python
-        require_serial: true
-        files: ^docs/|provider\.yaml$|^scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$
-        additional_dependencies:
-          - 'PyYAML==5.3.1'
-          - 'jsonschema>=3.2.0,<5.0.0'
-          - 'tabulate==0.8.8'
-          - 'jsonpath-ng==1.5.3'
-          - 'rich>=12.4.4'
       - id: check-pre-commit-information-consistent
         name: Update information re pre-commit hooks and verify ids and names
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hooks.py
@@ -647,14 +637,14 @@ repos:
           - --max-length=64
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'tabulate', 'rich>=12.4.4']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.12.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
-        files: ^dev/breeze/setup.*$|^dev/breeze/pyproject.toml$|^dev/breeze/README.md$
+        files: dev/breeze/setup.py|dev/breeze/setup.cfg|dev/breeze/pyproject.toml|dev/breeze/README.md
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
@@ -809,7 +799,7 @@ repos:
         files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -880,14 +870,13 @@ repos:
         exclude: ^docs/rtd-deprecation
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
-      - id: run-flake8
-        name: Run flake8
+      - id: check-provider-yaml-valid
+        name: Validate provider.yaml files
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
         language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_flake8.py
-        files: \.py$
-        pass_filenames: true
-        exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        files: ^airflow/providers/.*/provider.yaml$
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+        require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
         language: python

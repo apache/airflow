@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Task runner for cgroup to run Airflow task"""
+"""Task runner for cgroup to run Airflow task."""
 from __future__ import annotations
 
 import datetime
@@ -33,9 +33,10 @@ from airflow.utils.process_utils import reap_process_group
 
 class CgroupTaskRunner(BaseTaskRunner):
     """
-    Runs the raw Airflow task in a cgroup that has containment for memory and
-    cpu. It uses the resource requirements defined in the task to construct
-    the settings for the cgroup.
+    Runs the raw Airflow task in a cgroup container.
+
+    With containment for memory and cpu. It uses the resource requirements
+     defined in the task to construct the settings for the cgroup.
 
     Cgroup must be mounted first otherwise CgroupTaskRunner
     will not be able to work.

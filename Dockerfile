@@ -44,7 +44,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.4.3"
+ARG AIRFLOW_VERSION="2.5.1"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
@@ -95,7 +95,7 @@ function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
 freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
-libkrb5-dev libldap2-dev libsasl2-2 libsasl2-dev libsasl2-modules \
+libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev locales lsb-release openssh-client sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
         export DEV_APT_DEPS
@@ -275,11 +275,6 @@ function install_mssql_client() {
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
 
-if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-    # disable MSSQL for ARM64
-    INSTALL_MSSQL_CLIENT="false"
-fi
-
 install_mssql_client "${@}"
 EOF
 
@@ -330,20 +325,12 @@ COPY <<"EOF" /install_pip_version.sh
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
-function install_pip_version() {
-    echo
-    echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
-    echo
-    pip install --disable-pip-version-check --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" &&
-        mkdir -p ${HOME}/.local/bin
-}
-
 common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::show_pip_version_and_location
 
-install_pip_version
+common::install_pip_version
 EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
@@ -374,8 +361,7 @@ function install_airflow_dependencies_from_branch_tip() {
       ${ADDITIONAL_PIP_INSTALL_FLAGS} \
       "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
       --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
-    # make sure correct PIP version is used
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+    common::install_pip_version
     pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes 2>/dev/null || true
     set +x
     echo
@@ -449,6 +435,18 @@ function common::show_pip_version_and_location() {
    echo "PATH=${PATH}"
    echo "pip on path: $(which pip)"
    echo "Using pip: $(pip --version)"
+}
+
+function common::install_pip_version() {
+    echo
+    echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
+    echo
+    if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
+        pip install --disable-pip-version-check --no-cache-dir "pip @ ${AIRFLOW_PIP_VERSION}"
+    else
+        pip install --disable-pip-version-check --no-cache-dir "pip==${AIRFLOW_PIP_VERSION}"
+    fi
+    mkdir -p "${HOME}/.local/bin"
 }
 EOF
 
@@ -536,8 +534,7 @@ function install_airflow_and_providers_from_docker_context_files(){
         ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
     set +x
 
-    # make sure correct PIP version is left installed
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+    common::install_pip_version
     pip check
 }
 
@@ -554,9 +551,8 @@ function install_all_other_packages_from_docker_context_files() {
         set -x
         pip install ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             --root-user-action ignore --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
-        # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
-        set -x
+        common::install_pip_version
+        set +x
     fi
 }
 
@@ -618,8 +614,7 @@ function install_airflow() {
             set +x
         fi
 
-        # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+        common::install_pip_version
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
@@ -633,15 +628,13 @@ function install_airflow() {
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
-        # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+        common::install_pip_version
         # then upgrade if needed without using constraints to account for new limits in setup.py
         pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
-        # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+        common::install_pip_version
         set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
@@ -680,8 +673,7 @@ function install_additional_dependencies() {
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
-        # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+        common::install_pip_version
         set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
@@ -695,8 +687,7 @@ function install_additional_dependencies() {
         pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS}
-        # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+        common::install_pip_version
         set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
@@ -1034,7 +1025,8 @@ while true; do
     xargs -0 rm -f
 
   seconds=$(( $(date -u +%s) % EVERY))
-  (( seconds < 1 )) || sleep $((EVERY - seconds))
+  (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
+  sleep 1
 done
 EOF
 

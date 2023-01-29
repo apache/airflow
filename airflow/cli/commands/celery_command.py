@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Celery command"""
+"""Celery command."""
 from __future__ import annotations
 
+from contextlib import contextmanager
 from multiprocessing import Process
 
 import daemon
@@ -39,7 +40,7 @@ WORKER_PROCESS_NAME = "worker"
 
 @cli_utils.action_cli
 def flower(args):
-    """Starts Flower, Celery monitoring tool"""
+    """Starts Flower, Celery monitoring tool."""
     options = [
         "flower",
         conf.get("celery", "BROKER_URL"),
@@ -83,27 +84,21 @@ def flower(args):
         celery_app.start(options)
 
 
-def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
-    """Starts serve_logs sub-process"""
+@contextmanager
+def _serve_logs(skip_serve_logs: bool = False):
+    """Starts serve_logs sub-process."""
+    sub_proc = None
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
-        return sub_proc
-    return None
-
-
-def _run_worker(options, skip_serve_logs):
-    sub_proc = _serve_logs(skip_serve_logs)
-    try:
-        celery_app.worker_main(options)
-    finally:
-        if sub_proc:
-            sub_proc.terminate()
+    yield
+    if sub_proc:
+        sub_proc.terminate()
 
 
 @cli_utils.action_cli
 def worker(args):
-    """Starts Airflow Celery worker"""
+    """Starts Airflow Celery worker."""
     # Disable connection pool so that celery worker does not hold an unnecessary db connection
     settings.reconfigure_orm(disable_connection_pool=True)
     if not settings.validate_session():
@@ -190,22 +185,24 @@ def worker(args):
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 
-            ctx = daemon.DaemonContext(
+            daemon_context = daemon.DaemonContext(
                 files_preserve=[handle],
                 umask=int(umask, 8),
                 stdout=stdout_handle,
                 stderr=stderr_handle,
             )
-            with ctx:
-                _run_worker(options=options, skip_serve_logs=skip_serve_logs)
+            with daemon_context, _serve_logs(skip_serve_logs):
+                celery_app.worker_main(options)
+
     else:
         # Run Celery worker in the same process
-        _run_worker(options=options, skip_serve_logs=skip_serve_logs)
+        with _serve_logs(skip_serve_logs):
+            celery_app.worker_main(options)
 
 
 @cli_utils.action_cli
 def stop_worker(args):
-    """Sends SIGTERM to Celery worker"""
+    """Sends SIGTERM to Celery worker."""
     # Read PID from file
     if args.pid:
         pid_file_path = args.pid

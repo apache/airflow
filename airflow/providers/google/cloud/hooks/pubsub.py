@@ -70,6 +70,10 @@ class PubSubHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -538,9 +542,9 @@ class PubSubHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         """
         if ack_ids is not None and messages is None:
-            pass
+            pass  # use ack_ids as is
         elif ack_ids is None and messages is not None:
-            ack_ids = [message.ack_id for message in messages]
+            ack_ids = [message.ack_id for message in messages]  # extract ack_ids from messages
         else:
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 

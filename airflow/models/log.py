@@ -41,6 +41,7 @@ class Log(Base):
 
     __table_args__ = (
         Index("idx_log_dag", dag_id),
+        Index("idx_log_dttm", dttm),
         Index("idx_log_event", event),
     )
 
@@ -69,3 +70,6 @@ class Log(Base):
             self.map_index = kwargs["map_index"]
 
         self.owner = owner or task_owner
+
+    def __str__(self) -> str:
+        return f"Log({self.event}, {self.task_id}, {self.owner}, {self.extra})"

@@ -20,14 +20,14 @@ Managing Connections
 
 .. seealso::
 
-  For an overview of hooks and connections, see :doc:`/concepts/connections`.
+  For an overview of hooks and connections, see :doc:`/authoring-and-scheduling/connections`.
 
 Airflow's :class:`~airflow.models.connection.Connection` object is used for storing credentials and other information necessary for connecting to external services.
 
 Connections may be defined in the following ways:
 
   - in :ref:`environment variables <environment_variables_secrets_backend>`
-  - in an external :doc:`/security/secrets/secrets-backend/index`
+  - in an external :doc:`/administration-and-deployment/security/secrets/secrets-backend/index`
   - in the :ref:`Airflow metadata database <connections-in-database>`
     (using the :ref:`CLI <connection/cli>` or :ref:`web UI <creating_connection_ui>`)
 
@@ -84,7 +84,7 @@ See :ref:`Connection URI format <connection-uri-format>` for more details on how
 Storing connections in a Secrets Backend
 ----------------------------------------
 
-You can store Airflow connections in external secrets backends like HashiCorp Vault, AWS SSM Parameter Store, and other such services. For more details see :doc:`/security/secrets/secrets-backend/index`.
+You can store Airflow connections in external secrets backends like HashiCorp Vault, AWS SSM Parameter Store, and other such services. For more details see :doc:`/administration-and-deployment/security/secrets/secrets-backend/index`.
 
 .. _connections-in-database:
 
@@ -92,7 +92,7 @@ Storing connections in the database
 -----------------------------------
 .. seealso::
 
-    Connections can alternatively be stored in :ref:`environment variables <environment_variables_secrets_backend>` or an :doc:`external secrets backend </security/secrets/secrets-backend/index>` such as HashiCorp Vault, AWS SSM Parameter Store, etc.
+    Connections can alternatively be stored in :ref:`environment variables <environment_variables_secrets_backend>` or an :doc:`external secrets backend </administration-and-deployment/security/secrets/secrets-backend/index>` such as HashiCorp Vault, AWS SSM Parameter Store, etc.
 
 When storing connections in the database, you may manage them using either the web UI or the Airflow CLI.
 

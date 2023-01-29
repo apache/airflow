@@ -28,9 +28,11 @@ from sqlalchemy import (
     Boolean,
     Column,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     PickleType,
+    PrimaryKeyConstraint,
     String,
     Text,
     UniqueConstraint,
@@ -40,6 +42,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
@@ -49,10 +52,10 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
@@ -85,6 +88,16 @@ class TISchedulingDecision(NamedTuple):
     finished_tis: list[TI]
 
 
+def _creator_note(val):
+    """Custom creator for the ``note`` association proxy."""
+    if isinstance(val, str):
+        return DagRunNote(content=val)
+    elif isinstance(val, dict):
+        return DagRunNote(**val)
+    else:
+        return DagRunNote(*val)
+
+
 class DagRun(Base, LoggingMixin):
     """
     DagRun describes an instance of a Dag. It can be created
@@ -111,7 +124,6 @@ class DagRun(Base, LoggingMixin):
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
-    notes = Column(String(1000).with_variant(Text(1000), "mysql"))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -163,6 +175,8 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         viewonly=True,
     )
+    dag_run_note = relationship("DagRunNote", back_populates="dag_run", uselist=False)
+    note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",
@@ -184,7 +198,6 @@ class DagRun(Base, LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
-        notes: str | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -207,7 +220,6 @@ class DagRun(Base, LoggingMixin):
         self.run_type = run_type
         self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
-        self.notes = notes
         super().__init__()
 
     def __repr__(self):
@@ -293,6 +305,7 @@ class DagRun(Base, LoggingMixin):
         # TODO: Bake this query, it is run _A lot_
         query = (
             session.query(cls)
+            .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
             .filter(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .filter(DagModel.is_paused == false(), DagModel.is_active == true())
@@ -516,9 +529,9 @@ class DagRun(Base, LoggingMixin):
         of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
-        :param execute_callbacks: Should dag callbacks (success/failure, SLA etc) be invoked
-            directly (default: true) or recorded as a pending request in the ``callback`` property
-        :return: Tuple containing tis that can be scheduled in the current loop & `callback` that
+        :param execute_callbacks: Should dag callbacks (success/failure, SLA etc.) be invoked
+            directly (default: true) or recorded as a pending request in the ``returned_callback`` property
+        :return: Tuple containing tis that can be scheduled in the current loop & `returned_callback` that
             needs to be executed
         """
         # Callback to execute in case of Task Failures
@@ -572,6 +585,8 @@ class DagRun(Base, LoggingMixin):
         if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
             self.log.error("Marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
+            self.notify_dagrun_state_changed(msg="task_failure")
+
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="task_failure", session=session)
             elif dag.has_on_failure_callback:
@@ -591,6 +606,8 @@ class DagRun(Base, LoggingMixin):
         elif not unfinished.tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info("Marking run %s successful", self)
             self.set_state(DagRunState.SUCCESS)
+            self.notify_dagrun_state_changed(msg="success")
+
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason="success", session=session)
             elif dag.has_on_success_callback:
@@ -608,8 +625,10 @@ class DagRun(Base, LoggingMixin):
 
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
-            self.log.error("Deadlock; marking run %s failed", self)
+            self.log.error("Task deadlock (no runnable tasks); marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
+            self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
+
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
             elif dag.has_on_failure_callback:
@@ -694,9 +713,10 @@ class DagRun(Base, LoggingMixin):
                 session=session,
             )
 
-            # During expansion we may change some tis into non-schedulable
+            # During expansion, we may change some tis into non-schedulable
             # states, so we need to re-compute.
             if expansion_happened:
+                changed_tis = True
                 new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
                 finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
                 unfinished_tis = new_unfinished_tis
@@ -711,6 +731,17 @@ class DagRun(Base, LoggingMixin):
             unfinished_tis=unfinished_tis,
             finished_tis=finished_tis,
         )
+
+    def notify_dagrun_state_changed(self, msg: str = ""):
+        if self.state == DagRunState.RUNNING:
+            get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
+        elif self.state == DagRunState.SUCCESS:
+            get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg)
+        elif self.state == DagRunState.FAILED:
+            get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
+        # deliberately not notifying on QUEUED
+        # we can't get all the state changes on SchedulerJob, BackfillJob
+        # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     def _get_ready_tis(
         self,
@@ -734,6 +765,27 @@ class DagRun(Base, LoggingMixin):
             finished_tis=finished_tis,
         )
 
+        def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
+            """Try to expand the ti, if needed.
+
+            If the ti needs expansion, newly created task instances are
+            returned as well as the original ti.
+            The original ti is also modified in-place and assigned the
+            ``map_index`` of 0.
+
+            If the ti does not need expansion, either because the task is not
+            mapped, or has already been expanded, *None* is returned.
+            """
+            if ti.map_index >= 0:  # Already expanded, we're good.
+                return None
+            try:
+                expanded_tis, _ = ti.task.expand_mapped_task(self.run_id, session=session)
+            except NotMapped:  # Not a mapped task, nothing needed.
+                return None
+            if expanded_tis:
+                return expanded_tis
+            return ()
+
         # Check dependencies.
         expansion_happened = False
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
@@ -741,23 +793,20 @@ class DagRun(Base, LoggingMixin):
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
                 continue
-            # If schedulable is from a mapped task, but not yet expanded, do it
-            # now. This is called in two places: First and ideally in the mini
-            # scheduler at the end of LocalTaskJob, and then as an "expansion of
-            # last resort" in the scheduler to ensure that the mapped task is
-            # correctly expanded before executed.
-            if schedulable.map_index < 0 and isinstance(schedulable.task, MappedOperator):
-                expanded_tis, _ = schedulable.task.expand_mapped_task(self.run_id, session=session)
-                if expanded_tis:
-                    assert expanded_tis[0] is schedulable
-                    additional_tis.extend(expanded_tis[1:])
-                expansion_happened = True
-            if schedulable.state in SCHEDULEABLE_STATES:
-                task = schedulable.task
-                if isinstance(task, MappedOperator):
-                    # Ensure the task indexes are complete
-                    created = self._revise_mapped_task_indexes(task, session=session)
-                    ready_tis.extend(created)
+            # If schedulable is not yet expanded, try doing it now. This is
+            # called in two places: First and ideally in the mini scheduler at
+            # the end of LocalTaskJob, and then as an "expansion of last resort"
+            # in the scheduler to ensure that the mapped task is correctly
+            # expanded before executed. Also see _revise_map_indexes_if_mapped
+            # docstring for additional information.
+            new_tis = None
+            if schedulable.map_index < 0:
+                new_tis = _expand_mapped_task_if_needed(schedulable)
+                if new_tis is not None:
+                    additional_tis.extend(new_tis)
+                    expansion_happened = True
+            if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
+                ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
                 ready_tis.append(schedulable)
 
         # Check if any ti changed state
@@ -780,8 +829,8 @@ class DagRun(Base, LoggingMixin):
             ignore_in_reschedule_period=True,
             finished_tis=finished_tis,
         )
-        # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
-        # not ready yet so we set the flags to count them in
+        # there might be runnable tasks that are up for retry and for some reason(retry delay, etc.) are
+        # not ready yet, so we set the flags to count them in
         return (
             any(ut.are_dependencies_met(dep_context=dep_context, session=session) for ut in unfinished_tis),
             dep_context.have_changed_ti_states,
@@ -795,7 +844,7 @@ class DagRun(Base, LoggingMixin):
         is updated to a completed status (either success or failure). The method will find the first
         started task within the DAG and calculate the expected DagRun start time (based on
         dag.execution_date & dag.timetable), and minus these two values to get the delay.
-        The emitted data may contains outlier (e.g. when the first task was cleared, so
+        The emitted data may contain outlier (e.g. when the first task was cleared, so
         the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
         Note, the stat will only be emitted if the DagRun is a scheduler triggered one
@@ -817,7 +866,7 @@ class DagRun(Base, LoggingMixin):
 
             ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
             ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
-            first_start_date = ordered_tis_by_start_date[0].start_date
+            first_start_date = ordered_tis_by_start_date[0].start_date if ordered_tis_by_start_date else None
             if first_start_date:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
@@ -944,7 +993,7 @@ class DagRun(Base, LoggingMixin):
                     )
                     ti.state = State.REMOVED
             else:
-                # Check if the number of mapped literals has changed and we need to mark this TI as removed.
+                # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
                 if ti.map_index >= num_mapped_tis:
                     self.log.debug(
                         "Removing task '%s' as the map_index is longer than the literal mapping list (%s)",
@@ -1084,14 +1133,22 @@ class DagRun(Base, LoggingMixin):
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
-    def _revise_mapped_task_indexes(self, task: MappedOperator, session: Session) -> Iterable[TI]:
-        """Check if task increased or reduced in length and handle appropriately"""
+    def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
+        """Check if task increased or reduced in length and handle appropriately.
+
+        Task instances that do not already exist are created and returned if
+        possible. Expansion only happens if all upstreams are ready; otherwise
+        we delay expansion to the "last resort". See comments at the call site
+        for more details.
+        """
         from airflow.settings import task_instance_mutation_hook
 
         try:
             total_length = task.get_mapped_ti_count(self.run_id, session=session)
-        except NotFullyPopulated:  # Upstreams not ready, don't need to revise this yet.
-            return []
+        except NotMapped:
+            return  # Not a mapped task, don't need to do anything.
+        except NotFullyPopulated:
+            return  # Upstreams not ready, don't need to revise this yet.
 
         query = session.query(TI.map_index).filter(
             TI.dag_id == self.dag_id,
@@ -1099,20 +1156,9 @@ class DagRun(Base, LoggingMixin):
             TI.run_id == self.run_id,
         )
         existing_indexes = {i for (i,) in query}
-        missing_indexes = set(range(total_length)).difference(existing_indexes)
-        removed_indexes = existing_indexes.difference(range(total_length))
-        created_tis = []
 
-        if missing_indexes:
-            for index in missing_indexes:
-                ti = TI(task, run_id=self.run_id, map_index=index, state=None)
-                self.log.debug("Expanding TIs upserted %s", ti)
-                task_instance_mutation_hook(ti)
-                ti = session.merge(ti)
-                ti.refresh_from_task(task)
-                session.flush()
-                created_tis.append(ti)
-        elif removed_indexes:
+        removed_indexes = existing_indexes.difference(range(total_length))
+        if removed_indexes:
             session.query(TI).filter(
                 TI.dag_id == self.dag_id,
                 TI.task_id == task.task_id,
@@ -1120,7 +1166,17 @@ class DagRun(Base, LoggingMixin):
                 TI.map_index.in_(removed_indexes),
             ).update({TI.state: TaskInstanceState.REMOVED})
             session.flush()
-        return created_tis
+
+        for index in range(total_length):
+            if index in existing_indexes:
+                continue
+            ti = TI(task, run_id=self.run_id, map_index=index, state=None)
+            self.log.debug("Expanding TIs upserted %s", ti)
+            task_instance_mutation_hook(ti)
+            ti = session.merge(ti)
+            ti.refresh_from_task(task)
+            session.flush()
+            yield ti
 
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> DagRun | None:
@@ -1238,7 +1294,7 @@ class DagRun(Base, LoggingMixin):
         if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
             template = session.query(LogTemplate).order_by(LogTemplate.id).first()
         else:
-            template = session.query(LogTemplate).get(self.log_template_id)
+            template = session.get(LogTemplate, self.log_template_id)
         if template is None:
             raise AirflowException(
                 f"No log_template entry found for ID {self.log_template_id!r}. "
@@ -1254,3 +1310,42 @@ class DagRun(Base, LoggingMixin):
             stacklevel=2,
         )
         return self.get_log_template(session=session).filename
+
+
+class DagRunNote(Base):
+    """For storage of arbitrary notes concerning the dagrun instance."""
+
+    __tablename__ = "dag_run_note"
+
+    user_id = Column(Integer, nullable=True)
+    dag_run_id = Column(Integer, primary_key=True, nullable=False)
+    content = Column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dag_run = relationship("DagRun", back_populates="dag_run_note")
+
+    __table_args__ = (
+        PrimaryKeyConstraint("dag_run_id", name="dag_run_note_pkey"),
+        ForeignKeyConstraint(
+            (dag_run_id,),
+            ["dag_run.id"],
+            name="dag_run_note_dr_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            (user_id,),
+            ["ab_user.id"],
+            name="dag_run_note_user_fkey",
+        ),
+    )
+
+    def __init__(self, content, user_id=None):
+        self.content = content
+        self.user_id = user_id
+
+    def __repr__(self):
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.dagrun_id} {self.run_id}"
+        if self.map_index != -1:
+            prefix += f" map_index={self.map_index}"
+        return prefix + ">"

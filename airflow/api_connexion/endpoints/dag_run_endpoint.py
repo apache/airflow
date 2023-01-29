@@ -68,7 +68,7 @@ from airflow.utils.types import DagRunType
 )
 @provide_session
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Delete a DAG Run"""
+    """Delete a DAG Run."""
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, HTTPStatus.NO_CONTENT
@@ -237,7 +237,7 @@ def get_dag_runs(
 )
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
-    """Get list of DAG Runs"""
+    """Get list of DAG Runs."""
     body = get_json_request_dict()
     try:
         data = dagruns_batch_form_schema.load(body)
@@ -317,6 +317,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 conf=post_body.get("conf"),
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                session=session,
             )
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
@@ -361,7 +362,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
         set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
-    dag_run = session.query(DagRun).get(dag_run.id)
+    dag_run = session.get(DagRun, dag_run.id)
     return dagrun_schema.dump(dag_run)
 
 
@@ -412,7 +413,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             include_parentdag=True,
             only_failed=False,
         )
-        dag_run.refresh_from_db()
+        dag_run = session.query(DagRun).filter(DagRun.id == dag_run.id).one()
         return dagrun_schema.dump(dag_run)
 
 
@@ -423,7 +424,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
     ],
 )
 @provide_session
-def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set the note for a dag run."""
     dag_run: DagRun | None = (
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
@@ -433,10 +434,17 @@ def set_dag_run_notes(*, dag_id: str, dag_run_id: str, session: Session = NEW_SE
         raise NotFound(error_message)
     try:
         post_body = set_dagrun_note_form_schema.load(get_json_request_dict())
-        new_value_for_notes = post_body["notes"]
+        new_note = post_body["note"]
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    dag_run.notes = new_value_for_notes or None
+    from flask_login import current_user
+
+    current_user_id = getattr(current_user, "id", None)
+    if dag_run.dag_run_note is None:
+        dag_run.note = (new_note, current_user_id)
+    else:
+        dag_run.dag_run_note.content = new_note
+        dag_run.dag_run_note.user_id = current_user_id
     session.commit()
     return dagrun_schema.dump(dag_run)

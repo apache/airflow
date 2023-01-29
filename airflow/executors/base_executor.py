@@ -17,10 +17,15 @@
 """Base executor - this is the base class for all the implemented executors."""
 from __future__ import annotations
 
+import logging
 import sys
 import warnings
-from collections import OrderedDict
-from typing import Any, Counter, List, Optional, Sequence, Tuple
+from collections import OrderedDict, defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, List, Optional, Sequence, Tuple
+
+import pendulum
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -32,10 +37,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
-
-NOT_STARTED_MESSAGE = "The executor should be started first!"
-
-QUEUEING_ATTEMPTS = 5
 
 # Command to execute - list of strings
 # the first element is always "airflow".
@@ -56,18 +57,65 @@ EventBufferValueType = Tuple[Optional[str], Any]
 # Task tuple to send to be executed
 TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
+log = logging.getLogger(__name__)
+
+
+@dataclass
+class RunningRetryAttemptType:
+    """
+    For keeping track of attempts to queue again when task still apparently running.
+
+    We don't want to slow down the loop, so we don't block, but we allow it to be
+    re-checked for at least MIN_SECONDS seconds.
+    """
+
+    MIN_SECONDS = 10
+    total_tries: int = field(default=0, init=False)
+    tries_after_min: int = field(default=0, init=False)
+    first_attempt_time: datetime = field(default_factory=lambda: pendulum.now("UTC"), init=False)
+
+    @property
+    def elapsed(self):
+        """Seconds since first attempt"""
+        return (pendulum.now("UTC") - self.first_attempt_time).total_seconds()
+
+    def can_try_again(self):
+        """
+        If there has been at least one try greater than MIN_SECONDS after first attempt,
+        then return False.  Otherwise, return True.
+        """
+        if self.tries_after_min > 0:
+            return False
+
+        self.total_tries += 1
+
+        elapsed = self.elapsed
+        if elapsed > self.MIN_SECONDS:
+            self.tries_after_min += 1
+        log.debug("elapsed=%s tries=%s", elapsed, self.total_tries)
+        return True
+
 
 class BaseExecutor(LoggingMixin):
     """
-    Class to derive in order to interface with executor-type systems
-    like Celery, Kubernetes, Local, Sequential and the likes.
+    Class to derive in order to implement concrete executors.
+    Such as, Celery, Kubernetes, Local, Sequential and the likes.
 
     :param parallelism: how many jobs should run at one time. Set to
-        ``0`` for infinity
+        ``0`` for infinity.
     """
+
+    supports_ad_hoc_ti_run: bool = False
+    supports_pickling: bool = True
+    supports_sentry: bool = False
 
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None
+
+    is_local: bool = False
+    change_sensor_mode_to_reschedule: bool = False
+
+    serve_logs: bool = False
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
@@ -75,7 +123,7 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
-        self.attempts: Counter[TaskInstanceKey] = Counter()
+        self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
@@ -90,7 +138,7 @@ class BaseExecutor(LoggingMixin):
         priority: int = 1,
         queue: str | None = None,
     ):
-        """Queues command to task"""
+        """Queues command to task."""
         if task_instance.key not in self.queued_tasks:
             self.log.info("Adding to queue: %s", command)
             self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
@@ -104,6 +152,7 @@ class BaseExecutor(LoggingMixin):
         pickle_id: str | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         pool: str | None = None,
@@ -121,6 +170,7 @@ class BaseExecutor(LoggingMixin):
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
             pool=pool,
@@ -210,16 +260,19 @@ class BaseExecutor(LoggingMixin):
             # removed from the running set in the meantime.
             if key in self.running:
                 attempt = self.attempts[key]
-                if attempt < QUEUEING_ATTEMPTS - 1:
-                    self.attempts[key] = attempt + 1
-                    self.log.info("task %s is still running", key)
+                if attempt.can_try_again():
+                    # if it hasn't been much time since first check, let it be checked again next time
+                    self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
-
-                # We give up and remove the task from the queue.
-                self.log.error("could not queue task %s (still running after %d attempts)", key, attempt)
+                # Otherwise, we give up and remove the task from the queue.
+                self.log.error(
+                    "could not queue task %s (still running after %d attempts)", key, attempt.total_tries
+                )
                 del self.attempts[key]
                 del self.queued_tasks[key]
             else:
+                if key in self.attempts:
+                    del self.attempts[key]
                 task_tuples.append((key, command, queue, ti.executor_config))
 
         if task_tuples:
@@ -266,9 +319,10 @@ class BaseExecutor(LoggingMixin):
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
-        Returns and flush the event buffer. In case dag_ids is specified
-        it will only return and flush events for the given dag_ids. Otherwise
-        it returns and flushes all events.
+        Return and flush the event buffer.
+
+        In case dag_ids is specified it will only return and flush events
+        for the given dag_ids. Otherwise, it returns and flushes all events.
 
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
@@ -301,16 +355,21 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
+    def get_task_log(self, ti: TaskInstance, log: str = "") -> None | str | tuple[str, dict[str, bool]]:
+        """
+        This method can be implemented by any child class to return the task logs.
+
+        :param ti: A TaskInstance object
+        :param log: log str
+        :return: logs or tuple of logs and meta dict
+        """
+
     def end(self) -> None:  # pragma: no cover
-        """
-        This method is called when the caller is done submitting job and
-        wants to wait synchronously for the job submitted previously to be
-        all done.
-        """
+        """Wait synchronously for the previously submitted job to complete."""
         raise NotImplementedError()
 
     def terminate(self):
-        """This method is called when the daemon receives a SIGTERM"""
+        """This method is called when the daemon receives a SIGTERM."""
         raise NotImplementedError()
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
@@ -328,7 +387,7 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """Number of new tasks this executor instance can accept"""
+        """Number of new tasks this executor instance can accept."""
         if self.parallelism:
             return self.parallelism - len(self.running) - len(self.queued_tasks)
         else:
@@ -337,10 +396,9 @@ class BaseExecutor(LoggingMixin):
     @staticmethod
     def validate_command(command: list[str]) -> None:
         """
-        Back-compat method to Check if the command to execute is airflow command
+        Back-compat method to Check if the command to execute is airflow command.
 
         :param command: command to check
-        :return: None
         """
         warnings.warn(
             """
@@ -354,7 +412,7 @@ class BaseExecutor(LoggingMixin):
     @staticmethod
     def validate_airflow_tasks_run_command(command: list[str]) -> tuple[str | None, str | None]:
         """
-        Check if the command to execute is airflow command
+        Check if the command to execute is airflow command.
 
         Returns tuple (dag_id,task_id) retrieved from the command (replaced with None values if missing)
         """
@@ -374,7 +432,7 @@ class BaseExecutor(LoggingMixin):
         return None, None
 
     def debug_dump(self):
-        """Called in response to SIGUSR2 by the scheduler"""
+        """Called in response to SIGUSR2 by the scheduler."""
         self.log.info(
             "executor.queued (%d)\n\t%s",
             len(self.queued_tasks),

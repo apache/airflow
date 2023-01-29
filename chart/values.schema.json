@@ -77,13 +77,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.4.3",
+            "default": "2.5.1",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.4.3",
+            "default": "2.5.1",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -505,7 +505,7 @@
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The pod_template image repository.",
+                            "description": "The pod_template image repository. If ``config.kubernetes.worker_container_repository`` is set, k8s executor will use config value instead.",
                             "type": [
                                 "string",
                                 "null"
@@ -513,7 +513,7 @@
                             "default": null
                         },
                         "tag": {
-                            "description": "The pod_template image tag.",
+                            "description": "The pod_template image tag. If ``config.kubernetes.worker_container_tag`` is set, k8s executor will use config value instead.",
                             "type": [
                                 "string",
                                 "null"
@@ -680,7 +680,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.4.0"
+                            "default": "v3.6.3"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -723,6 +723,24 @@
                     "value": "something_fun"
                 }
             ]
+        },
+        "volumes": {
+            "description": "Volumes for all Airflow containers.",
+            "x-docsSection": "Airflow",
+            "type": "array",
+            "default": [],
+            "items": {
+                "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+            }
+        },
+        "volumeMounts": {
+            "description": "VolumeMounts for all Airflow containers.",
+            "x-docsSection": "Airflow",
+            "type": "array",
+            "default": [],
+            "items": {
+                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+            }
         },
         "secret": {
             "description": "Secrets for all Airflow containers.",
@@ -1540,6 +1558,14 @@
                         }
                     ]
                 },
+                "annotations": {
+                    "description": "Annotations to add to the worker deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the worker pods.",
                     "type": "object",
@@ -1931,6 +1957,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "annotations": {
+                    "description": "Annotations to add to the scheduler deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the scheduler pods.",
                     "type": "object",
@@ -2307,6 +2341,14 @@
                     "type": "integer",
                     "default": 60
                 },
+                "annotations": {
+                    "description": "Annotations to add to the triggerer deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the triggerer pods.",
                     "type": "object",
@@ -2624,6 +2666,14 @@
                     "type": "integer",
                     "default": 60
                 },
+                "annotations": {
+                    "description": "Annotations to add to the dag processor deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the dag processor pods.",
                     "type": "object",
@@ -2890,6 +2940,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to this job",
+                    "type": "boolean",
+                    "default": true
+                },
                 "env": {
                     "description": "Add additional env vars to the create user job pod.",
                     "type": "array",
@@ -3082,6 +3137,11 @@
                 },
                 "useHelmHooks": {
                     "description": "Specify if you want to use the default Helm Hook annotations",
+                    "type": "boolean",
+                    "default": true
+                },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to this job",
                     "type": "boolean",
                     "default": true
                 }
@@ -3419,7 +3479,7 @@
                     }
                 },
                 "webserverConfig": {
-                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
+                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
                         "string",
                         "null"
@@ -3428,6 +3488,18 @@
                     "default": null,
                     "examples": [
                         "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                    ]
+                },
+                "webserverConfigConfigMapName": {
+                    "description": "The configmap name containing the webserver_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "my-webserver-configmap"
                     ]
                 },
                 "service": {
@@ -3560,6 +3632,14 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
+                "annotations": {
+                    "description": "Annotations to add to the webserver deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
                     }
                 },
                 "podAnnotations": {
@@ -3941,6 +4021,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "annotations": {
+                    "description": "Annotations to add to the flower deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the Flower pods.",
                     "type": "object",
@@ -4157,6 +4245,19 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "args": {
+                    "description": "Args to use when running statsd-exporter (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+                    ]
                 }
             }
         },
@@ -4171,6 +4272,14 @@
                     "type": "boolean",
                     "x-docsSection": "Common",
                     "default": false
+                },
+                "annotations": {
+                    "description": "Annotations to add to the PgBouncer deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "replicas": {
                     "description": "Number of PgBouncer replicas to run in Deployment.",
@@ -5091,15 +5200,41 @@
                     "type": "boolean",
                     "default": true
                 },
-                "postgresqlPassword": {
-                    "description": "PostgreSQL password.",
-                    "type": "string",
-                    "default": "postgres"
-                },
-                "postgresqlUsername": {
-                    "description": "PostgreSQL username.",
-                    "type": "string",
-                    "default": "postgres"
+                "auth": {
+                    "description": "PostgreSQL authentication values.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "enablePostgresUser": {
+                            "description": "Assign a password to the 'postgres' admin user. Otherwise, remote access will be blocked for this user",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "postgresPassword": {
+                            "description": "Password for the 'postgres' admin user.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": "postgres"
+                        },
+                        "username": {
+                            "description": "Name for a custom user to create",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "password": {
+                            "description": "Password for the custom user to create.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
                 }
             }
         },

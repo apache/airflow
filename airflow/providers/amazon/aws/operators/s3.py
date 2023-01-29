@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -162,7 +163,7 @@ class S3PutBucketTaggingOperator(BaseOperator):
         If a key is provided, a value must be provided as well.
     :param value: The value portion of the key/value pair for a tag to be added.
         If a value is provided, a key must be provided as well.
-    :param tag_set: A List of key/value pairs.
+    :param tag_set: A dictionary containing the tags, or a List of key/value pairs.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -178,7 +179,7 @@ class S3PutBucketTaggingOperator(BaseOperator):
         bucket_name: str,
         key: str | None = None,
         value: str | None = None,
-        tag_set: list[dict[str, str]] | None = None,
+        tag_set: dict | list[dict[str, str]] | None = None,
         aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
@@ -463,11 +464,11 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-        if not bool(keys is None) ^ bool(prefix is None):
+        if not exactly_one(prefix is None, keys is None):
             raise AirflowException("Either keys or prefix should be set.")
 
     def execute(self, context: Context):
-        if not bool(self.keys is None) ^ bool(self.prefix is None):
+        if not exactly_one(self.keys is None, self.prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
         if isinstance(self.keys, (list, str)) and not bool(self.keys):

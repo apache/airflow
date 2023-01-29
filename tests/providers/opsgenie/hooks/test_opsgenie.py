@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -29,7 +28,7 @@ from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 from airflow.utils import db
 
 
-class TestOpsgenieAlertHook(unittest.TestCase):
+class TestOpsgenieAlertHook:
     conn_id = "opsgenie_conn_id_test"
     opsgenie_alert_endpoint = "https://api.opsgenie.com/v2/alerts"
     _create_alert_payload = {
@@ -67,7 +66,7 @@ class TestOpsgenieAlertHook(unittest.TestCase):
         "request_id": "43a29c5c-3dbf-4fa4-9c26-f4f71023e120",
     }
 
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id=self.conn_id,

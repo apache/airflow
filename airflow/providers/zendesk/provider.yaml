@@ -22,6 +22,7 @@ description: |
     `Zendesk <https://www.zendesk.com/>`__
 
 versions:
+  - 4.2.0
   - 4.1.0
   - 4.0.0
   - 3.0.3
@@ -47,3 +48,7 @@ hooks:
   - integration-name: Zendesk
     python-modules:
       - airflow.providers.zendesk.hooks.zendesk
+
+connection-types:
+  - hook-class-name: airflow.providers.zendesk.hooks.zendesk.ZendeskHook
+    connection-type: zendesk

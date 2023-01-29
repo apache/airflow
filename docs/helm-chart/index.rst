@@ -125,14 +125,33 @@ The command removes all the Kubernetes components associated with the chart and 
 Installing the Chart with Argo CD, Flux or Terraform
 -----------------------------------------------------
 
-When installing the chart using Argo CD, Flux, or Terraform, you MUST set the two following values, or your application
+When installing the chart using Argo CD, Flux, or Terraform, you MUST set the four following values, or your application
 will not start as the migrations will not be run:
 
 .. code-block:: yaml
 
     createUserJob:
       useHelmHooks: false
+      applyCustomEnv: false
     migrateDatabaseJob:
       useHelmHooks: false
+      applyCustomEnv: false
+
+This is so these CI/CD services can perform updates without issues and preserve the immutability of Kubernetes Job manifests.
 
 This also applies if you install the chart using ``--wait`` in your ``helm install`` command.
+
+.. note::
+    While deploying this Helm chart with Argo, you might encounter issues with database migrations not running automatically on upgrade.
+
+To run database migrations with Argo CD automatically, you will need to add:
+
+.. code-block:: yaml
+
+    migrateDatabaseJob:
+        jobAnnotations:
+            "argocd.argoproj.io/hook": Sync
+
+This will run database migrations every time there is a ``Sync`` event in Argo CD. While it is not ideal to run the migrations on every sync, it is a trade-off that allows them to be run automatically.
+
+If you use the Celery(Kubernetes)Executor with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``redis.data.brokerUrlSecretName`` or ``redis.password``.

@@ -39,7 +39,7 @@ ACCESS_KEY_STRING = "AccountName=name;skdkskd"
 
 
 class TestWasbHook:
-    def setup(self):
+    def setup_method(self):
         db.merge_conn(Connection(conn_id="wasb_test_key", conn_type="wasb", login="login", password="key"))
         self.connection_type = "wasb"
         self.connection_string_id = "azure_test_connection_string"
@@ -413,7 +413,6 @@ class TestWasbHook:
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
         assert list(WasbHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "extra",
             "login",
             "password",
             "host",

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.case import TestCase
 from unittest.mock import mock_open, patch
 
 import pytest
@@ -26,7 +25,7 @@ from hvac.exceptions import InvalidPath, VaultError
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 
 
-class TestVaultClient(TestCase):
+class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_version_wrong(self, mock_hvac):
         mock_client = mock.MagicMock()

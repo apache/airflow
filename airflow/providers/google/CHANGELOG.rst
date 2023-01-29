@@ -23,6 +23,85 @@
 Changelog
 ---------
 
+8.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable ''GCSObjectExistenceSensorAsync'' (#28763)``
+* ``Support partition_columns in BaseSQLToGCSOperator (#28677)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'BigQueryCreateExternalTableOperator' fix field delimiter not working with csv (#28856)``
+* ``Fix using private _get_credentials instead of public get_credentials (#28588)``
+* ``Fix'GoogleCampaignManagerReportSensor' with 'QUEUED' status (#28735)``
+* ``Fix BigQueryColumnCheckOperator runtime error (#28796)``
+* ``assign "datasetReference" attribute to dataset_reference dict. by default if not already set in create_empty_dataset method of bigquery hook (#28782)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
+8.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add table_resource to template fields for BigQueryCreateEmptyTableOperator (#28235)``
+* ``Add retry param in GCSObjectExistenceSensor (#27943)``
+* ``Add preserveAsciiControlCharacters to src_fmt_configs (#27679)``
+* ``Add deferrable mode to CloudBuildCreateBuildOperator (#27783)``
+* ``GCSToBigQueryOperator allows autodetect None and infers schema (#28564)``
+* ``Improve memory usage in Dataproc deferrable operators (#28117)``
+* ``Push job_id in xcom for dataproc submit job op (#28639)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix for issue with reading schema fields for JSON files in GCSToBigQueryOperator (#28284)``
+* ``Fix GCSToBigQueryOperator not respecting schema_obj (#28444)``
+* ``Fix GCSToGCSOperator copying list of objects without wildcard (#28111)``
+* ``Fix: re-enable use of parameters in gcs_to_bq which had been disabled (#27961)``
+* ``Set bigquery ''use_legacy_sql'' param in job config correctly (#28522)``
+
+Misc
+~~~~
+* ``Remove 'pylint' messages control instructions (#28555)``
+* ``Remove deprecated AIPlatformConsoleLinkk from google/provider.yaml (#28449)``
+* ``Use object instead of array in config.yml for config template (#28417)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+* ``Change log level to DEBUG when secret not found for google secret manager (#27856)``
+* ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
+
+8.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Persist DataprocLink for workflow operators regardless of job status (#26986)``
+* ``Deferrable mode for BigQueryToGCSOperator (#27683)``
+* ``Add Export Format to Template Fields in BigQueryToGCSOperator (#27910)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix to read location parameter properly in BigQueryToBigQueryOperator (#27661)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
 8.5.0
 .....
 
@@ -37,25 +116,31 @@ Misc
 * ``Use non-deprecated method for on_kill in BigQueryHook (#27547)``
 * ``Typecast biquery job response col value (#27236)``
 * ``Remove <2 limit on google-cloud-storage (#26922)``
+* ``Replace urlparse with urlsplit (#27389)``
 
 Features
 ~~~~~~~~
 
+When defining a connection in environment variables or secrets backend, previously ``extra`` fields
+needed to be defined with prefix ``extra__google_cloud_platform__``.  Now this is no longer required.
+So for example you may store the keyfile json as ``keyfile_dict`` instead of
+``extra__google_cloud_platform__keyfile_dict``.  If both are present, the short name will be preferred.
+
 * ``Add backward compatibility with old versions of Apache Beam (#27263)``
-* ``Add deferrable mode to GCPToBigQueryOperator + tests (#27052)``
+* ``Add deferrable mode to GCSToBigQueryOperator + tests (#27052)``
 * ``Add system tests for Vertex AI operators in new approach (#27053)``
 * ``Dataform operators, links, update system tests and docs (#27144)``
 * ``Allow values in WorkflowsCreateExecutionOperator execution argument to be dicts (#27361)``
 * ``DataflowStopJobOperator Operator (#27033)``
 * ``Allow for the overriding of stringify_dict for json/jsonb column data type in Postgres #26875 (#26876)``
+* ``Allow and prefer non-prefixed extra fields for dataprep hook (#27039)``
+* ``Update google hooks to prefer non-prefixed extra fields (#27023)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Add new Compute Engine Operators and fix system tests (#25608)``
-* ``Allow and prefer non-prefixed extra fields for dataprep hook (#27039)``
 * ``Common sql bugfixes and improvements (#26761)``
-* ``Update google hooks to prefer non-prefixed extra fields (#27023)``
 * ``Fix delay in Dataproc CreateBatch operator (#26126)``
 * ``Remove unnecessary newlines around single arg in signature (#27525)``
 * ``set project_id and location when canceling BigQuery job (#27521)``
@@ -79,9 +164,6 @@ Bug Fixes
    * ``Enable string normalization in python formatting - providers (#27205)``
    * ``Local filesystem to Google Drive Operator - system tests migration (AIP-47) (#26797)``
    * ``SFTP to Google Cloud Storage Transfer system tests migration (AIP-47) (#26799)``
-
-.. Review and move the new changes to one of the sections above:
-   * ``Replace urlparse with urlsplit (#27389)``
 
 8.4.0
 .....
@@ -462,11 +544,10 @@ Misc
 * ``Cleanup Google provider CHANGELOG.rst (#23390)``
 * ``migrate system test gcs_to_bigquery into new design (#22753)``
 * ``Add example DAG for demonstrating usage of GCS sensors (#22808)``
-
-   * ``Clean up in-line f-string concatenation (#23591)``
-   * ``Bump pre-commit hook versions (#22887)``
-   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
-   * ``Fix new MyPy errors in main (#22884)``
+* ``Clean up in-line f-string concatenation (#23591)``
+* ``Bump pre-commit hook versions (#22887)``
+* ``Use new Breese for building, pulling and verifying the images. (#23104)``
+* ``Fix new MyPy errors in main (#22884)``
 
 6.8.0
 .....

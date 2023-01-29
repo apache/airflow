@@ -17,16 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import requests
-import requests_mock
 
 from airflow.models.dag import DAG
 from airflow.providers.apache.druid.transfers.hive_to_druid import HiveToDruidOperator
 
 
-class TestDruidHook(unittest.TestCase):
+class TestDruidHook:
 
     # To debug the large json diff
     maxDiff = None
@@ -57,8 +54,8 @@ class TestDruidHook(unittest.TestCase):
 
     index_spec_config = {"static_path": "/apps/db/warehouse/hive/", "columns": ["country", "segment"]}
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        import requests_mock
 
         args = {"owner": "airflow", "start_date": "2017-01-01"}
         self.dag = DAG("hive_to_druid", default_args=args)

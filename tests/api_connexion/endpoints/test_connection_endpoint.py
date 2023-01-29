@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import pytest
-from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
@@ -26,6 +25,7 @@ from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections
+from tests.test_utils.www import _check_last_log
 
 
 @pytest.fixture(scope="module")
@@ -81,6 +81,7 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
+        _check_last_log(session, dag_id=None, event="connection.delete", execution_date=None)
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(
@@ -250,7 +251,8 @@ class TestGetConnections(TestConnectionEndpoint):
 
 
 class TestGetConnectionsPagination(TestConnectionEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_conn_ids",
         [
             ("/api/v1/connections?limit=1", ["TEST_CONN_ID1"]),
             ("/api/v1/connections?limit=2", ["TEST_CONN_ID1", "TEST_CONN_ID2"]),
@@ -285,7 +287,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
                 "/api/v1/connections?limit=2&offset=2",
                 ["TEST_CONN_ID3", "TEST_CONN_ID4"],
             ),
-        ]
+        ],
     )
     @provide_session
     def test_handle_limit_offset(self, url, expected_conn_ids, session):
@@ -352,11 +354,12 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
 
 
 class TestPatchConnection(TestConnectionEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload",
         [
-            ({"connection_id": "test-connection-id", "conn_type": "test_type", "extra": "{'key': 'var'}"},),
-            ({"extra": "{'key': 'var'}"},),
-        ]
+            {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": "{'key': 'var'}"},
+            {"extra": "{'key': 'var'}"},
+        ],
     )
     @provide_session
     def test_patch_should_respond_200(self, payload, session):
@@ -366,6 +369,7 @@ class TestPatchConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
+        _check_last_log(session, dag_id=None, event="connection.edit", execution_date=None)
 
     def test_patch_should_respond_200_with_update_mask(self, session):
         self._create_connection(session)
@@ -396,7 +400,8 @@ class TestPatchConnection(TestConnectionEndpoint):
             "host": None,
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, update_mask, error_message",
         [
             (
                 {
@@ -440,7 +445,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                 "",  # not necessary
                 "The connection_id cannot be updated.",
             ),
-        ]
+        ],
     )
     @provide_session
     def test_patch_should_respond_400_for_invalid_fields_in_update_mask(
@@ -455,7 +460,8 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.status_code == 400
         assert response.json["detail"] == error_message
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "payload, error_message",
         [
             (
                 {
@@ -482,7 +488,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                 },
                 "_password",
             ),
-        ]
+        ],
     )
     @provide_session
     def test_patch_should_respond_400_for_invalid_update(self, payload, error_message, session):
@@ -527,6 +533,7 @@ class TestPostConnection(TestConnectionEndpoint):
         connection = session.query(Connection).all()
         assert len(connection) == 1
         assert connection[0].conn_id == "test-connection-id"
+        _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
 
     def test_post_should_respond_200_extra_null(self, session):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": None}

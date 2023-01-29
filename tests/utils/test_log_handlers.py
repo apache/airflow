@@ -21,6 +21,11 @@ import logging
 import logging.config
 import os
 import re
+from unittest import mock
+from unittest.mock import mock_open, patch
+
+import pytest
+from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
@@ -31,6 +36,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
@@ -215,6 +221,138 @@ class TestFileTaskLogHandler:
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
+
+    def test__read_from_location(self, create_task_instance):
+        """Test if local log file exists, then log is read from it"""
+        local_log_file_read = create_task_instance(
+            dag_id="dag_for_testing_local_log_read",
+            task_id="task_for_testing_local_log_read",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+        with patch("os.path.exists", return_value=True):
+            opener = mock_open(read_data="dummy test log data")
+            with patch("airflow.utils.log.file_task_handler.open", opener):
+                fth = FileTaskHandler("")
+                log = fth._read(ti=local_log_file_read, try_number=1)
+                assert len(log) == 2
+                assert "dummy test log data" in log[0]
+
+    @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.get_task_log")
+    def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance):
+        """Test for k8s executor, the log is read from get_task_log method"""
+        executor_name = "KubernetesExecutor"
+        ti = create_task_instance(
+            dag_id="dag_for_testing_k8s_executor_log_read",
+            task_id="task_for_testing_k8s_executor_log_read",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+
+        with conf_vars({("core", "executor"): executor_name}):
+            with patch("os.path.exists", return_value=False):
+                fth = FileTaskHandler("")
+                fth._read(ti=ti, try_number=1)
+                mock_k8s_get_task_log.assert_called_once_with(ti=ti, log=mock.ANY)
+
+    def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
+        """Test for executors which do not have `get_task_log` method, it fallbacks to reading
+        log from worker"""
+        executor_name = "CeleryExecutor"
+
+        ti = create_task_instance(
+            dag_id="dag_for_testing_celery_executor_log_read",
+            task_id="task_for_testing_celery_executor_log_read",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+
+        with conf_vars({("core", "executor"): executor_name}):
+            with patch("os.path.exists", return_value=False):
+                fth = FileTaskHandler("")
+
+                def mock_log_from_worker(ti, log, log_relative_path):
+                    return (log, {"end_of_log": True})
+
+                fth._get_task_log_from_worker = mock.Mock(side_effect=mock_log_from_worker)
+                log = fth._read(ti=ti, try_number=1)
+                fth._get_task_log_from_worker.assert_called_once()
+                assert "Local log file does not exist" in log[0]
+                assert "Failed to fetch log from executor. Falling back to fetching log from worker" in log[0]
+
+    @pytest.mark.parametrize(
+        "pod_override, namespace_to_call",
+        [
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-A")), "namespace-A"),
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-B")), "namespace-B"),
+            pytest.param(k8s.V1Pod(), "default"),
+            pytest.param(None, "default"),
+            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name-xxx")), "default"),
+        ],
+    )
+    @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
+    @patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_read_from_k8s_under_multi_namespace_mode(
+        self, mock_kube_client, pod_override, namespace_to_call
+    ):
+        mock_read_log = mock_kube_client.return_value.read_namespaced_pod_log
+        mock_list_pod = mock_kube_client.return_value.list_namespaced_pod
+
+        def task_callable(ti):
+            ti.log.info("test")
+
+        with DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE) as dag:
+            task = PythonOperator(
+                task_id="task_for_testing_file_log_handler",
+                python_callable=task_callable,
+                executor_config={"pod_override": pod_override},
+            )
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        ti.try_number = 3
+
+        logger = ti.log
+        ti.log.disabled = False
+
+        file_handler = next((h for h in logger.handlers if h.name == FILE_TASK_HANDLER), None)
+        set_context(logger, ti)
+        ti.run(ignore_ti_state=True)
+
+        file_handler.read(ti, 3)
+
+        # first we find pod name
+        mock_list_pod.assert_called_once()
+        actual_kwargs = mock_list_pod.call_args[1]
+        assert actual_kwargs["namespace"] == namespace_to_call
+        actual_selector = actual_kwargs["label_selector"]
+        assert re.match(
+            ",".join(
+                [
+                    "airflow_version=.+?",
+                    "dag_id=dag_for_testing_file_task_handler",
+                    "kubernetes_executor=True",
+                    "run_id=manual__2016-01-01T0000000000-2b88d1d57",
+                    "task_id=task_for_testing_file_log_handler",
+                    "try_number=.+?",
+                    "airflow-worker",
+                ]
+            ),
+            actual_selector,
+        )
+
+        # then we read log
+        mock_read_log.assert_called_once_with(
+            name=mock_list_pod.return_value.items[0].metadata.name,
+            namespace=namespace_to_call,
+            container="base",
+            follow=False,
+            tail_lines=100,
+            _preload_content=False,
+        )
 
 
 class TestFilenameRendering:

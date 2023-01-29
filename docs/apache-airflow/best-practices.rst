@@ -82,7 +82,7 @@ it difficult to check the logs of that Task from the Webserver. If that is not d
 Communication
 --------------
 
-Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`.
+Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor </core-concepts/executor/kubernetes>` or :doc:`Celery executor </core-concepts/executor/celery>`.
 Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in DAG.
@@ -92,7 +92,7 @@ For example, if we have a task that stores processed data in S3 that task can pu
 and the downstream tasks can pull the path from XCom and use it to read the data.
 
 The tasks should also not store any authentication parameters such as passwords or token inside them.
-Where at all possible, use :doc:`Connections </concepts/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
+Where at all possible, use :doc:`Connections </authoring-and-scheduling/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 .. _best_practices/top_level_code:
 
@@ -185,7 +185,7 @@ Avoiding excessive processing at the top level code described in the previous ch
 in case of dynamic DAG configuration, which can be configured essentially in one of those ways:
 
 * via `environment variables <https://wiki.archlinux.org/title/environment_variables>`_ (not to be mistaken
-  with the :doc:`Airflow Variables </concepts/variables>`)
+  with the :doc:`Airflow Variables </core-concepts/variables>`)
 * via externally provided, generated Python code, containing meta-data in the DAG folder
 * via externally provided, generated configuration meta-data file in the DAG folder
 
@@ -252,7 +252,7 @@ Good example:
 
   @task
   def my_task():
-      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan dags.
+      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan DAGs.
       print(var)
 
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
@@ -784,7 +784,7 @@ There are certain limitations and overhead introduced by this operator:
   a victim of "supply chain" attack where new version of a dependency might become malicious
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.operators.python.PythonVirtualenvOperator` in
 :ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`
@@ -846,7 +846,7 @@ The drawbacks:
   same worker might be affected by previous tasks creating/modifying files et.c
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
-that make it smother to move from development phase to production phase. As a DAG author you'd normally
+that make it smoother to move from development phase to production phase. As a DAG author you'd normally
 iterate with dependencies and develop your DAG using ``PythonVirtualenvOperator`` (thus decorating
 your tasks with ``@task.virtualenv`` decorators) while after the iteration and changes you would likely
 want to change it for production to switch to the ``ExternalPythonOperator`` (and ``@task.external_python``)

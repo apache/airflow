@@ -27,12 +27,12 @@ if TYPE_CHECKING:
 
 
 class BaseSecretsBackend(ABC):
-    """Abstract base class to retrieve Connection object given a conn_id or Variable given a key"""
+    """Abstract base class to retrieve Connection object given a conn_id or Variable given a key."""
 
     @staticmethod
     def build_path(path_prefix: str, secret_id: str, sep: str = "/") -> str:
         """
-        Given conn_id, build path for Secrets Backend
+        Given conn_id, build path for Secrets Backend.
 
         :param path_prefix: Prefix of the path to get secret
         :param secret_id: Secret id
@@ -70,7 +70,7 @@ class BaseSecretsBackend(ABC):
 
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
-        Get conn_uri from Secrets Backend
+        Get conn_uri from Secrets Backend.
 
         This method is deprecated and will be removed in a future release; implement ``get_conn_value``
         instead.
@@ -135,7 +135,7 @@ class BaseSecretsBackend(ABC):
 
     def get_variable(self, key: str) -> str | None:
         """
-        Return value for Airflow Variable
+        Return value for Airflow Variable.
 
         :param key: Variable Key
         :return: Variable Value
@@ -144,7 +144,7 @@ class BaseSecretsBackend(ABC):
 
     def get_config(self, key: str) -> str | None:
         """
-        Return value for Airflow Config Key
+        Return value for Airflow Config Key.
 
         :param key: Config Key
         :return: Config Value

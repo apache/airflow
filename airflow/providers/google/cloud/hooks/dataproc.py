@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import time
 import uuid
+import warnings
 from typing import Any, Sequence
 
 from google.api_core.client_options import ClientOptions
@@ -210,6 +211,10 @@ class DataprocHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(gcp_conn_id, delegate_to, impersonation_chain)
 
     def get_cluster_client(self, region: str | None = None) -> ClusterControllerClient:
@@ -251,6 +256,10 @@ class DataprocHook(GoogleBaseHook):
         return BatchControllerClient(
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
+
+    def get_operations_client(self, region):
+        """Returns OperationsClient"""
+        return self.get_batch_client(region=region).transport.operations_client
 
     def wait_for_operation(
         self,
@@ -992,6 +1001,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to, impersonation_chain)
+        self._cached_client: JobControllerAsyncClient | None = None
 
     def get_cluster_client(self, region: str | None = None) -> ClusterControllerAsyncClient:
         """Returns ClusterControllerAsyncClient."""
@@ -1015,15 +1025,17 @@ class DataprocAsyncHook(GoogleBaseHook):
 
     def get_job_client(self, region: str | None = None) -> JobControllerAsyncClient:
         """Returns JobControllerAsyncClient."""
-        client_options = None
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+        if self._cached_client is None:
+            client_options = None
+            if region and region != "global":
+                client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
 
-        return JobControllerAsyncClient(
-            credentials=self.get_credentials(),
-            client_info=CLIENT_INFO,
-            client_options=client_options,
-        )
+            self._cached_client = JobControllerAsyncClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=client_options,
+            )
+        return self._cached_client
 
     def get_batch_client(self, region: str | None = None) -> BatchControllerAsyncClient:
         """Returns BatchControllerAsyncClient"""

@@ -46,6 +46,14 @@ contains the main application code. A job can be initiated with the
     :start-after: [START howto_operator_gcp_mlengine_training]
     :end-before: [END howto_operator_gcp_mlengine_training]
 
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine_async.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_mlengine_training_async]
+    :end-before: [END howto_operator_gcp_mlengine_training_async]
+
 .. _howto/operator:MLEngineCreateModelOperator:
 
 Creating a model

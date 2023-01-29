@@ -34,7 +34,7 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 from sqlalchemy import func
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, SlaCallbackRequest
@@ -257,6 +257,7 @@ class TestDagFileProcessorManager:
 
         manager.set_file_paths(["abc.txt"])
         assert manager._processors == {}
+        assert "missing_file.txt" not in manager._file_stats
 
     def test_set_file_paths_when_processor_file_path_is_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -469,7 +470,7 @@ class TestDagFileProcessorManager:
         manager._file_stats = {
             "file_1.py": DagFileStat(1, 0, last_finish_time, timedelta(seconds=1.0), 1),
         }
-        with freeze_time(freezed_base_time):
+        with time_machine.travel(freezed_base_time):
             manager.set_file_paths(dag_files)
             assert manager._file_path_queue == collections.deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
@@ -480,7 +481,7 @@ class TestDagFileProcessorManager:
         # than the last_parse_time but still less than now - min_file_process_interval
         file_1_new_mtime = freezed_base_time - timedelta(seconds=5)
         file_1_new_mtime_ts = file_1_new_mtime.timestamp()
-        with freeze_time(freezed_base_time):
+        with time_machine.travel(freezed_base_time):
             manager.set_file_paths(dag_files)
             assert manager._file_path_queue == collections.deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
@@ -494,7 +495,7 @@ class TestDagFileProcessorManager:
                 > (freezed_base_time - manager.get_last_finish_time("file_1.py")).total_seconds()
             )
 
-    def test_deactivate_stale_dags(self):
+    def test_scan_stale_dags(self):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
         DagModel.last_parsed_time is not updated.
@@ -510,7 +511,7 @@ class TestDagFileProcessorManager:
         )
 
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
-        dagbag = DagBag(test_dag_path, read_dags_from_db=False)
+        dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
 
         with create_session() as session:
             # Add stale DAG to the DB
@@ -544,7 +545,7 @@ class TestDagFileProcessorManager:
             )
             assert serialized_dag_count == 1
 
-            manager._deactivate_stale_dags()
+            manager._scan_stale_dags()
 
             active_dag_count = (
                 session.query(func.count(DagModel.dag_id))
@@ -566,7 +567,7 @@ class TestDagFileProcessorManager:
             ("scheduler", "standalone_dag_processor"): "True",
         }
     )
-    def test_deactivate_stale_dags_standalone_mode(self):
+    def test_scan_stale_dags_standalone_mode(self):
         """
         Ensure only dags from current dag_directory are updated
         """
@@ -611,7 +612,7 @@ class TestDagFileProcessorManager:
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 2
 
-            manager._deactivate_stale_dags()
+            manager._scan_stale_dags()
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
@@ -714,7 +715,7 @@ class TestDagFileProcessorManager:
         assert sum(stat.run_count for stat in manager._file_stats.values()) == 3
 
         with create_session() as session:
-            assert session.query(DagModel).get(dag_id) is not None
+            assert session.get(DagModel, dag_id) is not None
 
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.backend("mysql", "postgres")

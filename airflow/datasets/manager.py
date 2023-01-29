@@ -25,6 +25,7 @@ from sqlalchemy.orm.session import Session
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -53,7 +54,7 @@ class DatasetManager(LoggingMixin):
         """
         dataset_model = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
         if not dataset_model:
-            self.log.warning("DatasetModel %s not found", dataset_model)
+            self.log.warning("DatasetModel %s not found", dataset)
             return
         session.add(
             DatasetEvent(
@@ -66,6 +67,7 @@ class DatasetManager(LoggingMixin):
             )
         )
         session.flush()
+        Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()

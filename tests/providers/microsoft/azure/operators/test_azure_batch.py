@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -41,11 +40,11 @@ FORMULA = """$curTime = time();
              $TargetDedicated = $isWorkingWeekdayHour ? 20:10;"""
 
 
-class TestAzureBatchOperator(unittest.TestCase):
+class TestAzureBatchOperator:
     # set up the test environment
     @mock.patch("airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook")
     @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
-    def setUp(self, mock_batch, mock_hook):
+    def setup_method(self, method, mock_batch, mock_hook):
         # set up the test variable
         self.test_vm_conn_id = "test_azure_batch_vm2"
         self.test_cloud_conn_id = "test_azure_batch_cloud2"

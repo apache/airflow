@@ -17,17 +17,14 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from datetime import datetime
 
 import click
 from click import IntRange
 
-from airflow_breeze.global_constants import (
-    ALL_INTEGRATIONS,
-    ALLOWED_TEST_TYPE_CHOICES,
-    all_selective_test_types,
-)
+from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES, all_selective_test_types
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -123,6 +120,7 @@ def _run_test(
     db_reset: bool,
     output: Output | None,
     test_timeout: int,
+    output_outside_the_group: bool = False,
 ) -> tuple[int, str]:
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"
@@ -132,18 +130,12 @@ def _run_test(
         env_variables["DB_RESET"] = "true"
     perform_environment_checks()
     env_variables["TEST_TYPE"] = exec_shell_params.test_type
+    env_variables["SKIP_PROVIDER_TESTS"] = str(exec_shell_params.skip_provider_tests).lower()
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
         get_console(output=output).print(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
-    if exec_shell_params.integration:
-        integration = exec_shell_params.integration
-        if "trino" in integration and "kerberos" not in integration:
-            int_list = list(integration)
-            int_list.append("kerberos")
-            integration = tuple(int_list)
-        env_variables["LIST_OF_INTEGRATION_TESTS_TO_RUN"] = " ".join(list(integration))
     project_name = _file_name_from_test_type(exec_shell_params.test_type)
     down_cmd = [
         *DOCKER_COMPOSE_COMMAND,
@@ -165,7 +157,13 @@ def _run_test(
     ]
     run_cmd.extend(list(extra_pytest_args))
     try:
-        result = run_command(run_cmd, env=env_variables, output=output, check=False)
+        result = run_command(
+            run_cmd,
+            env=env_variables,
+            output=output,
+            check=False,
+            output_outside_the_group=output_outside_the_group,
+        )
         if os.environ.get("CI") == "true" and result.returncode != 0:
             ps_result = run_command(
                 ["docker", "ps", "--all", "--format", "{{.Names}}"],
@@ -181,7 +179,7 @@ def _run_test(
             for container_id in container_ids:
                 dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
                 get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}")
-                with open(dump_path, "wt") as outfile:
+                with open(dump_path, "w") as outfile:
                     run_command(["docker", "logs", container_id], check=False, stdout=outfile)
     finally:
         run_command(
@@ -202,8 +200,9 @@ def _run_test(
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
 
-def _file_name_from_test_type(test_type):
-    return test_type.lower().replace("[", "_").replace("]", "").replace(",", "_")[:30]
+def _file_name_from_test_type(test_type: str):
+    test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
+    return re.sub("[,\.]", "_", test_type_no_brackets)[:30]
 
 
 def _run_tests_in_pool(
@@ -226,17 +225,14 @@ def _run_tests_in_pool(
             progress_matcher=GenericRegexpProgressMatcher(
                 regexp=TEST_PROGRESS_REGEXP,
                 regexp_for_joined_line=PERCENT_TEST_PROGRESS_REGEXP,
-                lines_to_search=40,
+                lines_to_search=400,
             ),
         ) as (pool, outputs):
             results = [
                 pool.apply_async(
                     _run_test,
                     kwds={
-                        "exec_shell_params": exec_shell_params.clone_with_test(
-                            test_type=test_type,
-                            integration=ALL_INTEGRATIONS if test_type == "Integration" else (),
-                        ),
+                        "exec_shell_params": exec_shell_params.clone_with_test(test_type=test_type),
                         "extra_pytest_args": extra_pytest_args,
                         "db_reset": db_reset,
                         "output": outputs[index],
@@ -271,20 +267,9 @@ def run_tests_in_parallel(
     import psutil
 
     memory_available = psutil.virtual_memory()
-    if (
-        memory_available.available < LOW_MEMORY_CONDITION
-        and not full_tests_needed
-        and "Integration" in test_types_list
-        and exec_shell_params.backend != "sqlite"
-    ):
-        get_console().print(
-            f"[warning]Integration tests are skipped on {exec_shell_params.backend} when "
-            "memory is constrained as we are in non full-test-mode!"
-        )
-        test_types_list.remove("Integration")
     if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ["mssql", "mysql"]:
         # Run heavy tests sequentially
-        heavy_test_types_to_run = {"Core", "Integration", "Providers"} & set(test_types_list)
+        heavy_test_types_to_run = {"Core", "Providers"} & set(test_types_list)
         if heavy_test_types_to_run:
             # some of those are requested
             get_console().print(
@@ -435,6 +420,80 @@ def tests(
             test_timeout=test_timeout,
         )
         sys.exit(returncode)
+
+
+@testing.command(
+    name="integration-tests",
+    help="Run the specified integratio tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python
+@option_backend
+@option_postgres_version
+@option_mysql_version
+@option_mssql_version
+@option_image_tag_for_running
+@option_mount_sources
+@option_integration
+@click.option(
+    "--test-timeout",
+    help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
+    default=60,
+    type=IntRange(min=0),
+    show_default=True,
+)
+@click.option(
+    "--skip-provider-tests",
+    help="Skip provider tests",
+    is_flag=True,
+    envvar="SKIP_PROVIDER_TESTS",
+)
+@option_db_reset
+@option_verbose
+@option_dry_run
+@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
+def integration_tests(
+    python: str,
+    backend: str,
+    postgres_version: str,
+    mysql_version: str,
+    mssql_version: str,
+    integration: tuple,
+    test_timeout: int,
+    skip_provider_tests: bool,
+    db_reset: bool,
+    image_tag: str | None,
+    mount_sources: str,
+    extra_pytest_args: tuple,
+):
+    docker_filesystem = get_filesystem_type("/var/lib/docker")
+    get_console().print(f"Docker filesystem: {docker_filesystem}")
+    exec_shell_params = ShellParams(
+        python=python,
+        backend=backend,
+        integration=integration,
+        postgres_version=postgres_version,
+        mysql_version=mysql_version,
+        mssql_version=mssql_version,
+        image_tag=image_tag,
+        mount_sources=mount_sources,
+        forward_ports=False,
+        test_type="Integration",
+        skip_provider_tests=skip_provider_tests,
+    )
+    cleanup_python_generated_files()
+    returncode, _ = _run_test(
+        exec_shell_params=exec_shell_params,
+        extra_pytest_args=extra_pytest_args,
+        db_reset=db_reset,
+        output=None,
+        test_timeout=test_timeout,
+        output_outside_the_group=True,
+    )
+    sys.exit(returncode)
 
 
 @testing.command(

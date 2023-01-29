@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DaskExecutor
+DaskExecutor.
 
 .. seealso::
     For more information on how the DaskExecutor works, take a look at the guide:
@@ -25,14 +25,14 @@ DaskExecutor
 from __future__ import annotations
 
 import subprocess
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from distributed import Client, Future, as_completed
 from distributed.security import Security
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
+from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKey
 
 # queue="default" is a special case since this is the base config default queue name,
@@ -42,6 +42,8 @@ _UNDEFINED_QUEUES = {None, "default"}
 
 class DaskExecutor(BaseExecutor):
     """DaskExecutor submits tasks to a Dask Distributed cluster."""
+
+    supports_pickling: bool = False
 
     def __init__(self, cluster_address=None):
         super().__init__(parallelism=0)
@@ -78,14 +80,13 @@ class DaskExecutor(BaseExecutor):
         queue: str | None = None,
         executor_config: Any | None = None,
     ) -> None:
+        if TYPE_CHECKING:
+            assert self.client
 
         self.validate_airflow_tasks_run_command(command)
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
-
-        if not self.client:
-            raise AirflowException(NOT_STARTED_MESSAGE)
 
         resources = None
         if queue not in _UNDEFINED_QUEUES:
@@ -102,8 +103,9 @@ class DaskExecutor(BaseExecutor):
         self.futures[future] = key  # type: ignore
 
     def _process_future(self, future: Future) -> None:
-        if not self.futures:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        if TYPE_CHECKING:
+            assert self.futures
+
         if future.done():
             key = self.futures[future]
             if future.exception():
@@ -117,23 +119,25 @@ class DaskExecutor(BaseExecutor):
             self.futures.pop(future)
 
     def sync(self) -> None:
-        if self.futures is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        if TYPE_CHECKING:
+            assert self.futures
+
         # make a copy so futures can be popped during iteration
         for future in self.futures.copy():
             self._process_future(future)
 
     def end(self) -> None:
-        if not self.client:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if self.futures is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        if TYPE_CHECKING:
+            assert self.client
+            assert self.futures
+
         self.client.cancel(list(self.futures.keys()))
         for future in as_completed(self.futures.copy()):
             self._process_future(future)
 
     def terminate(self):
-        if self.futures is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        if TYPE_CHECKING:
+            assert self.futures
+
         self.client.cancel(self.futures.keys())
         self.end()

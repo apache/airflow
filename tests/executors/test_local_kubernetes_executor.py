@@ -26,6 +26,18 @@ from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
 
 
 class TestLocalKubernetesExecutor:
+    def test_supports_pickling(self):
+        assert not LocalKubernetesExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert not LocalKubernetesExecutor.supports_sentry
+
+    def test_is_local_default_value(self):
+        assert not LocalKubernetesExecutor.is_local
+
+    def test_serve_logs_default_value(self):
+        assert LocalKubernetesExecutor.serve_logs
+
     def test_queued_tasks(self):
         local_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
@@ -70,6 +82,25 @@ class TestLocalKubernetesExecutor:
         LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
 
         assert k8s_executor_mock.kubernetes_queue == conf.get("local_kubernetes_executor", "kubernetes_queue")
+
+    def test_log_is_fetched_from_k8s_executor_only_for_k8s_queue(self):
+        local_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+
+        KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
+        LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+        local_k8s_exec = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+        simple_task_instance = mock.MagicMock()
+        simple_task_instance.queue = KUBERNETES_QUEUE
+        local_k8s_exec.get_task_log(ti=simple_task_instance, log="")
+        k8s_executor_mock.get_task_log.assert_called_once_with(ti=simple_task_instance, log=mock.ANY)
+
+        k8s_executor_mock.reset_mock()
+
+        simple_task_instance.queue = "test-queue"
+        log = local_k8s_exec.get_task_log(ti=simple_task_instance, log="")
+        k8s_executor_mock.get_task_log.assert_not_called()
+        assert log is None
 
     def test_send_callback(self):
         local_executor_mock = mock.MagicMock()

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -32,7 +31,7 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 
 
-class TestKylinCubeOperator(unittest.TestCase):
+class TestKylinCubeOperator:
     _config = {
         "kylin_conn_id": "kylin_default",
         "project": "learn_kylin",
@@ -59,7 +58,7 @@ class TestKylinCubeOperator(unittest.TestCase):
 
     build_response = {"uuid": "c143e0e4-ac5f-434d-acf3-46b0d15e3dc6"}
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 

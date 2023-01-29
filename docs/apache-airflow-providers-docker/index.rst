@@ -28,7 +28,7 @@ Content
 
     Connection types <connections/docker>
     Python API <_api/airflow/providers/docker/index>
-
+    Docker Task Decorator <decorators/docker>
 .. toctree::
     :hidden:
     :caption: System tests
@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/3.0.0/tests/system/providers/docker>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/|version|/tests/system/providers/docker>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +59,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 3.3.0
+Release: 3.5.0
 
 Provider package
 ----------------
@@ -80,7 +80,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.4.0``
+``apache-airflow``  ``>=2.3.0``
 ``docker``          ``>=5.0.3``
 ``python-dotenv``   ``>=0.21.0``
 ==================  ==================

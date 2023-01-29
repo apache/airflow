@@ -22,6 +22,10 @@ description: |
   `Apache Hive <https://hive.apache.org/>`__
 
 versions:
+  - 5.1.1
+  - 5.1.0
+  - 5.0.0
+  - 4.1.1
   - 4.1.0
   - 4.0.1
   - 4.0.0
@@ -44,7 +48,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
-  - apache-airflow-providers-common-sql>=1.3.0
+  - apache-airflow-providers-common-sql>=1.3.1
   - hmsclient>=0.1.0
   - pandas>=0.17.1
   - pyhive[hive]>=0.6.0
@@ -107,3 +111,7 @@ connection-types:
     connection-type: hiveserver2
   - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook
     connection-type: hive_metastore
+
+plugins:
+  - name: hive
+    plugin-class: airflow.providers.apache.hive.plugins.hive.HivePlugin

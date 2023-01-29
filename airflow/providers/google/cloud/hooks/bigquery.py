@@ -97,6 +97,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -425,7 +429,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
         """
-        dataset_reference = dataset_reference or {"datasetReference": {}}
+        dataset_reference = dataset_reference or {}
+
+        if "datasetReference" not in dataset_reference:
+            dataset_reference["datasetReference"] = {}
 
         for param, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
             specified_param = dataset_reference["datasetReference"].get(param)
@@ -1769,6 +1776,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "nullMarker",
                 "quote",
                 "encoding",
+                "preserveAsciiControlCharacters",
             ],
             "DATASTORE_BACKUP": ["projectionFields"],
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],

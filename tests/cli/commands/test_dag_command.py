@@ -570,6 +570,28 @@ class TestCliDags:
         assert dagrun.data_interval_start.isoformat(timespec="seconds") == "2021-06-03T00:00:00+00:00"
         assert dagrun.data_interval_end.isoformat(timespec="seconds") == "2021-06-04T00:00:00+00:00"
 
+    def test_trigger_dag_with_microseconds(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag_with_micro",
+                    "--exec-date=2021-06-04T09:00:00.000001+08:00",
+                    "--no-replace-microseconds",
+                ],
+            )
+        )
+
+        with create_session() as session:
+            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag_with_micro").one()
+
+        assert dagrun, "DagRun not created"
+        assert dagrun.run_type == DagRunType.MANUAL
+        assert dagrun.external_trigger
+        assert dagrun.execution_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
+
     def test_trigger_dag_invalid_conf(self):
         with pytest.raises(ValueError):
             dag_command.dag_trigger(

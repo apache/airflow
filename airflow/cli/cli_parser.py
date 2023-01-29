@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Command-line interface"""
+"""Command-line interface."""
 from __future__ import annotations
 
 import argparse
@@ -44,7 +44,7 @@ BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
 
 def lazy_load_command(import_path: str) -> Callable:
-    """Create a lazy loader for command"""
+    """Create a lazy loader for command."""
     _, _, name = import_path.rpartition(".")
 
     def command(*args, **kwargs):
@@ -57,10 +57,10 @@ def lazy_load_command(import_path: str) -> Callable:
 
 
 class DefaultHelpParser(argparse.ArgumentParser):
-    """CustomParser to display help message"""
+    """CustomParser to display help message."""
 
     def _check_value(self, action, value):
-        """Override _check_value and check conditionally added command"""
+        """Override _check_value and check conditionally added command."""
         if action.dest == "subcommand" and value == "celery":
             executor = conf.get("core", "EXECUTOR")
             if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
@@ -105,7 +105,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
         super()._check_value(action, value)
 
     def error(self, message):
-        """Override error and use print_instead of print_usage"""
+        """Override error and use print_instead of print_usage."""
         self.print_help()
         self.exit(2, f"\n{self.prog} command error: {message}, see help above.\n")
 
@@ -115,7 +115,7 @@ _UNSET = object()
 
 
 class Arg:
-    """Class to keep information about command line argument"""
+    """Class to keep information about command line argument."""
 
     def __init__(
         self,
@@ -141,7 +141,7 @@ class Arg:
             self.kwargs[k] = v
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
-        """Add this argument to an ArgumentParser"""
+        """Add this argument to an ArgumentParser."""
         parser.add_argument(*self.flags, **self.kwargs)
 
 
@@ -163,12 +163,12 @@ def positive_int(*, allow_zero):
 
 
 def string_list_type(val):
-    """Parses comma-separated list and returns list of string (strips whitespace)"""
+    """Parses comma-separated list and returns list of string (strips whitespace)."""
     return [x.strip() for x in val.split(",")]
 
 
 def string_lower_type(val):
-    """Lowers arg"""
+    """Lowers arg."""
     if not val:
         return
     return val.strip().lower()
@@ -433,6 +433,13 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
 ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
+ARG_REPLACE_MICRO = Arg(
+    ("--no-replace-microseconds",),
+    help="whether microseconds should be zeroed",
+    dest="replace_microseconds",
+    action="store_false",
+    default=True,
+)
 
 # db
 ARG_DB_TABLES = Arg(
@@ -533,8 +540,19 @@ ARG_IGNORE_DEPENDENCIES = Arg(
 )
 ARG_IGNORE_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-depends-on-past"),
-    help="Ignore depends_on_past dependencies (but respect upstream dependencies)",
+    help="Deprecated -- use `--depends-on-past ignore` instead. "
+    "Ignore depends_on_past dependencies (but respect upstream dependencies)",
     action="store_true",
+)
+ARG_DEPENDS_ON_PAST = Arg(
+    ("-d", "--depends-on-past"),
+    help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
+    "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
+    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
+    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
+    "skipping the task",
+    choices={"check", "ignore", "wait"},
+    default="check",
 )
 ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
@@ -647,7 +665,7 @@ ARG_DEBUG = Arg(
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get("webserver", "ACCESS_LOGFILE"),
-    help="The logfile to store the webserver access log. Use '-' to print to stderr",
+    help="The logfile to store the webserver access log. Use '-' to print to stdout",
 )
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
@@ -657,6 +675,50 @@ ARG_ERROR_LOGFILE = Arg(
 ARG_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     default=conf.get("webserver", "ACCESS_LOGFORMAT"),
+    help="The access log format for gunicorn logs",
+)
+
+
+# internal-api
+ARG_INTERNAL_API_PORT = Arg(
+    ("-p", "--port"),
+    default=9080,
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_INTERNAL_API_WORKERS = Arg(
+    ("-w", "--workers"),
+    default=4,
+    type=int,
+    help="Number of workers to run the Internal API-on",
+)
+ARG_INTERNAL_API_WORKERCLASS = Arg(
+    ("-k", "--workerclass"),
+    default="sync",
+    choices=["sync", "eventlet", "gevent", "tornado"],
+    help="The worker class to use for Gunicorn",
+)
+ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
+    ("-t", "--worker-timeout"),
+    default=120,
+    type=int,
+    help="The timeout for waiting on Internal API workers",
+)
+ARG_INTERNAL_API_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default="0.0.0.0",
+    help="Set the hostname on which to run the web server",
+)
+ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
+    ("-A", "--access-logfile"),
+    help="The logfile to store the access log. Use '-' to print to stdout",
+)
+ARG_INTERNAL_API_ERROR_LOGFILE = Arg(
+    ("-E", "--error-logfile"),
+    help="The logfile to store the error log. Use '-' to print to stderr",
+)
+ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
 
@@ -797,6 +859,12 @@ ARG_CONN_SERIALIZATION_FORMAT = Arg(
     choices=["json", "uri"],
 )
 ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
+ARG_CONN_OVERWRITE = Arg(
+    ("--overwrite",),
+    help="Overwrite existing entries if a conflict occurs",
+    required=False,
+    action="store_true",
+)
 
 # providers
 ARG_PROVIDER_NAME = Arg(
@@ -898,6 +966,10 @@ ARG_OPTION = Arg(
     ("option",),
     help="The option name",
 )
+ARG_OPTIONAL_SECTION = Arg(
+    ("--section",),
+    help="The section name",
+)
 
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
@@ -982,7 +1054,7 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
 
 
 class ActionCommand(NamedTuple):
-    """Single CLI command"""
+    """Single CLI command."""
 
     name: str
     help: str
@@ -993,7 +1065,7 @@ class ActionCommand(NamedTuple):
 
 
 class GroupCommand(NamedTuple):
-    """ClI command with subcommands"""
+    """ClI command with subcommands."""
 
     name: str
     help: str
@@ -1082,7 +1154,7 @@ DAGS_COMMANDS = (
         name="trigger",
         help="Trigger a DAG run",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE, ARG_VERBOSE, ARG_REPLACE_MICRO),
     ),
     ActionCommand(
         name="delete",
@@ -1315,6 +1387,7 @@ TASKS_COMMANDS = (
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_IGNORE_DEPENDS_ON_PAST,
+            ARG_DEPENDS_ON_PAST,
             ARG_SHIP_DAG,
             ARG_PICKLE,
             ARG_JOB_ID,
@@ -1579,6 +1652,7 @@ CONNECTIONS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_import"),
         args=(
             ARG_CONN_IMPORT,
+            ARG_CONN_OVERWRITE,
             ARG_VERBOSE,
         ),
     ),
@@ -1816,7 +1890,7 @@ CONFIG_COMMANDS = (
         name="list",
         help="List options for the configuration",
         func=lazy_load_command("airflow.cli.commands.config_command.show_config"),
-        args=(ARG_COLOR, ARG_VERBOSE),
+        args=(ARG_OPTIONAL_SECTION, ARG_COLOR, ARG_VERBOSE),
     ),
 )
 
@@ -1932,6 +2006,29 @@ airflow_commands: list[CLICommand] = [
             ARG_ACCESS_LOGFILE,
             ARG_ERROR_LOGFILE,
             ARG_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
+        ),
+    ),
+    ActionCommand(
+        name="internal-api",
+        help="Start a Airflow Internal API instance",
+        func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
+        args=(
+            ARG_INTERNAL_API_PORT,
+            ARG_INTERNAL_API_WORKERS,
+            ARG_INTERNAL_API_WORKERCLASS,
+            ARG_INTERNAL_API_WORKER_TIMEOUT,
+            ARG_INTERNAL_API_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_INTERNAL_API_ACCESS_LOGFILE,
+            ARG_INTERNAL_API_ERROR_LOGFILE,
+            ARG_INTERNAL_API_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
@@ -2148,7 +2245,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 
 @lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
-    """Creates and returns command line argument parser"""
+    """Creates and returns command line argument parser."""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
     subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
     subparsers.required = True
@@ -2163,10 +2260,10 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
 
 
 def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
-    """Sort subcommand optional args, keep positional args"""
+    """Sort subcommand optional args, keep positional args."""
 
     def get_long_option(arg: Arg):
-        """Get long option from Arg.flags"""
+        """Get long option from Arg.flags."""
         return arg.flags[0] if len(arg.flags) == 1 else arg.flags[1]
 
     positional, optional = partition(lambda x: x.flags[0].startswith("-"), args)
