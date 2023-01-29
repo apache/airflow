@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-29T09:55:20Z
+# This constraints file was automatically generated on 2023-01-29T18:00:29Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -244,7 +244,7 @@ hmsclient==0.1.1
 httpcore==0.16.3
 httplib2==0.20.4
 httpx==0.23.3
-humanize==4.4.0
+humanize==4.5.0
 hvac==1.0.2
 identify==2.5.16
 idna==3.4
