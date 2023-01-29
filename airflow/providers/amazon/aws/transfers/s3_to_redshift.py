@@ -65,6 +65,7 @@ class S3ToRedshiftOperator(BaseOperator):
     :param upsert_keys: List of fields to use as key on upsert action
     :param redshift_data_api_kwargs: If using the Redshift Data API instead of the SQL-based connection,
         dict of arguments for the hook's ``execute_query`` method.
+        Cannot include any of these kwargs: ``{'sql', 'parameters'}``
     """
 
     template_fields: Sequence[str] = (
@@ -114,8 +115,11 @@ class S3ToRedshiftOperator(BaseOperator):
 
         if self.method not in AVAILABLE_METHODS:
             raise AirflowException(f"Method not found! Available methods: {AVAILABLE_METHODS}")
-        if self.redshift_data_api_kwargs and "sql" in self.redshift_data_api_kwargs.keys():
-            raise AirflowException("Cannot include param 'sql' in Redshift Data API kwargs")
+
+        if self.redshift_data_api_kwargs:
+            for arg in ["sql", "parameters"]:
+                if arg in self.redshift_data_api_kwargs.keys():
+                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
     def _build_copy_query(self, copy_destination: str, credentials_block: str, copy_options: str) -> str:
         column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else ""

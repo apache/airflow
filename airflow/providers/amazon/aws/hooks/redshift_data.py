@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -52,7 +52,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         sql: str | list[str],
         cluster_identifier: str | None = None,
         db_user: str | None = None,
-        parameters: list | None = None,
+        parameters: Iterable | None = None,
         secret_arn: str | None = None,
         statement_name: str | None = None,
         with_event: bool = False,

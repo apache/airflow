@@ -350,9 +350,10 @@ class TestS3ToRedshiftTransfer:
                 dag=None,
             )
 
-    def test_sql_param_in_redshift_data_api_kwargs(self):
+    @pytest.mark.parametrize("param", ["sql", "parameters"])
+    def test_invalid_param_in_redshift_data_api_kwargs(self, param):
         """
-        Test passing 'sql' in RS Data API kwargs raises an error
+        Test passing invalid param in RS Data API kwargs raises an error
         """
         with pytest.raises(AirflowException):
             S3ToRedshiftOperator(
@@ -362,7 +363,7 @@ class TestS3ToRedshiftTransfer:
                 s3_key="key",
                 task_id="task_id",
                 dag=None,
-                redshift_data_api_kwargs=dict(sql="sql"),
+                redshift_data_api_kwargs={param: "param"},
             )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
@@ -428,6 +429,7 @@ class TestS3ToRedshiftTransfer:
         mock_run.assert_not_called()
         assert access_key in copy_query
         assert secret_key in copy_query
+
         mock_rs.execute_statement.assert_called_once()
         # test with all args besides sql
         _call = deepcopy(mock_rs.execute_statement.call_args[1])
