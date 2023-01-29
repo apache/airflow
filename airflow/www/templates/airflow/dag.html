@@ -236,7 +236,13 @@
                   <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
                 </form>
               </li>
-              <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id)) }}">Trigger DAG w/ config</a></li>
+              <li>
+                {% if 'dag_id' in request.args %}
+                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, **request.args)) }}">
+                {% else %}
+                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args)) }}">
+                {% endif %}
+                Trigger DAG w/ config</a></li>
             </ul>
           </div>
           <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint, dag_id=dag.dag_id)) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
