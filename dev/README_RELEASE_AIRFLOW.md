@@ -329,7 +329,7 @@ If API clients are to be released in this airflow version:
     release candidate client package:
 
     - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
-    - [Go client](https://github.com/apache/airflow-client-go#release-process)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/master/dev/README_RELEASE_CLIENT.md)
 
 
 ## Prepare issue for testing status of rc
