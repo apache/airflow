@@ -312,7 +312,8 @@ class SchedulerJob(BaseJob):
 
         # dag and task ids that can't be queued because of concurrency limits
         starved_dags: set[str] = set()
-        starved_tasks: set[tuple[str, str, str]] = set()
+        starved_tasks: set[tuple[str, str]] = set()
+        starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
 
         pool_num_starving_tasks: DefaultDict[str, int] = defaultdict(int)
 
@@ -321,6 +322,7 @@ class SchedulerJob(BaseJob):
             num_starved_pools = len(starved_pools)
             num_starved_dags = len(starved_dags)
             num_starved_tasks = len(starved_tasks)
+            num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
             # Get task instances associated with scheduled
             # DagRuns which are not backfilled, in the given states,
@@ -344,8 +346,13 @@ class SchedulerJob(BaseJob):
                 query = query.filter(not_(TI.dag_id.in_(starved_dags)))
 
             if starved_tasks:
+                task_filter = tuple_in_condition((TaskInstance.dag_id, TaskInstance.task_id), starved_tasks)
+                query = query.filter(not_(task_filter))
+
+            if starved_tasks_task_dagrun_concurrency:
                 task_filter = tuple_in_condition(
-                    (TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id), starved_tasks
+                    (TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id),
+                    starved_tasks_task_dagrun_concurrency,
                 )
                 query = query.filter(not_(task_filter))
 
@@ -416,7 +423,7 @@ class SchedulerJob(BaseJob):
 
                     pool_num_starving_tasks[pool_name] += 1
                     num_starving_tasks_total += 1
-                    starved_tasks.add((task_instance.dag_id, task_instance.run_id, task_instance.task_id))
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                     continue
 
                 if task_instance.pool_slots > open_slots:
@@ -430,7 +437,7 @@ class SchedulerJob(BaseJob):
                     )
                     pool_num_starving_tasks[pool_name] += 1
                     num_starving_tasks_total += 1
-                    starved_tasks.add((task_instance.dag_id, task_instance.run_id, task_instance.task_id))
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                     # Though we can execute tasks with lower priority if there's enough room
                     continue
 
@@ -490,9 +497,7 @@ class SchedulerJob(BaseJob):
                                 " this task has been reached.",
                                 task_instance,
                             )
-                            starved_tasks.add(
-                                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
-                            )
+                            starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                             continue
 
                     task_dagrun_concurrency_limit: int | None = None
@@ -512,7 +517,7 @@ class SchedulerJob(BaseJob):
                                 " this task has been reached.",
                                 task_instance,
                             )
-                            starved_tasks.add(
+                            starved_tasks_task_dagrun_concurrency.add(
                                 (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
                             )
                             continue
@@ -533,6 +538,7 @@ class SchedulerJob(BaseJob):
                 len(starved_pools) > num_starved_pools
                 or len(starved_dags) > num_starved_dags
                 or len(starved_tasks) > num_starved_tasks
+                or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
             )
 
             if is_done or not found_new_filters:
