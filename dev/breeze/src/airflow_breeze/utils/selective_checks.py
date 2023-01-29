@@ -389,11 +389,6 @@ class SelectiveChecks:
         return HELM_VERSION
 
     @cached_property
-    def providers_package_format_exclude(self) -> list[dict[str, str]]:
-        # Exclude sdist format unless full tests are run
-        return [{"package-format": "sdist"}] if not self.full_tests_needed else []
-
-    @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
         if not self.full_tests_needed:
             # Only basic combination so we do not need to exclude anything

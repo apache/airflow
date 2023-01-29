@@ -650,6 +650,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "GITHUB_ACTIONS": "github_actions",
     "INSTALL_AIRFLOW_VERSION": "install_airflow_version",
     "INSTALL_PROVIDERS_FROM_SOURCES": "install_providers_from_sources",
+    "INSTALL_SELECTED_PROVIDERS": "install_selected_providers",
     "ISSUE_ID": "issue_id",
     "LOAD_DEFAULT_CONNECTIONS": "load_default_connections",
     "LOAD_EXAMPLES": "load_example_dags",

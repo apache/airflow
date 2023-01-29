@@ -65,6 +65,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Advanced flag for running",
             "options": [
+                "--install-selected-providers",
                 "--use-airflow-version",
                 "--airflow-constraints-reference",
                 "--platform",
