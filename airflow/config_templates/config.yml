@@ -16,6 +16,7 @@
 # under the License.
 
 ---
+
 core:
   description: ~
   options:
@@ -270,8 +271,8 @@ core:
       default: "0"
     default_task_retry_delay:
       description: |
-        The number of seconds each task is going to wait by default between retries. Can be overridden at
-        dag or task level.
+          The number of seconds each task is going to wait by default between retries. Can be overridden at
+          dag or task level.
       version_added: 2.4.0
       type: integer
       example: ~
@@ -418,7 +419,7 @@ core:
       version_added: 2.4.0
       type: string
       default: ~
-      example: "airflow.datasets.manager.DatasetManager"
+      example: 'airflow.datasets.manager.DatasetManager'
     dataset_manager_kwargs:
       description: Kwargs to supply to dataset manager.
       version_added: 2.4.0
@@ -437,7 +438,7 @@ core:
       version_added: 2.6.0
       type: string
       default: ~
-      example: "http://localhost:8080"
+      example: 'http://localhost:8080'
 database:
   description: ~
   options:
@@ -743,10 +744,9 @@ logging:
       version_added: 2.0.0
       type: string
       example: ~
-      default:
-        "dag_id={{{{ ti.dag_id }}}}/run_id={{{{ ti.run_id }}}}/task_id={{{{ ti.task_id }}}}/\
-        {{%% if ti.map_index >= 0 %%}}map_index={{{{ ti.map_index }}}}/{{%% endif %%}}\
-        attempt={{{{ try_number }}}}.log"
+      default: "dag_id={{{{ ti.dag_id }}}}/run_id={{{{ ti.run_id }}}}/task_id={{{{ ti.task_id }}}}/\
+               {{%% if ti.map_index >= 0 %%}}map_index={{{{ ti.map_index }}}}/{{%% endif %%}}\
+               attempt={{{{ try_number }}}}.log"
     log_processor_filename_template:
       description: |
         Formatting for how airflow generates file names for log
@@ -1020,8 +1020,7 @@ api:
       version_added: 2.0.0
       default: "100"
     google_oauth2_audience:
-      description: |
-        The intended audience for JWT token credentials used for authorization.
+      description: The intended audience for JWT token credentials used for authorization.
         This value must match on the client and server sides.
         If empty, audience will not be tested.
       type: string
