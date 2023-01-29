@@ -613,6 +613,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
+    set_value_to_default_if_not_set(env, "SKIP_PROVIDER_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
     set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
@@ -655,6 +656,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "PYTHON_MAJOR_MINOR_VERSION": "python",
     "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
+    "SKIP_PROVIDER_TESS": "skip_provider_tests",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
     "USE_AIRFLOW_VERSION": "use_airflow_version",

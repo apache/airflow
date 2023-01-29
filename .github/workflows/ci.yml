@@ -149,6 +149,7 @@ jobs:
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       providers-package-format-exclude: ${{ steps.selective-checks.outputs.providers-package-format-exclude }}
+      skip-provider-tests: ${{ steps.source-run-info.outputs.skip-provider-tests }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
@@ -1020,7 +1021,7 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.default-branch != 'main'}}"
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1080,7 +1081,7 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.default-branch != 'main'}}"
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo

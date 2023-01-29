@@ -597,6 +597,10 @@ class SelectiveChecks:
         return "identity" if self._default_branch == "main" else "identity,check-airflow-2-2-compatibility"
 
     @cached_property
+    def skip_provider_tests(self) -> bool:
+        return self._default_branch != "main"
+
+    @cached_property
     def cache_directive(self) -> str:
         return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
 
