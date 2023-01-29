@@ -535,6 +535,8 @@ those via command line flags passed to ``breeze`` command.
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | \* set to true in pre-commits                   |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``SKIP_PROVIDER_TESTS``                 |   false\*   |    false\*   |   false\*  | Skip running provider integration tests         |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``SKIP_SSH_SETUP``                      |   false\*   |    false\*   |   false\*  | Skip setting up SSH server for tests.           |
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | \* set to true in GitHub CodeSpaces             |
