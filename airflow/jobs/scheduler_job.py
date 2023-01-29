@@ -346,12 +346,12 @@ class SchedulerJob(BaseJob):
                 query = query.filter(not_(TI.dag_id.in_(starved_dags)))
 
             if starved_tasks:
-                task_filter = tuple_in_condition((TaskInstance.dag_id, TaskInstance.task_id), starved_tasks)
+                task_filter = tuple_in_condition((TI.dag_id, TI.task_id), starved_tasks)
                 query = query.filter(not_(task_filter))
 
             if starved_tasks_task_dagrun_concurrency:
                 task_filter = tuple_in_condition(
-                    (TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id),
+                    (TI.dag_id, TI.run_id, TI.task_id),
                     starved_tasks_task_dagrun_concurrency,
                 )
                 query = query.filter(not_(task_filter))
@@ -848,13 +848,13 @@ class SchedulerJob(BaseJob):
             paused_runs = (
                 session.query(DagRun)
                 .join(DagRun.dag_model)
-                .join(TaskInstance)
+                .join(TI)
                 .filter(
                     DagModel.is_paused == expression.true(),
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                .having(DagRun.last_scheduling_decision <= func.max(TaskInstance.updated_at))
+                .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
                 .group_by(DagRun)
             )
             for dag_run in paused_runs:
@@ -1552,10 +1552,10 @@ class SchedulerJob(BaseJob):
         or execution timeout has passed, so they can be marked as failed.
         """
         num_timed_out_tasks = (
-            session.query(TaskInstance)
+            session.query(TI)
             .filter(
-                TaskInstance.state == TaskInstanceState.DEFERRED,
-                TaskInstance.trigger_timeout < timezone.utcnow(),
+                TI.state == TaskInstanceState.DEFERRED,
+                TI.trigger_timeout < timezone.utcnow(),
             )
             .update(
                 # We have to schedule these to fail themselves so it doesn't
@@ -1617,7 +1617,7 @@ class SchedulerJob(BaseJob):
             )
 
     @staticmethod
-    def _generate_zombie_message_details(ti: TaskInstance):
+    def _generate_zombie_message_details(ti: TI):
         zombie_message_details = {
             "DAG Id": ti.dag_id,
             "Task Id": ti.task_id,
