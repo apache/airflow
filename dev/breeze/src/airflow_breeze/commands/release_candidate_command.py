@@ -198,6 +198,8 @@ def push_packages_to_test_pypi():
             "Verify that the test package looks good by downloading it and installing it into a virtual "
             "environment. The package download link is available at: "
             "https://test.pypi.org/project/apache-airflow/#files"
+            "Install it with the appropriate constraint file, for instance: "
+            "pip install <download_link> --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.2.1rc1/constraints-3.8.txt"  # noqa: 501
         )
 
 
