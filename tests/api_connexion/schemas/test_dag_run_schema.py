@@ -35,12 +35,15 @@ DEFAULT_TIME = "2020-06-09T13:59:56.336000+00:00"
 
 SECOND_TIME = "2020-06-10T13:59:56.336000+00:00"
 
+THIRD_TIME = "2020-06-11T13:59:56.336000+00:00"
+
 
 class TestDAGRunBase:
     def setup_method(self) -> None:
         clear_db_runs()
         self.default_time = DEFAULT_TIME
         self.second_time = SECOND_TIME
+        self.third_time = THIRD_TIME
 
     def teardown_method(self) -> None:
         clear_db_runs()
@@ -57,6 +60,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             conf='{"start": "stop"}',
+            params='{"param_key": "param_value"}',
         )
         session.add(dagrun_model)
         session.commit()
@@ -73,6 +77,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {"start": "stop"},
+            "params": {"param_key": "param_value"},
             "data_interval_end": None,
             "data_interval_start": None,
             "last_scheduling_decision": None,
@@ -109,6 +114,30 @@ class TestDAGRunSchema(TestDAGRunBase):
                     "run_id": "my-dag-run",
                     "execution_date": parse(DEFAULT_TIME),
                     "conf": {"start": "stop"},
+                },
+            ),
+            (
+                {
+                    "dag_run_id": "my-dag-run",
+                    "execution_date": DEFAULT_TIME,
+                    "params": {"start": "stop"},
+                },
+                {
+                    "run_id": "my-dag-run",
+                    "execution_date": parse(DEFAULT_TIME),
+                    "params": {"start": "stop"},
+                },
+            ),
+            (
+                {
+                    "dag_run_id": "my-dag-run",
+                    "execution_date": DEFAULT_TIME,
+                    "params": '{"start": "stop"}',
+                },
+                {
+                    "run_id": "my-dag-run",
+                    "execution_date": parse(DEFAULT_TIME),
+                    "params": {"start": "stop"},
                 },
             ),
         ],
@@ -150,10 +179,19 @@ class TestDagRunCollection(TestDAGRunBase):
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
         )
-        dagruns = [dagrun_model_1, dagrun_model_2]
+        dagrun_model_3 = DagRun(
+            dag_id="my-dag-run",
+            run_id="my-dag-run-3",
+            state="running",
+            execution_date=timezone.parse(self.third_time),
+            start_date=timezone.parse(self.default_time),
+            run_type=DagRunType.MANUAL.value,
+            params='{"start": "stop"}',
+        )
+        dagruns = [dagrun_model_1, dagrun_model_2, dagrun_model_3]
         session.add_all(dagruns)
         session.commit()
-        instance = DAGRunCollection(dag_runs=dagruns, total_entries=2)
+        instance = DAGRunCollection(dag_runs=dagruns, total_entries=3)
         deserialized_dagruns = dagrun_collection_schema.dump(instance)
         assert deserialized_dagruns == {
             "dag_runs": [
@@ -167,6 +205,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "state": "running",
                     "start_date": self.default_time,
                     "conf": {"start": "stop"},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -183,6 +222,24 @@ class TestDagRunCollection(TestDAGRunBase):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
+                    "data_interval_end": None,
+                    "data_interval_start": None,
+                    "last_scheduling_decision": None,
+                    "run_type": "manual",
+                    "note": None,
+                },
+                {
+                    "dag_id": "my-dag-run",
+                    "dag_run_id": "my-dag-run-3",
+                    "end_date": None,
+                    "state": "running",
+                    "execution_date": self.third_time,
+                    "logical_date": self.third_time,
+                    "external_trigger": True,
+                    "start_date": self.default_time,
+                    "conf": {},
+                    "params": {"start": "stop"},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -190,5 +247,5 @@ class TestDagRunCollection(TestDAGRunBase):
                     "note": None,
                 },
             ],
-            "total_entries": 2,
+            "total_entries": 3,
         }

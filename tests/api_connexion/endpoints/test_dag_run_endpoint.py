@@ -236,6 +236,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
+            "params": {},
             "data_interval_end": None,
             "data_interval_start": None,
             "last_scheduling_decision": None,
@@ -294,6 +295,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -310,6 +312,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -366,6 +369,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -382,6 +386,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -634,6 +639,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -650,6 +656,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -693,6 +700,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -709,6 +717,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -750,6 +759,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -766,6 +776,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},
+                    "params": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
                     "last_scheduling_decision": None,
@@ -1063,6 +1074,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             expected_dag_run_id = dag_run_id
         assert response.json == {
             "conf": {},
+            "params": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": expected_dag_run_id,
             "end_date": None,
@@ -1113,6 +1125,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "conf": {},
+            "params": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": dag_run_id,
             "end_date": None,
@@ -1168,10 +1181,18 @@ class TestPostDagRun(TestDagRunEndpoint):
                     "conf": "some string",
                 },
                 "'some string' is not of type 'object' - 'conf'",
-            )
+            ),
+            (
+                {
+                    "dag_run_id": "TEST_DAG_RUN",
+                    "execution_date": "2020-06-11T18:00:00+00:00",
+                    "params": "some string",
+                },
+                "'some string' is not of type 'object' - 'params'",
+            ),
         ],
     )
-    def test_should_response_400_for_non_dict_dagrun_conf(self, data, expected):
+    def test_should_response_400_for_non_dict_dagrun_conf_or_params(self, data, expected):
         self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={"REMOTE_USER": "test"}
@@ -1329,6 +1350,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "conf": {},
+            "params": {},
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
             "end_date": dr.end_date.isoformat(),
@@ -1425,6 +1447,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "conf": {},
+            "params": {},
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
             "end_date": None,
@@ -1627,6 +1650,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         assert dr.note == new_note_value
         assert response.json == {
             "conf": {},
+            "params": {},
             "dag_id": dr.dag_id,
             "dag_run_id": dr.run_id,
             "end_date": dr.end_date.isoformat(),

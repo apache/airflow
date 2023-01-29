@@ -81,6 +81,7 @@ class TestLocalClient:
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=DagRunState.QUEUED,
                 conf=None,
+                params=None,
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
@@ -94,6 +95,7 @@ class TestLocalClient:
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=DagRunState.QUEUED,
                 conf=None,
+                params=None,
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
@@ -108,6 +110,7 @@ class TestLocalClient:
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=DagRunState.QUEUED,
                 conf=None,
+                params=None,
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
@@ -122,6 +125,22 @@ class TestLocalClient:
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=DagRunState.QUEUED,
                 conf=json.loads(conf),
+                params=None,
+                external_trigger=True,
+                dag_hash=expected_dag_hash,
+                data_interval=expected_data_interval,
+            )
+            mock.reset_mock()
+
+            # test params
+            params = '{"name": "John"}'
+            self.client.trigger_dag(dag_id=test_dag_id, params=params)
+            mock.assert_called_once_with(
+                run_id=run_id,
+                execution_date=EXECDATE_NOFRACTIONS,
+                state=DagRunState.QUEUED,
+                conf=None,
+                params=json.loads(params),
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
