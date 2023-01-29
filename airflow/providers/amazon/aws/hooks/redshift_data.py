@@ -115,3 +115,74 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             else:
                 self.log.info("Query %s", status)
             sleep(poll_interval)
+
+    def get_table_primary_key(
+        self,
+        table: str,
+        database: str,
+        schema: str | None = "public",
+        cluster_identifier: str | None = None,
+        db_user: str | None = None,
+        secret_arn: str | None = None,
+        statement_name: str | None = None,
+        with_event: bool = False,
+        await_result: bool = True,
+        poll_interval: int = 10,
+    ) -> list[str] | None:
+        """
+        Helper method that returns the table primary key.
+
+        Copied from ``RedshiftSQLHook.get_table_primary_key()``
+
+        :param table: Name of the target table
+        :param database: the name of the database
+        :param schema: Name of the target schema, public by default
+        :param sql: the SQL statement or list of  SQL statement to run
+        :param cluster_identifier: unique identifier of a cluster
+        :param db_user: the database username
+        :param secret_arn: the name or ARN of the secret that enables db access
+        :param statement_name: the name of the SQL statement
+        :param with_event: indicates whether to send an event to EventBridge
+        :param await_result: indicates whether to wait for a result, if True wait, if False don't wait
+        :param poll_interval: how often in seconds to check the query status
+
+        :return: Primary key columns list
+        """
+        sql = f"""
+            select kcu.column_name
+            from information_schema.table_constraints tco
+                    join information_schema.key_column_usage kcu
+                        on kcu.constraint_name = tco.constraint_name
+                            and kcu.constraint_schema = tco.constraint_schema
+                            and kcu.constraint_name = tco.constraint_name
+            where tco.constraint_type = 'PRIMARY KEY'
+            and kcu.table_schema = {schema}
+            and kcu.table_name = {table}
+        """
+        stmt_id = self.execute_query(
+            sql=sql,
+            database=database,
+            cluster_identifier=cluster_identifier,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            with_event=with_event,
+            await_result=await_result,
+            poll_interval=poll_interval,
+        )
+        pk_columns = []
+        token = ""
+        while True:
+            kwargs = dict(Id=stmt_id)
+            if token:
+                kwargs["NextToken"] = token
+            response = self.conn.get_statement_result(**kwargs)
+            # we only select a single column (that is a string),
+            # so safe to assume that there is only a single col in the record
+            pk_columns += [y["stringValue"] for x in response["Records"] for y in x]
+            if "NextToken" not in response.keys():
+                break
+            else:
+                token = response["NextToken"]
+
+        return pk_columns or None

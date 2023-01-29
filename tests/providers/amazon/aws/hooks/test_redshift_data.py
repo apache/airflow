@@ -116,3 +116,73 @@ class TestRedshiftDataHook:
             StatementName=statement_name,
             WithEvent=False,
         )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_get_table_primary_key_no_token(self, mock_conn):
+        table = "table"
+        schema = "schema"
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        mock_conn.get_statement_result.return_value = {
+            "Records": [[{"stringValue": "string"}]],
+        }
+
+        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+
+        hook.get_table_primary_key(
+            table=table,
+            database=DATABASE,
+            schema=schema,
+            cluster_identifier=cluster_identifier,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+        )
+
+        mock_conn.get_statement_result.assert_called_once_with(Id=STATEMENT_ID)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_get_table_primary_key_with_token(self, mock_conn):
+        table = "table"
+        schema = "schema"
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        mock_conn.get_statement_result.side_effect = [
+            {
+                "NextToken": "token1",
+                "Records": [[{"stringValue": "string1"}]],
+            },
+            {
+                "NextToken": "token2",
+                "Records": [[{"stringValue": "string2"}]],
+            },
+            {
+                "Records": [[{"stringValue": "string3"}]],
+            },
+        ]
+
+        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+
+        hook.get_table_primary_key(
+            table=table,
+            database=DATABASE,
+            schema=schema,
+            cluster_identifier=cluster_identifier,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+        )
+
+        assert mock_conn.get_statement_result.call_args_list == [
+            (dict(Id=STATEMENT_ID),),
+            (dict(Id=STATEMENT_ID, NextToken="token1"),),
+            (dict(Id=STATEMENT_ID, NextToken="token2"),),
+        ]
