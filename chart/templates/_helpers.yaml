@@ -832,3 +832,14 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
     {{- end }}
   {{- end }}
 {{- end }}
+
+{{/*
+Helper to get the postgresql connection string conditionally
+*/}}
+{{- define "airflow.default.postgres.connection.string" -}}
+{{- if .Values.postgresql.nameOverride }}
+{{- printf "%s" .Values.postgresql.nameOverride }}
+{{- else }}
+{{- printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace }}
+{{- end }}
+{{- end }}
