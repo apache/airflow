@@ -1,0 +1,1 @@
+Various updates for FIPS-compliance when running Airflow in Python 3.9+. This includes a new webserver option, ``caching_hash_method``, for changing the default flask caching method.
