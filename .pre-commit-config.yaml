@@ -782,7 +782,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
         language: python
         pass_filenames: false
-        files: ^Dockerfile$|^Dockerfile.ci$|^scripts/docker/.*$
+        files: ^Dockerfile$|^Dockerfile\.ci$|^scripts/docker/.*$
         require_serial: true
       - id: check-changelog-has-no-duplicates
         name: Check changelogs for duplicate entries
@@ -841,7 +841,7 @@ repos:
         name: TS types generation and ESLint against current UI files
         language: node
         'types_or': [javascript, tsx, ts, yaml]
-        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1.yaml
+        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         additional_dependencies: ['yarn@1.22.19']
         pass_filenames: false
@@ -866,7 +866,7 @@ repos:
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
-        files: ^airflow/providers/.*\.py$|^tests/system/providers/\*.py|^tests/providers/\*.py
+        files: ^airflow/providers/.*\.py$|^tests/system/providers/\*\.py$|^tests/providers/\*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
