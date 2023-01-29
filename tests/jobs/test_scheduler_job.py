@@ -42,6 +42,8 @@ from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.executor_constants import MOCK_EXECUTOR
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.local_task_job import LocalTaskJob
@@ -113,6 +115,10 @@ def load_examples():
         yield
 
 
+# Patch the MockExecutor into the dict of known executors in the Loader
+@patch.dict(
+    ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
+)
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
@@ -255,9 +261,14 @@ class TestSchedulerJob:
         self.scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_has_calls(
             [
-                mock.call("scheduler.tasks.killed_externally"),
+                mock.call(
+                    "scheduler.tasks.killed_externally",
+                    tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id},
+                ),
                 mock.call("operator_failures_EmptyOperator"),
-                mock.call("ti_failures"),
+                mock.call(
+                    "ti_failures", tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id}
+                ),
             ],
             any_order=True,
         )
@@ -312,9 +323,12 @@ class TestSchedulerJob:
         self.scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_has_calls(
             [
-                mock.call("scheduler.tasks.killed_externally"),
+                mock.call(
+                    "scheduler.tasks.killed_externally",
+                    tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1},
+                ),
                 mock.call("operator_failures_EmptyOperator"),
-                mock.call("ti_failures"),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1}),
             ],
             any_order=True,
         )
@@ -360,7 +374,14 @@ class TestSchedulerJob:
         )
         self.scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
         self.scheduler_job.executor.callback_sink.reset_mock()
-        mock_stats_incr.assert_called_once_with("scheduler.tasks.killed_externally")
+        mock_stats_incr.assert_called_once_with(
+            "scheduler.tasks.killed_externally",
+            tags={
+                "dag_id": "test_process_executor_events_with_callback",
+                "run_id": "test",
+                "task_id": "dummy_task",
+            },
+        )
 
     @mock.patch("airflow.jobs.scheduler_job.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job.Stats.incr")
@@ -1554,7 +1575,7 @@ class TestSchedulerJob:
         self.scheduler_job.dagbag = dag_maker.dagbag
 
         session = settings.Session()
-        orm_dag = session.query(DagModel).get(dag.dag_id)
+        orm_dag = session.get(DagModel, dag.dag_id)
         assert orm_dag is not None
         for _ in range(20):
             self.scheduler_job._create_dag_runs([orm_dag], session)
@@ -1629,7 +1650,7 @@ class TestSchedulerJob:
         self.scheduler_job.dagbag = dag_maker.dagbag
 
         session = settings.Session()
-        orm_dag = session.query(DagModel).get(dag.dag_id)
+        orm_dag = session.get(DagModel, dag.dag_id)
         assert orm_dag is not None
 
         self.scheduler_job._create_dag_runs([orm_dag], session)
@@ -3410,7 +3431,7 @@ class TestSchedulerJob:
         assert dr1.data_interval_end == DEFAULT_DATE + timedelta(minutes=1)
 
         # Verify that dag_model.next_dagrun is set to next interval
-        dag_model = session.query(DagModel).get(dag.dag_id)
+        dag_model = session.get(DagModel, dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
         assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(minutes=1)
         assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=2)
@@ -3429,7 +3450,7 @@ class TestSchedulerJob:
 
         # Test that 'dag_model.next_dagrun' has not been changed because of newly created external
         # triggered DagRun.
-        dag_model = session.query(DagModel).get(dag.dag_id)
+        dag_model = session.get(DagModel, dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
         assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(minutes=1)
         assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=2)
@@ -3521,7 +3542,7 @@ class TestSchedulerJob:
         self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
-        my_dag = session.query(DagModel).get(dag.dag_id)
+        my_dag = session.get(DagModel, dag.dag_id)
         self.scheduler_job._create_dag_runs([my_dag], session)
         # Run relevant part of scheduling again to assert run2 has been scheduled
         self.scheduler_job._schedule_dag_run(run1, session)
@@ -3651,7 +3672,7 @@ class TestSchedulerJob:
         for _ in range(3):
             self.scheduler_job._do_scheduling(session)
 
-        model: DagModel = session.query(DagModel).get(dag.dag_id)
+        model: DagModel = session.get(DagModel, dag.dag_id)
 
         # Pre-condition
         assert DagRun.active_runs_of_dags(session=session) == {"test_dag": 3}
@@ -3666,7 +3687,6 @@ class TestSchedulerJob:
         for _ in range(5):
             self.scheduler_job._do_scheduling(session)
             complete_one_dagrun()
-            model: DagModel = session.query(DagModel).get(dag.dag_id)
 
         expected_execution_dates = [datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 6)]
         dagrun_execution_dates = [
@@ -4453,7 +4473,7 @@ class TestSchedulerJob:
 
         # Create DagRun
         session = settings.Session()
-        orm_dag = session.query(DagModel).get(dag.dag_id)
+        orm_dag = session.get(DagModel, dag.dag_id)
         self.scheduler_job._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
