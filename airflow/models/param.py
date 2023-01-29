@@ -54,6 +54,10 @@ class Param:
     def __init__(self, default: Any = NOTSET, description: str | None = None, **kwargs):
         if default is not NOTSET:
             self._warn_if_not_json(default)
+        # set default to None if the default is not set, no matter which datatype because it can be overriden
+        # either ways
+        else:
+            default = None
         self.value = default
         self.description = description
         self.schema = kwargs.pop("schema") if "schema" in kwargs else kwargs
