@@ -25,7 +25,7 @@ readonly CLEANUP_DIRS
 # shellcheck source=./clients/gen/common.sh
 source "${CLIENTS_GEN_DIR}/common.sh"
 
-VERSION=2.1.0
+VERSION=2.5.0
 readonly VERSION
 
 go_config=(
