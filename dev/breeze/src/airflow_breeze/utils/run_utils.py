@@ -36,7 +36,12 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    WWW_ASSET_COMPILE_LOCK,
+    WWW_ASSET_OUT_DEV_MODE_FILE,
+    WWW_ASSET_OUT_FILE,
+)
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 RunCommandResult = Union[subprocess.CompletedProcess, subprocess.CalledProcessError]
@@ -460,7 +465,10 @@ def run_compile_www_assets(
         "--all-files",
         "--verbose",
     ]
-    get_console().print(f"[info] The output of the asset compilation is stored in: [/]{WWW_ASSET_OUT_FILE}\n")
+    get_console().print(
+        "[info]The output of the asset compilation is stored in: [/]"
+        f"{WWW_ASSET_OUT_DEV_MODE_FILE if dev else WWW_ASSET_OUT_FILE}\n"
+    )
     if run_in_background:
         thread = Thread(daemon=True, target=_run_compile_internally, args=(command_to_execute, dev))
         thread.start()
