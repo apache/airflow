@@ -50,7 +50,6 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
     :param table_name: Table name to generate the SQL query.
     :param partition_name: Partition to check.
     :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_one_handler
-    :param caller: String passed to name a hook to Databricks, defaults to "DatabricksPartitionSensor"
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
     :param partition_operator: Comparison operator for partitions.
     """
@@ -66,36 +65,12 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
 
     def __init__(
         self,
-        *,
-        databricks_conn_id: str = DatabricksSqlHook.default_conn_name,
-        http_path: str | None = None,
-        sql_endpoint_name: str | None = None,
-        session_configuration=None,
-        http_headers: list[tuple[str, str]] | None = None,
-        catalog: str = "",
-        schema: str = "default",
-        table_name: str = "",
-        partition_name: dict,
-        handler: Callable[[Any], Any] = fetch_one_handler,
-        caller: str = "DatabricksPartitionSensor",
-        client_parameters: dict[str, Any] | None = None,
         partition_operator: str = "=",
+        *args,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.databricks_conn_id = databricks_conn_id
-        self._http_path = http_path
-        self._sql_endpoint_name = sql_endpoint_name
-        self.session_config = session_configuration
-        self.http_headers = http_headers
-        self.catalog = catalog
-        self.schema = schema
-        self.table_name = table_name
-        self.partition_name = partition_name
-        self.caller = caller
-        self.client_parameters = client_parameters or {}
-        self.hook_params = kwargs.pop("hook_params", {})
-        self.handler = handler
+        super().__init__(*args, **kwargs)
+        self.caller = "DatabricksPartitionSensor"
         self.partition_operator = partition_operator
 
     def _get_hook(self) -> DatabricksSqlHook:
@@ -121,11 +96,9 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         return sql_result
 
     def _check_table_partitions(self) -> list:
-        if self.catalog is not None:
-            complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
-            self.log.debug("Table name generated from arguments: %s", complete_table_name)
-        else:
-            raise AirflowException("Catalog name not specified, aborting query execution.")
+        complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
+        self.log.debug("Table name generated from arguments: %s", complete_table_name)
+        
         partition_columns = self._sql_sensor(f"describe detail {complete_table_name}")[7]
         self.log.debug("table_info: %s", partition_columns)
         if len(partition_columns) < 1:

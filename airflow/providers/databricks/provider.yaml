@@ -96,11 +96,7 @@ sensors:
   - integration-name: Databricks SQL
     python-modules:
       - airflow.providers.databricks.sensors.databricks_sql
-  - integration-name: Databricks Partition
-    python-modules:
       - airflow.providers.databricks.sensors.databricks_partition
-  - integration-name: Databricks Table Changes
-    python-modules:
       - airflow.providers.databricks.sensors.databricks_table_changes
 
 connection-types:

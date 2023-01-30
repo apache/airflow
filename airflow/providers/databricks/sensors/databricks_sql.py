@@ -42,7 +42,6 @@ class DatabricksSqlSensor(BaseSensorOperator):
         Defaults to None. If not specified, it could be specified in the
         Databricks connection's extra parameters.
     :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers on every request.
-    :param caller: String passed to name a hook to Databricks, defaults to "DatabricksSqlSensor"
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
     :param sql: SQL query to be executed.
     """
@@ -65,11 +64,10 @@ class DatabricksSqlSensor(BaseSensorOperator):
         sql_endpoint_name: str | None = None,
         session_configuration=None,
         http_headers: list[tuple[str, str]] | None = None,
-        catalog: str = "",
+        catalog: str = "hive_metastore",
         schema: str = "default",
         table_name: str = "",
         handler: Callable[[Any], Any] = fetch_all_handler,
-        caller: str = "DatabricksSqlSensor",
         client_parameters: dict[str, Any] | None = None,
         sql: str = "",
         **kwargs,
@@ -84,7 +82,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         self.schema = schema
         self.table_name = table_name
         self.sql = sql
-        self.caller = caller
+        self.caller = "DatabricksSqlSensor"
         self.client_parameters = client_parameters or {}
         self.hook_params = kwargs.pop("hook_params", {})
         self.handler = handler
@@ -115,9 +113,6 @@ class DatabricksSqlSensor(BaseSensorOperator):
         result = self._sql_sensor(self.sql)
         self.log.debug("SQL result: %s", result)
         if isinstance(result, list):
-            if len(result) >= 1:
-                return True
-            else:
-                return False
+            return len(result) > 0
         else:
             return False

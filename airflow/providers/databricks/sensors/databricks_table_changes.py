@@ -52,7 +52,6 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         Requires DBR version 9.0+ (templated), defaults to "default"
     :param table_name: Table name to generate the SQL query, defaults to ""
     :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
-    :param caller: String passed to name a hook to Databricks, defaults to "DatabricksPartitionSensor"
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
     :param timestamp: Timestamp to check event history for a Delta table,
         defaults to datetime.now()-timedelta(days=7)
@@ -62,35 +61,15 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
 
     def __init__(
         self,
-        *,
-        databricks_conn_id: str = DatabricksSqlHook.default_conn_name,
-        http_path: str | None = None,
-        sql_endpoint_name: str | None = None,
-        session_configuration=None,
-        http_headers: list[tuple[str, str]] | None = None,
-        catalog: str = "",
-        schema: str = "default",
-        table_name: str = "",
-        handler: Callable[[Any], Any] = fetch_all_handler,
         timestamp: datetime = datetime.now() - timedelta(days=7),
-        caller: str = "DatabricksTableChangesSensor",
-        client_parameters: dict[str, Any] | None = None,
+        change_filter_operator: str = "=",
+        *args,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.databricks_conn_id = databricks_conn_id
-        self._http_path = http_path
-        self._sql_endpoint_name = sql_endpoint_name
-        self.session_config = session_configuration
-        self.http_headers = http_headers
-        self.catalog = catalog
-        self.schema = schema
-        self.table_name = table_name
+        super().__init__(*args, **kwargs)
         self.timestamp = timestamp
-        self.caller = caller
-        self.client_parameters = client_parameters or {}
-        self.hook_params = kwargs.pop("hook_params", {})
-        self.handler = handler
+        self.caller = "DatabricksTableChangesSensor"
+        self.change_filter_operator = change_filter_operator
 
     def _get_hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
@@ -126,17 +105,15 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         change_sql = (
             f"SELECT COUNT(version) as versions from "
             f"(DESCRIBE HISTORY {table_name}) "
-            f"WHERE timestamp >= '{time_range}'"
+            f"WHERE timestamp {self.change_filter_operator} '{time_range}'"
         )
         result = self._sql_sensor(change_sql)[0][0]
         return result
 
     def _check_table_changes(self, context: Context) -> bool:
-        if self.catalog is not None:
-            complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
-            self.log.debug("Table name generated from arguments: %s", complete_table_name)
-        else:
-            raise AirflowException("Catalog name not specified, aborting query execution.")
+        complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
+        self.log.debug("Table name generated from arguments: %s", complete_table_name)
+
         prev_version = -1
         if context is not None:
             lookup_key = complete_table_name
@@ -147,7 +124,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             elif prev_data is not None:
                 raise AirflowException("Incorrect type for previous XCom data: %s", type(prev_data))
             version = self.get_current_table_version(
-                table_name=complete_table_name, time_range=self.timestamp
+                table_name=complete_table_name, time_range=self.timestamp, operator = self.change_filter_operator
             )
             self.log.debug("Current table version: %s", version)
             if prev_version <= version:
