@@ -449,7 +449,7 @@ class TestCLIDBClean:
             skip_archive=False,
         )
 
-    @patch("airflow.cli.commands.db_command.export_archived_records")
+    @patch("airflow.cli.commands.db_command.export_cleaned_records")
     @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_export_archived_records(self, os_mock, export_archived_mock):
         args = self.parser.parse_args(
@@ -462,6 +462,6 @@ class TestCLIDBClean:
                 "path",
             ]
         )
-        db_command.export_archived(args)
+        db_command.export_cleaned(args)
 
         export_archived_mock.assert_called_once_with(export_format="csv", output_path="path")

@@ -37,9 +37,9 @@ from airflow.utils.db_cleanup import (
     CreateTableAs,
     _build_query,
     _cleanup_table,
-    _dump_db,
+    _dump_table_to_file,
     config_dict,
-    export_archived_records,
+    export_cleaned_records,
     run_cleanup,
 )
 from airflow.utils.session import create_session
@@ -329,14 +329,14 @@ class TestDBCleanup:
             run_cleanup(clean_before_timestamp=datetime.utcnow(), table_names=["task_instance"], dry_run=True)
         assert "Encountered error when attempting to clean table" in caplog.text
 
-    @patch("airflow.utils.db_cleanup._dump_db")
+    @patch("airflow.utils.db_cleanup._dump_table_to_file")
     @patch("airflow.utils.db_cleanup.inspect")
     def test_export_cleaned_records(self, inspect_mock, dump_mock, session):
-        """Test export_archived_records and show that only tables with the archive prefix are exported."""
+        """Test export_cleaned_records and show that only tables with the archive prefix are exported."""
 
         inspector = inspect_mock.return_value
         inspector.get_table_names.return_value = [f"{ARCHIVE_TABLE_PREFIX}dag_run", "task_instance"]
-        export_archived_records(export_format="csv", output_path="path", session=session)
+        export_cleaned_records(export_format="csv", output_path="path", session=session)
         dump_mock.assert_called_once_with(
             target_table=f"{ARCHIVE_TABLE_PREFIX}dag_run",
             file_path=f"path/{ARCHIVE_TABLE_PREFIX}dag_run.csv",
@@ -345,10 +345,10 @@ class TestDBCleanup:
         )
 
     @patch("airflow.utils.db_cleanup.csv")
-    def test_dump_db_function_for_csv(self, mock_csv):
+    def test_dump_table_to_file_function_for_csv(self, mock_csv):
         mockopen = mock_open()
         with patch("airflow.utils.db_cleanup.open", mockopen, create=True):
-            _dump_db(
+            _dump_table_to_file(
                 target_table="mytable", file_path="dags/myfile.csv", export_format="csv", session=MagicMock()
             )
             mockopen.assert_called_once_with("dags/myfile.csv", "w")

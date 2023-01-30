@@ -386,13 +386,13 @@ def run_cleanup(
 
 
 @provide_session
-def export_archived_records(export_format, output_path, session: Session = NEW_SESSION):
+def export_cleaned_records(export_format, output_path, session: Session = NEW_SESSION):
     """Export cleaned data to the given output path in the given format."""
     inspector = inspect(session.bind)
     table_names = inspector.get_table_names()
     for table_name in table_names:
         if table_name.startswith(ARCHIVE_TABLE_PREFIX):
-            _dump_db(
+            _dump_table_to_file(
                 target_table=table_name,
                 file_path=os.path.join(output_path, f"{table_name}.{export_format}"),
                 export_format=export_format,

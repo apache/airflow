@@ -1611,7 +1611,7 @@ DB_COMMANDS = (
     ActionCommand(
         name="export-cleaned",
         help="Export cleaned data from the archive tables",
-        func=lazy_load_command("airflow.cli.commands.db_command.export_archived"),
+        func=lazy_load_command("airflow.cli.commands.db_command.export_cleaned"),
         args=(
             ARG_DB_EXPORT_FORMAT,
             ARG_DB_OUTPUT_PATH,
