@@ -370,17 +370,17 @@ class AirflowKubernetesScheduler(LoggingMixin):
             if e.status != 404:
                 raise
 
-    def patch_pod_executor_done(self, *, pod_id: str, namespace: str):
+    def patch_pod_executor_done(self, *, pod_name: str, namespace: str):
         """Add a "done" annotation to ensure we don't continually adopt pods"""
-        self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_id, namespace)
+        self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_name, namespace)
         try:
             self.kube_client.patch_namespaced_pod(
-                name=pod_id,
+                name=pod_name,
                 namespace=namespace,
                 body={"metadata": {"labels": {POD_EXECUTOR_DONE_KEY: "True"}}},
             )
         except ApiException as e:
-            self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_id, e)
+            self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_name, e)
 
     def sync(self) -> None:
         """
@@ -761,7 +761,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.kube_scheduler.delete_pod(pod_id, namespace)
                 self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
         else:
-            self.kube_scheduler.patch_pod_executor_done(pod_id=pod_id, namespace=namespace)
+            self.kube_scheduler.patch_pod_executor_done(pod_name=pod_id, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", str(key), str(namespace))
 
         try:
