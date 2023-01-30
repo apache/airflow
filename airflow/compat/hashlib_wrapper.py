@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import hashlib
 import sys
-from typing import Any
 
 # Check if "usedforsecurity" is available for hashlib
 if sys.version_info >= (3, 9):
@@ -28,18 +27,17 @@ else:
     HAS_USEDFORSECURITY = False
 
 
-def md5(data: Any, used_for_security: bool | None = None):
-    """Safely allows calling the hashlib.md5 function with the "usedforsecurity" param.
-
-    Args:
-        data (Any): The data to hash.
-        used_for_security (bool, optional): The value to pass to the md5 function's "usedforsecurity" param.
-            Defaults to None.
-
-    Returns:
-        _Hash: The hashed value.
+def md5(data: bytes, usedforsecurity: bool | None = None):
     """
-    if HAS_USEDFORSECURITY and used_for_security is not None:
-        return hashlib.md5(data, usedforsecurity=used_for_security)  # type: ignore
+    Safely allows calling the hashlib.md5 function with the "usedforsecurity" param.
+
+    :param data: The data to hash.
+    :param used_for_security: The value to pass to the md5 function's "usedforsecurity" param.
+        Defaults to None.
+    :return: The hashed value.
+    :rtype: _Hash
+    """
+    if HAS_USEDFORSECURITY and usedforsecurity is not None:
+        return hashlib.md5(data, usedforsecurity=usedforsecurity)  # type: ignore
     else:
         return hashlib.md5(data)
