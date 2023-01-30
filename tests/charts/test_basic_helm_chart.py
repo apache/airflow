@@ -509,7 +509,6 @@ class TestBaseChartTest:
         """Test various namespace names to make sure they render correctly in templates"""
         render_chart(namespace=namespace)
 
-    @pytest.mark.parametrize()
     def test_postgres_connection_url_no_override(self):
         # no nameoverride provided
         assert "postgresql://postgres:postgres@my-release-postgresql.default:5432/postgres?sslmode=disable" == \
@@ -525,7 +524,6 @@ class TestBaseChartTest:
                    ]
                )["data"]["connection"]
 
-    @pytest.mark.parametrize()
     def test_postgres_connection_url_name_override(self):
         assert "postgresql://postgres:postgres@overrideName:5432/postgres?sslmode=disable" == \
                render_chart(
