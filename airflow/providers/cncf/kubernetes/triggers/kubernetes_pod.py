@@ -29,8 +29,6 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHo
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
-BASE_CONTAINER_NAME = "base"
-
 
 class ContainerState(str, Enum):
     """
@@ -71,6 +69,7 @@ class KubernetesPodTrigger(BaseTrigger):
         pod_name: str,
         pod_namespace: str,
         trigger_start_time: datetime,
+        base_container_name: str,
         kubernetes_conn_id: str | None = None,
         poll_interval: float = 2,
         cluster_context: str | None = None,
@@ -84,6 +83,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.pod_name = pod_name
         self.pod_namespace = pod_namespace
         self.trigger_start_time = trigger_start_time
+        self.base_container_name = base_container_name
         self.kubernetes_conn_id = kubernetes_conn_id
         self.poll_interval = poll_interval
         self.cluster_context = cluster_context
@@ -103,6 +103,7 @@ class KubernetesPodTrigger(BaseTrigger):
             {
                 "pod_name": self.pod_name,
                 "pod_namespace": self.pod_namespace,
+                "base_container_name": self.base_container_name,
                 "kubernetes_conn_id": self.kubernetes_conn_id,
                 "poll_interval": self.poll_interval,
                 "cluster_context": self.cluster_context,
@@ -130,7 +131,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 self.log.debug("Pod %s status: %s", self.pod_name, pod_status)
 
                 container_state = self.define_container_state(pod)
-                self.log.debug("Container %s status: %s", BASE_CONTAINER_NAME, container_state)
+                self.log.debug("Container %s status: %s", self.base_container_name, container_state)
 
                 if container_state == ContainerState.TERMINATED:
                     yield TriggerEvent(
@@ -219,14 +220,13 @@ class KubernetesPodTrigger(BaseTrigger):
             )
         return self._hook
 
-    @staticmethod
-    def define_container_state(pod: V1Pod) -> ContainerState:
+    def define_container_state(self, pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses
 
         if pod_containers is None:
             return ContainerState.UNDEFINED
 
-        container = [container for container in pod_containers if container.name == BASE_CONTAINER_NAME][0]
+        container = [c for c in pod_containers if c.name == self.base_container_name][0]
 
         for state in (ContainerState.RUNNING, ContainerState.WAITING, ContainerState.TERMINATED):
             state_obj = getattr(container.state, state)

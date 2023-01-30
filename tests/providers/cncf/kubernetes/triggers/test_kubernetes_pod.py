@@ -49,6 +49,7 @@ GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
 TRIGGER_START_TIME = datetime.now(tz=pytz.UTC)
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
+BASE_CONTAINER_NAME = "base"
 
 
 @pytest.fixture
@@ -56,6 +57,7 @@ def trigger():
     return KubernetesPodTrigger(
         pod_name=POD_NAME,
         pod_namespace=NAMESPACE,
+        base_container_name=BASE_CONTAINER_NAME,
         kubernetes_conn_id=CONN_ID,
         poll_interval=POLL_INTERVAL,
         cluster_context=CLUSTER_CONTEXT,
@@ -82,6 +84,7 @@ class TestKubernetesPodTrigger:
         assert kwargs_dict == {
             "pod_name": POD_NAME,
             "pod_namespace": NAMESPACE,
+            "base_container_name": BASE_CONTAINER_NAME,
             "kubernetes_conn_id": CONN_ID,
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,

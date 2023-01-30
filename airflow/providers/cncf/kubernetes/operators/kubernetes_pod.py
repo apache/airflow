@@ -588,6 +588,7 @@ class KubernetesPodOperator(BaseOperator):
                 should_delete_pod=self.is_delete_operator_pod,
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
+                base_container_name=self.base_container_name,
             ),
             method_name="execute_complete",
         )
@@ -635,7 +636,7 @@ class KubernetesPodOperator(BaseOperator):
         try:
             logs = self.pod_manager.read_pod_logs(
                 pod=pod,
-                container_name=self.BASE_CONTAINER_NAME,
+                container_name=self.base_container_name,
                 follow=False,
             )
             for raw_line in logs:
