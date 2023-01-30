@@ -27,8 +27,51 @@ method takes in a single parameter, the Airflow context, which contains informat
 
 You can also set the ``template_fields`` attribute to specify which attributes should be rendered as templates.
 
+Here's an example of how you can create a Notifier class:
+
+.. code-block:: python
+
+    from airflow.notifications.basenotifier import BaseNotifier
+    from my_provider import send_message
+
+
+    class MyNotifier(BaseNotifier):
+        template_fields = ("message",)
+
+        def __init__(self, message):
+            self.message = message
+
+        def notify(self, context):
+            # Send notification here, below is an example
+            title = f"Task {context['task_instance'].task_id} failed"
+            send_message(title, self.message)
+
+Using a notifier
+----------------
 Once you have a notifier implementation, you can use it in your ``DAG`` definition by passing it as an argument to
 the ``on_*_callbacks``. For example, you can use it with ``on_success_callback`` or ``on_failure_callback`` to send
-notifications based on the status of a task or DAG.
+notifications based on the status of a task or a DAG run.
 
-Here's an example of extending the BaseNotifier: SlackNotifier (:class:`airflow.providers.slack.notifications.slack_notifier.SlackNotifier`)
+Here's an example of using the above notifier:
+
+.. code-block:: python
+
+    from airflow import DAG
+    from myprovider.notifier import MyNotifier
+    from datetime import datetime
+
+    with DAG(
+        dag_id="example_notifier",
+        start_date=datetime(2022, 1, 1),
+        schedule_interval=None,
+        on_success_callback=MyNotifier(message="Success!"),
+        on_failure_callback=MyNotifier(message="Failure!"),
+    ):
+        task = BashOperator(
+            task_id="example_task",
+            bash_command="exit 1",
+            on_success_callback=MyNotifier(message="Task Succeeded!"),
+        )
+
+For a list of community-managed notifiers, see
+:doc:`apache-airflow-providers:core-extensions/notifications`.

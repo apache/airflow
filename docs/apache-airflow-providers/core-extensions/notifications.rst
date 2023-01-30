@@ -19,7 +19,10 @@ Notifications
 -------------
 This is a summary of all Apache Airflow Community provided implementations of notifications.
 
-Notifications allows you to send messages to external systems when a task instance/DAG changes state.
+Notifications allow you to send messages to external systems when a task instance/DAG run changes state.
+
+Notifications are explained in :doc:`apache-airflow:howto/notifications` and here you can also see all the
+notifications provided by the community-managed providers:
 
 .. airflow-notifications::
    :tags: None
