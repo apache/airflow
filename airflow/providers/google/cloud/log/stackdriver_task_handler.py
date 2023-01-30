@@ -317,7 +317,7 @@ class StackdriverTaskHandler(logging.Handler):
         page: ListLogEntriesResponse = next(response.pages)
         messages = []
         for entry in page.entries:
-            if "message" in entry.json_payload or {}:
+            if "message" in (entry.json_payload or {}):
                 messages.append(entry.json_payload["message"])
             elif entry.text_payload:
                 messages.append(entry.text_payload)
