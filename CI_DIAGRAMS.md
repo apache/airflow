@@ -112,9 +112,9 @@ sequenceDiagram
     opt
         Note over Tests: Generate constraints
     end
+    Note over Tests: Build ARM CI images
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
-    Note over Tests: Build ARM CI images
     deactivate Tests
 ```
 
@@ -204,9 +204,9 @@ sequenceDiagram
     opt
         Note over Tests: Generate constraints
     end
+    Note over Tests: Build ARM CI images
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
-    Note over Tests: Build ARM CI images
     deactivate Tests
 ```
 
@@ -287,15 +287,11 @@ sequenceDiagram
         end
     end
     Note over Tests: Generate constraints
-    opt In merge run?
-        Tests ->> Airflow Repo: Push constraints if changed
-    end
-    opt In merge run?
-        Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
-        Tests ->> GitHub Registry: Push CI Image<br>[latest]
-        Note over Tests: Build PROD Images<br>[latest]<br>Use latest constraints
-        Tests ->> GitHub Registry: Push PROD Image<br>[latest]
-    end
+    Tests ->> Airflow Repo: Push constraints if changed
+    Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
+    Tests ->> GitHub Registry: Push CI Image<br>[latest]
+    Note over Tests: Build PROD Images<br>[latest]<br>Use latest constraints
+    Tests ->> GitHub Registry: Push PROD Image<br>[latest]
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate Tests
@@ -381,8 +377,8 @@ sequenceDiagram
     Tests ->> GitHub Registry: Push CI Image cache + latest
     Note over Tests: Build PROD Images<br>[latest]<br>Use latest constraints
     Tests ->> GitHub Registry: Push PROD Image cache + latest
+    Note over Tests: Build ARM CI images
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
-    Note over Tests: Build ARM CI images
     deactivate Tests
 ```
