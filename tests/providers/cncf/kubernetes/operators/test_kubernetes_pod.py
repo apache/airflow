@@ -25,8 +25,10 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 from pytest import param
+from urllib3 import HTTPResponse
+from urllib3.packages.six import BytesIO
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
@@ -34,6 +36,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
     KubernetesPodOperator,
     _optionally_suppress,
 )
+from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -44,6 +47,16 @@ KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
+KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.{}"
+
+TEST_TASK_ID = "kubernetes_task_async"
+TEST_NAMESPACE = "default"
+TEST_IMAGE = "ubuntu:16.04"
+TEST_CMDS = ["bash", "-cx"]
+TEST_ARGS = ["echo", "10", "echo pwd"]
+TEST_LABELS = {"foo": "bar"}
+TEST_NAME = "test-pod"
+TEST_SUCCESS_MESSAGE = "All containers inside pod have started successfully."
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -937,6 +950,7 @@ class TestKubernetesPodOperator:
         """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
         k = KubernetesPodOperator(
             task_id="task",
+            is_delete_operator_pod=False,
         )
         self.await_pod_mock.side_effect = AirflowException("oops")
         context = create_context(k)
@@ -1083,3 +1097,249 @@ class TestSuppress:
         with _optionally_suppress():
             print("hi")
         assert caplog.text == ""
+
+
+@pytest.mark.execution_timeout(300)
+class TestKubernetesPodOperatorAsync:
+    @pytest.fixture(autouse=True)
+    def setup(self, dag_maker):
+        self.create_pod_patch = patch(f"{POD_MANAGER_CLASS}.create_pod")
+        self.await_pod_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_start")
+        self.await_pod_completion_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+        self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self.await_pod_get_patch = patch(f"{HOOK_CLASS}.get_pod")
+        self.create_mock = self.create_pod_patch.start()
+        self.await_start_mock = self.await_pod_patch.start()
+        self.await_pod_mock = self.await_pod_completion_patch.start()
+        self._default_client_mock = self._default_client_patch.start()
+        self.await_pod_get = self.await_pod_get_patch.start()
+        self.dag_maker = dag_maker
+
+        yield
+
+        patch.stopall()
+
+    def run_pod_async(self, operator: KubernetesPodOperator, map_index: int = -1):
+        with self.dag_maker(dag_id="dag") as dag:
+            operator.dag = dag
+
+        dr = self.dag_maker.create_dagrun(run_id="test")
+        (ti,) = dr.task_instances
+        ti.map_index = map_index
+        self.dag_run = dr
+        context = ti.get_template_context(session=self.dag_maker.session)
+        self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
+
+        remote_pod_mock = MagicMock()
+        remote_pod_mock.status.phase = "Succeeded"
+        remote_pod_mock.metadata.name = TEST_NAME
+        remote_pod_mock.metadata.namespace = TEST_NAMESPACE
+        self.await_pod_mock.return_value = remote_pod_mock
+
+        operator.execute_complete(
+            context=context,
+            event={
+                "status": "success",
+                "message": TEST_SUCCESS_MESSAGE,
+                "name": TEST_NAME,
+                "namespace": TEST_NAMESPACE,
+            },
+        )
+        return remote_pod_mock
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch(KUB_OP_PATH.format("build_pod_request_obj"))
+    @patch(KUB_OP_PATH.format("get_or_create_pod"))
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, mocked_conf_file):
+        """
+        Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
+        when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
+        """
+
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            cmds=TEST_CMDS,
+            arguments=TEST_ARGS,
+            labels=TEST_LABELS,
+            name=TEST_NAME,
+            is_delete_operator_pod=False,
+            in_cluster=True,
+            get_logs=True,
+            deferrable=True,
+        )
+        k.config_file_in_dict_representation = {"a": "b"}
+        with pytest.raises(TaskDeferred) as exc:
+            k.execute(create_context(k))
+        assert isinstance(exc.value.trigger, KubernetesPodTrigger)
+
+    @patch(KUB_OP_PATH.format("cleanup"))
+    @patch(HOOK_CLASS)
+    def test_async_create_pod_should_throw_exception(self, mocked_hook, mocked_cleanup):
+        """Tests that an AirflowException is raised in case of error event"""
+
+        mocked_hook.return_value.get_pod.return_value = MagicMock()
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            cmds=TEST_CMDS,
+            arguments=TEST_ARGS,
+            labels=TEST_LABELS,
+            name=TEST_NAME,
+            is_delete_operator_pod=False,
+            in_cluster=True,
+            get_logs=True,
+            deferrable=True,
+        )
+
+        with pytest.raises(AirflowException):
+            k.execute_complete(
+                context=None,
+                event={
+                    "status": "error",
+                    "message": "Some error",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
+
+    @pytest.mark.parametrize("do_xcom_push", [True, False])
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("extract_xcom"))
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_create_pod_xcom_push_should_execute_successfully(
+        self, mocked_hook, mock_manager, mocked_extract, post_complete_action, do_xcom_push
+    ):
+        mocked_hook.return_value.get_pod.return_value = MagicMock()
+        mock_manager.return_value.await_pod_completion.return_value = MagicMock()
+        k = KubernetesPodOperator(
+            task_id="task",
+            do_xcom_push=do_xcom_push,
+            get_logs=False,
+            deferrable=True,
+        )
+
+        context = create_context(k)
+        context["ti"] = MagicMock()
+        k.execute_complete(
+            context=context,
+            event={
+                "status": "success",
+                "message": TEST_SUCCESS_MESSAGE,
+                "name": TEST_NAME,
+                "namespace": TEST_NAMESPACE,
+            },
+        )
+
+        if do_xcom_push:
+            mocked_extract.assert_called_once()
+            post_complete_action.assert_called_once()
+        else:
+            mocked_extract.assert_not_called()
+
+    @patch(HOOK_CLASS)
+    def test_async_xcom_sidecar_container_image_default_should_execute_successfully(self, hook_mock):
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+        k = KubernetesPodOperator(
+            name=TEST_NAME,
+            task_id="task",
+            do_xcom_push=True,
+            deferrable=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].image == "alpine"
+
+    @pytest.mark.parametrize("do_xcom_push", [True, False])
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("extract_xcom"))
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_push_xcom_check_xcom_values_should_execute_successfully(
+        self, mocked_hook, mock_manager, mock_extract_xcom, post_complete_action, do_xcom_push
+    ):
+        """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
+
+        mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        )
+        mock_manager.return_value.await_pod_completion.return_value = {}
+        mock_extract_xcom.return_value = "{}"
+        k = KubernetesPodOperator(
+            task_id="task",
+            do_xcom_push=do_xcom_push,
+            deferrable=True,
+        )
+
+        pod = self.run_pod_async(k)
+
+        pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
+        pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
+        assert pod_name == pod.metadata.name
+        assert pod_namespace == pod.metadata.namespace
+
+    @pytest.mark.parametrize("get_logs", [True, False])
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("write_logs"))
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_get_logs_should_execute_successfully(
+        self, mocked_hook, mock_manager, mocked_write_logs, post_complete_action, get_logs
+    ):
+        mocked_hook.return_value.get_pod.return_value = MagicMock()
+        mock_manager.return_value.await_pod_completion.return_value = MagicMock()
+        k = KubernetesPodOperator(
+            task_id="task",
+            get_logs=get_logs,
+            deferrable=True,
+        )
+
+        context = create_context(k)
+        context["ti"] = MagicMock()
+        k.execute_complete(
+            context=context,
+            event={
+                "status": "success",
+                "message": TEST_SUCCESS_MESSAGE,
+                "name": TEST_NAME,
+                "namespace": TEST_NAMESPACE,
+            },
+        )
+
+        if get_logs:
+            mocked_write_logs.assert_called_once()
+            post_complete_action.assert_called_once()
+        else:
+            mocked_write_logs.assert_not_called()
+
+    @pytest.mark.parametrize("get_logs", [True, False])
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("extract_xcom"))
+    @patch(HOOK_CLASS)
+    @patch(KUB_OP_PATH.format("pod_manager"))
+    def test_async_write_logs_should_execute_successfully(
+        self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, get_logs
+    ):
+        test_logs = "ok"
+        mock_manager.read_pod_logs.return_value = HTTPResponse(
+            body=BytesIO(test_logs.encode("utf-8")),
+            preload_content=False,
+        )
+        mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        )
+        mock_extract_xcom.return_value = "{}"
+        k = KubernetesPodOperator(
+            task_id="task",
+            get_logs=get_logs,
+            deferrable=True,
+        )
+        self.run_pod_async(k)
+
+        if get_logs:
+            assert f"Container logs: {test_logs}"
+            post_complete_action.assert_called_once()
+        else:
+            mock_manager.return_value.read_pod_logs.assert_not_called()

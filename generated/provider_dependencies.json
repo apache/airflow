@@ -209,8 +209,10 @@
   "cncf.kubernetes": {
     "deps": [
       "apache-airflow>=2.3.0",
+      "asgiref>=3.5.2",
       "cryptography>=2.0.0",
-      "kubernetes>=21.7.0,<24"
+      "kubernetes>=21.7.0,<24",
+      "kubernetes_asyncio>=18.20.1,<25"
     ],
     "cross-providers-deps": []
   },
