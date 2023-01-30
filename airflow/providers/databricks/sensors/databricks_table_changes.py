@@ -100,11 +100,11 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
     def set_version(context: Context, lookup_key, version):
         context["ti"].xcom_push(key=lookup_key, value=version)
 
-    def get_current_table_version(self, table_name, time_range):
+    def get_current_table_version(self, table_name, time_range, operator):
         change_sql = (
             f"SELECT COUNT(version) as versions from "
             f"(DESCRIBE HISTORY {table_name}) "
-            f"WHERE timestamp {self.change_filter_operator} '{time_range}'"
+            f"WHERE timestamp {operator} '{time_range}'"
         )
         result = self._sql_sensor(change_sql)[0][0]
         return result
