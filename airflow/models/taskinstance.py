@@ -1320,7 +1320,7 @@ class TaskInstance(Base, LoggingMixin):
                 return False
 
         if self.next_kwargs is not None:
-            self.log.info("resuming after deferral")
+            self.log.info("Resuming after deferral")
         else:
             self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
         self._try_number += 1
