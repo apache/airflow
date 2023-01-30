@@ -266,6 +266,7 @@ class TestCliTasks:
             pickle_id=None,
             pool=None,
             external_executor_id=None,
+            shut_down_logging=True,
         )
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
@@ -642,6 +643,7 @@ class TestLogsfromTaskRunCommand:
             ignore_ti_state=False,
             pool=None,
             external_executor_id="ABCD12345",
+            shut_down_logging=True,
         )
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
@@ -662,6 +664,7 @@ class TestLogsfromTaskRunCommand:
                 ignore_ti_state=False,
                 pool=None,
                 external_executor_id="ABCD12345",
+                shut_down_logging=True,
             )
 
     @pytest.mark.parametrize("is_k8s", ["true", ""])
