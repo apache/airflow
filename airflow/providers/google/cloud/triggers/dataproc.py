@@ -22,7 +22,7 @@ import asyncio
 import warnings
 from typing import Any, AsyncIterator, Sequence
 
-from google.cloud.dataproc_v1 import ClusterStatus, JobStatus
+from google.cloud.dataproc_v1 import Batch, ClusterStatus, JobStatus
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
@@ -149,3 +149,73 @@ class DataprocClusterTrigger(BaseTrigger):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
+
+class DataprocBatchTrigger(BaseTrigger):
+    """
+    DataprocCreateBatchTrigger run on the trigger worker to perform create Build operation
+
+    :param batch_id: The ID of the build.
+    :param project_id: Google Cloud Project where the job is running
+    :param region: The Cloud Dataproc region in which to handle the request.
+    :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param polling_interval_seconds: polling period in seconds to check for the status
+    """
+
+    def __init__(
+        self,
+        batch_id: str,
+        region: str,
+        project_id: str | None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        polling_interval_seconds: float = 5.0,
+    ):
+        super().__init__()
+        self.batch_id = batch_id
+        self.project_id = project_id
+        self.region = region
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.polling_interval_seconds = polling_interval_seconds
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serializes DataprocBatchTrigger arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger",
+            {
+                "batch_id": self.batch_id,
+                "project_id": self.project_id,
+                "region": self.region,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+                "polling_interval_seconds": self.polling_interval_seconds,
+            },
+        )
+
+    async def run(self):
+        hook = DataprocAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        while True:
+            batch = await hook.get_batch(
+                project_id=self.project_id, region=self.region, batch_id=self.batch_id
+            )
+            state = batch.state
+
+            if state in (Batch.State.FAILED, Batch.State.SUCCEEDED, Batch.State.CANCELLED):
+                break
+            self.log.info("Current state is %s", state)
+            self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
+            await asyncio.sleep(self.polling_interval_seconds)
+        yield TriggerEvent({"batch_id": self.batch_id, "batch_state": state})
