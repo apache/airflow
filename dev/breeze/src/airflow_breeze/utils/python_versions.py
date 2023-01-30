@@ -14,15 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import sys
-from typing import List
 
 from airflow_breeze.global_constants import ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS
 from airflow_breeze.utils.console import get_console
 
 
-def get_python_version_list(python_versions: str) -> List[str]:
+def get_python_version_list(python_versions: str) -> list[str]:
     """
     Retrieve and validate space-separated list of Python versions and return them in the form of list.
     :param python_versions: space separated list of Python versions

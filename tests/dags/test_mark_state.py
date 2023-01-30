@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 from time import sleep
 
@@ -26,17 +28,17 @@ from airflow.utils.state import State
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 args = {
-    'owner': 'airflow',
-    'start_date': DEFAULT_DATE,
+    "owner": "airflow",
+    "start_date": DEFAULT_DATE,
 }
 
 
-dag_id = 'test_mark_state'
+dag_id = "test_mark_state"
 dag = DAG(dag_id=dag_id, default_args=args)
 
 
 def success_callback(context):
-    assert context['dag_run'].dag_id == dag_id
+    assert context["dag_run"].dag_id == dag_id
 
 
 def test_mark_success_no_kill(ti):
@@ -59,8 +61,8 @@ PythonOperator(
 
 
 def check_failure(context):
-    assert context['dag_run'].dag_id == dag_id
-    assert context['exception'] == "task marked as failed externally"
+    assert context["dag_run"].dag_id == dag_id
+    assert context["exception"] == "task marked as failed externally"
 
 
 def test_mark_failure_externally(ti):
@@ -77,7 +79,7 @@ def test_mark_failure_externally(ti):
 
 
 PythonOperator(
-    task_id='test_mark_failure_externally',
+    task_id="test_mark_failure_externally",
     python_callable=test_mark_failure_externally,
     on_failure_callback=check_failure,
     dag=dag,
@@ -98,6 +100,6 @@ def test_mark_skipped_externally(ti):
     assert False
 
 
-PythonOperator(task_id='test_mark_skipped_externally', python_callable=test_mark_skipped_externally, dag=dag)
+PythonOperator(task_id="test_mark_skipped_externally", python_callable=test_mark_skipped_externally, dag=dag)
 
-PythonOperator(task_id='dummy', python_callable=lambda: True, dag=dag)
+PythonOperator(task_id="dummy", python_callable=lambda: True, dag=dag)

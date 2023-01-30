@@ -14,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""DagProcessor command."""
+from __future__ import annotations
 
-"""DagProcessor command"""
 import logging
 from datetime import timedelta
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
+from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.utils import cli as cli_utils
@@ -32,7 +34,7 @@ log = logging.getLogger(__name__)
 
 def _create_dag_processor_manager(args) -> DagFileProcessorManager:
     """Creates DagFileProcessorProcess instance."""
-    processor_timeout_seconds: int = conf.getint('core', 'dag_file_processor_timeout')
+    processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
     processor_timeout = timedelta(seconds=processor_timeout_seconds)
     return DagFileProcessorManager(
         dag_directory=args.subdir,
@@ -45,13 +47,13 @@ def _create_dag_processor_manager(args) -> DagFileProcessorManager:
 
 @cli_utils.action_cli
 def dag_processor(args):
-    """Starts Airflow Dag Processor Job"""
+    """Starts Airflow Dag Processor Job."""
     if not conf.getboolean("scheduler", "standalone_dag_processor"):
-        raise SystemExit('The option [scheduler/standalone_dag_processor] must be True.')
+        raise SystemExit("The option [scheduler/standalone_dag_processor] must be True.")
 
-    sql_conn: str = conf.get('database', 'sql_alchemy_conn').lower()
-    if sql_conn.startswith('sqlite'):
-        raise SystemExit('Standalone DagProcessor is not supported when using sqlite.')
+    sql_conn: str = conf.get("database", "sql_alchemy_conn").lower()
+    if sql_conn.startswith("sqlite"):
+        raise SystemExit("Standalone DagProcessor is not supported when using sqlite.")
 
     manager = _create_dag_processor_manager(args)
 
@@ -60,12 +62,16 @@ def dag_processor(args):
             "dag-processor", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
+            stdout_handle.truncate(0)
+            stderr_handle.truncate(0)
+
             ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 try:

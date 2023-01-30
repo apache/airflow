@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -62,20 +64,20 @@ class LocalFilesystemToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     """
 
-    template_fields: Sequence[str] = ('filename', 'dest_key', 'dest_bucket')
+    template_fields: Sequence[str] = ("filename", "dest_key", "dest_bucket")
 
     def __init__(
         self,
         *,
         filename: str,
         dest_key: str,
-        dest_bucket: Optional[str] = None,
-        aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[str, bool]] = None,
+        dest_bucket: str | None = None,
+        aws_conn_id: str = "aws_default",
+        verify: str | bool | None = None,
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
-        acl_policy: Optional[str] = None,
+        acl_policy: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -90,10 +92,10 @@ class LocalFilesystemToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         s3_bucket, s3_key = s3_hook.get_s3_bucket_key(
-            self.dest_bucket, self.dest_key, 'dest_bucket', 'dest_key'
+            self.dest_bucket, self.dest_key, "dest_bucket", "dest_key"
         )
         s3_hook.load_file(
             self.filename,

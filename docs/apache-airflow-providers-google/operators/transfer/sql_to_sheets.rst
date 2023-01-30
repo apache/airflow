@@ -35,7 +35,7 @@ Upload data from SQL to Google Sheets
 To upload data from and Database using SQL to Google Spreadsheet you can use the
 :class:`~airflow.providers.google.suite.transfers.sql_to_sheets.SQLToGoogleSheetsOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/suite/example_dags/example_sql_to_sheets.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/sql_to_sheets/example_sql_to_sheets.py
     :language: python
     :dedent: 4
     :start-after: [START upload_sql_to_sheets]

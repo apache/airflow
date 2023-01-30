@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Iterable
 
 from sqlalchemy import Column, Integer, String, Text, func
 from sqlalchemy.orm.session import Session
@@ -50,7 +51,7 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
 
-    DEFAULT_POOL_NAME = 'default_pool'
+    DEFAULT_POOL_NAME = "default_pool"
 
     def __repr__(self):
         return str(self.pool)
@@ -141,7 +142,7 @@ class Pool(Base):
         *,
         lock_rows: bool = False,
         session: Session = NEW_SESSION,
-    ) -> Dict[str, PoolStats]:
+    ) -> dict[str, PoolStats]:
         """
         Get Pool stats (Number of Running, Queued, Open & Total tasks)
 
@@ -154,17 +155,17 @@ class Pool(Base):
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
-        pools: Dict[str, PoolStats] = {}
+        pools: dict[str, PoolStats] = {}
 
         query = session.query(Pool.pool, Pool.slots)
 
         if lock_rows:
             query = with_row_locks(query, session=session, **nowait(session))
 
-        pool_rows: Iterable[Tuple[str, int]] = query.all()
+        pool_rows: Iterable[tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
             if total_slots == -1:
-                total_slots = float('inf')  # type: ignore
+                total_slots = float("inf")  # type: ignore
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
 
         state_count_by_pool = (
@@ -178,7 +179,7 @@ class Pool(Base):
             # Some databases return decimal.Decimal here.
             count = int(count)
 
-            stats_dict: Optional[PoolStats] = pools.get(pool_name)
+            stats_dict: PoolStats | None = pools.get(pool_name)
             if not stats_dict:
                 continue
             # TypedDict key must be a string literal, so we use if-statements to set value
@@ -202,10 +203,10 @@ class Pool(Base):
         :return: the pool object in json format
         """
         return {
-            'id': self.id,
-            'pool': self.pool,
-            'slots': self.slots,
-            'description': self.description,
+            "id": self.id,
+            "pool": self.pool,
+            "slots": self.slots,
+            "description": self.description,
         }
 
     @provide_session
@@ -263,6 +264,24 @@ class Pool(Base):
         )
 
     @provide_session
+    def scheduled_slots(self, session: Session = NEW_SESSION):
+        """
+        Get the number of slots scheduled at the moment.
+
+        :param session: SQLAlchemy ORM Session
+        :return: the number of scheduled slots
+        """
+        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+
+        return int(
+            session.query(func.sum(TaskInstance.pool_slots))
+            .filter(TaskInstance.pool == self.pool)
+            .filter(TaskInstance.state == State.SCHEDULED)
+            .scalar()
+            or 0
+        )
+
+    @provide_session
     def open_slots(self, session: Session = NEW_SESSION) -> float:
         """
         Get the number of slots open at the moment.
@@ -271,6 +290,6 @@ class Pool(Base):
         :return: the number of slots
         """
         if self.slots == -1:
-            return float('inf')
+            return float("inf")
         else:
             return self.slots - self.occupied_slots(session)

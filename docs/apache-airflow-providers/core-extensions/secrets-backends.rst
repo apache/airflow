@@ -28,7 +28,7 @@ via providers that implement secrets backends for services Airflow integrates wi
 
 You can also take a
 look at Secret backends available in the core Airflow in
-:doc:`apache-airflow:security/secrets/secrets-backend/index` and here you can see the ones
+:doc:`apache-airflow:administration-and-deployment/security/secrets/secrets-backend/index` and here you can see the ones
 provided by the community-managed providers:
 
 .. airflow-secrets-backends::

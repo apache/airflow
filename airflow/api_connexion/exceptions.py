@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from http import HTTPStatus
-from typing import Any, Dict, Optional
+from typing import Any
 
 import flask
 import werkzeug
@@ -71,13 +73,13 @@ def common_error_handler(exception: BaseException) -> flask.Response:
 
 
 class NotFound(ProblemException):
-    """Raise when the object cannot be found"""
+    """Raise when the object cannot be found."""
 
     def __init__(
         self,
-        title: str = 'Not Found',
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        title: str = "Not Found",
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -91,13 +93,13 @@ class NotFound(ProblemException):
 
 
 class BadRequest(ProblemException):
-    """Raise when the server processes a bad request"""
+    """Raise when the server processes a bad request."""
 
     def __init__(
         self,
         title: str = "Bad Request",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -111,13 +113,13 @@ class BadRequest(ProblemException):
 
 
 class Unauthenticated(ProblemException):
-    """Raise when the user is not authenticated"""
+    """Raise when the user is not authenticated."""
 
     def __init__(
         self,
         title: str = "Unauthorized",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ):
         super().__init__(
@@ -131,13 +133,13 @@ class Unauthenticated(ProblemException):
 
 
 class PermissionDenied(ProblemException):
-    """Raise when the user does not have the required permissions"""
+    """Raise when the user does not have the required permissions."""
 
     def __init__(
         self,
         title: str = "Forbidden",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -151,13 +153,13 @@ class PermissionDenied(ProblemException):
 
 
 class AlreadyExists(ProblemException):
-    """Raise when the object already exists"""
+    """Raise when the object already exists."""
 
     def __init__(
         self,
         title="Conflict",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ):
         super().__init__(
@@ -171,13 +173,13 @@ class AlreadyExists(ProblemException):
 
 
 class Unknown(ProblemException):
-    """Returns a response body and status code for HTTP 500 exception"""
+    """Returns a response body and status code for HTTP 500 exception."""
 
     def __init__(
         self,
         title: str = "Internal Server Error",
-        detail: Optional[str] = None,
-        headers: Optional[Dict] = None,
+        detail: str | None = None,
+        headers: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(

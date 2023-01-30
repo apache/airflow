@@ -14,50 +14,51 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 
 
 class ConfigOptionSchema(Schema):
-    """Config Option Schema"""
+    """Config Option Schema."""
 
     key = fields.String(required=True)
     value = fields.String(required=True)
 
 
 class ConfigOption(NamedTuple):
-    """Config option"""
+    """Config option."""
 
     key: str
     value: str
 
 
 class ConfigSectionSchema(Schema):
-    """Config Section Schema"""
+    """Config Section Schema."""
 
     name = fields.String(required=True)
     options = fields.List(fields.Nested(ConfigOptionSchema))
 
 
 class ConfigSection(NamedTuple):
-    """List of config options within a section"""
+    """List of config options within a section."""
 
     name: str
-    options: List[ConfigOption]
+    options: list[ConfigOption]
 
 
 class ConfigSchema(Schema):
-    """Config Schema"""
+    """Config Schema."""
 
     sections = fields.List(fields.Nested(ConfigSectionSchema))
 
 
 class Config(NamedTuple):
-    """List of config sections with their options"""
+    """List of config sections with their options."""
 
-    sections: List[ConfigSection]
+    sections: list[ConfigSection]
 
 
 config_schema = ConfigSchema()

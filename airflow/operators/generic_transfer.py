@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
@@ -40,13 +42,13 @@ class GenericTransfer(BaseOperator):
     :param insert_args: extra params for `insert_rows` method.
     """
 
-    template_fields: Sequence[str] = ('sql', 'destination_table', 'preoperator')
+    template_fields: Sequence[str] = ("sql", "destination_table", "preoperator")
     template_ext: Sequence[str] = (
-        '.sql',
-        '.hql',
+        ".sql",
+        ".hql",
     )
     template_fields_renderers = {"preoperator": "sql"}
-    ui_color = '#b0f07c'
+    ui_color = "#b0f07c"
 
     def __init__(
         self,
@@ -55,8 +57,8 @@ class GenericTransfer(BaseOperator):
         destination_table: str,
         source_conn_id: str,
         destination_conn_id: str,
-        preoperator: Optional[Union[str, List[str]]] = None,
-        insert_args: Optional[dict] = None,
+        preoperator: str | list[str] | None = None,
+        insert_args: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,7 +75,7 @@ class GenericTransfer(BaseOperator):
 
         self.log.info("Extracting data from %s", self.source_conn_id)
         self.log.info("Executing: \n %s", self.sql)
-        get_records = getattr(source_hook, 'get_records', None)
+        get_records = getattr(source_hook, "get_records", None)
         if not callable(get_records):
             raise RuntimeError(
                 f"Hook for connection {self.source_conn_id!r} "
@@ -83,7 +85,7 @@ class GenericTransfer(BaseOperator):
             results = get_records(self.sql)
 
         if self.preoperator:
-            run = getattr(destination_hook, 'run', None)
+            run = getattr(destination_hook, "run", None)
             if not callable(run):
                 raise RuntimeError(
                     f"Hook for connection {self.destination_conn_id!r} "
@@ -93,7 +95,7 @@ class GenericTransfer(BaseOperator):
             self.log.info(self.preoperator)
             run(self.preoperator)
 
-        insert_rows = getattr(destination_hook, 'insert_rows', None)
+        insert_rows = getattr(destination_hook, "insert_rows", None)
         if not callable(insert_rows):
             raise RuntimeError(
                 f"Hook for connection {self.destination_conn_id!r} "

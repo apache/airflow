@@ -15,9 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-import airflow.jobs.backfill_job
-import airflow.jobs.base_job
-import airflow.jobs.local_task_job
-import airflow.jobs.scheduler_job
-import airflow.jobs.triggerer_job  # noqa

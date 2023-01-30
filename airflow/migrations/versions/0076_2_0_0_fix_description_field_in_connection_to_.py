@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Fix description field in ``connection`` to be ``text``
 
 Revision ID: 64a7d6477aae
@@ -23,16 +22,17 @@ Revises: f5b5ec089444
 Create Date: 2020-11-25 08:56:11.866607
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '64a7d6477aae'
-down_revision = '61ec73d9401f'
+revision = "64a7d6477aae"
+down_revision = "61ec73d9401f"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 def upgrade():
@@ -43,15 +43,15 @@ def upgrade():
         return
     if conn.dialect.name == "mysql":
         op.alter_column(
-            'connection',
-            'description',
+            "connection",
+            "description",
             existing_type=sa.String(length=5000),
             type_=sa.Text(length=5000),
             existing_nullable=True,
         )
     else:
         # postgres does not allow size modifier for text type
-        op.alter_column('connection', 'description', existing_type=sa.String(length=5000), type_=sa.Text())
+        op.alter_column("connection", "description", existing_type=sa.String(length=5000), type_=sa.Text())
 
 
 def downgrade():
@@ -62,8 +62,8 @@ def downgrade():
         return
     if conn.dialect.name == "mysql":
         op.alter_column(
-            'connection',
-            'description',
+            "connection",
+            "description",
             existing_type=sa.Text(5000),
             type_=sa.String(length=5000),
             existing_nullable=True,
@@ -71,8 +71,8 @@ def downgrade():
     else:
         # postgres does not allow size modifier for text type
         op.alter_column(
-            'connection',
-            'description',
+            "connection",
+            "description",
             existing_type=sa.Text(),
             type_=sa.String(length=5000),
             existing_nullable=True,

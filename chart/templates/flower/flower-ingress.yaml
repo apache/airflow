@@ -35,9 +35,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+{{- if or (.Values.labels) (.Values.flower.labels) }}
+{{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 4 }}
+{{- end }}
   {{- with .Values.ingress.flower.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

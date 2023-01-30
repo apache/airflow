@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Telegram"""
-from typing import Optional
+from __future__ import annotations
 
 import telegram
 import tenacity
@@ -58,9 +58,9 @@ class TelegramHook(BaseHook):
 
     def __init__(
         self,
-        telegram_conn_id: Optional[str] = None,
-        token: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        telegram_conn_id: str | None = None,
+        token: str | None = None,
+        chat_id: str | None = None,
     ) -> None:
         super().__init__()
         self.token = self.__get_token(token, telegram_conn_id)
@@ -72,18 +72,16 @@ class TelegramHook(BaseHook):
         Returns the telegram bot client
 
         :return: telegram bot client
-        :rtype: telegram.bot.Bot
         """
         return telegram.bot.Bot(token=self.token)
 
-    def __get_token(self, token: Optional[str], telegram_conn_id: Optional[str]) -> str:
+    def __get_token(self, token: str | None, telegram_conn_id: str | None) -> str:
         """
         Returns the telegram API token
 
         :param token: telegram API token
         :param telegram_conn_id: telegram connection name
         :return: telegram API token
-        :rtype: str
         """
         if token is not None:
             return token
@@ -98,14 +96,13 @@ class TelegramHook(BaseHook):
 
         raise AirflowException("Cannot get token: No valid Telegram connection supplied.")
 
-    def __get_chat_id(self, chat_id: Optional[str], telegram_conn_id: Optional[str]) -> Optional[str]:
+    def __get_chat_id(self, chat_id: str | None, telegram_conn_id: str | None) -> str | None:
         """
         Returns the telegram chat ID for a chat/channel/group
 
         :param chat_id: optional chat ID
         :param telegram_conn_id: telegram connection name
         :return: telegram chat ID
-        :rtype: str
         """
         if chat_id is not None:
             return chat_id
@@ -134,10 +131,10 @@ class TelegramHook(BaseHook):
         }
         kwargs.update(api_params)
 
-        if 'text' not in kwargs or kwargs['text'] is None:
+        if "text" not in kwargs or kwargs["text"] is None:
             raise AirflowException("'text' must be provided for telegram message")
 
-        if kwargs['chat_id'] is None:
+        if kwargs["chat_id"] is None:
             raise AirflowException("'chat_id' must be provided for telegram message")
 
         response = self.connection.send_message(**kwargs)

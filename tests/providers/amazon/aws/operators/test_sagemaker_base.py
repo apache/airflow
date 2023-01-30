@@ -14,21 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
+from typing import Any
 
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator
 
-config = {'key1': '1', 'key2': {'key3': '3', 'key4': '4'}, 'key5': [{'key6': '6'}, {'key6': '7'}]}
+CONFIG: dict = {"key1": "1", "key2": {"key3": "3", "key4": "4"}, "key5": [{"key6": "6"}, {"key6": "7"}]}
+PARSED_CONFIG: dict = {"key1": 1, "key2": {"key3": 3, "key4": 4}, "key5": [{"key6": 6}, {"key6": 7}]}
 
-parsed_config = {'key1': 1, 'key2': {'key3': 3, 'key4': 4}, 'key5': [{'key6': 6}, {'key6': 7}]}
+EXPECTED_INTEGER_FIELDS: list[list[Any]] = []
 
 
 class TestSageMakerBaseOperator(unittest.TestCase):
     def setUp(self):
-        self.sagemaker = SageMakerBaseOperator(task_id='test_sagemaker_operator', config=config)
+        self.sagemaker = SageMakerBaseOperator(task_id="test_sagemaker_operator", config=CONFIG)
+        self.sagemaker.aws_conn_id = "aws_default"
 
     def test_parse_integer(self):
-        self.sagemaker.integer_fields = [['key1'], ['key2', 'key3'], ['key2', 'key4'], ['key5', 'key6']]
+        self.sagemaker.integer_fields = [["key1"], ["key2", "key3"], ["key2", "key4"], ["key5", "key6"]]
         self.sagemaker.parse_config_integers()
-        assert self.sagemaker.config == parsed_config
+        assert self.sagemaker.config == PARSED_CONFIG
+
+    def test_default_integer_fields(self):
+        self.sagemaker.preprocess_config()
+
+        assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS

@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import fnmatch
-from typing import List, Optional
 
 
-def process_package_filters(available_packages: List[str], package_filters: Optional[List[str]]):
+def process_package_filters(available_packages: list[str], package_filters: list[str] | None):
     """Filters the package list against a set of filters.
 
     A packet is returned if it matches at least one filter. The function keeps the order of the packages.

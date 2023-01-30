@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pendulum
 import pytest
@@ -42,7 +43,7 @@ def test_no_parent(session, dag_maker):
     start_date = pendulum.datetime(2020, 1, 1)
     with dag_maker(
         "test_test_no_parent_dag",
-        schedule_interval=None,
+        schedule=None,
         start_date=start_date,
         session=session,
     ):
@@ -64,7 +65,7 @@ def test_no_skipmixin_parent(session, dag_maker):
     start_date = pendulum.datetime(2020, 1, 1)
     with dag_maker(
         "test_no_skipmixin_parent_dag",
-        schedule_interval=None,
+        schedule=None,
         start_date=start_date,
         session=session,
     ):
@@ -88,7 +89,7 @@ def test_parent_follow_branch(session, dag_maker):
     start_date = pendulum.datetime(2020, 1, 1)
     with dag_maker(
         "test_parent_follow_branch_dag",
-        schedule_interval=None,
+        schedule=None,
         start_date=start_date,
         session=session,
     ):
@@ -113,7 +114,7 @@ def test_parent_skip_branch(session, dag_maker):
     start_date = pendulum.datetime(2020, 1, 1)
     with dag_maker(
         "test_parent_skip_branch_dag",
-        schedule_interval=None,
+        schedule=None,
         start_date=start_date,
         session=session,
     ):
@@ -142,7 +143,7 @@ def test_parent_not_executed(session, dag_maker):
     start_date = pendulum.datetime(2020, 1, 1)
     with dag_maker(
         "test_parent_not_executed_dag",
-        schedule_interval=None,
+        schedule=None,
         start_date=start_date,
         session=session,
     ):

@@ -14,21 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class TriggererTest(unittest.TestCase):
-    @parameterized.expand(
+class TestTriggerer:
+    @pytest.mark.parametrize(
+        "airflow_version, num_docs",
         [
             ("2.1.0", 0),
             ("2.2.0", 1),
-        ]
+        ],
     )
     def test_only_exists_on_new_airflow_versions(self, airflow_version, num_docs):
         """Trigger was only added from Airflow 2.2 onwards"""
@@ -50,6 +50,27 @@ class TriggererTest(unittest.TestCase):
         )
 
         assert 0 == len(docs)
+
+    @pytest.mark.parametrize(
+        "revision_history_limit, global_revision_history_limit",
+        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
+    )
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {
+            "triggerer": {
+                "enabled": True,
+            }
+        }
+        if revision_history_limit:
+            values["triggerer"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_disable_wait_for_migration(self):
         docs = render_chart(
@@ -112,6 +133,49 @@ class TriggererTest(unittest.TestCase):
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
+
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                }
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+
+    def test_should_add_extraEnvs_to_wait_for_migration_container(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "waitForMigrations": {
+                        "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    },
+                }
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
+            "spec.template.spec.initContainers[0].env", docs[0]
+        )
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -271,15 +335,16 @@ class TriggererTest(unittest.TestCase):
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "log_persistence_values, expected_volume",
         [
             ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
             (
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
-        ]
+        ],
     )
     def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
         docs = render_chart(
@@ -296,8 +361,8 @@ class TriggererTest(unittest.TestCase):
             values={
                 "triggerer": {
                     "resources": {
-                        "limits": {"cpu": "200m", 'memory': "128Mi"},
-                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        "limits": {"cpu": "200m", "memory": "128Mi"},
+                        "requests": {"cpu": "300m", "memory": "169Mi"},
                     }
                 },
             },
@@ -327,14 +392,15 @@ class TriggererTest(unittest.TestCase):
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "strategy, expected_strategy",
         [
             (None, None),
             (
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
-        ]
+        ],
     )
     def test_strategy(self, strategy, expected_strategy):
         """strategy should be used when we aren't using both LocalExecutor and workers.persistence"""
@@ -357,14 +423,8 @@ class TriggererTest(unittest.TestCase):
             "spec.template.spec.containers[0].args", docs[0]
         )
 
-    @parameterized.expand(
-        [
-            (None, None),
-            (None, ["custom", "args"]),
-            (["custom", "command"], None),
-            (["custom", "command"], ["custom", "args"]),
-        ]
-    )
+    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
+    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={"triggerer": {"command": command, "args": args}},
@@ -382,7 +442,7 @@ class TriggererTest(unittest.TestCase):
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_dags_gitsync_sidecar_and_init_container(self):
@@ -409,3 +469,19 @@ class TriggererTest(unittest.TestCase):
         assert "git-sync-init" not in [
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
+
+
+class TestTriggererServiceAccount:
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

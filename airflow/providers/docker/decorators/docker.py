@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import base64
 import inspect
@@ -21,13 +22,21 @@ import os
 import pickle
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
+from typing import TYPE_CHECKING, Callable, Sequence
 
 import dill
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
+
+try:
+    from airflow.utils.decorators import remove_task_decorator
+
+    # This can be removed after we move to Airflow 2.4+
+except ImportError:
+    from airflow.utils.python_virtualenv import remove_task_decorator
+
+from airflow.utils.python_virtualenv import write_python_script
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
@@ -38,7 +47,7 @@ def _generate_decode_command(env_var, file, python_command):
     # We don't need `f.close()` as the interpreter is about to exit anyway
     return (
         f'{python_command} -c "import base64, os;'
-        rf'x = base64.b64decode(os.environ[\"{env_var}\"]);'
+        rf"x = base64.b64decode(os.environ[\"{env_var}\"]);"
         rf'f = open(\"{file}\", \"wb\"); f.write(x);"'
     )
 
@@ -53,6 +62,10 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     Wraps a Python callable and captures args/kwargs when called for execution.
 
     :param python_callable: A reference to an object that is callable
+    :param python: Python binary name to use
+    :param use_dill: Whether dill should be used to serialize the callable
+    :param expect_airflow: whether to expect airflow to be installed in the docker environment. if this
+          one is specified, the script to run callable will attempt to load Airflow macros.
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
     :param op_args: a list of positional arguments that will get unpacked when
@@ -62,20 +75,24 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         Defaults to False.
     """
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
+    custom_operator_name = "@task.docker"
+
+    template_fields: Sequence[str] = ("op_args", "op_kwargs")
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ('python_callable',)
+    shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
     def __init__(
         self,
         use_dill=False,
-        python_command='python3',
+        python_command="python3",
+        expect_airflow: bool = True,
         **kwargs,
     ) -> None:
         command = "dummy command"
         self.python_command = python_command
+        self.expect_airflow = expect_airflow
         self.pickling_library = dill if use_dill else pickle
         super().__init__(
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
@@ -86,17 +103,17 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py",
                                                      self.python_command)} &&"""
             f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in", self.python_command)} &&'
-            f'{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out\''
+            f"{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out'"
         )
 
-    def execute(self, context: 'Context'):
-        with TemporaryDirectory(prefix='venv') as tmp_dir:
-            input_filename = os.path.join(tmp_dir, 'script.in')
-            script_filename = os.path.join(tmp_dir, 'script.py')
+    def execute(self, context: Context):
+        with TemporaryDirectory(prefix="venv") as tmp_dir:
+            input_filename = os.path.join(tmp_dir, "script.in")
+            script_filename = os.path.join(tmp_dir, "script.py")
 
-            with open(input_filename, 'wb') as file:
+            with open(input_filename, "wb") as file:
                 if self.op_args or self.op_kwargs:
-                    self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
+                    self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
             py_source = self._get_python_source()
             write_python_script(
                 jinja_context=dict(
@@ -105,6 +122,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
                     pickling_library=self.pickling_library.__name__,
                     python_callable=self.python_callable.__name__,
                     python_callable_source=py_source,
+                    expect_airflow=self.expect_airflow,
                     string_args_global=False,
                 ),
                 filename=script_filename,
@@ -129,14 +147,11 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         return res
 
 
-T = TypeVar("T", bound=Callable)
-
-
 def docker_task(
-    python_callable: Optional[Callable] = None,
-    multiple_outputs: Optional[bool] = None,
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
     **kwargs,
-) -> "TaskDecorator":
+) -> TaskDecorator:
     """
     Python operator decorator. Wraps a function into an Airflow operator.
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.

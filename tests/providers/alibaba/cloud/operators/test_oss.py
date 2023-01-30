@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-import unittest
+from __future__ import annotations
+
 from unittest import mock
 
 from airflow.providers.alibaba.cloud.operators.oss import (
@@ -37,7 +37,7 @@ MOCK_KEYS = ["mock_key1", "mock_key_2", "mock_key3"]
 MOCK_CONTENT = "mock_content"
 
 
-class TestOSSCreateBucketOperator(unittest.TestCase):
+class TestOSSCreateBucketOperator:
     @mock.patch("airflow.providers.alibaba.cloud.operators.oss.OSSHook")
     def test_execute(self, mock_hook):
         operator = OSSCreateBucketOperator(
@@ -48,7 +48,7 @@ class TestOSSCreateBucketOperator(unittest.TestCase):
         mock_hook.return_value.create_bucket.assert_called_once_with(bucket_name=MOCK_BUCKET)
 
 
-class TestOSSDeleteBucketOperator(unittest.TestCase):
+class TestOSSDeleteBucketOperator:
     @mock.patch("airflow.providers.alibaba.cloud.operators.oss.OSSHook")
     def test_execute(self, mock_hook):
         operator = OSSDeleteBucketOperator(
@@ -59,7 +59,7 @@ class TestOSSDeleteBucketOperator(unittest.TestCase):
         mock_hook.return_value.delete_bucket.assert_called_once_with(bucket_name=MOCK_BUCKET)
 
 
-class TestOSSUploadObjectOperator(unittest.TestCase):
+class TestOSSUploadObjectOperator:
     @mock.patch("airflow.providers.alibaba.cloud.operators.oss.OSSHook")
     def test_execute(self, mock_hook):
         operator = OSSUploadObjectOperator(
@@ -77,7 +77,7 @@ class TestOSSUploadObjectOperator(unittest.TestCase):
         )
 
 
-class TestOSSDownloadObjectOperator(unittest.TestCase):
+class TestOSSDownloadObjectOperator:
     @mock.patch("airflow.providers.alibaba.cloud.operators.oss.OSSHook")
     def test_execute(self, mock_hook):
         operator = OSSDownloadObjectOperator(
@@ -95,7 +95,7 @@ class TestOSSDownloadObjectOperator(unittest.TestCase):
         )
 
 
-class TestOSSDeleteBatchObjectOperator(unittest.TestCase):
+class TestOSSDeleteBatchObjectOperator:
     @mock.patch("airflow.providers.alibaba.cloud.operators.oss.OSSHook")
     def test_execute(self, mock_hook):
         operator = OSSDeleteBatchObjectOperator(
@@ -110,7 +110,7 @@ class TestOSSDeleteBatchObjectOperator(unittest.TestCase):
         mock_hook.return_value.delete_objects.assert_called_once_with(bucket_name=MOCK_BUCKET, key=MOCK_KEYS)
 
 
-class TestOSSDeleteObjectOperator(unittest.TestCase):
+class TestOSSDeleteObjectOperator:
     @mock.patch("airflow.providers.alibaba.cloud.operators.oss.OSSHook")
     def test_execute(self, mock_hook):
         operator = OSSDeleteObjectOperator(

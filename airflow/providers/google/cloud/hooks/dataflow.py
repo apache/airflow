@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Dataflow Hook."""
+from __future__ import annotations
+
 import functools
 import json
 import re
@@ -25,7 +27,7 @@ import time
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Set, TypeVar, Union, cast
+from typing import Any, Callable, Generator, Sequence, TypeVar, cast
 
 from googleapiclient.discovery import build
 
@@ -48,7 +50,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def process_line_and_extract_dataflow_job_id_callback(
-    on_new_job_id_callback: Optional[Callable[[str], None]]
+    on_new_job_id_callback: Callable[[str], None] | None
 ) -> Callable[[str], None]:
     """
     Returns callback which triggers function passed as `on_new_job_id_callback` when Dataflow job_id is found.
@@ -60,7 +62,7 @@ def process_line_and_extract_dataflow_job_id_callback(
 
     def _process_line_and_extract_job_id(
         line: str,
-        # on_new_job_id_callback: Optional[Callable[[str], None]]
+        # on_new_job_id_callback: Callable[[str], None] | None
     ) -> None:
         # Job id info: https://goo.gl/SE29y9.
         matched_job = JOB_ID_PATTERN.search(line)
@@ -85,7 +87,7 @@ def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) ->
         """
 
         @functools.wraps(func)
-        def inner_wrapper(self: "DataflowHook", *args, **kwargs):
+        def inner_wrapper(self: DataflowHook, *args, **kwargs):
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional"
@@ -189,13 +191,13 @@ class _DataflowJobsController(LoggingMixin):
         project_number: str,
         location: str,
         poll_sleep: int = 10,
-        name: Optional[str] = None,
-        job_id: Optional[str] = None,
+        name: str | None = None,
+        job_id: str | None = None,
         num_retries: int = 0,
         multiple_jobs: bool = False,
         drain_pipeline: bool = False,
-        cancel_timeout: Optional[int] = 5 * 60,
-        wait_until_finished: Optional[bool] = None,
+        cancel_timeout: int | None = 5 * 60,
+        wait_until_finished: bool | None = None,
     ) -> None:
 
         super().__init__()
@@ -208,7 +210,7 @@ class _DataflowJobsController(LoggingMixin):
         self._num_retries = num_retries
         self._poll_sleep = poll_sleep
         self._cancel_timeout = cancel_timeout
-        self._jobs: Optional[List[dict]] = None
+        self._jobs: list[dict] | None = None
         self.drain_pipeline = drain_pipeline
         self._wait_until_finished = wait_until_finished
 
@@ -217,7 +219,6 @@ class _DataflowJobsController(LoggingMixin):
         Helper method to check if jos is still running in dataflow
 
         :return: True if job is running.
-        :rtype: bool
         """
         self._refresh_jobs()
         if not self._jobs:
@@ -228,15 +229,16 @@ class _DataflowJobsController(LoggingMixin):
                 return True
         return False
 
-    def _get_current_jobs(self) -> List[dict]:
+    def _get_current_jobs(self) -> list[dict]:
         """
         Helper method to get list of jobs that start with job name or id
 
         :return: list of jobs including id's
-        :rtype: list
         """
         if not self._multiple_jobs and self._job_id:
             return [self.fetch_job_by_id(self._job_id)]
+        elif self._jobs:
+            return [self.fetch_job_by_id(job["id"]) for job in self._jobs]
         elif self._job_name:
             jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
             if len(jobs) == 1:
@@ -251,7 +253,6 @@ class _DataflowJobsController(LoggingMixin):
 
         :param job_id: Job ID to get.
         :return: the Job
-        :rtype: dict
         """
         return (
             self._dataflow.projects()
@@ -272,7 +273,6 @@ class _DataflowJobsController(LoggingMixin):
         :param job_id: Job ID to get.
         :return: the JobMetrics. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/JobMetrics
-        :rtype: dict
         """
         result = (
             self._dataflow.projects()
@@ -292,7 +292,6 @@ class _DataflowJobsController(LoggingMixin):
         :param job_id: Job ID to get.
         :return: yields the ListJobMessagesResponse. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse
-        :rtype: Generator[dict, None, None]
         """
         request = (
             self._dataflow.projects()
@@ -314,42 +313,40 @@ class _DataflowJobsController(LoggingMixin):
                 .list_next(previous_request=request, previous_response=response)
             )
 
-    def fetch_job_messages_by_id(self, job_id: str) -> List[dict]:
+    def fetch_job_messages_by_id(self, job_id: str) -> list[dict]:
         """
         Helper method to fetch the job messages with the specified Job ID.
 
         :param job_id: Job ID to get.
         :return: the list of JobMessages. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#JobMessage
-        :rtype: List[dict]
         """
-        messages: List[dict] = []
+        messages: list[dict] = []
         for response in self._fetch_list_job_messages_responses(job_id=job_id):
             messages.extend(response.get("jobMessages", []))
         return messages
 
-    def fetch_job_autoscaling_events_by_id(self, job_id: str) -> List[dict]:
+    def fetch_job_autoscaling_events_by_id(self, job_id: str) -> list[dict]:
         """
         Helper method to fetch the job autoscaling events with the specified Job ID.
 
         :param job_id: Job ID to get.
         :return: the list of AutoscalingEvents. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#autoscalingevent
-        :rtype: List[dict]
         """
-        autoscaling_events: List[dict] = []
+        autoscaling_events: list[dict] = []
         for response in self._fetch_list_job_messages_responses(job_id=job_id):
             autoscaling_events.extend(response.get("autoscalingEvents", []))
         return autoscaling_events
 
-    def _fetch_all_jobs(self) -> List[dict]:
+    def _fetch_all_jobs(self) -> list[dict]:
         request = (
             self._dataflow.projects()
             .locations()
             .jobs()
             .list(projectId=self._project_number, location=self._job_location)
         )
-        all_jobs: List[dict] = []
+        all_jobs: list[dict] = []
         while request is not None:
             response = request.execute(num_retries=self._num_retries)
             jobs = response.get("jobs")
@@ -365,7 +362,7 @@ class _DataflowJobsController(LoggingMixin):
             )
         return all_jobs
 
-    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[dict]:
+    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> list[dict]:
         jobs = self._fetch_all_jobs()
         jobs = [job for job in jobs if job["name"].startswith(prefix_name)]
         return jobs
@@ -375,7 +372,6 @@ class _DataflowJobsController(LoggingMixin):
         Helper method to get all jobs by name
 
         :return: jobs
-        :rtype: list
         """
         self._jobs = self._get_current_jobs()
 
@@ -395,27 +391,26 @@ class _DataflowJobsController(LoggingMixin):
         if job failed raise exception
 
         :return: True if job is done.
-        :rtype: bool
         :raise: Exception
         """
         if self._wait_until_finished is None:
-            wait_for_running = job.get('type') == DataflowJobType.JOB_TYPE_STREAMING
+            wait_for_running = job.get("type") == DataflowJobType.JOB_TYPE_STREAMING
         else:
             wait_for_running = not self._wait_until_finished
 
-        if job['currentState'] == DataflowJobStatus.JOB_STATE_DONE:
+        if job["currentState"] == DataflowJobStatus.JOB_STATE_DONE:
             return True
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_FAILED:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_FAILED:
             raise Exception(f"Google Cloud Dataflow job {job['name']} has failed.")
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_CANCELLED:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_CANCELLED:
             raise Exception(f"Google Cloud Dataflow job {job['name']} was cancelled.")
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_DRAINED:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_DRAINED:
             raise Exception(f"Google Cloud Dataflow job {job['name']} was drained.")
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_UPDATED:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_UPDATED:
             raise Exception(f"Google Cloud Dataflow job {job['name']} was updated.")
-        elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
+        elif job["currentState"] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
             return True
-        elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:
+        elif job["currentState"] in DataflowJobStatus.AWAITING_STATES:
             return self._wait_until_finished is False
         self.log.debug("Current job: %s", str(job))
         raise Exception(f"Google Cloud Dataflow job {job['name']} was unknown state: {job['currentState']}")
@@ -429,13 +424,12 @@ class _DataflowJobsController(LoggingMixin):
             time.sleep(self._poll_sleep)
             self._refresh_jobs()
 
-    def get_jobs(self, refresh: bool = False) -> List[dict]:
+    def get_jobs(self, refresh: bool = False) -> list[dict]:
         """
         Returns Dataflow jobs.
 
         :param refresh: Forces the latest data to be fetched.
         :return: list of jobs
-        :rtype: list
         """
         if not self._jobs or refresh:
             self._refresh_jobs()
@@ -444,20 +438,20 @@ class _DataflowJobsController(LoggingMixin):
 
         return self._jobs
 
-    def _wait_for_states(self, expected_states: Set[str]):
+    def _wait_for_states(self, expected_states: set[str]):
         """Waiting for the jobs to reach a certain state."""
         if not self._jobs:
             raise ValueError("The _jobs should be set")
         while True:
             self._refresh_jobs()
-            job_states = {job['currentState'] for job in self._jobs}
+            job_states = {job["currentState"] for job in self._jobs}
             if not job_states.difference(expected_states):
                 return
-            unexpected_failed_end_states = expected_states - DataflowJobStatus.FAILED_END_STATES
+            unexpected_failed_end_states = DataflowJobStatus.FAILED_END_STATES - expected_states
             if unexpected_failed_end_states.intersection(job_states):
-                unexpected_failed_jobs = {
-                    job for job in self._jobs if job['currentState'] in unexpected_failed_end_states
-                }
+                unexpected_failed_jobs = [
+                    job for job in self._jobs if job["currentState"] in unexpected_failed_end_states
+                ]
                 raise AirflowException(
                     "Jobs failed: "
                     + ", ".join(
@@ -469,18 +463,19 @@ class _DataflowJobsController(LoggingMixin):
 
     def cancel(self) -> None:
         """Cancels or drains current job"""
-        jobs = self.get_jobs()
-        job_ids = [job["id"] for job in jobs if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES]
+        self._jobs = [
+            job for job in self.get_jobs() if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES
+        ]
+        job_ids = [job["id"] for job in self._jobs]
         if job_ids:
-            batch = self._dataflow.new_batch_http_request()
             self.log.info("Canceling jobs: %s", ", ".join(job_ids))
-            for job in jobs:
+            for job in self._jobs:
                 requested_state = (
                     DataflowJobStatus.JOB_STATE_DRAINED
                     if self.drain_pipeline and job["type"] == DataflowJobType.JOB_TYPE_STREAMING
                     else DataflowJobStatus.JOB_STATE_CANCELLED
                 )
-                batch.add(
+                request = (
                     self._dataflow.projects()
                     .locations()
                     .jobs()
@@ -491,14 +486,16 @@ class _DataflowJobsController(LoggingMixin):
                         body={"requestedState": requested_state},
                     )
                 )
-            batch.execute()
+                request.execute(num_retries=self._num_retries)
             if self._cancel_timeout and isinstance(self._cancel_timeout, int):
                 timeout_error_message = (
                     f"Canceling jobs failed due to timeout ({self._cancel_timeout}s): {', '.join(job_ids)}"
                 )
                 tm = timeout(seconds=self._cancel_timeout, error_message=timeout_error_message)
                 with tm:
-                    self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
+                    self._wait_for_states(
+                        {DataflowJobStatus.JOB_STATE_CANCELLED, DataflowJobStatus.JOB_STATE_DRAINED}
+                    )
         else:
             self.log.info("No jobs to cancel")
 
@@ -514,18 +511,18 @@ class DataflowHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         drain_pipeline: bool = False,
-        cancel_timeout: Optional[int] = 5 * 60,
-        wait_until_finished: Optional[bool] = None,
+        cancel_timeout: int | None = 5 * 60,
+        wait_until_finished: bool | None = None,
     ) -> None:
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
-        self.job_id: Optional[str] = None
+        self.job_id: str | None = None
         self.beam_hook = BeamHook(BeamRunnerType.DataflowRunner)
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -547,10 +544,10 @@ class DataflowHook(GoogleBaseHook):
         variables: dict,
         jar: str,
         project_id: str,
-        job_class: Optional[str] = None,
+        job_class: str | None = None,
         append_job_name: bool = True,
         multiple_jobs: bool = False,
-        on_new_job_id_callback: Optional[Callable[[str], None]] = None,
+        on_new_job_id_callback: Callable[[str], None] | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> None:
         """
@@ -610,10 +607,10 @@ class DataflowHook(GoogleBaseHook):
         dataflow_template: str,
         project_id: str,
         append_job_name: bool = True,
-        on_new_job_id_callback: Optional[Callable[[str], None]] = None,
-        on_new_job_callback: Optional[Callable[[dict], None]] = None,
+        on_new_job_id_callback: Callable[[str], None] | None = None,
+        on_new_job_callback: Callable[[dict], None] | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        environment: Optional[dict] = None,
+        environment: dict | None = None,
     ) -> dict:
         """
         Starts Dataflow template job.
@@ -728,8 +725,8 @@ class DataflowHook(GoogleBaseHook):
         body: dict,
         location: str,
         project_id: str,
-        on_new_job_id_callback: Optional[Callable[[str], None]] = None,
-        on_new_job_callback: Optional[Callable[[dict], None]] = None,
+        on_new_job_id_callback: Callable[[str], None] | None = None,
+        on_new_job_callback: Callable[[dict], None] | None = None,
     ):
         """
         Starts flex templates with the Dataflow  pipeline.
@@ -786,13 +783,13 @@ class DataflowHook(GoogleBaseHook):
         job_name: str,
         variables: dict,
         dataflow: str,
-        py_options: List[str],
+        py_options: list[str],
         project_id: str,
         py_interpreter: str = "python3",
-        py_requirements: Optional[List[str]] = None,
+        py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
         append_job_name: bool = True,
-        on_new_job_id_callback: Optional[Callable[[str], None]] = None,
+        on_new_job_id_callback: Callable[[str], None] | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ):
         """
@@ -881,7 +878,7 @@ class DataflowHook(GoogleBaseHook):
         name: str,
         project_id: str,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        variables: Optional[dict] = None,
+        variables: dict | None = None,
     ) -> bool:
         """
         Helper method to check if jos is still running in dataflow
@@ -891,7 +888,6 @@ class DataflowHook(GoogleBaseHook):
             If set to None or missing, the default project_id from the Google Cloud connection is used.
         :param location: Job location.
         :return: True if job is running.
-        :rtype: bool
         """
         if variables:
             warnings.warn(
@@ -916,8 +912,8 @@ class DataflowHook(GoogleBaseHook):
     def cancel_job(
         self,
         project_id: str,
-        job_name: Optional[str] = None,
-        job_id: Optional[str] = None,
+        job_name: str | None = None,
+        job_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> None:
         """
@@ -949,11 +945,11 @@ class DataflowHook(GoogleBaseHook):
         self,
         job_name: str,
         query: str,
-        options: Dict[str, Any],
+        options: dict[str, Any],
         project_id: str,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        on_new_job_id_callback: Optional[Callable[[str], None]] = None,
-        on_new_job_callback: Optional[Callable[[dict], None]] = None,
+        on_new_job_id_callback: Callable[[str], None] | None = None,
+        on_new_job_callback: Callable[[dict], None] | None = None,
     ):
         """
         Starts Dataflow SQL query.
@@ -972,16 +968,31 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_callback: Callback called when the job is known.
         :return: the new job object
         """
+        gcp_options = [
+            f"--project={project_id}",
+            "--format=value(job.id)",
+            f"--job-name={job_name}",
+            f"--region={location}",
+        ]
+
+        if self.impersonation_chain:
+            if isinstance(self.impersonation_chain, str):
+                impersonation_account = self.impersonation_chain
+            elif len(self.impersonation_chain) == 1:
+                impersonation_account = self.impersonation_chain[0]
+            else:
+                raise AirflowException(
+                    "Chained list of accounts is not supported, please specify only one service account"
+                )
+            gcp_options.append(f"--impersonate-service-account={impersonation_account}")
+
         cmd = [
             "gcloud",
             "dataflow",
             "sql",
             "query",
             query,
-            f"--project={project_id}",
-            "--format=value(job.id)",
-            f"--job-name={job_name}",
-            f"--region={location}",
+            *gcp_options,
             *(beam_options_to_args(options)),
         ]
         self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
@@ -1038,7 +1049,6 @@ class DataflowHook(GoogleBaseHook):
         :param location: The location of the Dataflow job (for example europe-west1). See:
             https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
         :return: the Job
-        :rtype: dict
         """
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -1064,7 +1074,6 @@ class DataflowHook(GoogleBaseHook):
             https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
         :return: the JobMetrics. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/JobMetrics
-        :rtype: dict
         """
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -1079,7 +1088,7 @@ class DataflowHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Gets the job messages with the specified Job ID.
 
@@ -1089,7 +1098,6 @@ class DataflowHook(GoogleBaseHook):
         :param location: Job location.
         :return: the list of JobMessages. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#JobMessage
-        :rtype: List[dict]
         """
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -1104,7 +1112,7 @@ class DataflowHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Gets the job autoscaling events with the specified Job ID.
 
@@ -1114,7 +1122,6 @@ class DataflowHook(GoogleBaseHook):
         :param location: Job location.
         :return: the list of AutoscalingEvents. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#autoscalingevent
-        :rtype: List[dict]
         """
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -1129,7 +1136,7 @@ class DataflowHook(GoogleBaseHook):
         job_name: str,
         location: str,
         project_id: str,
-        job_id: Optional[str] = None,
+        job_id: str | None = None,
         multiple_jobs: bool = False,
     ) -> None:
         """

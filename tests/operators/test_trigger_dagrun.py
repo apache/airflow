@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pathlib
 import tempfile
 from datetime import datetime
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 
@@ -42,14 +43,14 @@ DAG_SCRIPT = (
     "dag = DAG(\n"
     'dag_id="{dag_id}", \n'
     'default_args={{"start_date": datetime(2019, 1, 1)}}, \n'
-    "schedule_interval=None,\n"
+    "schedule=None,\n"
     ")\n"
     'task = EmptyOperator(task_id="test", dag=dag)'
 ).format(dag_id=TRIGGERED_DAG_ID)
 
 
-class TestDagRunOperator(TestCase):
-    def setUp(self):
+class TestDagRunOperator:
+    def setup_method(self):
         # Airflow relies on reading the DAG from disk when triggering it.
         # Therefore write a temp file holding the DAG to trigger.
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
@@ -66,7 +67,7 @@ class TestDagRunOperator(TestCase):
         dagbag.bag_dag(self.dag, root_dag=self.dag)
         dagbag.sync_to_db()
 
-    def tearDown(self):
+    def teardown_method(self):
         """Cleanup state after testing in DB."""
         with create_session() as session:
             session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
@@ -94,13 +95,13 @@ class TestDagRunOperator(TestCase):
             )
             .one()
         )
-        with mock.patch('airflow.operators.trigger_dagrun.build_airflow_url_with_query') as mock_build_url:
-            triggering_task.get_extra_links(triggering_ti, 'Triggered DAG')
+        with mock.patch("airflow.operators.trigger_dagrun.build_airflow_url_with_query") as mock_build_url:
+            triggering_task.get_extra_links(triggering_ti, "Triggered DAG")
         assert mock_build_url.called
         args, _ = mock_build_url.call_args
         expected_args = {
-            'dag_id': triggered_dag_run.dag_id,
-            'base_date': triggered_dag_run.execution_date.isoformat(),
+            "dag_id": triggered_dag_run.dag_id,
+            "base_date": triggered_dag_run.execution_date.isoformat(),
         }
         assert expected_args in args
 
@@ -179,6 +180,38 @@ class TestDagRunOperator(TestCase):
             assert triggered_dag_run.execution_date == utc_now
             self.assert_extra_link(triggered_dag_run, task, session)
 
+    def test_trigger_dagrun_with_scheduled_dag_run(self):
+        """Test TriggerDagRunOperator with custom execution_date and scheduled dag_run."""
+        utc_now = timezone.utcnow()
+        task = TriggerDagRunOperator(
+            task_id="test_trigger_dagrun_with_execution_date",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=utc_now,
+            dag=self.dag,
+            poke_interval=1,
+            reset_dag_run=True,
+            wait_for_completion=True,
+        )
+        run_id = f"scheduled__{utc_now.isoformat()}"
+        with create_session() as session:
+            dag_run = DagRun(
+                dag_id=TRIGGERED_DAG_ID,
+                execution_date=utc_now,
+                state=State.SUCCESS,
+                run_type="scheduled",
+                run_id=run_id,
+            )
+            session.add(dag_run)
+            session.commit()
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+            triggered_dag_run = dagruns[0]
+            assert triggered_dag_run.external_trigger
+            assert triggered_dag_run.execution_date == utc_now
+            self.assert_extra_link(triggered_dag_run, task, session)
+
     def test_trigger_dagrun_with_templated_execution_date(self):
         """Test TriggerDagRunOperator with templated execution_date."""
         task = TriggerDagRunOperator(
@@ -214,14 +247,14 @@ class TestDagRunOperator(TestCase):
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self):
         """Test passing a conf that is not JSON Serializable raise error."""
-
+        task = TriggerDagRunOperator(
+            task_id="test_trigger_dagrun_with_invalid_conf",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            conf={"foo": "{{ dag.dag_id }}", "datetime": timezone.utcnow()},
+            dag=self.dag,
+        )
         with pytest.raises(AirflowException, match="^conf parameter should be JSON Serializable$"):
-            TriggerDagRunOperator(
-                task_id="test_trigger_dagrun_with_invalid_conf",
-                trigger_dag_id=TRIGGERED_DAG_ID,
-                conf={"foo": "{{ dag.dag_id }}", "datetime": timezone.utcnow()},
-                dag=self.dag,
-            )
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_trigger_dagrun_operator_templated_conf(self):
         """Test passing a templated conf to the triggered DagRun."""

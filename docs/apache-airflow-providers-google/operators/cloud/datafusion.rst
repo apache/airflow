@@ -23,7 +23,7 @@ Google DataFusion Operators
 Cloud Data Fusion is a fully managed, cloud-native data integration service that helps
 users efficiently build and manage ETL/ELT data pipelines. With a graphical interface
 and a broad open source library of preconfigured connectors and transformations, Cloud
-Data Fusion shifts an organization’s focus away from code and integration to insights
+Data Fusion shifts an organization's focus away from code and integration to insights
 and action.
 
 Prerequisite Tasks

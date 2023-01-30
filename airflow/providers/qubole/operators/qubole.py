@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Qubole operator"""
+from __future__ import annotations
+
 import re
-from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
@@ -31,7 +32,7 @@ from airflow.providers.qubole.hooks.qubole import (
 )
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
+
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -39,38 +40,30 @@ if TYPE_CHECKING:
 class QDSLink(BaseOperatorLink):
     """Link to QDS"""
 
-    name = 'Go to QDS'
+    name = "Go to QDS"
 
     def get_link(
         self,
-        operator: "AbstractOperator",
-        dttm: Optional[datetime] = None,
+        operator: BaseOperator,
         *,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        ti_key: TaskInstanceKey,
     ) -> str:
         """
         Get link to qubole command result page.
 
         :param operator: operator
-        :param dttm: datetime
         :return: url link
         """
         conn = BaseHook.get_connection(
             getattr(operator, "qubole_conn_id", None)
-            or operator.kwargs['qubole_conn_id']  # type: ignore[attr-defined]
+            or operator.kwargs["qubole_conn_id"]  # type: ignore[attr-defined]
         )
         if conn and conn.host:
-            host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
+            host = re.sub(r"api$", "v2/analyze?command_id=", conn.host)
         else:
-            host = 'https://api.qubole.com/v2/analyze?command_id='
-        if ti_key is not None:
-            qds_command_id = XCom.get_value(key='qbol_cmd_id', ti_key=ti_key)
-        else:
-            assert dttm
-            qds_command_id = XCom.get_one(
-                key='qbol_cmd_id', dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
-            )
-        url = host + str(qds_command_id) if qds_command_id else ''
+            host = "https://api.qubole.com/v2/analyze?command_id="
+        qds_command_id = XCom.get_value(key="qbol_cmd_id", ti_key=ti_key)
+        url = host + str(qds_command_id) if qds_command_id else ""
         return url
 
 
@@ -176,8 +169,8 @@ class QuboleOperator(BaseOperator):
         jupytercmd:
             :path: Path including name of the Jupyter notebook to be run with extension.
             :arguments: Valid JSON to be sent to the notebook. Specify the parameters in notebooks and pass
-                the parameter value using the JSON format. key is the parameter’s name and value is
-                the parameter’s value. Supported types in parameters are string, integer, float and boolean.
+                the parameter value using the JSON format. key is the parameter's name and value is
+                the parameter's value. Supported types in parameters are string, integer, float and boolean.
 
     .. note:
 
@@ -198,47 +191,47 @@ class QuboleOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'query',
-        'script_location',
-        'sub_command',
-        'script',
-        'files',
-        'archives',
-        'program',
-        'cmdline',
-        'sql',
-        'where_clause',
-        'tags',
-        'extract_query',
-        'boundary_query',
-        'macros',
-        'name',
-        'parameters',
-        'dbtap_id',
-        'hive_table',
-        'db_table',
-        'split_column',
-        'note_id',
-        'db_update_keys',
-        'export_dir',
-        'partition_spec',
-        'qubole_conn_id',
-        'arguments',
-        'user_program_arguments',
-        'cluster_label',
+        "query",
+        "script_location",
+        "sub_command",
+        "script",
+        "files",
+        "archives",
+        "program",
+        "cmdline",
+        "sql",
+        "where_clause",
+        "tags",
+        "extract_query",
+        "boundary_query",
+        "macros",
+        "name",
+        "parameters",
+        "dbtap_id",
+        "hive_table",
+        "db_table",
+        "split_column",
+        "note_id",
+        "db_update_keys",
+        "export_dir",
+        "partition_spec",
+        "qubole_conn_id",
+        "arguments",
+        "user_program_arguments",
+        "cluster_label",
     )
 
-    template_ext: Sequence[str] = ('.txt',)
-    ui_color = '#3064A1'
-    ui_fgcolor = '#fff'
-    qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
+    template_ext: Sequence[str] = (".txt",)
+    ui_color = "#3064A1"
+    ui_fgcolor = "#fff"
+    qubole_hook_allowed_args_list = ["command_type", "qubole_conn_id", "fetch_logs"]
 
     operator_extra_links = (QDSLink(),)
 
     def __init__(self, *, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.kwargs = kwargs
-        self.kwargs['qubole_conn_id'] = qubole_conn_id
-        self.hook: Optional[QuboleHook] = None
+        self.kwargs["qubole_conn_id"] = qubole_conn_id
+        self.hook: QuboleHook | None = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
         super().__init__(**filtered_base_kwargs)
 
@@ -257,7 +250,7 @@ class QuboleOperator(BaseOperator):
         )
         return {key: value for key, value in all_kwargs.items() if key not in qubole_args}
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         return self.get_hook().execute(context)
 
     def on_kill(self, ti=None) -> None:
@@ -295,7 +288,7 @@ class QuboleOperator(BaseOperator):
             if name in self.kwargs:
                 return self.kwargs[name]
             else:
-                return ''
+                return ""
         else:
             return object.__getattribute__(self, name)
 
@@ -307,6 +300,6 @@ class QuboleOperator(BaseOperator):
 
 
 def _get_template_fields(obj: BaseOperator) -> dict:
-    class_ = object.__getattribute__(obj, '__class__')
-    template_fields = object.__getattribute__(class_, 'template_fields')
+    class_ = object.__getattribute__(obj, "__class__")
+    template_fields = object.__getattribute__(class_, "template_fields")
     return template_fields

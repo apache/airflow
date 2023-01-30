@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the XComArgs."""
+from __future__ import annotations
+
 import logging
 
 import pendulum
@@ -41,11 +42,11 @@ def print_value(value, ts=None):
 
 
 with DAG(
-    dag_id='example_xcom_args',
+    dag_id="example_xcom_args",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    schedule_interval=None,
-    tags=['example'],
+    schedule=None,
+    tags=["example"],
 ) as dag:
     print_value(generate_value())
 
@@ -53,8 +54,8 @@ with DAG(
     "example_xcom_args_with_operators",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    schedule_interval=None,
-    tags=['example'],
+    schedule=None,
+    tags=["example"],
 ) as dag2:
     bash_op1 = BashOperator(task_id="c", bash_command="echo c")
     bash_op2 = BashOperator(task_id="d", bash_command="echo c")

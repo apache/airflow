@@ -14,80 +14,70 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import configparser
 import os
-import unittest
 
-from parameterized import parameterized
+import pytest
 
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_templates")
 
 DEFAULT_AIRFLOW_SECTIONS = [
-    'core',
-    'database',
+    "core",
+    "database",
     "logging",
     "metrics",
-    'secrets',
-    'cli',
-    'debug',
-    'api',
-    'lineage',
-    'atlas',
-    'operators',
-    'hive',
-    'webserver',
-    'email',
-    'smtp',
-    'sentry',
-    'local_kubernetes_executor',
-    'celery_kubernetes_executor',
-    'celery',
-    'celery_broker_transport_options',
-    'dask',
-    'scheduler',
-    'triggerer',
-    'kerberos',
-    'elasticsearch',
-    'elasticsearch_configs',
-    'kubernetes',
-    'sensors',
-    'smart_sensor',
+    "secrets",
+    "cli",
+    "debug",
+    "api",
+    "lineage",
+    "atlas",
+    "operators",
+    "hive",
+    "webserver",
+    "email",
+    "smtp",
+    "sentry",
+    "local_kubernetes_executor",
+    "celery_kubernetes_executor",
+    "celery",
+    "celery_broker_transport_options",
+    "dask",
+    "scheduler",
+    "triggerer",
+    "kerberos",
+    "elasticsearch",
+    "elasticsearch_configs",
+    "kubernetes_executor",
+    "sensors",
 ]
 
 DEFAULT_TEST_SECTIONS = [
-    'core',
-    'database',
+    "core",
+    "database",
     "logging",
-    'cli',
-    'api',
-    'operators',
-    'hive',
-    'webserver',
-    'email',
-    'smtp',
-    'celery',
-    'scheduler',
-    'elasticsearch',
-    'elasticsearch_configs',
-    'kubernetes',
+    "api",
+    "hive",
+    "smtp",
+    "celery",
+    "scheduler",
+    "elasticsearch",
 ]
 
 
-class TestAirflowCfg(unittest.TestCase):
-    @parameterized.expand(
-        [
-            ("default_airflow.cfg",),
-            ("default_test.cfg",),
-        ]
-    )
+class TestAirflowCfg:
+    @pytest.mark.parametrize("filename", ["default_airflow.cfg", "default_test.cfg"])
     def test_should_be_ascii_file(self, filename: str):
         with open(os.path.join(CONFIG_TEMPLATES_FOLDER, filename), "rb") as f:
             content = f.read().decode("ascii")
         assert content
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "filename, expected_sections",
         [
             (
                 "default_airflow.cfg",
@@ -97,7 +87,7 @@ class TestAirflowCfg(unittest.TestCase):
                 "default_test.cfg",
                 DEFAULT_TEST_SECTIONS,
             ),
-        ]
+        ],
     )
     def test_should_be_ini_file(self, filename: str, expected_sections):
         filepath = os.path.join(CONFIG_TEMPLATES_FOLDER, filename)

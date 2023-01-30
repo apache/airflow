@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Vertex AI operators."""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -29,7 +29,11 @@ from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
-from airflow.providers.google.cloud.links.vertex_ai import VertexAIModelLink, VertexAITrainingPipelinesLink
+from airflow.providers.google.cloud.links.vertex_ai import (
+    VertexAIModelLink,
+    VertexAITrainingLink,
+    VertexAITrainingPipelinesLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -45,51 +49,51 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         region: str,
         display_name: str,
         container_uri: str,
-        model_serving_container_image_uri: Optional[str] = None,
-        model_serving_container_predict_route: Optional[str] = None,
-        model_serving_container_health_route: Optional[str] = None,
-        model_serving_container_command: Optional[Sequence[str]] = None,
-        model_serving_container_args: Optional[Sequence[str]] = None,
-        model_serving_container_environment_variables: Optional[Dict[str, str]] = None,
-        model_serving_container_ports: Optional[Sequence[int]] = None,
-        model_description: Optional[str] = None,
-        model_instance_schema_uri: Optional[str] = None,
-        model_parameters_schema_uri: Optional[str] = None,
-        model_prediction_schema_uri: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        model_serving_container_image_uri: str | None = None,
+        model_serving_container_predict_route: str | None = None,
+        model_serving_container_health_route: str | None = None,
+        model_serving_container_command: Sequence[str] | None = None,
+        model_serving_container_args: Sequence[str] | None = None,
+        model_serving_container_environment_variables: dict[str, str] | None = None,
+        model_serving_container_ports: Sequence[int] | None = None,
+        model_description: str | None = None,
+        model_instance_schema_uri: str | None = None,
+        model_parameters_schema_uri: str | None = None,
+        model_prediction_schema_uri: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
         # RUN
-        dataset_id: Optional[str] = None,
-        annotation_schema_uri: Optional[str] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
-        base_output_dir: Optional[str] = None,
-        service_account: Optional[str] = None,
-        network: Optional[str] = None,
-        bigquery_destination: Optional[str] = None,
-        args: Optional[List[Union[str, float, int]]] = None,
-        environment_variables: Optional[Dict[str, str]] = None,
+        dataset_id: str | None = None,
+        annotation_schema_uri: str | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
+        base_output_dir: str | None = None,
+        service_account: str | None = None,
+        network: str | None = None,
+        bigquery_destination: str | None = None,
+        args: list[str | float | int] | None = None,
+        environment_variables: dict[str, str] | None = None,
         replica_count: int = 1,
         machine_type: str = "n1-standard-4",
         accelerator_type: str = "ACCELERATOR_TYPE_UNSPECIFIED",
         accelerator_count: int = 0,
         boot_disk_type: str = "pd-ssd",
         boot_disk_size_gb: int = 100,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        predefined_split_column_name: Optional[str] = None,
-        timestamp_split_column_name: Optional[str] = None,
-        tensorboard: Optional[str] = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        predefined_split_column_name: str | None = None,
+        timestamp_split_column_name: str | None = None,
+        tensorboard: str | None = None,
         sync=True,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -115,7 +119,7 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         self.staging_bucket = staging_bucket
         # END Custom
         # START Run param
-        self.dataset = Dataset(name=dataset_id) if dataset_id else None
+        self.dataset_id = dataset_id
         self.annotation_schema_uri = annotation_schema_uri
         self.model_display_name = model_display_name
         self.model_labels = model_labels
@@ -406,12 +410,13 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
-        'region',
-        'command',
-        'impersonation_chain',
-    ]
-    operator_extra_links = (VertexAIModelLink(),)
+    template_fields = (
+        "region",
+        "command",
+        "dataset_id",
+        "impersonation_chain",
+    )
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -422,13 +427,13 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         super().__init__(**kwargs)
         self.command = command
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_custom_container_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -450,7 +455,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -478,9 +483,15 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             sync=True,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
     def on_kill(self) -> None:
@@ -751,11 +762,12 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
-        'region',
-        'impersonation_chain',
-    ]
-    operator_extra_links = (VertexAIModelLink(),)
+    template_fields = (
+        "region",
+        "dataset_id",
+        "impersonation_chain",
+    )
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -768,13 +780,13 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         self.python_package_gcs_uri = python_package_gcs_uri
         self.python_module_name = python_module_name
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_custom_python_package_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -797,7 +809,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -825,9 +837,15 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             sync=True,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
     def on_kill(self) -> None:
@@ -1098,32 +1116,33 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
-        'region',
-        'script_path',
-        'requirements',
-        'impersonation_chain',
-    ]
-    operator_extra_links = (VertexAIModelLink(),)
+    template_fields = (
+        "region",
+        "script_path",
+        "requirements",
+        "dataset_id",
+        "impersonation_chain",
+    )
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
         *,
         script_path: str,
-        requirements: Optional[Sequence[str]] = None,
+        requirements: Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.requirements = requirements
         self.script_path = script_path
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_custom_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -1146,7 +1165,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -1174,9 +1193,15 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             sync=True,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
     def on_kill(self) -> None:
@@ -1212,7 +1237,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields = ("training_pipeline", "custom_job", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -1221,12 +1246,12 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         custom_job_id: str,
         region: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1241,7 +1266,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1335,16 +1360,16 @@ class ListCustomTrainingJobOperator(BaseOperator):
         *,
         region: str,
         project_id: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        read_mask: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        read_mask: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1361,7 +1386,7 @@ class ListCustomTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

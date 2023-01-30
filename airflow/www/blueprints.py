@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 from flask import Blueprint, redirect, url_for
 
-routes = Blueprint('routes', __name__)
+routes = Blueprint("routes", __name__)
 
 
-@routes.route('/')
+@routes.route("/")
 def index():
     """Main Airflow page"""
-    return redirect(url_for('Airflow.index'))
+    return redirect(url_for("Airflow.index"))

@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Web HDFS"""
+from __future__ import annotations
+
 import logging
 import socket
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from hdfs import HdfsError, InsecureClient
@@ -50,7 +52,7 @@ class WebHDFSHook(BaseHook):
     :param proxy_user: The user used to authenticate.
     """
 
-    def __init__(self, webhdfs_conn_id: str = 'webhdfs_default', proxy_user: Optional[str] = None):
+    def __init__(self, webhdfs_conn_id: str = "webhdfs_default", proxy_user: str | None = None):
         super().__init__()
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
@@ -59,7 +61,6 @@ class WebHDFSHook(BaseHook):
         """
         Establishes a connection depending on the security mode set via config or environment variable.
         :return: a hdfscli InsecureClient or KerberosClient object.
-        :rtype: hdfs.InsecureClient or hdfs.ext.kerberos.KerberosClient
         """
         connection = self._find_valid_server()
         if connection is None:
@@ -68,42 +69,54 @@ class WebHDFSHook(BaseHook):
 
     def _find_valid_server(self) -> Any:
         connection = self.get_connection(self.webhdfs_conn_id)
-        namenodes = connection.host.split(',')
+        namenodes = connection.host.split(",")
         for namenode in namenodes:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", namenode, connection.port)
             try:
                 conn_check = host_socket.connect_ex((namenode, connection.port))
                 if conn_check == 0:
-                    self.log.info('Trying namenode %s', namenode)
+                    self.log.info("Trying namenode %s", namenode)
                     client = self._get_client(
-                        namenode, connection.port, connection.login, connection.extra_dejson
+                        namenode,
+                        connection.port,
+                        connection.login,
+                        connection.get_password(),
+                        connection.schema,
+                        connection.extra_dejson,
                     )
-                    client.status('/')
-                    self.log.info('Using namenode %s for hook', namenode)
+                    client.status("/")
+                    self.log.info("Using namenode %s for hook", namenode)
                     host_socket.close()
                     return client
                 else:
                     self.log.warning("Could not connect to %s:%s", namenode, connection.port)
             except HdfsError as hdfs_error:
-                self.log.info('Read operation on namenode %s failed with error: %s', namenode, hdfs_error)
+                self.log.info("Read operation on namenode %s failed with error: %s", namenode, hdfs_error)
         return None
 
-    def _get_client(self, namenode: str, port: int, login: str, extra_dejson: dict) -> Any:
-        connection_str = f'http://{namenode}:{port}'
+    def _get_client(
+        self, namenode: str, port: int, login: str, password: str | None, schema: str, extra_dejson: dict
+    ) -> Any:
+        connection_str = f"http://{namenode}"
         session = requests.Session()
+        if password is not None:
+            session.auth = (login, password)
 
-        if extra_dejson.get('use_ssl', False):
-            connection_str = f'https://{namenode}:{port}'
-            session.verify = extra_dejson.get('verify', True)
+        if extra_dejson.get("use_ssl", "False") == "True" or extra_dejson.get("use_ssl", False):
+            connection_str = f"https://{namenode}"
+            session.verify = extra_dejson.get("verify", False)
+
+        if port is not None:
+            connection_str += f":{port}"
+
+        if schema is not None:
+            connection_str += f"/{schema}"
 
         if _kerberos_security_mode:
-            client = KerberosClient(connection_str, session=session)
-        else:
-            proxy_user = self.proxy_user or login
-            client = InsecureClient(connection_str, user=proxy_user, session=session)
-
-        return client
+            return KerberosClient(connection_str, session=session)
+        proxy_user = self.proxy_user or login
+        return InsecureClient(connection_str, user=proxy_user, session=session)
 
     def check_for_path(self, hdfs_path: str) -> bool:
         """
@@ -111,7 +124,6 @@ class WebHDFSHook(BaseHook):
 
         :param hdfs_path: The path to check.
         :return: True if the path exists and False if not.
-        :rtype: bool
         """
         conn = self.get_conn()
 

@@ -119,13 +119,24 @@ To uninstall/delete the ``airflow`` deployment:
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
-Installing the Chart with ArgoCD
---------------------------------
+.. note::
+  Some kubernetes resources created by the chart `helm hooks <https://helm.sh/docs/topics/charts_hooks/#hook-resources-are-not-managed-with-corresponding-releases>`__ might be left in the namespace after executing ``helm uninstall``, for example, ``brokerUrlSecret`` or ``fernetKeySecret``.
 
-When installing the chart using ArgoCD, you MUST set the two following values, or your application
+Installing the Chart with Argo CD, Flux or Terraform
+-----------------------------------------------------
+
+When installing the chart using Argo CD, Flux, or Terraform, you MUST set the four following values, or your application
 will not start as the migrations will not be run:
 
 .. code-block:: yaml
 
-   createUserJob.useHelmHooks: false
-   migrateDatabaseJob.useHelmHooks: false
+    createUserJob:
+      useHelmHooks: false
+      applyCustomEnv: false
+    migrateDatabaseJob:
+      useHelmHooks: false
+      applyCustomEnv: false
+
+This is so these CI/CD services can perform updates without issues and preserve the immutability of Kubernetes Job manifests.
+
+This also applies if you install the chart using ``--wait`` in your ``helm install`` command.

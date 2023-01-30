@@ -15,22 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains an operator to move data from Hive to MySQL."""
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
-from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-# TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-MYSQL_RENDERER = 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql'
 
 
 class HiveToMySqlOperator(BaseOperator):
@@ -59,26 +56,26 @@ class HiveToMySqlOperator(BaseOperator):
     :param hive_conf:
     """
 
-    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
-        'sql': 'hql',
-        'mysql_preoperator': MYSQL_RENDERER,
-        'mysql_postoperator': MYSQL_RENDERER,
+        "sql": "hql",
+        "mysql_preoperator": "mysql",
+        "mysql_postoperator": "mysql",
     }
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
         *,
         sql: str,
         mysql_table: str,
-        hiveserver2_conn_id: str = 'hiveserver2_default',
-        mysql_conn_id: str = 'mysql_default',
-        mysql_preoperator: Optional[str] = None,
-        mysql_postoperator: Optional[str] = None,
+        hiveserver2_conn_id: str = "hiveserver2_default",
+        mysql_conn_id: str = "mysql_default",
+        mysql_preoperator: str | None = None,
+        mysql_postoperator: str | None = None,
         bulk_load: bool = False,
-        hive_conf: Optional[Dict] = None,
+        hive_conf: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,7 +88,7 @@ class HiveToMySqlOperator(BaseOperator):
         self.bulk_load = bulk_load
         self.hive_conf = hive_conf
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
         self.log.info("Extracting data from Hive: %s", self.sql)
@@ -103,15 +100,15 @@ class HiveToMySqlOperator(BaseOperator):
                 hive.to_csv(
                     self.sql,
                     tmp_file.name,
-                    delimiter='\t',
-                    lineterminator='\n',
+                    delimiter="\t",
+                    lineterminator="\n",
                     output_header=False,
                     hive_conf=hive_conf,
                 )
                 mysql = self._call_preoperator()
                 mysql.bulk_load(table=self.mysql_table, tmp_file=tmp_file.name)
         else:
-            hive_results = hive.get_records(self.sql, hive_conf=hive_conf)
+            hive_results = hive.get_records(self.sql, parameters=hive_conf)
             mysql = self._call_preoperator()
             mysql.insert_rows(table=self.mysql_table, rows=hive_results)
 

@@ -15,9 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
-
 set -eu
 
 # HEAD^1 says the "first" parent. For PR merge commits, or main commits, this is the "right" commit.

@@ -35,7 +35,7 @@ file(s) from Azure DataLake Storage
 
 Below is an example of using this operator to delete a file from ADL.
 
-.. exampleinclude:: /../../airflow/providers/microsoft/azure/example_dags/example_adls_delete.py
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adls_delete.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_adls_delete]

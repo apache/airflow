@@ -51,7 +51,7 @@ also be kept updated when Airflow is upgraded.
 .. warning::
 
   As of June 2021 Airflow 1.10 is end-of-life and is not going to receive any fixes even critical
-  security fixes. Follow the :doc:`/upgrading-from-1-10/index` to learn
+  security fixes. Follow the :doc:`/howto/upgrading-from-1-10/index` to learn
   how to upgrade the end-of-life 1.10 to Airflow 2.
 
 Using released sources
@@ -130,7 +130,7 @@ More details:  :doc:`/installation/installing-from-pypi`
   on how to install the software but due to various environments and tools you might want to use, you might
   expect that there will be problems which are specific to your deployment and environment you will have to
   diagnose and solve.
-* You have :doc:`/start/local` where you can see an example of Quick Start with running Airflow
+* You have :doc:`/start` where you can see an example of Quick Start with running Airflow
   locally which you can use to start Airflow quickly for local testing and development.
   However this is just an inspiration. Do not expect this docker-compose is ready for production installation,
   you need to build your own production-ready deployment in this approach.
@@ -185,7 +185,7 @@ and official constraint files- same that are used for installing Airflow from Py
 **What Apache Airflow Community provides for that method**
 
 * You have instructions: :doc:`docker-stack:build` on how to build and customize your image.
-* You have :doc:`/start/docker` where you can see an example of Quick Start which
+* You have :doc:`/howto/docker-compose/index` where you can see an example of Quick Start which
   you can use to start Airflow quickly for local testing and development. However this is just an inspiration.
   Do not expect to use this ``docker-compose.yml`` file for production installation, you need to get familiar
   with Docker Compose and its capabilities and build your own production-ready deployment with it if

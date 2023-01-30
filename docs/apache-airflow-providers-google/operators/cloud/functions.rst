@@ -38,7 +38,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_functions/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_delete]
@@ -77,7 +77,7 @@ Arguments
 When a DAG is created, the default_args dictionary can be used to pass
 arguments common with other tasks:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_functions/example_functions.py
     :language: python
     :start-after: [START howto_operator_gcf_default_args]
     :end-before: [END howto_operator_gcf_default_args]
@@ -101,19 +101,19 @@ Using the operator
 Depending on the combination of parameters, the Function's source code can be obtained
 from different sources:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_functions/example_functions.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_body]
     :end-before: [END howto_operator_gcf_deploy_body]
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_functions/example_functions.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variants]
     :end-before: [END howto_operator_gcf_deploy_variants]
 
 The code to create the operator:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_functions/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy]
@@ -122,7 +122,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection used:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_functions/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy_no_project_id]

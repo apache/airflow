@@ -15,15 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import pytest
 
 from airflow.utils.weight_rule import WeightRule
 
 
-class TestWeightRule(unittest.TestCase):
+class TestWeightRule:
     def test_valid_weight_rules(self):
         assert WeightRule.is_valid(WeightRule.DOWNSTREAM)
         assert WeightRule.is_valid(WeightRule.UPSTREAM)

@@ -20,7 +20,8 @@
 import {{ pickling_library }}
 import sys
 
-{# Check whether Airflow is available in the environment.
+{% if expect_airflow %}
+ {# Check whether Airflow is available in the environment.
  # If it is, we'll want to ensure that we integrate any macros that are being provided
  # by plugins prior to unpickling the task context. #}
 if sys.version_info >= (3,6):
@@ -31,6 +32,7 @@ if sys.version_info >= (3,6):
         {# Airflow is not available in this environment, therefore we won't
          # be able to integrate any plugin macros. #}
         pass
+{% endif %}
 
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:

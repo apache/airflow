@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from tempfile import NamedTemporaryFile
 from unittest import TestCase, mock
@@ -175,7 +177,7 @@ class TestGoogleCampaignManagerDownloadReportOperator(TestCase):
         dag = DAG(
             dag_id="test_set_bucket_name",
             start_date=DEFAULT_DATE,
-            schedule_interval=None,
+            schedule=None,
             catchup=False,
         )
 

@@ -608,7 +608,7 @@ between the two repositories to be able to build the documentation.
     ```shell
     cd "${AIRFLOW_REPO_ROOT}"
     git checkout helm-chart/${VERSION}
-    breeze build-docs --package-filter helm-chart --for-production
+    breeze build-docs --package-filter helm-chart --clean-build --for-production
     ```
 
 - Now you can preview the documentation.
@@ -717,7 +717,7 @@ Post this in the #announce channel:
 
 ```shell
 cat <<EOF
-We’ve just released Apache Airflow Helm Chart ${VERSION} 🎉
+We've just released Apache Airflow Helm Chart ${VERSION} 🎉
 
 📦 ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
 📚 Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/

@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 import unicodecsv as csv
 
@@ -48,9 +49,9 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :param quoting: Quoting strategy. See unicodecsv quoting for more information.
     """
 
-    template_fields: Sequence[str] = ('filename', 'sql', 'sql_params')
+    template_fields: Sequence[str] = ("filename", "sql", "sql_params")
     template_fields_renderers = {"sql_params": "py"}
-    ui_color = '#e08c8c'
+    ui_color = "#e08c8c"
 
     def __init__(
         self,
@@ -60,7 +61,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         azure_data_lake_path: str,
         oracle_conn_id: str,
         sql: str,
-        sql_params: Optional[dict] = None,
+        sql_params: dict | None = None,
         delimiter: str = ",",
         encoding: str = "utf-8",
         quotechar: str = '"',
@@ -81,8 +82,8 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         self.quotechar = quotechar
         self.quoting = quoting
 
-    def _write_temp_file(self, cursor: Any, path_to_save: Union[str, bytes, int]) -> None:
-        with open(path_to_save, 'wb') as csvfile:
+    def _write_temp_file(self, cursor: Any, path_to_save: str | bytes | int) -> None:
+        with open(path_to_save, "wb") as csvfile:
             csv_writer = csv.writer(
                 csvfile,
                 delimiter=self.delimiter,
@@ -94,7 +95,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             csv_writer.writerows(cursor)
             csvfile.flush()
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         oracle_hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         azure_data_lake_hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 
@@ -103,7 +104,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         cursor = conn.cursor()  # type: ignore[attr-defined]
         cursor.execute(self.sql, self.sql_params)
 
-        with TemporaryDirectory(prefix='airflow_oracle_to_azure_op_') as temp:
+        with TemporaryDirectory(prefix="airflow_oracle_to_azure_op_") as temp:
             self._write_temp_file(cursor, os.path.join(temp, self.filename))
             self.log.info("Uploading local file to Azure Data Lake")
             azure_data_lake_hook.upload_file(

@@ -20,7 +20,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
 fi
 
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
-. /opt/airflow/scripts/in_container/_in_container_script_init.sh
+. "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
 # This one is to workaround https://github.com/apache/airflow/issues/17546
 # issue with /usr/lib/<MACHINE>-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
@@ -45,6 +45,35 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 : "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
 
+function wait_for_asset_compilation() {
+    if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Waiting for asset compilation to complete in the background.${COLOR_RESET}"
+        echo
+        local counter=0
+        while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
+            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            sleep 1
+            ((counter=counter+1))
+            if [[ ${counter} == "30" ]]; then
+                echo
+                echo "${COLOR_YELLOW}The asset compilation is taking too long.${COLOR_YELLOW}"
+                echo """
+If it does not complete soon, you might want to stop it and remove file lock:
+   * press Ctrl-C
+   * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
+"""
+            fi
+            if [[ ${counter} == "60" ]]; then
+                echo
+                echo "${COLOR_RED}The asset compilation is taking too long. Exiting.${COLOR_RED}"
+                echo
+                exit 1
+            fi
+        done
+    fi
+}
+
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
@@ -65,17 +94,13 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
+    TEST_TIMEOUT=${TEST_TIMEOUT:="60"}
 
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
         echo
-        if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
-            pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
-            ./ask_for_recompile_assets_if_needed.sh
-            popd >/dev/null
-        fi
         # Cleanup the logs, tmp when entering the environment
         sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
         sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
@@ -94,9 +119,15 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo "${COLOR_BLUE}Uninstalling airflow and providers"
         echo
         uninstall_airflow_and_providers
-        echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-        echo
-        install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
+            echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
+            echo
+            install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "none"
+        else
+            echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+            echo
+            install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        fi
         uninstall_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
@@ -104,9 +135,15 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         uninstall_airflow_and_providers
         echo
-        echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-        echo
-        install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
+            echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
+            echo
+            install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "none"
+        else
+            echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+            echo
+            install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        fi
         uninstall_providers
     else
         echo
@@ -114,9 +151,19 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         uninstall_airflow_and_providers
         echo
-        echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-        echo
-        install_released_airflow_version "${USE_AIRFLOW_VERSION}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
+            echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
+            echo
+            install_released_airflow_version "${USE_AIRFLOW_VERSION}" "none"
+        else
+            echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+            echo
+            install_released_airflow_version "${USE_AIRFLOW_VERSION}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        fi
+        if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
+            # make sure old variable is used for older airflow versions
+            export AIRFLOW__CORE__SQL_ALCHEMY_CONN="${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}"
+        fi
     fi
     if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
         echo
@@ -176,10 +223,11 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         exit ${ENVIRONMENT_EXIT_CODE}
     fi
-    # Create symbolic link to fix possible issues with kubectl config cmd-path
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
+
+    in_container_fix_ownership
 
     if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
         # Set up ssh keys
@@ -211,8 +259,9 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     cd "${AIRFLOW_SOURCES}"
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
-        export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+        export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+        wait_for_asset_compilation
         # shellcheck source=scripts/in_container/bin/run_tmux
         exec run_tmux
     fi
@@ -225,7 +274,8 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}-${BACKEND}.xml"
+export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -237,9 +287,11 @@ EXTRA_PYTEST_ARGS=(
     # timeouts in seconds for individual tests
     "--timeouts-order"
     "moi"
-    "--setup-timeout=60"
-    "--execution-timeout=60"
-    "--teardown-timeout=60"
+    "--setup-timeout=${TEST_TIMEOUT}"
+    "--execution-timeout=${TEST_TIMEOUT}"
+    "--teardown-timeout=${TEST_TIMEOUT}"
+    "--output=${WARNINGS_FILE}"
+    "--disable-warnings"
     # Only display summary for non-expected case
     # f - failed
     # E - error
@@ -253,9 +305,11 @@ EXTRA_PYTEST_ARGS=(
 )
 
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
+    _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
+    echo "Running tests with ${_cpus} CPUs in parallel"
     # Enable parallelism
     EXTRA_PYTEST_ARGS+=(
-        "-n" "auto"
+        "-n" "${_cpus}"
     )
 else
     EXTRA_PYTEST_ARGS+=(
@@ -267,7 +321,7 @@ if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow/"
         "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
 fi
 
@@ -311,11 +365,13 @@ else
     )
     WWW_TESTS=("tests/www")
     HELM_CHART_TESTS=("tests/charts")
+    INTEGRATION_TESTS=("tests/integration")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
         "${API_TESTS[@]}"
         "${HELM_CHART_TESTS[@]}"
+        "${INTEGRATION_TESTS[@]}"
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
@@ -336,33 +392,38 @@ else
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
+        SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
         find_all_other_tests
         SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
             ${TEST_TYPE} == "Always" || \
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
-            ${TEST_TYPE} == "Long" || \
-            ${TEST_TYPE} == "Integration" ]]; then
+            ${TEST_TYPE} == "Long" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
+    elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
+        SELECTED_TESTS=()
+        for provider in ${BASH_REMATCH[1]//,/ }
+        do
+            providers_dir="tests/providers/${provider//./\/}"
+            if [[ -d ${providers_dir} ]]; then
+                SELECTED_TESTS+=("${providers_dir}")
+            else
+                echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
+            fi
+        done
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi
-
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
 
-if [[ -n ${LIST_OF_INTEGRATION_TESTS_TO_RUN=} ]]; then
-    # Integration tests
-    for INT in ${LIST_OF_INTEGRATION_TESTS_TO_RUN}
-    do
-        EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
-    done
-elif [[ ${TEST_TYPE:=""} == "Long" ]]; then
+if [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"

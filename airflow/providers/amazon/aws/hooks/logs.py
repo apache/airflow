@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module contains a hook (AwsLogsHook) with some very basic
 functionality for interacting with AWS CloudWatch.
 """
-from typing import Dict, Generator, Optional
+from __future__ import annotations
+
+from typing import Generator
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -59,7 +60,6 @@ class AwsLogsHook(AwsBaseHook):
             This is for when there are multiple entries at the same timestamp.
         :param start_from_head: whether to start from the beginning (True) of the log or
             at the end of the log (False).
-        :rtype: dict
         :return: | A CloudWatch log event with the following key-value pairs:
                  |   'timestamp' (int): The time in milliseconds of the event.
                  |   'message' (str): The log event data.
@@ -68,7 +68,7 @@ class AwsLogsHook(AwsBaseHook):
         next_token = None
         while True:
             if next_token is not None:
-                token_arg: Optional[Dict[str, str]] = {'nextToken': next_token}
+                token_arg: dict[str, str] | None = {"nextToken": next_token}
             else:
                 token_arg = {}
 
@@ -80,7 +80,7 @@ class AwsLogsHook(AwsBaseHook):
                 **token_arg,
             )
 
-            events = response['events']
+            events = response["events"]
             event_count = len(events)
 
             if event_count > skip:
@@ -92,7 +92,7 @@ class AwsLogsHook(AwsBaseHook):
 
             yield from events
 
-            if next_token != response['nextForwardToken']:
-                next_token = response['nextForwardToken']
+            if next_token != response["nextForwardToken"]:
+                next_token = response["nextForwardToken"]
             else:
                 return

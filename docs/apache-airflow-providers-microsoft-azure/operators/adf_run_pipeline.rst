@@ -31,7 +31,7 @@ This functionality can be disabled for an asynchronous wait -- typically with th
 
 Below is an example of using this operator to execute an Azure Data Factory pipeline.
 
-  .. exampleinclude:: /../../airflow/providers/microsoft/azure/example_dags/example_adf_run_pipeline.py
+  .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
       :language: python
       :dedent: 0
       :start-after: [START howto_operator_adf_run_pipeline]
@@ -39,7 +39,7 @@ Below is an example of using this operator to execute an Azure Data Factory pipe
 
 Here is a different example of using this operator to execute a pipeline but coupled with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunSensor` to perform an asynchronous wait.
 
-    .. exampleinclude:: /../../airflow/providers/microsoft/azure/example_dags/example_adf_run_pipeline.py
+    .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
         :language: python
         :dedent: 0
         :start-after: [START howto_operator_adf_run_pipeline_async]

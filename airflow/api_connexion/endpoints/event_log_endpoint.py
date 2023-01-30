@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -37,7 +36,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
 @provide_session
 def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIResponse:
-    """Get a log entry"""
+    """Get a log entry."""
     event_log = session.query(Log).get(event_log_id)
     if event_log is None:
         raise NotFound("Event Log not found")
@@ -50,14 +49,14 @@ def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIRe
 def get_event_logs(
     *,
     limit: int,
-    offset: Optional[int] = None,
+    offset: int | None = None,
     order_by: str = "event_log_id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get all log entries from event log"""
+    """Get all log entries from event log."""
     to_replace = {"event_log_id": "id", "when": "dttm"}
     allowed_filter_attrs = [
-        'event_log_id',
+        "event_log_id",
         "when",
         "dag_id",
         "task_id",

@@ -223,7 +223,7 @@ Exposing customized functionality to the Airflow's core:
 
 When your providers are installed you can query the installed providers and their capabilities with the
 ``airflow providers`` command. This way you can verify if your providers are properly recognized and whether
-they define the extensions properly. See :doc:`cli-and-env-variables-ref` for details of available CLI
+they define the extensions properly. See :doc:`apache-airflow:cli-and-env-variables-ref` for details of available CLI
 sub-commands.
 
 When you write your own provider, consider following the

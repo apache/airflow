@@ -15,21 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
-from airflow import PY38, AirflowException
-
-if not PY38:
-    from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
+from airflow import AirflowException
+from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
 
 
 class TestMsSqlOperator:
-    @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
-    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
-    def test_get_hook_from_conn(self, get_connection):
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    def test_get_hook_from_conn(self, mock_get_db_hook):
         """
         :class:`~.MsSqlOperator` should use the hook returned by :meth:`airflow.models.Connection.get_hook`
         if one is returned.
@@ -40,19 +38,20 @@ class TestMsSqlOperator:
         call of ``get_hook`` on the object returned from :meth:`~.BaseHook.get_connection`.
         """
         mock_hook = MagicMock()
-        get_connection.return_value.get_hook.return_value = mock_hook
+        mock_get_db_hook.return_value = mock_hook
 
-        op = MsSqlOperator(task_id='test', sql='')
-        assert op.get_hook() == mock_hook
+        op = MsSqlOperator(task_id="test", sql="")
+        assert op.get_db_hook() == mock_hook
 
-    @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
-    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
-    def test_get_hook_default(self, get_connection):
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", autospec=MsSqlHook
+    )
+    def test_get_hook_default(self, mock_get_db_hook):
         """
         If :meth:`airflow.models.Connection.get_hook` does not return a hook (e.g. because of an invalid
         conn type), then :class:`~.MsSqlHook` should be used.
         """
-        get_connection.return_value.get_hook.side_effect = Mock(side_effect=AirflowException())
+        mock_get_db_hook.return_value.side_effect = Mock(side_effect=AirflowException())
 
-        op = MsSqlOperator(task_id='test', sql='')
-        assert op.get_hook().__class__.__name__ == 'MsSqlHook'
+        op = MsSqlOperator(task_id="test", sql="")
+        assert op.get_db_hook().__class__.__name__ == "MsSqlHook"

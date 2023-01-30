@@ -16,21 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+from __future__ import annotations
+
 import logging
 import os
-from datetime import datetime
+import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
-
-from itsdangerous import TimedJSONWebSignatureSerializer
+from typing import TYPE_CHECKING, Any
+from urllib.parse import urljoin
 
 from airflow.configuration import AirflowConfigException, conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
+from airflow.utils.session import create_session
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+    from airflow.utils.log.logging_mixin import SetContextPropagate
 
 
 class FileTaskHandler(logging.Handler):
@@ -44,23 +49,31 @@ class FileTaskHandler(logging.Handler):
     :param filename_template: template filename string
     """
 
-    def __init__(self, base_log_folder: str, filename_template: str):
+    def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
-        self.handler: Optional[logging.FileHandler] = None
+        self.handler: logging.FileHandler | None = None
         self.local_base = base_log_folder
-        self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
+        if filename_template is not None:
+            warnings.warn(
+                "Passing filename_template to a log handler is deprecated and has no effect",
+                RemovedInAirflow3Warning,
+                # We want to reference the stack that actually instantiates the
+                # handler, not the one that calls super()__init__.
+                stacklevel=(2 if type(self) == FileTaskHandler else 3),
+            )
 
-    def set_context(self, ti: "TaskInstance"):
+    def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
         """
         local_loc = self._init_file(ti)
-        self.handler = NonCachingFileHandler(local_loc, encoding='utf-8')
+        self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
+        return None
 
     def emit(self, record):
         if self.handler:
@@ -74,22 +87,28 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
-        if self.filename_jinja_template:
+    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
+        with create_session() as session:
+            dag_run = ti.get_dagrun(session=session)
+            template = dag_run.get_log_template(session=session).filename
+        str_tpl, jinja_tpl = parse_template_string(template)
+
+        if jinja_tpl:
             if hasattr(ti, "task"):
                 context = ti.get_template_context()
             else:
-                context = Context(ti=ti, ts=ti.get_dagrun().logical_date.isoformat())
+                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
             context["try_number"] = try_number
-            return render_template_to_string(self.filename_jinja_template, context)
-        elif self.filename_template:
-            dag_run = ti.get_dagrun()
-            dag = ti.task.dag
-            assert dag is not None  # For Mypy.
+            return render_template_to_string(jinja_tpl, context)
+        elif str_tpl:
             try:
-                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+                dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+            else:
+                if TYPE_CHECKING:
+                    assert dag is not None
+                data_interval = dag.get_run_data_interval(dag_run)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -98,7 +117,7 @@ class FileTaskHandler(logging.Handler):
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            return self.filename_template.format(
+            return str_tpl.format(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 run_id=ti.run_id,
@@ -113,7 +132,25 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti, try_number, metadata=None):
+    @staticmethod
+    def _should_check_k8s(queue):
+        """
+        If the task is running through kubernetes executor, return True.
+
+        When logs aren't available locally, in this case we read from k8s pod logs.
+        """
+        executor = conf.get("core", "executor")
+        if executor == "KubernetesExecutor":
+            return True
+        elif executor == "LocalKubernetesExecutor":
+            if queue == conf.get("local_kubernetes_executor", "kubernetes_queue"):
+                return True
+        elif executor == "CeleryKubernetesExecutor":
+            if queue == conf.get("celery_kubernetes_executor", "kubernetes_queue"):
+                return True
+        return False
+
+    def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
@@ -122,8 +159,21 @@ class FileTaskHandler(logging.Handler):
         :param try_number: current try_number to read log from
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
+                         Following attributes are used:
+                         log_pos: (absolute) Char position to which the log
+                                  which was retrieved in previous calls, this
+                                  part will be skipped and only following test
+                                  returned to be added to tail.
+
         :return: log message as a string and metadata.
+                 Following attributes are used in metadata:
+                 end_of_log: Boolean, True if end of log is reached or False
+                             if further calls might get more log text.
+                             This is determined by the status of the TaskInstance
+                 log_pos: (absolute) Char position to which the log is retrieved
         """
+        from airflow.utils.jwt_signer import JWTSigner
+
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
@@ -131,7 +181,6 @@ class FileTaskHandler(logging.Handler):
         location = os.path.join(self.local_base, log_relative_path)
 
         log = ""
-
         if os.path.exists(location):
             try:
                 with open(location, encoding="utf-8", errors="surrogateescape") as file:
@@ -140,7 +189,8 @@ class FileTaskHandler(logging.Handler):
             except Exception as e:
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
-        elif conf.get('core', 'executor') == 'KubernetesExecutor':
+                return log, {"end_of_log": True}
+        elif self._should_check_k8s(ti.queue):
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
@@ -150,7 +200,7 @@ class FileTaskHandler(logging.Handler):
                     # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
                     # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
                     # on any label of a FQDN.
-                    pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes', 'namespace'))
+                    pod_list = kube_client.list_namespaced_pod(conf.get("kubernetes_executor", "namespace"))
                     matches = [
                         pod.metadata.name
                         for pod in pod_list.items
@@ -160,12 +210,12 @@ class FileTaskHandler(logging.Handler):
                         if len(matches[0]) > len(ti.hostname):
                             ti.hostname = matches[0]
 
-                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
+                log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
-                    namespace=conf.get('kubernetes', 'namespace'),
-                    container='base',
+                    namespace=conf.get("kubernetes_executor", "namespace"),
+                    container="base",
                     follow=False,
                     tail_lines=100,
                     _preload_content=False,
@@ -175,32 +225,32 @@ class FileTaskHandler(logging.Handler):
                     log += line.decode()
 
             except Exception as f:
-                log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
+                log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
+                return log, {"end_of_log": True}
         else:
             import httpx
 
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
-            )
+            url = self._get_log_retrieval_url(ti, log_relative_path)
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
             try:
                 timeout = None  # No timeout
                 try:
-                    timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
+                    timeout = conf.getint("webserver", "log_fetch_timeout_sec")
                 except (AirflowConfigException, ValueError):
                     pass
 
-                signer = TimedJSONWebSignatureSerializer(
-                    secret_key=conf.get('webserver', 'secret_key'),
-                    algorithm_name='HS512',
-                    expires_in=conf.getint('webserver', 'log_request_clock_grace', fallback=30),
-                    # This isn't really a "salt", more of a signing context
-                    salt='task-instance-logs',
+                signer = JWTSigner(
+                    secret_key=conf.get("webserver", "secret_key"),
+                    expiration_time_in_seconds=conf.getint(
+                        "webserver", "log_request_clock_grace", fallback=30
+                    ),
+                    audience="task-instance-logs",
                 )
-
                 response = httpx.get(
-                    url, timeout=timeout, headers={'Authorization': signer.dumps(log_relative_path)}
+                    url,
+                    timeout=timeout,
+                    headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
                 )
                 response.encoding = "utf-8"
 
@@ -218,11 +268,27 @@ class FileTaskHandler(logging.Handler):
                 # Check if the resource was properly fetched
                 response.raise_for_status()
 
-                log += '\n' + response.text
+                log += "\n" + response.text
             except Exception as e:
                 log += f"*** Failed to fetch log file from worker. {str(e)}\n"
+                return log, {"end_of_log": True}
 
-        return log, {'end_of_log': True}
+        # Process tailing if log is not at it's end
+        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
+        log_pos = len(log)
+        if metadata and "log_pos" in metadata:
+            previous_chars = metadata["log_pos"]
+            log = log[previous_chars:]  # Cut off previously passed log test as new tail
+
+        return log, {"end_of_log": end_of_log, "log_pos": log_pos}
+
+    @staticmethod
+    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
+        url = urljoin(
+            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
+            log_relative_path,
+        )
+        return url
 
     def read(self, task_instance, try_number=None, metadata=None):
         """
@@ -245,22 +311,51 @@ class FileTaskHandler(logging.Handler):
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [
-                [('default_host', f'Error fetching the logs. Try number {try_number} is invalid.')],
+                [("default_host", f"Error fetching the logs. Try number {try_number} is invalid.")],
             ]
-            return logs, [{'end_of_log': True}]
+            return logs, [{"end_of_log": True}]
         else:
             try_numbers = [try_number]
 
-        logs = [''] * len(try_numbers)
+        logs = [""] * len(try_numbers)
         metadata_array = [{}] * len(try_numbers)
         for i, try_number_element in enumerate(try_numbers):
-            log, metadata = self._read(task_instance, try_number_element, metadata)
+            log, out_metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
             logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
-            metadata_array[i] = metadata
+            metadata_array[i] = out_metadata
 
         return logs, metadata_array
+
+    def _prepare_log_folder(self, directory: Path):
+        """
+        Prepare the log folder and ensure its mode is 777.
+
+        To handle log writing when tasks are impersonated, the log files need to
+        be writable by the user that runs the Airflow command and the user
+        that is impersonated. This is mainly to handle corner cases with the
+        SubDagOperator. When the SubDagOperator is run, all of the operators
+        run under the impersonated user and create appropriate log files
+        as the impersonated user. However, if the user manually runs tasks
+        of the SubDagOperator through the UI, then the log files are created
+        by the user that runs the Airflow command. For example, the Airflow
+        run command may be run by the `airflow_sudoable` user, but the Airflow
+        tasks may be run by the `airflow` user. If the log files are not
+        writable by both users, then it's possible that re-running a task
+        via the UI (or vice versa) results in a permission error as the task
+        tries to write to a log file created by the other user.
+
+        Create the log file and give it group writable permissions
+        TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
+        operator is not compatible with impersonation (e.g. if a Celery executor is used
+        for a SubDag operator and the SubDag operator has a different owner than the
+        parent DAG)
+        """
+        mode = 0o777
+        directory.mkdir(mode=mode, parents=True, exist_ok=True)
+        if directory.stat().st_mode != mode:
+            directory.chmod(mode)
 
     def _init_file(self, ti):
         """
@@ -284,13 +379,7 @@ class FileTaskHandler(logging.Handler):
         # tries to write to a log file created by the other user.
         relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, relative_path)
-        directory = os.path.dirname(full_path)
-        # Create the log file and give it group writable permissions
-        # TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
-        # operator is not compatible with impersonation (e.g. if a Celery executor is used
-        # for a SubDag operator and the SubDag operator has a different owner than the
-        # parent DAG)
-        Path(directory).mkdir(mode=0o777, parents=True, exist_ok=True)
+        self._prepare_log_folder(Path(full_path).parent)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()

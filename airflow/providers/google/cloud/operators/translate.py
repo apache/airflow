@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Translate operators."""
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -80,26 +82,26 @@ class CloudTranslateTextOperator(BaseOperator):
 
     # [START translate_template_fields]
     template_fields: Sequence[str] = (
-        'values',
-        'target_language',
-        'format_',
-        'source_language',
-        'model',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "values",
+        "target_language",
+        "format_",
+        "source_language",
+        "model",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     # [END translate_template_fields]
 
     def __init__(
         self,
         *,
-        values: Union[List[str], str],
+        values: list[str] | str,
         target_language: str,
         format_: str,
-        source_language: Optional[str],
+        source_language: str | None,
         model: str,
-        gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -111,7 +113,7 @@ class CloudTranslateTextOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = CloudTranslateHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -127,6 +129,6 @@ class CloudTranslateTextOperator(BaseOperator):
             self.log.debug("Translation %s", translation)
             return translation
         except ValueError as e:
-            self.log.error('An error has been thrown from translate method:')
+            self.log.error("An error has been thrown from translate method:")
             self.log.error(e)
             raise AirflowException(e)

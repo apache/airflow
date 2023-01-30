@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating ``TimeDeltaSensorAsync``, a drop in replacement for ``TimeDeltaSensor`` that
 defers and doesn't occupy a worker slot while it waits
 """
+from __future__ import annotations
 
 import datetime
 
@@ -31,7 +31,7 @@ from airflow.sensors.time_delta import TimeDeltaSensorAsync
 
 with DAG(
     dag_id="example_time_delta_sensor_async",
-    schedule_interval=None,
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],

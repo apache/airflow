@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import os
+
 from airflow.utils.state import State
 
 
@@ -23,3 +27,7 @@ def get_test_run(dag):
         dag.run()
 
     return test_run
+
+
+def get_test_env_id(env_var_name: str = "SYSTEM_TESTS_ENV_ID"):
+    return os.environ.get(env_var_name)

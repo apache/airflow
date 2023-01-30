@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
@@ -52,8 +53,8 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         *,
         run_id: str,
         azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
-        resource_group_name: Optional[str] = None,
-        factory_name: Optional[str] = None,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -62,7 +63,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         self.resource_group_name = resource_group_name
         self.factory_name = factory_name
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         pipeline_run_status = self.hook.get_pipeline_run_status(
             run_id=self.run_id,

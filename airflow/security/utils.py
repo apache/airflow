@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 # Licensed to Cloudera, Inc. under one
 # or more contributor license agreements.  See the NOTICE file
@@ -35,12 +36,11 @@
 """Various security-related utils."""
 import re
 import socket
-from typing import List, Optional
 
 from airflow.utils.net import get_hostname
 
 
-def get_components(principal) -> Optional[List[str]]:
+def get_components(principal) -> list[str] | None:
     """
     Returns components retrieved from the kerberos principal.
     -> (short name, instance (FQDN), realm)
@@ -49,15 +49,15 @@ def get_components(principal) -> Optional[List[str]]:
     """
     if not principal:
         return None
-    return re.split(r'[/@]', str(principal))
+    return re.split(r"[/@]", str(principal))
 
 
 def replace_hostname_pattern(components, host=None):
     """Replaces hostname with the right pattern including lowercase of the name."""
     fqdn = host
-    if not fqdn or fqdn == '0.0.0.0':
+    if not fqdn or fqdn == "0.0.0.0":
         fqdn = get_hostname()
-    return f'{components[0]}/{fqdn.lower()}@{components[2]}'
+    return f"{components[0]}/{fqdn.lower()}@{components[2]}"
 
 
 def get_fqdn(hostname_or_ip=None):
@@ -65,7 +65,7 @@ def get_fqdn(hostname_or_ip=None):
     try:
         if hostname_or_ip:
             fqdn = socket.gethostbyaddr(hostname_or_ip)[0]
-            if fqdn == 'localhost':
+            if fqdn == "localhost":
                 fqdn = get_hostname()
         else:
             fqdn = get_hostname()
@@ -77,7 +77,7 @@ def get_fqdn(hostname_or_ip=None):
 
 def principal_from_username(username, realm):
     """Retrieves principal from the user name and realm."""
-    if ('@' not in username) and realm:
+    if ("@" not in username) and realm:
         username = f"{username}@{realm}"
 
     return username

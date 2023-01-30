@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from marshmallow import fields, validate
 
@@ -21,7 +22,7 @@ from airflow.utils.state import State
 
 
 class DagStateField(fields.String):
-    """Schema for DagState Enum"""
+    """Schema for DagState Enum."""
 
     def __init__(self, **metadata):
         super().__init__(**metadata)
@@ -29,7 +30,7 @@ class DagStateField(fields.String):
 
 
 class TaskInstanceStateField(fields.String):
-    """Schema for TaskInstanceState Enum"""
+    """Schema for TaskInstanceState Enum."""
 
     def __init__(self, **metadata):
         super().__init__(**metadata)

@@ -16,8 +16,98 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+3.3.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Added docs regarding templated field (#27301)``
+* ``Added environment to templated SSHOperator fields (#26824)``
+* ``Apply log formatter on every output line in SSHOperator (#27442)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``A few docs fixups (#26788)``
+* ``SSHOperator ignores cmd_timeout (#27182) (#27184)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: load host keys to save new host key (#25979)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Less verbose logging in ssh operator (#24915)``
+* ``Convert sftp hook to use paramiko instead of pysftp (#24512)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Features
+~~~~~~~~
+
+* ``Add disabled_algorithms as an extra parameter for SSH connections (#24090)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fixing SSHHook bug when using allow_host_key_change param (#24116)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 2.4.4
 .....

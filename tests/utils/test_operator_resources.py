@@ -15,13 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 from airflow.utils.operator_resources import Resources
 
 
-class TestResources(unittest.TestCase):
+class TestResources:
     def test_resource_eq(self):
         r = Resources(cpus=0.1, ram=2048)
         assert r not in [{}, [], None]
@@ -37,8 +36,8 @@ class TestResources(unittest.TestCase):
     def test_to_dict(self):
         r = Resources(cpus=0.1, ram=2048, disk=1024, gpus=1)
         assert r.to_dict() == {
-            'cpus': {'name': 'CPU', 'qty': 0.1, 'units_str': 'core(s)'},
-            'ram': {'name': 'RAM', 'qty': 2048, 'units_str': 'MB'},
-            'disk': {'name': 'Disk', 'qty': 1024, 'units_str': 'MB'},
-            'gpus': {'name': 'GPU', 'qty': 1, 'units_str': 'gpu(s)'},
+            "cpus": {"name": "CPU", "qty": 0.1, "units_str": "core(s)"},
+            "ram": {"name": "RAM", "qty": 2048, "units_str": "MB"},
+            "disk": {"name": "Disk", "qty": 1024, "units_str": "MB"},
+            "gpus": {"name": "GPU", "qty": 1, "units_str": "gpu(s)"},
         }

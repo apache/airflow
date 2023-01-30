@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from sqlalchemy import Boolean, Column, Index, String, Text
 
@@ -39,7 +40,7 @@ class SlaMiss(Base):
     description = Column(Text)
     notification_sent = Column(Boolean, default=False)
 
-    __table_args__ = (Index('sm_dag', dag_id, unique=False),)
+    __table_args__ = (Index("sm_dag", dag_id, unique=False),)
 
     def __repr__(self):
         return str((self.dag_id, self.task_id, self.execution_date.isoformat()))

@@ -39,7 +39,7 @@ Start an AWS Step Functions state machine execution
 To start a new AWS Step Functions state machine execution you can use
 :class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionStartExecutionOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_step_functions.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_step_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_step_function_start_execution]
@@ -53,7 +53,7 @@ Get an AWS Step Functions execution output
 To fetch the output from an AWS Step Function state machine execution you can
 use :class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionGetExecutionOutputOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_step_functions.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_step_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_step_function_get_execution_output]
@@ -70,7 +70,7 @@ Wait on an AWS Step Functions state machine execution state
 To wait on the state of an AWS Step Function state machine execution until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.sensors.step_function.StepFunctionExecutionSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_step_functions.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_step_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_step_function_execution]

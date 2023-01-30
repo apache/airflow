@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG runs APIs."""
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from flask import url_for
 
@@ -25,9 +27,9 @@ from airflow.models import DagRun
 from airflow.utils.state import DagRunState
 
 
-def get_dag_runs(dag_id: str, state: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_dag_runs(dag_id: str, state: str | None = None) -> list[dict[str, Any]]:
     """
-    Returns a list of Dag Runs for a specific DAG ID.
+    Return a list of Dag Runs for a specific DAG ID.
 
     :param dag_id: String identifier of a DAG
     :param state: queued|running|success...
@@ -41,13 +43,13 @@ def get_dag_runs(dag_id: str, state: Optional[str] = None) -> List[Dict[str, Any
     for run in DagRun.find(dag_id=dag_id, state=state):
         dag_runs.append(
             {
-                'id': run.id,
-                'run_id': run.run_id,
-                'state': run.state,
-                'dag_id': run.dag_id,
-                'execution_date': run.execution_date.isoformat(),
-                'start_date': ((run.start_date or '') and run.start_date.isoformat()),
-                'dag_run_url': url_for('Airflow.graph', dag_id=run.dag_id, execution_date=run.execution_date),
+                "id": run.id,
+                "run_id": run.run_id,
+                "state": run.state,
+                "dag_id": run.dag_id,
+                "execution_date": run.execution_date.isoformat(),
+                "start_date": ((run.start_date or "") and run.start_date.isoformat()),
+                "dag_run_url": url_for("Airflow.graph", dag_id=run.dag_id, execution_date=run.execution_date),
             }
         )
 

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -57,11 +58,11 @@ class TestAmazonGlacierHook(unittest.TestCase):
             self.assertEqual(
                 log.output,
                 [
-                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    "INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:"
                     f"Retrieving inventory for vault: {VAULT_NAME}",
-                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    "INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:"
                     f"Initiated inventory-retrieval job for: {VAULT_NAME}",
-                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    "INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:"
                     f"Retrieval Job ID: {job_id.get('jobId')}",
                 ],
             )
@@ -85,7 +86,7 @@ class TestAmazonGlacierHook(unittest.TestCase):
             self.assertEqual(
                 log.output,
                 [
-                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    "INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:"
                     f"Retrieving the job results for vault: {VAULT_NAME}...",
                 ],
             )
@@ -109,9 +110,9 @@ class TestAmazonGlacierHook(unittest.TestCase):
             self.assertEqual(
                 log.output,
                 [
-                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    "INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:"
                     f"Retrieving status for vault: {VAULT_NAME} and job {JOB_ID}",
-                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    "INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:"
                     f"Job status: {JOB_STATUS.get('Action')}, code status: {JOB_STATUS.get('StatusCode')}",
                 ],
             )

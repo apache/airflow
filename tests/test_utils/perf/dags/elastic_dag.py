@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import enum
 import os
@@ -69,7 +70,7 @@ def safe_dag_id(s: str) -> str:
     """
     Remove invalid characters for dag_id
     """
-    return re.sub('[^0-9a-zA-Z_]+', '_', s)
+    return re.sub("[^0-9a-zA-Z_]+", "_", s)
 
 
 def chain_as_binary_tree(*tasks: BashOperator):
@@ -104,7 +105,7 @@ def chain_as_grid(*tasks: BashOperator):
      t9
     """
     if len(tasks) > 100 * 99 / 2:
-        raise ValueError('Cannot generate grid DAGs with lateral size larger than 100 tasks.')
+        raise ValueError("Cannot generate grid DAGs with lateral size larger than 100 tasks.")
     grid_size = min(n for n in range(100) if n * (n + 1) / 2 >= len(tasks))
 
     def index(i, j):
@@ -163,7 +164,7 @@ if "PERF_MAX_RUNS" in os.environ:
     if isinstance(SCHEDULE_INTERVAL, str):
         raise ValueError("Can't set max runs with string-based schedule_interval")
     num_runs = int(os.environ["PERF_MAX_RUNS"])
-    args['end_date'] = START_DATE + (SCHEDULE_INTERVAL * (num_runs - 1))
+    args["end_date"] = START_DATE + (SCHEDULE_INTERVAL * (num_runs - 1))
 
 for dag_no in range(1, DAG_COUNT + 1):
     dag = DAG(
@@ -175,17 +176,17 @@ for dag_no in range(1, DAG_COUNT + 1):
                     f"DAGS_COUNT={dag_no}_of_{DAG_COUNT}",
                     f"TASKS_COUNT=${TASKS_COUNT}",
                     f"START_DATE=${START_DATE_ENV}",
-                    f"SCHEDULE_INTERVAL=${SCHEDULE_INTERVAL_ENV}",
+                    f"SCHEDULE=${SCHEDULE_INTERVAL_ENV}",
                 ]
             )
         ),
         is_paused_upon_creation=False,
         default_args=args,
-        schedule_interval=SCHEDULE_INTERVAL,
+        schedule=SCHEDULE_INTERVAL,
     )
 
     elastic_dag_tasks = [
-        BashOperator(task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]), bash_command='echo test', dag=dag)
+        BashOperator(task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]), bash_command="echo test", dag=dag)
         for i in range(1, TASKS_COUNT + 1)
     ]
 

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -37,20 +39,20 @@ class InfluxDBOperator(BaseOperator):
     :param influxdb_conn_id: Reference to :ref:`Influxdb connection id <howto/connection:influxdb>`.
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = ("sql",)
 
     def __init__(
         self,
         *,
         sql: str,
-        influxdb_conn_id: str = 'influxdb_default',
+        influxdb_conn_id: str = "influxdb_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.influxdb_conn_id = influxdb_conn_id
         self.sql = sql
 
-    def execute(self, context: 'Context') -> None:
-        self.log.info('Executing: %s', self.sql)
+    def execute(self, context: Context) -> None:
+        self.log.info("Executing: %s", self.sql)
         self.hook = InfluxDBHook(conn_id=self.influxdb_conn_id)
         self.hook.query(self.sql)

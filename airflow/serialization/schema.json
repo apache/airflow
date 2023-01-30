@@ -53,6 +53,34 @@
         { "type": "integer" }
       ]
     },
+    "dataset": {
+      "type": "object",
+      "properties": {
+        "uri": { "type": "string" },
+        "extra": {
+            "anyOf": [
+                {"type": "null"},
+                { "$ref": "#/definitions/dict" }
+            ]
+        }
+      },
+      "required": [ "uri", "extra" ]
+    },
+    "typed_dataset": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+            "constant": "dataset"
+        },
+        "__var": { "$ref": "#/definitions/dataset" }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
     "dict": {
       "description": "A python dictionary containing values of any type",
       "type": "object"
@@ -90,6 +118,11 @@
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
+        "dataset_triggers": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/typed_dataset" }
+        },
+        "owner_links": { "type": "object" },
         "timetable": {
           "type": "object",
           "properties": {
@@ -100,7 +133,13 @@
         "catchup": { "type": "boolean" },
         "is_subdag": { "type": "boolean" },
         "fileloc": { "type" : "string"},
-        "orientation": { "type" : "string"},
+        "_processor_dags_folder": {
+            "anyOf": [
+                { "type": "null" },
+                {"type": "string"}
+            ]
+        },
+         "orientation": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},
@@ -214,13 +253,13 @@
         "doc_yaml":  { "type": "string" },
         "doc_rst":  { "type": "string" },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
-        "mapped_kwargs": { "type": "object" },
+        "expand_input": { "type": "object" },
         "partial_kwargs": { "type": "object" }
       },
       "dependencies": {
-        "mapped_kwargs": ["partial_kwargs", "_is_mapped"],
-        "partial_kwargs": ["mapped_kwargs", "_is_mapped"],
-        "_is_mapped": ["mapped_kwargs", "partial_kwargs"]
+        "expand_input": ["partial_kwargs", "_is_mapped"],
+        "partial_kwargs": ["expand_input", "_is_mapped"],
+        "_is_mapped": ["expand_input", "partial_kwargs"]
       },
       "additionalProperties": true
     },
@@ -241,6 +280,7 @@
       ],
       "properties": {
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "is_mapped": { "type": "boolean" },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },

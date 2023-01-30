@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.api_connexion.schemas.health_schema import health_schema
 from airflow.api_connexion.types import APIResponse
@@ -24,7 +25,7 @@ UNHEALTHY = "unhealthy"
 
 
 def get_health() -> APIResponse:
-    """Return the health of the airflow scheduler and metadatabase"""
+    """Return the health of the airflow scheduler and metadatabase."""
     metadatabase_status = HEALTHY
     latest_scheduler_heartbeat = None
     scheduler_status = UNHEALTHY

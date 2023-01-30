@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import io
 import json
@@ -26,7 +27,7 @@ from moto import mock_iam, mock_lambda, mock_sts
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
-from airflow.providers.amazon.aws.operators.aws_lambda import AwsLambdaInvokeFunctionOperator
+from airflow.providers.amazon.aws.operators.lambda_function import AwsLambdaInvokeFunctionOperator
 
 
 @mock_lambda
@@ -99,12 +100,12 @@ class TestAwsLambdaInvokeFunctionOperator(unittest.TestCase):
 
     @pytest.mark.execution_timeout(120)
     def test_invoke_lambda(self):
-        self.create_lambda_function('test')
+        self.create_lambda_function("test")
         test_event_input = {"TestInput": "Testdata"}
         lambda_invoke_function = AwsLambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="test",
-            log_type='None',
+            log_type="None",
             payload=json.dumps(test_event_input),
         )
         value = lambda_invoke_function.execute(None)

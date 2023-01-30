@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Ad to GCS operators."""
+from __future__ import annotations
+
 import csv
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
@@ -75,8 +77,8 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
         gzip: bool = False,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        api_version: Optional[str] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        api_version: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -88,7 +90,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.api_version = api_version
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         uri = f"gs://{self.bucket}/{self.object_name}"
 
         ads_hook = GoogleAdsHook(

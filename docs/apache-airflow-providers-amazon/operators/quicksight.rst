@@ -19,11 +19,11 @@
 Amazon QuickSight
 =================
 
-`Amazon QuickSight <https://aws.amazon.com/quicksight/>`__ is a fast business analytics service to build visualizations,
-perform ad hoc analysis, and quickly get business insights from your data.
-Amazon QuickSight seamlessly discovers AWS data sources, enables organizations to scale to hundreds of thousands of
-users, and delivers fast and responsive query performance by using the Amazon QuickSight Super-fast,
-Parallel, In-Memory, Calculation Engine (SPICE).
+`Amazon QuickSight <https://aws.amazon.com/quicksight/>`__ is a fast business analytics service
+to build visualizations, perform ad hoc analysis, and quickly get business insights from your data.
+Amazon QuickSight seamlessly discovers AWS data sources, enables organizations to scale to hundreds
+of thousands of users, and delivers fast and responsive query performance by using the Amazon
+QuickSight Super-fast, Parallel, In-Memory, Calculation Engine (SPICE).
 
 Prerequisite Tasks
 ------------------
@@ -41,7 +41,7 @@ Amazon QuickSight create ingestion
 The ``QuickSightCreateIngestionOperator`` creates and starts a new SPICE ingestion for a dataset.
 The operator also refreshes existing SPICE datasets.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_quicksight.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_quicksight.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_quicksight_create_ingestion]
@@ -57,7 +57,7 @@ Amazon QuickSight ingestion sensor
 
 The ``QuickSightSensor`` waits for an Amazon QuickSight create ingestion until it reaches a terminal state.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_quicksight.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_quicksight.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_quicksight]

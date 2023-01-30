@@ -23,7 +23,6 @@ omit =
     dev/*
     airflow/migrations/*
     airflow/www/node_modules/**
-    airflow/ui/node_modules/**
     airflow/_vendor/**
 
 [run]

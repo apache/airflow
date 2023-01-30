@@ -16,15 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Functions operators."""
+from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
+from airflow.providers.google.cloud.links.cloud_functions import (
+    CloudFunctionsDetailsLink,
+    CloudFunctionsListLink,
+)
 from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
@@ -45,24 +50,24 @@ def _validate_max_instances(value):
         raise GcpFieldValidationException("The max instances parameter has to be greater than 0")
 
 
-CLOUD_FUNCTION_VALIDATION = [
+CLOUD_FUNCTION_VALIDATION: list[dict[str, Any]] = [
     dict(name="name", regexp="^.+$"),
     dict(name="description", regexp="^.+$", optional=True),
-    dict(name="entryPoint", regexp=r'^.+$', optional=True),
-    dict(name="runtime", regexp=r'^.+$', optional=True),
-    dict(name="timeout", regexp=r'^.+$', optional=True),
+    dict(name="entryPoint", regexp=r"^.+$", optional=True),
+    dict(name="runtime", regexp=r"^.+$", optional=True),
+    dict(name="timeout", regexp=r"^.+$", optional=True),
     dict(name="availableMemoryMb", custom_validation=_validate_available_memory_in_mb, optional=True),
     dict(name="labels", optional=True),
     dict(name="environmentVariables", optional=True),
-    dict(name="network", regexp=r'^.+$', optional=True),
+    dict(name="network", regexp=r"^.+$", optional=True),
     dict(name="maxInstances", optional=True, custom_validation=_validate_max_instances),
     dict(
         name="source_code",
         type="union",
         fields=[
-            dict(name="sourceArchiveUrl", regexp=r'^.+$'),
-            dict(name="sourceRepositoryUrl", regexp=r'^.+$', api_version='v1beta2'),
-            dict(name="sourceRepository", type="dict", fields=[dict(name="url", regexp=r'^.+$')]),
+            dict(name="sourceArchiveUrl", regexp=r"^.+$"),
+            dict(name="sourceRepositoryUrl", regexp=r"^.+$", api_version="v1beta2"),
+            dict(name="sourceRepository", type="dict", fields=[dict(name="url", regexp=r"^.+$")]),
             dict(name="sourceUploadUrl"),
         ],
     ),
@@ -81,9 +86,9 @@ CLOUD_FUNCTION_VALIDATION = [
                 name="eventTrigger",
                 type="dict",
                 fields=[
-                    dict(name="eventType", regexp=r'^.+$'),
-                    dict(name="resource", regexp=r'^.+$'),
-                    dict(name="service", regexp=r'^.+$', optional=True),
+                    dict(name="eventType", regexp=r"^.+$"),
+                    dict(name="resource", regexp=r"^.+$"),
+                    dict(name="service", regexp=r"^.+$", optional=True),
                     dict(
                         name="failurePolicy",
                         type="dict",
@@ -94,7 +99,7 @@ CLOUD_FUNCTION_VALIDATION = [
             ),
         ],
     ),
-]  # type: List[Dict[str, Any]]
+]
 
 
 class CloudFunctionDeployFunctionOperator(BaseOperator):
@@ -135,26 +140,27 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
 
     # [START gcf_function_deploy_template_fields]
     template_fields: Sequence[str] = (
-        'body',
-        'project_id',
-        'location',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "body",
+        "project_id",
+        "location",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcf_function_deploy_template_fields]
+    operator_extra_links = (CloudFunctionsDetailsLink(),)
 
     def __init__(
         self,
         *,
         location: str,
-        body: Dict,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        zip_path: Optional[str] = None,
+        body: dict,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        zip_path: str | None = None,
         validate_body: bool = True,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -164,7 +170,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         self.api_version = api_version
         self.zip_path = zip_path
         self.zip_path_preprocessor = ZipPathPreprocessor(body, zip_path)
-        self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
+        self._field_validator: GcpBodyFieldValidator | None = None
         self.impersonation_chain = impersonation_chain
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION, api_version=api_version)
@@ -186,10 +192,10 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         hook.create_new_function(project_id=self.project_id, location=self.location, body=self.body)
 
     def _update_function(self, hook) -> None:
-        hook.update_function(self.body['name'], self.body, self.body.keys())
+        hook.update_function(self.body["name"], self.body, self.body.keys())
 
     def _check_if_function_exists(self, hook) -> bool:
-        name = self.body.get('name')
+        name = self.body.get("name")
         if not name:
             raise GcpFieldValidationException(f"The 'name' field should be present in body: '{self.body}'.")
         try:
@@ -207,11 +213,11 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         )
 
     def _set_airflow_version_label(self) -> None:
-        if 'labels' not in self.body.keys():
-            self.body['labels'] = {}
-        self.body['labels'].update({'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
+        if "labels" not in self.body.keys():
+            self.body["labels"] = {}
+        self.body["labels"].update({"airflow-version": "v" + version.replace(".", "-").replace("+", "-")})
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -225,12 +231,21 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
             self._create_new_function(hook)
         else:
             self._update_function(hook)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudFunctionsDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                location=self.location,
+                project_id=project_id,
+                function_name=self.body["name"].split("/")[-1],
+            )
 
 
-GCF_SOURCE_ARCHIVE_URL = 'sourceArchiveUrl'
-GCF_SOURCE_UPLOAD_URL = 'sourceUploadUrl'
-SOURCE_REPOSITORY = 'sourceRepository'
-GCF_ZIP_PATH = 'zip_path'
+GCF_SOURCE_ARCHIVE_URL = "sourceArchiveUrl"
+GCF_SOURCE_UPLOAD_URL = "sourceUploadUrl"
+SOURCE_REPOSITORY = "sourceRepository"
+GCF_ZIP_PATH = "zip_path"
 
 
 class ZipPathPreprocessor:
@@ -254,9 +269,9 @@ class ZipPathPreprocessor:
 
     """
 
-    upload_function = None  # type: Optional[bool]
+    upload_function: bool | None = None
 
-    def __init__(self, body: dict, zip_path: Optional[str] = None) -> None:
+    def __init__(self, body: dict, zip_path: str | None = None) -> None:
         self.body = body
         self.zip_path = zip_path
 
@@ -291,13 +306,9 @@ class ZipPathPreprocessor:
             )
 
     def should_upload_function(self) -> bool:
-        """
-        Checks if function source should be uploaded.
-
-        :rtype: bool
-        """
+        """Checks if function source should be uploaded."""
         if self.upload_function is None:
-            raise AirflowException('validate() method has to be invoked before should_upload_function')
+            raise AirflowException("validate() method has to be invoked before should_upload_function")
         return self.upload_function
 
     def preprocess_body(self) -> None:
@@ -312,7 +323,7 @@ class ZipPathPreprocessor:
             self.upload_function = False
 
 
-FUNCTION_NAME_PATTERN = '^projects/[^/]+/locations/[^/]+/functions/[^/]+$'
+FUNCTION_NAME_PATTERN = "^projects/[^/]+/locations/[^/]+/functions/[^/]+$"
 FUNCTION_NAME_COMPILED_PATTERN = re.compile(FUNCTION_NAME_PATTERN)
 
 
@@ -340,23 +351,26 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
 
     # [START gcf_function_delete_template_fields]
     template_fields: Sequence[str] = (
-        'name',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "name",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcf_function_delete_template_fields]
+    operator_extra_links = (CloudFunctionsListLink(),)
 
     def __init__(
         self,
         *,
         name: str,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        impersonation_chain: str | Sequence[str] | None = None,
+        project_id: str | None = None,
         **kwargs,
     ) -> None:
         self.name = name
+        self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
@@ -365,27 +379,34 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
 
     def _validate_inputs(self) -> None:
         if not self.name:
-            raise AttributeError('Empty parameter: name')
+            raise AttributeError("Empty parameter: name")
         else:
             pattern = FUNCTION_NAME_COMPILED_PATTERN
             if not pattern.match(self.name):
-                raise AttributeError(f'Parameter name must match pattern: {FUNCTION_NAME_PATTERN}')
+                raise AttributeError(f"Parameter name must match pattern: {FUNCTION_NAME_PATTERN}")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
         try:
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudFunctionsListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
             return hook.delete_function(self.name)
         except HttpError as e:
             status = e.resp.status
             if status == 404:
-                self.log.info('The function does not exist in this project')
+                self.log.info("The function does not exist in this project")
                 return None
             else:
-                self.log.error('An error occurred. Exiting.')
+                self.log.error("An error occurred. Exiting.")
                 raise e
 
 
@@ -416,23 +437,24 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'function_id',
-        'input_data',
-        'location',
-        'project_id',
-        'impersonation_chain',
+        "function_id",
+        "input_data",
+        "location",
+        "project_id",
+        "impersonation_chain",
     )
+    operator_extra_links = (CloudFunctionsDetailsLink(),)
 
     def __init__(
         self,
         *,
         function_id: str,
-        input_data: Dict,
+        input_data: dict,
         location: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -444,19 +466,30 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudFunctionsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info('Calling function %s.', self.function_id)
+        self.log.info("Calling function %s.", self.function_id)
         result = hook.call_function(
             function_id=self.function_id,
             input_data=self.input_data,
             location=self.location,
             project_id=self.project_id,
         )
-        self.log.info('Function called successfully. Execution id %s', result.get('executionId'))
-        self.xcom_push(context=context, key='execution_id', value=result.get('executionId'))
+        self.log.info("Function called successfully. Execution id %s", result.get("executionId"))
+        self.xcom_push(context=context, key="execution_id", value=result.get("executionId"))
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudFunctionsDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                location=self.location,
+                project_id=project_id,
+                function_name=self.function_id,
+            )
+
         return result

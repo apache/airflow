@@ -26,7 +26,7 @@ Pig programs are amenable to substantial parallelization, which in turns enables
 
 use the PigOperator to execute a pig script
 
-.. exampleinclude:: /../../airflow/providers/apache/pig/example_dags/example_pig.py
+.. exampleinclude:: /../../tests/system/providers/apache/pig/example_pig.py
     :language: python
     :start-after: [START create_pig]
     :end-before: [END create_pig]

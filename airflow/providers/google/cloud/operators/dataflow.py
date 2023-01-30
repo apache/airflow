@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataflow operators."""
+from __future__ import annotations
+
 import copy
 import re
 import warnings
 from contextlib import ExitStack
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -78,6 +80,11 @@ class DataflowConfiguration:
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+
+        .. warning::
+
+            This option requires Apache Beam 2.39.0 or newer.
+
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
@@ -134,18 +141,18 @@ class DataflowConfiguration:
         *,
         job_name: str = "{{task.task_id}}",
         append_job_name: bool = True,
-        project_id: Optional[str] = None,
-        location: Optional[str] = DEFAULT_DATAFLOW_LOCATION,
+        project_id: str | None = None,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         drain_pipeline: bool = False,
-        cancel_timeout: Optional[int] = 5 * 60,
-        wait_until_finished: Optional[bool] = None,
-        multiple_jobs: Optional[bool] = None,
+        cancel_timeout: int | None = 5 * 60,
+        wait_until_finished: bool | None = None,
+        multiple_jobs: bool | None = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
-        service_account: Optional[str] = None,
+        service_account: str | None = None,
     ) -> None:
         self.job_name = job_name
         self.append_job_name = append_job_name
@@ -332,18 +339,18 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         *,
         jar: str,
         job_name: str = "{{task.task_id}}",
-        dataflow_default_options: Optional[dict] = None,
-        options: Optional[dict] = None,
-        project_id: Optional[str] = None,
+        dataflow_default_options: dict | None = None,
+        options: dict | None = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
-        job_class: Optional[str] = None,
+        job_class: str | None = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
         multiple_jobs: bool = False,
-        cancel_timeout: Optional[int] = 10 * 60,
-        wait_until_finished: Optional[bool] = None,
+        cancel_timeout: int | None = 10 * 60,
+        wait_until_finished: bool | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -375,10 +382,10 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job_id = None
-        self.beam_hook: Optional[BeamHook] = None
-        self.dataflow_hook: Optional[DataflowHook] = None
+        self.beam_hook: BeamHook | None = None
+        self.dataflow_hook: DataflowHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(
@@ -499,6 +506,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
+    :param append_job_name: True if unique suffix has to be appended to job name.
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -600,18 +608,19 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         *,
         template: str,
         job_name: str = "{{task.task_id}}",
-        options: Optional[Dict[str, Any]] = None,
-        dataflow_default_options: Optional[Dict[str, Any]] = None,
-        parameters: Optional[Dict[str, str]] = None,
-        project_id: Optional[str] = None,
+        options: dict[str, Any] | None = None,
+        dataflow_default_options: dict[str, Any] | None = None,
+        parameters: dict[str, str] | None = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        environment: Optional[Dict] = None,
-        cancel_timeout: Optional[int] = 10 * 60,
-        wait_until_finished: Optional[bool] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        environment: dict | None = None,
+        cancel_timeout: int | None = 10 * 60,
+        wait_until_finished: bool | None = None,
+        append_job_name: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -626,13 +635,14 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.job = None
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
         self.impersonation_chain = impersonation_chain
         self.environment = environment
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
+        self.append_job_name = append_job_name
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -657,6 +667,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             project_id=self.project_id,
             location=self.location,
             environment=self.environment,
+            append_job_name=self.append_job_name,
         )
 
         return job
@@ -727,6 +738,14 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
         If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
@@ -734,14 +753,15 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
     def __init__(
         self,
-        body: Dict,
+        body: dict,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         drain_pipeline: bool = False,
-        cancel_timeout: Optional[int] = 10 * 60,
-        wait_until_finished: Optional[bool] = None,
+        cancel_timeout: int | None = 10 * 60,
+        wait_until_finished: bool | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -755,15 +775,17 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job = None
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
+        self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
             wait_until_finished=self.wait_until_finished,
+            impersonation_chain=self.impersonation_chain,
         )
 
         def set_current_job(current_job):
@@ -821,6 +843,14 @@ class DataflowStartSqlJobOperator(BaseOperator):
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     template_fields: Sequence[str] = (
@@ -837,12 +867,13 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self,
         job_name: str,
         query: str,
-        options: Dict[str, Any],
+        options: dict[str, Any],
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         drain_pipeline: bool = False,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -855,14 +886,16 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.drain_pipeline = drain_pipeline
+        self.impersonation_chain = impersonation_chain
         self.job = None
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             drain_pipeline=self.drain_pipeline,
+            impersonation_chain=self.impersonation_chain,
         )
 
         def set_current_job(current_job):
@@ -998,20 +1031,20 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         *,
         py_file: str,
         job_name: str = "{{task.task_id}}",
-        dataflow_default_options: Optional[dict] = None,
-        options: Optional[dict] = None,
+        dataflow_default_options: dict | None = None,
+        options: dict | None = None,
         py_interpreter: str = "python3",
-        py_options: Optional[List[str]] = None,
-        py_requirements: Optional[List[str]] = None,
+        py_options: list[str] | None = None,
+        py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
         drain_pipeline: bool = False,
-        cancel_timeout: Optional[int] = 10 * 60,
-        wait_until_finished: Optional[bool] = None,
+        cancel_timeout: int | None = 10 * 60,
+        wait_until_finished: bool | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -1043,10 +1076,10 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job_id = None
-        self.beam_hook: Optional[BeamHook] = None
-        self.dataflow_hook: Optional[DataflowHook] = None
+        self.beam_hook: BeamHook | None = None
+        self.dataflow_hook: DataflowHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Execute the python dataflow job."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(
@@ -1109,3 +1142,96 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             self.dataflow_hook.cancel_job(
                 job_id=self.job_id, project_id=self.project_id or self.dataflow_hook.project_id
             )
+
+
+class DataflowStopJobOperator(BaseOperator):
+    """
+    Stops the job with the specified name prefix or Job ID.
+    All jobs with provided name prefix will be stopped.
+    Streaming jobs are drained by default.
+
+    Parameter ``job_name_prefix`` and ``job_id`` are mutually exclusive.
+
+    .. seealso::
+        For more details on stopping a pipeline see:
+        https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowStopJobOperator`
+
+    :param job_name_prefix: Name prefix specifying which jobs are to be stopped.
+    :param job_id: Job ID specifying which jobs are to be stopped.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :param location: Optional, Job location. If set to None or missing, "us-central1" will be used.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :param poll_sleep: The time in seconds to sleep between polling Google
+        Cloud Platform for the dataflow job status to confirm it's stopped.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param drain_pipeline: Optional, set to False if want to stop streaming job by canceling it
+        instead of draining. See: https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+    :param stop_timeout: wait time in seconds for successful job canceling/draining
+    """
+
+    def __init__(
+        self,
+        job_name_prefix: str | None = None,
+        job_id: str | None = None,
+        project_id: str | None = None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        poll_sleep: int = 10,
+        impersonation_chain: str | Sequence[str] | None = None,
+        stop_timeout: int | None = 10 * 60,
+        drain_pipeline: bool = True,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.poll_sleep = poll_sleep
+        self.stop_timeout = stop_timeout
+        self.job_name = job_name_prefix
+        self.job_id = job_id
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
+        self.hook: DataflowHook | None = None
+        self.drain_pipeline = drain_pipeline
+
+    def execute(self, context: Context) -> None:
+        self.dataflow_hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            poll_sleep=self.poll_sleep,
+            impersonation_chain=self.impersonation_chain,
+            cancel_timeout=self.stop_timeout,
+            drain_pipeline=self.drain_pipeline,
+        )
+        if self.job_id or self.dataflow_hook.is_job_dataflow_running(
+            name=self.job_name,
+            project_id=self.project_id,
+            location=self.location,
+        ):
+            self.dataflow_hook.cancel_job(
+                job_name=self.job_name,
+                project_id=self.project_id,
+                location=self.location,
+                job_id=self.job_id,
+            )
+        else:
+            self.log.info("No jobs to stop")
+
+        return None

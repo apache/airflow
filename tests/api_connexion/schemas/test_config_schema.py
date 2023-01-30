@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 
@@ -23,34 +24,34 @@ class TestConfigSchema:
         config = Config(
             sections=[
                 ConfigSection(
-                    name='sec1',
+                    name="sec1",
                     options=[
-                        ConfigOption(key='apache', value='airflow'),
-                        ConfigOption(key='hello', value='world'),
+                        ConfigOption(key="apache", value="airflow"),
+                        ConfigOption(key="hello", value="world"),
                     ],
                 ),
                 ConfigSection(
-                    name='sec2',
+                    name="sec2",
                     options=[
-                        ConfigOption(key='foo', value='bar'),
+                        ConfigOption(key="foo", value="bar"),
                     ],
                 ),
             ]
         )
         result = config_schema.dump(config)
         expected = {
-            'sections': [
+            "sections": [
                 {
-                    'name': 'sec1',
-                    'options': [
-                        {'key': 'apache', 'value': 'airflow'},
-                        {'key': 'hello', 'value': 'world'},
+                    "name": "sec1",
+                    "options": [
+                        {"key": "apache", "value": "airflow"},
+                        {"key": "hello", "value": "world"},
                     ],
                 },
                 {
-                    'name': 'sec2',
-                    'options': [
-                        {'key': 'foo', 'value': 'bar'},
+                    "name": "sec2",
+                    "options": [
+                        {"key": "foo", "value": "bar"},
                     ],
                 },
             ]

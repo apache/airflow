@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that starts, stops and sets the machine type of a Google Compute
 Engine instance.
@@ -28,6 +27,7 @@ This DAG relies on the following OS environment variables
 * GCE_SHORT_MACHINE_TYPE_NAME - Machine type resource name to set, e.g. 'n1-standard-1'.
     See https://cloud.google.com/compute/docs/machine-types
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -41,42 +41,41 @@ from airflow.providers.google.cloud.operators.compute import (
 )
 
 # [START howto_operator_gce_args_common]
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
-GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCE_ZONE = os.environ.get("GCE_ZONE", "europe-west1-b")
+GCE_INSTANCE = os.environ.get("GCE_INSTANCE", "testinstance")
 # [END howto_operator_gce_args_common]
 
 
-GCE_SHORT_MACHINE_TYPE_NAME = os.environ.get('GCE_SHORT_MACHINE_TYPE_NAME', 'n1-standard-1')
+GCE_SHORT_MACHINE_TYPE_NAME = os.environ.get("GCE_SHORT_MACHINE_TYPE_NAME", "n1-standard-1")
 
 
 with models.DAG(
-    'example_gcp_compute',
-    schedule_interval='@once',  # Override to match your needs
+    "example_gcp_compute",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_gce_start]
     gce_instance_start = ComputeEngineStartInstanceOperator(
-        project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id='gcp_compute_start_task'
+        project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id="gcp_compute_start_task"
     )
     # [END howto_operator_gce_start]
     # Duplicate start for idempotence testing
     # [START howto_operator_gce_start_no_project_id]
     gce_instance_start2 = ComputeEngineStartInstanceOperator(
-        zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id='gcp_compute_start_task2'
+        zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id="gcp_compute_start_task2"
     )
     # [END howto_operator_gce_start_no_project_id]
     # [START howto_operator_gce_stop]
     gce_instance_stop = ComputeEngineStopInstanceOperator(
-        project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id='gcp_compute_stop_task'
+        project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id="gcp_compute_stop_task"
     )
     # [END howto_operator_gce_stop]
     # Duplicate stop for idempotence testing
     # [START howto_operator_gce_stop_no_project_id]
     gce_instance_stop2 = ComputeEngineStopInstanceOperator(
-        zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id='gcp_compute_stop_task2'
+        zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id="gcp_compute_stop_task2"
     )
     # [END howto_operator_gce_stop_no_project_id]
     # [START howto_operator_gce_set_machine_type]
@@ -84,8 +83,8 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
-        body={'machineType': f'zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}'},
-        task_id='gcp_compute_set_machine_type',
+        body={"machineType": f"zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}"},
+        task_id="gcp_compute_set_machine_type",
     )
     # [END howto_operator_gce_set_machine_type]
     # Duplicate set machine type for idempotence testing
@@ -93,8 +92,8 @@ with models.DAG(
     gce_set_machine_type2 = ComputeEngineSetMachineTypeOperator(
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
-        body={'machineType': f'zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}'},
-        task_id='gcp_compute_set_machine_type2',
+        body={"machineType": f"zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}"},
+        task_id="gcp_compute_set_machine_type2",
     )
     # [END howto_operator_gce_set_machine_type_no_project_id]
 

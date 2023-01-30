@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import logging.config
 import os
 import re
+from unittest.mock import patch
 
 import pytest
 
@@ -34,8 +36,8 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2016, 1, 1)
-TASK_LOGGER = 'airflow.task'
-FILE_TASK_HANDLER = 'task'
+TASK_LOGGER = "airflow.task"
+FILE_TASK_HANDLER = "task"
 
 
 class TestFileTaskLogHandler:
@@ -65,14 +67,14 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
         )
         task = PythonOperator(
-            task_id='task_for_testing_file_log_handler',
+            task_id="task_for_testing_file_log_handler",
             dag=dag,
             python_callable=task_callable,
         )
@@ -98,7 +100,7 @@ class TestFileTaskLogHandler:
         file_handler.flush()
         file_handler.close()
 
-        assert hasattr(file_handler, 'read')
+        assert hasattr(file_handler, "read")
         # Return value of read must be a tuple of list and list.
         # passing invalid `try_number` to read function
         logs, metadatas = file_handler.read(ti, 0)
@@ -117,14 +119,14 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
         )
         task = PythonOperator(
-            task_id='task_for_testing_file_log_handler',
+            task_id="task_for_testing_file_log_handler",
             dag=dag,
             python_callable=task_callable,
         )
@@ -150,7 +152,7 @@ class TestFileTaskLogHandler:
         file_handler.flush()
         file_handler.close()
 
-        assert hasattr(file_handler, 'read')
+        assert hasattr(file_handler, "read")
         # Return value of read must be a tuple of list and list.
         logs, metadatas = file_handler.read(ti)
         assert isinstance(logs, list)
@@ -158,7 +160,7 @@ class TestFileTaskLogHandler:
         assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert isinstance(metadatas[0], dict)
-        target_re = r'\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n'
+        target_re = r"\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n"
 
         # We should expect our log line from the callable above to appear in
         # the logs we read back
@@ -171,9 +173,9 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
         task = PythonOperator(
-            task_id='task_for_testing_file_log_handler',
+            task_id="task_for_testing_file_log_handler",
             python_callable=task_callable,
             dag=dag,
         )
@@ -218,34 +220,83 @@ class TestFileTaskLogHandler:
         os.remove(log_filename)
 
 
-@pytest.fixture()
-def filename_rendering_ti(session, create_task_instance):
-    return create_task_instance(
-        dag_id='dag_for_testing_filename_rendering',
-        task_id='task_for_testing_filename_rendering',
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        session=session,
-    )
-
-
 class TestFilenameRendering:
-    def test_python_formatting(self, filename_rendering_ti):
-        expected_filename = (
-            f'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/'
-            f'{DEFAULT_DATE.isoformat()}/42.log'
+    def test_python_formatting(self, create_log_template, create_task_instance):
+        create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
+        filename_rendering_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
         )
 
-        fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
+        expected_filename = (
+            f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
+            f"{DEFAULT_DATE.isoformat()}/42.log"
+        )
+        fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
-    def test_jinja_rendering(self, filename_rendering_ti):
-        expected_filename = (
-            f'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/'
-            f'{DEFAULT_DATE.isoformat()}/42.log'
+    def test_jinja_rendering(self, create_log_template, create_task_instance):
+        create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
+        filename_rendering_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
         )
 
-        fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')
+        expected_filename = (
+            f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
+            f"{DEFAULT_DATE.isoformat()}/42.log"
+        )
+        fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
+
+
+class TestLogUrl:
+    def test_log_retrieval_valid(self, create_task_instance):
+        log_url_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+        log_url_ti.hostname = "hostname"
+        url = FileTaskHandler._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
+        assert url == "http://hostname:8793/log/DYNAMIC_PATH"
+
+
+@pytest.mark.parametrize(
+    "config, queue, expected",
+    [
+        (dict(AIRFLOW__CORE__EXECUTOR="LocalExecutor"), None, False),
+        (dict(AIRFLOW__CORE__EXECUTOR="LocalExecutor"), "kubernetes", False),
+        (dict(AIRFLOW__CORE__EXECUTOR="KubernetesExecutor"), None, True),
+        (dict(AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor"), "any", False),
+        (dict(AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor"), "kubernetes", True),
+        (
+            dict(
+                AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor",
+                AIRFLOW__CELERY_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE="hithere",
+            ),
+            "hithere",
+            True,
+        ),
+        (dict(AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor"), "any", False),
+        (dict(AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor"), "kubernetes", True),
+        (
+            dict(
+                AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor",
+                AIRFLOW__LOCAL_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE="hithere",
+            ),
+            "hithere",
+            True,
+        ),
+    ],
+)
+def test__should_check_k8s(config, queue, expected):
+    with patch.dict("os.environ", **config):
+        assert FileTaskHandler._should_check_k8s(queue) == expected

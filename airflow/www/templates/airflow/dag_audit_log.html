@@ -20,6 +20,32 @@
 {% extends "airflow/dag.html" %}
 {% block title %}Dag Audit Log{% endblock %}
 
+{%- macro sortable_column(display_name, attribute_name) -%}
+  {% set curr_ordering_direction = (request.args.get('sorting_direction', 'desc')) %}
+  {% set new_ordering_direction = ('asc' if (request.args.get('sorting_key') != attribute_name or curr_ordering_direction == 'desc') else 'desc') %}
+  <a href="{{ url_for('Airflow.audit_log',
+                       dag_id=dag_id,
+                       sorting_key=attribute_name,
+                       sorting_direction=new_ordering_direction
+                       ) }}"
+     class="js-tooltip"
+     role="tooltip"
+     title="Sort by {{ new_ordering_direction }} {{ attribute_name }}."
+  >
+    {{ display_name }}
+
+    <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ display_name }}">
+      {% if curr_ordering_direction == 'desc' and request.args.get('sorting_key') == attribute_name %}
+        expand_more
+      {% elif curr_ordering_direction == 'asc' and request.args.get('sorting_key') == attribute_name %}
+        expand_less
+      {% else %}
+        unfold_more
+      {% endif %}
+    </span>
+  </a>
+{%- endmacro -%}
+
 {% block head_css %}
 {{ super() }}
 <link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
@@ -40,10 +66,10 @@
     <table id="dag_audit_log_table" class="table table-striped table-bordered table-hover">
         <thead>
             <tr>
-                <th style="min-width: 140px">Time</th>
-                <th style="min-width: 140px">Task ID</th>
-                <th>Event</th>
-                <th style="min-width: 140px">Logical Date</th>
+                <th>{{ sortable_column("Time", "dttm") }}</th>
+                <th>{{ sortable_column("Task ID", "task_id") }}</th>
+                <th>{{ sortable_column("Event", "event") }}</th>
+                <th>{{ sortable_column("Logical Date", "execution_date") }}</th>
                 <th>Owner
                   <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="This is the user who triggered the event.">info</span>
                 </th>
@@ -69,21 +95,23 @@
         {% endfor %}
         </tbody>
     </table>
+  <div class="row">
+    <div class="col-sm-6">
+      {{ paging }}
+    </div>
+    <div class="col-sm-6 text-right">
+      Showing <strong>{{ num_log_from }}-{{ num_log_to }}</strong> of <strong>{{ audit_logs_count }}</strong> Dag Audit Log
+    </div>
+  </div>
+  </div>
+  <div id="svg-tooltip" class="tooltip top" style="position: fixed; display: none; opacity: 1; pointer-events: none;">
+    <div class="tooltip-arrow"></div>
+    <div class="tooltip-inner"></div>
+  </div>
 {% endblock %}
 
 {% block tail %}
   {{ super() }}
   <script src="{{ url_for_asset('jquery.dataTables.min.js') }}"></script>
   <script src="{{ url_for_asset('dataTables.bootstrap.min.js') }}"></script>
-  <script>
-  $(document).ready(function() {
-      <!-- Set rowCallback once add TaskNote annotations to highlight actions -->
-      $('#dag_audit_log_table').DataTable( {
-          "order": [[ 0, "desc" ]],
-          "pageLength": '{{ page_size }}',
-          <!-- lazy loading: deferred rendering for speed -->
-          "deferRender": true,
-      } );
-  } );
-  </script>
 {% endblock %}

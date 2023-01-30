@@ -34,7 +34,7 @@ Executes one or more SQL queries on an Apache Drill server.  The ``sql`` paramet
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/apache/drill/example_dags/example_drill_dag.py
+.. exampleinclude:: /../../tests/system/providers/apache/drill/example_drill_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_drill]

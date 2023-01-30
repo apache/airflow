@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import timedelta
 from unittest import mock
 
@@ -45,16 +47,16 @@ def test_get_event_buffer():
     assert len(executor.event_buffer) == 0
 
 
-@mock.patch('airflow.executors.base_executor.BaseExecutor.sync')
-@mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
-@mock.patch('airflow.executors.base_executor.Stats.gauge')
+@mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
+@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+@mock.patch("airflow.executors.base_executor.Stats.gauge")
 def test_gauge_executor_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync):
     executor = BaseExecutor()
     executor.heartbeat()
     calls = [
-        mock.call('executor.open_slots', mock.ANY),
-        mock.call('executor.queued_tasks', mock.ANY),
-        mock.call('executor.running_tasks', mock.ANY),
+        mock.call("executor.open_slots", mock.ANY),
+        mock.call("executor.queued_tasks", mock.ANY),
+        mock.call("executor.running_tasks", mock.ANY),
     ]
     mock_stats_gauge.assert_has_calls(calls)
 
@@ -123,3 +125,10 @@ def test_trigger_running_tasks(dag_maker, change_state_attempt):
         assert len(executor.execute_async.mock_calls) == len(dagrun.task_instances) + 1
     else:
         assert len(executor.execute_async.mock_calls) == len(dagrun.task_instances)
+
+
+def test_validate_airflow_tasks_run_command(dag_maker):
+    dagrun = setup_dagrun(dag_maker)
+    tis = dagrun.task_instances
+    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+    assert dag_id == dagrun.dag_id and task_id == tis[0].task_id

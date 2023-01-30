@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS Firehose hook"""
-import warnings
+from __future__ import annotations
+
 from typing import Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -44,19 +44,3 @@ class FirehoseHook(AwsBaseHook):
     def put_records(self, records: Iterable):
         """Write batch records to Kinesis Firehose"""
         return self.get_conn().put_record_batch(DeliveryStreamName=self.delivery_stream, Records=records)
-
-
-class AwsFirehoseHook(FirehoseHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.kinesis.FirehoseHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.kinesis.FirehoseHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

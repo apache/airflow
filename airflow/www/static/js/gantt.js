@@ -33,7 +33,7 @@
 /* global d3, document, moment, data $ */
 
 import tiTooltip from './task_instances';
-import { callModal } from './dag';
+import callModal from './callModal';
 
 const replacements = {
   a: 'ddd',
@@ -95,7 +95,7 @@ d3.gantt = () => {
   const tip = d3.tip()
     .attr('class', 'tooltip d3-tip')
     .offset([-10, 0])
-    .html((d) => tiTooltip(d, { includeTryNumber: true }));
+    .html((d) => tiTooltip(d, null, { includeTryNumber: true }));
 
   let margin = {
     top: 20,

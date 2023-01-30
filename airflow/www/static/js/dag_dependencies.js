@@ -198,8 +198,14 @@ const renderGraph = () => {
     g.setNode(node.id, node.value);
   });
 
+  // filter out edges that point to non-existent nodes
+  const realEdges = edges.filter((e) => {
+    const edgeNodes = nodes.filter((n) => n.id === e.u || n.id === e.v);
+    return edgeNodes.length === 2;
+  });
+
   // Set edges
-  edges.forEach((edge) => {
+  realEdges.forEach((edge) => {
     g.setEdge(edge.u, edge.v, {
       curve: d3.curveBasis,
       arrowheadClass: 'arrowhead',

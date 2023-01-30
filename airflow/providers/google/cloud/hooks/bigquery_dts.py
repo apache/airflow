@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a BigQuery Hook."""
+from __future__ import annotations
+
 from copy import copy
-from typing import Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -47,14 +48,14 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        location: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -64,7 +65,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         self.location = location
 
     @staticmethod
-    def _disable_auto_scheduling(config: Union[dict, TransferConfig]) -> TransferConfig:
+    def _disable_auto_scheduling(config: dict | TransferConfig) -> TransferConfig:
         """
         In the case of Airflow, the customer needs to create a transfer config
         with the automatic scheduling disabled (UI, CLI or an Airflow operator) and
@@ -90,23 +91,22 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         Retrieves connection to Google Bigquery.
 
         :return: Google Bigquery API client
-        :rtype: google.cloud.bigquery_datatransfer_v1.DataTransferServiceClient
         """
         if not self._conn:
             self._conn = DataTransferServiceClient(
-                credentials=self._get_credentials(), client_info=CLIENT_INFO
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
             )
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_transfer_config(
         self,
-        transfer_config: Union[dict, TransferConfig],
+        transfer_config: dict | TransferConfig,
         project_id: str = PROVIDE_PROJECT_ID,
-        authorization_code: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        authorization_code: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TransferConfig:
         """
         Creates a new data transfer configuration.
@@ -132,9 +132,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         return client.create_transfer_config(
             request={
-                'parent': parent,
-                'transfer_config': self._disable_auto_scheduling(transfer_config),
-                'authorization_code': authorization_code,
+                "parent": parent,
+                "transfer_config": self._disable_auto_scheduling(transfer_config),
+                "authorization_code": authorization_code,
             },
             retry=retry,
             timeout=timeout,
@@ -146,9 +146,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         self,
         transfer_config_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes transfer configuration.
@@ -168,11 +168,11 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         client = self.get_conn()
         project = f"projects/{project_id}"
         if self.location:
-            project = f"/{project}/locations/{self.location}"
+            project = f"{project}/locations/{self.location}"
 
         name = f"{project}/transferConfigs/{transfer_config_id}"
         return client.delete_transfer_config(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -180,11 +180,11 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         self,
         transfer_config_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        requested_time_range: Optional[dict] = None,
-        requested_run_time: Optional[dict] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        requested_time_range: dict | None = None,
+        requested_run_time: dict | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> StartManualTransferRunsResponse:
         """
         Start manual transfer runs to be executed now with schedule_time equal
@@ -219,9 +219,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         parent = f"{project}/transferConfigs/{transfer_config_id}"
         return client.start_manual_transfer_runs(
             request={
-                'parent': parent,
-                'requested_time_range': requested_time_range,
-                'requested_run_time': requested_run_time,
+                "parent": parent,
+                "requested_time_range": requested_time_range,
+                "requested_run_time": requested_run_time,
             },
             retry=retry,
             timeout=timeout,
@@ -234,9 +234,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         run_id: str,
         transfer_config_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TransferRun:
         """
         Returns information about the particular transfer run.
@@ -261,5 +261,5 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         name = f"{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
         return client.get_transfer_run(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )

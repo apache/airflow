@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import Any
 
@@ -25,9 +26,26 @@ from airflow.configuration import conf
 
 SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
-metadata = (
-    None if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace() else MetaData(schema=SQL_ALCHEMY_SCHEMA)
-)
+# For more information about what the tokens in the naming convention
+# below mean, see:
+# https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData.params.naming_convention
+naming_convention = {
+    "ix": "idx_%(column_0_N_label)s",
+    "uq": "%(table_name)s_%(column_0_N_name)s_uq",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "%(table_name)s_%(column_0_name)s_fkey",
+    "pk": "%(table_name)s_pkey",
+}
+
+
+def _get_schema():
+    if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace():
+        return None
+    return SQL_ALCHEMY_SCHEMA
+
+
+metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
+
 Base: Any = declarative_base(metadata=metadata)
 
 ID_LEN = 250
@@ -35,9 +53,9 @@ ID_LEN = 250
 
 def get_id_collation_args():
     """Get SQLAlchemy args to use for COLLATION"""
-    collation = conf.get('database', 'sql_engine_collation_for_ids', fallback=None)
+    collation = conf.get("database", "sql_engine_collation_for_ids", fallback=None)
     if collation:
-        return {'collation': collation}
+        return {"collation": collation}
     else:
         # Automatically use utf8mb3_bin collation for mysql
         # This is backwards-compatible. All our IDS are ASCII anyway so even if
@@ -49,9 +67,9 @@ def get_id_collation_args():
         #
         # We cannot use session/dialect as at this point we are trying to determine the right connection
         # parameters, so we use the connection
-        conn = conf.get('database', 'sql_alchemy_conn', fallback='')
-        if conn.startswith('mysql') or conn.startswith("mariadb"):
-            return {'collation': 'utf8mb3_bin'}
+        conn = conf.get("database", "sql_alchemy_conn", fallback="")
+        if conn.startswith("mysql") or conn.startswith("mariadb"):
+            return {"collation": "utf8mb3_bin"}
         return {}
 
 

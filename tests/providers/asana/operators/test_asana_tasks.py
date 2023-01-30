@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
@@ -33,12 +33,12 @@ TEST_DAG_ID = "unit_test_dag"
 asana_client_mock = Mock(name="asana_client_for_test")
 
 
-class TestAsanaTaskOperators(unittest.TestCase):
+class TestAsanaTaskOperators:
     """
     Test that the AsanaTaskOperators are using the python-asana methods as expected.
     """
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag

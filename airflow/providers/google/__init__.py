@@ -14,15 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import importlib
 import logging
 
 # HACK:
 # Sphinx-autoapi doesn't like imports to excluded packages in the main module.
-conf = importlib.import_module('airflow.configuration').conf  # type: ignore[attr-defined]
+conf = importlib.import_module("airflow.configuration").conf  # type: ignore[attr-defined]
 
 PROVIDERS_GOOGLE_VERBOSE_LOGGING: bool = conf.getboolean(
-    'providers_google', 'VERBOSE_LOGGING', fallback=False
+    "providers_google", "VERBOSE_LOGGING", fallback=False
 )
 if PROVIDERS_GOOGLE_VERBOSE_LOGGING:
     for logger_name in ["google_auth_httplib2", "httplib2", "googleapiclient"]:

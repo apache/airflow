@@ -15,21 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import base64
 import calendar
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Dict
 
-import cx_Oracle
+import oracledb
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 
 class OracleToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from Oracle to Google Cloud Storage in JSON or CSV format.
+    """Copy data from Oracle to Google Cloud Storage in JSON, CSV or Parquet format.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -42,21 +42,21 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         default timezone.
     """
 
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     type_map = {
-        cx_Oracle.DB_TYPE_BINARY_DOUBLE: 'DECIMAL',
-        cx_Oracle.DB_TYPE_BINARY_FLOAT: 'DECIMAL',
-        cx_Oracle.DB_TYPE_BINARY_INTEGER: 'INTEGER',
-        cx_Oracle.DB_TYPE_BOOLEAN: 'BOOLEAN',
-        cx_Oracle.DB_TYPE_DATE: 'TIMESTAMP',
-        cx_Oracle.DB_TYPE_NUMBER: 'NUMERIC',
-        cx_Oracle.DB_TYPE_TIMESTAMP: 'TIMESTAMP',
-        cx_Oracle.DB_TYPE_TIMESTAMP_LTZ: 'TIMESTAMP',
-        cx_Oracle.DB_TYPE_TIMESTAMP_TZ: 'TIMESTAMP',
+        oracledb.DB_TYPE_BINARY_DOUBLE: "DECIMAL",  # type: ignore
+        oracledb.DB_TYPE_BINARY_FLOAT: "DECIMAL",  # type: ignore
+        oracledb.DB_TYPE_BINARY_INTEGER: "INTEGER",  # type: ignore
+        oracledb.DB_TYPE_BOOLEAN: "BOOLEAN",  # type: ignore
+        oracledb.DB_TYPE_DATE: "TIMESTAMP",  # type: ignore
+        oracledb.DB_TYPE_NUMBER: "NUMERIC",  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP: "TIMESTAMP",  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP_LTZ: "TIMESTAMP",  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP_TZ: "TIMESTAMP",  # type: ignore
     }
 
-    def __init__(self, *, oracle_conn_id='oracle_default', ensure_utc=False, **kwargs):
+    def __init__(self, *, oracle_conn_id="oracle_default", ensure_utc=False, **kwargs):
         super().__init__(**kwargs)
         self.ensure_utc = ensure_utc
         self.oracle_conn_id = oracle_conn_id
@@ -69,20 +69,20 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         if self.ensure_utc:
             # Ensure TIMESTAMP results are in UTC
             tz_query = "SET time_zone = '+00:00'"
-            self.log.info('Executing: %s', tz_query)
+            self.log.info("Executing: %s", tz_query)
             cursor.execute(tz_query)
-        self.log.info('Executing: %s', self.sql)
+        self.log.info("Executing: %s", self.sql)
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         field_type = self.type_map.get(field[1], "STRING")
 
         field_mode = "NULLABLE" if not field[6] or field_type == "TIMESTAMP" else "REQUIRED"
         return {
-            'name': field[0],
-            'type': field_type,
-            'mode': field_mode,
+            "name": field[0],
+            "type": field_type,
+            "mode": field_mode,
         }
 
     def convert_type(self, value, schema_type, **kwargs):
@@ -119,5 +119,5 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
             if schema_type == "INTEGER":
                 value = int.from_bytes(value, "big")
             else:
-                value = base64.standard_b64encode(value).decode('ascii')
+                value = base64.standard_b64encode(value).decode("ascii")
         return value

@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operator for Telegram"""
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -43,17 +45,17 @@ class TelegramOperator(BaseOperator):
     :param telegram_kwargs: Extra args to be passed to telegram client
     """
 
-    template_fields: Sequence[str] = ('text', 'chat_id')
-    ui_color = '#FFBA40'
+    template_fields: Sequence[str] = ("text", "chat_id")
+    ui_color = "#FFBA40"
 
     def __init__(
         self,
         *,
         telegram_conn_id: str = "telegram_default",
-        token: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        token: str | None = None,
+        chat_id: str | None = None,
         text: str = "No message has been set.",
-        telegram_kwargs: Optional[dict] = None,
+        telegram_kwargs: dict | None = None,
         **kwargs,
     ):
         self.chat_id = chat_id
@@ -68,10 +70,10 @@ class TelegramOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Calls the TelegramHook to post the provided Telegram message"""
         if self.text:
-            self.telegram_kwargs['text'] = self.text
+            self.telegram_kwargs["text"] = self.text
 
         telegram_hook = TelegramHook(
             telegram_conn_id=self.telegram_conn_id,

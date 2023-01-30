@@ -15,20 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import sys
 import time
 
 from botocore.exceptions import ClientError
 
 from airflow import AirflowException
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 
 class QuickSightHook(AwsBaseHook):
@@ -58,7 +54,7 @@ class QuickSightHook(AwsBaseHook):
         ingestion_type: str,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-    ):
+    ) -> dict:
         """
         Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets
 
@@ -70,9 +66,7 @@ class QuickSightHook(AwsBaseHook):
             will check the status of QuickSight Ingestion
         :return: Returns descriptive information about the created data ingestion
             having Ingestion ARN, HTTP status, ingestion ID and ingestion status.
-        :rtype: Dict
         """
-
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
         quicksight_client = self.get_conn()
         try:
@@ -97,7 +91,7 @@ class QuickSightHook(AwsBaseHook):
             self.log.error("Failed to run Amazon QuickSight create_ingestion API, error: %s", general_error)
             raise
 
-    def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str):
+    def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> str:
         """
         Get the current status of QuickSight Create Ingestion API.
 
@@ -105,7 +99,6 @@ class QuickSightHook(AwsBaseHook):
         :param data_set_id: QuickSight Data Set ID
         :param ingestion_id: QuickSight Ingestion ID
         :return: An QuickSight Ingestion Status
-        :rtype: str
         """
         try:
             describe_ingestion_response = self.get_conn().describe_ingestion(
@@ -136,7 +129,6 @@ class QuickSightHook(AwsBaseHook):
             will check the status of QuickSight Ingestion
         :return: response of describe_ingestion call after Ingestion is is done
         """
-
         sec = 0
         status = self.get_status(aws_account_id, data_set_id, ingestion_id)
         while status in self.NON_TERMINAL_STATES and status != target_state:

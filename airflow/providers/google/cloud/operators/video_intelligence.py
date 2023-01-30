@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Vision operators."""
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -80,14 +82,14 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         self,
         *,
         input_uri: str,
-        input_content: Optional[bytes] = None,
-        output_uri: Optional[str] = None,
-        video_context: Union[Dict, VideoContext] = None,
-        location: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        input_content: bytes | None = None,
+        output_uri: str | None = None,
+        video_context: dict | VideoContext = None,
+        location: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -101,7 +103,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         self.timeout = timeout
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudVideoIntelligenceHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -170,14 +172,14 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         self,
         *,
         input_uri: str,
-        output_uri: Optional[str] = None,
-        input_content: Optional[bytes] = None,
-        video_context: Union[Dict, VideoContext] = None,
-        location: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        output_uri: str | None = None,
+        input_content: bytes | None = None,
+        video_context: dict | VideoContext = None,
+        location: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -191,7 +193,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         self.timeout = timeout
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudVideoIntelligenceHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -260,14 +262,14 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         self,
         *,
         input_uri: str,
-        output_uri: Optional[str] = None,
-        input_content: Optional[bytes] = None,
-        video_context: Union[Dict, VideoContext] = None,
-        location: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        output_uri: str | None = None,
+        input_content: bytes | None = None,
+        video_context: dict | VideoContext = None,
+        location: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -281,7 +283,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         self.timeout = timeout
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudVideoIntelligenceHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

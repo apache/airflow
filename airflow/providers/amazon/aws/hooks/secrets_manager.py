@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import base64
 import json
-from typing import Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -36,24 +35,23 @@ class SecretsManagerHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(client_type='secretsmanager', *args, **kwargs)
+        super().__init__(client_type="secretsmanager", *args, **kwargs)
 
-    def get_secret(self, secret_name: str) -> Union[str, bytes]:
+    def get_secret(self, secret_name: str) -> str | bytes:
         """
         Retrieve secret value from AWS Secrets Manager as a str or bytes
         reflecting format it stored in the AWS Secrets Manager
 
         :param secret_name: name of the secrets.
         :return: Union[str, bytes] with the information about the secrets
-        :rtype: Union[str, bytes]
         """
         # Depending on whether the secret is a string or binary, one of
         # these fields will be populated.
         get_secret_value_response = self.get_conn().get_secret_value(SecretId=secret_name)
-        if 'SecretString' in get_secret_value_response:
-            secret = get_secret_value_response['SecretString']
+        if "SecretString" in get_secret_value_response:
+            secret = get_secret_value_response["SecretString"]
         else:
-            secret = base64.b64decode(get_secret_value_response['SecretBinary'])
+            secret = base64.b64decode(get_secret_value_response["SecretBinary"])
         return secret
 
     def get_secret_as_dict(self, secret_name: str) -> dict:
@@ -62,6 +60,5 @@ class SecretsManagerHook(AwsBaseHook):
 
         :param secret_name: name of the secrets.
         :return: dict with the information about the secrets
-        :rtype: dict
         """
         return json.loads(self.get_secret(secret_name))

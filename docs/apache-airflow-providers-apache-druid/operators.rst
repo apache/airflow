@@ -36,7 +36,7 @@ For parameter definition take a look at :class:`~airflow.providers.apache.druid.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/apache/druid/example_dags/example_druid_dag.py
+.. exampleinclude:: /../../tests/system/providers/apache/druid/example_druid_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_druid_submit]

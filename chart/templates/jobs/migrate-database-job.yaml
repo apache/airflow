@@ -92,12 +92,16 @@ spec:
           {{- if .Values.migrateDatabaseJob.args }}
           args: {{ tpl (toYaml .Values.migrateDatabaseJob.args) . | nindent 12 }}
           {{- end }}
+          {{- if .Values.migrateDatabaseJob.applyCustomEnv }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{ else }}
+          env:
+          {{- end }}
             - name: PYTHONUNBUFFERED
               value: "1"
-          {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           resources:
 {{ toYaml .Values.migrateDatabaseJob.resources | indent 12 }}

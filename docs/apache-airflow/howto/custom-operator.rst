@@ -29,7 +29,7 @@ You can create any operator you want by extending the :class:`airflow.models.bas
 There are two methods that you need to override in a derived class:
 
 * Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
-  You can specify the ``default_args`` in the dag file. See :ref:`Default args <concepts:default-arguments>` for more details.
+  You can specify the ``default_args`` in the dag file. See :ref:`Default args <concepts-default-arguments>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the
   Airflow context as a parameter that can be used to read config values.
@@ -63,7 +63,7 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
     is present in the :envvar:`PYTHONPATH` env. Airflow adds ``dags/``, ``plugins/``, and ``config/`` directories
     in the Airflow home to :envvar:`PYTHONPATH` by default. e.g., In our example,
     the file is placed in the ``custom_operator/`` directory.
-    See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+    See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 You can now use the derived custom operator as follows:
 
@@ -135,12 +135,14 @@ User interface
 Airflow also allows the developer to control how the operator shows up in the DAG UI.
 Override ``ui_color`` to change the background color of the operator in UI.
 Override ``ui_fgcolor`` to change the color of the label.
+Override ``custom_operator_name`` to change the displayed name to something other than the classname.
 
 .. code-block:: python
 
         class HelloOperator(BaseOperator):
             ui_color = "#ff0000"
             ui_fgcolor = "#000000"
+            custom_operator_name = "Howdy"
             # ...
 
 Templating
@@ -169,9 +171,7 @@ You can use the template as follows:
 .. code-block:: python
 
         with dag:
-            hello_task = HelloOperator(
-                task_id="task_id_1", dag=dag, name="{{ task_instance.task_id }}"
-            )
+            hello_task = HelloOperator(task_id="task_id_1", dag=dag, name="{{ task_instance.task_id }}")
 
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_instance.task_id }}`` with
 ``task_id_1``.

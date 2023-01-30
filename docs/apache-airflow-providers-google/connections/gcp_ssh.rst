@@ -46,12 +46,12 @@ Extra (optional)
     connection. The following parameters are supported in addition to those describing
     the Google Cloud connection.
 
-    * ``extra__google_cloud_platform__instance_name`` - The name of the Compute Engine instance.
-    * ``extra__google_cloud_platform__zone`` - The zone of the Compute Engine instance.
-    * ``extra__google_cloud_platform__use_internal_ip`` - Whether to connect using internal IP.
-    * ``extra__google_cloud_platform__use_iap_tunnel`` - Whether to connect through IAP tunnel.
-    * ``extra__google_cloud_platform__use_oslogin`` - Whether to manage keys using OsLogin API. If false, keys are managed using instance metadata.
-    * ``extra__google_cloud_platform__expire_time`` - The maximum amount of time in seconds before the private key expires.
+    * ``instance_name`` - The name of the Compute Engine instance.
+    * ``zone`` - The zone of the Compute Engine instance.
+    * ``use_internal_ip`` - Whether to connect using internal IP.
+    * ``use_iap_tunnel`` - Whether to connect through IAP tunnel.
+    * ``use_oslogin`` - Whether to manage keys using OsLogin API. If false, keys are managed using instance metadata.
+    * ``expire_time`` - The maximum amount of time in seconds before the private key expires.
 
 
 Environment variable
@@ -64,9 +64,9 @@ For example:
 .. code-block:: bash
 
     export AIRFLOW_CONN_GOOGLE_CLOUD_SQL_DEFAULT="gcpssh://conn-user@conn-host?\
-    extra__google_cloud_platform__instance_name=conn-instance-name&\
-    extra__google_cloud_platform__zone=zone&\
-    extra__google_cloud_platform__use_internal_ip=True&\
-    extra__google_cloud_platform__use_iap_tunnel=True&\
-    extra__google_cloud_platform__use_oslogin=False&\
-    extra__google_cloud_platform__expire_time=4242"
+    instance_name=conn-instance-name&\
+    zone=zone&\
+    use_internal_ip=True&\
+    use_iap_tunnel=True&\
+    use_oslogin=False&\
+    expire_time=4242"

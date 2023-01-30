@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from airflow.providers.google.cloud.example_dags.example_datafusion import BUCKET_1, BUCKET_2
@@ -37,4 +39,4 @@ class CloudDataFusionExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_DATAFUSION_KEY)
     def test_run_example_dag_function(self):
-        self.run_dag('example_data_fusion', CLOUD_DAG_FOLDER)
+        self.run_dag("example_data_fusion", CLOUD_DAG_FOLDER)

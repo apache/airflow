@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
-import unittest
 from pathlib import Path
 
 import yaml
@@ -24,7 +25,7 @@ from jsonschema import validate
 CHART_DIR = Path(__file__).parent / ".." / ".." / "chart"
 
 
-class ChartQualityTest(unittest.TestCase):
+class TestChartQuality:
     def test_values_validate_schema(self):
         values = yaml.safe_load((CHART_DIR / "values.yaml").read_text())
         schema = json.loads((CHART_DIR / "values.schema.json").read_text())

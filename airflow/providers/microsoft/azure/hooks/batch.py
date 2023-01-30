@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import time
 from datetime import timedelta
-from typing import Any, Dict, Optional, Set
+from typing import Any
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
@@ -26,6 +27,7 @@ from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParamet
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.utils import get_field
 from airflow.utils import timezone
 
 
@@ -37,32 +39,38 @@ class AzureBatchHook(BaseHook):
         of a service principal which will be used to start the container instance.
     """
 
-    conn_name_attr = 'azure_batch_conn_id'
-    default_conn_name = 'azure_batch_default'
-    conn_type = 'azure_batch'
-    hook_name = 'Azure Batch Service'
+    conn_name_attr = "azure_batch_conn_id"
+    default_conn_name = "azure_batch_default"
+    conn_type = "azure_batch"
+    hook_name = "Azure Batch Service"
+
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
         return {
-            "extra__azure_batch__account_url": StringField(
-                lazy_gettext('Batch Account URL'), widget=BS3TextFieldWidget()
-            ),
+            "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
-                'login': 'Batch Account Name',
-                'password': 'Batch Account Access Key',
+                "login": "Batch Account Name",
+                "password": "Batch Account Access Key",
             },
         }
 
@@ -84,9 +92,9 @@ class AzureBatchHook(BaseHook):
         """
         conn = self._connection()
 
-        batch_account_url = conn.extra_dejson.get('extra__azure_batch__account_url')
+        batch_account_url = self._get_field(conn.extra_dejson, "account_url")
         if not batch_account_url:
-            raise AirflowException('Batch Account URL parameter is missing.')
+            raise AirflowException("Batch Account URL parameter is missing.")
 
         credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
@@ -95,17 +103,17 @@ class AzureBatchHook(BaseHook):
     def configure_pool(
         self,
         pool_id: str,
-        vm_size: Optional[str] = None,
-        vm_publisher: Optional[str] = None,
-        vm_offer: Optional[str] = None,
-        sku_starts_with: Optional[str] = None,
-        vm_sku: Optional[str] = None,
-        vm_version: Optional[str] = None,
-        vm_node_agent_sku_id: Optional[str] = None,
-        os_family: Optional[str] = None,
-        os_version: Optional[str] = None,
-        display_name: Optional[str] = None,
-        target_dedicated_nodes: Optional[int] = None,
+        vm_size: str,
+        vm_node_agent_sku_id: str,
+        vm_publisher: str | None = None,
+        vm_offer: str | None = None,
+        sku_starts_with: str | None = None,
+        vm_sku: str | None = None,
+        vm_version: str | None = None,
+        os_family: str | None = None,
+        os_version: str | None = None,
+        display_name: str | None = None,
+        target_dedicated_nodes: int | None = None,
         use_latest_image_and_sku: bool = False,
         **kwargs,
     ) -> PoolAddParameter:
@@ -143,7 +151,7 @@ class AzureBatchHook(BaseHook):
 
         """
         if use_latest_image_and_sku:
-            self.log.info('Using latest verified virtual machine image with node agent sku')
+            self.log.info("Using latest verified virtual machine image with node agent sku")
             sku_to_use, image_ref_to_use = self._get_latest_verified_image_vm_and_sku(
                 publisher=vm_publisher, offer=vm_offer, sku_starts_with=sku_starts_with
             )
@@ -160,7 +168,7 @@ class AzureBatchHook(BaseHook):
 
         elif os_family:
             self.log.info(
-                'Using cloud service configuration to create pool, virtual machine configuration ignored'
+                "Using cloud service configuration to create pool, virtual machine configuration ignored"
             )
             pool = batch_models.PoolAddParameter(
                 id=pool_id,
@@ -174,7 +182,7 @@ class AzureBatchHook(BaseHook):
             )
 
         else:
-            self.log.info('Using virtual machine configuration to create a pool')
+            self.log.info("Using virtual machine configuration to create a pool")
             pool = batch_models.PoolAddParameter(
                 id=pool_id,
                 vm_size=vm_size,
@@ -204,17 +212,17 @@ class AzureBatchHook(BaseHook):
             self.log.info("Attempting to create a pool: %s", pool.id)
             self.connection.pool.add(pool)
             self.log.info("Created pool: %s", pool.id)
-        except batch_models.BatchErrorException as e:
-            if e.error.code != "PoolExists":
+        except batch_models.BatchErrorException as err:
+            if not err.error or err.error.code != "PoolExists":
                 raise
             else:
                 self.log.info("Pool %s already exists", pool.id)
 
     def _get_latest_verified_image_vm_and_sku(
         self,
-        publisher: Optional[str] = None,
-        offer: Optional[str] = None,
-        sku_starts_with: Optional[str] = None,
+        publisher: str | None = None,
+        offer: str | None = None,
+        sku_starts_with: str | None = None,
     ) -> tuple:
         """
         Get latest verified image vm and sku
@@ -240,20 +248,20 @@ class AzureBatchHook(BaseHook):
         agent_sku_id, image_ref_to_use = skus_to_use[0]
         return agent_sku_id, image_ref_to_use
 
-    def wait_for_all_node_state(self, pool_id: str, node_state: Set) -> list:
+    def wait_for_all_node_state(self, pool_id: str, node_state: set) -> list:
         """
         Wait for all nodes in a pool to reach given states
 
         :param pool_id: A string that identifies the pool
         :param node_state: A set of batch_models.ComputeNodeState
         """
-        self.log.info('waiting for all nodes in pool %s to reach one of: %s', pool_id, node_state)
+        self.log.info("waiting for all nodes in pool %s to reach one of: %s", pool_id, node_state)
         while True:
             # refresh pool to ensure that there is no resize error
             pool = self.connection.pool.get(pool_id)
             if pool.resize_errors is not None:
                 resize_errors = "\n".join(repr(e) for e in pool.resize_errors)
-                raise RuntimeError(f'resize error encountered for pool {pool.id}:\n{resize_errors}')
+                raise RuntimeError(f"resize error encountered for pool {pool.id}:\n{resize_errors}")
             nodes = list(self.connection.compute_node.list(pool.id))
             if len(nodes) >= pool.target_dedicated_nodes and all(node.state in node_state for node in nodes):
                 return nodes
@@ -266,7 +274,7 @@ class AzureBatchHook(BaseHook):
         self,
         job_id: str,
         pool_id: str,
-        display_name: Optional[str] = None,
+        display_name: str | None = None,
         **kwargs,
     ) -> JobAddParameter:
         """
@@ -294,7 +302,7 @@ class AzureBatchHook(BaseHook):
             self.connection.job.add(job)
             self.log.info("Job %s created", job.id)
         except batch_models.BatchErrorException as err:
-            if err.error.code != "JobExists":
+            if not err.error or err.error.code != "JobExists":
                 raise
             else:
                 self.log.info("Job %s already exists", job.id)
@@ -303,7 +311,7 @@ class AzureBatchHook(BaseHook):
         self,
         task_id: str,
         command_line: str,
-        display_name: Optional[str] = None,
+        display_name: str | None = None,
         container_settings=None,
         **kwargs,
     ) -> TaskAddParameter:
@@ -339,12 +347,12 @@ class AzureBatchHook(BaseHook):
 
             self.connection.task.add(job_id=job_id, task=task)
         except batch_models.BatchErrorException as err:
-            if err.error.code != "TaskExists":
+            if not err.error or err.error.code != "TaskExists":
                 raise
             else:
                 self.log.info("Task %s already exists", task.id)
 
-    def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> None:
+    def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> list[batch_models.CloudTask]:
         """
         Wait for tasks in a particular job to complete
 
@@ -357,8 +365,27 @@ class AzureBatchHook(BaseHook):
 
             incomplete_tasks = [task for task in tasks if task.state != batch_models.TaskState.completed]
             if not incomplete_tasks:
-                return
+                # detect if any task in job has failed
+                fail_tasks = [
+                    task
+                    for task in tasks
+                    if task.executionInfo.result == batch_models.TaskExecutionResult.failure
+                ]
+                return fail_tasks
             for task in incomplete_tasks:
                 self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
             time.sleep(15)
         raise TimeoutError("Timed out waiting for tasks to complete")
+
+    def test_connection(self):
+        """Test a configured Azure Batch connection."""
+        try:
+            # Attempt to list existing  jobs under the configured Batch account and retrieve
+            # the first in the returned iterator. The Azure Batch API does allow for creation of a
+            # BatchServiceClient with incorrect values but then will fail properly once items are
+            # retrieved using the client. We need to _actually_ try to retrieve an object to properly
+            # test the connection.
+            next(self.get_conn().job.list(), None)
+        except Exception as e:
+            return False, str(e)
+        return True, "Successfully connected to Azure Batch."

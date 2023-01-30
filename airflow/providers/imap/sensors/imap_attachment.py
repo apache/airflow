@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to poke for attachments on a mail server."""
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.imap.hooks.imap import ImapHook
@@ -39,16 +41,16 @@ class ImapAttachmentSensor(BaseSensorOperator):
     :param imap_conn_id: The :ref:`imap connection id <howto/connection:imap>` to run the sensor against.
     """
 
-    template_fields: Sequence[str] = ('attachment_name', 'mail_filter')
+    template_fields: Sequence[str] = ("attachment_name", "mail_filter")
 
     def __init__(
         self,
         *,
         attachment_name,
         check_regex=False,
-        mail_folder='INBOX',
-        mail_filter='All',
-        conn_id='imap_default',
+        mail_folder="INBOX",
+        mail_filter="All",
+        conn_id="imap_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -59,15 +61,14 @@ class ImapAttachmentSensor(BaseSensorOperator):
         self.mail_filter = mail_filter
         self.conn_id = conn_id
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         """
         Pokes for a mail attachment on the mail server.
 
         :param context: The context that is being provided when poking.
         :return: True if attachment with the given name is present and False if not.
-        :rtype: bool
         """
-        self.log.info('Poking for %s', self.attachment_name)
+        self.log.info("Poking for %s", self.attachment_name)
 
         with ImapHook(imap_conn_id=self.conn_id) as imap_hook:
             return imap_hook.has_mail_attachment(

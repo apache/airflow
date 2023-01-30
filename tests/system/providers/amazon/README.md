@@ -43,7 +43,7 @@ tests/system/providers/amazon/aws
 
 ## Initial configuration
 
-Each test requires some environment variables. Check how to set them up on your
+Each test may require some environment variables. Check how to set them up on your
 operating system, but on UNIX-based operating systems `export NAME_OF_ENV_VAR=value`
 should work.  To confirm that it is set up correctly, run `echo $NAME_OF_ENV_VAR`
 which will display its value.
@@ -57,21 +57,28 @@ NAME_OF_ENV_VAR=value pytest --system amazon tests/system/providers/amazon/aws/e
 
 ### Required environment variables
 
-- `SYSTEM_TESTS_ENV_ID` - AWS System Tests will generate and export this value if one does not exist.
+- `SYSTEM_TESTS_ENV_ID` - AWS System Tests use `SystemTestContextBuilder` to generate
+and export this value if one does not exist.
 
-  An environment ID is a unique value across different executions of system tests.  This
-  is needed because the CI environment may run the tests on various versions of Airflow
-  in parallel.  If this is the case, the value of this variable ensures that resources
-  that are created during the tests will not interfere with each other.
+An environment ID is a unique value across multiple/different executions of a system
+test.  It is required because the CI environment may run the tests on various versions
+of Airflow in parallel.  If this is the case, the value of this variable ensures that
+resources that are created during the test execution do not interfere with each other.
 
-  The value is used as part of the name for resources which have different requirements.
-  For example: an S3 bucket name can not use underscores, but an Athena table name can not
-  use hyphens.  In order to minimize conflicts, this variable should be a randomized value
-  using only lowercase letters A-Z and digits 0-9, and start with a letter.
+The value is used as part of the name for resources which have different requirements.
+For example, an S3 bucket name can not use underscores whereas an Athena table name can
+not use hyphens.  In order to minimize conflicts, this variable should be a randomized
+value using only lowercase letters A-Z and digits 0-9, and start with a letter.
 
 ## Settings for specific tests
 
 Amazon system test files are designed to be as self-contained as possible.  They will contain
 any sample data and configuration values which are required, and they will create and tear
-down any required infrastructure.  Some tests will require an IAM Role ARN, and the requirements
-for those Roles should be documented inside the docstring of the test file.
+down any required infrastructure.  Some tests will require an IAM Role ARN or other external
+variables that can not be created by the test itself, and the requirements for those values
+should be documented inside the docstring of the test file.
+
+### Contributing
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for community guidelines and best practices for
+writing AWS System Tests for Apache Airflow.

@@ -15,29 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 from unittest.mock import patch
+
+from moto import mock_lambda
 
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 
-try:
-    from moto import mock_lambda
-except ImportError:
-    mock_lambda = None
 
-
+@mock_lambda
 class TestLambdaHook:
-    @mock_lambda
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = LambdaHook(aws_conn_id='aws_default')
+        hook = LambdaHook(aws_conn_id="aws_default")
         assert hook.conn is not None
 
-    @mock_lambda
     def test_invoke_lambda_function(self):
 
-        hook = LambdaHook(aws_conn_id='aws_default')
+        hook = LambdaHook(aws_conn_id="aws_default")
 
-        with patch.object(hook.conn, 'invoke') as mock_invoke:
+        with patch.object(hook.conn, "invoke") as mock_invoke:
             payload = '{"hello": "airflow"}'
             hook.invoke_lambda(function_name="test_function", payload=payload)
 

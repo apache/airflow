@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base import BaseSensorOperator
@@ -43,19 +45,19 @@ class HivePartitionSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'schema',
-        'table',
-        'partition',
+        "schema",
+        "table",
+        "partition",
     )
-    ui_color = '#C5CAE9'
+    ui_color = "#C5CAE9"
 
     def __init__(
         self,
         *,
         table: str,
-        partition: Optional[str] = "ds='{{ ds }}'",
-        metastore_conn_id: str = 'metastore_default',
-        schema: str = 'default',
+        partition: str | None = "ds='{{ ds }}'",
+        metastore_conn_id: str = "metastore_default",
+        schema: str = "default",
         poke_interval: int = 60 * 3,
         **kwargs: Any,
     ):
@@ -67,10 +69,10 @@ class HivePartitionSensor(BaseSensorOperator):
         self.partition = partition
         self.schema = schema
 
-    def poke(self, context: "Context") -> bool:
-        if '.' in self.table:
-            self.schema, self.table = self.table.split('.')
-        self.log.info('Poking for table %s.%s, partition %s', self.schema, self.table, self.partition)
-        if not hasattr(self, 'hook'):
+    def poke(self, context: Context) -> bool:
+        if "." in self.table:
+            self.schema, self.table = self.table.split(".")
+        self.log.info("Poking for table %s.%s, partition %s", self.schema, self.table, self.partition)
+        if not hasattr(self, "hook"):
             hook = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         return hook.check_for_partition(self.schema, self.table, self.partition)

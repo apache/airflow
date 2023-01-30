@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to MSSQL operator."""
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -75,7 +77,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
+    template_fields: Sequence[str] = ("source_project_dataset_table", "mssql_table", "impersonation_chain")
     operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
@@ -83,15 +85,15 @@ class BigQueryToMsSqlOperator(BaseOperator):
         *,
         source_project_dataset_table: str,
         mssql_table: str,
-        selected_fields: Optional[Union[List[str], str]] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        mssql_conn_id: str = 'mssql_default',
-        database: Optional[str] = None,
-        delegate_to: Optional[str] = None,
+        selected_fields: list[str] | str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        mssql_conn_id: str = "mssql_default",
+        database: str | None = None,
+        delegate_to: str | None = None,
         replace: bool = False,
         batch_size: int = 1000,
-        location: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -106,21 +108,21 @@ class BigQueryToMsSqlOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         try:
-            _, self.dataset_id, self.table_id = source_project_dataset_table.split('.')
+            _, self.dataset_id, self.table_id = source_project_dataset_table.split(".")
         except ValueError:
             raise ValueError(
-                f'Could not parse {source_project_dataset_table} as <project>.<dataset>.<table>'
+                f"Could not parse {source_project_dataset_table} as <project>.<dataset>.<table>"
             ) from None
         self.source_project_dataset_table = source_project_dataset_table
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         big_query_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        project_id, dataset_id, table_id = self.source_project_dataset_table.split('.')
+        project_id, dataset_id, table_id = self.source_project_dataset_table.split(".")
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,

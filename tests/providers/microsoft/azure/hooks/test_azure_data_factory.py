@@ -14,16 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import json
-from typing import Type
+import os
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory.models import FactoryListResponse
-from pytest import fixture
+from pytest import fixture, param
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
@@ -57,10 +57,10 @@ def setup_module():
         password="clientSecret",
         extra=json.dumps(
             {
-                "extra__azure_data_factory__tenantId": "tenantId",
-                "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
-                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+                "tenantId": "tenantId",
+                "subscriptionId": "subscriptionId",
+                "resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "factory_name": DEFAULT_FACTORY,
             }
         ),
     )
@@ -69,9 +69,9 @@ def setup_module():
         conn_type="azure_data_factory",
         extra=json.dumps(
             {
-                "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
-                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+                "subscriptionId": "subscriptionId",
+                "resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "factory_name": DEFAULT_FACTORY,
             }
         ),
     )
@@ -82,9 +82,9 @@ def setup_module():
         password="clientSecret",
         extra=json.dumps(
             {
-                "extra__azure_data_factory__tenantId": "tenantId",
-                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
-                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+                "tenantId": "tenantId",
+                "resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "factory_name": DEFAULT_FACTORY,
             }
         ),
     )
@@ -95,9 +95,9 @@ def setup_module():
         password="clientSecret",
         extra=json.dumps(
             {
-                "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
-                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+                "subscriptionId": "subscriptionId",
+                "resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "factory_name": DEFAULT_FACTORY,
             }
         ),
     )
@@ -120,6 +120,7 @@ def hook():
             "pipeline_runs",
             "triggers",
             "trigger_runs",
+            "data_flows",
         ]
     )
 
@@ -149,8 +150,8 @@ def test_provide_targeted_factory():
     assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, FACTORY) == (RESOURCE_GROUP, FACTORY)
 
     conn.extra_dejson = {
-        "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
-        "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+        "resource_group_name": DEFAULT_RESOURCE_GROUP,
+        "factory_name": DEFAULT_FACTORY,
     }
     assert provide_targeted_factory(echo)(hook) == (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)
     assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, None) == (RESOURCE_GROUP, DEFAULT_FACTORY)
@@ -169,7 +170,7 @@ def test_provide_targeted_factory():
         (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
     ],
 )
-def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: Type):
+def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: type):
     hook = AzureDataFactoryHook(connection_id)
 
     with patch.object(hook, "_create_client") as mock_create_client:
@@ -341,6 +342,67 @@ def test_delete_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
     hook.delete_dataset(*user_args)
 
     hook._conn.datasets.delete.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME)),
+    implicit_factory=((NAME,), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME)),
+)
+def test_get_dataflow(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook.get_dataflow(*user_args)
+
+    hook._conn.data_flows.get.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_create_dataflow(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook.create_dataflow(*user_args)
+
+    hook._conn.data_flows.create_or_update.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_update_dataflow(hook: AzureDataFactoryHook, user_args, sdk_args):
+    with patch.object(hook, "_dataflow_exists") as mock_dataflow_exists:
+        mock_dataflow_exists.return_value = True
+        hook.update_dataflow(*user_args)
+
+    hook._conn.data_flows.create_or_update.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_update_dataflow_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
+    with patch.object(hook, "_dataflow_exists") as mock_dataflow_exists:
+        mock_dataflow_exists.return_value = False
+
+    with pytest.raises(AirflowException, match=r"Dataflow .+ does not exist"):
+        hook.update_dataflow(*user_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME)),
+    implicit_factory=(
+        (NAME,),
+        (
+            DEFAULT_RESOURCE_GROUP,
+            DEFAULT_FACTORY,
+            NAME,
+        ),
+    ),
+)
+def test_delete_dataflow(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook.delete_dataflow(*user_args)
+
+    hook._conn.data_flows.delete.assert_called_with(*sdk_args)
 
 
 @parametrize(
@@ -592,3 +654,57 @@ def test_connection_failure_missing_tenant_id():
 
     assert status is False
     assert msg == "A Tenant ID is required when authenticating with Client ID and Secret."
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        param(
+            "a://?extra__azure_data_factory__resource_group_name=abc"
+            "&extra__azure_data_factory__factory_name=abc",
+            id="prefix",
+        ),
+        param("a://?resource_group_name=abc&factory_name=abc", id="no-prefix"),
+    ],
+)
+@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_conn")
+def test_provide_targeted_factory_backcompat_prefix_works(mock_connect, uri):
+    with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
+        hook = AzureDataFactoryHook("my_conn")
+        hook.delete_factory()
+        mock_connect.return_value.factories.delete.assert_called_with("abc", "abc")
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        param(
+            "a://hi:yo@?extra__azure_data_factory__tenantId=ten"
+            "&extra__azure_data_factory__subscriptionId=sub",
+            id="prefix",
+        ),
+        param("a://hi:yo@?tenantId=ten&subscriptionId=sub", id="no-prefix"),
+    ],
+)
+@patch("airflow.providers.microsoft.azure.hooks.data_factory.ClientSecretCredential")
+@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook._create_client")
+def test_get_conn_backcompat_prefix_works(mock_create, mock_cred, uri):
+    with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
+        hook = AzureDataFactoryHook("my_conn")
+        hook.get_conn()
+        mock_cred.assert_called_with(client_id="hi", client_secret="yo", tenant_id="ten")
+        mock_create.assert_called_with(mock_cred.return_value, "sub")
+
+
+@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_conn")
+def test_backcompat_prefix_both_prefers_short(mock_connect):
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW_CONN_MY_CONN": "a://?resource_group_name=non-prefixed"
+            "&extra__azure_data_factory__resource_group_name=prefixed"
+        },
+    ):
+        hook = AzureDataFactoryHook("my_conn")
+        hook.delete_factory(factory_name="n/a")
+        mock_connect.return_value.factories.delete.assert_called_with("non-prefixed", "n/a")

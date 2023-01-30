@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import time
 import traceback
@@ -231,7 +233,7 @@ if __name__ == "__main__":
             },
         ):
             log = logging.getLogger(__name__)
-            processor = DagFileProcessor(dag_ids=[], log=log)
+            processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=log)
             dag_file = os.path.join(os.path.dirname(__file__), os.path.pardir, "dags", "elastic_dag.py")
             processor.process_file(file_path=dag_file, callback_requests=[])
 

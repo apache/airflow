@@ -14,72 +14,64 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import boto3
+from moto import mock_redshift
 
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 
-try:
-    from moto import mock_redshift
-except ImportError:
-    mock_redshift = None
 
-
-class TestRedshiftClusterSensor(unittest.TestCase):
+class TestRedshiftClusterSensor:
     @staticmethod
     def _create_cluster():
-        client = boto3.client('redshift', region_name='us-east-1')
+        client = boto3.client("redshift", region_name="us-east-1")
         client.create_cluster(
-            ClusterIdentifier='test_cluster',
-            NodeType='dc1.large',
-            MasterUsername='admin',
-            MasterUserPassword='mock_password',
+            ClusterIdentifier="test_cluster",
+            NodeType="dc1.large",
+            MasterUsername="admin",
+            MasterUserPassword="mock_password",
         )
-        if not client.describe_clusters()['Clusters']:
-            raise ValueError('AWS not properly mocked')
+        if not client.describe_clusters()["Clusters"]:
+            raise ValueError("AWS not properly mocked")
 
-    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
     def test_poke(self):
         self._create_cluster()
         op = RedshiftClusterSensor(
-            task_id='test_cluster_sensor',
+            task_id="test_cluster_sensor",
             poke_interval=1,
             timeout=5,
-            aws_conn_id='aws_default',
-            cluster_identifier='test_cluster',
-            target_status='available',
+            aws_conn_id="aws_default",
+            cluster_identifier="test_cluster",
+            target_status="available",
         )
         assert op.poke({})
 
-    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
     def test_poke_false(self):
         self._create_cluster()
         op = RedshiftClusterSensor(
-            task_id='test_cluster_sensor',
+            task_id="test_cluster_sensor",
             poke_interval=1,
             timeout=5,
-            aws_conn_id='aws_default',
-            cluster_identifier='test_cluster_not_found',
-            target_status='available',
+            aws_conn_id="aws_default",
+            cluster_identifier="test_cluster_not_found",
+            target_status="available",
         )
 
         assert not op.poke({})
 
-    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
     def test_poke_cluster_not_found(self):
         self._create_cluster()
         op = RedshiftClusterSensor(
-            task_id='test_cluster_sensor',
+            task_id="test_cluster_sensor",
             poke_interval=1,
             timeout=5,
-            aws_conn_id='aws_default',
-            cluster_identifier='test_cluster_not_found',
-            target_status='cluster_not_found',
+            aws_conn_id="aws_default",
+            cluster_identifier="test_cluster_not_found",
+            target_status="cluster_not_found",
         )
 
         assert op.poke({})

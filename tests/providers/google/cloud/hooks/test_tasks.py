@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -27,7 +28,7 @@ from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
-API_RESPONSE = {}  # type: Dict[Any, Any]
+API_RESPONSE: dict[Any, Any] = {}
 PROJECT_ID = "test-project"
 LOCATION = "asia-east2"
 FULL_LOCATION_PATH = "projects/test-project/locations/asia-east2"
@@ -54,7 +55,7 @@ class TestCloudTasksHook(unittest.TestCase):
         ):
             self.hook = CloudTasksHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksClient")
     def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
@@ -64,7 +65,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('create_queue', API_RESPONSE),
+        return_value=mock_patch_return_object("create_queue", API_RESPONSE),
     )
     def test_create_queue(self, get_conn):
         result = self.hook.create_queue(
@@ -85,7 +86,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('update_queue', API_RESPONSE),
+        return_value=mock_patch_return_object("update_queue", API_RESPONSE),
     )
     def test_update_queue(self, get_conn):
         result = self.hook.update_queue(
@@ -106,7 +107,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('get_queue', API_RESPONSE),
+        return_value=mock_patch_return_object("get_queue", API_RESPONSE),
     )
     def test_get_queue(self, get_conn):
         result = self.hook.get_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
@@ -119,7 +120,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('list_queues', [Queue(name=FULL_QUEUE_PATH)]),
+        return_value=mock_patch_return_object("list_queues", [Queue(name=FULL_QUEUE_PATH)]),
     )
     def test_list_queues(self, get_conn):
         result = self.hook.list_queues(location=LOCATION, project_id=PROJECT_ID)
@@ -135,7 +136,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('delete_queue', None),
+        return_value=mock_patch_return_object("delete_queue", None),
     )
     def test_delete_queue(self, get_conn):
         result = self.hook.delete_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
@@ -148,7 +149,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('purge_queue', Queue(name=FULL_QUEUE_PATH)),
+        return_value=mock_patch_return_object("purge_queue", Queue(name=FULL_QUEUE_PATH)),
     )
     def test_purge_queue(self, get_conn):
         result = self.hook.purge_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
@@ -161,7 +162,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('pause_queue', Queue(name=FULL_QUEUE_PATH)),
+        return_value=mock_patch_return_object("pause_queue", Queue(name=FULL_QUEUE_PATH)),
     )
     def test_pause_queue(self, get_conn):
         result = self.hook.pause_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
@@ -174,7 +175,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('resume_queue', Queue(name=FULL_QUEUE_PATH)),
+        return_value=mock_patch_return_object("resume_queue", Queue(name=FULL_QUEUE_PATH)),
     )
     def test_resume_queue(self, get_conn):
         result = self.hook.resume_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
@@ -187,7 +188,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('create_task', Task(name=FULL_TASK_PATH)),
+        return_value=mock_patch_return_object("create_task", Task(name=FULL_TASK_PATH)),
     )
     def test_create_task(self, get_conn):
         result = self.hook.create_task(
@@ -209,7 +210,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('get_task', Task(name=FULL_TASK_PATH)),
+        return_value=mock_patch_return_object("get_task", Task(name=FULL_TASK_PATH)),
     )
     def test_get_task(self, get_conn):
         result = self.hook.get_task(
@@ -230,7 +231,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('list_tasks', [Task(name=FULL_TASK_PATH)]),
+        return_value=mock_patch_return_object("list_tasks", [Task(name=FULL_TASK_PATH)]),
     )
     def test_list_tasks(self, get_conn):
         result = self.hook.list_tasks(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
@@ -246,7 +247,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('delete_task', None),
+        return_value=mock_patch_return_object("delete_task", None),
     )
     def test_delete_task(self, get_conn):
         result = self.hook.delete_task(
@@ -264,7 +265,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object('run_task', Task(name=FULL_TASK_PATH)),
+        return_value=mock_patch_return_object("run_task", Task(name=FULL_TASK_PATH)),
     )
     def test_run_task(self, get_conn):
         result = self.hook.run_task(

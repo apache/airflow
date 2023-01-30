@@ -31,7 +31,7 @@ For more information about the available fields to pass when creating a task, vi
 
 A simple task configuration can look as followed:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataplex.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 0
     :start-after: [START howto_dataplex_configuration]
@@ -40,13 +40,13 @@ A simple task configuration can look as followed:
 With this configuration we can create the task both synchronously & asynchronously:
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateTaskOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataplex.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_create_task_operator]
     :end-before: [END howto_dataplex_create_task_operator]
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataplex.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_async_create_task_operator]
@@ -59,7 +59,7 @@ To delete a task you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteTaskOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataplex.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_delete_task_operator]
@@ -72,7 +72,7 @@ To list tasks you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexListTasksOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataplex.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_list_tasks_operator]
@@ -85,7 +85,7 @@ To get a task you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetTaskOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataplex.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_get_task_operator]
@@ -98,8 +98,47 @@ To wait for a task created asynchronously you can use:
 
 :class:`~airflow.providers.google.cloud.sensors.dataplex.DataplexTaskStateSensor`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataplex.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_task_state_sensor]
     :end-before: [END howto_dataplex_task_state_sensor]
+
+Create a Lake
+-------------
+
+Before you create a dataplex lake you need to define its body.
+
+For more information about the available fields to pass when creating a lake, visit `Dataplex create lake API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes#Lake>`__
+
+A simple task configuration can look as followed:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_lake_configuration]
+    :end-before: [END howto_dataplex_lake_configuration]
+
+With this configuration we can create the lake:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateLakeOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_create_lake_operator]
+    :end-before: [END howto_dataplex_create_lake_operator]
+
+
+Delete a lake
+-------------
+
+To delete a lake you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteLakeOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_delete_lake_operator]
+    :end-before: [END howto_dataplex_delete_lake_operator]

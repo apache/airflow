@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable
 
 from datadog import api
 
@@ -42,25 +44,25 @@ class DatadogSensor(BaseSensorOperator):
     :param sources: A comma separated list indicating what tags, if any,
         should be used to filter the list of monitors by scope
     :param tags: Get datadog events from specific sources.
-    :param response_check: A check against the ‘requests’ response object. The callable takes
+    :param response_check: A check against the 'requests' response object. The callable takes
         the response object as the first positional argument and optionally any number of
         keyword arguments available in the context dictionary. It should return True for
-        ‘pass’ and False otherwise.
-    :param response_check: Optional[Callable[[Dict[str, Any]], bool]]
+        'pass' and False otherwise.
+    :param response_check: Callable[[dict[str, Any]], bool] | None
     """
 
-    ui_color = '#66c3dd'
+    ui_color = "#66c3dd"
 
     def __init__(
         self,
         *,
-        datadog_conn_id: str = 'datadog_default',
+        datadog_conn_id: str = "datadog_default",
         from_seconds_ago: int = 3600,
         up_to_seconds_from_now: int = 0,
-        priority: Optional[str] = None,
-        sources: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        response_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
+        priority: str | None = None,
+        sources: str | None = None,
+        tags: list[str] | None = None,
+        response_check: Callable[[dict[str, Any]], bool] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -72,7 +74,7 @@ class DatadogSensor(BaseSensorOperator):
         self.tags = tags
         self.response_check = response_check
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         # This instantiates the hook, but doesn't need it further,
         # because the API authenticates globally (unfortunately),
         # but for airflow this shouldn't matter too much, because each
@@ -87,7 +89,7 @@ class DatadogSensor(BaseSensorOperator):
             tags=self.tags,
         )
 
-        if isinstance(response, dict) and response.get('status', 'ok') != 'ok':
+        if isinstance(response, dict) and response.get("status", "ok") != "ok":
             self.log.error("Unexpected Datadog result: %s", response)
             raise AirflowException("Datadog returned unexpected result")
 

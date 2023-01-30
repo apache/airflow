@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 ### Tutorial Documentation
 Documentation that goes along with the Airflow tutorial located
 [here](https://airflow.apache.org/tutorial.html)
 """
+from __future__ import annotations
+
 # [START tutorial]
 # [START import_module]
 from datetime import datetime, timedelta
@@ -37,17 +38,17 @@ from airflow.operators.bash import BashOperator
 
 # [START instantiate_dag]
 with DAG(
-    'tutorial',
+    "tutorial",
     # [START default_args]
     # These args will get passed on to each operator
     # You can override them on a per-task basis during operator initialization
     default_args={
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
+        "depends_on_past": False,
+        "email": ["airflow@example.com"],
+        "email_on_failure": False,
+        "email_on_retry": False,
+        "retries": 1,
+        "retry_delay": timedelta(minutes=5),
         # 'queue': 'bash_queue',
         # 'pool': 'backfill',
         # 'priority_weight': 10,
@@ -62,25 +63,25 @@ with DAG(
         # 'trigger_rule': 'all_success'
     },
     # [END default_args]
-    description='A simple tutorial DAG',
-    schedule_interval=timedelta(days=1),
+    description="A simple tutorial DAG",
+    schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [END instantiate_dag]
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     # [START basic_task]
     t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
+        task_id="print_date",
+        bash_command="date",
     )
 
     t2 = BashOperator(
-        task_id='sleep',
+        task_id="sleep",
         depends_on_past=False,
-        bash_command='sleep 5',
+        bash_command="sleep 5",
         retries=3,
     )
     # [END basic_task]
@@ -93,11 +94,11 @@ with DAG(
     `doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
     rendered in the UI's Task Instance Details page.
     ![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
-
+    **Image Credit:** Randall Munroe, [XKCD](https://xkcd.com/license.html)
     """
     )
 
-    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG
+    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG; OR
     dag.doc_md = """
     This is a documentation placed anywhere
     """  # otherwise, type it like this
@@ -114,7 +115,7 @@ with DAG(
     )
 
     t3 = BashOperator(
-        task_id='templated',
+        task_id="templated",
         depends_on_past=False,
         bash_command=templated_command,
     )

@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import io
 import json
 import textwrap
-import unittest
 from contextlib import redirect_stdout
 
 from airflow.cli import cli_parser
@@ -39,63 +39,63 @@ class TestPlugin(AirflowPlugin):
     hooks = [PluginHook]
 
 
-class TestPluginsCommand(unittest.TestCase):
+class TestPluginsCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
     @mock_plugin_manager(plugins=[])
     def test_should_display_no_plugins(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(['plugins', '--output=json']))
+            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
             stdout = temp_stdout.getvalue()
-        assert 'No plugins loaded' in stdout
+        assert "No plugins loaded" in stdout
 
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
     def test_should_display_one_plugins(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(['plugins', '--output=json']))
+            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
             stdout = temp_stdout.getvalue()
         print(stdout)
         info = json.loads(stdout)
         assert info == [
             {
-                'name': 'test_plugin',
-                'macros': ['tests.plugins.test_plugin.plugin_macro'],
-                'executors': ['tests.plugins.test_plugin.PluginExecutor'],
-                'flask_blueprints': [
+                "name": "test_plugin",
+                "macros": ["tests.plugins.test_plugin.plugin_macro"],
+                "executors": ["tests.plugins.test_plugin.PluginExecutor"],
+                "flask_blueprints": [
                     "<flask.blueprints.Blueprint: name='test_plugin' import_name='tests.plugins.test_plugin'>"
                 ],
-                'appbuilder_views': [
+                "appbuilder_views": [
                     {
-                        'name': 'Test View',
-                        'category': 'Test Plugin',
-                        'view': 'tests.plugins.test_plugin.PluginTestAppBuilderBaseView',
+                        "name": "Test View",
+                        "category": "Test Plugin",
+                        "view": "tests.plugins.test_plugin.PluginTestAppBuilderBaseView",
                     }
                 ],
-                'global_operator_extra_links': [
-                    '<tests.test_utils.mock_operators.AirflowLink object>',
-                    '<tests.test_utils.mock_operators.GithubLink object>',
+                "global_operator_extra_links": [
+                    "<tests.test_utils.mock_operators.AirflowLink object>",
+                    "<tests.test_utils.mock_operators.GithubLink object>",
                 ],
-                'timetables': ['tests.plugins.test_plugin.CustomCronDataIntervalTimetable'],
-                'operator_extra_links': [
-                    '<tests.test_utils.mock_operators.GoogleLink object>',
-                    '<tests.test_utils.mock_operators.AirflowLink2 object>',
-                    '<tests.test_utils.mock_operators.CustomOpLink object>',
-                    '<tests.test_utils.mock_operators.CustomBaseIndexOpLink object>',
+                "timetables": ["tests.plugins.test_plugin.CustomCronDataIntervalTimetable"],
+                "operator_extra_links": [
+                    "<tests.test_utils.mock_operators.GoogleLink object>",
+                    "<tests.test_utils.mock_operators.AirflowLink2 object>",
+                    "<tests.test_utils.mock_operators.CustomOpLink object>",
+                    "<tests.test_utils.mock_operators.CustomBaseIndexOpLink object>",
                 ],
-                'hooks': ['tests.plugins.test_plugin.PluginHook'],
-                'listeners': ['tests.listeners.empty_listener'],
-                'source': None,
-                'appbuilder_menu_items': [
-                    {'name': 'Google', 'href': 'https://www.google.com', 'category': 'Search'},
+                "hooks": ["tests.plugins.test_plugin.PluginHook"],
+                "listeners": ["tests.listeners.empty_listener"],
+                "source": None,
+                "appbuilder_menu_items": [
+                    {"name": "Google", "href": "https://www.google.com", "category": "Search"},
                     {
-                        'name': 'apache',
-                        'href': 'https://www.apache.org/',
-                        'label': 'The Apache Software Foundation',
+                        "name": "apache",
+                        "href": "https://www.apache.org/",
+                        "label": "The Apache Software Foundation",
                     },
                 ],
-                'ti_deps': ['<TIDep(CustomTestTriggerRule)>'],
+                "ti_deps": ["<TIDep(CustomTestTriggerRule)>"],
             }
         ]
         get_listener_manager().clear()
@@ -104,7 +104,7 @@ class TestPluginsCommand(unittest.TestCase):
     def test_should_display_one_plugins_as_table(self):
 
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(['plugins', '--output=table']))
+            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=table"]))
             stdout = temp_stdout.getvalue()
 
         # Remove leading spaces
@@ -117,4 +117,4 @@ class TestPluginsCommand(unittest.TestCase):
             test-plugin-cli | tests.cli.commands.test_plugins_command.PluginHook
             """
         )
-        self.assertEqual(stdout, expected_output)
+        assert stdout == expected_output

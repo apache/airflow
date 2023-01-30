@@ -1,6 +1,7 @@
 amazon
 celery
 cncf.kubernetes
+common.sql
 docker
 elasticsearch
 ftp

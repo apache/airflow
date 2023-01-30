@@ -35,7 +35,12 @@ if command -v aws; then
     exit 1
 fi
 
-DOWNLOAD_URL="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+HOST=$(uname -m)
+if [[ ${HOST} == "arm64" || ${HOST} == "aarch64" ]]; then
+    DOWNLOAD_URL="https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
+else
+    DOWNLOAD_URL="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+fi
 
 if [[ -e ${INSTALL_DIR} ]]; then
     echo "The install directory (${INSTALL_DIR}) already exists. This may mean AWS CLI is already installed."

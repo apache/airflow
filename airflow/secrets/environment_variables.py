@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from environment variables"""
+from __future__ import annotations
 
 import os
 import warnings
-from typing import Optional
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
@@ -30,7 +31,7 @@ VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id
         :param conn_id: the connection id
@@ -39,15 +40,15 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_conn_value`.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_conn_value(conn_id)
 
-    def get_conn_value(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> str | None:
         return os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
 
-    def get_variable(self, key: str) -> Optional[str]:
+    def get_variable(self, key: str) -> str | None:
         """
         Get Airflow Variable from Environment Variable
 

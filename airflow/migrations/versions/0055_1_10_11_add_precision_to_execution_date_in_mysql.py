@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add Precision to ``execution_date`` in ``RenderedTaskInstanceFields`` table
 
 Revision ID: a66efa278eea
@@ -23,19 +22,20 @@ Revises: 952da73b5eff
 Create Date: 2020-06-16 21:44:02.883132
 
 """
+from __future__ import annotations
 
 from alembic import op
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = 'a66efa278eea'
-down_revision = '952da73b5eff'
+revision = "a66efa278eea"
+down_revision = "952da73b5eff"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.11'
+airflow_version = "1.10.11"
 
-TABLE_NAME = 'rendered_task_instance_fields'
-COLUMN_NAME = 'execution_date'
+TABLE_NAME = "rendered_task_instance_fields"
+COLUMN_NAME = "execution_date"
 
 
 def upgrade():

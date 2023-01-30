@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+from __future__ import annotations
+
 from unittest import mock
 
 from airflow.task.task_runner.cgroup_task_runner import CgroupTaskRunner
 
 
-class TestCgroupTaskRunner(unittest.TestCase):
+class TestCgroupTaskRunner:
     @mock.patch("airflow.task.task_runner.base_task_runner.BaseTaskRunner.__init__")
     @mock.patch("airflow.task.task_runner.base_task_runner.BaseTaskRunner.on_finish")
     def test_cgroup_task_runner_super_calls(self, mock_super_on_finish, mock_super_init):
@@ -34,7 +35,7 @@ class TestCgroupTaskRunner(unittest.TestCase):
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
+        local_task_job.task_instance.command_as_list.return_value = ["sleep", "1000"]
 
         runner = CgroupTaskRunner(local_task_job)
         assert mock_super_init.called

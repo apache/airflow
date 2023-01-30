@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 if [ ! -e /usr/local/bin/stop_airflow ]; then
     ln -s "/opt/airflow/scripts/in_container/stop_tmux_airflow.sh" /usr/local/bin/stop_airflow || true
 fi
@@ -59,8 +58,11 @@ tmux send-keys 'airflow scheduler' C-m
 
 tmux split-window -h
 tmux select-pane -t 2
-tmux send-keys 'airflow webserver' C-m
-
+if [[ ${DEV_MODE=} == "true" ]]; then
+    tmux send-keys 'airflow webserver -d' C-m
+else
+    tmux send-keys 'airflow webserver' C-m
+fi
 if python -c 'import sys; sys.exit(sys.version_info < (3, 7))'; then
     tmux select-pane -t 0
     tmux split-window -h

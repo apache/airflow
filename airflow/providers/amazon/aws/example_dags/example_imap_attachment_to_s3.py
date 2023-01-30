@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This is an example dag for using `ImapAttachmentToS3Operator` to transfer an email attachment via IMAP
 protocol from a mail server to S3 Bucket.
 """
+from __future__ import annotations
 
 from datetime import datetime
 from os import getenv
@@ -35,13 +35,12 @@ S3_KEY = getenv("S3_KEY", "key")
 with DAG(
     dag_id="example_imap_attachment_to_s3",
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_transfer_imap_attachment_to_s3]
     task_transfer_imap_attachment_to_s3 = ImapAttachmentToS3Operator(
-        task_id='transfer_imap_attachment_to_s3',
+        task_id="transfer_imap_attachment_to_s3",
         imap_attachment_name=IMAP_ATTACHMENT_NAME,
         s3_bucket=S3_BUCKET,
         s3_key=S3_KEY,

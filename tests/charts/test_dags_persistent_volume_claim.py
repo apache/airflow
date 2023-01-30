@@ -14,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class DagsPersistentVolumeClaimTest(unittest.TestCase):
+class TestDagsPersistentVolumeClaim:
     def test_should_not_generate_a_document_if_persistence_is_disabled(self):
         docs = render_chart(
             values={"dags": {"persistence": {"enabled": False}}},

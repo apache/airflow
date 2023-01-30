@@ -22,7 +22,7 @@ Sidecar Containers
 ------------------
 
 If you want to deploy your own sidecar container, you can add it through the ``extraContainers`` parameter.
-You can define different containers for the scheduler, webserver, worker, triggerer, flower, create user Job and migrate database Job Pods.
+You can define different containers for the scheduler, webserver, worker, triggerer, DAG processor, flower, create user Job and migrate database Job Pods.
 
 For example, sidecars that sync DAGs from object storage.
 
@@ -49,7 +49,7 @@ Init Containers
 ---------------
 
 You can also deploy extra init containers through the ``extraInitContainers`` parameter.
-You can define different containers for the scheduler, webserver, worker and triggerer pods.
+You can define different containers for the scheduler, webserver, worker, triggerer and DAG processor pods.
 
 For example, an init container that just says hello:
 

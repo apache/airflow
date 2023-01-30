@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
 
@@ -42,7 +43,7 @@ def _provider_mapper(provider: ProviderInfo) -> Provider:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER)])
 def get_providers() -> APIResponse:
-    """Get providers"""
+    """Get providers."""
     providers = [_provider_mapper(d) for d in ProvidersManager().providers.values()]
     total_entries = len(providers)
     return provider_collection_schema.dump(

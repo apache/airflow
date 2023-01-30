@@ -37,4 +37,4 @@ Prerequisite Tasks
 
 Using the operators
 ^^^^^^^^^^^^^^^^^^^^^
-See the usage examples in `example DAGs <https://github.com/apache/airflow/blob/main/tests/system/providers/yandex/example_yandexcloud_dataproc.py>`_
+See the usage examples in `example DAGs <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_dataproc.py>`_

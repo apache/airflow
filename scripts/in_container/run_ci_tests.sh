@@ -23,9 +23,13 @@ echo "Starting the tests with those pytest arguments:" "${@}"
 echo
 set +e
 
-pytest "${@}"
-
+pytest "${@}" | python "$( dirname "${BASH_SOURCE[0]}" )/filter_out_warnings.py"
 RES=$?
+
+if [[ -f ${WARNINGS_FILE} ]]; then
+    echo "Number of warnings: $(wc -l "${WARNINGS_FILE}")"
+fi
+
 
 if [[ ${RES} == "139" ]]; then
     echo "${COLOR_YELLOW}Sometimes Pytest fails at exiting with segfault, but all tests actually passed${COLOR_RESET}"

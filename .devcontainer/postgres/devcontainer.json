@@ -1,11 +1,13 @@
 {
     "name": "Apache Airflow - postgres",
     "dockerComposeFile": [
-        "../scripts/ci/docker-compose/devcontainer.yml",
-        "../scripts/ci/docker-compose/local.yml",
-        "../scripts/ci/docker-compose/backend-postgres.yml",
-        "../scripts/ci/docker-compose/devcontainer-postgres.yml"
+        "../../scripts/ci/docker-compose/devcontainer.yml",
+        "../../scripts/ci/docker-compose/backend-postgres.yml",
+        "../../scripts/ci/docker-compose/devcontainer-postgres.yml"
     ],
+    "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+    },
     "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",

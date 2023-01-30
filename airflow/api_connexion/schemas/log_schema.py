@@ -14,23 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import NamedTuple, Optional
+from __future__ import annotations
+
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 
 
 class LogsSchema(Schema):
-    """Schema for logs"""
+    """Schema for logs."""
 
     content = fields.Str()
     continuation_token = fields.Str()
 
 
 class LogResponseObject(NamedTuple):
-    """Log Response Object"""
+    """Log Response Object."""
 
     content: str
-    continuation_token: Optional[str]
+    continuation_token: str | None
 
 
 logs_schema = LogsSchema()

@@ -38,3 +38,7 @@ if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
         source "${INIT_SCRIPT_FILE}"
         popd >/dev/null 2>&1 || exit 1
 fi
+
+if [[ "${BREEZE_INIT_COMMAND=}" != "" ]]; then
+    eval "${BREEZE_INIT_COMMAND}"
+fi

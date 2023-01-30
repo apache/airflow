@@ -39,6 +39,7 @@ Committers
 - Aizhamal Nurmamat kyzy (@aijamalnk)
 - Alex Guziel (@saguziel)
 - Alex Van Boxel (@alexvanboxel)
+- Andrey Anshin (@taragolis)
 - Aneesh Joseph (@aneesh-joseph)
 - Arthur Wiedmer (@artwr)
 - Ash Berlin-Taylor (@ashb)
@@ -60,6 +61,7 @@ Committers
 - Jarek Potiuk (@potiuk)
 - Jed Cunningham (@jedcunningham)
 - Jiajie Zhong (@zhongjiajie)
+- Josh Fell (@josh-fell)
 - Joshua Carp (@jmcarp)
 - Joy Gao (@joygao)
 - Kamil Breguła (@mik-laj)
@@ -67,7 +69,12 @@ Committers
 - Kengo Seki (@sekikn)
 - Kevin Yang (@KevinYang21)
 - Leah Cole (@leahecole)
+- Malthe Borch (@malthe)
 - Maxime "Max" Beauchemin (@mistercrunch)
+- Niko Oliveira (@o-nikolas)
+- Patrick Leo Tardif (@pltardif)
+- Pierre Jeambrun (@pierrejeambrun)
+- Ping Zhang (@pingzh)
 - Qian Yu (@yuqian90)
 - Qingping Hou (@houqp)
 - Ry Walker (@ryw)
@@ -98,4 +105,4 @@ Resources & links
 
 * `Issues on GitHub <https://github.com/apache/airflow/issues>`_
 * `Slack (chat) Channel <https://s.apache.org/airflow-slack>`_
-* `Airflow Improvement Proposals <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals>`_
+* `Airflow Improvement Proposals <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals>`_

@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Cloud Transfer operators."""
+from __future__ import annotations
+
 from copy import deepcopy
 from datetime import date, time
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -54,6 +55,11 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
     GcpTransferJobsStatus,
 )
+from airflow.providers.google.cloud.links.cloud_storage_transfer import (
+    CloudStorageTransferDetailsLink,
+    CloudStorageTransferJobLink,
+    CloudStorageTransferListLink,
+)
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 
 if TYPE_CHECKING:
@@ -63,7 +69,7 @@ if TYPE_CHECKING:
 class TransferJobPreprocessor:
     """Helper class for preprocess of transfer job body."""
 
-    def __init__(self, body: dict, aws_conn_id: str = 'aws_default', default_schedule: bool = False) -> None:
+    def __init__(self, body: dict, aws_conn_id: str = "aws_default", default_schedule: bool = False) -> None:
         self.body = body
         self.aws_conn_id = aws_conn_id
         self.default_schedule = default_schedule
@@ -109,7 +115,6 @@ class TransferJobPreprocessor:
         reformats schedule information.
 
         :return: Preprocessed body
-        :rtype: dict
         """
         self._inject_aws_credentials()
         self._reformat_schedule()
@@ -211,21 +216,23 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
 
     # [START gcp_transfer_job_create_template_fields]
     template_fields: Sequence[str] = (
-        'body',
-        'gcp_conn_id',
-        'aws_conn_id',
-        'google_impersonation_chain',
+        "body",
+        "gcp_conn_id",
+        "aws_conn_id",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_job_create_template_fields]
+    operator_extra_links = (CloudStorageTransferJobLink(),)
 
     def __init__(
         self,
         *,
         body: dict,
-        aws_conn_id: str = 'aws_default',
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        aws_conn_id: str = "aws_default",
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        project_id: str | None = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -233,20 +240,32 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
+        self.project_id = project_id
         self.google_impersonation_chain = google_impersonation_chain
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:
         TransferJobValidator(body=self.body).validate_body()
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-        return hook.create_transfer_job(body=self.body)
+        result = hook.create_transfer_job(body=self.body)
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudStorageTransferJobLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=result[NAME],
+            )
+
+        return result
 
 
 class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
@@ -283,28 +302,31 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
 
     # [START gcp_transfer_job_update_template_fields]
     template_fields: Sequence[str] = (
-        'job_name',
-        'body',
-        'gcp_conn_id',
-        'aws_conn_id',
-        'google_impersonation_chain',
+        "job_name",
+        "body",
+        "gcp_conn_id",
+        "aws_conn_id",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_job_update_template_fields]
+    operator_extra_links = (CloudStorageTransferJobLink(),)
 
     def __init__(
         self,
         *,
         job_name: str,
         body: dict,
-        aws_conn_id: str = 'aws_default',
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        aws_conn_id: str = "aws_default",
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        project_id: str | None = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.job_name = job_name
         self.body = body
+        self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.aws_conn_id = aws_conn_id
@@ -316,13 +338,23 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
         if not self.job_name:
             raise AirflowException("The required parameter 'job_name' is empty or None")
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudStorageTransferJobLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.job_name,
+            )
+
         return hook.update_transfer_job(job_name=self.job_name, body=self.body)
 
 
@@ -355,11 +387,11 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
 
     # [START gcp_transfer_job_delete_template_fields]
     template_fields: Sequence[str] = (
-        'job_name',
-        'project_id',
-        'gcp_conn_id',
-        'api_version',
-        'google_impersonation_chain',
+        "job_name",
+        "project_id",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_job_delete_template_fields]
 
@@ -369,8 +401,8 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        project_id: Optional[str] = None,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -385,7 +417,7 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
         if not self.job_name:
             raise AirflowException("The required parameter 'job_name' is empty or None")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self._validate_inputs()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
@@ -420,23 +452,26 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
 
     # [START gcp_transfer_operation_get_template_fields]
     template_fields: Sequence[str] = (
-        'operation_name',
-        'gcp_conn_id',
-        'google_impersonation_chain',
+        "operation_name",
+        "gcp_conn_id",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operation_get_template_fields]
+    operator_extra_links = (CloudStorageTransferDetailsLink(),)
 
     def __init__(
         self,
         *,
+        project_id: str | None = None,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.operation_name = operation_name
+        self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
@@ -446,13 +481,23 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
         if not self.operation_name:
             raise AirflowException("The required parameter 'operation_name' is empty or None")
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
         operation = hook.get_transfer_operation(operation_name=self.operation_name)
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudStorageTransferDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                operation_name=self.operation_name,
+            )
+
         return operation
 
 
@@ -482,31 +527,34 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
 
     # [START gcp_transfer_operations_list_template_fields]
     template_fields: Sequence[str] = (
-        'filter',
-        'gcp_conn_id',
-        'google_impersonation_chain',
+        "filter",
+        "gcp_conn_id",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operations_list_template_fields]
+    operator_extra_links = (CloudStorageTransferListLink(),)
 
     def __init__(
         self,
-        request_filter: Optional[Dict] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        request_filter: dict | None = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if request_filter is None:
-            if 'filter' in kwargs:
-                request_filter = kwargs['filter']
+            if "filter" in kwargs:
+                request_filter = kwargs["filter"]
                 DeprecationWarning("Use 'request_filter' instead 'filter' to pass the argument.")
             else:
                 TypeError("__init__() missing 1 required positional argument: 'request_filter'")
 
         super().__init__(**kwargs)
         self.filter = request_filter
+        self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
@@ -516,7 +564,7 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
         if not self.filter:
             raise AirflowException("The required parameter 'filter' is empty or None")
 
-    def execute(self, context: 'Context') -> List[dict]:
+    def execute(self, context: Context) -> list[dict]:
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -524,6 +572,15 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
         )
         operations_list = hook.list_transfer_operations(request_filter=self.filter)
         self.log.info(operations_list)
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudStorageTransferListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
+
         return operations_list
 
 
@@ -550,10 +607,10 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
 
     # [START gcp_transfer_operation_pause_template_fields]
     template_fields: Sequence[str] = (
-        'operation_name',
-        'gcp_conn_id',
-        'api_version',
-        'google_impersonation_chain',
+        "operation_name",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operation_pause_template_fields]
 
@@ -563,7 +620,7 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -577,7 +634,7 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
         if not self.operation_name:
             raise AirflowException("The required parameter 'operation_name' is empty or None")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -609,10 +666,10 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
 
     # [START gcp_transfer_operation_resume_template_fields]
     template_fields: Sequence[str] = (
-        'operation_name',
-        'gcp_conn_id',
-        'api_version',
-        'google_impersonation_chain',
+        "operation_name",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operation_resume_template_fields]
 
@@ -622,7 +679,7 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.operation_name = operation_name
@@ -636,7 +693,7 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
         if not self.operation_name:
             raise AirflowException("The required parameter 'operation_name' is empty or None")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -669,10 +726,10 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
 
     # [START gcp_transfer_operation_cancel_template_fields]
     template_fields: Sequence[str] = (
-        'operation_name',
-        'gcp_conn_id',
-        'api_version',
-        'google_impersonation_chain',
+        "operation_name",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
     )
     # [END gcp_transfer_operation_cancel_template_fields]
 
@@ -682,7 +739,7 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -696,7 +753,7 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
         if not self.operation_name:
             raise AirflowException("The required parameter 'operation_name' is empty or None")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -770,35 +827,35 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'gcp_conn_id',
-        's3_bucket',
-        'gcs_bucket',
-        's3_path',
-        'gcs_path',
-        'description',
-        'object_conditions',
-        'google_impersonation_chain',
+        "gcp_conn_id",
+        "s3_bucket",
+        "gcs_bucket",
+        "s3_path",
+        "gcs_path",
+        "description",
+        "object_conditions",
+        "google_impersonation_chain",
     )
-    ui_color = '#e09411'
+    ui_color = "#e09411"
 
     def __init__(
         self,
         *,
         s3_bucket: str,
         gcs_bucket: str,
-        s3_path: Optional[str] = None,
-        gcs_path: Optional[str] = None,
-        project_id: Optional[str] = None,
-        aws_conn_id: str = 'aws_default',
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        description: Optional[str] = None,
-        schedule: Optional[Dict] = None,
-        object_conditions: Optional[Dict] = None,
-        transfer_options: Optional[Dict] = None,
+        s3_path: str | None = None,
+        gcs_path: str | None = None,
+        project_id: str | None = None,
+        aws_conn_id: str = "aws_default",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        description: str | None = None,
+        schedule: dict | None = None,
+        object_conditions: dict | None = None,
+        transfer_options: dict | None = None,
         wait: bool = True,
-        timeout: Optional[float] = None,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        timeout: float | None = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
@@ -826,7 +883,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         if self.delete_job_after_completion and not self.wait:
             raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -942,34 +999,34 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'gcp_conn_id',
-        'source_bucket',
-        'destination_bucket',
-        'source_path',
-        'destination_path',
-        'description',
-        'object_conditions',
-        'google_impersonation_chain',
+        "gcp_conn_id",
+        "source_bucket",
+        "destination_bucket",
+        "source_path",
+        "destination_path",
+        "description",
+        "object_conditions",
+        "google_impersonation_chain",
     )
-    ui_color = '#e09411'
+    ui_color = "#e09411"
 
     def __init__(
         self,
         *,
         source_bucket: str,
         destination_bucket: str,
-        source_path: Optional[str] = None,
-        destination_path: Optional[str] = None,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        description: Optional[str] = None,
-        schedule: Optional[Dict] = None,
-        object_conditions: Optional[Dict] = None,
-        transfer_options: Optional[Dict] = None,
+        source_path: str | None = None,
+        destination_path: str | None = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        description: str | None = None,
+        schedule: dict | None = None,
+        object_conditions: dict | None = None,
+        transfer_options: dict | None = None,
         wait: bool = True,
-        timeout: Optional[float] = None,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        timeout: float | None = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
@@ -996,7 +1053,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         if self.delete_job_after_completion and not self.wait:
             raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

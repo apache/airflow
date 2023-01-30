@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -38,7 +40,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
     Glacier sensor for checking job state. This operator runs only in reschedule mode.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:GlacierJobOperationSensor`
 
     :param aws_conn_id: The reference to the AWS connection details
@@ -65,7 +67,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         vault_name: str,
         job_id: str,
         poke_interval: int = 60 * 20,
@@ -79,7 +81,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
         self.poke_interval = poke_interval
         self.mode = mode
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         response = hook.describe_job(vault_name=self.vault_name, job_id=self.job_id)
 

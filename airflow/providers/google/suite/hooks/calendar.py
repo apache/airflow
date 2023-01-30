@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Calendar API hook"""
+from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from googleapiclient.discovery import build
 
@@ -51,9 +51,9 @@ class GoogleCalendarHook(GoogleBaseHook):
     def __init__(
         self,
         api_version: str,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -70,32 +70,31 @@ class GoogleCalendarHook(GoogleBaseHook):
         Retrieves connection to Google Calendar.
 
         :return: Google Calendar services object.
-        :rtype: Any
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build('calendar', self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build("calendar", self.api_version, http=http_authorized, cache_discovery=False)
 
         return self._conn
 
     def get_events(
         self,
-        calendar_id: str = 'primary',
-        i_cal_uid: Optional[str] = None,
-        max_attendees: Optional[int] = None,
-        max_results: Optional[int] = None,
-        order_by: Optional[str] = None,
-        private_extended_property: Optional[str] = None,
-        q: Optional[str] = None,
-        shared_extended_property: Optional[str] = None,
-        show_deleted: Optional[bool] = False,
-        show_hidden_invitation: Optional[bool] = False,
-        single_events: Optional[bool] = False,
-        sync_token: Optional[str] = None,
-        time_max: Optional[datetime] = None,
-        time_min: Optional[datetime] = None,
-        time_zone: Optional[str] = None,
-        updated_min: Optional[datetime] = None,
+        calendar_id: str = "primary",
+        i_cal_uid: str | None = None,
+        max_attendees: int | None = None,
+        max_results: int | None = None,
+        order_by: str | None = None,
+        private_extended_property: str | None = None,
+        q: str | None = None,
+        shared_extended_property: str | None = None,
+        show_deleted: bool | None = False,
+        show_hidden_invitation: bool | None = False,
+        single_events: bool | None = False,
+        sync_token: str | None = None,
+        time_max: datetime | None = None,
+        time_min: datetime | None = None,
+        time_zone: str | None = None,
+        updated_min: datetime | None = None,
     ) -> list:
         """
         Gets events from Google Calendar from a single calendar_id
@@ -126,7 +125,6 @@ class GoogleCalendarHook(GoogleBaseHook):
             Default is no filter
         :param time_zone: Optional. Time zone used in response. Default is calendars time zone.
         :param updated_min: Optional. Lower bound for an event's last modification time
-        :rtype: List
         """
         service = self.get_conn()
         page_token = None
@@ -163,13 +161,13 @@ class GoogleCalendarHook(GoogleBaseHook):
 
     def create_event(
         self,
-        event: Dict[str, Any],
-        calendar_id: str = 'primary',
-        conference_data_version: Optional[int] = 0,
-        max_attendees: Optional[int] = None,
-        send_notifications: Optional[bool] = False,
-        send_updates: Optional[str] = 'false',
-        supports_attachments: Optional[bool] = False,
+        event: dict[str, Any],
+        calendar_id: str = "primary",
+        conference_data_version: int | None = 0,
+        max_attendees: int | None = None,
+        send_notifications: bool | None = False,
+        send_updates: str | None = "false",
+        supports_attachments: bool | None = False,
     ) -> dict:
         """
         Create event on the specified calendar
@@ -184,7 +182,6 @@ class GoogleCalendarHook(GoogleBaseHook):
         :param send_updates: Optional. Default is "false". Acceptable values as "all", "none",
             ``"externalOnly"``
             https://developers.google.com/calendar/api/v3/reference/events#resource
-        :rtype: Dict
         """
         if "start" not in event or "end" not in event:
             raise AirflowException(

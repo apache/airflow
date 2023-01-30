@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -33,6 +33,7 @@ AWS_ACCESS_KEY_ID = "airflow_dummy_key"
 AWS_SECRET_ACCESS_KEY = "airflow_dummy_secret"
 
 JOB_ID = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
+LOG_STREAM_NAME = "test/stream/d56a66bb98a14c4593defa1548686edf"
 
 
 class TestBatchClient(unittest.TestCase):
@@ -49,9 +50,12 @@ class TestBatchClient(unittest.TestCase):
         self.batch_client = BatchClientHook(
             max_retries=self.MAX_RETRIES,
             status_retries=self.STATUS_RETRIES,
-            aws_conn_id='airflow_test',
+            aws_conn_id="airflow_test",
             region_name=AWS_REGION,
         )
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.batch_client.get_connection = lambda _: None
         self.client_mock = get_client_type_mock.return_value
         assert self.batch_client.client == self.client_mock  # setup client property
 
@@ -65,7 +69,7 @@ class TestBatchClient(unittest.TestCase):
         assert self.batch_client.max_retries == self.MAX_RETRIES
         assert self.batch_client.status_retries == self.STATUS_RETRIES
         assert self.batch_client.region_name == AWS_REGION
-        assert self.batch_client.aws_conn_id == 'airflow_test'
+        assert self.batch_client.aws_conn_id == "airflow_test"
         assert self.batch_client.client == self.client_mock
 
         self.get_client_type_mock.assert_called_once_with(region_name=AWS_REGION)
@@ -229,19 +233,92 @@ class TestBatchClient(unittest.TestCase):
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason=reason)
         assert response == {}
 
+    def test_job_awslogs_default(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "container": {"logStreamName": LOG_STREAM_NAME},
+                }
+            ]
+        }
+        self.client_mock.meta.client.meta.region_name = AWS_REGION
+
+        awslogs = self.batch_client.get_job_awslogs_info(JOB_ID)
+        assert awslogs["awslogs_stream_name"] == LOG_STREAM_NAME
+        assert awslogs["awslogs_group"] == "/aws/batch/job"
+        assert awslogs["awslogs_region"] == AWS_REGION
+
+    def test_job_awslogs_user_defined(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "container": {
+                        "logStreamName": LOG_STREAM_NAME,
+                        "logConfiguration": {
+                            "logDriver": "awslogs",
+                            "options": {
+                                "awslogs-group": "/test/batch/job",
+                                "awslogs-region": "ap-southeast-2",
+                            },
+                        },
+                    },
+                }
+            ]
+        }
+        awslogs = self.batch_client.get_job_awslogs_info(JOB_ID)
+        assert awslogs["awslogs_stream_name"] == LOG_STREAM_NAME
+        assert awslogs["awslogs_group"] == "/test/batch/job"
+        assert awslogs["awslogs_region"] == "ap-southeast-2"
+
+    def test_job_no_awslogs_stream(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "container": {},
+                }
+            ]
+        }
+        with self.assertLogs(level="WARNING") as capture_logs:
+            assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
+            assert len(capture_logs.records) == 1
+
+    def test_job_splunk_logs(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "logStreamName": LOG_STREAM_NAME,
+                    "container": {
+                        "logConfiguration": {
+                            "logDriver": "splunk",
+                        }
+                    },
+                }
+            ]
+        }
+        with self.assertLogs(level="WARNING") as capture_logs:
+            assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
+            assert len(capture_logs.records) == 1
+
 
 class TestBatchClientDelays(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     def setUp(self):
-        self.batch_client = BatchClientHook(aws_conn_id='airflow_test', region_name=AWS_REGION)
+        self.batch_client = BatchClientHook(aws_conn_id="airflow_test", region_name=AWS_REGION)
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.batch_client.get_connection = lambda _: None
 
     def test_init(self):
         assert self.batch_client.max_retries == self.batch_client.MAX_RETRIES
         assert self.batch_client.status_retries == self.batch_client.STATUS_RETRIES
         assert self.batch_client.region_name == AWS_REGION
-        assert self.batch_client.aws_conn_id == 'airflow_test'
+        assert self.batch_client.aws_conn_id == "airflow_test"
 
     def test_add_jitter(self):
         minima = 0

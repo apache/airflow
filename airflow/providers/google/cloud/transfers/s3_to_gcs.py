@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -25,7 +27,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gc
 try:
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
 except ImportError:
-    from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
+    from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -94,28 +96,28 @@ class S3ToGCSOperator(S3ListOperator):
     """
 
     template_fields: Sequence[str] = (
-        'bucket',
-        'prefix',
-        'delimiter',
-        'dest_gcs',
-        'google_impersonation_chain',
+        "bucket",
+        "prefix",
+        "delimiter",
+        "dest_gcs",
+        "google_impersonation_chain",
     )
-    ui_color = '#e09411'
+    ui_color = "#e09411"
 
     def __init__(
         self,
         *,
         bucket,
-        prefix='',
-        delimiter='',
-        aws_conn_id='aws_default',
+        prefix="",
+        delimiter="",
+        aws_conn_id="aws_default",
         verify=None,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id="google_cloud_default",
         dest_gcs=None,
         delegate_to=None,
         replace=False,
         gzip=False,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
 
@@ -131,15 +133,15 @@ class S3ToGCSOperator(S3ListOperator):
     def _check_inputs(self) -> None:
         if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
             self.log.info(
-                'Destination Google Cloud Storage path is not a valid '
+                "Destination Google Cloud Storage path is not a valid "
                 '"directory", define a path that ends with a slash "/" or '
-                'leave it empty for the root of the bucket.'
+                "leave it empty for the root of the bucket."
             )
             raise AirflowException(
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
         files = super().execute(context)
@@ -173,9 +175,9 @@ class S3ToGCSOperator(S3ListOperator):
 
             files = list(set(files) - set(existing_files))
             if len(files) > 0:
-                self.log.info('%s files are going to be synced: %s.', len(files), files)
+                self.log.info("%s files are going to be synced: %s.", len(files), files)
             else:
-                self.log.info('There are no new files to sync. Have a nice day!')
+                self.log.info("There are no new files to sync. Have a nice day!")
 
         if files:
             hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
@@ -184,7 +186,7 @@ class S3ToGCSOperator(S3ListOperator):
                 # GCS hook builds its own in-memory file so we have to create
                 # and pass the path
                 file_object = hook.get_key(file, self.bucket)
-                with NamedTemporaryFile(mode='wb', delete=True) as f:
+                with NamedTemporaryFile(mode="wb", delete=True) as f:
                     file_object.download_fileobj(f)
                     f.flush()
 
@@ -205,6 +207,6 @@ class S3ToGCSOperator(S3ListOperator):
 
             self.log.info("All done, uploaded %d files to Google Cloud Storage", len(files))
         else:
-            self.log.info('In sync, no files needed to be uploaded to Google Cloud Storage')
+            self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
 
         return files

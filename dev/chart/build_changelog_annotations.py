@@ -16,15 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-'''
+"""
 Take normal chart CHANGELOG entries and build ArtifactHub changelog annotations.
 Only outputs the annotations for the latest release in the CHANGELOG.
 
 e.g from:
 
 New Features
-""""""""""""
+------------
 
 - Add resources for `cleanup` and `createuser` jobs (#19263)
 
@@ -35,11 +34,10 @@ to:
   links:
     - name: "#19263"
       url: https://github.com/apache/airflow/pull/19263
-'''
-
+"""
+from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional, Tuple, Union
 
 import yaml
 
@@ -60,15 +58,15 @@ PREFIXES_TO_STRIP = [
 ]
 
 
-def parse_line(line: str) -> Tuple[Optional[str], Optional[int]]:
-    match = re.search(r'^- (.*?)(?:\(#(\d+)\)){0,1}$', line)
+def parse_line(line: str) -> tuple[str | None, int | None]:
+    match = re.search(r"^- (.*?)(?:\(#(\d+)\)){0,1}$", line)
     if not match:
         return None, None
     desc, pr_number = match.groups()
     return desc.strip(), int(pr_number)
 
 
-def print_entry(section: str, description: str, pr_number: Optional[int]):
+def print_entry(section: str, description: str, pr_number: int | None):
     for unwanted_prefix in PREFIXES_TO_STRIP:
         if description.lower().startswith(unwanted_prefix.lower()):
             description = description[len(unwanted_prefix) :].strip()
@@ -76,7 +74,7 @@ def print_entry(section: str, description: str, pr_number: Optional[int]):
     kind, prefix = TYPE_MAPPING[section]
     if prefix:
         description = f"{prefix}: {description}"
-    entry: Dict[str, Union[str, List]] = {"kind": kind, "description": description}
+    entry: dict[str, str | list] = {"kind": kind, "description": description}
     if pr_number:
         entry["links"] = [
             {"name": f"#{pr_number}", "url": f"https://github.com/apache/airflow/pull/{pr_number}"}
@@ -98,7 +96,7 @@ with open("chart/RELEASE_NOTES.rst") as f:
                 break
             in_first_release = True
             continue
-        if line.startswith('"""') or line.startswith('----') or line.startswith('^^^^'):
+        if line.startswith('"""') or line.startswith("----") or line.startswith("^^^^"):
             continue
 
         # Make sure we get past "significant features" before we actually start keeping track
@@ -108,7 +106,7 @@ with open("chart/RELEASE_NOTES.rst") as f:
                 past_significant_changes = True
             continue
 
-        if not line.startswith('- '):
+        if not line.startswith("- "):
             section = line
             continue
 

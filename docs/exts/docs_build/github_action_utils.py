@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from contextlib import contextmanager
@@ -28,7 +29,7 @@ def with_group(title):
     For more information, see:
     https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
     """
-    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
         print("#" * 20, title, "#" * 20)
         yield
         return

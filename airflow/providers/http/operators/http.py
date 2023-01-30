@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Type
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from requests.auth import AuthBase, HTTPBasicAuth
 
@@ -54,30 +56,39 @@ class SimpleHttpOperator(BaseOperator):
         'requests' documentation (options to modify timeout, ssl, etc.)
     :param log_response: Log the response (default: False)
     :param auth_type: The auth type for the service
+    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
+    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
+    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
+    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
+        ``socket.TCP_KEEPINTVL``)
     """
 
     template_fields: Sequence[str] = (
-        'endpoint',
-        'data',
-        'headers',
+        "endpoint",
+        "data",
+        "headers",
     )
-    template_fields_renderers = {'headers': 'json', 'data': 'py'}
+    template_fields_renderers = {"headers": "json", "data": "py"}
     template_ext: Sequence[str] = ()
-    ui_color = '#f4a460'
+    ui_color = "#f4a460"
 
     def __init__(
         self,
         *,
-        endpoint: Optional[str] = None,
-        method: str = 'POST',
+        endpoint: str | None = None,
+        method: str = "POST",
         data: Any = None,
-        headers: Optional[Dict[str, str]] = None,
-        response_check: Optional[Callable[..., bool]] = None,
-        response_filter: Optional[Callable[..., Any]] = None,
-        extra_options: Optional[Dict[str, Any]] = None,
-        http_conn_id: str = 'http_default',
+        headers: dict[str, str] | None = None,
+        response_check: Callable[..., bool] | None = None,
+        response_filter: Callable[..., Any] | None = None,
+        extra_options: dict[str, Any] | None = None,
+        http_conn_id: str = "http_default",
         log_response: bool = False,
-        auth_type: Type[AuthBase] = HTTPBasicAuth,
+        auth_type: type[AuthBase] = HTTPBasicAuth,
+        tcp_keep_alive: bool = True,
+        tcp_keep_alive_idle: int = 120,
+        tcp_keep_alive_count: int = 20,
+        tcp_keep_alive_interval: int = 30,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,13 +102,23 @@ class SimpleHttpOperator(BaseOperator):
         self.extra_options = extra_options or {}
         self.log_response = log_response
         self.auth_type = auth_type
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
+        self.tcp_keep_alive = tcp_keep_alive
+        self.tcp_keep_alive_idle = tcp_keep_alive_idle
+        self.tcp_keep_alive_count = tcp_keep_alive_count
+        self.tcp_keep_alive_interval = tcp_keep_alive_interval
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Context) -> Any:
         from airflow.utils.operator_helpers import determine_kwargs
 
-        http = HttpHook(self.method, http_conn_id=self.http_conn_id, auth_type=self.auth_type)
+        http = HttpHook(
+            self.method,
+            http_conn_id=self.http_conn_id,
+            auth_type=self.auth_type,
+            tcp_keep_alive=self.tcp_keep_alive,
+            tcp_keep_alive_idle=self.tcp_keep_alive_idle,
+            tcp_keep_alive_count=self.tcp_keep_alive_count,
+            tcp_keep_alive_interval=self.tcp_keep_alive_interval,
+        )
 
         self.log.info("Calling HTTP method")
 

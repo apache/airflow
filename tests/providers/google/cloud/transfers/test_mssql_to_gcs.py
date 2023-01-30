@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import unittest
@@ -22,36 +23,32 @@ from unittest import mock
 
 from parameterized import parameterized
 
-from airflow import PY38
+from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
 
-if not PY38:
-    from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
-
-TASK_ID = 'test-mssql-to-gcs'
-MSSQL_CONN_ID = 'mssql_conn_test'
-SQL = 'select 1'
-BUCKET = 'gs://test'
-JSON_FILENAME = 'test_{}.ndjson'
+TASK_ID = "test-mssql-to-gcs"
+MSSQL_CONN_ID = "mssql_conn_test"
+SQL = "select 1"
+BUCKET = "gs://test"
+JSON_FILENAME = "test_{}.ndjson"
 GZIP = False
 
-ROWS = [('mock_row_content_1', 42), ('mock_row_content_2', 43), ('mock_row_content_3', 44)]
+ROWS = [("mock_row_content_1", 42), ("mock_row_content_2", 43), ("mock_row_content_3", 44)]
 CURSOR_DESCRIPTION = (
-    ('some_str', 0, None, None, None, None, None),
-    ('some_num', 3, None, None, None, None, None),
+    ("some_str", 0, None, None, None, None, None),
+    ("some_num", 3, None, None, None, None, None),
 )
 NDJSON_LINES = [
     b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',
     b'{"some_num": 43, "some_str": "mock_row_content_2"}\n',
     b'{"some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
-SCHEMA_FILENAME = 'schema_test.json'
+SCHEMA_FILENAME = "schema_test.json"
 SCHEMA_JSON = [
     b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ',
     b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]',
 ]
 
 
-@unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
 class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
     @parameterized.expand(
         [
@@ -83,8 +80,8 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         assert op.bucket == BUCKET
         assert op.filename == JSON_FILENAME
 
-    @mock.patch('airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook')
-    @mock.patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_exec_success_json(self, gcs_hook_mock_class, mssql_hook_mock_class):
         """Test successful run of execute function for JSON"""
         op = MSSQLToGCSOperator(
@@ -97,13 +94,13 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert JSON_FILENAME.format(0) == obj
-            assert 'application/json' == mime_type
+            assert "application/json" == mime_type
             assert GZIP == gzip
-            with open(tmp_filename, 'rb') as file:
-                assert b''.join(NDJSON_LINES) == file.read()
+            with open(tmp_filename, "rb") as file:
+                assert b"".join(NDJSON_LINES) == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -112,8 +109,8 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         mssql_hook_mock_class.assert_called_once_with(mssql_conn_id=MSSQL_CONN_ID)
         mssql_hook_mock.get_conn().cursor().execute.assert_called_once_with(SQL)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook')
-    @mock.patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_file_splitting(self, gcs_hook_mock_class, mssql_hook_mock_class):
         """Test that ndjson is split by approx_max_file_size_bytes param."""
         mssql_hook_mock = mssql_hook_mock_class.return_value
@@ -122,15 +119,15 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
         expected_upload = {
-            JSON_FILENAME.format(0): b''.join(NDJSON_LINES[:2]),
+            JSON_FILENAME.format(0): b"".join(NDJSON_LINES[:2]),
             JSON_FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
-            assert 'application/json' == mime_type
+            assert "application/json" == mime_type
             assert GZIP == gzip
-            with open(tmp_filename, 'rb') as file:
+            with open(tmp_filename, "rb") as file:
                 assert expected_upload[obj] == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
@@ -144,8 +141,8 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         )
         op.execute(None)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook')
-    @mock.patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
+    @mock.patch("airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_schema_file(self, gcs_hook_mock_class, mssql_hook_mock_class):
         """Test writing schema files."""
         mssql_hook_mock = mssql_hook_mock_class.return_value
@@ -154,10 +151,10 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
-                with open(tmp_filename, 'rb') as file:
-                    assert b''.join(SCHEMA_JSON) == file.read()
+                with open(tmp_filename, "rb") as file:
+                    assert b"".join(SCHEMA_JSON) == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 

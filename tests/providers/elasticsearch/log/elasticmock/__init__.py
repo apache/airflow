@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 #
 # The MIT License (MIT)
@@ -39,14 +40,13 @@
 # SOFTWARE.
 """Elastic mock module used for testing"""
 from functools import wraps
-from typing import Dict
 from unittest.mock import patch
 
 from elasticsearch.client.utils import _normalize_hosts
 
 from .fake_elasticsearch import FakeElasticsearch
 
-ELASTIC_INSTANCES = {}  # type: Dict[str, FakeElasticsearch]
+ELASTIC_INSTANCES: dict[str, FakeElasticsearch] = {}
 
 
 def _get_elasticmock(hosts=None, *args, **kwargs):
@@ -67,7 +67,7 @@ def elasticmock(function):
     @wraps(function)
     def decorated(*args, **kwargs):
         ELASTIC_INSTANCES.clear()
-        with patch('elasticsearch.Elasticsearch', _get_elasticmock):
+        with patch("elasticsearch.Elasticsearch", _get_elasticmock):
             result = function(*args, **kwargs)
         return result
 

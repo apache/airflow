@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Remove ``can_read`` permission on config resource for ``User`` and ``Viewer`` role
 
 Revision ID: 82b7c48c147f
@@ -23,17 +22,19 @@ Revises: e959f08ac86c
 Create Date: 2021-02-04 12:45:58.138224
 
 """
+from __future__ import annotations
+
 import logging
 
 from airflow.security import permissions
-from airflow.www.app import create_app
+from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
-revision = '82b7c48c147f'
-down_revision = 'e959f08ac86c'
+revision = "82b7c48c147f"
+down_revision = "e959f08ac86c"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.1'
+airflow_version = "2.0.1"
 
 
 def upgrade():
@@ -41,7 +42,7 @@ def upgrade():
     log = logging.getLogger()
     handlers = log.handlers[:]
 
-    appbuilder = create_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
+    appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
     roles_to_modify = [role for role in appbuilder.sm.get_all_roles() if role.name in ["User", "Viewer"]]
     can_read_on_config_perm = appbuilder.sm.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG
@@ -58,7 +59,7 @@ def upgrade():
 
 def downgrade():
     """Add can_read action on config resource for User and Viewer role"""
-    appbuilder = create_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
+    appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
     roles_to_modify = [role for role in appbuilder.sm.get_all_roles() if role.name in ["User", "Viewer"]]
     can_read_on_config_perm = appbuilder.sm.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG

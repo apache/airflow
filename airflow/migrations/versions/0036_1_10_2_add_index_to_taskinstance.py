@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add index to ``task_instance`` table
 
 Revision ID: bf00311e1990
@@ -23,20 +22,21 @@ Revises: dd25f486b8ea
 Create Date: 2018-09-12 09:53:52.007433
 
 """
+from __future__ import annotations
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'bf00311e1990'
-down_revision = 'dd25f486b8ea'
+revision = "bf00311e1990"
+down_revision = "dd25f486b8ea"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.2'
+airflow_version = "1.10.2"
 
 
 def upgrade():
-    op.create_index('ti_dag_date', 'task_instance', ['dag_id', 'execution_date'], unique=False)
+    op.create_index("ti_dag_date", "task_instance", ["dag_id", "execution_date"], unique=False)
 
 
 def downgrade():
-    op.drop_index('ti_dag_date', table_name='task_instance')
+    op.drop_index("ti_dag_date", table_name="task_instance")

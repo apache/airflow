@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 
 from sqlalchemy import event
@@ -28,6 +30,8 @@ _is_listening = False
 
 def on_task_instance_state_session_flush(session, flush_context):
     """
+    Flush task instance's state.
+
     Listens for session.flush() events that modify TaskInstance's state, and notify listeners that listen
     for that event. Doing it this way enable us to be stateless in the SQLAlchemy event listener.
     """
@@ -38,7 +42,7 @@ def on_task_instance_state_session_flush(session, flush_context):
         if isinstance(state.object, TaskInstance) and session.is_modified(
             state.object, include_collections=False
         ):
-            added, unchanged, deleted = flush_context.get_attribute_history(state, 'state')
+            added, unchanged, deleted = flush_context.get_attribute_history(state, "state")
 
             logger.debug(
                 "session flush listener: added %s unchanged %s deleted %s - %s",
@@ -67,13 +71,15 @@ def on_task_instance_state_session_flush(session, flush_context):
 
 
 def register_task_instance_state_events():
+    """Register a task instance state event."""
     global _is_listening
     if not _is_listening:
-        event.listen(Session, 'after_flush', on_task_instance_state_session_flush)
+        event.listen(Session, "after_flush", on_task_instance_state_session_flush)
         _is_listening = True
 
 
 def unregister_task_instance_state_events():
+    """Unregister a task instance state event."""
     global _is_listening
-    event.remove(Session, 'after_flush', on_task_instance_state_session_flush)
+    event.remove(Session, "after_flush", on_task_instance_state_session_flush)
     _is_listening = False

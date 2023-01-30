@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Authentication backend that use Google credentials for authorization."""
+from __future__ import annotations
+
 import logging
 from functools import wraps
-from typing import Callable, Optional, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 import google
 import google.auth.transport.requests
 import google.oauth2.id_token
-from flask import Response, _request_ctx_stack, current_app, request as flask_request  # type: ignore
+from flask import Response, current_app, request as flask_request  # type: ignore
 from google.auth import exceptions
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
@@ -53,7 +55,7 @@ def init_app(_):
     """Initializes authentication."""
 
 
-def _get_id_token_from_request(request) -> Optional[str]:
+def _get_id_token_from_request(request) -> str | None:
     authorization_header = request.headers.get("Authorization")
 
     if not authorization_header:
@@ -68,7 +70,7 @@ def _get_id_token_from_request(request) -> Optional[str]:
     return id_token
 
 
-def _verify_id_token(id_token: str) -> Optional[str]:
+def _verify_id_token(id_token: str) -> str | None:
     try:
         request_adapter = google.auth.transport.requests.Request()
         id_info = google.oauth2.id_token.verify_token(id_token, request_adapter, AUDIENCE)
@@ -88,7 +90,7 @@ def _verify_id_token(id_token: str) -> Optional[str]:
 
 
 def _lookup_user(user_email: str):
-    security_manager = current_app.appbuilder.sm
+    security_manager = current_app.appbuilder.sm  # type: ignore[attr-defined]
     user = security_manager.find_user(email=user_email)
 
     if not user:
@@ -101,8 +103,7 @@ def _lookup_user(user_email: str):
 
 
 def _set_current_user(user):
-    ctx = _request_ctx_stack.top
-    ctx.user = user
+    current_app.appbuilder.sm.lm._update_request_context_with_user(user=user)  # type: ignore[attr-defined]
 
 
 T = TypeVar("T", bound=Callable)

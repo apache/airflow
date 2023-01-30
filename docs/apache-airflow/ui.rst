@@ -46,6 +46,21 @@ For example:
 ------------
 
 
+.. _ui:datasets-view:
+
+Datasets View
+.............
+A combined listing of the current datasets and a graph illustrating how they are produced and consumed by DAGs.
+
+Clicking on any dataset in either the list or the graph will highlight it and its relationships, and filter the list to show the recent history of task instances that have updated that dataset and whether it has triggered further DAG runs.
+
+------------
+
+.. image:: img/datasets.png
+
+------------
+
+
 Grid View
 .........
 A bar chart and grid representation of the DAG that spans across time.
@@ -76,7 +91,7 @@ Task groups are indicated by a caret and can be opened or closed:
 
 .. image:: img/grid_task_group.png
 
-Mapped Tasks are indicated by a square brackets and will show a table of each mapped task instance in the details panel:
+Mapped Tasks are indicated by square brackets and will show a table of each mapped task instance in the details panel:
 
 .. image:: img/grid_mapped_task.png
 
@@ -112,7 +127,7 @@ Variable View
 The variable view allows you to list, create, edit or delete the key-value pair
 of a variable used during jobs. Value of a variable will be hidden if the key contains
 any words in ('password', 'secret', 'passwd', 'authorization', 'api_key', 'apikey', 'access_token')
-by default, but can be configured to show in clear-text. See :ref:`security:mask-sensitive-values`.
+by default, but can be configured to show in cleartext. See :ref:`security:mask-sensitive-values`.
 
 ------------
 
@@ -159,7 +174,7 @@ provide yet more context.
 
 Task Instance Context Menu
 ..........................
-From the pages seen above (tree view, graph view, gantt, ...), it is always
+From the pages seen above (grid view, graph view, gantt, ...), it is always
 possible to click on a task instance, and get to this rich context menu
 that can take you to more detailed metadata, and perform some actions.
 

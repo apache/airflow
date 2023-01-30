@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.context import Context
@@ -27,7 +28,7 @@ class EmptyOperator(BaseOperator):
     The task is evaluated by the scheduler but never processed by the executor.
     """
 
-    ui_color = '#e8f7e4'
+    ui_color = "#e8f7e4"
     inherits_from_empty_operator = True
 
     def execute(self, context: Context):

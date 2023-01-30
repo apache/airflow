@@ -14,18 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import textwrap
-import unittest
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import jmespath
+import pytest
 import yaml
-from parameterized import parameterized
 
 from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
-RELEASE_NAME = "TEST-EXTRA-ENV-ENV-FROM"
+RELEASE_NAME = "test-extra-env-env-from"
 
 # Test Params: k8s object key and paths with expected env / envFrom
 PARAMS = [
@@ -53,7 +53,17 @@ PARAMS = [
     ),
     (
         ("Deployment", f"{RELEASE_NAME}-webserver"),
-        ("spec.template.spec.initContainers[0]", "spec.template.spec.containers[0]"),
+        (
+            "spec.template.spec.initContainers[0]",
+            "spec.template.spec.containers[0]",
+        ),
+    ),
+    (
+        ("Deployment", f"{RELEASE_NAME}-triggerer"),
+        (
+            "spec.template.spec.initContainers[0]",
+            "spec.template.spec.containers[0]",
+        ),
     ),
     (
         ("Deployment", f"{RELEASE_NAME}-flower"),
@@ -62,12 +72,12 @@ PARAMS = [
 ]
 
 
-class ExtraEnvEnvFromTest(unittest.TestCase):
-    k8s_objects: List[Dict[str, Any]]
-    k8s_objects_by_key: Dict[Tuple[str, str], Dict[str, Any]]
+class TestExtraEnvEnvFrom:
+    k8s_objects: list[dict[str, Any]]
+    k8s_objects_by_key: dict[tuple[str, str], dict[str, Any]]
 
     @classmethod
-    def setUpClass(cls) -> None:
+    def setup_class(cls) -> None:
         values_str = textwrap.dedent(
             """
             flower:
@@ -91,7 +101,7 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
         cls.k8s_objects = render_chart(RELEASE_NAME, values=values)
         cls.k8s_objects_by_key = prepare_k8s_lookup_dict(cls.k8s_objects)
 
-    @parameterized.expand(PARAMS)
+    @pytest.mark.parametrize("k8s_obj_key, env_paths", PARAMS)
     def test_extra_env(self, k8s_obj_key, env_paths):
         expected_env_as_str = textwrap.dedent(
             f"""
@@ -109,7 +119,7 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
             env = jmespath.search(f"{path}.env", k8s_object)
             assert expected_env_as_str in yaml.dump(env)
 
-    @parameterized.expand(PARAMS)
+    @pytest.mark.parametrize("k8s_obj_key, env_from_paths", PARAMS)
     def test_extra_env_from(self, k8s_obj_key, env_from_paths):
         expected_env_from_as_str = textwrap.dedent(
             f"""

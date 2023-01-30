@@ -38,7 +38,6 @@ sequenceDiagram
     Note over Tests: Skip Build<br>(Runs in 'Build Images')<br>CI Images
     Note over Tests: Skip Build<br>(Runs in 'Build Images')<br>PROD Images
     par
-        GitHub Registry ->> Build Images: Pull CI Images<br>[latest]
         Note over Build Images: Build CI Images<br>[COMMIT_SHA]<br>Use latest constraints<br>or upgrade if setup changed
     and
         Note over Tests: OpenAPI client gen
@@ -121,7 +120,6 @@ sequenceDiagram
     deactivate Build Images
     Note over Tests: Build info<br>Decide on tests<br>Decide on Matrix (selective)
     par
-        GitHub Registry ->> Tests: Pull CI Images<br>[latest]
         Note over Tests: Build CI Images<br>[COMMIT_SHA]<br>Use latest constraints<br>or upgrade if setup changed
     and
         Note over Tests: OpenAPI client gen
@@ -134,7 +132,6 @@ sequenceDiagram
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
     Note over Tests: Verify CI Image<br>[COMMIT_SHA]
     par
-        GitHub Registry ->> Tests: Pull PROD Images<br>[latest]
         Note over Tests: Build PROD Images<br>[COMMIT_SHA]
     and
         opt
@@ -181,18 +178,17 @@ sequenceDiagram
     deactivate Tests
 ```
 
-## Direct Push/Merge flow
+## Merge "Canary" run
 
 ```mermaid
 sequenceDiagram
-    Note over Airflow Repo: pull request
+    Note over Airflow Repo: push/merge
     Note over Tests: push<br>[Write Token]
     activate Airflow Repo
     Airflow Repo -->> Tests: Trigger 'push'
     activate Tests
     Note over Tests: Build info<br>All tests<br>Full matrix
     par
-        GitHub Registry ->> Tests: Pull CI Images<br>[latest]
         Note over Tests: Build CI Images<br>[COMMIT_SHA]<br>Always upgrade deps
     and
         Note over Tests: OpenAPI client gen
@@ -200,12 +196,15 @@ sequenceDiagram
         Note over Tests: Test UI
     and
         Note over Tests: Test examples<br>PROD image building
+    and
+        Note over Tests: Build CI Images<br>Use original constraints
+        Tests ->> GitHub Registry: Push CI Image Early cache + latest
+        Note over Tests: Test 'breeze' image build quickly
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
     Note over Tests: Verify CI Image<br>[COMMIT_SHA]
     par
-        GitHub Registry ->> Tests: Pull PROD Images<br>[latest]
         Note over Tests: Build PROD Images<br>[COMMIT_SHA]
     and
         opt
@@ -249,11 +248,9 @@ sequenceDiagram
         Tests ->> Airflow Repo: Push constraints if changed
     end
     opt In merge run?
-        GitHub Registry ->> Tests: Pull CI Image<br>[latest]
         Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
         Tests ->> GitHub Registry: Push CI Image<br>[latest]
-        GitHub Registry ->> Tests: Pull PROD Image<br>[latest]
-        Note over Tests: Build PROD Images<br>[latest]
+        Note over Tests: Build PROD Images<br>[latest]<br>Use latest constraints
         Tests ->> GitHub Registry: Push PROD Image<br>[latest]
     end
     Tests -->> Airflow Repo: Status update
@@ -261,7 +258,7 @@ sequenceDiagram
     deactivate Tests
 ```
 
-## Scheduled build flow
+## Scheduled run
 
 ```mermaid
 sequenceDiagram
@@ -280,6 +277,10 @@ sequenceDiagram
         Note over Tests: Test UI
     and
         Note over Tests: Test examples<br>PROD image building
+    and
+        Note over Tests: Build CI Images<br>Use original constraints
+        Tests ->> GitHub Registry: Push CI Image Early cache + latest
+        Note over Tests: Test 'breeze' image build quickly
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
@@ -326,12 +327,10 @@ sequenceDiagram
     end
     Note over Tests: Generate constraints
     Tests ->> Airflow Repo: Push constraints if changed
-    GitHub Registry ->> Tests: Pull CI Image<br>[latest]
     Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
-    Tests ->> GitHub Registry: Push CI Image<br>[latest]
-    GitHub Registry ->> Tests: Pull PROD Image<br>[latest]
-    Note over Tests: Build PROD Images<br>[latest]
-    Tests ->> GitHub Registry: Push PROD Image<br>[latest]
+    Tests ->> GitHub Registry: Push CI Image cache + latest
+    Note over Tests: Build PROD Images<br>[latest]<br>Use latest constraints
+    Tests ->> GitHub Registry: Push PROD Image cache + latest
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate Tests

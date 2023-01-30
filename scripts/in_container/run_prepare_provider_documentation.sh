@@ -35,6 +35,7 @@ function run_prepare_documentation() {
         # There is a separate group created in logs for each provider package
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             update-package-documentation \
+            --base-branch "${BASE_BRANCH}" \
             --version-suffix "${VERSION_SUFFIX_FOR_PYPI=}" \
             --no-git-update \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
@@ -64,6 +65,7 @@ function run_prepare_documentation() {
         # There is a separate group created in logs for each provider package
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             update-changelog \
+            --base-branch "${BASE_BRANCH}" \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${provider_package}"
         res=$?
@@ -96,7 +98,7 @@ function run_prepare_documentation() {
     fi
     if [[ "${#error_documentation[@]}" != "0" ]]; then
         echo "${COLOR_RED}   Errors:${COLOR_RESET}"
-        echo "${error_documentation[@]}" | fold -sw 100 | sed "s/^/  /" | sed "s/$/\\/"
+        echo "${error_documentation[@]}" | fold -sw 100
     fi
     echo
     echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"

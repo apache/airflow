@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Default configuration for the Airflow webserver"""
+"""Default configuration for the Airflow webserver."""
+from __future__ import annotations
+
 import os
 
 from airflow.www.fab_security.manager import AUTH_DB
@@ -30,6 +32,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Flask-WTF flag for CSRF
 WTF_CSRF_ENABLED = True
+WTF_CSRF_TIME_LIMIT = None
 
 # ----------------------------------------------------
 # AUTHENTICATION CONFIG

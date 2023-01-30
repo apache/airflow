@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook

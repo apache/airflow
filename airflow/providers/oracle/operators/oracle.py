@@ -15,16 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from __future__ import annotations
+
+import warnings
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class OracleOperator(BaseOperator):
+class OracleOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Oracle database.
 
@@ -40,33 +44,21 @@ class OracleOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'parameters',
-        'sql',
+        "parameters",
+        "sql",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#ededed'
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#ededed"
 
-    def __init__(
-        self,
-        *,
-        sql: Union[str, List[str]],
-        oracle_conn_id: str = 'oracle_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
-        autocommit: bool = False,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.oracle_conn_id = oracle_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.parameters = parameters
-
-    def execute(self, context: 'Context') -> None:
-        self.log.info('Executing: %s', self.sql)
-        hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        if self.sql:
-            hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+    def __init__(self, *, oracle_conn_id: str = "oracle_default", **kwargs) -> None:
+        super().__init__(conn_id=oracle_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
 
 class OracleStoredProcedureOperator(BaseOperator):
@@ -80,17 +72,17 @@ class OracleStoredProcedureOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'parameters',
-        'procedure',
+        "parameters",
+        "procedure",
     )
-    ui_color = '#ededed'
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
         procedure: str,
-        oracle_conn_id: str = 'oracle_default',
-        parameters: Optional[Union[Dict, List]] = None,
+        oracle_conn_id: str = "oracle_default",
+        parameters: dict | list | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -98,7 +90,7 @@ class OracleStoredProcedureOperator(BaseOperator):
         self.procedure = procedure
         self.parameters = parameters
 
-    def execute(self, context: 'Context') -> Optional[Union[List, Dict]]:
-        self.log.info('Executing: %s', self.procedure)
+    def execute(self, context: Context):
+        self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)

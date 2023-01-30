@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -29,42 +30,43 @@ from google.cloud.speech_v1.proto.cloud_speech_pb2 import (
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
 
-GCP_CONN_ID = 'google_cloud_default'
+GCP_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestCloudTranslateSpeech(unittest.TestCase):
-    @mock.patch('airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook')
-    @mock.patch('airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook')
+    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook")
+    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook")
     def test_minimal_green_path(self, mock_translate_hook, mock_speech_hook):
         mock_speech_hook.return_value.recognize_speech.return_value = RecognizeResponse(
             results=[
                 SpeechRecognitionResult(
-                    alternatives=[SpeechRecognitionAlternative(transcript='test speech recognition result')]
+                    alternatives=[SpeechRecognitionAlternative(transcript="test speech recognition result")]
                 )
             ]
         )
         mock_translate_hook.return_value.translate.return_value = [
             {
-                'translatedText': 'sprawdzić wynik rozpoznawania mowy',
-                'detectedSourceLanguage': 'en',
-                'model': 'base',
-                'input': 'test speech recognition result',
+                "translatedText": "sprawdzić wynik rozpoznawania mowy",
+                "detectedSourceLanguage": "en",
+                "model": "base",
+                "input": "test speech recognition result",
             }
         ]
 
         op = CloudTranslateSpeechOperator(
             audio={"uri": "gs://bucket/object"},
             config={"encoding": "LINEAR16"},
-            target_language='pl',
-            format_='text',
+            target_language="pl",
+            format_="text",
             source_language=None,
-            model='base',
+            model="base",
             gcp_conn_id=GCP_CONN_ID,
-            task_id='id',
+            task_id="id",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        return_value = op.execute(context=None)
+        context = mock.MagicMock()
+        return_value = op.execute(context=context)
 
         mock_speech_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -81,23 +83,23 @@ class TestCloudTranslateSpeech(unittest.TestCase):
         )
 
         mock_translate_hook.return_value.translate.assert_called_once_with(
-            values='test speech recognition result',
-            target_language='pl',
-            format_='text',
+            values="test speech recognition result",
+            target_language="pl",
+            format_="text",
             source_language=None,
-            model='base',
+            model="base",
         )
         assert [
             {
-                'translatedText': 'sprawdzić wynik rozpoznawania mowy',
-                'detectedSourceLanguage': 'en',
-                'model': 'base',
-                'input': 'test speech recognition result',
+                "translatedText": "sprawdzić wynik rozpoznawania mowy",
+                "detectedSourceLanguage": "en",
+                "model": "base",
+                "input": "test speech recognition result",
             }
         ] == return_value
 
-    @mock.patch('airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook')
-    @mock.patch('airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook')
+    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook")
+    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook")
     def test_bad_recognition_response(self, mock_translate_hook, mock_speech_hook):
         mock_speech_hook.return_value.recognize_speech.return_value = RecognizeResponse(
             results=[SpeechRecognitionResult()]
@@ -105,12 +107,12 @@ class TestCloudTranslateSpeech(unittest.TestCase):
         op = CloudTranslateSpeechOperator(
             audio={"uri": "gs://bucket/object"},
             config={"encoding": "LINEAR16"},
-            target_language='pl',
-            format_='text',
+            target_language="pl",
+            format_="text",
             source_language=None,
-            model='base',
+            model="base",
             gcp_conn_id=GCP_CONN_ID,
-            task_id='id',
+            task_id="id",
         )
         with pytest.raises(AirflowException) as ctx:
             op.execute(context=None)

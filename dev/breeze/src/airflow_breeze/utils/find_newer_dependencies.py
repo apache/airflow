@@ -28,9 +28,11 @@ The process to follow once you see the backtracking is described in:
 
 https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md
 """
+from __future__ import annotations
+
 import json
 from datetime import timedelta
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from rich.progress import Progress
 
@@ -48,7 +50,7 @@ def find_newer_dependencies(
         f"https://raw.githubusercontent.com/apache/airflow/{constraints_branch}/constraints-{python}.txt"
     ).text
     package_lines = list(filter(lambda x: not x.startswith("#"), constraints.splitlines()))
-    constrained_packages: Dict[str, Any] = {}
+    constrained_packages: dict[str, Any] = {}
     count_packages = len(package_lines)
     tz = pendulum.timezone(timezone)  # type: ignore[operator]
     if updated_on_or_after:
@@ -88,23 +90,25 @@ def find_newer_dependencies(
     for package, constrained_version in constrained_packages.items():
         constraint_string += f' "{package}=={constrained_version}"'
     get_console().print("[info]Use the following pip install command (see the doc above for details)\n")
+    # !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
     get_console().print(
         'pip install ".[devel_all]" --upgrade --upgrade-strategy eager '
-        '"dill<0.3.3" "certifi<2021.0.0" "google-ads<14.0.1"' + constraint_string,
+        '"dill<0.3.3" "pyarrow>=6.0.0" "protobuf<4.21.0" '
+        '"authlib>=1.0.0" "gcloud_aio_auth>=4.0.0" "adal>=1.2.7"' + constraint_string,
         markup=False,
         soft_wrap=True,
     )
 
 
-def get_releases_and_upload_times(package, min_date, current_version, tz) -> List[Tuple[str, Any]]:
+def get_releases_and_upload_times(package, min_date, current_version, tz) -> list[tuple[str, Any]]:
     import requests
     from dateutil.parser import isoparse
     from packaging import version
 
     package_info = json.loads(requests.get(f"https://pypi.python.org/pypi/{package}/json").text)
-    releases: List[Tuple[Any, Any]] = []
-    for release_version, release_info in package_info['releases'].items():
-        if release_info and not release_info[0]['yanked']:
+    releases: list[tuple[Any, Any]] = []
+    for release_version, release_info in package_info["releases"].items():
+        if release_info and not release_info[0]["yanked"]:
             parsed_version = version.parse(release_version)
             if (
                 parsed_version.is_prerelease
@@ -112,7 +116,7 @@ def get_releases_and_upload_times(package, min_date, current_version, tz) -> Lis
                 or parsed_version == current_version
             ):
                 continue
-            upload_date = tz.convert(isoparse(release_info[0]['upload_time_iso_8601'])).replace(microsecond=0)
+            upload_date = tz.convert(isoparse(release_info[0]["upload_time_iso_8601"])).replace(microsecond=0)
             if upload_date >= min_date:
                 releases.append((parsed_version, upload_date))
     return releases

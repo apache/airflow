@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -32,15 +32,15 @@ class StepFunctionHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, region_name: Optional[str] = None, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "stepfunctions"
         super().__init__(*args, **kwargs)
 
     def start_execution(
         self,
         state_machine_arn: str,
-        name: Optional[str] = None,
-        state_machine_input: Union[dict, str, None] = None,
+        name: str | None = None,
+        state_machine_input: dict | str | None = None,
     ) -> str:
         """
         Start Execution of the State Machine.
@@ -50,21 +50,20 @@ class StepFunctionHook(AwsBaseHook):
         :param name: The name of the execution.
         :param state_machine_input: JSON data input to pass to the State Machine
         :return: Execution ARN
-        :rtype: str
         """
-        execution_args = {'stateMachineArn': state_machine_arn}
+        execution_args = {"stateMachineArn": state_machine_arn}
         if name is not None:
-            execution_args['name'] = name
+            execution_args["name"] = name
         if state_machine_input is not None:
             if isinstance(state_machine_input, str):
-                execution_args['input'] = state_machine_input
+                execution_args["input"] = state_machine_input
             elif isinstance(state_machine_input, dict):
-                execution_args['input'] = json.dumps(state_machine_input)
+                execution_args["input"] = json.dumps(state_machine_input)
 
-        self.log.info('Executing Step Function State Machine: %s', state_machine_arn)
+        self.log.info("Executing Step Function State Machine: %s", state_machine_arn)
 
         response = self.conn.start_execution(**execution_args)
-        return response.get('executionArn')
+        return response.get("executionArn")
 
     def describe_execution(self, execution_arn: str) -> dict:
         """
@@ -73,6 +72,5 @@ class StepFunctionHook(AwsBaseHook):
 
         :param execution_arn: ARN of the State Machine Execution
         :return: Dict with Execution details
-        :rtype: dict
         """
         return self.get_conn().describe_execution(executionArn=execution_arn)

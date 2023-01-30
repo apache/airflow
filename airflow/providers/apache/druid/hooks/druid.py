@@ -15,16 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Iterable
 
 import requests
 from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class DruidHook(BaseHook):
@@ -44,16 +45,16 @@ class DruidHook(BaseHook):
 
     def __init__(
         self,
-        druid_ingest_conn_id: str = 'druid_ingest_default',
+        druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
     ) -> None:
 
         super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
-        self.header = {'content-type': 'application/json'}
+        self.header = {"content-type": "application/json"}
 
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
@@ -63,11 +64,11 @@ class DruidHook(BaseHook):
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
-        conn_type = 'http' if not conn.conn_type else conn.conn_type
-        endpoint = conn.extra_dejson.get('endpoint', '')
+        conn_type = conn.conn_type or "http"
+        endpoint = conn.extra_dejson.get("endpoint", "")
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
-    def get_auth(self) -> Optional[requests.auth.HTTPBasicAuth]:
+    def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
         """
         Return username and password from connections tab as requests.auth.HTTPBasicAuth object.
 
@@ -81,18 +82,21 @@ class DruidHook(BaseHook):
         else:
             return None
 
-    def submit_indexing_job(self, json_index_spec: Union[Dict[str, Any], str]) -> None:
+    def submit_indexing_job(self, json_index_spec: dict[str, Any] | str) -> None:
         """Submit Druid ingestion job"""
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
-        if req_index.status_code != 200:
-            raise AirflowException(f'Did not get 200 when submitting the Druid job to {url}')
+
+        code = req_index.status_code
+        if code != 200:
+            self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
+            raise AirflowException(f"Did not get 200 when submitting the Druid job to {url}")
 
         req_json = req_index.json()
         # Wait until the job is completed
-        druid_task_id = req_json['task']
+        druid_task_id = req_json["task"]
         self.log.info("Druid indexing task-id: %s", druid_task_id)
 
         running = True
@@ -106,23 +110,23 @@ class DruidHook(BaseHook):
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post(f"{url}/{druid_task_id}/shutdown", auth=self.get_auth())
-                raise AirflowException(f'Druid ingestion took more than {self.max_ingestion_time} seconds')
+                raise AirflowException(f"Druid ingestion took more than {self.max_ingestion_time} seconds")
 
             time.sleep(self.timeout)
 
             sec += self.timeout
 
-            status = req_status.json()['status']['status']
-            if status == 'RUNNING':
+            status = req_status.json()["status"]["status"]
+            if status == "RUNNING":
                 running = True
-            elif status == 'SUCCESS':
+            elif status == "SUCCESS":
                 running = False  # Great success!
-            elif status == 'FAILED':
-                raise AirflowException('Druid indexing job failed, check console for more info')
+            elif status == "FAILED":
+                raise AirflowException("Druid indexing job failed, check console for more info")
             else:
-                raise AirflowException(f'Could not get status of the job, got {status}')
+                raise AirflowException(f"Could not get status of the job, got {status}")
 
-        self.log.info('Successful index')
+        self.log.info("Successful index")
 
 
 class DruidDbApiHook(DbApiHook):
@@ -133,10 +137,10 @@ class DruidDbApiHook(DbApiHook):
     For ingestion, please use druidHook.
     """
 
-    conn_name_attr = 'druid_broker_conn_id'
-    default_conn_name = 'druid_broker_default'
-    conn_type = 'druid'
-    hook_name = 'Druid'
+    conn_name_attr = "druid_broker_conn_id"
+    default_conn_name = "druid_broker_default"
+    conn_type = "druid"
+    hook_name = "Druid"
     supports_autocommit = False
 
     def get_conn(self) -> connect:
@@ -145,12 +149,12 @@ class DruidDbApiHook(DbApiHook):
         druid_broker_conn = connect(
             host=conn.host,
             port=conn.port,
-            path=conn.extra_dejson.get('endpoint', '/druid/v2/sql'),
-            scheme=conn.extra_dejson.get('schema', 'http'),
+            path=conn.extra_dejson.get("endpoint", "/druid/v2/sql"),
+            scheme=conn.extra_dejson.get("schema", "http"),
             user=conn.login,
             password=conn.password,
         )
-        self.log.info('Get the connection to druid broker on %s using user %s', conn.host, conn.login)
+        self.log.info("Get the connection to druid broker on %s using user %s", conn.host, conn.login)
         return druid_broker_conn
 
     def get_uri(self) -> str:
@@ -162,10 +166,10 @@ class DruidDbApiHook(DbApiHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
-            host += f':{conn.port}'
-        conn_type = 'druid' if not conn.conn_type else conn.conn_type
-        endpoint = conn.extra_dejson.get('endpoint', 'druid/v2/sql')
-        return f'{conn_type}://{host}/{endpoint}'
+            host += f":{conn.port}"
+        conn_type = conn.conn_type or "druid"
+        endpoint = conn.extra_dejson.get("endpoint", "druid/v2/sql")
+        return f"{conn_type}://{host}/{endpoint}"
 
     def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplementedError:
         raise NotImplementedError()
@@ -173,8 +177,8 @@ class DruidDbApiHook(DbApiHook):
     def insert_rows(
         self,
         table: str,
-        rows: Iterable[Tuple[str]],
-        target_fields: Optional[Iterable[str]] = None,
+        rows: Iterable[tuple[str]],
+        target_fields: Iterable[str] | None = None,
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,

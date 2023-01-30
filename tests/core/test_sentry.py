@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import importlib
@@ -72,7 +73,7 @@ class TestSentryHook:
     @pytest.fixture
     def task_instance(self, dag_maker):
         # Mock the Dag
-        with dag_maker(DAG_ID, schedule_interval=SCHEDULE_INTERVAL):
+        with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL):
             task = PythonOperator(task_id=TASK_ID, python_callable=int)
 
         dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, execution_date=EXECUTION_DATE)
@@ -87,16 +88,16 @@ class TestSentryHook:
 
     @pytest.fixture
     def sentry_sdk(self):
-        with mock.patch('sentry_sdk.init') as sentry_sdk:
+        with mock.patch("sentry_sdk.init") as sentry_sdk:
             yield sentry_sdk
 
     @pytest.fixture
     def sentry(self):
         with conf_vars(
             {
-                ('sentry', 'sentry_on'): 'True',
-                ('sentry', 'default_integrations'): 'False',
-                ('sentry', 'before_send'): 'tests.core.test_sentry.before_send',
+                ("sentry", "sentry_on"): "True",
+                ("sentry", "default_integrations"): "False",
+                ("sentry", "before_send"): "tests.core.test_sentry.before_send",
             },
         ):
             from airflow import sentry
@@ -111,7 +112,7 @@ class TestSentryHook:
         """
         Minimum sentry config
         """
-        with conf_vars({('sentry', 'sentry_on'): 'True'}):
+        with conf_vars({("sentry", "sentry_on"): "True"}):
             from airflow import sentry
 
             importlib.reload(sentry)
@@ -145,8 +146,8 @@ class TestSentryHook:
         Test before send callable gets passed to the sentry SDK.
         """
         assert sentry
-        called = sentry_sdk.call_args[1]['before_send']
-        expected = import_string('tests.core.test_sentry.before_send')
+        called = sentry_sdk.call_args[1]["before_send"]
+        expected = import_string("tests.core.test_sentry.before_send")
         assert called == expected
 
     def test_before_send_minimum_config(self, sentry_sdk, sentry_minimum):

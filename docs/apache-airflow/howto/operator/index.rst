@@ -24,7 +24,7 @@ An operator represents a single, ideally idempotent, task. Operators
 determine what actually executes when your DAG runs.
 
 .. note::
-    See the :doc:`Operators Concepts </concepts/operators>` documentation and the
+    See the :doc:`Operators Concepts </core-concepts/operators>` documentation and the
     :doc:`Operators API Reference </python-api-ref>` for more
     information.
 
@@ -33,6 +33,8 @@ determine what actually executes when your DAG runs.
 
     bash
     datetime
+    file
     python
+    time
     weekday
     external_task_sensor

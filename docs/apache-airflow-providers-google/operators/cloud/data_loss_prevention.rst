@@ -37,7 +37,7 @@ Create Stored Info-Type
 To create a custom info-type you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPCreateStoredInfoTypeOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_info_types.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_create_info_type]
@@ -70,7 +70,7 @@ Update Stored Info-Type
 To update a info-type you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPUpdateStoredInfoTypeOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_info_types.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_update_info_type]
@@ -85,7 +85,7 @@ Deleting Stored Info-Type
 To delete a info-type you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPDeleteStoredInfoTypeOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_info_types.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_delete_info_type]
@@ -112,7 +112,7 @@ Creating Template
 To create a inspection template you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPCreateInspectTemplateOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_inspect_template.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_create_inspect_template]
@@ -139,7 +139,7 @@ Using Template
 To find potentially sensitive info using the inspection template we just created, we can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPInspectContentOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_inspect_template.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_use_inspect_template]
@@ -161,7 +161,7 @@ Deleting Template
 To delete the template you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPDeleteInspectTemplateOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_inspect_template.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_delete_inspect_template]
@@ -236,7 +236,7 @@ Creating Job Trigger
 To create a job trigger you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPCreateJobTriggerOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_create_job_trigger]
@@ -261,7 +261,7 @@ Updating Job Trigger
 To update a job trigger you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPUpdateJobTriggerOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_update_job_trigger]
@@ -275,7 +275,7 @@ Deleting Job Trigger
 To delete a job trigger you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPDeleteJobTriggerOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_delete_job_trigger]
@@ -297,7 +297,7 @@ Configuration information defines how you want the sensitive data de-identified.
 
 This config can either be saved and persisted in de-identification templates or defined in a :class:`~google.cloud.dlp_v2.types.DeidentifyConfig` object:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_deidentify_content.py
     :language: python
     :start-after: [START dlp_deidentify_config_example]
     :end-before: [END dlp_deidentify_config_example]
@@ -305,7 +305,7 @@ This config can either be saved and persisted in de-identification templates or 
 To de-identify potentially sensitive information from a content item, you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPDeidentifyContentOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_deidentify_content.py
     :language: python
     :dedent: 4
     :start-after: [START _howto_operator_dlp_deidentify_content]

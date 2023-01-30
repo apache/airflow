@@ -63,7 +63,7 @@ Create a Databricks Repo
 
 An example usage of the DatabricksReposCreateOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_databricks_repos.py
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_repos.py
     :language: python
     :start-after: [START howto_operator_databricks_repo_create]
     :end-before: [END howto_operator_databricks_repo_create]

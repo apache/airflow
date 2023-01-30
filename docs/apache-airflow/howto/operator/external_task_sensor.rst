@@ -53,6 +53,16 @@ via ``allowed_states`` and ``failed_states`` parameters.
     :start-after: [START howto_operator_external_task_sensor]
     :end-before: [END howto_operator_external_task_sensor]
 
+ExternalTaskSensor with task_group dependency
+---------------------------------------------
+In Addition, we can also use the :class:`~airflow.sensors.external_task.ExternalTaskSensor` to make tasks on a DAG
+wait for another ``task_group`` on a different DAG for a specific ``execution_date``.
+
+.. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_external_task_sensor_with_task_group]
+    :end-before: [END howto_operator_external_task_sensor_with_task_group]
 
 
 ExternalTaskMarker

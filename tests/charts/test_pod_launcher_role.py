@@ -14,24 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+from __future__ import annotations
 
 import jmespath
-from parameterized import parameterized
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
 
-class PodLauncherTest(unittest.TestCase):
-    @parameterized.expand(
+class TestPodLauncher:
+    @pytest.mark.parametrize(
+        "executor, rbac, allow, expected_accounts",
         [
-            ("CeleryKubernetesExecutor", True, True, ['scheduler', 'worker']),
-            ("KubernetesExecutor", True, True, ['scheduler', 'worker']),
-            ("CeleryExecutor", True, True, ['worker']),
-            ("LocalExecutor", True, True, ['scheduler']),
+            ("CeleryKubernetesExecutor", True, True, ["scheduler", "worker"]),
+            ("KubernetesExecutor", True, True, ["scheduler", "worker"]),
+            ("CeleryExecutor", True, True, ["worker"]),
+            ("LocalExecutor", True, True, ["scheduler"]),
             ("LocalExecutor", False, False, []),
-        ]
+        ],
     )
     def test_pod_launcher_role(self, executor, rbac, allow, expected_accounts):
         docs = render_chart(
@@ -44,6 +44,6 @@ class PodLauncherTest(unittest.TestCase):
         )
         if expected_accounts:
             for idx, suffix in enumerate(expected_accounts):
-                assert f"RELEASE-NAME-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
+                assert f"release-name-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
         else:
             assert [] == docs

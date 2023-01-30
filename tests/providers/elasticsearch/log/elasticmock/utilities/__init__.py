@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 #
 # The MIT License (MIT)
@@ -47,4 +48,4 @@ CHARSET_FOR_ELASTICSEARCH_ID = string.ascii_letters + string.digits
 
 def get_random_id(size=DEFAULT_ELASTICSEARCH_ID_SIZE):
     """Returns random if for elasticsearch"""
-    return ''.join(random.choice(CHARSET_FOR_ELASTICSEARCH_ID) for _ in range(size))
+    return "".join(random.choice(CHARSET_FOR_ELASTICSEARCH_ID) for _ in range(size))

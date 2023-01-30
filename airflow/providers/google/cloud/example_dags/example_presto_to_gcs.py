@@ -18,6 +18,8 @@
 """
 Example DAG using PrestoToGCSOperator.
 """
+from __future__ import annotations
+
 import os
 import re
 from datetime import datetime
@@ -31,7 +33,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.transfers.presto_to_gcs import PrestoToGCSOperator
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCS_BUCKET = os.environ.get("GCP_PRESTO_TO_GCS_BUCKET_NAME", "INVALID BUCKET NAME")
 DATASET_NAME = os.environ.get("GCP_PRESTO_TO_GCS_DATASET_NAME", "test_presto_to_gcs_dataset")
 
@@ -48,7 +50,6 @@ def safe_name(s: str) -> str:
 
 with models.DAG(
     dag_id="example_presto_to_gcs",
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],

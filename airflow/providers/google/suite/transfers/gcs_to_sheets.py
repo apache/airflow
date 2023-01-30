@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -66,8 +67,8 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         object_name: str,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

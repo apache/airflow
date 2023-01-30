@@ -33,8 +33,8 @@ metadata:
     release: {{ .Release.Name }}
     chart: {{ .Chart.Name }}
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
+{{- if or (.Values.labels) (.Values.webserver.labels) }}
+{{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
 {{- end }}
 spec:
   selector:

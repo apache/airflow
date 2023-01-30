@@ -15,26 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS SNS hook"""
+from __future__ import annotations
+
 import json
-import warnings
-from typing import Dict, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
 def _get_message_attribute(o):
     if isinstance(o, bytes):
-        return {'DataType': 'Binary', 'BinaryValue': o}
+        return {"DataType": "Binary", "BinaryValue": o}
     if isinstance(o, str):
-        return {'DataType': 'String', 'StringValue': o}
+        return {"DataType": "String", "StringValue": o}
     if isinstance(o, (int, float)):
-        return {'DataType': 'Number', 'StringValue': str(o)}
-    if hasattr(o, '__iter__'):
-        return {'DataType': 'String.Array', 'StringValue': json.dumps(o)}
+        return {"DataType": "Number", "StringValue": str(o)}
+    if hasattr(o, "__iter__"):
+        return {"DataType": "String.Array", "StringValue": json.dumps(o)}
     raise TypeError(
-        f'Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got {type(o)}'
+        f"Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got {type(o)}"
     )
 
 
@@ -50,14 +49,14 @@ class SnsHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(client_type='sns', *args, **kwargs)
+        super().__init__(client_type="sns", *args, **kwargs)
 
     def publish_to_target(
         self,
         target_arn: str,
         message: str,
-        subject: Optional[str] = None,
-        message_attributes: Optional[dict] = None,
+        subject: str | None = None,
+        message_attributes: dict | None = None,
     ):
         """
         Publish a message to a topic or an endpoint.
@@ -75,33 +74,18 @@ class SnsHook(AwsBaseHook):
             - iterable = String.Array
 
         """
-        publish_kwargs: Dict[str, Union[str, dict]] = {
-            'TargetArn': target_arn,
-            'MessageStructure': 'json',
-            'Message': json.dumps({'default': message}),
+        publish_kwargs: dict[str, str | dict] = {
+            "TargetArn": target_arn,
+            "MessageStructure": "json",
+            "Message": json.dumps({"default": message}),
         }
 
         # Construct args this way because boto3 distinguishes from missing args and those set to None
         if subject:
-            publish_kwargs['Subject'] = subject
+            publish_kwargs["Subject"] = subject
         if message_attributes:
-            publish_kwargs['MessageAttributes'] = {
+            publish_kwargs["MessageAttributes"] = {
                 key: _get_message_attribute(val) for key, val in message_attributes.items()
             }
 
         return self.get_conn().publish(**publish_kwargs)
-
-
-class AwsSnsHook(SnsHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.sns.SnsHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use :class:`airflow.providers.amazon.aws.hooks.sns.SnsHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

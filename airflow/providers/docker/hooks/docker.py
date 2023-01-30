@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from docker import APIClient  # type: ignore[attr-defined]
 from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
@@ -34,45 +36,45 @@ class DockerHook(BaseHook, LoggingMixin):
         where credentials and extra configuration are stored
     """
 
-    conn_name_attr = 'docker_conn_id'
-    default_conn_name = 'docker_default'
-    conn_type = 'docker'
-    hook_name = 'Docker'
+    conn_name_attr = "docker_conn_id"
+    default_conn_name = "docker_default"
+    conn_type = "docker"
+    hook_name = "Docker"
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema'],
+            "hidden_fields": ["schema"],
             "relabeling": {
-                'host': 'Registry URL',
-                'login': 'Username',
+                "host": "Registry URL",
+                "login": "Username",
             },
         }
 
     def __init__(
         self,
-        docker_conn_id: Optional[str] = default_conn_name,
-        base_url: Optional[str] = None,
-        version: Optional[str] = None,
-        tls: Optional[str] = None,
+        docker_conn_id: str | None = default_conn_name,
+        base_url: str | None = None,
+        version: str | None = None,
+        tls: str | None = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
         super().__init__()
         if not base_url:
-            raise AirflowException('No Docker base URL provided')
+            raise AirflowException("No Docker base URL provided")
         if not version:
-            raise AirflowException('No Docker API version provided')
+            raise AirflowException("No Docker API version provided")
 
         if not docker_conn_id:
-            raise AirflowException('No Docker connection id provided')
+            raise AirflowException("No Docker connection id provided")
 
         conn = self.get_connection(docker_conn_id)
 
         if not conn.host:
-            raise AirflowException('No Docker URL provided')
+            raise AirflowException("No Docker URL provided")
         if not conn.login:
-            raise AirflowException('No username provided')
+            raise AirflowException("No username provided")
         extra_options = conn.extra_dejson
 
         self.__base_url = base_url
@@ -85,8 +87,8 @@ class DockerHook(BaseHook, LoggingMixin):
             self.__registry = conn.host
         self.__username = conn.login
         self.__password = conn.password
-        self.__email = extra_options.get('email')
-        self.__reauth = extra_options.get('reauth') != 'no'
+        self.__email = extra_options.get("email")
+        self.__reauth = extra_options.get("reauth") != "no"
 
     def get_conn(self) -> APIClient:
         client = APIClient(
@@ -96,7 +98,7 @@ class DockerHook(BaseHook, LoggingMixin):
         return client
 
     def __login(self, client) -> None:
-        self.log.debug('Logging into Docker')
+        self.log.debug("Logging into Docker")
         try:
             client.login(
                 username=self.__username,
@@ -105,7 +107,7 @@ class DockerHook(BaseHook, LoggingMixin):
                 email=self.__email,
                 reauth=self.__reauth,
             )
-            self.log.debug('Login successful')
+            self.log.debug("Login successful")
         except APIError as docker_error:
-            self.log.error('Docker login failed: %s', str(docker_error))
-            raise AirflowException(f'Docker login failed: {docker_error}')
+            self.log.error("Docker login failed: %s", str(docker_error))
+            raise AirflowException(f"Docker login failed: {docker_error}")

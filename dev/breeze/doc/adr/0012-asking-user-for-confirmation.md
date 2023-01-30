@@ -73,7 +73,7 @@ confirmation is necessary. Default action in this case is "quit" so if the user 
 the operation should quit without making any change.
 
 2) If there is a long-running (but not disruptive) operation that user directly requested (for example
-building and image by `build-image` command), there should be no question asked unless there is some
+building and image by `ci-image build` command), there should be no question asked unless there is some
 condition that could change the length of the action (for example when we realise that the user have not
 rebased to the latest main and rebuilding the image might take far longer than initially anticipated by
 the user). In case of such unexpected condition the default answer should be "quit" as well without timeout.

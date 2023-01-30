@@ -43,7 +43,7 @@ to run a query in Amazon Athena.
 
 In the following example, we query an existing Athena table and send the results to
 an existing Amazon S3 bucket.  For more examples of how to use this operator, please
-see the `Sample DAG <https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/example_dags/example_athena.py>`__.
+see the `Sample DAG <https://github.com/apache/airflow/blob/|version|/airflow/providers/amazon/aws/example_dags/example_athena.py>`__.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_athena.py
     :language: python

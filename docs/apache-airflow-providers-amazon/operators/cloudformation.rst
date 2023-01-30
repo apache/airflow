@@ -42,7 +42,7 @@ Create an AWS CloudFormation stack
 To create a new AWS CloudFormation stack use
 :class:`~airflow.providers.amazon.aws.operators.cloud_formation.CloudFormationCreateStackOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_cloudformation.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_cloudformation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudformation_create_stack]
@@ -56,7 +56,7 @@ Delete an AWS CloudFormation stack
 To delete an AWS CloudFormation stack you can use
 :class:`~airflow.providers.amazon.aws.operators.cloud_formation.CloudFormationDeleteStackOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_cloudformation.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_cloudformation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudformation_delete_stack]
@@ -73,7 +73,7 @@ Wait on an AWS CloudFormation stack creation state
 To wait on the state of an AWS CloudFormation stack creation until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.cloud_formation.CloudFormationCreateStackSensor`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_cloudformation.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_cloudformation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_cloudformation_create_stack]
@@ -87,7 +87,7 @@ Wait on an AWS CloudFormation stack deletion state
 To wait on the state of an AWS CloudFormation stack deletion until it reaches a terminal state you can use
 use :class:`~airflow.providers.amazon.aws.sensors.cloud_formation.CloudFormationDeleteStackSensor`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_cloudformation.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_cloudformation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_cloudformation_delete_stack]

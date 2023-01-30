@@ -42,8 +42,7 @@ Extra (optional)
 
     * ``queue`` - The name of the YARN queue to which the application is submitted.
     * ``deploy-mode`` - Whether to deploy your driver on the worker nodes (cluster) or locally as an external client (client).
-    * ``spark-home`` - If passed then build the ``spark-binary`` executable path using it (``spark-home``/bin/``spark-binary``); otherwise assume that ``spark-binary`` is present in the PATH of the executing user.
-    * ``spark-binary`` - The command to use for Spark submit. Some distros may use ``spark2-submit``. Default ``spark-submit``.
+    * ``spark-binary`` - The command to use for Spark submit. Some distros may use ``spark2-submit``. Default ``spark-submit``. Only ``spark-submit`` and ``spark2-submit`` are allowed as value.
     * ``namespace`` - Kubernetes namespace (``spark.kubernetes.namespace``) to divide cluster resources between multiple users (via resource quota).
 
 When specifying the connection in environment variable you should specify

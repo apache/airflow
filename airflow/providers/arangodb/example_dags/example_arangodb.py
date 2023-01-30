@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 
 from airflow.models.dag import DAG
@@ -21,9 +23,9 @@ from airflow.providers.arangodb.operators.arangodb import AQLOperator
 from airflow.providers.arangodb.sensors.arangodb import AQLSensor
 
 dag = DAG(
-    'example_arangodb_operator',
+    "example_arangodb_operator",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 )
 
@@ -41,7 +43,7 @@ sensor = AQLSensor(
 
 # [START howto_aql_sensor_template_file_arangodb]
 
-sensor = AQLSensor(
+sensor2 = AQLSensor(
     task_id="aql_sensor_template_file",
     query="search_judy.sql",
     timeout=60,
@@ -55,7 +57,7 @@ sensor = AQLSensor(
 # [START howto_aql_operator_arangodb]
 
 operator = AQLOperator(
-    task_id='aql_operator',
+    task_id="aql_operator",
     query="FOR doc IN students RETURN doc",
     dag=dag,
     result_processor=lambda cursor: print([document["name"] for document in cursor]),
@@ -65,8 +67,8 @@ operator = AQLOperator(
 
 # [START howto_aql_operator_template_file_arangodb]
 
-operator = AQLOperator(
-    task_id='aql_operator_template_file',
+operator2 = AQLOperator(
+    task_id="aql_operator_template_file",
     dag=dag,
     result_processor=lambda cursor: print([document["name"] for document in cursor]),
     query="search_all.sql",

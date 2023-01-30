@@ -126,7 +126,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
 ```shell script
-breeze prepare-provider-documentation [packages]
+breeze release-management prepare-provider-documentation [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
@@ -148,7 +148,17 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze prepare-provider-documentation --answer yes [packages]
+breeze release-management prepare-provider-documentation --answer yes [packages]
+```
+
+NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
+specify the base branch via `--base-branch` parameter.
+For example if you try to build a `cncf.kubernetes` provider that is build from `provider-cncf-kubernetes/v4-4`
+branch should be prepared like this:
+
+```shell script
+breeze release-management prepare-provider-documentation \
+ --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
 
 ## Build provider packages for SVN apache upload
@@ -173,13 +183,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-breeze prepare-provider-packages --package-format both
+breeze release-management prepare-provider-packages --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -196,14 +206,12 @@ popd
 
 ```shell script
 # First clone the repo if you do not have it
-svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
-
-# update the repo in case you have it already
-cd airflow-dev
-svn update
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Create a new folder for the release.
-cd providers
+cd asf-dist/dev/airflow/providers
 
 # Remove previously released providers
 rm -rf *
@@ -238,13 +246,13 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -304,7 +312,7 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --for-production --package-filter apache-airflow-providers \
+breeze build-docs --clean-build --for-production --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
@@ -316,8 +324,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --for-production \
-  --package-filter apache-airflow-providers \
+breeze build-docs --clean-build --for-production \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
   ...
@@ -389,6 +396,13 @@ You can also pass the token as `--github-token` option in the script.
 
 You can also generate the token by following
 [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
+
+If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist --suffix rc2
+```
+
 
 ## Prepare voting email for Providers release candidate
 
@@ -499,7 +513,8 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py -v {VERSION} -t providers -p {PATH_TO_SVN}
+# Copy the list of packages (pypi urls) into `packages.txt` then run:
+python check_files.py providers -p {PATH_TO_SVN}
 ```
 
 ### Licences check
@@ -697,7 +712,7 @@ Hello,
 
 Apache Airflow Providers (based on RC1) have been accepted.
 
-3 “+1” binding votes received:
+3 "+1" binding votes received:
 - Jarek Potiuk  (binding)
 - Kaxil Naik (binding)
 - Tomasz Urbaszek (binding)
@@ -722,15 +737,26 @@ again, and gives a clearer history in the svn commit logs.
 We also need to archive older releases before copying the new ones
 [Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
 
-```shell script
+```bash
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT="$(pwd)"
+cd ..
 
-# Go to the directory where you have checked out the dev svn release
-# And go to the sub-folder with RC candidates
-cd "<ROOT_OF_YOUR_DEV_REPO>/providers/"
-export SOURCE_DIR=$(pwd)
+# Go the folder where you have checked out the release repo
+cd "<ROOT_OF_YOUR_RELEASE_REPO>"
+# or clone it if it's not done yet
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+# Update to latest version
+svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
+
+SOURCE_DIR="${PWD}/asf-dist/dev/airflow/providers"
+
+# Create providers folder if it does not exist
+# All latest releases are kept in this one folder without version sub-folder
+cd asf-dist/release/airflow
+mkdir -pv providers
+cd providers
 
 # If some packages have been excluded, remove them now
 # Check the packages
@@ -738,37 +764,21 @@ ls *<provider>*
 # Remove them
 svn rm *<provider>*
 
-# Go the folder where you have checked out the release repo
-cd "<ROOT_OF_YOUR_RELEASE_REPO>"
-# or clone it if it's not done yet
-svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
-cd airflow-release
-
-# Update to latest version
-svn update
-
-# Create providers folder if it does not exist
-# All latest releases are kept in this one folder without version sub-folder
-mkdir -pv providers
-cd providers
-
 # Copy your providers with the target name to dist directory and to SVN
-rm ${AIRFLOW_REPO_ROOT}/dist/*
+rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
 
-for file in ${SOURCE_DIR}/*
+for file in "${SOURCE_DIR}"/*
 do
  base_file=$(basename ${file})
  cp -v "${file}" "${AIRFLOW_REPO_ROOT}/dist/${base_file//rc[0-9]/}"
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need python 3.7+)
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
-    --directory .
+# Check which old packages will be removed (you need Python 3.7+ and dev/requirements.txt installed)
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory .
 
 # Remove those packages
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
-    --directory . --execute
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory . --execute
 
 
 # Commit to SVN

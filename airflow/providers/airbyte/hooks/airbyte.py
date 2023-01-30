@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time
-from typing import Any, Optional, Union
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -31,10 +33,10 @@ class AirbyteHook(HttpHook):
     :param api_version: Optional. Airbyte API version.
     """
 
-    conn_name_attr = 'airbyte_conn_id'
-    default_conn_name = 'airbyte_default'
-    conn_type = 'airbyte'
-    hook_name = 'Airbyte'
+    conn_name_attr = "airbyte_conn_id"
+    default_conn_name = "airbyte_default"
+    conn_type = "airbyte"
+    hook_name = "Airbyte"
 
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -48,9 +50,7 @@ class AirbyteHook(HttpHook):
         super().__init__(http_conn_id=airbyte_conn_id)
         self.api_version: str = api_version
 
-    def wait_for_job(
-        self, job_id: Union[str, int], wait_seconds: float = 3, timeout: Optional[float] = 3600
-    ) -> None:
+    def wait_for_job(self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
@@ -107,21 +107,33 @@ class AirbyteHook(HttpHook):
             headers={"accept": "application/json"},
         )
 
+    def cancel_job(self, job_id: int) -> Any:
+        """
+        Cancel the job when task is cancelled
+
+        :param job_id: Required. Id of the Airbyte job
+        """
+        return self.run(
+            endpoint=f"api/{self.api_version}/jobs/cancel",
+            json={"id": job_id},
+            headers={"accept": "application/json"},
+        )
+
     def test_connection(self):
         """Tests the Airbyte connection by hitting the health API"""
-        self.method = 'GET'
+        self.method = "GET"
         try:
             res = self.run(
                 endpoint=f"api/{self.api_version}/health",
                 headers={"accept": "application/json"},
-                extra_options={'check_response': False},
+                extra_options={"check_response": False},
             )
 
             if res.status_code == 200:
-                return True, 'Connection successfully tested'
+                return True, "Connection successfully tested"
             else:
                 return False, res.text
         except Exception as e:
             return False, str(e)
         finally:
-            self.method = 'POST'
+            self.method = "POST"

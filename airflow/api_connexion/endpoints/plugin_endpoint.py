@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from airflow.api_connexion import security
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
@@ -25,9 +27,7 @@ from airflow.security import permissions
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN)])
 @format_parameters({"limit": check_limit})
 def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
-    """Get plugins endpoint"""
+    """Get plugins endpoint."""
     plugins_info = get_plugin_info()
-    total_entries = len(plugins_info)
-    plugins_info = plugins_info[offset:]
-    plugins_info = plugins_info[:limit]
-    return plugin_collection_schema.dump(PluginCollection(plugins=plugins_info, total_entries=total_entries))
+    collection = PluginCollection(plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info))
+    return plugin_collection_schema.dump(collection)

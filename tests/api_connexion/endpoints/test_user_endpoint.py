@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest.mock
 
 import pytest
@@ -73,10 +75,10 @@ class TestUserEndpoint:
             roles = []
         return [
             User(
-                first_name=f'test{i}',
-                last_name=f'test{i}',
-                username=f'TEST_USER{i}',
-                email=f'mytest@test{i}.org',
+                first_name=f"test{i}",
+                last_name=f"test{i}",
+                username=f"TEST_USER{i}",
+                email=f"mytest@test{i}.org",
                 roles=roles or [],
                 created_on=timezone.parse(DEFAULT_TIME),
                 changed_on=timezone.parse(DEFAULT_TIME),
@@ -90,30 +92,114 @@ class TestGetUser(TestUserEndpoint):
         users = self._create_users(1)
         self.session.add_all(users)
         self.session.commit()
-        response = self.client.get("/api/v1/users/TEST_USER1", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            'active': None,
-            'changed_on': DEFAULT_TIME,
-            'created_on': DEFAULT_TIME,
-            'email': 'mytest@test1.org',
-            'fail_login_count': None,
-            'first_name': 'test1',
-            'last_login': None,
-            'last_name': 'test1',
-            'login_count': None,
-            'roles': [],
-            'username': 'TEST_USER1',
+            "active": None,
+            "changed_on": DEFAULT_TIME,
+            "created_on": DEFAULT_TIME,
+            "email": "mytest@test1.org",
+            "fail_login_count": None,
+            "first_name": "test1",
+            "last_login": None,
+            "last_name": "test1",
+            "login_count": None,
+            "roles": [],
+            "username": "TEST_USER1",
+        }
+
+    def test_last_names_can_be_empty(self):
+        prince = User(
+            first_name="Prince",
+            last_name="",
+            username="prince",
+            email="prince@example.org",
+            roles=[],
+            created_on=timezone.parse(DEFAULT_TIME),
+            changed_on=timezone.parse(DEFAULT_TIME),
+        )
+        self.session.add_all([prince])
+        self.session.commit()
+        response = self.client.get("/api/v1/users/prince", environ_overrides={"REMOTE_USER": "test"})
+        assert response.status_code == 200
+        assert response.json == {
+            "active": None,
+            "changed_on": DEFAULT_TIME,
+            "created_on": DEFAULT_TIME,
+            "email": "prince@example.org",
+            "fail_login_count": None,
+            "first_name": "Prince",
+            "last_login": None,
+            "last_name": "",
+            "login_count": None,
+            "roles": [],
+            "username": "prince",
+        }
+
+    def test_first_names_can_be_empty(self):
+        liberace = User(
+            first_name="",
+            last_name="Liberace",
+            username="liberace",
+            email="liberace@example.org",
+            roles=[],
+            created_on=timezone.parse(DEFAULT_TIME),
+            changed_on=timezone.parse(DEFAULT_TIME),
+        )
+        self.session.add_all([liberace])
+        self.session.commit()
+        response = self.client.get("/api/v1/users/liberace", environ_overrides={"REMOTE_USER": "test"})
+        assert response.status_code == 200
+        assert response.json == {
+            "active": None,
+            "changed_on": DEFAULT_TIME,
+            "created_on": DEFAULT_TIME,
+            "email": "liberace@example.org",
+            "fail_login_count": None,
+            "first_name": "",
+            "last_login": None,
+            "last_name": "Liberace",
+            "login_count": None,
+            "roles": [],
+            "username": "liberace",
+        }
+
+    def test_both_first_and_last_names_can_be_empty(self):
+        nameless = User(
+            first_name="",
+            last_name="",
+            username="nameless",
+            email="nameless@example.org",
+            roles=[],
+            created_on=timezone.parse(DEFAULT_TIME),
+            changed_on=timezone.parse(DEFAULT_TIME),
+        )
+        self.session.add_all([nameless])
+        self.session.commit()
+        response = self.client.get("/api/v1/users/nameless", environ_overrides={"REMOTE_USER": "test"})
+        assert response.status_code == 200
+        assert response.json == {
+            "active": None,
+            "changed_on": DEFAULT_TIME,
+            "created_on": DEFAULT_TIME,
+            "email": "nameless@example.org",
+            "fail_login_count": None,
+            "first_name": "",
+            "last_login": None,
+            "last_name": "",
+            "login_count": None,
+            "roles": [],
+            "username": "nameless",
         }
 
     def test_should_respond_404(self):
-        response = self.client.get("/api/v1/users/invalid-user", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users/invalid-user", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert {
-            'detail': "The User with username `invalid-user` was not found",
-            'status': 404,
-            'title': 'User not found',
-            'type': EXCEPTIONS_LINK_MAP[404],
+            "detail": "The User with username `invalid-user` was not found",
+            "status": 404,
+            "title": "User not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json
 
     def test_should_raises_401_unauthenticated(self):
@@ -122,25 +208,25 @@ class TestGetUser(TestUserEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/api/v1/users/TEST_USER1", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+            "/api/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
 
 class TestGetUsers(TestUserEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
         usernames = [user["username"] for user in response.json["users"] if user]
-        assert usernames == ['test', 'test_no_permissions']
+        assert usernames == ["test", "test_no_permissions"]
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/users")
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        response = self.client.get("/api/v1/users", environ_overrides={"REMOTE_USER": "test_no_permissions"})
         assert response.status_code == 403
 
 
@@ -190,7 +276,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         users = self._create_users(10)
         self.session.add_all(users)
         self.session.commit()
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 12
         usernames = [user["username"] for user in response.json["users"] if user]
@@ -201,30 +287,30 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         # Explicitly add the 2 users on setUp
-        assert response.json["total_entries"] == 200 + len(['test', 'test_no_permissions'])
+        assert response.json["total_entries"] == 200 + len(["test", "test_no_permissions"])
         assert len(response.json["users"]) == 100
 
     def test_should_response_400_with_invalid_order_by(self):
         users = self._create_users(2)
         self.session.add_all(users)
         self.session.commit()
-        response = self.client.get("/api/v1/users?order_by=myname", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users?order_by=myname", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         msg = "Ordering with 'myname' is disallowed or the attribute does not exist on the model"
-        assert response.json['detail'] == msg
+        assert response.json["detail"] == msg
 
     def test_limit_of_zero_should_return_default(self):
         users = self._create_users(200)
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/api/v1/users?limit=0", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users?limit=0", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         # Explicit add the 2 users on setUp
-        assert response.json["total_entries"] == 200 + len(['test', 'test_no_permissions'])
+        assert response.json["total_entries"] == 200 + len(["test", "test_no_permissions"])
         assert len(response.json["users"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
@@ -233,9 +319,9 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/api/v1/users?limit=180", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users?limit=180", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json['users']) == 150
+        assert len(response.json["users"]) == 150
 
 
 EXAMPLE_USER_NAME = "example_user"
@@ -308,8 +394,8 @@ def autoclean_user_payload(autoclean_username, autoclean_email):
         "username": autoclean_username,
         "password": "resutsop",
         "email": autoclean_email,
-        "first_name": "Example",
-        "last_name": "User",
+        "first_name": "Tester",
+        "last_name": "",
     }
 
 
@@ -433,10 +519,10 @@ class TestPostUser(TestUserEndpoint):
         )
         assert response.status_code == 400, response.json
         assert response.json == {
-            'detail': error_message,
-            'status': 400,
-            'title': "Bad Request",
-            'type': EXCEPTIONS_LINK_MAP[400],
+            "detail": error_message,
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
         }
 
 
@@ -454,14 +540,14 @@ class TestPatchUser(TestUserEndpoint):
         # The first name is changed.
         data = response.json
         assert data["first_name"] == "Changed"
-        assert data["last_name"] == "User"
+        assert data["last_name"] == ""
 
     @pytest.mark.usefixtures("autoclean_admin_user")
-    def test_change_with_update_maek(self, autoclean_username, autoclean_user_payload):
+    def test_change_with_update_mask(self, autoclean_username, autoclean_user_payload):
         autoclean_user_payload["first_name"] = "Changed"
-        autoclean_user_payload["last_name"] = "Overlord"
+        autoclean_user_payload["last_name"] = "McTesterson"
         response = self.client.patch(
-            f"/api/v1/users/{autoclean_username}?update_mask=first_name",
+            f"/api/v1/users/{autoclean_username}?update_mask=last_name",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -469,8 +555,8 @@ class TestPatchUser(TestUserEndpoint):
 
         # The first name is changed, but the last name isn't since we masked it.
         data = response.json
-        assert data["first_name"] == "Changed"
-        assert data["last_name"] == "User"
+        assert data["first_name"] == "Tester"
+        assert data["last_name"] == "McTesterson"
 
     @pytest.mark.parametrize(
         "payload, error_message",
@@ -517,11 +603,11 @@ class TestPatchUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, response.json
-        assert response.json['detail'] == "{'%s': ['Missing data for required field.']}" % field
+        assert response.json["detail"] == "{'%s': ['Missing data for required field.']}" % field
 
-    @pytest.mark.usefixtures('autoclean_admin_user')
+    @pytest.mark.usefixtures("autoclean_admin_user")
     def test_username_can_be_updated(self, autoclean_user_payload, autoclean_username):
-        testusername = 'testusername'
+        testusername = "testusername"
         autoclean_user_payload.update({"username": testusername})
         response = self.client.patch(
             f"/api/v1/users/{autoclean_username}",
@@ -529,7 +615,7 @@ class TestPatchUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         _delete_user(username=testusername)
-        assert response.json['username'] == testusername
+        assert response.json["username"] == testusername
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     @unittest.mock.patch(
@@ -649,10 +735,10 @@ class TestPatchUser(TestUserEndpoint):
         )
         assert response.status_code == 400, response.json
         assert response.json == {
-            'detail': error_message,
-            'status': 400,
-            'title': "Bad Request",
-            'type': EXCEPTIONS_LINK_MAP[400],
+            "detail": error_message,
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
         }
 
 

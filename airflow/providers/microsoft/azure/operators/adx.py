@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """This module contains Azure Data Explorer operators"""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from azure.kusto.data._models import KustoResultTable
 
@@ -42,17 +42,17 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         :ref:`Azure Data Explorer connection<howto/connection:adx>`.
     """
 
-    ui_color = '#00a1f2'
-    template_fields: Sequence[str] = ('query', 'database')
-    template_ext: Sequence[str] = ('.kql',)
+    ui_color = "#00a1f2"
+    template_fields: Sequence[str] = ("query", "database")
+    template_ext: Sequence[str] = (".kql",)
 
     def __init__(
         self,
         *,
         query: str,
         database: str,
-        options: Optional[dict] = None,
-        azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
+        options: dict | None = None,
+        azure_data_explorer_conn_id: str = "azure_data_explorer_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -65,7 +65,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """Returns new instance of AzureDataExplorerHook"""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
-    def execute(self, context: "Context") -> Union[KustoResultTable, str]:
+    def execute(self, context: Context) -> KustoResultTable | str:
         """
         Run KQL Query on Azure Data Explorer (Kusto).
         Returns `PrimaryResult` of Query v2 HTTP response contents
@@ -73,7 +73,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """
         hook = self.get_hook()
         response = hook.run_query(self.query, self.database, self.options)
-        if conf.getboolean('core', 'enable_xcom_pickling'):
+        if conf.getboolean("core", "enable_xcom_pickling"):
             return response.primary_results[0]
         else:
             return str(response.primary_results[0])

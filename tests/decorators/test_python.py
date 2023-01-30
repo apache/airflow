@@ -17,9 +17,8 @@
 # under the License.
 import sys
 from collections import namedtuple
-from datetime import date, datetime, timedelta
-from typing import Dict  # noqa: F401  # This is used by annotation tests.
-from typing import Tuple
+from datetime import date, timedelta
+from typing import Dict, Tuple  # noqa: F401  # This is used by annotation tests.
 
 import pytest
 
@@ -28,10 +27,12 @@ from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.expandinput import DictOfListsExpandInput
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.models.xcom_arg import XComArg
+from airflow.models.xcom_arg import PlainXComArg, XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -45,10 +46,10 @@ INTERVAL = timedelta(hours=12)
 FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 
 TI_CONTEXT_ENV_VARS = [
-    'AIRFLOW_CTX_DAG_ID',
-    'AIRFLOW_CTX_TASK_ID',
-    'AIRFLOW_CTX_EXECUTION_DATE',
-    'AIRFLOW_CTX_DAG_RUN_ID',
+    "AIRFLOW_CTX_DAG_ID",
+    "AIRFLOW_CTX_TASK_ID",
+    "AIRFLOW_CTX_EXECUTION_DATE",
+    "AIRFLOW_CTX_DAG_RUN_ID",
 ]
 
 
@@ -205,7 +206,7 @@ class TestAirflowTaskDecorator:
             add_number(2, 3)
         with pytest.raises(TypeError):
             add_number()
-        add_number('test')
+        add_number("test")
 
     def test_fail_method(self):
         """Tests that @task will fail if signature is not binding."""
@@ -261,8 +262,8 @@ class TestAirflowTaskDecorator:
 
         # Create a named tuple and ensure it is still preserved
         # after the rendering is done
-        Named = namedtuple('Named', ['var1', 'var2'])
-        named_tuple = Named('{{ ds }}', 'unchanged')
+        Named = namedtuple("Named", ["var1", "var2"])
+        named_tuple = Named("{{ ds }}", "unchanged")
 
         task = task_decorator(
             # a Mock instance cannot be used as a callable function or test fails with a
@@ -289,7 +290,7 @@ class TestAirflowTaskDecorator:
                 4,
                 date(2019, 1, 1),
                 f"dag {self.dag.dag_id} ran on {ds_templated}.",
-                Named(ds_templated, 'unchanged'),
+                Named(ds_templated, "unchanged"),
             ),
         )
 
@@ -326,13 +327,13 @@ class TestAirflowTaskDecorator:
     def test_manual_task_id(self):
         """Test manually setting task_id"""
 
-        @task_decorator(task_id='some_name')
+        @task_decorator(task_id="some_name")
         def do_run():
             return 4
 
         with self.dag:
             do_run()
-            assert ['some_name'] == self.dag.task_ids
+            assert ["some_name"] == self.dag.task_ids
 
     def test_multiple_calls(self):
         """Test calling task multiple times in a DAG"""
@@ -343,13 +344,13 @@ class TestAirflowTaskDecorator:
 
         with self.dag:
             do_run()
-            assert ['do_run'] == self.dag.task_ids
+            assert ["do_run"] == self.dag.task_ids
             do_run_1 = do_run()
             do_run_2 = do_run()
-            assert ['do_run', 'do_run__1', 'do_run__2'] == self.dag.task_ids
+            assert ["do_run", "do_run__1", "do_run__2"] == self.dag.task_ids
 
-        assert do_run_1.operator.task_id == 'do_run__1'
-        assert do_run_2.operator.task_id == 'do_run__2'
+        assert do_run_1.operator.task_id == "do_run__1"
+        assert do_run_2.operator.task_id == "do_run__2"
 
     def test_multiple_calls_in_task_group(self):
         """Test calling task multiple times in a TaskGroup"""
@@ -380,14 +381,14 @@ class TestAirflowTaskDecorator:
             for _ in range(20):
                 __do_run()
 
-        assert self.dag.task_ids[-1] == '__do_run__20'
+        assert self.dag.task_ids[-1] == "__do_run__20"
 
     def test_multiple_outputs(self):
         """Tests pushing multiple outputs as a dictionary"""
 
         @task_decorator(multiple_outputs=True)
         def return_dict(number: int):
-            return {'number': number + 1, '43': 43}
+            return {"number": number + 1, "43": 43}
 
         test_number = 10
         with self.dag:
@@ -403,9 +404,9 @@ class TestAirflowTaskDecorator:
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key='number') == test_number + 1
-        assert ti.xcom_pull(key='43') == 43
-        assert ti.xcom_pull() == {'number': test_number + 1, '43': 43}
+        assert ti.xcom_pull(key="number") == test_number + 1
+        assert ti.xcom_pull(key="43") == 43
+        assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
 
     def test_default_args(self):
         """Test that default_args are captured when calling the function correctly"""
@@ -416,7 +417,7 @@ class TestAirflowTaskDecorator:
 
         with self.dag:
             ret = do_run()
-        assert ret.operator.owner == 'airflow'
+        assert ret.operator.owner == "airflow"
 
         @task_decorator
         def test_apply_default_raise(unknown):
@@ -432,7 +433,7 @@ class TestAirflowTaskDecorator:
 
         with self.dag:
             ret = test_apply_default()
-        assert 'owner' in ret.operator.op_kwargs
+        assert "owner" in ret.operator.op_kwargs
 
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
@@ -461,7 +462,7 @@ class TestAirflowTaskDecorator:
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == 'add_num'][0]
+        ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == "add_num"][0]
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
 
     def test_dag_task(self):
@@ -475,20 +476,20 @@ class TestAirflowTaskDecorator:
         res = add_2(test_number)
         add_2(res)
 
-        assert 'add_2' in self.dag.task_ids
+        assert "add_2" in self.dag.task_ids
 
     def test_dag_task_multiple_outputs(self):
         """Tests dag.task property to generate task with multiple outputs"""
 
         @self.dag.task(multiple_outputs=True)
         def add_2(number: int):
-            return {'1': number + 2, '2': 42}
+            return {"1": number + 2, "2": 42}
 
         test_number = 10
         add_2(test_number)
         add_2(test_number)
 
-        assert 'add_2' in self.dag.task_ids
+        assert "add_2" in self.dag.task_ids
 
     def test_task_documentation(self):
         """Tests that task_decorator loads doc_md from function doc"""
@@ -509,7 +510,7 @@ class TestAirflowTaskDecorator:
     def test_user_provided_task_id_in_a_loop_is_used(self):
         """Tests that when looping that user provided task_id is used"""
 
-        @task_decorator(task_id='hello_task')
+        @task_decorator(task_id="hello_task")
         def hello():
             """
             Print Hello world
@@ -518,15 +519,15 @@ class TestAirflowTaskDecorator:
 
         with self.dag:
             for i in range(3):
-                hello.override(task_id=f'my_task_id_{i * 2}')()
+                hello.override(task_id=f"my_task_id_{i * 2}")()
             hello()  # This task would have hello_task as the task_id
 
-        assert self.dag.task_ids == ['my_task_id_0', 'my_task_id_2', 'my_task_id_4', 'hello_task']
+        assert self.dag.task_ids == ["my_task_id_0", "my_task_id_2", "my_task_id_4", "hello_task"]
 
     def test_user_provided_pool_and_priority_weight_works(self):
         """Tests that when looping that user provided pool, priority_weight etc is used"""
 
-        @task_decorator(task_id='hello_task')
+        @task_decorator(task_id="hello_task")
         def hello():
             """
             Print Hello world
@@ -535,18 +536,18 @@ class TestAirflowTaskDecorator:
 
         with self.dag:
             for i in range(3):
-                hello.override(pool='my_pool', priority_weight=i)()
+                hello.override(pool="my_pool", priority_weight=i)()
 
         weights = []
         for task in self.dag.tasks:
-            assert task.pool == 'my_pool'
+            assert task.pool == "my_pool"
             weights.append(task.priority_weight)
         assert weights == [0, 1, 2]
 
     def test_python_callable_args_work_as_well_as_baseoperator_args(self):
         """Tests that when looping that user provided pool, priority_weight etc is used"""
 
-        @task_decorator(task_id='hello_task')
+        @task_decorator(task_id="hello_task")
         def hello(x, y):
             """
             Print Hello world
@@ -555,10 +556,10 @@ class TestAirflowTaskDecorator:
             return x, y
 
         with self.dag:
-            output = hello.override(task_id='mytask')(x=2, y=3)
+            output = hello.override(task_id="mytask")(x=2, y=3)
             output2 = hello.override()(2, 3)  # nothing overridden but should work
 
-        assert output.operator.op_kwargs == {'x': 2, 'y': 3}
+        assert output.operator.op_kwargs == {"x": 2, "y": 3}
         assert output2.operator.op_args == (2, 3)
         output.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         output2.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -613,7 +614,7 @@ def test_mapped_decorator():
     assert isinstance(t2, XComArg)
     assert isinstance(t2.operator, DecoratedMappedOperator)
     assert t2.operator.task_id == "print_everything"
-    assert t2.operator.mapped_op_kwargs == {"any_key": [1, 2], "works": t1}
+    assert t2.operator.op_kwargs_expand_input == DictOfListsExpandInput({"any_key": [1, 2], "works": t1})
 
     assert t0.operator.task_id == "print_info"
     assert t1.operator.task_id == "print_info__1"
@@ -627,7 +628,7 @@ def test_mapped_decorator_invalid_args() -> None:
     literal = [1, 2, 3]
 
     with pytest.raises(TypeError, match="arguments 'other', 'b'"):
-        double.partial(other=[1], b=['a'])
+        double.partial(other=[1], b=["a"])
     with pytest.raises(TypeError, match="argument 'other'"):
         double.expand(number=literal, other=[1])
     with pytest.raises(ValueError, match="argument 'number'"):
@@ -641,12 +642,16 @@ def test_partial_mapped_decorator() -> None:
 
     literal = [1, 2, 3]
 
-    with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
+    with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
         quadrupled = product.partial(multiple=3).expand(number=literal)
         doubled = product.partial(multiple=2).expand(number=literal)
         trippled = product.partial(multiple=3).expand(number=literal)
 
         product.partial(multiple=2)  # No operator is actually created.
+
+    assert isinstance(doubled, PlainXComArg)
+    assert isinstance(trippled, PlainXComArg)
+    assert isinstance(quadrupled, PlainXComArg)
 
     assert dag.task_dict == {
         "product": quadrupled.operator,
@@ -654,9 +659,8 @@ def test_partial_mapped_decorator() -> None:
         "product__2": trippled.operator,
     }
 
-    assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, DecoratedMappedOperator)
-    assert doubled.operator.mapped_op_kwargs == {"number": literal}
+    assert doubled.operator.op_kwargs_expand_input == DictOfListsExpandInput({"number": literal})
     assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
 
     assert isinstance(trippled.operator, DecoratedMappedOperator)  # For type-checking on partial_kwargs.
@@ -665,12 +669,12 @@ def test_partial_mapped_decorator() -> None:
     assert doubled.operator is not trippled.operator
 
 
-def test_mapped_decorator_unmap_merge_op_kwargs():
-    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
+    with dag_maker(session=session):
 
         @task_decorator
         def task1():
-            ...
+            return ["x"]
 
         @task_decorator
         def task2(arg1, arg2):
@@ -678,16 +682,27 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
 
         task2.partial(arg1=1).expand(arg2=task1())
 
-    unmapped = dag.get_task("task2").unmap()
+    run = dag_maker.create_dagrun()
+
+    # Run task1.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task1"]
+    dec.schedulable_tis[0].run(session=session)
+
+    # Expand task2.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task2"]
+    ti = dec.schedulable_tis[0]
+    unmapped = ti.task.unmap((ti.get_template_context(session), session))
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
-def test_mapped_decorator_converts_partial_kwargs():
-    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
+    with dag_maker(session=session):
 
         @task_decorator
         def task1(arg):
-            ...
+            return ["x" * arg]
 
         @task_decorator(retry_delay=30)
         def task2(arg1, arg2):
@@ -695,13 +710,22 @@ def test_mapped_decorator_converts_partial_kwargs():
 
         task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
 
-    mapped_task2 = dag.get_task("task2")
-    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)
-    assert mapped_task2.unmap().retry_delay == timedelta(seconds=30)
+    run = dag_maker.create_dagrun()
 
-    mapped_task1 = dag.get_task("task1")
-    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)  # Operator default.
-    mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.
+    # Expand and run task1.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task1", "task1"]
+    for ti in dec.schedulable_tis:
+        ti.run(session=session)
+        assert not isinstance(ti.task, MappedOperator)
+        assert ti.task.retry_delay == timedelta(seconds=300)  # Operator default.
+
+    # Expand task2.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task2", "task2"]
+    for ti in dec.schedulable_tis:
+        unmapped = ti.task.unmap((ti.get_template_context(session), session))
+        assert unmapped.retry_delay == timedelta(seconds=30)
 
 
 def test_mapped_render_template_fields(dag_maker, session):
@@ -711,13 +735,12 @@ def test_mapped_render_template_fields(dag_maker, session):
 
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        xcom_arg = XComArg(task1)
-        mapped = fn.partial(arg2='{{ ti.task_id }}').expand(arg1=xcom_arg)
+        mapped = fn.partial(arg2="{{ ti.task_id }}").expand(arg1=task1.output)
 
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
 
-    ti.xcom_push(key=XCOM_RETURN_KEY, value=['{{ ds }}'], session=session)
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
 
     session.add(
         TaskMap(
@@ -733,11 +756,13 @@ def test_mapped_render_template_fields(dag_maker, session):
 
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
     mapped_ti.map_index = 0
-    op = mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert op
 
-    assert op.op_kwargs['arg1'] == "{{ ds }}"
-    assert op.op_kwargs['arg2'] == "fn"
+    assert isinstance(mapped_ti.task, MappedOperator)
+    mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert isinstance(mapped_ti.task, BaseOperator)
+
+    assert mapped_ti.task.op_kwargs["arg1"] == "{{ ds }}"
+    assert mapped_ti.task.op_kwargs["arg2"] == "fn"
 
 
 def test_task_decorator_has_wrapped_attr():
@@ -752,6 +777,99 @@ def test_task_decorator_has_wrapped_attr():
     decorated_test_func = task_decorator(org_test_func)
 
     assert hasattr(
-        decorated_test_func, '__wrapped__'
+        decorated_test_func, "__wrapped__"
     ), "decorated function does not have __wrapped__ attribute"
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
+
+
+def test_upstream_exception_produces_none_xcom(dag_maker, session):
+    from airflow.exceptions import AirflowSkipException
+    from airflow.models.dagrun import DagRun
+    from airflow.utils.trigger_rule import TriggerRule
+
+    result = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> str:
+            return "example"
+
+        @dag.task()
+        def up2() -> None:
+            raise AirflowSkipException()
+
+        @dag.task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        def down(a, b):
+            nonlocal result
+            result = f"{a!r} {b!r}"
+
+        down(up1(), up2())
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    decision.schedulable_tis[0].run(session=session)
+    assert result == "'example' None"
+
+
+@pytest.mark.filterwarnings("error")
+def test_no_warnings(reset_logging_config, caplog):
+    @task_decorator
+    def some_task():
+        return 1
+
+    @task_decorator
+    def other(x):
+        ...
+
+    with DAG(dag_id="test", start_date=DEFAULT_DATE, schedule=None):
+        other(some_task())
+    assert caplog.messages == []
+
+
+def test_task_decorator_dataset(dag_maker, session):
+    from airflow import Dataset
+    from airflow.models.dagrun import DagRun
+
+    result = None
+    uri = "s3://test"
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> Dataset:
+            return Dataset(uri)
+
+        @dag.task()
+        def up2(src: Dataset) -> str:
+            return src.uri
+
+        @dag.task()
+        def down(a: str):
+            nonlocal result
+            result = a
+
+        src = up1()
+        s = up2(src)
+        down(s)
+
+    dr: DagRun = dag_maker.create_dagrun()
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "up1"
+    decision.schedulable_tis[0].run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "up2"
+    decision.schedulable_tis[0].run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    decision.schedulable_tis[0].run(session=session)
+    assert result == uri

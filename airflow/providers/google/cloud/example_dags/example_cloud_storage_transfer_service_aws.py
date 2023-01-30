@@ -15,19 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
-Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
+Example Airflow DAG that demonstrates interactions with Google Cloud Transfer. This DAG relies on
+the following OS environment variables
 
-
-This DAG relies on the following OS environment variables
+Note that you need to provide a large enough set of data so that operations do not execute too quickly.
+Otherwise, DAG will fail.
 
 * GCP_PROJECT_ID - Google Cloud Project to use for the Google Cloud Transfer Service.
 * GCP_DESCRIPTION - Description of transfer job
 * GCP_TRANSFER_SOURCE_AWS_BUCKET - Amazon Web Services Storage bucket from which files are copied.
-  .. warning::
-    You need to provide a large enough set of data so that operations do not execute too quickly.
-    Otherwise, DAG will fail.
 * GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied
 * WAIT_FOR_OPERATION_POKE_INTERVAL - interval of what to check the status of the operation
   A smaller value than the default value accelerates the system test and ensures its correct execution with
@@ -35,6 +32,7 @@ This DAG relies on the following OS environment variables
   Look at documentation of :class:`~airflow.operators.sensors.BaseSensorOperator` for more information
 
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
@@ -74,17 +72,17 @@ from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service impor
     CloudDataTransferServiceJobStatusSensor,
 )
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCP_DESCRIPTION = os.environ.get('GCP_DESCRIPTION', 'description')
-GCP_TRANSFER_TARGET_BUCKET = os.environ.get('GCP_TRANSFER_TARGET_BUCKET')
-WAIT_FOR_OPERATION_POKE_INTERVAL = int(os.environ.get('WAIT_FOR_OPERATION_POKE_INTERVAL', 5))
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCP_DESCRIPTION = os.environ.get("GCP_DESCRIPTION", "description")
+GCP_TRANSFER_TARGET_BUCKET = os.environ.get("GCP_TRANSFER_TARGET_BUCKET")
+WAIT_FOR_OPERATION_POKE_INTERVAL = int(os.environ.get("WAIT_FOR_OPERATION_POKE_INTERVAL", 5))
 
-GCP_TRANSFER_SOURCE_AWS_BUCKET = os.environ.get('GCP_TRANSFER_SOURCE_AWS_BUCKET')
+GCP_TRANSFER_SOURCE_AWS_BUCKET = os.environ.get("GCP_TRANSFER_SOURCE_AWS_BUCKET")
 GCP_TRANSFER_FIRST_TARGET_BUCKET = os.environ.get(
-    'GCP_TRANSFER_FIRST_TARGET_BUCKET', 'gcp-transfer-first-target'
+    "GCP_TRANSFER_FIRST_TARGET_BUCKET", "gcp-transfer-first-target"
 )
 
-GCP_TRANSFER_JOB_NAME = os.environ.get('GCP_TRANSFER_JOB_NAME', 'transferJobs/sampleJob')
+GCP_TRANSFER_JOB_NAME = os.environ.get("GCP_TRANSFER_JOB_NAME", "transferJobs/sampleJob")
 
 # [START howto_operator_gcp_transfer_create_job_body_aws]
 aws_to_gcs_transfer_body = {
@@ -107,11 +105,10 @@ aws_to_gcs_transfer_body = {
 
 
 with models.DAG(
-    'example_gcp_transfer_aws',
-    schedule_interval=None,  # Override to match your needs
+    "example_gcp_transfer_aws",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     # [START howto_operator_gcp_transfer_create_job]

@@ -26,7 +26,7 @@ capabilities. You can read more about those in
 `FAB security docs <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.
 
 You can also
-take a look at Auth backends available in the core Airflow in :doc:`apache-airflow:security/webserver`
+take a look at Auth backends available in the core Airflow in :doc:`apache-airflow:administration-and-deployment/security/webserver`
 or see those provided by the community-managed providers:
 
 .. airflow-auth-backends::

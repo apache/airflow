@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 
@@ -26,6 +27,8 @@ WORKFLOW_ID = "workflow_id"
 EXECUTION_ID = "execution_id"
 WORKFLOW = {"aa": "bb"}
 EXECUTION = {"ccc": "ddd"}
+EXECUTION_NESTED = {"argument": {"project_id": "project_id", "location": "us-east1"}, "test": 1}
+EXECUTION_NESTED_OUTPUT = {"argument": "{'project_id': 'project_id', 'location': 'us-east1'}", "test": 1}
 PROJECT_ID = "airflow-testing"
 METADATA = ()
 TIMEOUT = None
@@ -51,7 +54,7 @@ class TestWorkflowsHook:
         with mock.patch(BASE_PATH.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = WorkflowsHook(gcp_conn_id="test")
 
-    @mock.patch(BASE_PATH.format("WorkflowsHook._get_credentials"))
+    @mock.patch(BASE_PATH.format("WorkflowsHook.get_credentials"))
     @mock.patch(BASE_PATH.format("WorkflowsClient"))
     def test_get_workflows_client(self, mock_client, mock_get_credentials):
         self.hook.get_workflows_client()
@@ -60,7 +63,7 @@ class TestWorkflowsHook:
             client_info=CLIENT_INFO,
         )
 
-    @mock.patch(BASE_PATH.format("WorkflowsHook._get_credentials"))
+    @mock.patch(BASE_PATH.format("WorkflowsHook.get_credentials"))
     @mock.patch(BASE_PATH.format("ExecutionsClient"))
     def test_get_executions_client(self, mock_client, mock_get_credentials):
         self.hook.get_executions_client()
@@ -189,6 +192,29 @@ class TestWorkflowsHook:
             request=dict(
                 parent=EXECUTION_PARENT,
                 execution=EXECUTION,
+            ),
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(BASE_PATH.format("WorkflowsHook.get_executions_client"))
+    def test_create_execution_with_nested(self, mock_client):
+        result = self.hook.create_execution(
+            workflow_id=WORKFLOW_ID,
+            location=LOCATION,
+            project_id=PROJECT_ID,
+            execution=EXECUTION_NESTED,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+        assert mock_client.return_value.create_execution.return_value == result
+        mock_client.return_value.create_execution.assert_called_once_with(
+            request=dict(
+                parent=EXECUTION_PARENT,
+                execution=EXECUTION_NESTED_OUTPUT,
             ),
             retry=RETRY,
             timeout=TIMEOUT,

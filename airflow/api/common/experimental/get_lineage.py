@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Lineage apis"""
+"""Lineage APIs."""
+from __future__ import annotations
+
 import collections
 import datetime
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -31,15 +33,15 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_lineage(
     dag_id: str, execution_date: datetime.datetime, *, session: Session = NEW_SESSION
-) -> Dict[str, Dict[str, Any]]:
-    """Gets the lineage information for dag specified."""
+) -> dict[str, dict[str, Any]]:
+    """Get lineage information for dag specified."""
     dag = check_and_get_dag(dag_id)
     dagrun = check_and_get_dagrun(dag, execution_date)
 
     inlets = XCom.get_many(dag_ids=dag_id, run_id=dagrun.run_id, key=PIPELINE_INLETS, session=session)
     outlets = XCom.get_many(dag_ids=dag_id, run_id=dagrun.run_id, key=PIPELINE_OUTLETS, session=session)
 
-    lineage: Dict[str, Dict[str, Any]] = collections.defaultdict(dict)
+    lineage: dict[str, dict[str, Any]] = collections.defaultdict(dict)
     for meta in inlets:
         lineage[meta.task_id]["inlets"] = meta.value
     for meta in outlets:

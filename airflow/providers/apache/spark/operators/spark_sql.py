@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
@@ -51,26 +52,26 @@ class SparkSqlOperator(BaseOperator):
         (Default: The ``queue`` value set in the Connection, or ``"default"``)
     """
 
-    template_fields: Sequence[str] = ('_sql',)
+    template_fields: Sequence[str] = ("_sql",)
     template_ext: Sequence[str] = (".sql", ".hql")
-    template_fields_renderers = {'_sql': 'sql'}
+    template_fields_renderers = {"_sql": "sql"}
 
     def __init__(
         self,
         *,
         sql: str,
-        conf: Optional[str] = None,
-        conn_id: str = 'spark_sql_default',
-        total_executor_cores: Optional[int] = None,
-        executor_cores: Optional[int] = None,
-        executor_memory: Optional[str] = None,
-        keytab: Optional[str] = None,
-        principal: Optional[str] = None,
-        master: Optional[str] = None,
-        name: str = 'default-name',
-        num_executors: Optional[int] = None,
+        conf: str | None = None,
+        conn_id: str = "spark_sql_default",
+        total_executor_cores: int | None = None,
+        executor_cores: int | None = None,
+        executor_memory: str | None = None,
+        keytab: str | None = None,
+        principal: str | None = None,
+        master: str | None = None,
+        name: str = "default-name",
+        num_executors: int | None = None,
         verbose: bool = True,
-        yarn_queue: Optional[str] = None,
+        yarn_queue: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -87,9 +88,9 @@ class SparkSqlOperator(BaseOperator):
         self._num_executors = num_executors
         self._verbose = verbose
         self._yarn_queue = yarn_queue
-        self._hook: Optional[SparkSqlHook] = None
+        self._hook: SparkSqlHook | None = None
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Call the SparkSqlHook to run the provided sql query"""
         if self._hook is None:
             self._hook = self._get_hook()

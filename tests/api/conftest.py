@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pytest
 
@@ -27,7 +28,7 @@ def minimal_app_for_experimental_api():
     with conf_vars(
         {
             ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
-            ('api', 'enable_experimental_api'): 'true',
+            ("api", "enable_experimental_api"): "true",
         }
     ):
 
