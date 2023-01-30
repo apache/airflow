@@ -17,7 +17,7 @@
 
 Creating a notifier
 ===================
-The BaseNotifier (:class:`airflow.notifications.basenotifier.BaseNotifier`) is an abstract class that provides a basic
+The :class:`~airflow.notifications.basenotifier.BaseNotifier` is an abstract class that provides a basic
 structure for sending notifications in Airflow using the various ``on_*__callback``.
 It is intended for providers to extend and customize for their specific needs.
 
