@@ -25,7 +25,7 @@ from typing import Any, Callable
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
-from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.models import Variable, XCom
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -33,13 +33,23 @@ log = logging.getLogger(__name__)
 
 @functools.lru_cache()
 def _initialize_map() -> dict[str, Callable]:
+    from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
     from airflow.models.dag import DagModel
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
+        DagFileProcessor.manage_slas,
+        DagFileProcessorManager.deactivate_stale_dags,
         DagModel.get_paused_dag_ids,
         DagFileProcessorManager.clear_nonexistent_import_errors,
+        XCom.get_value,
+        XCom.get_one,
+        XCom.get_many,
+        XCom.clear,
+        Variable.set,
+        Variable.update,
+        Variable.delete,
     ]
     return {f"{func.__module__}.{func.__name__}": func for func in functions}
 
@@ -53,7 +63,6 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
         return Response(response="Expected jsonrpc 2.0 request.", status=400)
 
     methods_map = _initialize_map()
-
     method_name = body.get("method")
     if method_name not in methods_map:
         log.error("Unrecognized method: %s.", method_name)

@@ -37,11 +37,14 @@ if __name__ == "__main__":
     from common_precommit_utils import filter_out_providers_on_non_main_branch
 
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
-    from airflow_breeze.global_constants import MOUNT_SELECTED
-    from airflow_breeze.utils.console import get_console
-    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-    from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed
-    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
+    from airflow_breeze.global_constants import MOUNT_SELECTED  # isort: skip
+    from airflow_breeze.utils.console import get_console  # isort: skip
+    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags  # isort: skip
+    from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed  # isort: skip
+    from airflow_breeze.utils.run_utils import (
+        get_ci_image_for_pre_commits,
+        run_command,
+    )
 
     files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
     if files_to_test == ["--namespace-packages"]:

@@ -146,6 +146,13 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
+  - repo: https://github.com/psf/black
+    rev: 22.12.0
+    hooks:
+      - id: black
+        name: Run black (python formatter)
+        args: [--config=./pyproject.toml]
+        exclude: ^airflow/_vendor/|^airflow/contrib/
   - repo: local
     hooks:
       - id: update-common-sql-api-stubs
@@ -175,15 +182,8 @@ repos:
         additional_dependencies: ['ruff==0.0.226']
         files: \.pyi?$
         exclude: ^airflow/_vendor/
-  - repo: https://github.com/psf/black
-    rev: 22.12.0
-    hooks:
-      - id: black
-        name: Run black (python formatter)
-        args: [--config=./pyproject.toml]
-        exclude: ^airflow/_vendor/|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.1
+    rev: 1.13.0
     hooks:
       - id: blacken-docs
         name: Run black on python code blocks in documentation files
@@ -237,7 +237,7 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
       - id: rst-backticks
         name: Check if RST files use double backticks for code
@@ -246,7 +246,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^airflow/_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.28.0
+    rev: v1.29.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -351,6 +351,7 @@ repos:
         language: python
         files: ^setup\.py$|^INSTALL$|^CONTRIBUTING\.rst$
         pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
@@ -570,6 +571,13 @@ repos:
         files: ^\.pre-commit-config\.yaml$|^INTHEWILD\.md$
         pass_filenames: false
         require_serial: true
+      - id: update-installed-providers-to-be-sorted
+        name: Sort alphabetically and uniquify installed_providers.txt
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_installed_providers.py
+        language: python
+        files: ^\.pre-commit-config\.yaml$|^scripts/ci/installed_providers\.txt$
+        pass_filenames: false
+        require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
         name: Sort alphabetically and uniquify spelling_wordlist.txt
         entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.py
@@ -774,7 +782,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_inline_scripts_in_docker.py
         language: python
         pass_filenames: false
-        files: ^Dockerfile$|^Dockerfile.ci$|^scripts/docker/.*$
+        files: ^Dockerfile$|^Dockerfile\.ci$|^scripts/docker/.*$
         require_serial: true
       - id: check-changelog-has-no-duplicates
         name: Check changelogs for duplicate entries
@@ -833,7 +841,7 @@ repos:
         name: TS types generation and ESLint against current UI files
         language: node
         'types_or': [javascript, tsx, ts, yaml]
-        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1.yaml
+        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         additional_dependencies: ['yarn@1.22.19']
         pass_filenames: false
@@ -858,7 +866,7 @@ repos:
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
-        files: ^airflow/providers/.*\.py$|^tests/system/providers/\*.py|^tests/providers/\*.py
+        files: ^airflow/providers/.*\.py$|^tests/system/providers/\*\.py$|^tests/providers/\*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy

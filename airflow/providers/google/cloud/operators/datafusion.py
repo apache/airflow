@@ -17,6 +17,7 @@
 """This module contains Google DataFusion operators."""
 from __future__ import annotations
 
+import warnings
 from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -98,6 +99,10 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -176,6 +181,10 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -251,6 +260,10 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -361,6 +374,10 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -442,6 +459,10 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -533,6 +554,10 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -626,6 +651,10 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -715,6 +744,10 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -824,6 +857,10 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
@@ -974,6 +1011,10 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

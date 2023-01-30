@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
-from unittest import mock
+from asyncio import Future
 from unittest.mock import MagicMock, patch
 
 import kubernetes
@@ -29,13 +30,24 @@ from kubernetes.config import ConfigException
 
 from airflow import AirflowException
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.utils import db
+from airflow.utils.db import merge_conn
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.providers import get_provider_min_airflow_version
 
+if sys.version_info < (3, 8):
+    from asynctest import mock
+else:
+    from unittest import mock
+
 KUBE_CONFIG_PATH = os.getenv("KUBECONFIG", "~/.kube/config")
 HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"
+
+CONN_ID = "kubernetes-test-id"
+ASYNC_CONFIG_PATH = "/files/path/to/config/file"
+POD_NAME = "test-pod"
+NAMESPACE = "test-namespace"
 
 
 class DeprecationRemovalRequired(AirflowException):
@@ -362,3 +374,191 @@ class TestKubernetesHookIncorrectConfiguration:
         ):
             kubernetes_hook = KubernetesHook()
             kubernetes_hook.get_conn()
+
+
+class TestAsyncKubernetesHook:
+    KUBE_CONFIG_MERGER = "kubernetes_asyncio.config.kube_config.KubeConfigMerger"
+    INCLUSTER_CONFIG_LOADER = "kubernetes_asyncio.config.incluster_config.InClusterConfigLoader"
+    KUBE_LOADER_CONFIG = "kubernetes_asyncio.config.kube_config.KubeConfigLoader"
+    KUBE_API = "kubernetes_asyncio.client.api.core_v1_api.CoreV1Api.{}"
+
+    @staticmethod
+    def mock_await_result(return_value):
+        f = Future()
+        f.set_result(return_value)
+        return f
+
+    @pytest.fixture
+    def kube_config_loader(self):
+        with mock.patch(self.KUBE_LOADER_CONFIG) as kube_config_loader:
+            kube_config_loader.return_value.load_and_set.return_value = self.mock_await_result(None)
+            yield kube_config_loader
+
+    @staticmethod
+    @pytest.fixture
+    def kubernetes_connection():
+        extra = {"kube_config": '{"test": "kube"}'}
+        merge_conn(
+            Connection(
+                conn_type="kubernetes",
+                conn_id=CONN_ID,
+                extra=json.dumps(extra),
+            ),
+        )
+        yield
+        clear_db_connections()
+
+    @pytest.mark.asyncio
+    @mock.patch(INCLUSTER_CONFIG_LOADER)
+    @mock.patch(KUBE_LOADER_CONFIG)
+    @mock.patch(KUBE_CONFIG_MERGER)
+    async def test_load_config_with_incluster(self, kube_config_merger, kube_config_loader, incluster_config):
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=True,
+            config_file=None,
+            cluster_context=None,
+        )
+        await hook._load_config()
+        incluster_config.assert_called_once()
+        assert not kube_config_loader.called
+        assert not kube_config_merger.called
+
+    @pytest.mark.asyncio
+    @mock.patch(INCLUSTER_CONFIG_LOADER)
+    @mock.patch(KUBE_CONFIG_MERGER)
+    async def test_load_config_with_config_path(
+        self, kube_config_merger, incluster_config, kube_config_loader
+    ):
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=ASYNC_CONFIG_PATH,
+            cluster_context=None,
+        )
+        await hook._load_config()
+        assert not incluster_config.called
+        kube_config_loader.assert_called_once()
+        kube_config_merger.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(INCLUSTER_CONFIG_LOADER)
+    @mock.patch(KUBE_CONFIG_MERGER)
+    async def test_load_config_with_conn_id(
+        self,
+        kube_config_merger,
+        incluster_config,
+        kube_config_loader,
+        kubernetes_connection,
+    ):
+        hook = AsyncKubernetesHook(
+            conn_id=CONN_ID,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+        await hook._load_config()
+        assert not incluster_config.called
+        kube_config_loader.assert_called_once()
+        kube_config_merger.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(INCLUSTER_CONFIG_LOADER)
+    @mock.patch(KUBE_CONFIG_MERGER)
+    async def test_load_config_with_default_client(
+        self,
+        kube_config_merger,
+        incluster_config,
+        kube_config_loader,
+    ):
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+        kube_client = await hook._load_config()
+
+        assert not incluster_config.called
+        kube_config_loader.assert_called_once()
+        kube_config_merger.assert_called_once()
+        # It should return None in case when default client is used
+        assert kube_client is None
+
+    @pytest.mark.asyncio
+    async def test_load_config_with_several_params(
+        self,
+    ):
+        with pytest.raises(AirflowException):
+            hook = AsyncKubernetesHook(
+                conn_id=CONN_ID,
+                in_cluster=True,
+                config_file=ASYNC_CONFIG_PATH,
+                cluster_context=None,
+            )
+            await hook._load_config()
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod"))
+    async def test_get_pod(self, lib_method, kube_config_loader):
+        lib_method.return_value = self.mock_await_result(None)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+        await hook.get_pod(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+        )
+
+        lib_method.assert_called_once()
+        lib_method.assert_called_with(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("delete_namespaced_pod"))
+    async def test_delete_pod(self, lib_method, kube_config_loader):
+        lib_method.return_value = self.mock_await_result(None)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+        await hook.delete_pod(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+        )
+
+        lib_method.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_read_logs(self, lib_method, kube_config_loader, caplog):
+        lib_method.return_value = self.mock_await_result("2023-01-11 Some string logs...")
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+        await hook.read_logs(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+        )
+
+        lib_method.assert_called_once()
+        lib_method.assert_called_with(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            follow=False,
+            timestamps=True,
+        )
+        assert "Container logs from 2023-01-11 Some string logs..." in caplog.text

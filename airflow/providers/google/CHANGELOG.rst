@@ -127,7 +127,7 @@ So for example you may store the keyfile json as ``keyfile_dict`` instead of
 ``extra__google_cloud_platform__keyfile_dict``.  If both are present, the short name will be preferred.
 
 * ``Add backward compatibility with old versions of Apache Beam (#27263)``
-* ``Add deferrable mode to GCPToBigQueryOperator + tests (#27052)``
+* ``Add deferrable mode to GCSToBigQueryOperator + tests (#27052)``
 * ``Add system tests for Vertex AI operators in new approach (#27053)``
 * ``Dataform operators, links, update system tests and docs (#27144)``
 * ``Allow values in WorkflowsCreateExecutionOperator execution argument to be dicts (#27361)``
@@ -544,11 +544,10 @@ Misc
 * ``Cleanup Google provider CHANGELOG.rst (#23390)``
 * ``migrate system test gcs_to_bigquery into new design (#22753)``
 * ``Add example DAG for demonstrating usage of GCS sensors (#22808)``
-
-   * ``Clean up in-line f-string concatenation (#23591)``
-   * ``Bump pre-commit hook versions (#22887)``
-   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
-   * ``Fix new MyPy errors in main (#22884)``
+* ``Clean up in-line f-string concatenation (#23591)``
+* ``Bump pre-commit hook versions (#22887)``
+* ``Use new Breese for building, pulling and verifying the images. (#23104)``
+* ``Fix new MyPy errors in main (#22884)``
 
 6.8.0
 .....

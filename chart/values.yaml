@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.5.0"
+defaultAirflowTag: "2.5.1"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.5.0"
+airflowVersion: "2.5.1"
 
 # Images
 images:
@@ -97,7 +97,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
-    tag: v3.4.0
+    tag: v3.6.3
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -1702,6 +1702,8 @@ cleanup:
 # Not recommended for production
 postgresql:
   enabled: true
+  image:
+    tag: "11"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres

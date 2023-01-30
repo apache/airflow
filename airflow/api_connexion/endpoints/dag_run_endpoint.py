@@ -362,7 +362,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
         set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
-    dag_run = session.query(DagRun).get(dag_run.id)
+    dag_run = session.get(DagRun, dag_run.id)
     return dagrun_schema.dump(dag_run)
 
 

@@ -1,0 +1,21 @@
+The helm chart is now using a newer version of bitnami/postgresql (from 10.5.3 to 12.1.9)
+
+The version of postgresql installed is still version 11.
+
+This version of the chart uses different variable names for setting usernames and passwords in the postgres database.
+
+- ``postgresql.auth.enablePostgresUser`` is used to determine if the "postgres" admin account will be created.
+- ``postgresql.auth.postgresPassword`` sets the password for the "postgres" user.
+- ``postgresql.auth.username`` and ``postrgesql.auth.password`` are used to set credentials for a non-admin account if desired.
+- ``postgresql.postgresqlUsername`` and ``postgresql.postresqlPassword``, which were used in the previous version of the chart, are no longer used.
+
+Users will need to change these variable names in their values files if they are using the helm chart.
+
+If you are upgrading an existing helm release with the built-in postgres database, you will either need to delete your release and reinstall fresh, or manually delete these 2 objects:
+
+```
+kubectl delete secret {RELEASE_NAME}-postgresql
+kubectl delete statefulset {RELEASE_NAME}-postgresql
+```
+
+As a reminder, it is recommended to `set up an external database <https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#database>`_ in production.

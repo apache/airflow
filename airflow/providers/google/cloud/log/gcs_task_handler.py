@@ -24,6 +24,9 @@ from typing import Collection
 from google.cloud import storage  # type: ignore[attr-defined]
 
 from airflow.compat.functools import cached_property
+from airflow.configuration import conf
+from airflow.exceptions import AirflowNotFoundException
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -72,7 +75,6 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
         self.log_relative_path = ""
-        self._hook = None
         self.closed = False
         self.upload_on_close = True
         self.gcp_key_path = gcp_key_path
@@ -81,14 +83,28 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.project_id = project_id
 
     @cached_property
+    def hook(self) -> GCSHook | None:
+        """Returns GCSHook if remote_log_conn_id configured."""
+        conn_id = conf.get("logging", "remote_log_conn_id", fallback=None)
+        if conn_id:
+            try:
+                return GCSHook(gcp_conn_id=conn_id)
+            except AirflowNotFoundException:
+                pass
+        return None
+
+    @cached_property
     def client(self) -> storage.Client:
         """Returns GCS Client."""
-        credentials, project_id = get_credentials_and_project_id(
-            key_path=self.gcp_key_path,
-            keyfile_dict=self.gcp_keyfile_dict,
-            scopes=self.scopes,
-            disable_logging=True,
-        )
+        if self.hook:
+            credentials, project_id = self.hook.get_credentials_and_project_id()
+        else:
+            credentials, project_id = get_credentials_and_project_id(
+                key_path=self.gcp_key_path,
+                keyfile_dict=self.gcp_keyfile_dict,
+                scopes=self.scopes,
+                disable_logging=True,
+            )
         return storage.Client(
             credentials=credentials,
             client_info=CLIENT_INFO,
