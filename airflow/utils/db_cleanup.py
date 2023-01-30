@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -128,7 +129,7 @@ def _check_for_rows(*, query: Query, print_rows=False):
 
 def _dump_db(*, target_table, file_path, export_format, session):
     if export_format == "csv":
-        with open(file_path + ".csv", "w") as f:
+        with open(file_path, "w") as f:
             csv_writer = csv.writer(f)
             cursor = session.execute(text(f"SELECT * FROM {target_table}"))
             csv_writer.writerow(cursor.keys())
@@ -393,7 +394,7 @@ def export_archived_records(export_format, output_path, session: Session = NEW_S
         if table_name.startswith(ARCHIVE_TABLE_PREFIX):
             _dump_db(
                 target_table=table_name,
-                file_path=f"{output_path}/{table_name}",
+                file_path=os.path.join(output_path, f"{table_name}.{export_format}"),
                 export_format=export_format,
                 session=session,
             )

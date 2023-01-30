@@ -450,7 +450,7 @@ class TestCLIDBClean:
         )
 
     @patch("airflow.cli.commands.db_command.export_archived_records")
-    @patch("airflow.cli.commands.db_command.os.path.exists")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_export_archived_records(self, os_mock, export_archived_mock):
         args = self.parser.parse_args(
             [
@@ -465,20 +465,3 @@ class TestCLIDBClean:
         db_command.export_archived(args)
 
         export_archived_mock.assert_called_once_with(export_format="csv", output_path="path")
-
-    @patch("airflow.cli.commands.db_command.export_archived_records")
-    def test_non_existing_output_path_raises(self, archived_record_mock):
-        args = self.parser.parse_args(
-            [
-                "db",
-                "export-cleaned",
-                "--export-format",
-                "csv",
-                "--output-path",
-                "path",
-            ]
-        )
-        with pytest.raises(AirflowException) as excinfo:
-            db_command.export_archived(args)
-        assert "The specified --output-path path does not exist." == str(excinfo.value)
-        archived_record_mock.assert_not_called()

@@ -339,7 +339,7 @@ class TestDBCleanup:
         export_archived_records(export_format="csv", output_path="path", session=session)
         dump_mock.assert_called_once_with(
             target_table=f"{ARCHIVE_TABLE_PREFIX}dag_run",
-            file_path=f"path/{ARCHIVE_TABLE_PREFIX}dag_run",
+            file_path=f"path/{ARCHIVE_TABLE_PREFIX}dag_run.csv",
             export_format="csv",
             session=session,
         )
@@ -349,7 +349,7 @@ class TestDBCleanup:
         mockopen = mock_open()
         with patch("airflow.utils.db_cleanup.open", mockopen, create=True):
             _dump_db(
-                target_table="mytable", file_path="dags/myfile", export_format="csv", session=MagicMock()
+                target_table="mytable", file_path="dags/myfile.csv", export_format="csv", session=MagicMock()
             )
             mockopen.assert_called_once_with("dags/myfile.csv", "w")
             writer = mock_csv.writer

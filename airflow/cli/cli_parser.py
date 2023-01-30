@@ -142,7 +142,16 @@ class Arg:
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser."""
+        if "metavar" in self.kwargs and "type" not in self.kwargs:
+            if self.kwargs["metavar"] == "DIRPATH":
+                type = lambda x: self._is_valid_directory(parser, x)
+                self.kwargs["type"] = type
         parser.add_argument(*self.flags, **self.kwargs)
+
+    def _is_valid_directory(self, parser, arg):
+        if not os.path.isdir(arg):
+            parser.error(f"The directory '{arg}' does not exist!")
+        return arg
 
 
 def positive_int(*, allow_zero):
@@ -475,8 +484,8 @@ ARG_DB_EXPORT_FORMAT = Arg(
 )
 ARG_DB_OUTPUT_PATH = Arg(
     ("--output-path",),
-    metavar="FILEPATH",
-    help="The output to export the cleaned data",
+    metavar="DIRPATH",
+    help="The path to the output directory to export the cleaned data. This directory must exist.",
     required=True,
 )
 

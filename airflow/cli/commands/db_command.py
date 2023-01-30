@@ -212,8 +212,6 @@ def cleanup_tables(args):
 @cli_utils.action_cli(check_db=False)
 def export_archived(args):
     """Exports archived records from metadata database."""
-    if not os.path.exists(args.output_path):
-        raise AirflowException(f"The specified --output-path {args.output_path} does not exist.")
     export_archived_records(
         export_format=args.export_format,
         output_path=args.output_path,
