@@ -24,11 +24,12 @@ import warnings
 from contextlib import suppress
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
 import pendulum
 
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
@@ -264,6 +265,12 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
+    @cached_property
+    def _executor_get_task_log(self) -> Callable[[TaskInstance], tuple[list[str], list[str]]]:
+        """This cached property avoids loading executor repeatedly."""
+        executor = ExecutorLoader.get_default_executor()
+        return executor.get_task_log
+
     def _read(
         self,
         ti: TaskInstance,
@@ -305,8 +312,7 @@ class FileTaskHandler(logging.Handler):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
         if ti.state == TaskInstanceState.RUNNING:
-            executor = ExecutorLoader.get_default_executor()
-            response = executor.get_task_log(ti=ti)
+            response = self._executor_get_task_log(ti)
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
@@ -484,6 +490,7 @@ class FileTaskHandler(logging.Handler):
             # Check if the resource was properly fetched
             response.raise_for_status()
             if response.text:
+                messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
             messages.append(f"Could not read served logs: {str(e)}")
