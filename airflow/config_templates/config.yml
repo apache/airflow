@@ -1593,7 +1593,7 @@ webserver:
       default: "False"
     caching_hash_method:
       description: |
-        The caching algorithm used by the webserver.
+        The caching algorithm used by the webserver. Must be a valid hashlib function name.
       version_added:
       type: string
       example: "sha256"
