@@ -410,7 +410,7 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
 
-  run-new-breeze-tests:
+  run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
     runs-on: "${{needs.build-info.outputs.runs-on}}"
