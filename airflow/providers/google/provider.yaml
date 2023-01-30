@@ -85,6 +85,9 @@ dependencies:
   - google-cloud-build>=3.0.0
   - google-cloud-compute>=0.1.0,<2.0.0
   - google-cloud-container>=2.2.0,<3.0.0
+  # google-cloud-dataflow-client of version 0.5.5 requires higher versions of
+  # protobuf and proto-plus libraries which can break other dependencies in the current package.
+  - google-cloud-dataflow-client>=0.5.2,<0.5.5
   - google-cloud-dataform>=0.2.0
   - google-cloud-datacatalog>=3.0.0
   - google-cloud-dataplex>=0.1.0
