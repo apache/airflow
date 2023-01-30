@@ -99,7 +99,6 @@ class BaseTaskRunner(LoggingMixin):
             job_id=local_task_job.id,
             pool=local_task_job.pool,
             cfg_path=cfg_path,
-            shut_down_logging=local_task_job.shut_down_logging,
         )
         self.process = None
 

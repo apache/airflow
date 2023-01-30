@@ -121,8 +121,7 @@ class StandardTaskRunner(BaseTaskRunner):
                 try:
                     # Explicitly flush any pending exception to Sentry and logging if enabled
                     Sentry.flush()
-                    if args.shut_down_logging:
-                        logging.shutdown()
+                    logging.shutdown()
                 except BaseException:
                     # also make sure to silently ignore ALL POSSIBLE exceptions thrown in the flush/shutdown,
                     # otherwise os._exit() might never be called. We could have used `except:` but
