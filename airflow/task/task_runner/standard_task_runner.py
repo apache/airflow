@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 
 import psutil
 from setproctitle import setproctitle
@@ -81,13 +80,6 @@ class StandardTaskRunner(BaseTaskRunner):
             # We prefer the job_id passed on the command-line because at this time, the
             # task instance may not have been updated.
             job_id = getattr(args, "job_id", self._task_instance.job_id)
-            log_handlers = self.log.handlers
-            root_handlers = logging.getLogger().handlers
-            message = ""
-            message += f"log handlers: {log_handlers}\n"
-            message += f"root handlers: {root_handlers}\n"
-            Path("~/airflow/debug_file.txt").expanduser().write_text(message)
-            self.log.warning(message)
             self.log.info("Running: %s", self._command)
             self.log.info("Job %s: Subtask %s", job_id, self._task_instance.task_id)
 

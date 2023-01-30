@@ -311,7 +311,7 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     console_handler = next((h for h in root_logger.handlers if h.name == "console"), None)
     with LoggerMutationHelper(root_logger), LoggerMutationHelper(ti.log) as task_helper:
         task_helper.move(root_logger)
-        if IS_K8S_EXECUTOR_POD or True:
+        if IS_K8S_EXECUTOR_POD:
             if console_handler and console_handler not in root_logger.handlers:
                 root_logger.addHandler(console_handler)
         yield
@@ -710,8 +710,8 @@ class LoggerMutationHelper:
         :param replace: if True, remove all handlers from target first; otherwise add if not present.
         """
         self.apply(logger, replace=replace)
-        # self.source_logger.propagate = True
-        # self.source_logger.handlers[:] = []
+        self.source_logger.propagate = True
+        self.source_logger.handlers[:] = []
 
     def reset(self):
         self.apply(self.source_logger)
