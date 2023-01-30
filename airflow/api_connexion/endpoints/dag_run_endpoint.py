@@ -319,6 +319,15 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,
             )
+            dag_run_instance = (
+                session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
+            )
+            dag_run_note = post_body.get("note")
+            if dag_run_note:
+                from flask_login import current_user
+
+                current_user_id = getattr(current_user, "id", None)
+                dag_run.note = (dag_run_note, current_user_id)
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
             raise BadRequest(detail=str(ve))
