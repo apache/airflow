@@ -2010,7 +2010,7 @@ class TestDataprocCreateBatchOperator:
             batch_id=BATCH_ID,
             region=GCP_REGION,
             project_id=GCP_PROJECT,
-            wait_check_interval=10,
+            wait_check_interval=5,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

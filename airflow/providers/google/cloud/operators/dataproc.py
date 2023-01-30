@@ -2284,7 +2284,6 @@ class DataprocCreateBatchOperator(BaseOperator):
         except AlreadyExists:
             self.log.info("Batch with given id already exists")
             # This is only likely to happen if batch_id was provided
-            self.log.info("Batch job already exists.")
             # Could be running if Airflow was restarted after task started
             # poll until a final state is reached
             if self.batch_id:
@@ -2296,28 +2295,14 @@ class DataprocCreateBatchOperator(BaseOperator):
                     retry=self.retry,
                     timeout=self.timeout,
                     metadata=self.metadata,
-                    wait_check_interval=self.wait_check_interval,
+                    wait_check_interval=self.polling_interval_seconds,
                 )
         # It is possible we don't have a result in the case where batch_id was not provide, one was generated
         # by chance, AlreadyExists was caught, but we can't reattach because we don't have the generated id
         if result is None:
             raise AirflowException("The job could not be reattached because the id was generated.")
 
-            # The existing batch may be a number of states other than 'SUCCEEDED'
-            if result.state != Batch.State.SUCCEEDED:
-                if result.state == Batch.State.FAILED or result.state == Batch.State.CANCELLED:
-                    raise AirflowException(
-                        f"Existing Batch {self.batch_id} failed or cancelled. "
-                        f"Error: {result.state_message}"
-                    )
-                else:
-                    # Batch state is either: RUNNING, PENDING, CANCELLING, or UNSPECIFIED
-                    self.log.info(
-                        f"Batch {self.batch_id} is in state {result.state.name}."
-                        "Waiting for state change..."
-                    )
-                    result = hook.wait_for_operation(timeout=self.timeout, operation=result)
-
+        # The existing batch may be a number of states other than 'SUCCEEDED'\
         # wait_for_operation doesn't fail if the job is cancelled, so we will check for it here which also
         # finds a cancelling|canceled|unspecified job from wait_for_batch
         batch_id = self.batch_id or result.name.split("/")[-1]
