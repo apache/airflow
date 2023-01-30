@@ -727,7 +727,7 @@ class DataflowHook(GoogleBaseHook):
         def _check_one(key, val):
             if key in environment:
                 self.log.warning(
-                    "%r parameter in 'variables' will override of " "the same one passed in 'environment'!",
+                    "%r parameter in 'variables' will override the same one passed in 'environment'!",
                     key,
                 )
             return key, val
