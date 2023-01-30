@@ -21,10 +21,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Callable, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow.utils.context import Context
@@ -124,7 +123,9 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             elif prev_data is not None:
                 raise AirflowException("Incorrect type for previous XCom data: %s", type(prev_data))
             version = self.get_current_table_version(
-                table_name=complete_table_name, time_range=self.timestamp, operator = self.change_filter_operator
+                table_name=complete_table_name,
+                time_range=self.timestamp,
+                operator=self.change_filter_operator,
             )
             self.log.debug("Current table version: %s", version)
             if prev_version <= version:

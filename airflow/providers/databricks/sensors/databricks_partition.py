@@ -20,10 +20,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import fetch_one_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow.utils.context import Context
@@ -65,12 +64,14 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
 
     def __init__(
         self,
+        partition_name: dict,
         partition_operator: str = "=",
         *args,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.caller = "DatabricksPartitionSensor"
+        self.partition_name = partition_name
         self.partition_operator = partition_operator
 
     def _get_hook(self) -> DatabricksSqlHook:
@@ -98,7 +99,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
     def _check_table_partitions(self) -> list:
         complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
         self.log.debug("Table name generated from arguments: %s", complete_table_name)
-        
+
         partition_columns = self._sql_sensor(f"describe detail {complete_table_name}")[7]
         self.log.debug("table_info: %s", partition_columns)
         if len(partition_columns) < 1:
