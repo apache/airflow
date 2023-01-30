@@ -127,7 +127,7 @@ def _check_for_rows(*, query: Query, print_rows=False):
     return num_entities
 
 
-def _dump_db(*, target_table, file_path, export_format, session):
+def _dump_table_to_file(*, target_table, file_path, export_format, session):
     if export_format == "csv":
         with open(file_path, "w") as f:
             csv_writer = csv.writer(f)
