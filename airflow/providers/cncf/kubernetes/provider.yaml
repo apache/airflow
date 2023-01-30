@@ -52,6 +52,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
+  - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
   # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
@@ -62,6 +63,12 @@ dependencies:
   # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
   # core is not hard-limited via install-requirements, only by extra).
   - kubernetes>=21.7.0,<24
+  # The Kubernetes_asyncio package is used for providing Asynchronous (AsyncIO) client library for
+  # standard Kubernetes API. The version is limited by minimum 18.20.1 because of introducing the ability to
+  # load kubernetes config file from dictionary in that release and is limited to the next MAJOR version
+  # (started from current 24.2.2 version) to prevent introducing some problems that could be due to some
+  #  major changes in the package.
+  - kubernetes_asyncio>=18.20.1,<25
 
 integrations:
   - integration-name: Kubernetes
