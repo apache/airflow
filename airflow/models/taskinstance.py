@@ -649,7 +649,7 @@ class TaskInstance(Base, LoggingMixin):
             ignore_ti_state=ignore_ti_state,
             local=local,
             pickle_id=pickle_id,
-            file_path=str(path) if path else None,
+            file_path=path,
             raw=raw,
             job_id=job_id,
             pool=pool,
@@ -671,7 +671,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         local: bool = False,
         pickle_id: int | None = None,
-        file_path: str | None = None,
+        file_path: PurePath | str | None = None,
         raw: bool = False,
         job_id: str | None = None,
         pool: str | None = None,
@@ -729,7 +729,7 @@ class TaskInstance(Base, LoggingMixin):
         if raw:
             cmd.extend(["--raw"])
         if file_path:
-            cmd.extend(["--subdir", file_path])
+            cmd.extend(["--subdir", os.fspath(file_path)])
         if cfg_path:
             cmd.extend(["--cfg-path", cfg_path])
         if map_index != -1:
