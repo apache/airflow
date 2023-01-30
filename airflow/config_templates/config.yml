@@ -1762,8 +1762,10 @@ celery:
     worker_enable_remote_control:
       description: |
         Specify if remote control of the workers is enabled.
-        When using Amazon SQS as the broker, Celery creates lots of ``.*reply-celery-pidbox`` queues. You can
-        prevent this by setting this to false. However, with this disabled Flower won't work.
+        In some cases when the broker does not support remote control, Celery creates lots of
+        ``.*reply-celery-pidbox`` queues. You can prevent this by setting this to false.
+        However, with this disabled Flower won't work.
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview
       version_added: 2.3.0
       type: boolean
       example: ~
