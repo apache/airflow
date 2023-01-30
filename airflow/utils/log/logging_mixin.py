@@ -203,7 +203,7 @@ class RedirectStdHandler(StreamHandler):
     @property
     def stream(self):
         """Returns current stream."""
-        if IS_K8S_EXECUTOR_POD:
+        if IS_K8S_EXECUTOR_POD or True:
             return self._orig_stream
         if self._use_stderr:
             return sys.stderr
