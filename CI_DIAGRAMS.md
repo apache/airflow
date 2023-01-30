@@ -42,9 +42,11 @@ sequenceDiagram
     and
         Note over Tests: OpenAPI client gen
     and
-        Note over Tests: Test UI
+        Note over Tests: React WWW tests
     and
         Note over Tests: Test examples<br>PROD image building
+    and
+        Note over Tests: Test git clone on Windows
     end
     Build Images ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     loop Wait for CI images
@@ -68,7 +70,15 @@ sequenceDiagram
         end
     and
         opt
-            Note over Tests: Tests
+            Note over Tests: Unit Tests
+        end
+    and
+        opt
+            Note over Tests: Integration Tests
+        end
+    and
+        opt
+            Note over Tests: Quarantined Tests
         end
     and
         opt
@@ -76,9 +86,14 @@ sequenceDiagram
         end
     and
         opt
+            Note over Tests: Test airflow <br>packages build
+        end
+    and
+        opt
             Note over Tests: Helm tests
         end
     end
+    Note over Tests: Summarize Warnings
     Build Images ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     deactivate Build Images
     loop Wait for PROD images
@@ -87,11 +102,11 @@ sequenceDiagram
     Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
     par
         opt
-            Note over Tests: Run Kubernetes<br>tests
+            Note over Tests: Run Kubernetes <br>tests
         end
     and
         opt
-            Note over Tests: Run Kubernetes<br>upgrade tests
+            Note over Tests: Run docker-compose <br>tests
         end
     end
     opt
@@ -99,6 +114,7 @@ sequenceDiagram
     end
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
+    Note over Tests: Build ARM CI images
     deactivate Tests
 ```
 
@@ -127,6 +143,8 @@ sequenceDiagram
         Note over Tests: Test UI
     and
         Note over Tests: Test examples<br>PROD image building
+    and
+        Note over Tests: Test git clone on Windows
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
@@ -147,7 +165,15 @@ sequenceDiagram
         end
     and
         opt
-            Note over Tests: Tests
+            Note over Tests: Unit Tests
+        end
+    and
+        opt
+            Note over Tests: Integration Tests
+        end
+    and
+        opt
+            Note over Tests: Quarantined Tests
         end
     and
         opt
@@ -155,9 +181,14 @@ sequenceDiagram
         end
     and
         opt
+            Note over Tests: Test airflow <br>packages build
+        end
+    and
+        opt
             Note over Tests: Helm tests
         end
     end
+    Note over Tests: Summarize Warnings
     Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull PROD Image<br>[COMIT_SHA]
     Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
@@ -167,7 +198,7 @@ sequenceDiagram
         end
     and
         opt
-            Note over Tests: Run Kubernetes <br>upgrade tests
+            Note over Tests: Run docker-compose <br>tests
         end
     end
     opt
@@ -175,6 +206,7 @@ sequenceDiagram
     end
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
+    Note over Tests: Build ARM CI images
     deactivate Tests
 ```
 
@@ -191,15 +223,17 @@ sequenceDiagram
     par
         Note over Tests: Build CI Images<br>[COMMIT_SHA]<br>Always upgrade deps
     and
+        Note over Tests: Check that image builds quickly
+    and
+        Note over Tests: Push early cache and images
+    and
         Note over Tests: OpenAPI client gen
     and
-        Note over Tests: Test UI
+        Note over Tests: React WWW tests
     and
         Note over Tests: Test examples<br>PROD image building
     and
-        Note over Tests: Build CI Images<br>Use original constraints
-        Tests ->> GitHub Registry: Push CI Image Early cache + latest
-        Note over Tests: Test 'breeze' image build quickly
+        Note over Tests: Test git clone on Windows
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
@@ -220,7 +254,11 @@ sequenceDiagram
         end
     and
         opt
-            Note over Tests: Tests
+            Note over Tests: Unit Tests
+        end
+    and
+        opt
+            Note over Tests: Integration Tests
         end
     and
         opt
@@ -228,9 +266,14 @@ sequenceDiagram
         end
     and
         opt
+            Note over Tests: Test airflow <br>packages build
+        end
+    and
+        opt
             Note over Tests: Helm tests
         end
     end
+    Note over Tests: Summarize Warnings
     Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
     Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
@@ -240,7 +283,7 @@ sequenceDiagram
         end
     and
         opt
-            Note over Tests: Run Kubernetes <br>upgrade tests
+            Note over Tests: Run docker-compose <br>tests
         end
     end
     Note over Tests: Generate constraints
@@ -274,13 +317,11 @@ sequenceDiagram
     and
         Note over Tests: OpenAPI client gen
     and
-        Note over Tests: Test UI
+        Note over Tests: React WWW tests
     and
         Note over Tests: Test examples<br>PROD image building
     and
         Note over Tests: Build CI Images<br>Use original constraints
-        Tests ->> GitHub Registry: Push CI Image Early cache + latest
-        Note over Tests: Test 'breeze' image build quickly
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
@@ -302,7 +343,11 @@ sequenceDiagram
         end
     and
         opt
-            Note over Tests: Tests
+            Note over Tests: Unit Tests
+        end
+    and
+        opt
+            Note over Tests: Integration Tests
         end
     and
         opt
@@ -310,9 +355,14 @@ sequenceDiagram
         end
     and
         opt
+            Note over Tests: Test airflow <br>packages build
+        end
+    and
+        opt
             Note over Tests: Helm tests
         end
     end
+    Note over Tests: Summarize Warnings
     Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
     Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
@@ -322,7 +372,7 @@ sequenceDiagram
         end
     and
         opt
-            Note over Tests: Run Kubernetes <br>upgrade tests
+            Note over Tests: Run docker-compose <br>tests
         end
     end
     Note over Tests: Generate constraints
@@ -333,5 +383,6 @@ sequenceDiagram
     Tests ->> GitHub Registry: Push PROD Image cache + latest
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
+    Note over Tests: Build ARM CI images
     deactivate Tests
 ```
