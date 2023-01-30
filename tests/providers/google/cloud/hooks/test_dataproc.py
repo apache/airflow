@@ -729,6 +729,17 @@ class TestDataprocAsyncHook:
             metadata=(),
         )
 
+    @pytest.mark.asyncio
+    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_operation"))
+    async def test_get_operation(self, mock_client):
+        mock_client.return_value = None
+        hook = DataprocAsyncHook(
+            gcp_conn_id="google_cloud_default", delegate_to=None, impersonation_chain=None
+        )
+        await hook.get_operation(region=GCP_LOCATION, operation_name="operation_name")
+        mock_client.assert_called_once()
+        mock_client.assert_called_with(region=GCP_LOCATION, operation_name="operation_name")
+
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     def test_instantiate_workflow_template_missing_region(self, mock_client):
         with pytest.raises(TypeError):

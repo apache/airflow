@@ -83,13 +83,28 @@ with models.DAG(
     )
     # [END how_to_cloud_dataproc_trigger_workflow_template]
 
+    # [START how_to_cloud_dataproc_trigger_workflow_template_async]
+    trigger_workflow_async = DataprocInstantiateWorkflowTemplateOperator(
+        task_id="trigger_workflow_async",
+        region=REGION,
+        project_id=PROJECT_ID,
+        template_id=WORKFLOW_NAME,
+        deferrable=True,
+    )
+    # [END how_to_cloud_dataproc_trigger_workflow_template_async]
+
     # [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
     instantiate_inline_workflow_template = DataprocInstantiateInlineWorkflowTemplateOperator(
         task_id="instantiate_inline_workflow_template", template=WORKFLOW_TEMPLATE, region=REGION
     )
     # [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
 
-    create_workflow_template >> trigger_workflow >> instantiate_inline_workflow_template
+    (
+        create_workflow_template
+        >> trigger_workflow
+        >> instantiate_inline_workflow_template
+        >> trigger_workflow_async
+    )
 
     from tests.system.utils.watcher import watcher
 
