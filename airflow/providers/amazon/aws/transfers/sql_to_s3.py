@@ -32,7 +32,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-    
+
     from airflow.utils.context import Context
 
 
