@@ -179,6 +179,15 @@ class EmrHook(AwsBaseHook):
                 )
         return response["StepIds"]
 
+    def terminate_job_flow(self, job_flow_id: str) -> None:
+        """
+        Terminate a given EMR cluster (job flow) by id. If TerminationProtected=True on the cluster,
+        termination will be unsuccessful.
+
+        :param job_flow_id: id of the job flow to terminate
+        """
+        self.get_conn().terminate_job_flows(JobFlowIds=[job_flow_id])
+
     def test_connection(self):
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable).
