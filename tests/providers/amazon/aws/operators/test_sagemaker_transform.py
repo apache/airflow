@@ -76,11 +76,12 @@ class TestSageMakerTransformOperator:
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(SageMakerHook, "create_transform_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_integer_fields(self, _, mock_transform, __, mock_desc):
+    def test_integer_fields(self, _, mock_create_transform, __, ___, mock_desc):
         mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
-        mock_transform.return_value = {
+        mock_create_transform.return_value = {
             "TransformJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
@@ -95,9 +96,10 @@ class TestSageMakerTransformOperator:
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(SageMakerHook, "create_transform_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute(self, _, mock_transform, mock_model, mock_desc):
+    def test_execute(self, _, mock_transform, __, mock_model, mock_desc):
         mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
@@ -126,8 +128,10 @@ class TestSageMakerTransformOperator:
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_transform_job")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute_with_check_if_job_exists(self, _, mock_transform, mock_desc):
+    def test_execute_with_check_if_job_exists(self, _, __, ___, mock_transform, mock_desc):
         mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
@@ -143,8 +147,10 @@ class TestSageMakerTransformOperator:
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_transform_job")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute_without_check_if_job_exists(self, _, mock_transform, __):
+    def test_execute_without_check_if_job_exists(self, _, __, ___, mock_transform, ____):
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},

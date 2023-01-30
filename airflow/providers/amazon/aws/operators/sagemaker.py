@@ -504,8 +504,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
 
+        transform_config = self.config.get("Transform", self.config)
         if self.check_if_job_exists:
-            transform_config = self.config.get("Transform", self.config)
             transform_config["TransformJobName"] = self._get_unique_job_name(
                 transform_config["TransformJobName"],
                 self.action_if_job_exists == "fail",
@@ -517,8 +517,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             self.log.info("Creating SageMaker Model %s for transform job", model_config["ModelName"])
             self.hook.create_model(model_config)
 
-        self.log.info("Creating SageMaker transform Job %s.", self.config["TransformJobName"])
-        transform_config = self.config.get("Transform", self.config)
+        self.log.info("Creating SageMaker transform Job %s.", transform_config["TransformJobName"])
         response = self.hook.create_transform_job(
             transform_config,
             wait_for_completion=self.wait_for_completion,
@@ -530,7 +529,9 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         else:
             return {
                 "Model": serialize(self.hook.describe_model(transform_config["ModelName"])),
-                "Transform": serialize(self.hook.describe_transform_job(self.config["TransformJobName"])),
+                "Transform": serialize(
+                    self.hook.describe_transform_job(transform_config["TransformJobName"])
+                ),
             }
 
 
