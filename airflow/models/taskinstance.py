@@ -461,6 +461,12 @@ class TaskInstance(Base, LoggingMixin):
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
 
+    is_trigger_log_context: bool = False
+    """Indicate to FileTaskHandler that logging context should be set up for trigger logging.
+
+    :meta private:
+    """
+
     def __init__(
         self,
         task: Operator,
@@ -524,26 +530,6 @@ class TaskInstance(Base, LoggingMixin):
         self.raw = False
         # can be changed when calling 'run'
         self.test_mode = False
-
-        self._is_trigger_log_context: bool = False
-        """
-        Flag to indicate to FileTaskHandler that logging context should be set up for
-        trigger logging.
-        """
-
-    @property
-    def is_trigger_log_context(self):
-        """
-        Flag to indicate to FileTaskHandler that logging context should be set up for
-        trigger logging.
-
-        :meta private:
-        """
-        return getattr(self, "_is_trigger_log_context", False)
-
-    @is_trigger_log_context.setter
-    def is_trigger_log_context(self, value):
-        self._is_trigger_log_context = value
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
