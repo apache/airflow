@@ -89,15 +89,16 @@ class Trigger(Base):
         Fetches all of the Triggers by ID and returns a dict mapping
         ID -> Trigger instance
         """
-        return {
-            obj.id: obj
-            for obj in session.query(cls)
+        query = (
+            session.query(cls)
             .filter(cls.id.in_(ids))
-            .options(joinedload("task_instance"))
-            .options(joinedload("task_instance.trigger"))
-            .options(joinedload("task_instance.trigger.triggerer_job"))
-            .all()
-        }
+            .options(
+                joinedload("task_instance"),
+                joinedload("task_instance.trigger"),
+                joinedload("task_instance.trigger.triggerer_job"),
+            )
+        )
+        return {obj.id: obj for obj in query}
 
     @classmethod
     @provide_session
