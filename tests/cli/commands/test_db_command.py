@@ -456,8 +456,6 @@ class TestCLIDBClean:
             [
                 "db",
                 "export-cleaned",
-                "--export-format",
-                "csv",
                 "--output-path",
                 "path",
             ]
@@ -480,8 +478,6 @@ class TestCLIDBClean:
             [
                 "db",
                 "export-cleaned",
-                "--export-format",
-                "csv",
                 "--output-path",
                 "path",
                 *extra_args,
@@ -502,8 +498,6 @@ class TestCLIDBClean:
             [
                 "db",
                 "export-cleaned",
-                "--export-format",
-                "csv",
                 "--output-path",
                 "path",
                 *extra_args,

@@ -34,6 +34,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Query, Session, aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
+from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
 from airflow.models import Base
 from airflow.utils import timezone
@@ -134,6 +135,8 @@ def _dump_table_to_file(*, target_table, file_path, export_format, session):
             cursor = session.execute(text(f"SELECT * FROM {target_table}"))
             csv_writer.writerow(cursor.keys())
             csv_writer.writerows(cursor.fetchall())
+    else:
+        raise AirflowException(f"Export format {export_format} is not supported.")
 
 
 def _do_delete(*, query, orm_model, skip_archive, session):

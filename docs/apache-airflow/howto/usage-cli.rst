@@ -223,10 +223,14 @@ The ``db export-cleaned`` command exports the contents of the archived tables, c
 to a specified format, by default to a CSV file. The exported file will contain the records that were purged from the
 primary tables during the ``db clean`` process.
 
-You can specify the export format using ``--export-format`` option. The default format is csv.
+You can specify the export format using ``--export-format`` option. The default format is csv and is also the only
+supported format at the moment.
 
-You must also specify the location of the path to which you want to export the data using ``--output-path`` option.
+You must also specify the location of the path to which you want to export the data using ``--output-path`` option. This
+location must exist.
 
+Other options include: ``--tables`` to specify the tables to export, ``--drop-archives`` to drop the archive tables after
+exporting.
 
 Beware cascading deletes
 ^^^^^^^^^^^^^^^^^^^^^^^^

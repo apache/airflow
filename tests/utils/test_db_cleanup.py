@@ -31,6 +31,7 @@ from pytest import param
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
+from airflow import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
 from airflow.utils.db_cleanup import (
@@ -405,6 +406,16 @@ class TestDBCleanup:
             writer.assert_called_once()
             writer.return_value.writerow.assert_called_once()
             writer.return_value.writerows.assert_called_once()
+
+    def test_dump_table_to_file_raises_if_format_not_supported(self):
+        with pytest.raises(AirflowException) as exc_info:
+            _dump_table_to_file(
+                target_table="mytable",
+                file_path="dags/myfile.json",
+                export_format="json",
+                session=MagicMock(),
+            )
+        assert "Export format json is not supported" in str(exc_info.value)
 
 
 def create_tis(base_date, num_tis, external_trigger=False):

@@ -481,6 +481,7 @@ ARG_DB_EXPORT_FORMAT = Arg(
     ("--export-format",),
     help="The file format to export the cleaned data",
     choices=("csv",),
+    default="csv",
 )
 ARG_DB_OUTPUT_PATH = Arg(
     ("--output-path",),
