@@ -36,10 +36,10 @@ The version of postgresql installed is still version 11.
 
 If you are upgrading an existing helm release with the built-in postgres database, you will either need to delete your release and reinstall fresh, or manually delete these 2 objects:
 
-```
-kubectl delete secret {RELEASE_NAME}-postgresql
-kubectl delete statefulset {RELEASE_NAME}-postgresql
-```
+.. code-block::
+
+    kubectl delete secret {RELEASE_NAME}-postgresql
+    kubectl delete statefulset {RELEASE_NAME}-postgresql
 
 As a reminder, it is recommended to `set up an external database <https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#database>`_ in production.
 
