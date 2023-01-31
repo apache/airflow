@@ -101,7 +101,7 @@ class CloudDLPHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None
+        self._client: DlpServiceClient | None = None
 
     def get_conn(self) -> DlpServiceClient:
         """

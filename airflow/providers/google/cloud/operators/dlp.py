@@ -2751,7 +2751,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         *,
         job_trigger_id,
         project_id: str | None = None,
-        job_trigger: JobTrigger | None = None,
+        job_trigger: dict | JobTrigger | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
