@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import logging
 import tempfile
 from unittest import mock
@@ -95,13 +96,14 @@ class TestGCSTaskHandler:
         mock_obj.name = "remote/log/location/1.log"
         mock_client.return_value.list_blobs.return_value = [mock_obj]
         mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
-
-        logs, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        logs, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
         assert logs == "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT"
-        assert {"end_of_log": False, "log_pos": 7} == metadata
+        assert {"end_of_log": True, "log_pos": 7} == metadata
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -116,7 +118,9 @@ class TestGCSTaskHandler:
         mock_blob.from_string.return_value.download_as_bytes.side_effect = Exception("Failed to connect")
 
         self.gcs_task_handler.set_context(self.ti)
-        log, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        log, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
 
         assert log == (
             "*** Found remote logs:\n"
@@ -125,7 +129,7 @@ class TestGCSTaskHandler:
             "*** Found local files:\n"
             f"***   * {self.local_log_location}/1.log\n"
         )
-        assert metadata == {"end_of_log": False, "log_pos": 0}
+        assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )

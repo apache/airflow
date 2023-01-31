@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -107,6 +108,8 @@ class TestWasbTaskHandler:
         mock_hook.get_blobs_list.return_value = ["abc/hello.log"]
         mock_hook.read_file.return_value = "Log line"
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
+        ti = copy.copy(ti)
+        ti.state = TaskInstanceState.SUCCESS
         assert self.wasb_task_handler.read(ti) == (
             [
                 [
@@ -116,7 +119,7 @@ class TestWasbTaskHandler:
                     )
                 ]
             ],
-            [{"end_of_log": False, "log_pos": 8}],
+            [{"end_of_log": True, "log_pos": 8}],
         )
 
     @mock.patch(
