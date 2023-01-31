@@ -270,6 +270,26 @@ def _render_extra_links_content(*, header_separator: str):
     return _render_template("extra_links.rst.jinja2", items=tabular_data, header_separator=header_separator)
 
 
+def _prepare_notifications_data():
+    package_data = load_package_data()
+    all_notifiers = {}
+    for provider in package_data:
+        notifications = provider.get("notifications")
+        if notifications:
+            package_name = provider["package-name"]
+            all_notifiers[package_name] = {
+                "name": provider["name"],
+                "notifications": notifications,
+            }
+    return all_notifiers
+
+
+def _render_notification_content(*, header_separator: str):
+    tabular_data = _prepare_notifications_data()
+
+    return _render_template("notifications.rst.jinja2", items=tabular_data, header_separator=header_separator)
+
+
 class BaseJinjaReferenceDirective(Directive):
     """The base directive for OperatorsHooksReferenceDirective and TransfersReferenceDirective"""
 
@@ -367,6 +387,15 @@ class ExtraLinksDirective(BaseJinjaReferenceDirective):
         )
 
 
+class NotificationsDirective(BaseJinjaReferenceDirective):
+    """Generate list of notifiers"""
+
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_notification_content(
+            header_separator=header_separator,
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
@@ -376,6 +405,7 @@ def setup(app):
     app.add_directive("airflow-secrets-backends", SecretsBackendDirective)
     app.add_directive("airflow-connections", ConnectionsDirective)
     app.add_directive("airflow-extra-links", ExtraLinksDirective)
+    app.add_directive("airflow-notifications", NotificationsDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 

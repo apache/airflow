@@ -100,6 +100,15 @@ than from its own Database.
 You can see all secret backends available via community-managed providers in
 :doc:`/core-extensions/secrets-backends`.
 
+Notifications
+'''''''''''''
+
+The providers can add custom notifications, that allow you to configure the way how you would like to receive
+notifications about the status of your tasks/DAGs.
+
+You can see all the notifications available via community-managed providers in
+:doc:`/core-extensions/notifications`.
+
 
 Installing and upgrading providers
 ----------------------------------

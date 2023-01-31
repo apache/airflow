@@ -277,6 +277,13 @@
           "type": "string"
       }
     },
+      "notifications": {
+          "type": "array",
+          "description": "Notification class names",
+          "items": {
+              "type": "string"
+          }
+      },
     "plugins": {
       "type": "array",
       "description": "Plugins exposed by the provider",

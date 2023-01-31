@@ -330,6 +330,11 @@ Email notifications
 Airflow has a built-in way of sending email notifications and it allows to extend it by adding custom
 email notification classes. You can read more about email notifications in :doc:`howto/email-config`.
 
+Notifications
+-------------
+Airflow has a built-in extensible way of sending notifications using the various ``on_*_callback``. You can read more
+about notifications in :doc:`howto/notifications`.
+
 Cluster Policies
 ----------------
 

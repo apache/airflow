@@ -76,3 +76,6 @@ connection-types:
     connection-type: slack
   - hook-class-name: airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook
     connection-type: slackwebhook
+
+notifications:
+  - airflow.providers.slack.notifications.slack_notifier.SlackNotifier
