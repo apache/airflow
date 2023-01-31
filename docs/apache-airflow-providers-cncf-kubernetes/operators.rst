@@ -1,19 +1,19 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
 
  ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 
 
@@ -137,6 +137,13 @@ Then use it in your pod like so:
     :start-after: [START howto_operator_k8s_private_image]
     :end-before: [END howto_operator_k8s_private_image]
 
+Also for this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_async.py
+    :language: python
+    :start-after: [START howto_operator_k8s_private_image_async]
+    :end-before: [END howto_operator_k8s_private_image_async]
+
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` handles
@@ -152,6 +159,13 @@ See the following example on how this occurs:
     :end-before: [END howto_operator_k8s_write_xcom]
 .. note::
   XCOMs will be pushed only for tasks marked as ``State.SUCCESS``.
+
+Also for this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_async.py
+    :language: python
+    :start-after: [START howto_operator_k8s_write_xcom_async]
+    :end-before: [END howto_operator_k8s_write_xcom_async]
 
 Reference
 ^^^^^^^^^

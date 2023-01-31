@@ -50,7 +50,11 @@ from airflow.providers.google.cloud.links.dataproc import (
     DataprocLink,
     DataprocListLink,
 )
-from airflow.providers.google.cloud.triggers.dataproc import DataprocClusterTrigger, DataprocSubmitTrigger
+from airflow.providers.google.cloud.triggers.dataproc import (
+    DataprocBatchTrigger,
+    DataprocClusterTrigger,
+    DataprocSubmitTrigger,
+)
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -2134,6 +2138,8 @@ class DataprocCreateBatchOperator(BaseOperator):
     :param asynchronous: Flag to return after creating batch to the Dataproc API.
         This is useful for creating long-running batch and
         waiting on them asynchronously using the DataprocBatchSensor
+    :param deferrable: Run operator in the deferrable mode.
+    :param polling_interval_seconds: Time (seconds) to wait between calls to check the run status.
     """
 
     template_fields: Sequence[str] = (
@@ -2151,7 +2157,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         region: str | None = None,
         project_id: str | None = None,
         batch: dict | Batch,
-        batch_id: str | None = None,
+        batch_id: str,
         request_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -2160,9 +2166,13 @@ class DataprocCreateBatchOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         result_retry: Retry | _MethodDefault = DEFAULT,
         asynchronous: bool = False,
+        deferrable: bool = False,
+        polling_interval_seconds: int = 5,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.region = region
         self.project_id = project_id
         self.batch = batch
@@ -2176,6 +2186,8 @@ class DataprocCreateBatchOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.operation: operation.Operation | None = None
         self.asynchronous = asynchronous
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -2195,13 +2207,30 @@ class DataprocCreateBatchOperator(BaseOperator):
             )
             if self.operation is None:
                 raise RuntimeError("The operation should be set here!")
-            if not self.asynchronous:
-                result = hook.wait_for_operation(
-                    timeout=self.timeout, result_retry=self.result_retry, operation=self.operation
-                )
-                self.log.info("Batch %s created", self.batch_id)
+
+            if not self.deferrable:
+                if not self.asynchronous:
+                    result = hook.wait_for_operation(
+                        timeout=self.timeout, result_retry=self.result_retry, operation=self.operation
+                    )
+                    self.log.info("Batch %s created", self.batch_id)
+
+                else:
+                    return self.operation.operation.name
+
             else:
-                return self.operation.operation.name
+                self.defer(
+                    trigger=DataprocBatchTrigger(
+                        batch_id=self.batch_id,
+                        project_id=self.project_id,
+                        region=self.region,
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
+                        polling_interval_seconds=self.polling_interval_seconds,
+                    ),
+                    method_name="execute_complete",
+                )
+
         except AlreadyExists:
             self.log.info("Batch with given id already exists")
             if self.batch_id is None:
@@ -2232,6 +2261,23 @@ class DataprocCreateBatchOperator(BaseOperator):
         batch_id = self.batch_id or result.name.split("/")[-1]
         DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id)
         return Batch.to_dict(result)
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event is None:
+            raise AirflowException("Batch failed.")
+        batch_state = event["batch_state"]
+        batch_id = event["batch_id"]
+
+        if batch_state == Batch.State.FAILED:
+            raise AirflowException(f"Batch failed:\n{batch_id}")
+        if batch_state == Batch.State.CANCELLED:
+            raise AirflowException(f"Batch was cancelled:\n{batch_id}")
+        self.log.info("%s completed successfully.", self.task_id)
 
     def on_kill(self):
         if self.operation:

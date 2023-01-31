@@ -1702,6 +1702,8 @@ cleanup:
 # Not recommended for production
 postgresql:
   enabled: true
+  image:
+    tag: "11"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
