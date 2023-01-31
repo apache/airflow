@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-01-30T17:34:43Z
+# This constraints file was automatically generated on 2023-01-31T20:55:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -171,15 +171,15 @@ azure-synapse-spark==0.7.0
 backcall==0.2.0
 backoff==1.10.0
 bcrypt==4.0.1
-beautifulsoup4==4.11.1
+beautifulsoup4==4.11.2
 billiard==3.6.4.0
 bitarray==2.6.2
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.59
+boto3==1.26.61
 boto==2.49.0
-botocore==1.29.59
+botocore==1.29.61
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -272,6 +272,7 @@ google-cloud-compute==0.7.0
 google-cloud-container==2.11.1
 google-cloud-core==2.3.2
 google-cloud-datacatalog==3.9.0
+google-cloud-dataflow-client==0.5.4
 google-cloud-dataform==0.2.0
 google-cloud-dataplex==1.1.0
 google-cloud-dataproc-metastore==1.6.0
@@ -317,7 +318,7 @@ httplib2==0.20.4
 httpx==0.23.3
 humanize==4.5.0
 hvac==1.0.2
-identify==2.5.16
+identify==2.5.17
 idna==3.4
 ijson==3.2.0.post0
 imagesize==1.4.1
@@ -351,6 +352,7 @@ jupyter_core==5.2.0
 keyring==23.13.1
 kombu==5.2.4
 krb5==0.4.1
+kubernetes-asyncio==24.2.2
 kubernetes==23.6.0
 kylinpy==2.8.4
 lazy-object-proxy==1.9.0
@@ -375,7 +377,7 @@ more-itertools==9.0.0
 moreorless==0.4.0
 moto==4.1.1
 msal-extensions==1.0.0
-msal==1.20.0
+msal==1.21.0
 msgpack==1.0.4
 msrest==0.7.1
 msrestazure==0.6.4
@@ -510,7 +512,7 @@ rfc3986==1.5.0
 rich-click==1.6.1
 rich==13.3.1
 rsa==4.9
-ruff==0.0.237
+ruff==0.0.238
 s3transfer==0.6.0
 sarif-om==1.0.4
 sasl==0.3.1
@@ -541,7 +543,7 @@ sphinx-jinja==2.0.2
 sphinx-rtd-theme==1.1.1
 sphinxcontrib-applehelp==1.0.4
 sphinxcontrib-devhelp==1.0.2
-sphinxcontrib-htmlhelp==2.0.0
+sphinxcontrib-htmlhelp==2.0.1
 sphinxcontrib-httpdomain==1.8.1
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
@@ -549,7 +551,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.7.0
 spython==0.3.0
-sqlalchemy-bigquery==1.5.0
+sqlalchemy-bigquery==1.6.0
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.12
 sqlparse==0.4.3
