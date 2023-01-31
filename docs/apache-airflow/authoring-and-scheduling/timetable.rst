@@ -78,9 +78,7 @@ A timetable that accepts a cron expression, and triggers DAG runs according to i
     from airflow.timetables.trigger import CronTriggerTimetable
 
 
-    @dag(
-        timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"),  # At 01:00 on Wednesday
-    )
+    @dag(schedule=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), ...)  # At 01:00 on Wednesday
     def example_dag():
         pass
 
@@ -97,11 +95,12 @@ run's data interval would span the specified duration, and *ends* with the trigg
 
     @dag(
         # Runs every Friday at 18:00 to cover the work week (9:00 Monday to 18:00 Friday).
-        timetable=CronTriggerTimetable(
+        schedule=CronTriggerTimetable(
             "0 18 * * 5",
             timezone="UTC",
             interval=timedelta(days=4, hours=9),
         ),
+        ...,
     )
     def example_dag():
         pass
@@ -158,7 +157,7 @@ first) event for the data interval, otherwise manual runs will run with a ``data
 
 
     @dag(
-        timetable=EventsTimetable(
+        schedule=EventsTimetable(
             event_dates=[
                 pendulum.datetime(2022, 4, 5, 8, 27, tz="America/Chicago"),
                 pendulum.datetime(2022, 4, 17, 8, 27, tz="America/Chicago"),
@@ -167,6 +166,7 @@ first) event for the data interval, otherwise manual runs will run with a ``data
             description="My Team's Baseball Games",
             restrict_to_events=False,
         ),
+        ...,
     )
     def example_dag():
         pass
