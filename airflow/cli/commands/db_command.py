@@ -215,4 +215,6 @@ def export_cleaned(args):
     export_cleaned_records(
         export_format=args.export_format,
         output_path=args.output_path,
+        table_names=args.tables,
+        drop_archives=args.drop_archives,
     )

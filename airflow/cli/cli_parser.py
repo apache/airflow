@@ -488,6 +488,11 @@ ARG_DB_OUTPUT_PATH = Arg(
     help="The path to the output directory to export the cleaned data. This directory must exist.",
     required=True,
 )
+ARG_DB_DROP_ARCHIVES = Arg(
+    ("--drop-archives",),
+    help="Drop the archive tables after exporting. Use with caution.",
+    action="store_true",
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -1615,6 +1620,8 @@ DB_COMMANDS = (
         args=(
             ARG_DB_EXPORT_FORMAT,
             ARG_DB_OUTPUT_PATH,
+            ARG_DB_DROP_ARCHIVES,
+            ARG_DB_TABLES,
         ),
     ),
 )
