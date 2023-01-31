@@ -23,15 +23,116 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.8.0 (2023-02-02)
+-------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+``bitnami/postgresql`` subchart updated to ``12.1.9`` (#29071)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The version of postgresql installed is still version 11.
+
+If you are upgrading an existing helm release with the built-in postgres database, you will either need to delete your release and reinstall fresh, or manually delete these 2 objects:
+
+```
+kubectl delete secret {RELEASE_NAME}-postgresql
+kubectl delete statefulset {RELEASE_NAME}-postgresql
+```
+
+As a reminder, it is recommended to `set up an external database <https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#database>`_ in production.
+
+This version of the chart uses different variable names for setting usernames and passwords in the postgres database.
+
+- ``postgresql.auth.enablePostgresUser`` is used to determine if the "postgres" admin account will be created.
+- ``postgresql.auth.postgresPassword`` sets the password for the "postgres" user.
+- ``postgresql.auth.username`` and ``postrgesql.auth.password`` are used to set credentials for a non-admin account if desired.
+- ``postgresql.postgresqlUsername`` and ``postgresql.postresqlPassword``, which were used in the previous version of the chart, are no longer used.
+
+Users will need to make those changes in their values files if they are changing the Postgres configuration.
+
+Previously the subchart version was ``10.5.3``.
+
+Default ``dags.gitSync.wait`` reduced to ``5`` seconds (#27625)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default for ``dags.gitSync.wait`` has been reduced from ``60`` seconds to ``5`` seconds to reduce the likelihood of DAGs
+becoming inconsistent between Airflow components. This will, however, increase traffic to the remote git repository.
+
+Default Airflow image is updated to ``2.5.1`` (#29074)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.5.1``, previously it was ``2.4.1``.
+
+Default git-sync image is updated to ``3.6.3`` (#27848)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default git-sync image that is used with the Chart is now ``3.6.3``, previously it was ``3.4.0``.
+
+Default redis image is updated to ``7-bullseye`` (#27443)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default redis image that is used with the Chart is now ``7-bullseye``, previously it was ``6-bullseye``.
+
+New Features
+^^^^^^^^^^^^
+
+- Add annotations on deployments (#28688)
+- Add global volume & volumeMounts to the chart (#27781)
+
+Improvements
+^^^^^^^^^^^^
+
+- Add support for ``webserverConfigConfigMapName`` (#27419)
+- Enhance chart to allow overriding command-line args to statsd exporter (#28041)
+- Add support for NodePort in Services (#26945)
+- Add worker log-groomer-sidecar enable option (#27178)
+- Add HostAliases to Pod template file (#27544)
+- Allow PgBouncer replicas to be configurable (#27439)
+
+Bug Fixes
+^^^^^^^^^
+
+- Create scheduler service to serve task logs for LocalKubernetesExecutor (#28828)
+- Fix NOTES.txt to show correct URL (#28264)
+- Add worker service account for LocalKubernetesExecutor (#28813)
+- Remove checks for 1.19 api checks (#28461)
+- Add airflow_local_settings to all airflow containers (#27779)
+- Make custom env vars optional for job templates (#27148)
+- Decrease default gitSync wait (#27625)
+- Add ``extraVolumeMounts`` to sidecars too (#27420)
+- Fix PgBouncer after PostgreSQL subchart upgrade (#29207)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Enhance production guide with a few Argo specific guidelines (#29078)
+- Add doc note about Pod template images (#29032)
+- Update production guide db section (#28610)
+- Fix to LoadBalancer snippet (#28014)
+- Fix gitSync example code (#28083)
+- Correct repo example for cloning via ssh (#27671)
+
+Misc
+^^^^
+
+- Update Airflow version to 2.5.1 (#29074)
+- Update git-sync to 3.6.3 (#27848)
+- Upgrade ``bitnami/postgresql`` subchart to 12.1.9 (#29071)
+- Update redis to 7 (#27443)
+- Replace helm chart icon (#27704)
+
 Airflow Helm Chart 1.7.0 (2022-10-14)
 -------------------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
-- Default Airflow image is updated to ``2.4.1``
+Default Airflow image is updated to ``2.4.1`` (#26485)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  The default Airflow image that is used with the Chart is now ``2.4.1``, previously it was ``2.3.2``. (#26485)
+The default Airflow image that is used with the Chart is now ``2.4.1``, previously it was ``2.3.2``.
 
 New Features
 ^^^^^^^^^^^^
