@@ -180,7 +180,7 @@ class TestCeleryKubernetesExecutor:
         simple_task_instance = mock.MagicMock()
         simple_task_instance.queue = KUBERNETES_QUEUE
         cke.get_task_log(ti=simple_task_instance)
-        k8s_executor_mock.get_task_log.assert_called_once_with(ti=simple_task_instance, log=mock.ANY)
+        k8s_executor_mock.get_task_log.assert_called_once_with(ti=simple_task_instance)
 
         k8s_executor_mock.reset_mock()
 

@@ -821,7 +821,7 @@ class KubernetesExecutor(BaseExecutor):
                 log.append(line.decode())
         except Exception as e:
             messages.append(f"Reading from k8s pod logs failed: {str(e)}")
-        return messages, log
+        return messages, ["\n".join(log)]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]

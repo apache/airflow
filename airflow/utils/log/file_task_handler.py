@@ -358,13 +358,18 @@ class FileTaskHandler(logging.Handler):
             if not ti.triggerer_job:
                 raise RuntimeError("Could not build triggerer log URL; no triggerer job.")
             config_key = "triggerer_log_server_port"
+            config_default = 8794
             hostname = ti.triggerer_job.hostname
             log_relative_path = self.add_triggerer_suffix(log_relative_path, job_id=ti.triggerer_job.id)
         else:
             hostname = ti.hostname
             config_key = "worker_log_server_port"
+            config_default = 8793
         return (
-            urljoin(f"http://{hostname}:{conf.get('logging', config_key)}/log/", log_relative_path),
+            urljoin(
+                f"http://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
+                log_relative_path,
+            ),
             log_relative_path,
         )
 
