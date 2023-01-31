@@ -832,4 +832,3 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
     {{- end }}
   {{- end }}
 {{- end }}
-
