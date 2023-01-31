@@ -33,6 +33,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.external_task import ExternalTaskTrigger
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -426,6 +427,93 @@ class ExternalTaskSensor(BaseSensorOperator):
             assert self.execution_date_fn is not None
         kwargs_callable = make_kwargs_callable(self.execution_date_fn)
         return kwargs_callable(logical_date, **kwargs)
+
+
+class ExternalTaskAsyncSensor(ExternalTaskSensor):
+    """
+    Waits for a different DAG, task group, or task to complete for a specific logical date.
+
+    If both `external_task_group_id` and `external_task_id` are ``None`` (default), the sensor
+    waits for the DAG.
+    Values for `external_task_group_id` and `external_task_id` can't be set at the same time.
+
+    By default, the ExternalTaskAsyncSensor will wait for the external task to
+    succeed, at which point it will also succeed. However, by default it will
+    *not* fail if the external task fails, but will continue to check the status
+    until the sensor times out (thus giving you time to retry the external task
+    without also having to clear the sensor).
+
+    It is possible to alter the default behavior by setting states which
+    cause the sensor to fail, e.g. by setting ``allowed_states=[State.FAILED]``
+    and ``failed_states=[State.SUCCESS]`` you will flip the behaviour to get a
+    sensor which goes green when the external task *fails* and immediately goes
+    red if the external task *succeeds*!
+
+    Note that ``soft_fail`` is respected when examining the failed_states. Thus
+    if the external task enters a failed state and ``soft_fail == True`` the
+    sensor will _skip_ rather than fail. As a result, setting ``soft_fail=True``
+    and ``failed_states=[State.SKIPPED]`` will result in the sensor skipping if
+    the external task skips.
+
+    :param external_dag_id: The dag_id that contains the task you want to
+        wait for
+    :param external_task_id: The task_id that contains the task you want to
+        wait for.
+    :param external_task_ids: The list of task_ids that you want to wait for.
+        If ``None`` (default value) the sensor waits for the DAG. Either
+        external_task_id or external_task_ids can be passed to
+        ExternalTaskSensor, but not both.
+    :param allowed_states: Iterable of allowed states, default is ``['success']``
+    :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
+    :param execution_delta: time difference with the previous execution to
+        look at, the default is the same logical date as the current task or DAG.
+        For yesterday, use [positive!] datetime.timedelta(days=1). Either
+        execution_delta or execution_date_fn can be passed to
+        ExternalTaskSensor, but not both.
+    :param execution_date_fn: function that receives the current execution's logical date as the first
+        positional argument and optionally any number of keyword arguments available in the
+        context dictionary, and returns the desired logical dates to query.
+        Either execution_delta or execution_date_fn can be passed to ExternalTaskSensor,
+        but not both.
+    :param check_existence: Set to `True` to check if the external task exists (when
+        external_task_id is not None) or check if the DAG to wait for exists (when
+        external_task_id is None), and immediately cease waiting if the external task
+        or DAG does not exist (default value: False).
+    :param polling_interval_seconds: Time (seconds) to wait between calls to check the run status.
+    """
+
+    def __init__(
+        self,
+        external_task_id: str | None = None,
+        external_task_ids: Collection[str] | None = None,
+        polling_interval_seconds: int = 10,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.polling_interval_seconds = polling_interval_seconds
+        if external_task_id is not None:
+            external_task_ids = [external_task_id]
+        self.external_task_id = external_task_id
+        self.external_task_ids = external_task_ids
+
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        self.defer(
+            timeout=datetime.timedelta(seconds=self.timeout),
+            trigger=ExternalTaskTrigger(
+                external_dag_id=self.external_dag_id,
+                dttm=self._get_dttm_filter(context),
+                external_task_ids=self.external_task_ids,
+                allowed_states=self.allowed_states,
+                failed_states=self.failed_states,
+                polling_interval_seconds=self.polling_interval_seconds,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context, event=None):
+        """Callback for when the trigger fires - returns immediately."""
+        return None
 
 
 class ExternalTaskMarker(EmptyOperator):
