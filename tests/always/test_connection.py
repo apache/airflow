@@ -681,7 +681,7 @@ class TestConnection(unittest.TestCase):
 
             self.mask_secret.reset_mock()
 
-            from_db = session.query(Connection).get(conn.id)
+            from_db = session.get(Connection, conn.id)
             from_db.extra_dejson
 
             assert self.mask_secret.mock_calls == [
