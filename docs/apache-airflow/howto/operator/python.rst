@@ -239,12 +239,19 @@ should return a boolean ``True`` or ``False``, indicating whether a condition is
 
     @dag(start_date=datetime.datetime(2023, 1, 1), schedule=None)
     def example():
+
+        # TaskFlow sensor
         @task.sensor
-        def wait_for_success():
+        def wait_for_success_taskflow():
             return datetime.datetime.now().minute % 2 == 0
 
-        wait_for_success()
-        PythonSensor(task_id="wait_for_even_minute", python_callable=wait_for_success)
+        wait_for_success_taskflow()
+
+        # Equivalent functionality using PythonSensor class
+        def wait_for_success_pythonsensor():
+            return datetime.datetime.now().minute % 2 == 0
+
+        PythonSensor(task_id="wait_for_success_pythonsensor", python_callable=wait_for_success_pythonsensor)
 
 
     example()
