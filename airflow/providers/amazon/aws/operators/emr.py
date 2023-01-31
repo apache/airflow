@@ -611,10 +611,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
             return self._job_flow_id
 
     def on_kill(self) -> None:
-        """Terminate job flow."""
+        """
+        Terminate the EMR cluster (job flow). If TerminationProtected=True on the cluster,
+        termination will be unsuccessful.
+        """
         if self._job_flow_id:
             self.log.info("Terminating job flow %s", self._job_flow_id)
-            self._emr_hook.terminate_job_flow(self._job_flow_id)
+            self._emr_hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
 
 
 class EmrModifyClusterOperator(BaseOperator):
