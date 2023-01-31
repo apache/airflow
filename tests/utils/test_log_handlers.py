@@ -31,15 +31,18 @@ import pytest
 from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.jobs.base_job import BaseJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import DAG, DagRun, TaskInstance, Trigger
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
+    LogType,
     _interleave_logs,
     _parse_timestamps_in_log_file,
 )
 from airflow.utils.log.logging_mixin import set_context
+from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
@@ -353,7 +356,7 @@ class TestFileTaskLogHandler:
         file_handler = next((h for h in logger.handlers if h.name == FILE_TASK_HANDLER), None)
         set_context(logger, ti)
         ti.run(ignore_ti_state=True)
-
+        ti.state = TaskInstanceState.RUNNING
         file_handler.read(ti, 3)
 
         # first we find pod name
@@ -460,41 +463,28 @@ class TestLogUrl:
             execution_date=DEFAULT_DATE,
         )
         log_url_ti.hostname = "hostname"
-        url = FileTaskHandler._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
-        assert url == "http://hostname:8793/log/DYNAMIC_PATH"
+        actual = FileTaskHandler("")._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
+        assert actual == ("http://hostname:8793/log/DYNAMIC_PATH", "DYNAMIC_PATH")
 
-
-@pytest.mark.parametrize(
-    "config, queue, expected",
-    [
-        (dict(AIRFLOW__CORE__EXECUTOR="LocalExecutor"), None, False),
-        (dict(AIRFLOW__CORE__EXECUTOR="LocalExecutor"), "kubernetes", False),
-        (dict(AIRFLOW__CORE__EXECUTOR="KubernetesExecutor"), None, True),
-        (dict(AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor"), "any", False),
-        (dict(AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor"), "kubernetes", True),
-        (
-            dict(
-                AIRFLOW__CORE__EXECUTOR="CeleryKubernetesExecutor",
-                AIRFLOW__CELERY_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE="hithere",
-            ),
-            "hithere",
-            True,
-        ),
-        (dict(AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor"), "any", False),
-        (dict(AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor"), "kubernetes", True),
-        (
-            dict(
-                AIRFLOW__CORE__EXECUTOR="LocalKubernetesExecutor",
-                AIRFLOW__LOCAL_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE="hithere",
-            ),
-            "hithere",
-            True,
-        ),
-    ],
-)
-def test__should_check_k8s(config, queue, expected):
-    with patch.dict("os.environ", **config):
-        assert FileTaskHandler._should_check_k8s(queue) == expected
+    def test_log_retrieval_valid_trigger(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+        ti.hostname = "hostname"
+        trigger = Trigger("", {})
+        job = BaseJob()
+        job.id = 123
+        trigger.triggerer_job = job
+        ti.trigger = trigger
+        actual = FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+        hostname = get_hostname()
+        assert actual == (
+            f"http://{hostname}:8794/log/DYNAMIC_PATH.trigger.123.log",
+            "DYNAMIC_PATH.trigger.123.log",
+        )
 
 
 log_sample = """[2022-11-16T00:05:54.278-0800] {taskinstance.py:1257} INFO -
@@ -522,7 +512,7 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 
 def test_parse_timestamps():
     actual = []
-    for timestamp, _ in _parse_timestamps_in_log_file(log_sample.splitlines()):
+    for timestamp, idx, line in _parse_timestamps_in_log_file(log_sample.splitlines()):
         actual.append(timestamp)
     assert actual == [
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
