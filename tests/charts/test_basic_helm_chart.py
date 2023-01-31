@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import warnings
 from subprocess import CalledProcessError
 from typing import Any
@@ -517,7 +518,7 @@ class TestBaseChartTest:
         )[0]
         assert (
             "postgresql://postgres:postgres@my-release-postgresql.default:5432/postgres?sslmode=disable"
-            == doc["data"]["connection"]
+            == base64.b64decode(doc["data"]["connection"])
         )
 
     def test_postgres_connection_url_name_override(self):
@@ -530,5 +531,5 @@ class TestBaseChartTest:
 
         assert (
             "postgresql://postgres:postgres@overrideName:5432/postgres?sslmode=disable"
-            == doc["data"]["connection"]
+            == base64.b64decode(doc["data"]["connection"])
         )
