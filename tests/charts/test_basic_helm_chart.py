@@ -518,7 +518,7 @@ class TestBaseChartTest:
         )[0]
         assert (
             "postgresql://postgres:postgres@my-release-postgresql.default:5432/postgres?sslmode=disable"
-            == base64.b64decode(doc["data"]["connection"])
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
         )
 
     def test_postgres_connection_url_name_override(self):
@@ -531,5 +531,5 @@ class TestBaseChartTest:
 
         assert (
             "postgresql://postgres:postgres@overrideName:5432/postgres?sslmode=disable"
-            == base64.b64decode(doc["data"]["connection"])
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
         )
