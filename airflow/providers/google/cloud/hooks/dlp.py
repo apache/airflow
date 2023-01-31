@@ -1293,11 +1293,13 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         return client.redact_image(
-            parent=parent,
-            inspect_config=inspect_config,
-            image_redaction_configs=image_redaction_configs,
-            include_findings=include_findings,
-            byte_item=byte_item,
+            request=dict(
+                parent=parent,
+                inspect_config=inspect_config,
+                image_redaction_configs=image_redaction_configs,
+                include_findings=include_findings,
+                byte_item=byte_item,
+            ),
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1492,6 +1494,12 @@ class CloudDLPHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         """
         client = self.get_conn()
+
+        if isinstance(job_trigger, dict):
+            job_trigger = JobTrigger(**job_trigger)
+
+        if isinstance(update_mask, dict):
+            update_mask = FieldMask(**update_mask)
 
         if not job_trigger_id:
             raise AirflowException("Please provide the ID of the DLP job trigger to be updated.")

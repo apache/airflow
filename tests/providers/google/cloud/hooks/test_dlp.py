@@ -999,11 +999,13 @@ class TestCloudDLPHook:
 
         assert result is API_RESPONSE
         get_conn.return_value.redact_image.assert_called_once_with(
-            parent=PROJECT_PATH,
-            inspect_config=None,
-            image_redaction_configs=None,
-            include_findings=None,
-            byte_item=None,
+            request=dict(
+                parent=PROJECT_PATH,
+                inspect_config=None,
+                image_redaction_configs=None,
+                include_findings=None,
+                byte_item=None,
+            ),
             retry=DEFAULT,
             timeout=None,
             metadata=(),
