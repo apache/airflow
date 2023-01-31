@@ -82,7 +82,7 @@ annotations:
       links:
       - name: '#27419'
         url: https://github.com/apache/airflow/pull/27419
-    - description: Enhance chart to allow over-riding command-line args to statsd exporter
+    - description: Enhance chart to allow overriding command-line args to statsd exporter
       kind: changed
       links:
       - name: '#28041'

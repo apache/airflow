@@ -85,7 +85,7 @@ Improvements
 ^^^^^^^^^^^^
 
 - Add support for ``webserverConfigConfigMapName`` (#27419)
-- Enhance chart to allow over-riding command-line args to statsd exporter (#28041)
+- Enhance chart to allow overriding command-line args to statsd exporter (#28041)
 - Add support for NodePort in Services (#26945)
 - Add worker log-groomer-sidecar enable option (#27178)
 - Add HostAliases to Pod template file (#27544)
