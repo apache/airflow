@@ -2961,12 +2961,10 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            filter_upstream = True if request.args.get("filter_upstream") == 'true' else False
-            filter_downstream = True if request.args.get("filter_downstream") == 'true' else False
+            filter_upstream = True if request.args.get("filter_upstream") == "true" else False
+            filter_downstream = True if request.args.get("filter_downstream") == "true" else False
             dag = dag.partial_subset(
-                task_ids_or_regex=root,
-                include_upstream=filter_upstream,
-                include_downstream=filter_downstream
+                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
             )
         arrange = request.args.get("arrange", dag.orientation)
 
