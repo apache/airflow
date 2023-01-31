@@ -317,7 +317,7 @@ class FileTaskHandler(logging.Handler):
                 executor_messages, executor_logs = response
             if executor_messages:
                 messages_list.extend(messages_list)
-        elif ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED):
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         if not (remote_logs and ti.state not in State.unfinished):

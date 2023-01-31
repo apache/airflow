@@ -302,19 +302,15 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
         )
-
+        ti.state = TaskInstanceState.RUNNING
         with conf_vars({("core", "executor"): executor_name}):
-            with patch("os.path.exists", return_value=False):
-                fth = FileTaskHandler("")
+            fth = FileTaskHandler("")
 
-                def mock_log_from_worker(ti, log, log_relative_path):
-                    return (log, {"end_of_log": True})
-
-                fth._get_task_log_from_worker = mock.Mock(side_effect=mock_log_from_worker)
-                log = fth._read(ti=ti, try_number=1)
-                fth._get_task_log_from_worker.assert_called_once()
-                assert "Local log file does not exist" in log[0]
-                assert "Failed to fetch log from executor. Falling back to fetching log from worker" in log[0]
+            fth._read_from_logs_server = mock.Mock()
+            fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
+            actual = fth._read(ti=ti, try_number=1)
+            fth._read_from_logs_server.assert_called_once()
+        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
 
     @pytest.mark.parametrize(
         "pod_override, namespace_to_call",
