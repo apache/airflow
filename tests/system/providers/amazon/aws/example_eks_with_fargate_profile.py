@@ -157,6 +157,7 @@ with DAG(
         fargate_profile_name=fargate_profile_name,
         target_state=FargateProfileStates.NONEXISTENT,
         trigger_rule=TriggerRule.ALL_DONE,
+        poke_interval=10,
     )
 
     delete_cluster = EksDeleteClusterOperator(
@@ -169,6 +170,7 @@ with DAG(
         task_id="wait_for_delete_cluster",
         cluster_name=cluster_name,
         target_state=ClusterStates.NONEXISTENT,
+        poke_interval=10,
     )
 
     chain(

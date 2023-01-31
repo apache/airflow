@@ -156,6 +156,7 @@ with DAG(
     # [START howto_sensor_emr_job_flow]
     check_job_flow = EmrJobFlowSensor(task_id="check_job_flow", job_flow_id=create_job_flow.output)
     # [END howto_sensor_emr_job_flow]
+    check_job_flow.poke_interval = 10
 
     delete_security_configuration = delete_security_config(config_name)
 
