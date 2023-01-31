@@ -22,7 +22,6 @@ from airflow.api.client import api_client
 from airflow.api.common import delete_dag, trigger_dag
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
-from airflow.models import DagRun
 from airflow.models.pool import Pool
 
 
@@ -39,7 +38,7 @@ class Client(api_client.Client):
             execution_date=execution_date,
             replace_microseconds=replace_microseconds,
         )
-        if isinstance(dag_run, DagRun):
+        if dag_run:
             return {
                 "conf": dag_run.conf,
                 "dag_id": dag_run.dag_id,
