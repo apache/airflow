@@ -1231,7 +1231,7 @@ class TestKubernetesExecutor:
         ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
 
         executor = KubernetesExecutor()
-        log = executor.get_task_log(ti=ti, log="test_init_log")
+        log = executor.get_task_log(ti=ti)
 
         mock_kube_client.read_namespaced_pod_log.assert_called_once()
         assert "test_init_log" in log

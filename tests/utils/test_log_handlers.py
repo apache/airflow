@@ -22,8 +22,9 @@ import logging.config
 import os
 import re
 import tempfile
+from pathlib import Path
 from unittest import mock
-from unittest.mock import mock_open, patch
+from unittest.mock import patch
 
 import pendulum
 import pytest
@@ -40,7 +41,7 @@ from airflow.utils.log.file_task_handler import (
 )
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
@@ -229,25 +230,50 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
-    def test__read_from_location(self, create_task_instance):
-        """Test if local log file exists, then log is read from it"""
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
+    def test__read_when_local(self, mock_read_local, create_task_instance):
+        """
+        Test if local log file exists, then values returned from _read_from_local should be incorporated
+        into returned log.
+        """
+        path = Path(
+            "dag_id=dag_for_testing_local_log_read/run_id=scheduled__2016-01-01T00:00:00+00:00/task_id=task_for_testing_local_log_read/attempt=1.log"  # noqa: E501
+        )
+        mock_read_local.return_value = (["the messages"], ["the log"])
         local_log_file_read = create_task_instance(
             dag_id="dag_for_testing_local_log_read",
             task_id="task_for_testing_local_log_read",
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
         )
-        with patch("os.path.exists", return_value=True):
-            opener = mock_open(read_data="dummy test log data")
-            with patch("airflow.utils.log.file_task_handler.open", opener):
-                fth = FileTaskHandler("")
-                log = fth._read(ti=local_log_file_read, try_number=1)
-                assert len(log) == 2
-                assert "dummy test log data" in log[0]
+        fth = FileTaskHandler("")
+        actual = fth._read(ti=local_log_file_read, try_number=1)
+        mock_read_local.assert_called_with(path)
+        assert actual == ("*** the messages\nthe log", {"end_of_log": True, "log_pos": 7})
+
+    def test__read_from_local(self):
+        """Tests the behavior of method _read_from_local"""
+
+        with tempfile.TemporaryDirectory() as td:
+            file1 = Path(td, "hello1.log")
+            file2 = Path(td, "hello1.log.suffix.log")
+            file1.write_text("file1 content")
+            file2.write_text("file2 content")
+            fth = FileTaskHandler("")
+            assert fth._read_from_local(file1) == (
+                [
+                    "Found local files:",
+                    f"  * {td}/hello1.log",
+                    f"  * {td}/hello1.log.suffix.log",
+                ],
+                ["file1 content", "file2 content"],
+            )
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.get_task_log")
-    def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance):
+    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
+    def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
         """Test for k8s executor, the log is read from get_task_log method"""
+        mock_k8s_get_task_log.return_value = ([], [])
         executor_name = "KubernetesExecutor"
         ti = create_task_instance(
             dag_id="dag_for_testing_k8s_executor_log_read",
@@ -255,12 +281,15 @@ class TestFileTaskLogHandler:
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
         )
-
+        ti.state = state
+        ti.triggerer_job = None
         with conf_vars({("core", "executor"): executor_name}):
-            with patch("os.path.exists", return_value=False):
-                fth = FileTaskHandler("")
-                fth._read(ti=ti, try_number=1)
-                mock_k8s_get_task_log.assert_called_once_with(ti=ti, log=mock.ANY)
+            fth = FileTaskHandler("")
+            fth._read(ti=ti, try_number=1)
+        if state == TaskInstanceState.RUNNING:
+            mock_k8s_get_task_log.assert_called_once_with(ti)
+        else:
+            mock_k8s_get_task_log.assert_not_called()
 
     def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading

@@ -462,14 +462,14 @@ def test_invalid_trigger(session, dag_maker):
     assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
 
 
-@pytest.mark.parametrize("modify", (True, False))
+@pytest.mark.parametrize("should_wrap", (True, False))
 @patch("airflow.jobs.triggerer_job.configure_trigger_log_handler")
-def test_handler_config_respects_donot_modify(mock_configure, modify):
+def test_handler_config_respects_donot_wrap(mock_configure, should_wrap):
     from airflow.jobs import triggerer_job
 
-    triggerer_job.DONOT_MODIFY_HANDLERS = not modify
+    triggerer_job.DISABLE_WRAPPER = not should_wrap
     TriggererJob()
-    if modify:
+    if should_wrap:
         mock_configure.assert_called()
     else:
         mock_configure.assert_not_called()
