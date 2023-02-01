@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import importlib
 import re
-from collections import OrderedDict
 from unittest import mock
 from unittest.mock import Mock
 
@@ -281,90 +280,6 @@ class TestDogStatsWithMetricsTags:
         )
 
 
-class TestStatsWithNameTags:
-    def setup_method(self):
-        self.statsd_client = Mock(spec=statsd.StatsClient)
-        self.stats = SafeStatsdLogger(self.statsd_client)
-
-    def test_increment_counter_with_stat_suffix(self):
-        self.stats.incr("test_stats_run", stat_suffix="test_suffix")
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.test_suffix", 1, 1)
-
-    def test_increment_counter_with_name_tags(self):
-        self.stats.incr("test_stats_run", name_tags=OrderedDict({"key1": "val1", "key2": "val2"}))
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.val1.val2", 1, 1)
-
-    def test_increment_counter_with_name_tags_and_stat_suffix(self):
-        self.stats.incr(
-            "test_stats_run",
-            name_tags=OrderedDict({"key1": "val1", "key2": "val2"}),
-            stat_suffix="test_suffix",
-        )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.val1.val2.test_suffix", 1, 1)
-
-    def test_increment_counter_with_name_tags_and_stat_suffix_none_input(self):
-        self.stats.incr(
-            None, name_tags=OrderedDict({"key1": "val1", "key2": "val2"}), stat_suffix="test_suffix"
-        )
-        self.statsd_client.assert_not_called()
-
-    def test_increment_counter_with_invalid_name(self):
-        self.stats.incr(12, name_tags=OrderedDict({"key1": "val1", "key2": "val2"}))
-        self.statsd_client.assert_not_called()
-
-    def test_timer_with_name_tags_and_stat_suffix(self):
-        with self.stats.timer(
-            "empty_timer", name_tags=OrderedDict({"key1": "val1", "key2": "val2"}), stat_suffix="test_suffix"
-        ):
-            pass
-        self.statsd_client.timer.assert_called_once_with(
-            "empty_timer.val1.val2.test_suffix",
-        )
-
-    def test_timing_with_name_tags_and_stat_suffix(self):
-        self.stats.timing(
-            "empty_timer",
-            123,
-            name_tags=OrderedDict({"key1": "val1", "key2": "val2"}),
-            stat_suffix="test_suffix",
-        )
-        self.statsd_client.timing.assert_called_once_with("empty_timer.val1.val2.test_suffix", 123)
-
-    def test_gauge_with_name_tags_and_stat_suffix(self):
-        self.stats.gauge(
-            "empty", 123, name_tags=OrderedDict({"key1": "val1", "key2": "val2"}), stat_suffix="test_suffix"
-        )
-        self.statsd_client.gauge.assert_called_once_with("empty.val1.val2.test_suffix", 123, 1, False)
-
-
-class TestStatsWithAggregationOptimizerEnabled:
-    def setup_method(self):
-        self.statsd_client = Mock(spec=statsd.StatsClient)
-        self.stats = SafeStatsdLogger(self.statsd_client, aggregation_optimizer_enabled=True)
-
-    def test_increment_counter_with_stat_suffix(self):
-        self.stats.incr("test_stats_run", stat_suffix="test_suffix")
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.test_suffix", 1, 1)
-
-    def test_increment_counter_with_name_tags(self):
-        self.stats.incr("test_stats_run", name_tags=OrderedDict({"key1": "val1", "key2": "val2"}))
-        self.statsd_client.incr.assert_called_once_with("test_stats_run", 1, 1)
-
-    def test_increment_counter_with_name_tags_and_stat_suffix(self):
-        self.stats.incr(
-            "test_stats_run",
-            name_tags=OrderedDict({"key1": "val1", "key2": "val2"}),
-            stat_suffix="test_suffix",
-        )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.test_suffix", 1, 1)
-
-    def test_increment_counter_with_name_tags_and_stat_suffix_none_input(self):
-        self.stats.incr(
-            None, name_tags=OrderedDict({"key1": "val1", "key2": "val2"}), stat_suffix="test_suffix"
-        )
-        self.statsd_client.assert_not_called()
-
-
 class TestStatsWithInfluxDBEnabled:
     def setup_method(self):
         with conf_vars(
@@ -374,84 +289,29 @@ class TestStatsWithInfluxDBEnabled:
             }
         ):
             self.statsd_client = Mock(spec=statsd.StatsClient)
-            self.stats = SafeStatsdLogger(
-                self.statsd_client, aggregation_optimizer_enabled=True, influxdb_tags_enabled=True
-            )
+            self.stats = SafeStatsdLogger(self.statsd_client, influxdb_tags_enabled=True)
 
-    def test_increment_counter_influxdb_name_tags(self):
+    def test_increment_counter(self):
         self.stats.incr(
-            "test_stats_run",
-            name_tags=OrderedDict({"key1": "val1", "key2": "val2"}),
-            stat_suffix="test_suffix",
+            "test_stats_run.delay",
+        )
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay", 1, 1)
+
+    def test_increment_counter_with_tags(self):
+        self.stats.incr(
+            "test_stats_run.delay",
+            tags={"key0": "val0", "key1": "val1", "key2": "val2"},
         )
         self.statsd_client.incr.assert_called_once_with(
-            "test_stats_run.test_suffix,key1=val1,key2=val2", 1, 1
+            "test_stats_run.delay,key0=val0,key1=val1,key2=val2", 1, 1
         )
 
-    def test_increment_counter_with_influxdb_tags(self):
+    def test_does_not_increment_counter_drops_invalid_tags(self):
         self.stats.incr(
-            "test_stats_run",
-            tags={"key0": "val0"},
-            name_tags=OrderedDict({"key1": "val1", "key2": "val2"}),
-            stat_suffix="test_suffix",
+            "test_stats_run.delay",
+            tags={"key0,": "val0", "key1": "val1", "key2": "val2"},
         )
-        self.statsd_client.incr.assert_called_once_with(
-            "test_stats_run.test_suffix,key0=val0,key1=val1,key2=val2", 1, 1
-        )
-
-
-class TestDogStatsWithNameTags:
-    def setup_method(self):
-        pytest.importorskip("datadog")
-        from datadog import DogStatsd
-
-        self.dogstatsd_client = Mock(speck=DogStatsd)
-        self.dogstatsd = SafeDogStatsdLogger(
-            self.dogstatsd_client, metrics_tags=True, aggregation_optimizer_enabled=False
-        )
-
-    def test_does_send_stats_using_dogstatsd_with_tags(self):
-        self.dogstatsd.incr(
-            "empty_key",
-            1,
-            1,
-            tags={"key1": "value1", "key2": "value2"},
-            name_tags=OrderedDict({"key3": "val3", "key4": "val4"}),
-            stat_suffix="test_suffix",
-        )
-        self.dogstatsd_client.increment.assert_called_once_with(
-            metric="empty_key.val3.val4.test_suffix",
-            sample_rate=1,
-            tags=["key1:value1", "key2:value2"],
-            value=1,
-        )
-
-
-class TestDogStatsWithAggregationOptimizerEnabled:
-    def setup_method(self):
-        pytest.importorskip("datadog")
-        from datadog import DogStatsd
-
-        self.dogstatsd_client = Mock(speck=DogStatsd)
-        self.dogstatsd = SafeDogStatsdLogger(
-            self.dogstatsd_client, metrics_tags=True, aggregation_optimizer_enabled=True
-        )
-
-    def test_does_send_stats_using_dogstatsd_with_tags(self):
-        self.dogstatsd.incr(
-            "empty_key",
-            1,
-            1,
-            tags={"key1": "value1", "key2": "value2"},
-            name_tags=OrderedDict({"key3": "value3", "key4": "value4"}),
-            stat_suffix="test_suffix",
-        )
-        self.dogstatsd_client.increment.assert_called_once_with(
-            metric="empty_key.test_suffix",
-            sample_rate=1,
-            tags=["key1:value1", "key2:value2", "key3:value3", "key4:value4"],
-            value=1,
-        )
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1,key2=val2", 1, 1)
 
 
 def always_invalid(stat_name):

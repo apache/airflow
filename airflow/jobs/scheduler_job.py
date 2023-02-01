@@ -25,7 +25,7 @@ import signal
 import sys
 import time
 import warnings
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Collection, DefaultDict, Iterator
@@ -1240,10 +1240,11 @@ class SchedulerJob(BaseJob):
                 # always happening immediately after the data interval.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
+                Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
                 Stats.timing(
                     "dagrun.schedule_delay",
                     schedule_delay,
-                    name_tags=OrderedDict({"dag_id": f"{dag.dag_id}"}),
+                    tags={"dag_id": f"{dag.dag_id}"},
                 )
 
         for dag_run in dag_runs:
