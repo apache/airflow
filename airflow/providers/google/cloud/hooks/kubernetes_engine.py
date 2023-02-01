@@ -64,7 +64,7 @@ OPERATIONAL_POLL_INTERVAL = 15
 
 class GKEHook(GoogleBaseHook):
     """
-    Hook for Google Kubernetes Engine APIs.
+    Hook for managing Google Kubernetes Engine cluster APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
@@ -346,7 +346,7 @@ class AsyncGKEHook(GoogleBaseAsyncHook):
 
 
 class GKEPodHook(GoogleBaseHook):
-    """Hook for managing pods."""
+    """Hook for managing Google Kubernetes Engine pod APIs."""
 
     def __init__(
         self,
@@ -416,7 +416,7 @@ class GKEPodHook(GoogleBaseHook):
 
 class AsyncGKEPodHook(GoogleBaseAsyncHook):
     """
-    Hook for managing GKE pods in asynchronous way.
+    Hook for managing Google Kubernetes Engine pods APIs in asynchronous way.
 
     :param cluster_url: The URL pointed to the cluster.
     :param ssl_ca_cert: SSL certificate that is used for authentication to the pod.
