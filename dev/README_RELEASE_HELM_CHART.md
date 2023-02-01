@@ -328,11 +328,11 @@ Please vote accordingly:
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
 
-For license checks, the .rat-excludes files is included, so you can run the following to verify licenses (just update $PATH_TO_RAT):
+For license checks, the .rat-excludes files is included, so you can run the following to verify licenses (just update your path to rat):
 
 tar -xvf airflow-chart-${VERSION_WITHOUT_RC}-source.tar.gz
 cd airflow-chart-${VERSION_WITHOUT_RC}
-java -jar $PATH_TO_RAT/apache-rat-0.13/apache-rat-0.13.jar chart -E .rat-excludes
+java -jar apache-rat-0.13.jar chart -E .rat-excludes
 
 Please note that the version number excludes the \`rcX\` string, so it's now
 simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
