@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-01T13:30:04Z
+# This constraints file was automatically generated on 2023-02-01T20:44:24Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -178,9 +178,9 @@ bitarray==2.6.2
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.61
+boto3==1.26.62
 boto==2.49.0
-botocore==1.29.61
+botocore==1.29.62
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -554,7 +554,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.7.0
 spython==0.3.0
-sqlalchemy-bigquery==1.6.0
+sqlalchemy-bigquery==1.6.1
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.12
 sqlparse==0.4.3
