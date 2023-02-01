@@ -22,8 +22,7 @@ import logging
 import socket
 import string
 import time
-from collections import OrderedDict
-from functools import wraps
+from functools import partial, wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow.configuration import conf
@@ -62,8 +61,6 @@ class StatsLogger(Protocol):
         rate: int = 1,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ) -> None:
         """Increment stat."""
 
@@ -75,8 +72,6 @@ class StatsLogger(Protocol):
         rate: int = 1,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ) -> None:
         """Decrement stat."""
 
@@ -89,8 +84,6 @@ class StatsLogger(Protocol):
         delta: bool = False,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ) -> None:
         """Gauge stat."""
 
@@ -101,8 +94,6 @@ class StatsLogger(Protocol):
         dt: float | datetime.timedelta,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ) -> None:
         """Stats timing."""
 
@@ -194,19 +185,19 @@ class DummyStatsLogger:
     """If no StatsLogger is configured, DummyStatsLogger is used as a fallback."""
 
     @classmethod
-    def incr(cls, stat, count=1, rate=1, *, tags=None, name_tags=None, stat_suffix=None):
+    def incr(cls, stat, count=1, rate=1, *, tags=None):
         """Increment stat."""
 
     @classmethod
-    def decr(cls, stat, count=1, rate=1, *, tags=None, name_tags=None, stat_suffix=None):
+    def decr(cls, stat, count=1, rate=1, *, tags=None):
         """Decrement stat."""
 
     @classmethod
-    def gauge(cls, stat, value, rate=1, delta=False, *, tags=None, name_tags=None, stat_suffix=None):
+    def gauge(cls, stat, value, rate=1, delta=False, *, tags=None):
         """Gauge stat."""
 
     @classmethod
-    def timing(cls, stat, dt, *, tags=None, name_tags=None, stat_suffix=None):
+    def timing(cls, stat, dt, *, tags=None):
         """Stats timing."""
 
     @classmethod
@@ -220,7 +211,7 @@ class DummyStatsLogger:
 ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + "_.-")
 
 
-def stat_name_default_handler(stat_name, max_length=250) -> str:
+def stat_name_default_handler(stat_name, max_length=250, allowed_chars=ALLOWED_CHARACTERS) -> str:
     """
     Validate the StatsD stat name.
 
@@ -232,7 +223,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
         raise InvalidStatsNameException(
             f"The stat_name ({stat_name}) has to be less than {max_length} characters."
         )
-    if not all((c in ALLOWED_CHARACTERS) for c in stat_name):
+    if not all((c in allowed_chars) for c in stat_name):
         raise InvalidStatsNameException(
             f"The stat name ({stat_name}) has to be composed of ASCII "
             f"alphabets, numbers, or the underscore, dot, or dash characters."
@@ -261,7 +252,7 @@ def get_current_handler_stat_name_func() -> Callable[[str], str]:
     handler = conf.getimport("metrics", "stat_name_handler")
     if handler is None:
         if conf.get("metrics", "statsd_influxdb_enabled", fallback=False):
-            handler = stat_name_influxdb_handler
+            handler = partial(stat_name_default_handler, allowed_chars=ALLOWED_CHARACTERS | set([",", "="]))
         else:
             handler = stat_name_default_handler
     return handler
@@ -277,12 +268,12 @@ def validate_stat(fn: T) -> T:
     """
 
     @wraps(fn)
-    def wrapper(_self, stat=None, *args, **kwargs):
+    def wrapper(self, stat=None, *args, **kwargs):
         try:
             if stat is not None:
                 handler_stat_name_func = get_current_handler_stat_name_func()
                 stat = handler_stat_name_func(stat)
-            return fn(_self, stat, *args, **kwargs)
+            return fn(self, stat, *args, **kwargs)
         except InvalidStatsNameException:
             log.exception("Invalid stat name: %s.", stat)
             return None
@@ -308,43 +299,6 @@ class AllowListValidator:
             return True  # default is all metrics allowed
 
 
-def concatenate_name_tags_to_stat_name(fn: T) -> T:
-    """
-    Concatenate name_tags to statname if aggregation_optimizer_enabled is False.
-    This keeps backward compatibility with metric names like:
-    'dagrun.<dag_id>.first_task_scheduling_delay' where <dag_id> is a name_tag.
-    If aggregation_optimizer_enabled is True, name_tags will be published as
-    metric tags instead.
-    """
-
-    @wraps(fn)
-    def wrapper(self, stat=None, *args, tags=None, stat_suffix=None, name_tags=None, **kwargs):
-        if self.aggregation_optimizer_enabled:
-            if stat is not None:
-                if not isinstance(stat, str):
-                    log.exception("Invalid stat name: %s.", stat)
-                    return None
-                if stat_suffix:
-                    stat += f".{stat_suffix}"
-            if name_tags is not None:
-                tags = tags or {}
-                tags.update(name_tags)
-            return fn(self, stat, *args, tags=tags, stat_suffix=stat_suffix, name_tags=name_tags, **kwargs)
-        else:
-            if stat is not None:
-                if not isinstance(stat, str):
-                    log.exception("Invalid stat name: %s.", stat)
-                    return None
-                if name_tags is not None:
-                    for k, v in name_tags.items():
-                        stat += f".{v}"
-                if stat_suffix:
-                    stat += f".{stat_suffix}"
-            return fn(self, stat, *args, tags=tags, stat_suffix=stat_suffix, name_tags=None, **kwargs)
-
-    return cast(T, wrapper)
-
-
 def prepare_stat_with_tags(fn: T) -> T:
     """Add tags to stat with influxdb standard format if influxdb_tags_enabled is True."""
 
@@ -353,7 +307,10 @@ def prepare_stat_with_tags(fn: T) -> T:
         if self.influxdb_tags_enabled:
             if stat is not None and tags is not None:
                 for k, v in tags.items():
-                    stat += f",{k}={v}"
+                    if not set(",=").intersection(set(v + k)):
+                        stat += f",{k}={v}"
+                    else:
+                        log.error("Dropping invalid tag: %s=%s.", k, v)
         return fn(self, stat, *args, tags=tags, **kwargs)
 
     return cast(T, wrapper)
@@ -374,7 +331,6 @@ class SafeStatsdLogger:
         self.aggregation_optimizer_enabled = aggregation_optimizer_enabled
         self.influxdb_tags_enabled = influxdb_tags_enabled
 
-    @concatenate_name_tags_to_stat_name
     @prepare_stat_with_tags
     @validate_stat
     def incr(
@@ -384,15 +340,12 @@ class SafeStatsdLogger:
         rate=1,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ):
         """Increment stat."""
         if self.allow_list_validator.test(stat):
             return self.statsd.incr(stat, count, rate)
         return None
 
-    @concatenate_name_tags_to_stat_name
     @prepare_stat_with_tags
     @validate_stat
     def decr(
@@ -402,15 +355,12 @@ class SafeStatsdLogger:
         rate=1,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ):
         """Decrement stat."""
         if self.allow_list_validator.test(stat):
             return self.statsd.decr(stat, count, rate)
         return None
 
-    @concatenate_name_tags_to_stat_name
     @prepare_stat_with_tags
     @validate_stat
     def gauge(
@@ -421,15 +371,12 @@ class SafeStatsdLogger:
         delta=False,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ):
         """Gauge stat."""
         if self.allow_list_validator.test(stat):
             return self.statsd.gauge(stat, value, rate, delta)
         return None
 
-    @concatenate_name_tags_to_stat_name
     @prepare_stat_with_tags
     @validate_stat
     def timing(
@@ -438,15 +385,12 @@ class SafeStatsdLogger:
         dt,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ):
         """Stats timing."""
         if self.allow_list_validator.test(stat):
             return self.statsd.timing(stat, dt)
         return None
 
-    @concatenate_name_tags_to_stat_name
     @prepare_stat_with_tags
     @validate_stat
     def timer(
@@ -454,8 +398,6 @@ class SafeStatsdLogger:
         stat=None,
         *args,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
         **kwargs,
     ):
         """Timer metric that can be cancelled."""
@@ -479,7 +421,6 @@ class SafeDogStatsdLogger:
         self.metrics_tags = metrics_tags
         self.aggregation_optimizer_enabled = aggregation_optimizer_enabled
 
-    @concatenate_name_tags_to_stat_name
     @validate_stat
     def incr(
         self,
@@ -488,8 +429,6 @@ class SafeDogStatsdLogger:
         rate=1,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ):
         """Increment stat."""
         if self.metrics_tags and isinstance(tags, dict):
@@ -500,7 +439,6 @@ class SafeDogStatsdLogger:
             return self.dogstatsd.increment(metric=stat, value=count, tags=tags_list, sample_rate=rate)
         return None
 
-    @concatenate_name_tags_to_stat_name
     @validate_stat
     def decr(
         self,
@@ -509,8 +447,6 @@ class SafeDogStatsdLogger:
         rate=1,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ):
         """Decrement stat."""
         if self.metrics_tags and isinstance(tags, dict):
@@ -521,7 +457,6 @@ class SafeDogStatsdLogger:
             return self.dogstatsd.decrement(metric=stat, value=count, tags=tags_list, sample_rate=rate)
         return None
 
-    @concatenate_name_tags_to_stat_name
     @validate_stat
     def gauge(
         self,
@@ -531,8 +466,6 @@ class SafeDogStatsdLogger:
         delta=False,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ):
         """Gauge stat."""
         if self.metrics_tags and isinstance(tags, dict):
@@ -543,7 +476,6 @@ class SafeDogStatsdLogger:
             return self.dogstatsd.gauge(metric=stat, value=value, tags=tags_list, sample_rate=rate)
         return None
 
-    @concatenate_name_tags_to_stat_name
     @validate_stat
     def timing(
         self,
@@ -551,8 +483,6 @@ class SafeDogStatsdLogger:
         dt: float | datetime.timedelta,
         *,
         tags: dict[str, str] | None = None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
     ):
         """Stats timing."""
         if self.metrics_tags and isinstance(tags, dict):
@@ -565,15 +495,12 @@ class SafeDogStatsdLogger:
             return self.dogstatsd.timing(metric=stat, value=dt, tags=tags_list)
         return None
 
-    @concatenate_name_tags_to_stat_name
     @validate_stat
     def timer(
         self,
         stat=None,
         *args,
         tags=None,
-        name_tags: OrderedDict[str, str] | None = None,
-        stat_suffix: str | None = None,
         **kwargs,
     ):
         """Timer metric that can be cancelled."""
