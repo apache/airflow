@@ -1240,6 +1240,7 @@ class SchedulerJob(BaseJob):
                 # always happening immediately after the data interval.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
+                # Publish metrics twice wtih backward compatible name, and then with tags
                 Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
                 Stats.timing(
                     "dagrun.schedule_delay",
@@ -1332,6 +1333,7 @@ class SchedulerJob(BaseJob):
             dag_run.notify_dagrun_state_changed()
             duration = dag_run.end_date - dag_run.start_date
             Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
+            Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
             return callback_to_execute
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
@@ -1415,6 +1417,10 @@ class SchedulerJob(BaseJob):
             Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
+            # tagged metrics
+            Stats.gauge("pool.open_slots", slot_stats["open"], {"pool_name": pool_name})
+            Stats.gauge("pool.queued_slots", slot_stats["queued"], {"pool_name": pool_name})
+            Stats.gauge("pool.running_slots", slot_stats["running"], {"pool_name": pool_name})
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
