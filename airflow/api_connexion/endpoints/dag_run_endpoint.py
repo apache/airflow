@@ -21,6 +21,7 @@ from http import HTTPStatus
 import pendulum
 from connexion import NoContent
 from flask import g
+from flask_login import current_user
 from marshmallow import ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import Query, Session
@@ -319,6 +320,10 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,
             )
+            dag_run_note = post_body.get("note")
+            if dag_run_note:
+                current_user_id = getattr(current_user, "id", None)
+                dag_run.note = (dag_run_note, current_user_id)
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
             raise BadRequest(detail=str(ve))
@@ -437,8 +442,6 @@ def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SES
         new_note = post_body["note"]
     except ValidationError as err:
         raise BadRequest(detail=str(err))
-
-    from flask_login import current_user
 
     current_user_id = getattr(current_user, "id", None)
     if dag_run.dag_run_note is None:
