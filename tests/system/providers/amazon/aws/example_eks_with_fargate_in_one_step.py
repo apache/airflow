@@ -137,6 +137,7 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         target_state=ClusterStates.NONEXISTENT,
+        poke_interval=10,
     )
 
     chain(
