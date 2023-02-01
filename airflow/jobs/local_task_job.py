@@ -203,9 +203,9 @@ class LocalTaskJob(BaseJob):
                         f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
                         f"({heartbeat_time_limit}s)."
                     )
+            return return_code
         finally:
             self.on_kill()
-            return return_code
 
     def handle_task_exit(self, return_code: int) -> None:
         """
