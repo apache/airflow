@@ -42,7 +42,7 @@ You can configure a sender's email address by setting ``from_email`` in the ``[e
 .. code-block:: ini
 
   [email]
-  from_email = "email@example.com"
+  from_email = "John Doe <johndoe@example.com>"
 
 Equivalent environment variables look like:
 
