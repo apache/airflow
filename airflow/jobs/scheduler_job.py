@@ -1240,7 +1240,7 @@ class SchedulerJob(BaseJob):
                 # always happening immediately after the data interval.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
-                # Publish metrics twice wtih backward compatible name, and then with tags
+                # Publish metrics twice with backward compatible name, and then with tags
                 Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
                 Stats.timing(
                     "dagrun.schedule_delay",
@@ -1418,9 +1418,9 @@ class SchedulerJob(BaseJob):
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
             # tagged metrics
-            Stats.gauge("pool.open_slots", slot_stats["open"], {"pool_name": pool_name})
-            Stats.gauge("pool.queued_slots", slot_stats["queued"], {"pool_name": pool_name})
-            Stats.gauge("pool.running_slots", slot_stats["running"], {"pool_name": pool_name})
+            Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
