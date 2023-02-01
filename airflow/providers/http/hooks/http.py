@@ -374,7 +374,7 @@ class HttpAsyncHook(BaseHook):
                         self.log.exception("HTTP error with status: %s", e.status)
                         # In this case, the user probably made a mistake.
                         # Don't retry.
-                        raise AirflowException(str(e.status) + ":" + e.message)
+                        raise AirflowException(f"{e.status}:{e.message}"
 
                 attempt_num += 1
                 await asyncio.sleep(self.retry_delay)
