@@ -20,7 +20,7 @@ from __future__ import annotations
 import itertools
 import os
 import warnings
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
 
@@ -878,7 +878,7 @@ class DagRun(Base, LoggingMixin):
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay)
                     Stats.timing(
-                        "dagrun",
+                        "dagrun.first_task_scheduling_delay",
                         true_delay,
                         tags={"dag_id": f"{dag.dag_id}"},
                     )
@@ -898,8 +898,10 @@ class DagRun(Base, LoggingMixin):
         duration = self.end_date - self.start_date
         if self.state == State.SUCCESS:
             Stats.timing(f"dagrun.duration.success.{self.dag_id}", duration)
+            Stats.timing("dagrun.duration.success", duration, tags={"dag_id": self.dag_id})
         elif self.state == State.FAILED:
             Stats.timing(f"dagrun.duration.failed.{self.dag_id}", duration)
+            Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": self.dag_id})
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
