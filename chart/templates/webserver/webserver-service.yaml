@@ -42,7 +42,7 @@ spec:
     component: webserver
     release: {{ .Release.Name }}
   ports:
-  {{ range .Values.webserver.service.ports }}
+  {{- range .Values.webserver.service.ports }}
     -
       {{- range $key, $val := . }}
       {{ $key }}: {{ tpl (toString $val) $ }}
