@@ -20,8 +20,9 @@ from __future__ import annotations
 from contextlib import suppress
 from datetime import datetime
 from importlib import import_module
+from io import StringIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -30,9 +31,20 @@ from pytest import param
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
+from airflow import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
-from airflow.utils.db_cleanup import CreateTableAs, _build_query, _cleanup_table, config_dict, run_cleanup
+from airflow.utils.db_cleanup import (
+    ARCHIVE_TABLE_PREFIX,
+    CreateTableAs,
+    _build_query,
+    _cleanup_table,
+    _confirm_drop_archives,
+    _dump_table_to_file,
+    config_dict,
+    export_cleaned_records,
+    run_cleanup,
+)
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
@@ -319,6 +331,91 @@ class TestDBCleanup:
         with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
             run_cleanup(clean_before_timestamp=datetime.utcnow(), table_names=["task_instance"], dry_run=True)
         assert "Encountered error when attempting to clean table" in caplog.text
+
+    @pytest.mark.parametrize(
+        "drop_archive",
+        [True, False],
+    )
+    @patch("airflow.utils.db_cleanup._confirm_drop_archives")
+    def test_confirm_drop_called_when_drop_archives_is_true(self, confirm_drop_mock, drop_archive):
+        """test that drop confirmation input is called when appropriate"""
+        export_cleaned_records(export_format="csv", output_path="path", drop_archives=drop_archive)
+        if drop_archive:
+            confirm_drop_mock.assert_called()
+        else:
+            confirm_drop_mock.assert_not_called()
+
+    def test_confirm_drop_archives(self):
+        tables = ["table1", "table2"]
+        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
+            "builtins.input", side_effect=["drop archived tables"]
+        ):
+            _confirm_drop_archives(tables=tables)
+            output = fake_out.getvalue().strip()
+            expected = (
+                f"You have requested that we drop archived records for tables {tables}.\n"
+                "This is irreversible.  Consider backing up the tables first \n"
+                "Enter 'drop archived tables' (without quotes) to proceed."
+            )
+        assert output == expected
+
+    def test_user_did_not_confirm(self):
+        tables = ["table1", "table2"]
+        with pytest.raises(SystemExit) as cm, patch(
+            "builtins.input", side_effect=["not drop archived tables"]
+        ):
+            _confirm_drop_archives(tables=tables)
+        assert str(cm.value) == "User did not confirm; exiting."
+
+    @pytest.mark.parametrize("drop_archive", [True, False])
+    @patch("airflow.utils.db_cleanup._dump_table_to_file")
+    @patch("airflow.utils.db_cleanup.inspect")
+    @patch("builtins.input", side_effect=["drop archived tables"])
+    def test_export_cleaned_records_only_archived_tables(
+        self, mock_input, inspect_mock, dump_mock, caplog, drop_archive
+    ):
+        """Test export_cleaned_records and show that only tables with the archive prefix are exported."""
+        session_mock = MagicMock()
+        inspector = inspect_mock.return_value
+        inspector.get_table_names.return_value = [f"{ARCHIVE_TABLE_PREFIX}dag_run__233", "task_instance"]
+        export_cleaned_records(
+            export_format="csv", output_path="path", drop_archives=drop_archive, session=session_mock
+        )
+        dump_mock.assert_called_once_with(
+            target_table=f"{ARCHIVE_TABLE_PREFIX}dag_run__233",
+            file_path=f"path/{ARCHIVE_TABLE_PREFIX}dag_run__233.csv",
+            export_format="csv",
+            session=session_mock,
+        )
+        assert f"Exporting table {ARCHIVE_TABLE_PREFIX}dag_run__233" in caplog.text
+
+        if drop_archive:
+            assert "Total exported tables: 1, Total dropped tables: 1" in caplog.text
+        else:
+            assert "Total exported tables: 1, Total dropped tables: 0" in caplog.text
+
+    @patch("airflow.utils.db_cleanup.csv")
+    def test_dump_table_to_file_function_for_csv(self, mock_csv):
+        mockopen = mock_open()
+        with patch("airflow.utils.db_cleanup.open", mockopen, create=True):
+            _dump_table_to_file(
+                target_table="mytable", file_path="dags/myfile.csv", export_format="csv", session=MagicMock()
+            )
+            mockopen.assert_called_once_with("dags/myfile.csv", "w")
+            writer = mock_csv.writer
+            writer.assert_called_once()
+            writer.return_value.writerow.assert_called_once()
+            writer.return_value.writerows.assert_called_once()
+
+    def test_dump_table_to_file_raises_if_format_not_supported(self):
+        with pytest.raises(AirflowException) as exc_info:
+            _dump_table_to_file(
+                target_table="mytable",
+                file_path="dags/myfile.json",
+                export_format="json",
+                session=MagicMock(),
+            )
+        assert "Export format json is not supported" in str(exc_info.value)
 
 
 def create_tis(base_date, num_tis, external_trigger=False):

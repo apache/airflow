@@ -217,6 +217,21 @@ You can use the ``--dry-run`` option to print the row counts in the primary tabl
 
 By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``.  If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
 
+Export the purged records from the archive tables
+-------------------------------------------------
+The ``db export-cleaned`` command exports the contents of the archived tables, created by the ``db clean`` command,
+to a specified format, by default to a CSV file. The exported file will contain the records that were purged from the
+primary tables during the ``db clean`` process.
+
+You can specify the export format using ``--export-format`` option. The default format is csv and is also the only
+supported format at the moment.
+
+You must also specify the location of the path to which you want to export the data using ``--output-path`` option. This
+location must exist.
+
+Other options include: ``--tables`` to specify the tables to export, ``--drop-archives`` to drop the archive tables after
+exporting.
+
 Beware cascading deletes
 ^^^^^^^^^^^^^^^^^^^^^^^^
 

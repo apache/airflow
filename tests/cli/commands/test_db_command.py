@@ -448,3 +448,62 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=False,
         )
+
+    @patch("airflow.cli.commands.db_command.export_cleaned_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
+    def test_export_archived_records(self, os_mock, export_archived_mock):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "export-cleaned",
+                "--output-path",
+                "path",
+            ]
+        )
+        db_command.export_cleaned(args)
+
+        export_archived_mock.assert_called_once_with(
+            export_format="csv", output_path="path", table_names=None, drop_archives=False
+        )
+
+    @pytest.mark.parametrize(
+        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+    )
+    @patch("airflow.cli.commands.db_command.export_cleaned_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
+    def test_tables_in_export_archived_records_command(
+        self, os_mock, export_archived_mock, extra_args, expected
+    ):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "export-cleaned",
+                "--output-path",
+                "path",
+                *extra_args,
+            ]
+        )
+        db_command.export_cleaned(args)
+        export_archived_mock.assert_called_once_with(
+            export_format="csv", output_path="path", table_names=expected, drop_archives=False
+        )
+
+    @pytest.mark.parametrize("extra_args, expected", [(["--drop-archives"], True), ([], False)])
+    @patch("airflow.cli.commands.db_command.export_cleaned_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
+    def test_drop_archives_in_export_archived_records_command(
+        self, os_mock, export_archived_mock, extra_args, expected
+    ):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "export-cleaned",
+                "--output-path",
+                "path",
+                *extra_args,
+            ]
+        )
+        db_command.export_cleaned(args)
+        export_archived_mock.assert_called_once_with(
+            export_format="csv", output_path="path", table_names=None, drop_archives=expected
+        )

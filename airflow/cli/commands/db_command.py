@@ -27,7 +27,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import REVISION_HEADS_MAP
-from airflow.utils.db_cleanup import config_dict, run_cleanup
+from airflow.utils.db_cleanup import config_dict, export_cleaned_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 
 
@@ -206,4 +206,15 @@ def cleanup_tables(args):
         verbose=args.verbose,
         confirm=not args.yes,
         skip_archive=args.skip_archive,
+    )
+
+
+@cli_utils.action_cli(check_db=False)
+def export_cleaned(args):
+    """Exports archived records from metadata database."""
+    export_cleaned_records(
+        export_format=args.export_format,
+        output_path=args.output_path,
+        table_names=args.tables,
+        drop_archives=args.drop_archives,
     )

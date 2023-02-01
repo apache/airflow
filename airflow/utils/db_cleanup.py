@@ -20,18 +20,21 @@ This module took inspiration from the community maintenance dag
 """
 from __future__ import annotations
 
+import csv
 import logging
+import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
 from pendulum import DateTime
-from sqlalchemy import and_, column, false, func, table, text
+from sqlalchemy import and_, column, false, func, inspect, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Query, Session, aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
+from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
 from airflow.models import Base
 from airflow.utils import timezone
@@ -39,6 +42,8 @@ from airflow.utils.db import reflect_tables
 from airflow.utils.session import NEW_SESSION, provide_session
 
 logger = logging.getLogger(__file__)
+
+ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
 
 
 @dataclass
@@ -123,6 +128,17 @@ def _check_for_rows(*, query: Query, print_rows=False):
     return num_entities
 
 
+def _dump_table_to_file(*, target_table, file_path, export_format, session):
+    if export_format == "csv":
+        with open(file_path, "w") as f:
+            csv_writer = csv.writer(f)
+            cursor = session.execute(text(f"SELECT * FROM {target_table}"))
+            csv_writer.writerow(cursor.keys())
+            csv_writer.writerows(cursor.fetchall())
+    else:
+        raise AirflowException(f"Export format {export_format} is not supported.")
+
+
 def _do_delete(*, query, orm_model, skip_archive, session):
     import re
     from datetime import datetime
@@ -131,7 +147,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     # using bulk delete
     # create a new table and copy the rows there
     timestamp_str = re.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
-    target_table_name = f"_airflow_deleted__{orm_model.name}__{timestamp_str}"
+    target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     stmt = CreateTableAs(target_table_name, query.selectable)
     logger.debug("ctas query:\n%s", stmt.compile())
@@ -284,6 +300,18 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
         raise SystemExit("User did not confirm; exiting.")
 
 
+def _confirm_drop_archives(*, tables: list[str]):
+    question = (
+        f"You have requested that we drop archived records for tables {tables!r}.\n"
+        f"This is irreversible.  Consider backing up the tables first \n"
+        f"Enter 'drop archived tables' (without quotes) to proceed."
+    )
+    print(question)
+    answer = input().strip()
+    if not answer == "drop archived tables":
+        raise SystemExit("User did not confirm; exiting.")
+
+
 def _print_config(*, configs: dict[str, _TableConfig]):
     data = [x.readable_config for x in configs.values()]
     AirflowConsole().print_as_table(data=data)
@@ -303,6 +331,20 @@ def _suppress_with_logging(table, session):
         if session.is_active:
             logger.debug("Rolling back transaction")
             session.rollback()
+
+
+def _effective_table_names(*, table_names: list[str] | None):
+    desired_table_names = set(table_names or config_dict)
+    effective_config_dict = {k: v for k, v in config_dict.items() if k in desired_table_names}
+    effective_table_names = set(effective_config_dict)
+    if desired_table_names != effective_table_names:
+        outliers = desired_table_names - effective_table_names
+        logger.warning(
+            "The following table(s) are not valid choices and will be skipped: %s", sorted(outliers)
+        )
+    if not effective_table_names:
+        raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
+    return effective_table_names, effective_config_dict
 
 
 @provide_session
@@ -336,16 +378,7 @@ def run_cleanup(
     :param session: Session representing connection to the metadata database.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
-    desired_table_names = set(table_names or config_dict)
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in desired_table_names}
-    effective_table_names = set(effective_config_dict)
-    if desired_table_names != effective_table_names:
-        outliers = desired_table_names - effective_table_names
-        logger.warning(
-            "The following table(s) are not valid choices and will be skipped: %s", sorted(outliers)
-        )
-    if not effective_table_names:
-        raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
+    effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
     if dry_run:
         print("Performing dry run for db cleanup.")
         print(
@@ -370,3 +403,33 @@ def run_cleanup(
                 session=session,
             )
             session.commit()
+
+
+@provide_session
+def export_cleaned_records(
+    export_format, output_path, table_names=None, drop_archives=False, session: Session = NEW_SESSION
+):
+    """Export cleaned data to the given output path in the given format."""
+    effective_table_names, _ = _effective_table_names(table_names=table_names)
+    if drop_archives:
+        _confirm_drop_archives(tables=sorted(effective_table_names))
+    inspector = inspect(session.bind)
+    db_table_names = [x for x in inspector.get_table_names() if x.startswith(ARCHIVE_TABLE_PREFIX)]
+    export_count = 0
+    dropped_count = 0
+    for table_name in db_table_names:
+        if not any("__" + x + "__" in table_name for x in effective_table_names):
+            continue
+        logger.info("Exporting table %s", table_name)
+        _dump_table_to_file(
+            target_table=table_name,
+            file_path=os.path.join(output_path, f"{table_name}.{export_format}"),
+            export_format=export_format,
+            session=session,
+        )
+        export_count += 1
+        if drop_archives:
+            logger.info("Dropping archived table %s", table_name)
+            session.execute(text(f"DROP TABLE {table_name}"))
+            dropped_count += 1
+    logger.info("Total exported tables: %s, Total dropped tables: %s", export_count, dropped_count)
