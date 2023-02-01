@@ -157,10 +157,10 @@ class TestApiExperimental(TestBase):
         )
         assert 404 == response.status_code
 
-        # Test error for bad conf data
+        # Test error for bad params data
         response = self.client.post(
             url_template.format("example_bash_operator"),
-            data=json.dumps({"conf": "This is a string not a dict"}),
+            data=json.dumps({"params": "This is a string not a dict"}),
             content_type="application/json",
         )
         assert 400 == response.status_code
@@ -168,7 +168,7 @@ class TestApiExperimental(TestBase):
         # Test OK case
         response = self.client.post(
             url_template.format("example_bash_operator"),
-            data=json.dumps({"run_id": run_id, "conf": {"param": "value"}}),
+            data=json.dumps({"run_id": run_id}),
             content_type="application/json",
         )
         self.assert_deprecated(response)

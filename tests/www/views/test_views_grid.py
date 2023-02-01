@@ -194,8 +194,8 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     assert resp.json == {
         "dag_runs": [
             {
-                "conf": None,
-                "conf_is_json": False,
+                "params": None,
+                "params_is_json": False,
                 "data_interval_end": "2016-01-02T00:00:00+00:00",
                 "data_interval_start": "2016-01-01T00:00:00+00:00",
                 "end_date": timezone.utcnow().isoformat(),
@@ -210,8 +210,8 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "state": "success",
             },
             {
-                "conf": None,
-                "conf_is_json": False,
+                "params": None,
+                "params_is_json": False,
                 "data_interval_end": "2016-01-03T00:00:00+00:00",
                 "data_interval_start": "2016-01-02T00:00:00+00:00",
                 "end_date": None,

@@ -122,7 +122,7 @@ def trigger_dag(dag_id):
         replace_microseconds = to_boolean(data["replace_microseconds"])
 
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, params, execution_date, replace_microseconds)
+        dr = trigger.trigger_dag(dag_id, run_id, None, params, execution_date, replace_microseconds)
     except AirflowException as err:
         log.error(err)
         response = jsonify(error=f"{err}")

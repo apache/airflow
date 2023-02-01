@@ -70,24 +70,27 @@ def test_duplicate_run_id(admin_client):
     check_content_in_response(f"The run ID {run_id} already exists", response)
 
 
-def test_trigger_dag_conf(admin_client):
-    test_dag_id = "example_bash_operator"
-    conf_dict = {"string": "Hello, World!"}
+def test_trigger_dag_prams(admin_client, dag_maker, monkeypatch, session):
+    test_dag_id = "params_dag"
+    params_dict = {"string": "Hello, World!"}
 
-    admin_client.post(f"trigger?dag_id={test_dag_id}", data={"conf": json.dumps(conf_dict)})
+    param = Param("default", type="string")
+    with monkeypatch.context():
+        with dag_maker(dag_id=test_dag_id, serialized=True, session=session, params={"string": param}):
+            EmptyOperator(task_id="task1")
 
-    with create_session() as session:
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+    admin_client.post(f"trigger?dag_id={test_dag_id}", data={"params": json.dumps(params_dict)})
+    run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is not None
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
-    assert run.conf == conf_dict
+    assert run.params == params_dict
 
 
-def test_trigger_dag_conf_malformed(admin_client):
+def test_trigger_dag_params_malformed(admin_client):
     test_dag_id = "example_bash_operator"
 
-    response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"conf": '{"a": "b"'})
+    response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"params": '{"a": "b"'})
     check_content_in_response("Invalid JSON configuration", response)
 
     with create_session() as session:
@@ -95,10 +98,10 @@ def test_trigger_dag_conf_malformed(admin_client):
     assert run is None
 
 
-def test_trigger_dag_conf_not_dict(admin_client):
+def test_trigger_dag_params_not_dict(admin_client):
     test_dag_id = "example_bash_operator"
 
-    response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"conf": "string and not a dict"})
+    response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"params": "string and not a dict"})
     check_content_in_response("must be a dict", response)
 
     with create_session() as session:
@@ -169,34 +172,32 @@ def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin)
 
 
 @pytest.mark.parametrize(
-    "request_conf, expected_conf",
+    "request_params, expected_params",
     [
         (None, {"example_key": "example_value"}),
         ({"other": "test_data", "key": 12}, {"other": "test_data", "key": 12}),
     ],
 )
-def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
+def test_trigger_dag_params(admin_client, request_params, expected_params):
     """
     Test that textarea in Trigger DAG UI is pre-populated
-    with json config when the conf URL parameter is passed,
-    or if a params dict is passed in the DAG
-
-        1. Conf is not included in URL parameters -> DAG.conf is in textarea
-        2. Conf is passed as a URL parameter -> passed conf json is in textarea
+    with json params when the prams URL parameter is passed
+        1. Params is not included in URL parameters -> DAG.params is in textarea
+        2. Params is passed as a URL parameter -> passed params json is in textarea
     """
     test_dag_id = "example_bash_operator"
     doc_md = "Example Bash Operator"
 
-    if not request_conf:
+    if not request_params:
         resp = admin_client.get(f"trigger?dag_id={test_dag_id}")
     else:
-        test_request_conf = json.dumps(request_conf, indent=4)
-        resp = admin_client.get(f"trigger?dag_id={test_dag_id}&conf={test_request_conf}&doc_md={doc_md}")
+        test_request_params = json.dumps(request_params, indent=4)
+        resp = admin_client.get(f"trigger?dag_id={test_dag_id}&params={test_request_params}&doc_md={doc_md}")
 
-    expected_dag_conf = json.dumps(expected_conf, indent=4).replace('"', "&#34;")
+    expected_dag_params = json.dumps(expected_params, indent=4).replace('"', "&#34;")
 
     check_content_in_response(
-        f'<textarea class="form-control" name="conf" id="json">{expected_dag_conf}</textarea>',
+        f'<textarea class="form-control" name="params" id="json">{expected_dag_params}</textarea>',
         resp,
     )
 
@@ -207,8 +208,8 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
     with param value set in DAG.
     """
     account = {"name": "account_name_1", "country": "usa"}
-    expected_conf = {"accounts": [account]}
-    expected_dag_conf = json.dumps(expected_conf, indent=4).replace('"', "&#34;")
+    expected_params = {"accounts": [account]}
+    expected_dag_params = json.dumps(expected_params, indent=4).replace('"', "&#34;")
     DAG_ID = "params_dag"
     param = Param(
         [account],
@@ -231,7 +232,7 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
         resp = admin_client.get(f"trigger?dag_id={DAG_ID}")
 
     check_content_in_response(
-        f'<textarea class="form-control" name="conf" id="json">{expected_dag_conf}</textarea>', resp
+        f'<textarea class="form-control" name="params" id="json">{expected_dag_params}</textarea>', resp
     )
 
 
