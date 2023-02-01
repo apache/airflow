@@ -2209,36 +2209,26 @@ class AirflowHelpFormatter(RichHelpFormatter):
     It displays simple commands and groups of commands in separate sections.
     """
 
-    def _rich_format_action(self, action: Action):
+    def _iter_indented_subactions(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):
-            from rich.text import Text
-
-            action_header = self._rich_format_action_invocation(action)
-            action_header.pad_left(self._current_indent)
-            yield action_header, None
 
             self._indent()
             subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
-            yield Text("\n"), None
-            yield Text("%*s%s:" % (self._current_indent, "", "Groups")), None
+            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Groups"), nargs=0)
             self._indent()
-            for subaction in group_subcommands:
-                yield from self._rich_format_action(subaction)
+            yield from group_subcommands
             self._dedent()
 
-            yield Text("\n"), None
-            yield Text("%*s%s:" % (self._current_indent, "", "Commands")), None
+            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Commands"), nargs=0)
             self._indent()
-
-            for subaction in action_subcommands:
-                yield from self._rich_format_action(subaction)
+            yield from action_subcommands
             self._dedent()
             self._dedent()
         else:
-            yield from super()._rich_format_action(action)
+            yield from super()._iter_indented_subactions(action)
 
 
 class LazyRichHelpFormatter(RawTextRichHelpFormatter):
