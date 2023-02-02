@@ -521,7 +521,7 @@ class TestCLIDBClean:
             ]
         )
         db_command.drop_archived(args)
-        mock_drop_archived_records.assert_called_once_with(table_names=expected, confirm=True)
+        mock_drop_archived_records.assert_called_once_with(table_names=expected, needs_confirm=True)
 
     @pytest.mark.parametrize("extra_args, expected", [(["-y"], False), ([], True)])
     @patch("airflow.cli.commands.db_command.drop_archived_tables")
@@ -534,4 +534,4 @@ class TestCLIDBClean:
             ]
         )
         db_command.drop_archived(args)
-        mock_drop_archived_records.assert_called_once_with(table_names=None, confirm=expected)
+        mock_drop_archived_records.assert_called_once_with(table_names=None, needs_confirm=expected)
