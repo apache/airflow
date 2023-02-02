@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import random
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from botocore.exceptions import ClientError
@@ -173,8 +174,8 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     :param max_ingestion_time: If wait is set to True, the operation fails if the processing job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
-    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
-        (default) and "fail".
+    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "random"
+        (default), "increment" (deprecated) and "fail".
     :return Dict: Returns The ARN of the processing job created in Amazon SageMaker.
     """
 
@@ -187,14 +188,21 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
-        action_if_job_exists: str = "increment",
+        action_if_job_exists: str = "random",
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
-        if action_if_job_exists not in ("increment", "fail"):
+        if action_if_job_exists not in ("increment", "fail", "random"):
             raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
+                f"Argument action_if_job_exists accepts only 'random', 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
+            )
+        if action_if_job_exists == "increment":
+            warnings.warn(
+                "Action 'increment' on job name conflict has been deprecated for performance reasons."
+                "The alternative to 'fail' is now 'random'.",
+                DeprecationWarning,
+                stacklevel=2,
             )
         self.action_if_job_exists = action_if_job_exists
         self.wait_for_completion = wait_for_completion
@@ -450,8 +458,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         set this parameter to None, the operation does not timeout.
     :param check_if_job_exists: If set to true, then the operator will check whether a transform job
         already exists for the name in the config.
-    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
-        (default) and "fail".
+    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "random"
+        (default), "increment" (deprecated) and "fail".
         This is only relevant if check_if_job_exists is True.
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
@@ -465,7 +473,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
-        action_if_job_exists: str = "increment",
+        action_if_job_exists: str = "random",
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -473,11 +481,18 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
-        if action_if_job_exists in ("increment", "fail"):
+        if action_if_job_exists in ("increment", "fail", "random"):
+            if action_if_job_exists == "increment":
+                warnings.warn(
+                    "Action 'increment' on job name conflict has been deprecated for performance reasons."
+                    "The alternative to 'fail' is now 'random'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             self.action_if_job_exists = action_if_job_exists
         else:
             raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
+                f"Argument action_if_job_exists accepts only 'random', 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
 
@@ -699,6 +714,13 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
         if action_if_job_exists in {"random", "increment", "fail"}:
+            if action_if_job_exists == "increment":
+                warnings.warn(
+                    "Action 'increment' on job name conflict has been deprecated for performance reasons."
+                    "The alternative to 'fail' is now 'random'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             self.action_if_job_exists = action_if_job_exists
         else:
             raise AirflowException(
