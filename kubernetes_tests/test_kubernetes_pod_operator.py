@@ -1284,6 +1284,7 @@ class TestKubernetesPodOperatorSystem:
         )
         assert MyK8SPodOperator(task_id=str(uuid4())).base_container_name == "tomato-sauce"
 
+
 def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     logger = logging.getLogger("airflow.task")
     monkeypatch.setattr(logger, "propagate", True)
