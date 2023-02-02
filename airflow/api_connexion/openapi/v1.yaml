@@ -409,6 +409,7 @@ paths:
         - $ref: '#/components/parameters/OrderBy'
         - $ref: '#/components/parameters/FilterTags'
         - $ref: '#/components/parameters/OnlyActive'
+        - $ref: '#/components/parameters/Paused'
         - name: dag_id_pattern
           in: query
           schema:
@@ -4953,6 +4954,17 @@ components:
         Returns objects greater or equal the specified date.
 
         This can be combined with updated_at_lte parameter to receive only the selected period.
+
+        *New in version 2.6.0*
+
+    Paused:
+      in: query
+      name: paused
+      schema:
+        type: boolean
+      required: false
+      description: |
+        Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
 
         *New in version 2.6.0*
 

@@ -74,14 +74,18 @@ def get_dags(
     tags: Collection[str] | None = None,
     dag_id_pattern: str | None = None,
     only_active: bool = True,
+    paused: bool | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get all DAGs."""
+    dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
     if only_active:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
-    else:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
-
+        dags_query = dags_query.filter(DagModel.is_active)
+    if paused is not None:
+        if paused:
+            dags_query = dags_query.filter(DagModel.is_paused)
+        else:
+            dags_query = dags_query.filter(~DagModel.is_paused)
     if dag_id_pattern:
         dags_query = dags_query.filter(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
