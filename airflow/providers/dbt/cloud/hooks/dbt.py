@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import time
-import warnings
 from enum import Enum
 from functools import wraps
 from inspect import signature
@@ -183,20 +182,7 @@ class DbtCloudHook(HttpHook):
 
     @staticmethod
     def _get_tenant_domain(conn: Connection) -> str:
-        if conn.schema:
-            warnings.warn(
-                "The `schema` parameter is deprecated and use within a dbt Cloud connection will be removed "
-                "in a future version. Please use `host` instead and specify the entire tenant domain name.",
-                category=DeprecationWarning,
-                stacklevel=2,
-            )
-            # Prior to deprecation, the connection.schema value could _only_ modify the third-level
-            # domain value while '.getdbt.com' was always used as the remainder of the domain name.
-            tenant = f"{conn.schema}.getdbt.com"
-        else:
-            tenant = conn.host or "cloud.getdbt.com"
-
-        return tenant
+        return conn.host or "cloud.getdbt.com"
 
     @staticmethod
     def get_request_url_params(
@@ -220,7 +206,7 @@ class DbtCloudHook(HttpHook):
         """Get Headers, tenants from the connection details"""
         headers: dict[str, Any] = {}
         connection: Connection = await sync_to_async(self.get_connection)(self.dbt_cloud_conn_id)
-        tenant = self._get_tenant_domain(conn=connection)
+        tenant = self._get_tenant_domain(connection)
         package_name, provider_version = _get_provider_info()
         headers["User-Agent"] = f"{package_name}-v{provider_version}"
         headers["Content-Type"] = "application/json"
@@ -280,7 +266,7 @@ class DbtCloudHook(HttpHook):
         return _connection
 
     def get_conn(self, *args, **kwargs) -> Session:
-        tenant = self._get_tenant_domain(conn=self.connection)
+        tenant = self._get_tenant_domain(self.connection)
         self.base_url = f"https://{tenant}/api/v2/accounts/"
 
         session = Session()

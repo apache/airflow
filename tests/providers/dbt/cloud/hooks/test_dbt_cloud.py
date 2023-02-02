@@ -157,21 +157,6 @@ class TestDbtCloudHook:
         hook.get_conn()
         assert hook.base_url == url
 
-    @patch("airflow.hooks.base.BaseHook.get_connection")
-    def test_tenant_via_conn_schema_base_url(self, mock_conn):
-        """TODO: This test can be removed once using `Connection.schema` is removed to set the tenant."""
-        mock_conn.return_value = Connection(
-            conn_id="single_tenant_conn_with_schema",
-            conn_type=DbtCloudHook.conn_type,
-            login=DEFAULT_ACCOUNT_ID,
-            password=TOKEN,
-            schema="single_tenant_domain",
-        )
-        hook = DbtCloudHook()
-        with pytest.warns(DeprecationWarning):  # DeprecationWarning for using `Connection.schema`.
-            hook.get_conn()
-        assert hook.base_url == "https://single_tenant_domain.getdbt.com/api/v2/accounts/"
-
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
