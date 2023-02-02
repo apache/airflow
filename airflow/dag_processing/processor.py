@@ -807,7 +807,6 @@ class DagFileProcessor(LoggingMixin):
 
         serialize_errors = DagFileProcessor.save_dag_to_db(
             dags=dagbag.dags,
-            dagbag_import_error_traceback_depth=dagbag.dagbag_import_error_traceback_depth,
             dag_directory=self._dag_directory,
             pickle_dags=pickle_dags,
         )
@@ -837,15 +836,12 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def save_dag_to_db(
         dags: dict[str, DAG],
-        dagbag_import_error_traceback_depth: int,
         dag_directory: str,
         pickle_dags: bool = False,
         session=NEW_SESSION,
     ):
 
-        import_errors = DagBag.sync_to_db(
-            dags, dagbag_import_error_traceback_depth, processor_subdir=dag_directory, session=session
-        )
+        import_errors = DagBag._sync_to_db(dags=dags, processor_subdir=dag_directory, session=session)
         session.commit()
 
         dag_ids = list(dags)

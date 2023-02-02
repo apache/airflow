@@ -606,10 +606,9 @@ class DagBag(LoggingMixin):
 
     @classmethod
     @provide_session
-    def sync_to_db(
+    def _sync_to_db(
         cls,
         dags: dict[str, DAG],
-        dagbag_import_error_traceback_depth: int,
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ):
@@ -642,6 +641,9 @@ class DagBag(LoggingMixin):
                 raise
             except Exception:
                 log.exception("Failed to write serialized DAG: %s", dag.full_filepath)
+                dagbag_import_error_traceback_depth = conf.getint(
+                    "core", "dagbag_import_error_traceback_depth"
+                )
                 return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
@@ -669,7 +671,13 @@ class DagBag(LoggingMixin):
                 # Only now we are "complete" do we update import_errors - don't want to record errors from
                 # previous failed attempts
                 import_errors.update(dict(serialize_errors))
+
         return import_errors
+
+    @provide_session
+    def sync_to_db(self, processor_subdir: str | None = None, session: Session = NEW_SESSION):
+        import_errors = DagBag._sync_to_db(dags=self.dags, processor_subdir=processor_subdir, session=session)
+        self.import_errors.update(import_errors)
 
     @classmethod
     @provide_session
