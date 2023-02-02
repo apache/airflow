@@ -22,18 +22,18 @@ Amazon Web Services Connection
 
 The Amazon Web Services connection type enables the :ref:`AWS Integrations <AWS>`.
 
-.. important:: Amazon Web Services Connection could be tested in the UI/API or by call
+.. important:: The Amazon Web Services Connection can be tested in the UI/API or by calling
     :meth:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.test_connection`,
-    it is **important** to correct interpret result of this test.
+    it is **important** to correctly interpret the result of this test.
     During this test components of Amazon Provider invoke AWS Security Token Service API
     `GetCallerIdentity <https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html>`__.
-    This service **only** could check is your credentials valid or not.
-    Unfortunately it is not possible to validate is this credentials has access to specific AWS service or not.
+    This service can  **only** check if your credentials are valid.
+    Unfortunately it is not possible to validate if credentials have access to specific AWS service or not.
 
-    If you use Amazon Provider for communicate with AWS API compatible services (MinIO, LocalStack, etc.)
+    If you use the Amazon Provider to communicate with AWS API compatible services (MinIO, LocalStack, etc.)
     test connection failure **doesn't mean** that your connection has wrong credentials.
-    Many of compatible services provide only limited amount of AWS API services,
-    and most of them not implement AWS STS GetCallerIdentity method.
+    Many compatible services provide only a limited number of AWS API services,
+    and most of them do not implement the AWS STS GetCallerIdentity method.
 
 
 Authenticating to AWS
@@ -58,12 +58,12 @@ automatically the credentials from there.
     or via the ``AWS_DEFAULT_REGION`` environment variable.
 
 .. caution:: If you do not set ``[database] load_default_connections`` to ``True``
-    most probably you do not have ``aws_default``. By historical reason Amazon Provider
-    components (Hooks, Operators, Sensors, etc.) fallback to default boto3 credentials strategy
-    in case of missing Connection ID, this behaviour is deprecated and will be removed in a future releases.
+    most probably you do not have ``aws_default``. For historical reasons, the Amazon Provider
+    components (Hooks, Operators, Sensors, etc.) fallback to the default boto3 credentials strategy
+    in case of a missing Connection ID. This behaviour is deprecated and will be removed in a future releases.
 
-    If you need use default boto3 credential strategy (credentials in environment variables, IAM Profile, etc.)
-    please provide ``None`` instead of connection id.
+    If you need to use the default boto3 credential strategy (credentials in environment variables, IAM Profile, etc.)
+    please provide ``None`` instead of a connection ID.
 
 .. _howto/connection:aws:configuring-the-connection:
 
