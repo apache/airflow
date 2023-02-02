@@ -81,7 +81,6 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
 
     log.debug("Calling method %.", {method_name})
     try:
-        log.warning(params)
         output = handler(**params)
         output_json = BaseSerialization.serialize(output)
         log.debug("Returning response")
