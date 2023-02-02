@@ -164,7 +164,7 @@ class TestLocalClient:
             # test output when no DagRun is created
             mock.return_value = None
             dag_run = self.client.trigger_dag(dag_id=test_dag_id)
-            assert None is dag_run
+            assert not dag_run
             mock.reset_mock()
 
     def test_delete_dag(self):
