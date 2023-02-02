@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import warnings
 from subprocess import CalledProcessError
 from typing import Any
@@ -83,7 +84,7 @@ class TestBaseChartTest:
             ("Role", "test-basic-pod-log-reader-role"),
             ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
             ("RoleBinding", "test-basic-pod-log-reader-rolebinding"),
-            ("Service", "test-basic-postgresql-headless"),
+            ("Service", "test-basic-postgresql-hl"),
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
@@ -160,7 +161,7 @@ class TestBaseChartTest:
             ("Role", "test-basic-pod-log-reader-role"),
             ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
             ("RoleBinding", "test-basic-pod-log-reader-rolebinding"),
-            ("Service", "test-basic-postgresql-headless"),
+            ("Service", "test-basic-postgresql-hl"),
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
@@ -508,3 +509,27 @@ class TestBaseChartTest:
     def test_namespace_names(self, namespace):
         """Test various namespace names to make sure they render correctly in templates"""
         render_chart(namespace=namespace)
+
+    def test_postgres_connection_url_no_override(self):
+        # no nameoverride provided
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+        )[0]
+        assert (
+            "postgresql://postgres:postgres@my-release-postgresql.default:5432/postgres?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
+        )
+
+    def test_postgres_connection_url_name_override(self):
+        # nameoverride provided
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+            values={"postgresql": {"nameOverride": "overrideName"}},
+        )[0]
+
+        assert (
+            "postgresql://postgres:postgres@overrideName:5432/postgres?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
+        )

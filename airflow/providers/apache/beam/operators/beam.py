@@ -22,6 +22,7 @@ import copy
 import os
 import stat
 import tempfile
+import warnings
 from abc import ABC, ABCMeta, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
@@ -169,6 +170,10 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         self.default_pipeline_options = default_pipeline_options or {}
         self.pipeline_options = pipeline_options or {}
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         if isinstance(dataflow_config, dict):
             self.dataflow_config = DataflowConfiguration(**dataflow_config)

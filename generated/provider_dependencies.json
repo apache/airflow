@@ -209,8 +209,10 @@
   "cncf.kubernetes": {
     "deps": [
       "apache-airflow>=2.3.0",
+      "asgiref>=3.5.2",
       "cryptography>=2.0.0",
-      "kubernetes>=21.7.0,<24"
+      "kubernetes>=21.7.0,<24",
+      "kubernetes_asyncio>=18.20.1,<25"
     ],
     "cross-providers-deps": []
   },
@@ -241,8 +243,10 @@
   },
   "dbt.cloud": {
     "deps": [
+      "aiohttp",
       "apache-airflow-providers-http",
-      "apache-airflow>=2.3.0"
+      "apache-airflow>=2.3.0",
+      "asgiref"
     ],
     "cross-providers-deps": [
       "http"
@@ -321,9 +325,9 @@
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
       "asgiref>=3.5.2",
+      "gcloud-aio-auth>=4.0.0,<5.0.0",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage",
-      "gcloud_aio_auth>=4.0.0",
       "google-ads>=15.1.1",
       "google-api-core>=2.7.0,<3.0.0",
       "google-api-python-client>=1.6.0,<2.0.0",
@@ -337,6 +341,7 @@
       "google-cloud-compute>=0.1.0,<2.0.0",
       "google-cloud-container>=2.2.0,<3.0.0",
       "google-cloud-datacatalog>=3.0.0",
+      "google-cloud-dataflow-client>=0.5.2,<0.5.5",
       "google-cloud-dataform>=0.2.0",
       "google-cloud-dataplex>=0.1.0",
       "google-cloud-dataproc-metastore>=1.2.0,<2.0.0",

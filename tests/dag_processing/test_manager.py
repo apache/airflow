@@ -495,7 +495,7 @@ class TestDagFileProcessorManager:
                 > (freezed_base_time - manager.get_last_finish_time("file_1.py")).total_seconds()
             )
 
-    def test_deactivate_stale_dags(self):
+    def test_scan_stale_dags(self):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
         DagModel.last_parsed_time is not updated.
@@ -545,7 +545,7 @@ class TestDagFileProcessorManager:
             )
             assert serialized_dag_count == 1
 
-            manager._deactivate_stale_dags()
+            manager._scan_stale_dags()
 
             active_dag_count = (
                 session.query(func.count(DagModel.dag_id))
@@ -567,7 +567,7 @@ class TestDagFileProcessorManager:
             ("scheduler", "standalone_dag_processor"): "True",
         }
     )
-    def test_deactivate_stale_dags_standalone_mode(self):
+    def test_scan_stale_dags_standalone_mode(self):
         """
         Ensure only dags from current dag_directory are updated
         """
@@ -612,7 +612,7 @@ class TestDagFileProcessorManager:
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 2
 
-            manager._deactivate_stale_dags()
+            manager._scan_stale_dags()
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
@@ -715,7 +715,7 @@ class TestDagFileProcessorManager:
         assert sum(stat.run_count for stat in manager._file_stats.values()) == 3
 
         with create_session() as session:
-            assert session.query(DagModel).get(dag_id) is not None
+            assert session.get(DagModel, dag_id) is not None
 
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.backend("mysql", "postgres")

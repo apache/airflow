@@ -229,7 +229,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.4.0'
+  version: '2.5.1'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -718,6 +718,8 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterUpdatedAtGTE'
+        - $ref: '#/components/parameters/FilterUpdatedAtLTE'
         - $ref: '#/components/parameters/FilterState'
         - $ref: '#/components/parameters/OrderBy'
       responses:
@@ -1207,6 +1209,8 @@ paths:
       - $ref: '#/components/parameters/FilterStartDateLTE'
       - $ref: '#/components/parameters/FilterEndDateGTE'
       - $ref: '#/components/parameters/FilterEndDateLTE'
+      - $ref: '#/components/parameters/FilterUpdatedAtGTE'
+      - $ref: '#/components/parameters/FilterUpdatedAtLTE'
       - $ref: '#/components/parameters/FilterDurationGTE'
       - $ref: '#/components/parameters/FilterDurationLTE'
       - $ref: '#/components/parameters/FilterState'
@@ -1375,6 +1379,8 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterUpdatedAtGTE'
+        - $ref: '#/components/parameters/FilterUpdatedAtLTE'
         - $ref: '#/components/parameters/FilterDurationGTE'
         - $ref: '#/components/parameters/FilterDurationLTE'
         - $ref: '#/components/parameters/FilterState'
@@ -4922,6 +4928,34 @@ components:
         Only filter active DAGs.
 
         *New in version 2.1.1*
+
+    FilterUpdatedAtLTE:
+      in: query
+      name: updated_at_lte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        Returns objects less or equal the specified date.
+
+        This can be combined with updated_at_gte parameter to receive only the selected period.
+
+        *New in version 2.6.0*
+
+    FilterUpdatedAtGTE:
+      in: query
+      name: updated_at_gte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        Returns objects greater or equal the specified date.
+
+        This can be combined with updated_at_lte parameter to receive only the selected period.
+
+        *New in version 2.6.0*
 
     Paused:
       in: query
