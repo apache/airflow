@@ -224,7 +224,7 @@ class SecretsMasker(logging.Filter):
                 }
                 return to_return
             elif isinstance(item, V1EnvVar):
-                tmp: dict = item.to_dict()  # type: ignore
+                tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
                 else:
