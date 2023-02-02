@@ -26,7 +26,7 @@ from kubernetes_asyncio.client import CoreV1Api
 from pendulum import DateTime
 
 from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesAsyncHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase, container_is_running
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
@@ -93,8 +93,8 @@ class WaitContainerTrigger(BaseTrigger):
             },
         )
 
-    async def get_hook(self) -> KubernetesAsyncHook:
-        return KubernetesAsyncHook(conn_id=self.kubernetes_conn_id, **(self.hook_params or {}))
+    async def get_hook(self) -> AsyncKubernetesHook:
+        return AsyncKubernetesHook(conn_id=self.kubernetes_conn_id, **(self.hook_params or {}))
 
     async def wait_for_pod_start(self, v1_api: CoreV1Api) -> Any:
         """
