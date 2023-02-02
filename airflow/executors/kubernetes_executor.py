@@ -788,7 +788,10 @@ class KubernetesExecutor(BaseExecutor):
 
             client = get_kube_client()
 
-            log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
+            log += (
+                f"*** Trying to get logs (last {self.kube_config.running_pod_tail_lines} lines) "
+                f"from worker pod {ti.hostname} ***\n\n"
+            )
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -811,7 +814,7 @@ class KubernetesExecutor(BaseExecutor):
                 namespace=namespace,
                 container="base",
                 follow=False,
-                tail_lines=100,
+                tail_lines=self.kube_config.running_pod_tail_lines,
                 _preload_content=False,
             )
 

@@ -2591,6 +2591,13 @@ kubernetes_executor:
       type: integer
       example: ~
       default: "100"
+    running_pod_tail_lines:
+      description: |
+        The number of lines (from the end) of the logs to read from the worker pod's base container.
+      version_added: 2.6.0
+      type: integer
+      example: ~
+      default: "100"
 sensors:
   description: ~
   options:

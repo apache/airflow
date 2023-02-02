@@ -103,3 +103,5 @@ class KubeConfig:
                 f"[{self.kubernetes_section}] 'delete_option_kwargs' expected a JSON dict, got "
                 + type(self.delete_option_kwargs).__name__
             )
+
+        self.running_pod_tail_lines = conf.getint(self.kubernetes_section, "running_pod_tail_lines")
