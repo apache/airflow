@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-################################
+##################################
 ## Airflow triggerer NetworkPolicy
-#################################
+##################################
 {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
 {{- if .Values.networkPolicies.enabled }}
 {{- if .Values.triggerer.enabled }}
