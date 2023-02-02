@@ -232,13 +232,42 @@ for debugging purposes, enter:
     pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
 
 
+Running Tests using Breeze interactive shell
+--------------------------------------------
+
+You can run tests interactively using regular pytest commands inside the Breeze shell. This has the
+advantage, that Breeze container has all the dependencies installed that are needed to run the tests
+and it will ask you to rebuild the image if it is needed and some new dependencies should be installed.
+
+By using interactive shell and iterating over the tests, you can iterate and re-run tests one-by-one
+or group by group right after you modified them.
+
+Entering the shell is as easy as:
+
+.. code-block:: bash
+
+     breeze
+
+This should drop you into the container.
+
+You can also use other switches (like ``--backend`` for example) to configure the environment for your
+tests (and for example to switch to different database backend - see ``--help`` for more details).
+
+Once you enter the container, you might run regular pytest commands. For example:
+
+.. code-block:: bash
+
+    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
+
+
 Running Tests using Breeze from the Host
 ----------------------------------------
 
 If you wish to only run tests and not to drop into the shell, apply the
 ``tests`` command. You can add extra targets and pytest flags after the ``--`` command. Note that
 often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
-to breeze.
+to breeze command. The Breeze image usually will have all the dependencies needed and it
+will ask you to rebuild the image if it is needed and some new dependencies should be installed.
 
 .. code-block:: bash
 
@@ -273,50 +302,6 @@ You can also limit the set of providers you would like to run tests of
 .. code-block:: bash
 
     breeze testing tests --test-type "Providers[airbyte,http]"
-
-Running Tests of a specified type from the Host
------------------------------------------------
-
-You can also run tests for a specific test type. For the stability and performance point of view,
-we separated tests into different test types to be run separately.
-
-You can select the test type by adding ``--test-type TEST_TYPE`` before the test command. There are two
-kinds of test types:
-
-* Per-directories types are added to select subset of the tests based on sub-directories in ``tests`` folder.
-  Example test types there - Core, Providers, CLI. The only action that happens when you choose the right
-  test folders are pre-selected. It is only useful for those types of tests to choose the test type
-  when you do not specify test to run.
-
-  Runs all core tests:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Core  --db-reset tests
-
-  Runs all provider tests:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Providers --db-reset tests
-
-* Special kinds of tests Quarantined, Postgres, MySQL, which are marked with pytest
-  marks and for those you need to select the type using test-type switch. If you want to run such tests
-  using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
-  Similarly to the per-directory tests if you do not specify the test or tests to run,
-  all tests of a given type are run
-
-  Run quarantined test_task_command.py test:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
-
-  Run all Quarantined tests:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Quarantined tests --db-reset
 
 
 Running full Airflow unit test suite in parallel
