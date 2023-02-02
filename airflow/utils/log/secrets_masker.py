@@ -28,32 +28,23 @@ from typing import (
     Generator,
     Iterable,
     List,
-    Protocol,
     TextIO,
     Tuple,
     TypeVar,
     Union,
-    runtime_checkable,
 )
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
 
-
-@runtime_checkable
-class ConvertableToDict(Protocol):
-    """
-    Protocol for classes implementing to_dict.
-
-    This allows to check for classes that implement to_dict, like V1EnvVar without
-    to introduce a direct dependency to the kubernetes provider.
-    """
-
-    def to_dict(self) -> dict:
-        """Convert to a dict"""
+try:
+    # kubernetes provider may not be installed
+    from kubernetes.client import V1EnvVar
+except ImportError:
+    V1EnvVar = type("V1EnvVar", (), {})  # keep mypy happy about the V1EnvVar check
 
 
-Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any], ConvertableToDict)
+Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
 
 log = logging.getLogger(__name__)
@@ -232,11 +223,8 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
-            elif isinstance(item, ConvertableToDict):
-                # This allows to redact instances of kubernetes.client.V1EnvVar
-                # without having to introduce a dependency to kubernetes.client
-                # since V1EnvVar has a to_dict method
-                tmp = item.to_dict()
+            elif isinstance(item, V1EnvVar):
+                tmp: dict = item.to_dict()  # type: ignore
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
                 else:
