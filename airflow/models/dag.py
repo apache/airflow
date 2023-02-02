@@ -1337,7 +1337,6 @@ class DAG(LoggingMixin):
         """
         dag = DagModel.get_dagmodel(dag_id=dag_id, session=session)
         dagrun = DAG._fetch_dagrun(dag_id=dag_id, run_id=run_id, session=session)
-        # TODO: need serialization here
         return DAG._fetch_callback(dag=dag, dagrun=dagrun, success=success, reason=reason, session=session)
 
     @provide_session
