@@ -133,6 +133,8 @@ def _fetch_dag_runs(
     execution_date_lte: str | None,
     start_date_gte: str | None,
     start_date_lte: str | None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     limit: int | None,
     offset: int | None,
     order_by: str,
@@ -151,6 +153,11 @@ def _fetch_dag_runs(
         query = query.filter(DagRun.end_date >= end_date_gte)
     if end_date_lte:
         query = query.filter(DagRun.end_date <= end_date_lte)
+    # filter updated at
+    if updated_at_gte:
+        query = query.filter(DagRun.updated_at >= updated_at_gte)
+    if updated_at_lte:
+        query = query.filter(DagRun.updated_at <= updated_at_lte)
 
     total_entries = query.count()
     to_replace = {"dag_run_id": "run_id"}
@@ -162,6 +169,7 @@ def _fetch_dag_runs(
         "dag_run_id",
         "start_date",
         "end_date",
+        "updated_at",
         "external_trigger",
         "conf",
     ]
@@ -183,6 +191,8 @@ def _fetch_dag_runs(
         "execution_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
+        "updated_at_gte": format_datetime,
+        "updated_at_lte": format_datetime,
         "limit": check_limit,
     }
 )
@@ -196,6 +206,8 @@ def get_dag_runs(
     execution_date_lte: str | None = None,
     end_date_gte: str | None = None,
     end_date_lte: str | None = None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     state: list[str] | None = None,
     offset: int | None = None,
     limit: int | None = None,
@@ -223,6 +235,8 @@ def get_dag_runs(
         execution_date_lte=execution_date_lte,
         start_date_gte=start_date_gte,
         start_date_lte=start_date_lte,
+        updated_at_gte=updated_at_gte,
+        updated_at_lte=updated_at_lte,
         limit=limit,
         offset=offset,
         order_by=order_by,
