@@ -42,11 +42,10 @@ spec:
     component: webserver
     release: {{ .Release.Name }}
   ports:
-  {{ range .Values.webserver.service.ports }}
-    -
-      {{- range $key, $val := . }}
-      {{ $key }}: {{ tpl (toString $val) $ }}
-      {{- end }}
+  {{- range .Values.webserver.service.ports }}
+    - {{ range $key, $val := . }}
+      {{- $key }}: {{ tpl (toString $val) $ }}
+      {{ end }}
   {{- end }}
   {{- if .Values.webserver.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.webserver.service.loadBalancerIP }}
