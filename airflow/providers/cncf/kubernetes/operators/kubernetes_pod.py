@@ -65,7 +65,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
-from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -927,6 +926,3 @@ class _optionally_suppress(AbstractContextManager):
 
 class PodNotFoundException(AirflowException):
     """Expected pod does not exist in kube-api."""
-
-
-
