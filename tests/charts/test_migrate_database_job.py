@@ -235,6 +235,14 @@ class TestMigrateDatabaseJob:
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
+    def test_job_ttl_after_finish(self):
+        docs = render_chart(
+            values={"ttlSecondsAfterFinished": 0},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        ttl = jmespath.search("spec.ttlSecondsAfterFinished", docs[0])
+        assert ttl == 0
+
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",
         [

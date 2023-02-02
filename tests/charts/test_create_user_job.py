@@ -241,6 +241,14 @@ class TestCreateUserJob:
         assert {"name": "foo", "value": "bar"} not in envs
         assert {"name": "extraFoo", "value": "extraBar"} not in envs
 
+    def test_job_ttl_after_finish(self):
+        docs = render_chart(
+            values={"ttlSecondsAfterFinished": 0},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        ttl = jmespath.search("spec.ttlSecondsAfterFinished", docs[0])
+        assert ttl == 0
+
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",
         [
