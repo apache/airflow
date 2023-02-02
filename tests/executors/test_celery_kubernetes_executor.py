@@ -43,6 +43,9 @@ class TestCeleryKubernetesExecutor:
     def test_serve_logs_default_value(self):
         assert not CeleryKubernetesExecutor.serve_logs
 
+    def test_is_single_threaded_default_value(self):
+        assert not CeleryKubernetesExecutor.is_single_threaded
+
     def test_queued_tasks(self):
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
