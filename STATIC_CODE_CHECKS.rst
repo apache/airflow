@@ -313,6 +313,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-inlined-dockerfile-scripts                         | Inline Dockerfile and Dockerfile.ci scripts                      |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-installed-providers-to-be-sorted                   | Sort alphabetically and uniquify installed_providers.txt         |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-local-yml-file                                     | Update mounts in the local yml file                              |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                                         | *       |

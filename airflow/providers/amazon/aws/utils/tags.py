@@ -24,7 +24,7 @@ def format_tags(source: Any, *, key_label: str = "Key", value_label: str = "Valu
     If given a dictionary, formats it as an array of objects with a key and a value field to be passed to boto
     calls that expect this format.
     Else, assumes that it's already in the right format and returns it as is. We do not validate
-    the format here since it's done by boto anyway, and the error wouldn't be clearer if thrown from here.
+    the format here since it's done by boto anyway, and the error would not be clearer if thrown from here.
 
     :param source: a dict from which keys and values are read
     :param key_label: optional, the label to use for keys if not "Key"

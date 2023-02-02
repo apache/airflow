@@ -75,6 +75,7 @@ with DAG(
             "MasterUserPassword": "rds_password",
             "AllocatedStorage": 20,
             "DBName": rds_db_name,
+            "PubliclyAccessible": False,
         },
     )
 

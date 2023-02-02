@@ -251,9 +251,10 @@ $(document).ready(() => {
     },
   });
 
-  $.fn.datetimepicker.defaults.format = 'YYYY-MM-DD HH:mm:ssZ';
   $.fn.datetimepicker.defaults.sideBySide = true;
-  $('.datetimepicker').datetimepicker();
+  $('.datetimepicker').datetimepicker({ format: 'YYYY-MM-DD HH:mm:ssZ' });
+  $('.datepicker').datetimepicker({ format: 'YYYY-MM-DD' });
+  $('.timepicker').datetimepicker({ format: 'HH:mm:ss' });
 
   $('.filters .select2-chosen').each((idx, elem) => { filterOpSelected(elem); });
   $('.filters .select2-chosen').on('DOMNodeInserted', (e) => { filterOpSelected(e.target); });

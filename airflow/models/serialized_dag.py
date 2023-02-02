@@ -379,7 +379,7 @@ class SerializedDagModel(Base):
         from airflow.models.serialized_dag import SerializedDagModel
 
         try:
-            model = session.query(SerializedDagModel).get(dag_id)
+            model = session.get(SerializedDagModel, dag_id)
             if model:
                 return model.dag.get_task(task_id)
         except (exc.NoResultFound, TaskNotFound):
