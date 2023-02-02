@@ -42,7 +42,12 @@ from airflow.compat.functools import cache, cached_property
 
 @runtime_checkable
 class ConvertableToDict(Protocol):
-    """Protocol for classes implementing to_dict."""
+    """
+    Protocol for classes implementing to_dict.
+
+    This allows to check for classes that implement to_dict, like V1EnvVar without
+    to introduce a direct dependency to the kubernetes provider.
+    """
 
     def to_dict(self) -> dict:
         """Convert to a dict"""
@@ -227,7 +232,10 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
-            elif isinstance(item, ConvertableToDict):  # things like V1EnvVar
+            elif isinstance(item, ConvertableToDict):
+                # This allows to redact instances of kubernetes.client.V1EnvVar
+                # without having to introduce a dependency to kubernetes.client
+                # since V1EnvVar has a to_dict method
                 tmp = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
