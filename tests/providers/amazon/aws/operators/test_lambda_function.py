@@ -17,15 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
-import zipfile
 from unittest import mock
+from unittest.mock import Mock, patch
 
 import pytest
-from moto import mock_iam, mock_lambda, mock_sts
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.lambda_function import (
     AwsLambdaInvokeFunctionOperator,
@@ -72,9 +69,6 @@ class TestLambdaCreateFunctionOperator:
         mock_hook_conn.get_waiter.assert_called_once_with("function_active_v2")
 
 
-@mock_lambda
-@mock_sts
-@mock_iam
 class TestAwsLambdaInvokeFunctionOperator:
     def test_init(self):
         lambda_operator = AwsLambdaInvokeFunctionOperator(
@@ -90,65 +84,60 @@ class TestAwsLambdaInvokeFunctionOperator:
         assert lambda_operator.log_type == "None"
         assert lambda_operator.aws_conn_id == "aws_conn_test"
 
-    @staticmethod
-    def create_zip(body):
-        code = body
-        zip_output = io.BytesIO()
-        with zipfile.ZipFile(zip_output, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            zip_file.writestr("lambda_function.py", code)
-        zip_output.seek(0)
-        return zip_output.read()
-
-    @staticmethod
-    def create_iam_role(role_name: str):
-        iam = AwsBaseHook("aws_conn_test", client_type="iam")
-        resp = iam.conn.create_role(
-            RoleName=role_name,
-            AssumeRolePolicyDocument=json.dumps(
-                {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Principal": {"Service": "lambda.amazonaws.com"},
-                            "Action": "sts:AssumeRole",
-                        }
-                    ],
-                }
-            ),
-            Description="IAM role for Lambda execution.",
-        )
-        return resp["Role"]["Arn"]
-
-    @staticmethod
-    def create_lambda_function(function_name: str):
-        code = """def handler(event, context):
-            return event
-        """
-        role_name = "LambdaRole"
-        role_arn = TestAwsLambdaInvokeFunctionOperator.create_iam_role(role_name)
-        zipped_code = TestAwsLambdaInvokeFunctionOperator.create_zip(code)
-        lambda_client = LambdaHook(aws_conn_id="aws_conn_test")
-        resp = lambda_client.create_lambda(
-            function_name=function_name,
-            runtime="python3.7",
-            role=role_arn,
-            code={
-                "ZipFile": zipped_code,
-            },
-            handler="lambda_function.handler",
-        )
-        return resp
-
-    @pytest.mark.execution_timeout(120)
-    def test_invoke_lambda(self):
-        self.create_lambda_function("test")
-        test_event_input = {"TestInput": "Testdata"}
-        lambda_invoke_function = AwsLambdaInvokeFunctionOperator(
+    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_invoke_lambda(self, hook_mock):
+        operator = AwsLambdaInvokeFunctionOperator(
             task_id="task_test",
-            function_name="test",
-            log_type="None",
-            payload=json.dumps(test_event_input),
+            function_name="a",
+            invocation_type="b",
+            log_type="c",
+            client_context="d",
+            payload="e",
+            qualifier="f",
         )
-        value = lambda_invoke_function.execute(None)
-        assert json.dumps(json.loads(value)) == json.dumps(test_event_input)
+        returned_payload = Mock()
+        returned_payload.read().decode.return_value = "data was read"
+        hook_mock().invoke_lambda.return_value = {
+            "ResponseMetadata": "",
+            "StatusCode": 200,
+            "Payload": returned_payload,
+        }
+
+        value = operator.execute(None)
+
+        assert value == "data was read"
+        hook_mock().invoke_lambda.assert_called_once_with(
+            function_name="a",
+            invocation_type="b",
+            log_type="c",
+            client_context="d",
+            payload="e",
+            qualifier="f",
+        )
+
+    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_invoke_lambda_bad_http_code(self, hook_mock):
+        operator = AwsLambdaInvokeFunctionOperator(
+            task_id="task_test",
+            function_name="a",
+        )
+        hook_mock().invoke_lambda.return_value = {"ResponseMetadata": "", "StatusCode": 404}
+
+        with pytest.raises(ValueError):
+            operator.execute(None)
+
+    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_invoke_lambda_function_error(self, hook_mock):
+        operator = AwsLambdaInvokeFunctionOperator(
+            task_id="task_test",
+            function_name="a",
+        )
+        hook_mock().invoke_lambda.return_value = {
+            "ResponseMetadata": "",
+            "StatusCode": 404,
+            "FunctionError": "yes",
+            "Payload": Mock(),
+        }
+
+        with pytest.raises(ValueError):
+            operator.execute(None)
