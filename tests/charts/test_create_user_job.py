@@ -243,7 +243,7 @@ class TestCreateUserJob:
 
     def test_job_ttl_after_finished(self):
         docs = render_chart(
-            values={"migrateDatabaseJob": {"ttlSecondsAfterFinished": 1}},
+            values={"createUserJob": {"ttlSecondsAfterFinished": 1}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
         ttl = jmespath.search("spec.ttlSecondsAfterFinished", docs[0])
@@ -251,7 +251,7 @@ class TestCreateUserJob:
 
     def test_job_ttl_after_finished_zero(self):
         docs = render_chart(
-            values={"migrateDatabaseJob": {"ttlSecondsAfterFinished": 0}},
+            values={"createUserJob": {"ttlSecondsAfterFinished": 0}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
         ttl = jmespath.search("spec.ttlSecondsAfterFinished", docs[0])
