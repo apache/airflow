@@ -21,7 +21,6 @@ import tempfile
 import warnings
 from typing import TYPE_CHECKING, Any, Generator
 
-from asgiref.sync import sync_to_async
 import aiofiles
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
@@ -483,7 +482,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         self._extras: dict | None = None
 
-    async def _load_config(self) -> client_async.ApiClient:
+    async def _load_config(self) -> async_client.ApiClient:
         """
         Load config to interact with Kubernetes
 
@@ -495,7 +494,7 @@ class AsyncKubernetesHook(KubernetesHook):
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(
-            self.config_file, extras.get("extra__kubernetes__kube_config_path") or None
+            self.config_file, await self._get_field("kube_config_path") or None
         )
         kubeconfig = await self._get_field("kube_config")
 
@@ -521,7 +520,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
-            await config.load_kube_config(
+            await async_config.load_kube_config(
                 config_file=kubeconfig_path,
                 client_configuration=self.client_configuration,
                 context=cluster_context,
@@ -530,9 +529,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if kubeconfig is not None:
             async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
-                self.log.debug(
-                    "loading kube_config from: %s", kubeconfig_path
-                )
+                self.log.debug("loading kube_config from: %s", kubeconfig_path)
                 await temp_config.write(kubeconfig.encode())
                 await temp_config.flush()
                 await async_config.load_kube_config(
@@ -637,9 +634,9 @@ class AsyncKubernetesHook(KubernetesHook):
                 self.log.exception("There was an error reading the kubernetes API.")
                 raise
 
-    async def get_api_client_async(self) -> client_async.ApiClient:
+    async def get_api_client_async(self) -> async_client.ApiClient:
         """Create an API Client object to interact with Kubernetes"""
         kube_client = await self._load_config()
         if kube_client is not None:
             return kube_client
-        return client_async.ApiClient()
+        return async_client.ApiClient()
