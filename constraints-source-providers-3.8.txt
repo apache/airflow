@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-01T20:38:53Z
+# This constraints file was automatically generated on 2023-02-02T14:44:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -106,9 +106,9 @@ bitarray==2.6.2
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.61
+boto3==1.26.62
 boto==2.49.0
-botocore==1.29.61
+botocore==1.29.62
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -331,7 +331,7 @@ numpy==1.22.4
 oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.2
-openapi-spec-validator==0.5.3
+openapi-spec-validator==0.5.4
 opsgenie-sdk==2.1.5
 oracledb==1.2.2
 orjson==3.8.5
@@ -362,7 +362,7 @@ pluggy==1.0.0
 ply==3.11
 plyvel==1.5.0
 portalocker==2.7.0
-pre-commit==3.0.2
+pre-commit==3.0.3
 presto-python-client==0.8.3
 prison==0.2.1
 prometheus-client==0.16.0
@@ -481,7 +481,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.7.0
 spython==0.3.0
-sqlalchemy-bigquery==1.6.0
+sqlalchemy-bigquery==1.6.1
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.12
 sqlparse==0.4.3
@@ -525,7 +525,7 @@ types-python-slugify==8.0.0.0
 types-pytz==2022.7.1.0
 types-redis==4.4.0.4
 types-requests==2.28.11.8
-types-setuptools==65.7.0.3
+types-setuptools==65.7.0.4
 types-tabulate==0.9.0.0
 types-termcolor==1.1.6
 types-toml==0.10.8.1
