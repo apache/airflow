@@ -58,7 +58,7 @@ class StatsLogger(Protocol):
         cls,
         stat: str,
         count: int = 1,
-        rate: int = 1,
+        rate: int | float = 1,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
@@ -69,7 +69,7 @@ class StatsLogger(Protocol):
         cls,
         stat: str,
         count: int = 1,
-        rate: int = 1,
+        rate: int | float = 1,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
@@ -80,7 +80,7 @@ class StatsLogger(Protocol):
         cls,
         stat: str,
         value: float,
-        rate: int = 1,
+        rate: int | float = 1,
         delta: bool = False,
         *,
         tags: dict[str, str] | None = None,
@@ -91,7 +91,7 @@ class StatsLogger(Protocol):
     def timing(
         cls,
         stat: str,
-        dt: float | datetime.timedelta,
+        dt: int | float | datetime.timedelta,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
@@ -231,28 +231,12 @@ def stat_name_default_handler(stat_name, max_length=250, allowed_chars=ALLOWED_C
     return stat_name
 
 
-def stat_name_influxdb_handler(stat_name, max_length=250) -> str:
-    """InfluxDB-Statsd default name validator."""
-    if not isinstance(stat_name, str):
-        raise InvalidStatsNameException("The stat_name has to be a string")
-    if len(stat_name) > max_length:
-        raise InvalidStatsNameException(
-            f"The stat_name ({stat_name}) has to be less than {max_length} characters."
-        )
-    if not all((c in ALLOWED_CHARACTERS | set([",", "="])) for c in stat_name):
-        raise InvalidStatsNameException(
-            f"The stat name ({stat_name}) has to be composed of ASCII "
-            f"alphabets, numbers, or the underscore, dot, or dash characters."
-        )
-    return stat_name
-
-
 def get_current_handler_stat_name_func() -> Callable[[str], str]:
     """Get Stat Name Handler from airflow.cfg."""
     handler = conf.getimport("metrics", "stat_name_handler")
     if handler is None:
         if conf.get("metrics", "statsd_influxdb_enabled", fallback=False):
-            handler = partial(stat_name_default_handler, allowed_chars=ALLOWED_CHARACTERS | set([",", "="]))
+            handler = partial(stat_name_default_handler, allowed_chars={*ALLOWED_CHARACTERS, ",", "="})
         else:
             handler = stat_name_default_handler
     return handler
@@ -307,7 +291,7 @@ def prepare_stat_with_tags(fn: T) -> T:
         if self.influxdb_tags_enabled:
             if stat is not None and tags is not None:
                 for k, v in tags.items():
-                    if not set(",=").intersection(set(v + k)):
+                    if all((c not in [",", "="] for c in v + k)):
                         stat += f",{k}={v}"
                     else:
                         log.error("Dropping invalid tag: %s=%s.", k, v)
@@ -335,9 +319,9 @@ class SafeStatsdLogger:
     @validate_stat
     def incr(
         self,
-        stat,
-        count=1,
-        rate=1,
+        stat: str,
+        count: int = 1,
+        rate: float = 1,
         *,
         tags: dict[str, str] | None = None,
     ):
@@ -350,9 +334,9 @@ class SafeStatsdLogger:
     @validate_stat
     def decr(
         self,
-        stat,
-        count=1,
-        rate=1,
+        stat: str,
+        count: int = 1,
+        rate: float = 1,
         *,
         tags: dict[str, str] | None = None,
     ):
@@ -365,10 +349,10 @@ class SafeStatsdLogger:
     @validate_stat
     def gauge(
         self,
-        stat,
-        value,
-        rate=1,
-        delta=False,
+        stat: str,
+        value: int | float,
+        rate: float = 1,
+        delta: bool = False,
         *,
         tags: dict[str, str] | None = None,
     ):
@@ -381,8 +365,8 @@ class SafeStatsdLogger:
     @validate_stat
     def timing(
         self,
-        stat,
-        dt,
+        stat: str,
+        dt: int | float | datetime.timedelta,
         *,
         tags: dict[str, str] | None = None,
     ):
@@ -395,7 +379,7 @@ class SafeStatsdLogger:
     @validate_stat
     def timer(
         self,
-        stat=None,
+        stat: str = None,
         *args,
         tags: dict[str, str] | None = None,
         **kwargs,
@@ -424,9 +408,9 @@ class SafeDogStatsdLogger:
     @validate_stat
     def incr(
         self,
-        stat,
-        count=1,
-        rate=1,
+        stat: str,
+        count: int = 1,
+        rate: float = 1,
         *,
         tags: dict[str, str] | None = None,
     ):
@@ -442,9 +426,9 @@ class SafeDogStatsdLogger:
     @validate_stat
     def decr(
         self,
-        stat,
-        count=1,
-        rate=1,
+        stat: str,
+        count: int = 1,
+        rate: float = 1,
         *,
         tags: dict[str, str] | None = None,
     ):
@@ -460,10 +444,10 @@ class SafeDogStatsdLogger:
     @validate_stat
     def gauge(
         self,
-        stat,
-        value,
-        rate=1,
-        delta=False,
+        stat: str,
+        value: int | float,
+        rate: float = 1,
+        delta: bool = False,
         *,
         tags: dict[str, str] | None = None,
     ):
@@ -479,8 +463,8 @@ class SafeDogStatsdLogger:
     @validate_stat
     def timing(
         self,
-        stat,
-        dt: float | datetime.timedelta,
+        stat: str,
+        dt: int | float | datetime.timedelta,
         *,
         tags: dict[str, str] | None = None,
     ):
@@ -498,9 +482,9 @@ class SafeDogStatsdLogger:
     @validate_stat
     def timer(
         self,
-        stat=None,
+        stat: str = None,
         *args,
-        tags=None,
+        tags: dict[str, str] | None = None,
         **kwargs,
     ):
         """Timer metric that can be cancelled."""

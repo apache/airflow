@@ -880,7 +880,7 @@ class DagRun(Base, LoggingMixin):
                     Stats.timing(
                         "dagrun.first_task_scheduling_delay",
                         true_delay,
-                        tags={"dag_id": f"{dag.dag_id}"},
+                        tags={"dag_id": dag.dag_id},
                     )
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
