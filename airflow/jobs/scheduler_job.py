@@ -1245,7 +1245,7 @@ class SchedulerJob(BaseJob):
                 Stats.timing(
                     "dagrun.schedule_delay",
                     schedule_delay,
-                    tags={"dag_id": f"{dag.dag_id}"},
+                    tags={"dag_id": dag.dag_id},
                 )
 
         for dag_run in dag_runs:
