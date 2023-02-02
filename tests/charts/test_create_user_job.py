@@ -241,13 +241,26 @@ class TestCreateUserJob:
         assert {"name": "foo", "value": "bar"} not in envs
         assert {"name": "extraFoo", "value": "extraBar"} not in envs
 
-    def test_job_ttl_after_finish(self):
+    def test_job_ttl_after_finished(self):
         docs = render_chart(
-            values={"ttlSecondsAfterFinished": 0},
+            values={"migrateDatabaseJob": {"ttlSecondsAfterFinished": 1}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        ttl = jmespath.search("spec.ttlSecondsAfterFinished", docs[0])
+        assert ttl == 1
+
+    def test_job_ttl_after_finished_zero(self):
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"ttlSecondsAfterFinished": 0}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
         ttl = jmespath.search("spec.ttlSecondsAfterFinished", docs[0])
         assert ttl == 0
+
+    def test_job_ttl_after_finished_nil(self):
+        docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
+        spec = jmespath.search("spec", docs[0])
+        assert "ttlSecondsAfterFinished" not in spec
 
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",
