@@ -1026,14 +1026,14 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 class TestPostDagRun(TestDagRunEndpoint):
     @pytest.mark.parametrize("logical_date_field_name", ["execution_date", "logical_date"])
     @pytest.mark.parametrize(
-        "dag_run_id, logical_date",
+        "dag_run_id, logical_date, note",
         [
-            pytest.param("TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", id="both-present"),
-            pytest.param(None, "2020-06-11T18:00:00+00:00", id="only-date"),
-            pytest.param(None, None, id="both-missing"),
+            pytest.param("TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", "test-note", id="all-present"),
+            pytest.param(None, "2020-06-11T18:00:00+00:00", None, id="only-date"),
+            pytest.param(None, None, None, id="all-missing"),
         ],
     )
-    def test_should_respond_200(self, session, logical_date_field_name, dag_run_id, logical_date):
+    def test_should_respond_200(self, session, logical_date_field_name, dag_run_id, logical_date, note):
         self._create_dag("TEST_DAG_ID")
 
         # We'll patch airflow.utils.timezone.utcnow to always return this so we
@@ -1045,7 +1045,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             request_json[logical_date_field_name] = logical_date
         if dag_run_id is not None:
             request_json["dag_run_id"] = dag_run_id
-
+        request_json["note"] = note
         with mock.patch("airflow.utils.timezone.utcnow", lambda: fixed_now):
             response = self.client.post(
                 "api/v1/dags/TEST_DAG_ID/dagRuns",
@@ -1076,7 +1076,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "data_interval_start": expected_logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
-            "note": None,
+            "note": note,
         }
         _check_last_log(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
 
