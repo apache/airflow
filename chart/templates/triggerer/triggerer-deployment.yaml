@@ -46,7 +46,9 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
+  {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
   serviceName: {{ .Release.Name }}-triggerer
+  {{- end }}
   {{- end }}
   replicas: {{ .Values.triggerer.replicas }}
   {{- if $revisionHistoryLimit }}
