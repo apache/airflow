@@ -210,6 +210,7 @@ with DAG(
         cluster_name=eks_cluster_name,
         nodegroup_name=nodegroup_name,
         target_state=NodegroupStates.ACTIVE,
+        poke_interval=10,
     )
 
     emr_access_on_eks = enable_access_emr_on_eks(eks_cluster_name, eks_namespace)
@@ -260,6 +261,7 @@ with DAG(
         cluster_name=eks_cluster_name,
         target_state=ClusterStates.NONEXISTENT,
         trigger_rule=TriggerRule.ALL_DONE,
+        poke_interval=10,
     )
 
     delete_bucket = S3DeleteBucketOperator(

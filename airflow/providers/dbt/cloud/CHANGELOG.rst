@@ -24,6 +24,22 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Beginning with version 2.0.0, users could specify single-tenant dbt Cloud domains via the ``schema`` parameter
+in an Airflow connection. Subsequently in version 2.3.1, users could also connect to the dbt Cloud instances
+outside of the US region as well as private instances by using the ``host`` parameter of their Airflow
+connection to specify the entire tenant domain. Backwards compatibility for using ``schema`` was left in
+place. Version 3.0.0 removes support for using ``schema`` to specify the tenant domain of a dbt Cloud
+instance. If you wish to connect to a single-tenant, instance outside of the US, or a private instance, you
+must use the ``host`` parameter to specify the _entire_ tenant domain name in your Airflow connection.
+
+* ``Drop Connection.schema use in DbtCloudHook  (#29166)``
+
 2.3.1
 .....
 
