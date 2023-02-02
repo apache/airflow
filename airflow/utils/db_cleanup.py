@@ -456,10 +456,10 @@ def export_cleaned_records(
 
 
 @provide_session
-def drop_archived_tables(table_names, confirm, session):
+def drop_archived_tables(table_names, needs_confirm, session):
     """Drop archived tables."""
     archived_table_names = _get_archived_table_names(table_names, session)
-    if confirm and archived_table_names:
+    if needs_confirm and archived_table_names:
         _confirm_drop_archives(tables=sorted(archived_table_names))
     dropped_count = 0
     for table_name in archived_table_names:

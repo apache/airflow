@@ -225,5 +225,5 @@ def drop_archived(args):
     """Drops archived tables from metadata database."""
     drop_archived_tables(
         table_names=args.tables,
-        confirm=not args.yes,
+        needs_confirm=not args.yes,
     )

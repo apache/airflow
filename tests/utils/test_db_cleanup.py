@@ -476,7 +476,7 @@ class TestDBCleanup:
         """
         inspector = inspect_mock.return_value
         inspector.get_table_names.return_value = tables
-        drop_archived_tables(tables, confirm=True, session=MagicMock())
+        drop_archived_tables(tables, needs_confirm=True, session=MagicMock())
         mock_confirm.assert_not_called()
         assert "Total dropped tables: 0" in caplog.text
 
@@ -490,7 +490,7 @@ class TestDBCleanup:
         normal_table = "dag_run"
         inspector = inspect_mock.return_value
         inspector.get_table_names.return_value = [archived_table, normal_table]
-        drop_archived_tables([normal_table], confirm=confirm, session=MagicMock())
+        drop_archived_tables([normal_table], needs_confirm=confirm, session=MagicMock())
         assert f"Dropping archived table {archived_table}" in caplog.text
         assert f"Dropping archived table {normal_table}" not in caplog.text
         assert "Total dropped tables: 1" in caplog.text
