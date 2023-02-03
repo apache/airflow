@@ -56,8 +56,14 @@ class RedshiftClusterSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
 
     def poke(self, context: Context):
-        self.log.info("Poking for status : %s\nfor cluster %s", self.target_status, self.cluster_identifier)
-        return self.hook.cluster_status(self.cluster_identifier) == self.target_status
+        current_status = self.hook.cluster_status(self.cluster_identifier)
+        self.log.info(
+            "Poked cluster %s for status '%s', found status '%s'",
+            self.cluster_identifier,
+            self.target_status,
+            current_status,
+        )
+        return current_status == self.target_status
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> RedshiftHook:

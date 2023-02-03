@@ -34,16 +34,6 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksF
 # type: ignore[call-arg]
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from tests.system.providers.amazon.aws.utils.ec2 import (
-    create_address_allocation,
-    create_nat_gateway,
-    create_private_subnets,
-    create_route_table,
-    delete_nat_gateway,
-    delete_route_table,
-    delete_subnets,
-    remove_address_allocation,
-)
 
 DAG_ID = "example_eks_with_fargate_profile"
 
@@ -52,15 +42,13 @@ DAG_ID = "example_eks_with_fargate_profile"
 CLUSTER_ROLE_ARN_KEY = "CLUSTER_ROLE_ARN"
 # See https://docs.aws.amazon.com/eks/latest/userguide/pod-execution-role.html
 FARGATE_POD_ROLE_ARN_KEY = "FARGATE_POD_ROLE_ARN"
-VPC_ID_KEY = "VPC_ID"
-PUBLIC_SUBNET_ID_KEY = "PUBLIC_SUBNET_ID"
+SUBNETS_KEY = "SUBNETS"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
     .add_variable(CLUSTER_ROLE_ARN_KEY)
     .add_variable(FARGATE_POD_ROLE_ARN_KEY)
-    .add_variable(VPC_ID_KEY)
-    .add_variable(PUBLIC_SUBNET_ID_KEY)
+    .add_variable(SUBNETS_KEY, split_string=True)
     .build()
 )
 
@@ -77,19 +65,11 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     cluster_role_arn = test_context[CLUSTER_ROLE_ARN_KEY]
     fargate_pod_role_arn = test_context[FARGATE_POD_ROLE_ARN_KEY]
-    vpc_id = test_context[VPC_ID_KEY]
-    public_subnet_id = test_context[PUBLIC_SUBNET_ID_KEY]
+    subnets = test_context[SUBNETS_KEY]
 
     cluster_name = f"{env_id}-cluster"
     fargate_profile_name = f"{env_id}-profile"
     test_name = f"{env_id}_{DAG_ID}"
-
-    allocation = create_address_allocation()
-    nat_gateway = create_nat_gateway(allocation_id=allocation, subnet_id=public_subnet_id)
-    route_table = create_route_table(vpc_id=vpc_id, nat_gateway_id=nat_gateway, test_name=test_name)
-    subnets = create_private_subnets(
-        vpc_id=vpc_id, route_table_id=route_table, test_name=test_name, number_to_make=2
-    )
 
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EksCreateClusterOperator(
@@ -176,9 +156,6 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
-        nat_gateway,
-        route_table,
-        subnets,
         # TEST BODY
         create_cluster,
         await_create_cluster,
@@ -189,11 +166,6 @@ with DAG(
         await_delete_fargate_profile,
         delete_cluster,
         await_delete_cluster,
-        # TEST TEARDOWN
-        delete_subnets(subnets),
-        delete_route_table(route_table),
-        delete_nat_gateway(nat_gateway),
-        remove_address_allocation(allocation),
     )
 
     from tests.system.utils.watcher import watcher
