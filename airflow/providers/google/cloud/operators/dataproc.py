@@ -53,6 +53,7 @@ from airflow.providers.google.cloud.links.dataproc import (
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
     DataprocClusterTrigger,
+    DataprocDeleteClusterTrigger,
     DataprocSubmitTrigger,
 )
 from airflow.utils import timezone
@@ -822,6 +823,8 @@ class DataprocDeleteClusterOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param polling_interval_seconds: Time (seconds) to wait between calls to check the cluster status.
     """
 
     template_fields: Sequence[str] = ("project_id", "region", "cluster_name", "impersonation_chain")
@@ -835,13 +838,17 @@ class DataprocDeleteClusterOperator(BaseOperator):
         cluster_uuid: str | None = None,
         request_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | None = None,
+        timeout: float = 1 * 60 * 60,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
+        polling_interval_seconds: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.project_id = project_id
         self.region = region
         self.cluster_name = cluster_name
@@ -852,11 +859,48 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context) -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        operation = self._delete_cluster(hook)
+        if not self.deferrable:
+            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
+            self.log.info("Cluster deleted.")
+        else:
+            end_time: float = time.time() + self.timeout
+            self.defer(
+                trigger=DataprocDeleteClusterTrigger(
+                    gcp_conn_id=self.gcp_conn_id,
+                    project_id=self.project_id,
+                    region=self.region,
+                    cluster_name=self.cluster_name,
+                    request_id=self.request_id,
+                    retry=self.retry,
+                    end_time=end_time,
+                    metadata=self.metadata,
+                    impersonation_chain=self.impersonation_chain,
+                    polling_interval=self.polling_interval_seconds,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event and event["status"] == "error":
+            raise AirflowException(event["message"])
+        elif event is None:
+            raise AirflowException("No event received in trigger callback")
+        self.log.info("Cluster deleted.")
+
+    def _delete_cluster(self, hook: DataprocHook):
         self.log.info("Deleting cluster: %s", self.cluster_name)
-        operation = hook.delete_cluster(
+        return hook.delete_cluster(
             project_id=self.project_id,
             region=self.region,
             cluster_name=self.cluster_name,
@@ -866,8 +910,6 @@ class DataprocDeleteClusterOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
-        self.log.info("Cluster deleted.")
 
 
 class DataprocJobBaseOperator(BaseOperator):
