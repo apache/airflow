@@ -59,7 +59,7 @@ PARAMS = [
         ),
     ),
     (
-        ("StatefulSet", f"{RELEASE_NAME}-triggerer"),
+        ("Deployment", f"{RELEASE_NAME}-triggerer"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",

@@ -27,7 +27,7 @@ import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 36
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
 
 class TestBaseChartTest:
@@ -88,15 +88,14 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
-            ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-webserver"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
+            ("Deployment", "test-basic-triggerer"),
             ("Deployment", "test-basic-webserver"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
-            ("StatefulSet", "test-basic-triggerer"),
             ("StatefulSet", "test-basic-worker"),
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
@@ -166,16 +165,15 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
-            ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-webserver"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
+            ("Deployment", "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
             ("Deployment", "test-basic-webserver"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
-            ("StatefulSet", "test-basic-triggerer"),
             ("StatefulSet", "test-basic-worker"),
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
@@ -341,7 +339,7 @@ class TestBaseChartTest:
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
-            (f"{release_name}-triggerer", "StatefulSet", "triggerer"),
+            (f"{release_name}-triggerer", "Deployment", "triggerer"),
             (f"{release_name}-dag-processor", "Deployment", "dag-processor"),
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
