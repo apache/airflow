@@ -87,5 +87,5 @@ export const parseLogs = (
     }
   });
 
-  return { parsedLogs: parsedLines.join('\n'), fileSources: Array.from(fileSources).sort() };
+  return { parsedLogs: parsedLines.map((l) => l.slice(0, 1000000)).join('\n'), fileSources: Array.from(fileSources).sort() };
 };

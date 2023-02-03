@@ -102,7 +102,6 @@ const Logs = ({
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedTryNumber, setSelectedTryNumber] = useState<number | undefined>();
-  const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const [wrap, setWrap] = useState(getMetaValue('default_wrap') === 'True');
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
@@ -115,7 +114,6 @@ const Logs = ({
     taskId,
     mapIndex,
     taskTryNumber,
-    fullContent: shouldRequestFullContent,
     state,
   });
 
@@ -221,13 +219,6 @@ const Logs = ({
                   data-testid="wrap-checkbox"
                 >
                   <Text as="strong">Wrap</Text>
-                </Checkbox>
-                <Checkbox
-                  onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
-                  px={4}
-                  data-testid="full-content-checkbox"
-                >
-                  <Text as="strong" whiteSpace="nowrap">Full Logs</Text>
                 </Checkbox>
                 <LogLink
                   dagId={dagId}
