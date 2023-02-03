@@ -36,6 +36,7 @@ from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
 
 TIMEOUT_DEFAULT = 10
+CMD_TIMEOUT = 10
 
 
 class SSHHook(BaseHook):
@@ -58,6 +59,9 @@ class SSHHook(BaseHook):
         predefined in the connection of `ssh_conn_id`.
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
+    :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
+        Nullable. If provided, it will replace the `cmd_timeout` which was
+        predefined in the connection of `ssh_conn_id`.
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
     :param banner_timeout: timeout to wait for banner from the server in seconds
@@ -107,6 +111,7 @@ class SSHHook(BaseHook):
         port: int | None = None,
         timeout: int | None = None,
         conn_timeout: int | None = None,
+        cmd_timeout: int | None = None,
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
         disabled_algorithms: dict | None = None,
@@ -122,6 +127,7 @@ class SSHHook(BaseHook):
         self.port = port
         self.timeout = timeout
         self.conn_timeout = conn_timeout
+        self.cmd_timeout = cmd_timeout
         self.keepalive_interval = keepalive_interval
         self.banner_timeout = banner_timeout
         self.disabled_algorithms = disabled_algorithms
@@ -150,6 +156,9 @@ class SSHHook(BaseHook):
             if self.port is None:
                 self.port = conn.port
 
+            if conn.extra is None and self.cmd_timeout is None:
+                self.cmd_timeout = CMD_TIMEOUT
+
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
                 if "key_file" in extra_options and self.key_file is None:
@@ -172,6 +181,14 @@ class SSHHook(BaseHook):
 
                 if "conn_timeout" in extra_options and self.conn_timeout is None:
                     self.conn_timeout = int(extra_options["conn_timeout"])
+
+                if self.cmd_timeout is None:
+                    if "cmd_timeout" in extra_options:
+                        self.cmd_timeout = (
+                            int(extra_options["cmd_timeout"]) if extra_options["cmd_timeout"] else None
+                        )
+                    else:
+                        self.cmd_timeout = CMD_TIMEOUT
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == "false":
                     self.compress = False
@@ -455,9 +472,12 @@ class SSHHook(BaseHook):
         command: str,
         get_pty: bool,
         environment: dict | None,
-        timeout: int | None,
+        timeout: int | None = None,
     ) -> tuple[int, bytes, bytes]:
         self.log.info("Running command: %s", command)
+
+        if timeout is None:
+            timeout = self.cmd_timeout
 
         # set timeout taken as params
         stdin, stdout, stderr = ssh_client.exec_command(
@@ -487,7 +507,8 @@ class SSHHook(BaseHook):
         # read from both stdout and stderr
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
             readq, _, _ = select([channel], [], [], timeout)
-            timedout = len(readq) == 0
+            if timeout is not None:
+                timedout = len(readq) == 0
             for recv in readq:
                 if recv.recv_ready():
                     output = stdout.channel.recv(len(recv.in_buffer))

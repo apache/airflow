@@ -78,6 +78,7 @@ class TestSSHOperator:
         )
         ssh_hook = task.get_hook()
         assert conn_timeout == ssh_hook.conn_timeout
+        assert cmd_timeout == ssh_hook.cmd_timeout
         assert "ssh_default" == ssh_hook.ssh_conn_id
 
     @pytest.mark.parametrize(
@@ -96,7 +97,7 @@ class TestSSHOperator:
             result = task.execute(None)
             assert result == expected
             self.exec_ssh_client_command.assert_called_with(
-                mock.ANY, COMMAND, timeout=10, environment={"TEST": "value"}, get_pty=False
+                mock.ANY, COMMAND, environment={"TEST": "value"}, get_pty=False
             )
 
     @mock.patch("os.environ", {"AIRFLOW_CONN_" + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
