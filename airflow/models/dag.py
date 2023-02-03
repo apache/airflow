@@ -1369,13 +1369,14 @@ class DAG(LoggingMixin):
         :param dag_id: The dag_id of the DAG to find.
         :param run_id: The run_id of the DagRun to find.
         """
-        for callback in callbacks:
-            cls.logger().info("Executing dag callback function: %s", callback)
-            try:
-                callback(context)
-            except Exception:
-                cls.logger().exception("failed to invoke dag state update callback")
-                Stats.incr("dag.callback_exceptions", tags={"dag_id": dag_id, "run_id": run_id})
+        if callbacks:
+            for callback in callbacks:
+                cls.logger().info("Executing dag callback function: %s", callback)
+                try:
+                    callback(context)
+                except Exception:
+                    cls.logger().exception("failed to invoke dag state update callback")
+                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dag_id, "run_id": run_id})
 
     def get_active_runs(self):
         """
