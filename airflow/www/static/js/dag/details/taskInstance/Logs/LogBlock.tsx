@@ -40,7 +40,7 @@ const LogBlock = ({
   const [autoScroll, setAutoScroll] = useState(true);
   const logBoxRef = useRef<HTMLPreElement>(null);
 
-  const maxHeight = useOffsetHeight(logBoxRef, parsedLogs);
+  const maxHeight = useOffsetHeight(logBoxRef, parsedLogs, 500);
 
   const codeBlockBottomDiv = useRef<HTMLDivElement>(null);
 
