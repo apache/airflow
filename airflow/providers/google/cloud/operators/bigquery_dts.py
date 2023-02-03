@@ -139,12 +139,8 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         self.log.info("Created DTS transfer config %s", get_object_id(result))
         self.xcom_push(context, key="transfer_config_id", value=get_object_id(result))
         # don't push AWS secret in XCOM
-        try:
-            del result["secret_access_key"]
-            del result["access_key_id"]
-        except KeyError:
-            pass
-
+        result.get("params", {}).pop("secret_access_key", None)
+        result.get("params", {}).pop("access_key_id", None)
         return result
 
 
