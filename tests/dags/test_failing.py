@@ -17,13 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.listeners import hookimpl
+import datetime
 
+from airflow.models import DAG
+from airflow.operators.bash import BashOperator
 
-@hookimpl
-def on_task_instance_running(previous_state, task_instance, session):
-    pass
+dag = DAG(
+    dag_id="test_failing_bash_operator",
+    default_args={"owner": "airflow", "retries": 3, "start_date": datetime.datetime(2022, 1, 1)},
+    schedule="0 0 * * *",
+    dagrun_timeout=datetime.timedelta(minutes=60),
+)
 
+task = BashOperator(task_id="failing_task", bash_command="sleep 1 && exit 1", dag=dag)
 
-def clear():
-    pass
+if __name__ == "__main__":
+    dag.cli()
