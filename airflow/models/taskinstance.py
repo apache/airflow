@@ -85,6 +85,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -1407,6 +1408,12 @@ class TaskInstance(Base, LoggingMixin):
 
         self.task = self.task.prepare_for_execution()
         context = self.get_template_context(ignore_param_exceptions=False)
+
+        # We lose previous state because it's changed in other process in LocalTaskJob.
+        # We could probably pass it through here though...
+        get_listener_manager().hook.on_task_instance_running(
+            previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
+        )
         try:
             if not mark_success:
                 self._execute_task_with_callbacks(context, test_mode)
@@ -1485,6 +1492,10 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(self).task = self.task
             if self.state == TaskInstanceState.SUCCESS:
                 self._register_dataset_changes(session=session)
+                get_listener_manager().hook.on_task_instance_success(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
+                )
+
             session.commit()
         return None
 
@@ -1815,6 +1826,10 @@ class TaskInstance(Base, LoggingMixin):
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
             test_mode = self.test_mode
+
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
+        )
 
         if error:
             if isinstance(error, BaseException):

@@ -23,6 +23,7 @@ import contextlib
 import io
 import re
 from collections import Counter
+from unittest.mock import patch
 
 import pytest
 
@@ -235,3 +236,35 @@ class TestCli:
             parser = cli_parser.get_parser()
             parser.parse_args(["config", "get-value", "celery", "broker-url"])
         assert stdout is not None
+
+    def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
+        """Test that the error message is correct when the directory does not exist."""
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            with pytest.raises(SystemExit):
+                parser = cli_parser.get_parser()
+                parser.parse_args(["db", "export-cleaned", "--output-path", "/non/existing/directory"])
+            error_msg = stderr.getvalue()
+
+        assert error_msg == (
+            "\nairflow db export-cleaned command error: The directory "
+            "'/non/existing/directory' does not exist!, see help above.\n"
+        )
+
+    @pytest.mark.parametrize("export_format", ["json", "yaml", "unknown"])
+    @patch("airflow.cli.cli_parser.os.path.isdir", return_value=True)
+    def test_invalid_choice_raises_for_export_format_in_db_export_cleaned_command(
+        self, mock_isdir, export_format
+    ):
+        """Test that invalid choice raises for export-format in db export-cleaned command."""
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            with pytest.raises(SystemExit):
+                parser = cli_parser.get_parser()
+                parser.parse_args(
+                    ["db", "export-cleaned", "--export-format", export_format, "--output-path", "mydir"]
+                )
+            error_msg = stderr.getvalue()
+        assert error_msg == (
+            "\nairflow db export-cleaned command error: argument "
+            f"--export-format: invalid choice: '{export_format}' "
+            "(choose from 'csv'), see help above.\n"
+        )

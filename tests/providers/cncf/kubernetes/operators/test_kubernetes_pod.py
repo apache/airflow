@@ -999,6 +999,18 @@ class TestKubernetesPodOperator:
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
 
+    @patch(HOOK_CLASS, new=MagicMock)
+    def test_patch_already_checked(self):
+        """Make sure we patch the pods with the right label"""
+        k = KubernetesPodOperator(task_id="task")
+        pod = k.build_pod_request_obj()
+        k.patch_already_checked(pod)
+        k.client.patch_namespaced_pod.assert_called_once_with(
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            body={"metadata": {"labels": {"already_checked": "True"}}},
+        )
+
     def test_task_id_as_name(self):
         k = KubernetesPodOperator(
             task_id=".hi.-_09HI",

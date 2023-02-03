@@ -32,6 +32,12 @@ function updateQueryStringParameter(uri, key, value) {
   return `${uri}${separator}${key}=${value}`;
 }
 
+function updateUriToFilterTasks(uri, taskId, filterUpstream, filterDownstream) {
+  const uriWithRoot = updateQueryStringParameter(uri, 'root', taskId);
+  const uriWithFilterUpstreamQuery = updateQueryStringParameter(uriWithRoot, 'filter_upstream', filterUpstream);
+  return updateQueryStringParameter(uriWithFilterUpstreamQuery, 'filter_downstream', filterDownstream);
+}
+
 const dagId = getMetaValue('dag_id');
 const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
@@ -137,8 +143,14 @@ function callModal({
   $('form[data-action]').off('submit');
 
   const location = String(window.location);
-  $('#btn_filter').on('click', () => {
-    window.location = updateQueryStringParameter(location, 'root', taskId);
+  $('#btn_filter_upstream').on('click', () => {
+    window.location = updateUriToFilterTasks(location, taskId, 'true', 'false');
+  });
+  $('#btn_filter_downstream').on('click', () => {
+    window.location = updateUriToFilterTasks(location, taskId, 'false', 'true');
+  });
+  $('#btn_filter_upstream_downstream').on('click', () => {
+    window.location = updateUriToFilterTasks(location, taskId, 'true', 'true');
   });
   $('#dag_run_id').text(dagRunId);
   $('#task_id').text(taskId);
