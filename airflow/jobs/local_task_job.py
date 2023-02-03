@@ -24,8 +24,6 @@ import psutil
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
-from airflow.listeners.events import register_task_instance_state_events
-from airflow.listeners.listener import get_listener_manager
 from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
@@ -107,7 +105,6 @@ class LocalTaskJob(BaseJob):
         super().__init__(*args, **kwargs)
 
     def _execute(self):
-        self._enable_task_listeners()
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
@@ -286,9 +283,3 @@ class LocalTaskJob(BaseJob):
         Stats.incr(
             f"local_task_job.task_exit.{self.id}.{self.dag_id}.{self.task_instance.task_id}.{return_code}"
         )
-
-    @staticmethod
-    def _enable_task_listeners():
-        """Check for registered listeners, then register sqlalchemy hooks for TI state changes."""
-        if get_listener_manager().has_listeners:
-            register_task_instance_state_events()
