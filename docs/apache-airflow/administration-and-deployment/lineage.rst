@@ -63,7 +63,7 @@ works.
 
 Inlets can be a (list of) upstream task ids or statically defined as an attr annotated object
 as is, for example, the ``File`` object. Outlets can only be attr annotated object. Both are rendered
-at run time. However the outlets of a task in case they are inlets to another task will not be re-rendered
+at run time. However, the outlets of a task in case they are inlets to another task will not be re-rendered
 for the downstream task.
 
 .. note:: Operators can add inlets and outlets automatically if the operator supports it.
