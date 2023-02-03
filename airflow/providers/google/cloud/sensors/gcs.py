@@ -59,6 +59,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param retry: (Optional) How to retry the RPC
+    :param check_for_absence: Check if the file is absent and fail incase the file is present
     """
 
     template_fields: Sequence[str] = (
