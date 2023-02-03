@@ -488,7 +488,6 @@ class TaskInstance(Base, LoggingMixin):
         ti.dag_id = task.dag_id
         ti.task_id = task.task_id
         ti.map_index = map_index
-        ti.run_id = run_id
         ti.refresh_from_task(task)
         # init_on_load will config the log
         ti.init_on_load()
@@ -527,6 +526,8 @@ class TaskInstance(Base, LoggingMixin):
                         f"DagRun for {ti.dag_id!r} with date {execution_date} not found"
                     ) from None
 
+        ti.run_id = run_id
+
         ti.try_number = 0
         ti.max_tries = ti.task.retries
         ti.unixname = getuser()
@@ -552,6 +553,8 @@ class TaskInstance(Base, LoggingMixin):
         ti_dict = self.__dict__.copy()
         ti_dict.pop("_log", None)
         ti_dict.pop("test_mode", None)
+        ti_dict.pop("dag_run", None)
+        ti_dict.pop("_sa_instance_state", None)
         return ti_dict
 
     @staticmethod
