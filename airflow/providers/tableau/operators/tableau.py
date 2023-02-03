@@ -63,7 +63,10 @@ class TableauOperator(BaseOperator):
         containing the credentials to authenticate to the Tableau Server.
     """
 
-    template_fields: Sequence[str] = ("find", "match_with",)
+    template_fields: Sequence[str] = (
+        "find",
+        "match_with",
+    )
 
     def __init__(
         self,
