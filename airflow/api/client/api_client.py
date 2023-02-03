@@ -83,3 +83,10 @@ class Client:
         :return:
         """
         raise NotImplementedError()
+
+    def cancel_dag_run(self, dag_id, dagrun_run_id):
+        """Cancel a dag run
+        :param dag_id: ID of the DAG
+        :param dagrun_run_id: run_id of the DagRun
+        """
+        pass

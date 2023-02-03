@@ -27,7 +27,7 @@ from airflow.models import DagRun
 from airflow.utils.state import DagRunState
 
 
-def get_dag_runs(dag_id: str, state: str | None = None) -> list[dict[str, Any]]:
+def get_dag_runs(dag_id: str, state: str | None = None, **kwargs) -> list[dict[str, Any]]:
     """
     Return a list of Dag Runs for a specific DAG ID.
 
@@ -40,7 +40,7 @@ def get_dag_runs(dag_id: str, state: str | None = None) -> list[dict[str, Any]]:
 
     dag_runs = []
     state = DagRunState(state.lower()) if state else None
-    for run in DagRun.find(dag_id=dag_id, state=state):
+    for run in DagRun.find(dag_id=dag_id, state=state, **kwargs):
         dag_runs.append(
             {
                 "id": run.id,

@@ -91,6 +91,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.decorators import fixup_decorator_warning_stack
+from airflow.utils.email import send_email
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -3318,6 +3319,17 @@ class DagModel(Base):
             {DagModel.is_paused: is_paused}, synchronize_session="fetch"
         )
         session.commit()
+
+        dag = DagBag().get_dag(self.dag_id)
+        toggle_state_str = 'OFF' if is_paused else 'ON'
+        to_email_address = dag.default_args.get('email', None)
+        if to_email_address:
+            email_subject = 'Airflow DAG {} Toggled {}'.format(self.dag_id, toggle_state_str)
+            email_content = (
+                'This is a notification that Airflow DAG: <b>{}</b> has been toggled {}.<br>'
+                'If this was intentional, feel free to ignore this email.'
+            ).format(self.dag_id, toggle_state_str)
+            send_email(to_email_address, email_subject, email_content)
 
     @classmethod
     @provide_session

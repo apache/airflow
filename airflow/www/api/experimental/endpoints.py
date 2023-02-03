@@ -31,8 +31,11 @@ from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.api.common.experimental.cancel_dag_run import cancel_dag_run as _cancel_dag_run
+from airflow.api.common.experimental.clear_dag_run import clear_dag_run as _clear_dag_run
 from airflow.exceptions import AirflowException
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.docs import get_docs_url
 from airflow.utils.strings import to_boolean
 from airflow.version import version
@@ -40,6 +43,15 @@ from airflow.version import version
 log = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=Callable)
+
+
+def _get_user_from_header():
+    header = request.headers.get("Authorization")
+    if header:
+        userpass = ''.join(header.split()[1:])
+        return base64.b64decode(userpass).decode("utf-8").split(":")[0]
+    else:
+        return 'anonymous'
 
 
 def requires_authentication(function: T):
@@ -116,13 +128,30 @@ def trigger_dag(dag_id):
             response.status_code = 400
 
             return response
+    else:
+        # set this here so that we can log it
+        execution_date = timezone.utcnow()
 
     replace_microseconds = execution_date is None
     if "replace_microseconds" in data:
         replace_microseconds = to_boolean(data["replace_microseconds"])
 
     try:
+        user = _get_user_from_header()
+
         dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
+
+        with create_session() as session:
+            session.add(models.Log(
+                'api_trigger_dag',
+                task_instance=None,
+                owner=user,
+                dag_id=dag_id,
+                execution_date=execution_date,
+                extra=str(list(data.items()))
+            ))
+            session.commit()
+        log.info("User {} created {}".format(_get_user_from_header(), dr))
     except AirflowException as err:
         log.error(err)
         response = jsonify(error=f"{err}")
@@ -152,7 +181,71 @@ def delete_dag(dag_id):
     return jsonify(message=f"Removed {count} record(s)", count=count)
 
 
-@api_experimental.route("/dags/<string:dag_id>/dag_runs", methods=["GET"])
+@api_experimental.route('/dags/<string:dag_id>/cancel_dag_run', methods=['POST'])
+@requires_authentication
+def cancel_dag_run(dag_id):
+    """
+    Cancel a specific dagrun run_id for a given DAG
+    """
+    data = request.get_json(force=True)
+
+    if 'run_id' not in data:
+        error_message = 'Missing run_id'
+        log.info(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+        return response
+
+    run_id = data['run_id']
+
+    try:
+       dr = _cancel_dag_run(dag_id, run_id)
+    except AirflowException as err:
+        log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    if getattr(g, 'user', None):
+        log.info("User {} canceled {}".format(g.user, dr))
+
+    response = jsonify(message="Cancelled {}".format(dr))
+    return response
+
+
+@api_experimental.route('/dags/<string:dag_id>/clear_dag_run', methods=['POST'])
+@requires_authentication
+def clear_dag_run(dag_id):
+    """
+    Clear a specific dagrun run_id for a given DAG
+    """
+    data = request.get_json(force=True)
+
+    if 'run_id' not in data:
+        error_message = 'Missing run_id'
+        log.info(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+        return response
+
+    run_id = data['run_id']
+
+    try:
+       dr = _clear_dag_run(dag_id, run_id)
+    except AirflowException as err:
+        log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    if getattr(g, 'user', None):
+        log.info("User {} cleared {}".format(g.user, dr))
+
+    response = jsonify(message="Cleared {}".format(dr))
+    return response
+
+
+@api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
 @requires_authentication
 def dag_runs(dag_id):
     """
@@ -163,9 +256,26 @@ def dag_runs(dag_id):
     :return: List of DAG runs of a DAG with requested state,
         or all runs if the state is not specified
     """
+    dagrun_id = request.args.get('dagrun_id')
+    execution_date_gte = request.args.get('execution_date_gte')
+    if execution_date_gte:
+        # Convert string datetime into actual datetime
+        try:
+            execution_date_gte = timezone.parse(execution_date_gte)
+        except ValueError:
+            error_message = (
+                'Given execution date, {}, could not be identified '
+                'as a date. Example date format: 2015-11-16T14:34:15+00:00'
+                .format(execution_date_gte))
+            log.info(error_message)
+            response = jsonify({'error': error_message})
+            response.status_code = 400
+
+            return response
+
     try:
         state = request.args.get("state")
-        dagruns = get_dag_runs(dag_id, state)
+        dagruns = get_dag_runs(dag_id, state, run_id=dagrun_id, execution_start_date=execution_date_gte)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error=f"{err}")

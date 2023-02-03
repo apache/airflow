@@ -23,6 +23,7 @@ from airflow.api.common import delete_dag, trigger_dag
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
+from airflow.api.common.experimental import cancel_dag_run
 
 
 class Client(api_client.Client):
@@ -67,3 +68,6 @@ class Client(api_client.Client):
     def get_lineage(self, dag_id, execution_date):
         lineage = get_lineage_api(dag_id=dag_id, execution_date=execution_date)
         return lineage
+
+    def cancel_dag_run(self, dag_id, dagrun_run_id):
+        return cancel_dag_run.cancel_dag_run(dag_id, dagrun_run_id)
