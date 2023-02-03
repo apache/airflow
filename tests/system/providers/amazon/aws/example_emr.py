@@ -46,6 +46,12 @@ SECURITY_CONFIGURATION = {
             "EnableApplicationScopedIAMRole": True,
         },
     },
+    # Use IMDSv2 for greater security, see the following doc for more details:
+    # https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-create-security-configuration.html
+    "InstanceMetadataServiceConfiguration": {
+        "MinimumInstanceMetadataServiceVersion": 2,
+        "HttpPutResponseHopLimit": 2,
+    },
 }
 
 # [START howto_operator_emr_steps_config]
@@ -150,6 +156,7 @@ with DAG(
     # [START howto_sensor_emr_job_flow]
     check_job_flow = EmrJobFlowSensor(task_id="check_job_flow", job_flow_id=create_job_flow.output)
     # [END howto_sensor_emr_job_flow]
+    check_job_flow.poke_interval = 10
 
     delete_security_configuration = delete_security_config(config_name)
 

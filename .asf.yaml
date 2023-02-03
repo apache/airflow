@@ -74,6 +74,7 @@ github:
     - gmcdonald
     - mhenc
     - ferruzzi
+    - norm
 
 notifications:
   jobs: jobs@airflow.apache.org

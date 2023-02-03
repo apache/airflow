@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _dynamic-task-mapping:
+
 ====================
 Dynamic Task Mapping
 ====================
@@ -167,7 +169,7 @@ As well as a single parameter it is possible to pass multiple parameters to expa
     # add(x=8, y=5)
     # add(x=8, y=10)
 
-This would result in the add task being called 6 times. Please note however that the order of expansion is not guaranteed.
+This would result in the add task being called 6 times. Please note, however, that the order of expansion is not guaranteed.
 
 Mapping with non-TaskFlow operators
 ===================================
@@ -433,7 +435,7 @@ There are a couple of things to note:
 Combining upstream data (aka "zipping")
 =======================================
 
-It is also to want to combine multiple input sources into one task mapping iterable. This is generally known as "zipping" (like Python's built-in ``zip()`` function), and is also performed as pre-processing of the downstream task.
+It is also common to want to combine multiple input sources into one task mapping iterable. This is generally known as "zipping" (like Python's built-in ``zip()`` function), and is also performed as pre-processing of the downstream task.
 
 This is especially useful for conditional logic in task mapping. For example, if you want to download files from S3, but rename those files, something like this would be possible:
 
@@ -520,7 +522,7 @@ There are two limits that you can place on a task:
 
   If you wish to not have a large mapped task consume all available runner slots you can use the ``max_active_tis_per_dag`` setting on the task to restrict how many can be running at the same time.
 
-  Note however that this applies to all copies of that task against all active DagRuns, not just to this one specific DagRun.
+  Note, however, that this applies to all copies of that task against all active DagRuns, not just to this one specific DagRun.
 
   .. code-block:: python
 

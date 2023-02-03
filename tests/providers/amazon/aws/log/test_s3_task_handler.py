@@ -45,7 +45,7 @@ def s3mock():
 class TestS3TaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
-    def setup(self, create_log_template, tmp_path_factory):
+    def setup_tests(self, create_log_template, tmp_path_factory):
         self.remote_log_base = "s3://bucket/remote/log/location"
         self.remote_log_location = "s3://bucket/remote/log/location/1.log"
         self.remote_log_key = "remote/log/location/1.log"
@@ -138,7 +138,7 @@ class TestS3TaskHandler:
 
         assert 1 == len(log)
         assert len(log) == len(metadata)
-        assert "*** Log file does not exist:" in log[0][0][-1]
+        assert "*** Local log file does not exist:" in log[0][0][-1]
         assert {"end_of_log": True} == metadata[0]
 
     def test_s3_read_when_log_missing(self):

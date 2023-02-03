@@ -23,6 +23,28 @@
 Changelog
 ---------
 
+8.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable ''GCSObjectExistenceSensorAsync'' (#28763)``
+* ``Support partition_columns in BaseSQLToGCSOperator (#28677)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'BigQueryCreateExternalTableOperator' fix field delimiter not working with csv (#28856)``
+* ``Fix using private _get_credentials instead of public get_credentials (#28588)``
+* ``Fix'GoogleCampaignManagerReportSensor' with 'QUEUED' status (#28735)``
+* ``Fix BigQueryColumnCheckOperator runtime error (#28796)``
+* ``assign "datasetReference" attribute to dataset_reference dict. by default if not already set in create_empty_dataset method of bigquery hook (#28782)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
 8.7.0
 .....
 
@@ -105,7 +127,7 @@ So for example you may store the keyfile json as ``keyfile_dict`` instead of
 ``extra__google_cloud_platform__keyfile_dict``.  If both are present, the short name will be preferred.
 
 * ``Add backward compatibility with old versions of Apache Beam (#27263)``
-* ``Add deferrable mode to GCPToBigQueryOperator + tests (#27052)``
+* ``Add deferrable mode to GCSToBigQueryOperator + tests (#27052)``
 * ``Add system tests for Vertex AI operators in new approach (#27053)``
 * ``Dataform operators, links, update system tests and docs (#27144)``
 * ``Allow values in WorkflowsCreateExecutionOperator execution argument to be dicts (#27361)``
@@ -522,11 +544,10 @@ Misc
 * ``Cleanup Google provider CHANGELOG.rst (#23390)``
 * ``migrate system test gcs_to_bigquery into new design (#22753)``
 * ``Add example DAG for demonstrating usage of GCS sensors (#22808)``
-
-   * ``Clean up in-line f-string concatenation (#23591)``
-   * ``Bump pre-commit hook versions (#22887)``
-   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
-   * ``Fix new MyPy errors in main (#22884)``
+* ``Clean up in-line f-string concatenation (#23591)``
+* ``Bump pre-commit hook versions (#22887)``
+* ``Use new Breese for building, pulling and verifying the images. (#23104)``
+* ``Fix new MyPy errors in main (#22884)``
 
 6.8.0
 .....

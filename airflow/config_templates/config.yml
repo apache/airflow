@@ -225,7 +225,7 @@ core:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
         The individual items will be parsed as regexp. Python built-in classes (like dict)
-        are always allowed
+        are always allowed. Bare "." will be replaced so you can set airflow.* .
       version_added: 2.5.0
       type: string
       default: 'airflow\..*'
@@ -851,6 +851,13 @@ metrics:
       type: string
       example: ~
       default: ""
+    statsd_datadog_metrics_tags:
+      description: |
+        Set to False to disable metadata tags for some of the emitted metrics
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
     statsd_custom_client_path:
       description: |
         If you want to utilise your own custom StatsD client set the relevant
@@ -1755,8 +1762,10 @@ celery:
     worker_enable_remote_control:
       description: |
         Specify if remote control of the workers is enabled.
-        When using Amazon SQS as the broker, Celery creates lots of ``.*reply-celery-pidbox`` queues. You can
-        prevent this by setting this to false. However, with this disabled Flower won't work.
+        In some cases when the broker does not support remote control, Celery creates lots of
+        ``.*reply-celery-pidbox`` queues. You can prevent this by setting this to false.
+        However, with this disabled Flower won't work.
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview
       version_added: 2.3.0
       type: boolean
       example: ~

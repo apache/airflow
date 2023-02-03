@@ -207,7 +207,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLExecuteQueryOperator`
     """
 
-    template_fields: Sequence[str] = ("sql", "parameters")
+    template_fields: Sequence[str] = ("conn_id", "sql", "parameters")
     template_ext: Sequence[str] = (".sql", ".json")
     template_fields_renderers = {"sql": "sql", "parameters": "json"}
     ui_color = "#cdaaed"
@@ -556,7 +556,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields = ("partition_clause", "table", "sql")
+    template_fields = ("partition_clause", "table", "sql", "conn_id")
 
     template_fields_renderers = {"sql": "sql"}
 
