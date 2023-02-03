@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -28,7 +28,6 @@ from airflow.providers.tableau.hooks.tableau import (
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
 
 RESOURCES_METHODS = {
     "datasources": ["delete", "refresh"],
@@ -63,6 +62,11 @@ class TableauOperator(BaseOperator):
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
     """
+
+    template_fields: Sequence[str] = (
+        "find",
+        "match_with",
+    )
 
     def __init__(
         self,
