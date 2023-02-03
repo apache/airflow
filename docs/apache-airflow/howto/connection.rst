@@ -290,8 +290,8 @@ and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of t
 .. note:: Deprecated ``hook-class-names``
 
    Prior to Airflow 2.2.0, the connections in providers have been exposed via ``hook-class-names`` array
-   in provider's meta-data, this however has proven to be not well optimized for using individual hooks
-   in workers and the ``hook-class-names`` array is now replaced by ``connection-types`` array. Until
+   in provider's meta-data. However, this has proven to be inefficient when using individual hooks
+   in workers, and the ``hook-class-names`` array is now replaced by the ``connection-types`` array. Until
    provider supports Airflow below 2.2.0, both ``connection-types`` and ``hook-class-names`` should be
    present. Automated checks during CI build will verify consistency of those two arrays.
 

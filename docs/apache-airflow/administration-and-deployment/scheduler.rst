@@ -111,7 +111,7 @@ outline of the scheduling loop is:
 - Select schedulable TaskInstances, and whilst respecting Pool limits and other concurrency limits, enqueue
   them for execution
 
-This does however place some requirements on the Database.
+This does, however, place some requirements on the Database.
 
 .. _scheduler:ha:db_requirements:
 
@@ -274,7 +274,7 @@ There are several areas of resource usage that you should pay attention to:
   which dramatically decreases performance. Note that Airflow Scheduler in versions prior to ``2.1.4``
   generated a lot of ``Page Cache`` memory used by log files (when the log files were not removed).
   This was generally harmless, as the memory is just cache and could be reclaimed at any time by the system,
-  however in version ``2.1.4`` and beyond, writing logs will not generate excessive ``Page Cache`` memory.
+  however, in version ``2.1.4`` and beyond, writing logs will not generate excessive ``Page Cache`` memory.
   Regardless - make sure when you look at memory usage, pay attention to the kind of memory you are observing.
   Usually you should look at ``working memory``(names might vary depending on your deployment) rather
   than ``total memory used``.
@@ -314,8 +314,8 @@ Scheduler Configuration options
 """""""""""""""""""""""""""""""
 
 The following config settings can be used to control aspects of the Scheduler.
-However you can also look at other non-performance-related scheduler configuration parameters available at
-:doc:`../configurations-ref` in ``[scheduler]`` section.
+However, you can also look at other non-performance-related scheduler configuration parameters available at
+:doc:`../configurations-ref` in the ``[scheduler]`` section.
 
 - :ref:`config:scheduler__max_dagruns_to_create_per_loop`
 

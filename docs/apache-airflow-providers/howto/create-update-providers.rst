@@ -246,7 +246,7 @@ In the ``airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of you
 
 .. note:: Defining your own connection types
 
-    You only need to add ``connection-types`` in case you have some hooks that have customized UI behavior. However
+    You only need to add ``connection-types`` in case you have some hooks that have customized UI behavior. However,
     it is only supported for Airflow 2.2.0. If your providers are also targeting Airflow below 2.2.0 you should
     provide the deprecated ``hook-class-names`` array. The ``connection-types`` array allows for optimization
     of importing of individual connections and while Airflow 2.2.0 is able to handle both definition, the
@@ -272,10 +272,10 @@ Optional provider features
     This feature is available in Airflow 2.3+.
 
 Some providers might provide optional features, which are only available when some packages or libraries
-are installed. Such features will typically result in ``ImportErrors`` however those import errors
+are installed. Such features will typically result in ``ImportErrors``; however, those import errors
 should be silently ignored rather than pollute the logs of Airflow with false warnings. False warnings
 are a very bad pattern, as they tend to turn into blind spots, so avoiding false warnings is encouraged.
-However until Airflow 2.3, Airflow had no mechanism to selectively ignore "known" ImportErrors. So
+However, until Airflow 2.3, Airflow had no mechanism to selectively ignore "known" ImportErrors. So
 Airflow 2.1 and 2.2 silently ignored all ImportErrors coming from providers with actually lead to
 ignoring even important import errors - without giving the clue to Airflow users that there is something
 missing in provider dependencies.

@@ -879,7 +879,7 @@ Migration Guide from Experimental API to Stable API v1
 
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
 
-The experimental API however does not require authentication, so it is disabled by default. You need to explicitly enable the experimental API if you want to use it.
+The experimental API, however, does not require authentication, so it is disabled by default. You need to explicitly enable the experimental API if you want to use it.
 If your application is still using the experimental API, you should **seriously** consider migrating to the stable API.
 
 The stable API exposes many endpoints available through the webserver. Here are the

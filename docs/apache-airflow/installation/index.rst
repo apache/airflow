@@ -132,8 +132,8 @@ More details:  :doc:`/installation/installing-from-pypi`
   diagnose and solve.
 * You have :doc:`/start` where you can see an example of Quick Start with running Airflow
   locally which you can use to start Airflow quickly for local testing and development.
-  However this is just an inspiration. Do not expect this docker-compose is ready for production installation,
-  you need to build your own production-ready deployment in this approach.
+  However, this is just for inspiration. Do not expect this docker-compose is ready for production installation,
+  you need to build your own production-ready deployment if you follow this approach.
 
 **Where to ask for help**
 
@@ -174,7 +174,7 @@ and official constraint files- same that are used for installing Airflow from Py
 * You are responsible to manage your own customizations and extensions for your custom dependencies.
   With the Official Airflow Docker Images, upgrades of Airflow and Airflow Providers which
   are part of the reference image are handled by the community - you need to make sure to pick up
-  those changes when released by upgrading the base image. However you are responsible in creating a
+  those changes when released by upgrading the base image. However, you are responsible in creating a
   pipeline of building your own custom images with your own added dependencies and Providers and need to
   repeat the customization step and building your own image when new version of Airflow image is released.
 * You should choose the right deployment mechanism. There a number of available options of
@@ -186,7 +186,7 @@ and official constraint files- same that are used for installing Airflow from Py
 
 * You have instructions: :doc:`docker-stack:build` on how to build and customize your image.
 * You have :doc:`/howto/docker-compose/index` where you can see an example of Quick Start which
-  you can use to start Airflow quickly for local testing and development. However this is just an inspiration.
+  you can use to start Airflow quickly for local testing and development. However, this is just for inspiration.
   Do not expect to use this ``docker-compose.yml`` file for production installation, you need to get familiar
   with Docker Compose and its capabilities and build your own production-ready deployment with it if
   you choose Docker Compose for your deployment.
@@ -235,7 +235,7 @@ More details: :doc:`helm-chart:index`
 * You are responsible to manage your own customizations and extensions for your custom dependencies.
   With the Official Airflow Docker Images, upgrades of Airflow and Airflow Providers which
   are part of the reference image are handled by the community - you need to make sure to pick up
-  those changes when released by upgrading the base image. However you are responsible in creating a
+  those changes when released by upgrading the base image. However, you are responsible in creating a
   pipeline of building your own custom images with your own added dependencies and Providers and need to
   repeat the customization step and building your own image when new version of Airflow image is released.
 

@@ -83,8 +83,8 @@ Logging
 '''''''
 
 The providers can add additional task logging capabilities. By default ``Apache Airflow`` saves logs for
-tasks locally and make them available to Airflow UI via internal http server, however via providers
-you can add extra logging capabilities, where Airflow Logs can be written to a remote service and
+tasks locally and make them available to Airflow UI via internal http server. However, providers
+can add extra logging capabilities, where Airflow Logs can be written to a remote service and
 retrieved from those services.
 
 You can see all task loggers available via community-managed providers in

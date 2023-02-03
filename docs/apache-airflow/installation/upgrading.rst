@@ -81,7 +81,7 @@ The next chapter describes how to fix the problem manually.
 
 
 Why you might get the error? The recommended character set/collation for MySQL 8 database is
-``utf8mb4`` and ``utf8mb4_bin`` respectively. However this has been changing in different versions of
+``utf8mb4`` and ``utf8mb4_bin`` respectively. However, this has been changing in different versions of
 MySQL and you could have custom created database with a different character set. If your database
 was created with an old version of Airflow or MySQL, the encoding could have been wrong when the database
 was created or broken during migration.
@@ -208,7 +208,7 @@ Airflow version.
 Post-upgrade warnings
 .....................
 
-Typically you just need to successfully run ``airflow db upgrade`` command and this is all. However in
+Typically you just need to successfully run ``airflow db upgrade`` command and this is all. However, in
 some cases, the migration might find some old, stale and probably wrong data in your database and moves it
 aside to a separate table. In this case you might get warning in your webserver UI about the data found.
 
@@ -222,7 +222,7 @@ Typical message that you might see:
 When you see such message, it means that some of your data was corrupted and you should inspect it
 to determine whether you would like to keep or delete some of that data. Most likely the data was corrupted
 and left-over from some bugs and can be safely deleted - because this data would not be anyhow visible
-and useful in Airflow. However if you have particular need for auditing or historical reasons you might
+and useful in Airflow. However, if you have particular need for auditing or historical reasons you might
 choose to store it somewhere. Unless you have specific reasons to keep the data most likely deleting it
 is your best option.
 
