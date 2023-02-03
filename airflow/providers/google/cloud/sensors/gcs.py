@@ -44,6 +44,8 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     :param object: The name of the object to check in the Google cloud
         storage bucket.
     :param google_cloud_conn_id: The connection ID to use when
+        connecting to Google Cloud Storage(Deprecated).
+    :param gcp_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -71,17 +73,24 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         *,
         bucket: str,
         object: str,
-        google_cloud_conn_id: str = "google_cloud_default",
+        google_cloud_conn_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         retry: Retry = DEFAULT_RETRY,
+        check_for_absence: bool = False,
         **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)
         self.bucket = bucket
         self.object = object
-        self.google_cloud_conn_id = google_cloud_conn_id
+        self.gcp_conn_id = gcp_conn_id
+        if google_cloud_conn_id:
+            warnings.warn(
+                "'google_cloud_conn_id' parameter is deprecated, please use 'gcp_conn_id'", DeprecationWarning
+            )
+            self.gcp_conn_id=google_cloud_conn_id
         if delegate_to:
             warnings.warn(
                 "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
@@ -89,15 +98,19 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.retry = retry
+        self.check_for_absence = check_for_absence
 
     def poke(self, context: Context) -> bool:
         self.log.info("Sensor checks existence of : %s, %s", self.bucket, self.object)
         hook = GCSHook(
-            gcp_conn_id=self.google_cloud_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.exists(self.bucket, self.object, self.retry)
+        file_exists = hook.exists(self.bucket, self.object, self.retry)
+        if self.check_for_absence:
+            return not file_exists
+        return file_exists
 
 
 class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
