@@ -119,9 +119,9 @@ class TestSkipMixin:
             task1 >> [task2, task3]
         dag_maker.create_dagrun()
 
-        ti1 = TI(task1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task2, execution_date=DEFAULT_DATE)
-        ti3 = TI(task3, execution_date=DEFAULT_DATE)
+        ti1 = TI.from_task(task1, execution_date=DEFAULT_DATE)
+        ti2 = TI.from_task(task2, execution_date=DEFAULT_DATE)
+        ti3 = TI.from_task(task3, execution_date=DEFAULT_DATE)
 
         SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
@@ -137,7 +137,7 @@ class TestSkipMixin:
         with dag_maker("dag_test_skip_all_except_wrong_type"):
             task = EmptyOperator(task_id="task")
         dag_maker.create_dagrun()
-        ti1 = TI(task, execution_date=DEFAULT_DATE)
+        ti1 = TI.from_task(task, execution_date=DEFAULT_DATE)
         error_message = (
             r"'branch_task_ids' must be either None, a task ID, or an Iterable of IDs, but got 'int'\."
         )
@@ -148,7 +148,7 @@ class TestSkipMixin:
         with dag_maker("dag_test_skip_all_except_wrong_type"):
             task = EmptyOperator(task_id="task")
         dag_maker.create_dagrun()
-        ti1 = TI(task, execution_date=DEFAULT_DATE)
+        ti1 = TI.from_task(task, execution_date=DEFAULT_DATE)
         error_message = (
             r"'branch_task_ids' expected all task IDs are strings. "
             r"Invalid tasks found: \{\(42, 'int'\)\}\."
@@ -173,7 +173,7 @@ class TestSkipMixin:
             task1 >> [task2, task3]
         dag_maker.create_dagrun()
 
-        ti1 = TI(task1, execution_date=DEFAULT_DATE)
+        ti1 = TI.from_task(task1, execution_date=DEFAULT_DATE)
 
         error_message = r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: .*"
         with pytest.raises(AirflowException, match=error_message):

@@ -97,7 +97,7 @@ def dag_backfill(args, dag=None):
             dr = DagRun(dag.dag_id, execution_date=args.start_date)
             for task in dag.tasks:
                 print(f"Task {task.task_id} located in DAG {dag.dag_id}")
-                ti = TaskInstance(task, run_id=None)
+                ti = TaskInstance.from_task(task, run_id=None)
                 ti.dag_run = dr
                 ti.dry_run()
         else:

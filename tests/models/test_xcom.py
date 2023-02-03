@@ -59,7 +59,7 @@ def task_instance_factory(request, session: Session):
             execution_date=execution_date,
         )
         session.add(run)
-        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
+        ti = TaskInstance.from_task(EmptyOperator(task_id=task_id), run_id=run_id)
         ti.dag_id = dag_id
         session.add(ti)
         session.commit()
@@ -86,7 +86,7 @@ def task_instance(task_instance_factory):
 
 @pytest.fixture()
 def task_instances(session, task_instance):
-    ti2 = TaskInstance(EmptyOperator(task_id="task_2"), run_id=task_instance.run_id)
+    ti2 = TaskInstance.from_task(EmptyOperator(task_id="task_2"), run_id=task_instance.run_id)
     ti2.dag_id = task_instance.dag_id
     session.add(ti2)
     session.commit()

@@ -72,8 +72,8 @@ class TestPool:
             op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
             op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
         dag_maker.create_dagrun()
-        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
+        ti1 = TI.from_task(task=op1, execution_date=DEFAULT_DATE)
+        ti2 = TI.from_task(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -111,8 +111,8 @@ class TestPool:
             op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
             op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
         dag_maker.create_dagrun()
-        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
+        ti1 = TI.from_task(task=op1, execution_date=DEFAULT_DATE)
+        ti2 = TI.from_task(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -152,8 +152,8 @@ class TestPool:
             op1 = EmptyOperator(task_id="dummy1")
             op2 = EmptyOperator(task_id="dummy2", pool_slots=2)
         dag_maker.create_dagrun()
-        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
+        ti1 = TI.from_task(task=op1, execution_date=DEFAULT_DATE)
+        ti2 = TI.from_task(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 

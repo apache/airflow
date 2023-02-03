@@ -1069,7 +1069,7 @@ class DagRun(Base, LoggingMixin):
 
             def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
                 for map_index in indexes:
-                    ti = TI(task, run_id=self.run_id, map_index=map_index)
+                    ti = TI.from_task(task, run_id=self.run_id, map_index=map_index)
                     ti_mutation_hook(ti)
                     created_counts[ti.operator] += 1
                     yield ti
@@ -1185,7 +1185,7 @@ class DagRun(Base, LoggingMixin):
         for index in range(total_length):
             if index in existing_indexes:
                 continue
-            ti = TI(task, run_id=self.run_id, map_index=index, state=None)
+            ti = TI.from_task(task, run_id=self.run_id, map_index=index, state=None)
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)

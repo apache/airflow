@@ -363,7 +363,7 @@ class TestLocalTaskJob:
         session.merge(ti)
         session.commit()
 
-        ti_run = TaskInstance(task=task, run_id=dr.run_id)
+        ti_run = TaskInstance.from_task(task=task, run_id=dr.run_id)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
         with patch.object(StandardTaskRunner, "start", return_value=None) as mock_method:
@@ -382,7 +382,7 @@ class TestLocalTaskJob:
 
         _, task = create_dummy_dag("test_localtaskjob_code")
 
-        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance.from_task(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
         job1.id = 95
@@ -403,7 +403,7 @@ class TestLocalTaskJob:
 
         _, task = create_dummy_dag("test_localtaskjob_double_trigger")
 
-        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance.from_task(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
 
@@ -504,7 +504,7 @@ class TestLocalTaskJob:
                 session=session,
             )
         task = dag.get_task(task_id="test_on_failure_callback_task")
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance.from_task(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
@@ -570,7 +570,7 @@ class TestLocalTaskJob:
                 session=session,
             )
         task = dag.get_task(task_id="bash_sleep")
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance.from_task(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
         signal_sent_status = {"sent": False}
@@ -698,11 +698,15 @@ class TestLocalTaskJob:
             ti_by_task_id = {}
             with create_session() as session:
                 for task_id in init_state:
-                    ti = TaskInstance(dag.get_task(task_id), run_id=dag_run.run_id, state=init_state[task_id])
+                    ti = TaskInstance.from_task(
+                        dag.get_task(task_id), run_id=dag_run.run_id, state=init_state[task_id]
+                    )
                     session.merge(ti)
                     ti_by_task_id[task_id] = ti
 
-            ti = TaskInstance(task=dag.get_task(task_ids_to_run[0]), execution_date=dag_run.execution_date)
+            ti = TaskInstance.from_task(
+                task=dag.get_task(task_ids_to_run[0]), execution_date=dag_run.execution_date
+            )
             ti.refresh_from_db()
             job1 = LocalTaskJob(
                 task_instance=ti,
@@ -714,7 +718,7 @@ class TestLocalTaskJob:
             job1.run()
             self.validate_ti_states(dag_run, first_run_state, error_message)
             if second_run_state:
-                ti = TaskInstance(
+                ti = TaskInstance.from_task(
                     task=dag.get_task(task_ids_to_run[1]), execution_date=dag_run.execution_date
                 )
                 ti.refresh_from_db()
@@ -742,11 +746,11 @@ class TestLocalTaskJob:
         task_k = dag.get_task("K")
         task_l = dag.get_task("L")
         with create_session() as session:
-            ti_k = TaskInstance(task_k, run_id=dr.run_id, state=State.SUCCESS)
-            ti_b = TaskInstance(task_l, run_id=dr.run_id, state=State.SUCCESS)
+            ti_k = TaskInstance.from_task(task_k, run_id=dr.run_id, state=State.SUCCESS)
+            ti_b = TaskInstance.from_task(task_l, run_id=dr.run_id, state=State.SUCCESS)
 
-            ti2_k = TaskInstance(task_k, run_id=dr2.run_id, state=State.NONE)
-            ti2_l = TaskInstance(task_l, run_id=dr2.run_id, state=State.NONE)
+            ti2_k = TaskInstance.from_task(task_k, run_id=dr2.run_id, state=State.NONE)
+            ti2_l = TaskInstance.from_task(task_l, run_id=dr2.run_id, state=State.NONE)
 
             session.merge(ti_k)
             session.merge(ti_b)
@@ -793,7 +797,7 @@ class TestLocalTaskJob:
                 python_callable=task_function,
             )
         dag_run = dag_maker.create_dagrun()
-        ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        ti = TaskInstance.from_task(task=task, run_id=dag_run.run_id)
         ti.refresh_from_db()
         job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         settings.engine.dispose()
@@ -938,7 +942,7 @@ class TestSigtermOnRunner:
             )
 
         dag.create_dagrun(state=State.RUNNING, run_id=run_id, execution_date=execution_date)
-        ti = TaskInstance(task=task, execution_date=execution_date)
+        ti = TaskInstance.from_task(task=task, execution_date=execution_date)
         ti.refresh_from_db()
         job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         job.run()

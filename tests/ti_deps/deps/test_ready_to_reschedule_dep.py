@@ -31,7 +31,7 @@ class TestNotInReschedulePeriodDep:
     def _get_task_instance(self, state):
         dag = DAG("test_dag")
         task = Mock(dag=dag, reschedule=True, is_mapped=False)
-        ti = TaskInstance(task=task, state=state, run_id=None)
+        ti = TaskInstance.from_task(task=task, state=state, run_id=None)
         return ti
 
     def _get_task_reschedule(self, reschedule_date):
@@ -49,7 +49,7 @@ class TestNotInReschedulePeriodDep:
     def _get_mapped_task_instance(self, state):
         dag = DAG("test_dag")
         task = Mock(dag=dag, reschedule=True, is_mapped=True)
-        ti = TaskInstance(task=task, state=state, run_id=None)
+        ti = TaskInstance.from_task(task=task, state=state, run_id=None)
         return ti
 
     def _get_mapped_task_reschedule(self, reschedule_date):

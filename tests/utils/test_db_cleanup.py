@@ -513,7 +513,7 @@ def create_tis(base_date, num_tis, external_trigger=False):
                 start_date=start_date,
                 external_trigger=external_trigger,
             )
-            ti = TaskInstance(
+            ti = TaskInstance.from_task(
                 PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id
             )
             ti.dag_id = dag.dag_id

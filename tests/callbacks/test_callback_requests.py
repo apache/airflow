@@ -32,7 +32,7 @@ from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 
-TI = TaskInstance(
+TI = TaskInstance.from_task(
     task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()),
     run_id="fake_run",
     state=State.RUNNING,
@@ -105,7 +105,7 @@ class TestCallbackRequest:
 
         test_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="hello", namespace="ns"))
         op = BashOperator(task_id="hi", executor_config={"pod_override": test_pod}, bash_command="hi")
-        ti = TaskInstance(task=op)
+        ti = TaskInstance.from_task(task=op)
         s = SimpleTaskInstance.from_ti(ti)
         data = TaskCallbackRequest("hi", s).to_json()
         actual = TaskCallbackRequest.from_json(data).simple_task_instance.executor_config["pod_override"]
@@ -121,7 +121,7 @@ class TestCallbackRequest:
         from airflow.operators.bash import BashOperator
 
         op = BashOperator(task_id="hi", bash_command="hi")
-        ti = TaskInstance(task=op)
+        ti = TaskInstance.from_task(task=op)
         ti.set_state("SUCCESS", session=MagicMock())
         start_date = ti.start_date
         end_date = ti.end_date

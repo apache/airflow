@@ -75,10 +75,10 @@ class TestLineage:
         dag.clear()
         dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ctx1 = Context({"ti": TI(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
-        ctx2 = Context({"ti": TI(task=op2, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
-        ctx3 = Context({"ti": TI(task=op3, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
-        ctx5 = Context({"ti": TI(task=op5, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx1 = Context({"ti": TI.from_task(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx2 = Context({"ti": TI.from_task(task=op2, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx3 = Context({"ti": TI.from_task(task=op3, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx5 = Context({"ti": TI.from_task(task=op5, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
 
         # prepare with manual inlets and outlets
         op1.pre_execute(ctx1)
@@ -124,7 +124,7 @@ class TestLineage:
         op1.outlets.append(file1)
 
         # execution_date is set in the context in order to avoid creating task instances
-        ctx1 = Context({"ti": TI(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx1 = Context({"ti": TI.from_task(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
 
         op1.pre_execute(ctx1)
         assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
@@ -147,8 +147,8 @@ class TestLineage:
 
         dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ctx1 = Context({"ti": TI(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
-        ctx2 = Context({"ti": TI(task=op2, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx1 = Context({"ti": TI.from_task(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx2 = Context({"ti": TI.from_task(task=op2, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
 
         # prepare with manual inlets and outlets
         op1.pre_execute(ctx1)

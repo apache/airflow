@@ -77,7 +77,7 @@ class TestMongoToS3Operator:
 
     def test_render_template(self):
         dag_run = DagRun(dag_id=self.mock_operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
-        ti = TaskInstance(task=self.mock_operator)
+        ti = TaskInstance.from_task(task=self.mock_operator)
         ti.dag_run = dag_run
         ti.render_templates()
 

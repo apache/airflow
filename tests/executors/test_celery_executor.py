@@ -172,7 +172,7 @@ class TestCeleryExecutor:
         with DAG("test_try_adopt_task_instances_none"):
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
 
-        key1 = TaskInstance(task=task_1, run_id=None)
+        key1 = TaskInstance.from_task(task=task_1, run_id=None)
         tis = [key1]
         executor = celery_executor.CeleryExecutor()
 
@@ -189,10 +189,10 @@ class TestCeleryExecutor:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
-        ti1 = TaskInstance(task=task_1, run_id=None)
+        ti1 = TaskInstance.from_task(task=task_1, run_id=None)
         ti1.external_executor_id = "231"
         ti1.state = State.QUEUED
-        ti2 = TaskInstance(task=task_2, run_id=None)
+        ti2 = TaskInstance.from_task(task=task_2, run_id=None)
         ti2.external_executor_id = "232"
         ti2.state = State.QUEUED
 
@@ -295,10 +295,10 @@ class TestCeleryExecutor:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
-        ti1 = TaskInstance(task=task_1, run_id=None)
+        ti1 = TaskInstance.from_task(task=task_1, run_id=None)
         ti1.external_executor_id = "231"
         ti1.state = State.QUEUED
-        ti2 = TaskInstance(task=task_2, run_id=None)
+        ti2 = TaskInstance.from_task(task=task_2, run_id=None)
         ti2.external_executor_id = "232"
         ti2.state = State.QUEUED
 
@@ -324,10 +324,10 @@ class TestCeleryExecutor:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
-        ti1 = TaskInstance(task=task_1, run_id=None)
+        ti1 = TaskInstance.from_task(task=task_1, run_id=None)
         ti1.external_executor_id = "231"
         ti1.state = State.QUEUED
-        ti2 = TaskInstance(task=task_2, run_id=None)
+        ti2 = TaskInstance.from_task(task=task_2, run_id=None)
         ti2.external_executor_id = "232"
         ti2.state = State.QUEUED
 

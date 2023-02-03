@@ -209,7 +209,7 @@ class TestAthenaOperator:
     def test_return_value(self, mock_conn, mock_run_query, mock_check_query_status):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
-        ti = TaskInstance(task=self.athena)
+        ti = TaskInstance.from_task(task=self.athena)
         ti.dag_run = dag_run
 
         assert self.athena.execute(ti.get_template_context()) == ATHENA_QUERY_ID

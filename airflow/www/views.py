@@ -1343,7 +1343,7 @@ class Airflow(AirflowBaseView):
             # make sense in this situation, but "works" prior to AIP-39. This
             # "fakes" a temporary DagRun-TaskInstance association (not saved to
             # database) for presentation only.
-            ti = TaskInstance(raw_task, map_index=map_index)
+            ti = TaskInstance.from_task(raw_task, map_index=map_index)
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
             ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)

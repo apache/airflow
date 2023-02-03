@@ -134,7 +134,7 @@ class TestCore:
         )
         task.run(start_date=execution_date, end_date=execution_date)
 
-        ti = TI(task=task, execution_date=execution_date)
+        ti = TI.from_task(task=task, execution_date=execution_date)
         context = ti.get_template_context()
 
         # next_ds should be the execution date for manually triggered runs
@@ -166,8 +166,8 @@ class TestCore:
         )
         task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=task2, execution_date=DEFAULT_DATE)
+        ti1 = TI.from_task(task=task1, execution_date=DEFAULT_DATE)
+        ti2 = TI.from_task(task=task2, execution_date=DEFAULT_DATE)
         context1 = ti1.get_template_context()
         context2 = ti2.get_template_context()
 

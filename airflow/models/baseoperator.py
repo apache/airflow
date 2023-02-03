@@ -1278,7 +1278,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     )
                     .one()
                 )
-                ti = TaskInstance(self, run_id=dag_run.run_id)
+                ti = TaskInstance.from_task(self, run_id=dag_run.run_id)
             except NoResultFound:
                 # This is _mostly_ only used in tests
                 dr = DagRun(
@@ -1288,7 +1288,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     execution_date=info.logical_date,
                     data_interval=info.data_interval,
                 )
-                ti = TaskInstance(self, run_id=dr.run_id)
+                ti = TaskInstance.from_task(self, run_id=dr.run_id)
                 ti.dag_run = dr
                 session.add(dr)
                 session.flush()

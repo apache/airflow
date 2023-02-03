@@ -85,7 +85,7 @@ class TestEmrCreateJobFlowOperator:
     def test_render_template(self):
         self.operator.job_flow_overrides = self._config
         dag_run = DagRun(dag_id=self.operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
-        ti = TaskInstance(task=self.operator)
+        ti = TaskInstance.from_task(task=self.operator)
         ti.dag_run = dag_run
         ti.render_templates()
 
@@ -115,7 +115,7 @@ class TestEmrCreateJobFlowOperator:
         self.operator.params = {"releaseLabel": "5.11.0"}
 
         dag_run = DagRun(dag_id=self.operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
-        ti = TaskInstance(task=self.operator)
+        ti = TaskInstance.from_task(task=self.operator)
         ti.dag_run = dag_run
         ti.render_templates()
 

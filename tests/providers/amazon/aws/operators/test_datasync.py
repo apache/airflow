@@ -312,7 +312,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
 
         self.set_up_operator()
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
-        ti = TaskInstance(task=self.datasync)
+        ti = TaskInstance.from_task(task=self.datasync)
         ti.dag_run = dag_run
         assert self.datasync.execute(ti.get_template_context()) is not None
         # ### Check mocks:
@@ -504,7 +504,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
 
         self.set_up_operator()
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
-        ti = TaskInstance(task=self.datasync)
+        ti = TaskInstance.from_task(task=self.datasync)
         ti.dag_run = dag_run
         result = self.datasync.execute(ti.get_template_context())
         assert result["TaskArn"] == self.task_arn
@@ -602,7 +602,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
 
         self.set_up_operator()
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
-        ti = TaskInstance(task=self.datasync)
+        ti = TaskInstance.from_task(task=self.datasync)
         ti.dag_run = dag_run
         result = self.datasync.execute(ti.get_template_context())
         assert result["TaskArn"] == self.task_arn
@@ -772,7 +772,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
 
         self.set_up_operator()
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
-        ti = TaskInstance(task=self.datasync)
+        ti = TaskInstance.from_task(task=self.datasync)
         ti.dag_run = dag_run
         assert self.datasync.execute(ti.get_template_context()) is not None
         # ### Check mocks:
@@ -866,7 +866,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
 
         self.set_up_operator()
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
-        ti = TaskInstance(task=self.datasync)
+        ti = TaskInstance.from_task(task=self.datasync)
         ti.dag_run = dag_run
         result = self.datasync.execute(ti.get_template_context())
         assert result["TaskArn"] == self.task_arn

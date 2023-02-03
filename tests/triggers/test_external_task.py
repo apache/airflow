@@ -51,7 +51,7 @@ class TestTaskStateTrigger:
         session.commit()
 
         external_task = EmptyOperator(task_id=self.TASK_ID, dag=dag)
-        instance = TaskInstance(external_task, timezone.datetime(2022, 1, 1))
+        instance = TaskInstance.from_task(external_task, timezone.datetime(2022, 1, 1))
         session.add(instance)
         session.commit()
 

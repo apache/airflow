@@ -572,7 +572,9 @@ class TestBackfillJob:
         )
         job.run()
 
-        ti = TI(task=dag.get_task("test_backfill_run_rescheduled_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI.from_task(
+            task=dag.get_task("test_backfill_run_rescheduled_task-1"), execution_date=DEFAULT_DATE
+        )
         ti.refresh_from_db()
         ti.set_state(State.UP_FOR_RESCHEDULE)
 
@@ -584,7 +586,9 @@ class TestBackfillJob:
             rerun_failed_tasks=True,
         )
         job.run()
-        ti = TI(task=dag.get_task("test_backfill_run_rescheduled_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI.from_task(
+            task=dag.get_task("test_backfill_run_rescheduled_task-1"), execution_date=DEFAULT_DATE
+        )
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -640,7 +644,7 @@ class TestBackfillJob:
             job.run()
             assert "Backfill cannot be created for DagRun" in caplog.messages[0]
 
-        ti = TI(
+        ti = TI.from_task(
             task=dag.get_task("test_backfill_skip_active_scheduled_dagrun-1"), execution_date=DEFAULT_DATE
         )
         ti.refresh_from_db()
@@ -663,7 +667,7 @@ class TestBackfillJob:
         )
         job.run()
 
-        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI.from_task(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         ti.set_state(State.FAILED)
 
@@ -675,7 +679,7 @@ class TestBackfillJob:
             rerun_failed_tasks=True,
         )
         job.run()
-        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI.from_task(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -697,7 +701,9 @@ class TestBackfillJob:
         )
         job.run()
 
-        ti = TI(task=dag.get_task("test_backfill_rerun_upstream_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI.from_task(
+            task=dag.get_task("test_backfill_rerun_upstream_failed_task-1"), execution_date=DEFAULT_DATE
+        )
         ti.refresh_from_db()
         ti.set_state(State.UPSTREAM_FAILED)
 
@@ -709,7 +715,9 @@ class TestBackfillJob:
             rerun_failed_tasks=True,
         )
         job.run()
-        ti = TI(task=dag.get_task("test_backfill_rerun_upstream_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI.from_task(
+            task=dag.get_task("test_backfill_rerun_upstream_failed_task-1"), execution_date=DEFAULT_DATE
+        )
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -729,7 +737,7 @@ class TestBackfillJob:
         )
         job.run()
 
-        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI.from_task(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         ti.set_state(State.FAILED)
 
@@ -868,7 +876,7 @@ class TestBackfillJob:
                 job.run()
         except AirflowTaskTimeout:
             pass
-        ti = TI(task=dag.get_task("test_backfill_pooled_task"), execution_date=DEFAULT_DATE)
+        ti = TI.from_task(task=dag.get_task("test_backfill_pooled_task"), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -889,7 +897,7 @@ class TestBackfillJob:
         ).run()
 
         # ti should have succeeded
-        ti = TI(dag.tasks[0], run_date)
+        ti = TI.from_task(dag.tasks[0], run_date)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -911,7 +919,7 @@ class TestBackfillJob:
         job = BackfillJob(dag=dag, executor=executor, ignore_first_depends_on_past=True, **kwargs)
         job.run()
 
-        ti = TI(dag.get_task("test_dop_task"), end_date)
+        ti = TI.from_task(dag.get_task("test_dop_task"), end_date)
         ti.refresh_from_db()
         # runs fine forwards
         assert ti.state == State.SUCCESS
@@ -1257,15 +1265,15 @@ class TestBackfillJob:
         with timeout(seconds=30):
             job.run()
 
-        ti_subdag = TI(task=dag.get_task("daily_job"), execution_date=DEFAULT_DATE)
+        ti_subdag = TI.from_task(task=dag.get_task("daily_job"), execution_date=DEFAULT_DATE)
         ti_subdag.refresh_from_db()
         assert ti_subdag.state == State.SUCCESS
 
-        ti_irrelevant = TI(task=dag.get_task("daily_job_irrelevant"), execution_date=DEFAULT_DATE)
+        ti_irrelevant = TI.from_task(task=dag.get_task("daily_job_irrelevant"), execution_date=DEFAULT_DATE)
         ti_irrelevant.refresh_from_db()
         assert ti_irrelevant.state == State.SUCCESS
 
-        ti_downstream = TI(task=dag.get_task("daily_job_downstream"), execution_date=DEFAULT_DATE)
+        ti_downstream = TI.from_task(task=dag.get_task("daily_job_downstream"), execution_date=DEFAULT_DATE)
         ti_downstream.refresh_from_db()
         assert ti_downstream.state == State.SUCCESS
 
@@ -1306,7 +1314,7 @@ class TestBackfillJob:
         )
         session.add(dr)
 
-        removed_task_ti = TI(
+        removed_task_ti = TI.from_task(
             task=EmptyOperator(task_id="removed_task"), run_id=dr.run_id, state=State.REMOVED
         )
         removed_task_ti.dag_id = subdag.dag_id
@@ -1341,7 +1349,7 @@ class TestBackfillJob:
         dr = dag_maker.create_dagrun(state=None)
         job = BackfillJob(dag=dag)
 
-        ti = TI(task1, dr.execution_date)
+        ti = TI.from_task(task1, dr.execution_date)
         ti.refresh_from_db()
 
         ti_status = BackfillJob._DagRunTaskStatus()
@@ -1554,8 +1562,8 @@ class TestBackfillJob:
         dr1_tis = []
         dr2_tis = []
         for i, (task, state) in enumerate(zip(tasks, states)):
-            ti1 = TI(task, dr1.execution_date)
-            ti2 = TI(task, dr2.execution_date)
+            ti1 = TI.from_task(task, dr1.execution_date)
+            ti2 = TI.from_task(task, dr2.execution_date)
             ti1.refresh_from_db()
             ti2.refresh_from_db()
             ti1.state = state
@@ -1721,7 +1729,7 @@ class TestBackfillJob:
         ti = dr.get_task_instance("consumer", session=session)
         ti.map_index = 0
         for map_index in range(1, 3):
-            ti = TI(consumer_op, run_id=dr.run_id, map_index=map_index)
+            ti = TI.from_task(consumer_op, run_id=dr.run_id, map_index=map_index)
             ti.dag_run = dr
             session.add(ti)
         session.flush()

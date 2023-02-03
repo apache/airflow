@@ -73,7 +73,7 @@ class TestCloudwatchTaskHandler:
             session.commit()
             session.refresh(dag_run)
 
-        self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        self.ti = TaskInstance.from_task(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING

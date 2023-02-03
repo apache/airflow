@@ -118,8 +118,8 @@ def running_dag_run(session):
     )
     session.add(dr)
     tis = [
-        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
+        TaskInstance.from_task(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
+        TaskInstance.from_task(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
     ]
     session.bulk_save_objects(tis)
     session.commit()
@@ -139,12 +139,12 @@ def completed_dag_run_with_missing_task(session):
     )
     session.add(dr)
     tis = [
-        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("also_run_this"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("run_after_loop"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("this_will_skip"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("run_this_last"), run_id=dr.run_id, state="success"),
+        TaskInstance.from_task(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
+        TaskInstance.from_task(dag.get_task("runme_1"), run_id=dr.run_id, state="success"),
+        TaskInstance.from_task(dag.get_task("also_run_this"), run_id=dr.run_id, state="success"),
+        TaskInstance.from_task(dag.get_task("run_after_loop"), run_id=dr.run_id, state="success"),
+        TaskInstance.from_task(dag.get_task("this_will_skip"), run_id=dr.run_id, state="success"),
+        TaskInstance.from_task(dag.get_task("run_this_last"), run_id=dr.run_id, state="success"),
     ]
     session.bulk_save_objects(tis)
     session.commit()

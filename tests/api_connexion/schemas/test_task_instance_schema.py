@@ -63,7 +63,7 @@ class TestTaskInstanceSchema:
         session.rollback()
 
     def test_task_instance_schema_without_sla_and_rendered(self, session):
-        ti = TI(task=self.task, **self.default_ti_init)
+        ti = TI.from_task(task=self.task, **self.default_ti_init)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
         serialized_ti = task_instance_schema.dump((ti, None, None))
@@ -105,7 +105,7 @@ class TestTaskInstanceSchema:
         )
         session.add(sla_miss)
         session.flush()
-        ti = TI(task=self.task, **self.default_ti_init)
+        ti = TI.from_task(task=self.task, **self.default_ti_init)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
         self.task.template_fields = ["partitions"]

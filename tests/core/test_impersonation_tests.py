@@ -114,7 +114,7 @@ class BaseImpersonationTest:
 
         BackfillJob(dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE).run()
         run_id = DagRun.generate_run_id(DagRunType.BACKFILL_JOB, execution_date=DEFAULT_DATE)
-        ti = TaskInstance(task=dag.get_task(task_id), run_id=run_id)
+        ti = TaskInstance.from_task(task=dag.get_task(task_id), run_id=run_id)
         ti.refresh_from_db()
 
         assert ti.state == State.SUCCESS

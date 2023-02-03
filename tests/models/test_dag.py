@@ -440,13 +440,13 @@ class TestDag:
             state=None, run_id="test4", execution_date=DEFAULT_DATE + datetime.timedelta(days=3)
         )
 
-        ti1 = TI(task=test_task, run_id=dr1.run_id)
+        ti1 = TI.from_task(task=test_task, run_id=dr1.run_id)
         ti1.state = None
-        ti2 = TI(task=test_task, run_id=dr2.run_id)
+        ti2 = TI.from_task(task=test_task, run_id=dr2.run_id)
         ti2.state = State.RUNNING
-        ti3 = TI(task=test_task, run_id=dr3.run_id)
+        ti3 = TI.from_task(task=test_task, run_id=dr3.run_id)
         ti3.state = State.QUEUED
-        ti4 = TI(task=test_task, run_id=dr4.run_id)
+        ti4 = TI.from_task(task=test_task, run_id=dr4.run_id)
         ti4.state = State.RUNNING
         session = settings.Session()
         session.merge(ti1)
@@ -1592,7 +1592,7 @@ class TestDag:
         )
         session.merge(dagrun_1)
 
-        task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
+        task_instance_1 = TI.from_task(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
         session.merge(task_instance_1)
         session.commit()
 
@@ -1792,8 +1792,8 @@ my_postgres_conn:
             execution_date=DEFAULT_DATE,
             session=session,
         )
-        task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
-        task_instance_2 = TI(t_2, execution_date=DEFAULT_DATE, state=State.RUNNING)
+        task_instance_1 = TI.from_task(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
+        task_instance_2 = TI.from_task(t_2, execution_date=DEFAULT_DATE, state=State.RUNNING)
         session.merge(task_instance_1)
         session.merge(task_instance_2)
 
@@ -1875,7 +1875,7 @@ my_postgres_conn:
         )
         session.merge(dagrun_1)
 
-        task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=ti_state_begin)
+        task_instance_1 = TI.from_task(t_1, execution_date=DEFAULT_DATE, state=ti_state_begin)
         task_instance_1.job_id = 123
         session.merge(task_instance_1)
         session.commit()

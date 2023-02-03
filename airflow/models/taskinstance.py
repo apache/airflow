@@ -461,28 +461,37 @@ class TaskInstance(Base, LoggingMixin):
     task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
-
     is_trigger_log_context: bool = False
     """Indicate to FileTaskHandler that logging context should be set up for trigger logging.
 
     :meta private:
     """
 
-    def __init__(
-        self,
+    @staticmethod
+    def from_task(
         task: Operator,
         execution_date: datetime | None = None,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
     ):
-        super().__init__()
-        self.dag_id = task.dag_id
-        self.task_id = task.task_id
-        self.map_index = map_index
-        self.refresh_from_task(task)
+        """
+        Create TaskInstance from task operator.
+
+        :param task: task's Operator object.
+        :param execution_date: Optional execution time of the task.
+        :param run_id: Optional DAG run ID for the task.
+        :param state: Optional state of the task.
+        :param map_index: Optional map index. Defaults to -1 (non-mapped task).
+        """
+        ti = TaskInstance()
+        ti.dag_id = task.dag_id
+        ti.task_id = task.task_id
+        ti.map_index = map_index
+        ti.run_id = run_id
+        ti.refresh_from_task(task)
         # init_on_load will config the log
-        self.init_on_load()
+        ti.init_on_load()
 
         if run_id is None and execution_date is not None:
             from airflow.models.dagrun import DagRun  # Avoid circular import
@@ -495,14 +504,14 @@ class TaskInstance(Base, LoggingMixin):
             )
             # make sure we have a localized execution_date stored in UTC
             if execution_date and not timezone.is_localized(execution_date):
-                self.log.warning(
+                ti.log.warning(
                     "execution date %s has no timezone information. Using default from dag or system",
                     execution_date,
                 )
-                if self.task.has_dag():
+                if ti.task.has_dag():
                     if TYPE_CHECKING:
-                        assert self.task.dag
-                    execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
+                        assert ti.task.dag
+                    execution_date = timezone.make_aware(execution_date, ti.task.dag.timezone)
                 else:
                     execution_date = timezone.make_aware(execution_date)
 
@@ -510,27 +519,40 @@ class TaskInstance(Base, LoggingMixin):
             with create_session() as session:
                 run_id = (
                     session.query(DagRun.run_id)
-                    .filter_by(dag_id=self.dag_id, execution_date=execution_date)
+                    .filter_by(dag_id=ti.dag_id, execution_date=execution_date)
                     .scalar()
                 )
                 if run_id is None:
                     raise DagRunNotFound(
-                        f"DagRun for {self.dag_id!r} with date {execution_date} not found"
+                        f"DagRun for {ti.dag_id!r} with date {execution_date} not found"
                     ) from None
 
-        self.run_id = run_id
-
-        self.try_number = 0
-        self.max_tries = self.task.retries
-        self.unixname = getuser()
+        ti.try_number = 0
+        ti.max_tries = ti.task.retries
+        ti.unixname = getuser()
         if state:
-            self.state = state
-        self.hostname = ""
+            ti.state = state
+        ti.hostname = ""
         # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
-        self.raw = False
+        ti.raw = False
         # can be changed when calling 'run'
-        self.test_mode = False
+        ti.test_mode = False
+        return ti
+
+    @staticmethod
+    def from_dict(ti_dict: dict[str, Any]) -> TaskInstance:
+        """Create TaskInstance from dictionary."""
+        ti = TaskInstance()
+        ti.__dict__ = ti_dict.copy()
+        ti.init_on_load()
+        return ti
+
+    def to_dict(self) -> dict[str, Any]:
+        ti_dict = self.__dict__.copy()
+        ti_dict.pop("_log", None)
+        ti_dict.pop("test_mode", None)
+        return ti_dict
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:

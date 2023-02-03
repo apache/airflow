@@ -491,7 +491,7 @@ class AbstractOperator(Templater, DAGNode):
 
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
-            ti = TaskInstance(self, run_id=run_id, map_index=index, state=state)
+            ti = TaskInstance.from_task(self, run_id=run_id, map_index=index, state=state)
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)

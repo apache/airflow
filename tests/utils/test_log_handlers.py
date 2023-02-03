@@ -92,7 +92,7 @@ class TestFileTaskLogHandler:
             dag=dag,
             python_callable=task_callable,
         )
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        ti = TaskInstance.from_task(task=task, run_id=dagrun.run_id)
 
         logger = ti.log
         ti.log.disabled = False
@@ -144,7 +144,7 @@ class TestFileTaskLogHandler:
             dag=dag,
             python_callable=task_callable,
         )
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        ti = TaskInstance.from_task(task=task, run_id=dagrun.run_id)
 
         logger = ti.log
         ti.log.disabled = False
@@ -198,7 +198,7 @@ class TestFileTaskLogHandler:
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
         )
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        ti = TaskInstance.from_task(task=task, run_id=dagrun.run_id)
 
         ti.try_number = 2
         ti.state = State.RUNNING
@@ -347,7 +347,7 @@ class TestFileTaskLogHandler:
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
         )
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        ti = TaskInstance.from_task(task=task, run_id=dagrun.run_id)
         ti.try_number = 3
 
         logger = ti.log

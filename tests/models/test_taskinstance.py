@@ -402,7 +402,7 @@ class TestTaskInstance:
             dag=dag,
         )
 
-        ti2 = TI(task=task2, run_id=ti.run_id)
+        ti2 = TI.from_task(task=task2, run_id=ti.run_id)
         session.add(ti2)
         session.flush()
 
@@ -1237,7 +1237,7 @@ class TestTaskInstance:
         ti = dr.get_task_instance("do_something_else", session=session)
         ti.map_index = 0
         for map_index in range(1, 5):
-            ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
+            ti = TaskInstance.from_task(ti.task, run_id=dr.run_id, map_index=map_index)
             ti.dag_run = dr
             session.add(ti)
         session.flush()
@@ -1286,7 +1286,7 @@ class TestTaskInstance:
         downstream_task = EmptyOperator(task_id="downstream_task", dag=dag)
         ti.task >> downstream_task
 
-        downstream_ti = TI(downstream_task, run_id=ti.run_id)
+        downstream_ti = TI.from_task(downstream_task, run_id=ti.run_id)
 
         downstream_ti.set_state(downstream_ti_state, session)
         session.flush()
@@ -1340,7 +1340,7 @@ class TestTaskInstance:
 
         ti_1_0 = dagrun.get_task_instance("task_1", session=session)
         ti_1_0.map_index = 0
-        ti_1_1 = session.merge(TI(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
+        ti_1_1 = session.merge(TI.from_task(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
         session.flush()
 
         ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
@@ -1435,7 +1435,7 @@ class TestTaskInstance:
         ti.run()
         exec_date += datetime.timedelta(days=1)
         dr = ti.task.dag.create_dagrun(run_id="test2", execution_date=exec_date, state=None)
-        ti = TI(task=ti.task, run_id=dr.run_id)
+        ti = TI.from_task(task=ti.task, run_id=dr.run_id)
         ti.run()
         # We have set a new execution date (and did not pass in
         # 'include_prior_dates'which means this task should now have a cleared
@@ -1492,7 +1492,7 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag)
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+        ti_from_deserialized_task = TI.from_task(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
         assert ti_from_deserialized_task._try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution()
@@ -1507,7 +1507,7 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag)
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti2 = TI(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
+        ti2 = TI.from_task(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
         assert not ti2.check_and_change_state_before_execution()
 
     def test_check_and_change_state_before_execution_dep_not_met_already_running(self, create_task_instance):
@@ -1519,7 +1519,7 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag)
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+        ti_from_deserialized_task = TI.from_task(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
         assert not ti_from_deserialized_task.check_and_change_state_before_execution()
         assert ti_from_deserialized_task.state == State.RUNNING
@@ -1535,7 +1535,7 @@ class TestTaskInstance:
         SerializedDagModel.write_dag(ti.task.dag)
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+        ti_from_deserialized_task = TI.from_task(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
         assert not ti_from_deserialized_task.check_and_change_state_before_execution()
         assert ti_from_deserialized_task.state == State.FAILED
@@ -1750,7 +1750,7 @@ class TestTaskInstance:
 
     def test_set_duration(self):
         task = EmptyOperator(task_id="op", email="test@test.test")
-        ti = TI(task=task)
+        ti = TI.from_task(task=task)
         ti.start_date = datetime.datetime(2018, 10, 1, 1)
         ti.end_date = datetime.datetime(2018, 10, 1, 2)
         ti.set_duration()
@@ -1758,7 +1758,7 @@ class TestTaskInstance:
 
     def test_set_duration_empty_dates(self):
         task = EmptyOperator(task_id="op", email="test@test.test")
-        ti = TI(task=task)
+        ti = TI.from_task(task=task)
         ti.set_duration()
         assert ti.duration is None
 
@@ -1799,7 +1799,7 @@ class TestTaskInstance:
         session.merge(dr)
         task = dag1.get_task("producing_task_1")
         task.bash_command = "echo 1"  # make it go faster
-        ti = TaskInstance(task, run_id=run_id)
+        ti = TaskInstance.from_task(task, run_id=run_id)
         session.merge(ti)
         session.commit()
         ti._run_raw_task()
@@ -1853,7 +1853,7 @@ class TestTaskInstance:
         dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type="anything")
         session.merge(dr)
         task = dag_with_fail_task.get_task("fail_task")
-        ti = TaskInstance(task, run_id=run_id)
+        ti = TaskInstance.from_task(task, run_id=run_id)
         session.merge(ti)
         session.commit()
         with pytest.raises(AirflowFailException):
@@ -1907,7 +1907,7 @@ class TestTaskInstance:
         dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type="anything")
         session.merge(dr)
         task = dag_with_skip_task.get_task("skip_task")
-        ti = TaskInstance(task, run_id=run_id)
+        ti = TaskInstance.from_task(task, run_id=run_id)
         session.merge(ti)
         session.commit()
         ti._run_raw_task()
@@ -2431,7 +2431,7 @@ class TestTaskInstance:
             retries=1,
             dag=dag,
         )
-        ti2 = TI(task=task2, run_id=dr.run_id)
+        ti2 = TI.from_task(task=task2, run_id=dr.run_id)
         ti2.state = State.FAILED
         session.add(ti2)
         session.flush()
@@ -2452,7 +2452,7 @@ class TestTaskInstance:
             retries=1,
             dag=dag,
         )
-        ti3 = TI(task=task3, run_id=dr.run_id)
+        ti3 = TI.from_task(task=task3, run_id=dr.run_id)
         session.add(ti3)
         session.flush()
         ti3.state = State.FAILED
@@ -2467,7 +2467,7 @@ class TestTaskInstance:
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
         dr = dag_maker.create_dagrun()
-        ti = TI(task=task, run_id=dr.run_id)
+        ti = TI.from_task(task=task, run_id=dr.run_id)
         ti.state = State.QUEUED
         session.merge(ti)
         session.flush()
@@ -2490,7 +2490,7 @@ class TestTaskInstance:
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
         dr = dag_maker.create_dagrun()
-        ti = TI(task=task, run_id=dr.run_id)
+        ti = TI.from_task(task=task, run_id=dr.run_id)
         ti = session.merge(ti)
         ti.task = None
         ti.state = State.QUEUED
@@ -2597,7 +2597,7 @@ class TestTaskInstance:
             run_type=DagRunType.MANUAL,
             external_trigger=False,
         )
-        ti = TI(task=op, run_id=dr.run_id)
+        ti = TI.from_task(task=op, run_id=dr.run_id)
         ti.state = State.RUNNING
         session = settings.Session()
         session.merge(ti)
@@ -2681,7 +2681,7 @@ class TestTaskInstance:
         # Create new TI for the same Task
         new_task = BashOperator(task_id="op12", bash_command="{{ task.task_id }}", dag=dag)
 
-        new_ti = TI(task=new_task, run_id=ti.run_id)
+        new_ti = TI.from_task(task=new_task, run_id=ti.run_id)
         new_ti.get_rendered_template_fields(session=session)
 
         assert "op1" == ti.task.bash_command
@@ -2833,7 +2833,7 @@ class TestTaskInstance:
         mock_task.task_id = expected_values["task_id"]
         mock_task.dag_id = expected_values["dag_id"]
 
-        ti = TI(task=mock_task, run_id="test")
+        ti = TI.from_task(task=mock_task, run_id="test")
         ti.refresh_from_db()
         for key, expected_value in expected_values.items():
             assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
@@ -2854,7 +2854,7 @@ class TestTaskInstance:
         deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
         assert deserialized_op.task_type == "EmptyOperator"
         # Verify that ti.operator field renders correctly "with" Serialization
-        ser_ti = TI(task=deserialized_op, run_id=None)
+        ser_ti = TI.from_task(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
 
@@ -2886,7 +2886,7 @@ def test_refresh_from_task(pool_override):
         retries=30,
         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}},
     )
-    ti = TI(task, run_id=None)
+    ti = TI.from_task(task, run_id=None)
     ti.refresh_from_task(task, pool_override=pool_override)
 
     assert ti.queue == task.queue
@@ -3693,7 +3693,9 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
 
     ti_1_0 = dagrun.get_task_instance("task_1", session=session)
     ti_1_0.map_index = 0
-    ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
+    ti_1_1 = session.merge(
+        TaskInstance.from_task(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state)
+    )
     session.flush()
 
     ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)

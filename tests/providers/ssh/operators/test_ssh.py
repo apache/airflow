@@ -222,7 +222,7 @@ class TestSSHOperator:
         with dag_maker(dag_id=f"dag_{request.node.name}"):
             task = SSHOperator(task_id="push_xcom", ssh_hook=self.hook, command=command)
         dr = dag_maker.create_dagrun(run_id="push_xcom")
-        ti = TaskInstance(task=task, run_id=dr.run_id)
+        ti = TaskInstance.from_task(task=task, run_id=dr.run_id)
         with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
             ti.run()
         assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code

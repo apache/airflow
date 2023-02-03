@@ -72,7 +72,7 @@ def test_clean_unused(session, create_task_instance):
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
     fake_task = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
-    task_instance = TaskInstance(task=fake_task, run_id=task_instance.run_id)
+    task_instance = TaskInstance.from_task(task=fake_task, run_id=task_instance.run_id)
     task_instance.state = State.SUCCESS
     task_instance.trigger_id = trigger2.id
     session.add(task_instance)

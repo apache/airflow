@@ -83,7 +83,7 @@ class HiveOperatorTest(TestHiveEnvironment):
 
         fake_run_id = "test_mapred_job_name"
         fake_execution_date = timezone.datetime(2018, 6, 19)
-        fake_ti = TaskInstance(task=op)
+        fake_ti = TaskInstance.from_task(task=op)
         fake_ti.dag_run = DagRun(run_id=fake_run_id, execution_date=fake_execution_date)
         fake_ti.hostname = "fake_hostname"
         fake_context = {"ti": fake_ti}

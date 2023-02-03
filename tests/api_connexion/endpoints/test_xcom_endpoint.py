@@ -171,7 +171,7 @@ class TestGetXComEntry(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
-            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
+            ti = TaskInstance.from_task(EmptyOperator(task_id=task_id), run_id=run_id)
             ti.dag_id = dag_id
             session.add(ti)
         backend.set(
@@ -365,7 +365,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
-            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
+            ti = TaskInstance.from_task(EmptyOperator(task_id=task_id), run_id=run_id)
             ti.dag_id = dag_id
             session.add(ti)
 
@@ -401,7 +401,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun1)
-            ti = TaskInstance(EmptyOperator(task_id="invalid_task"), run_id="not_this_run_id")
+            ti = TaskInstance.from_task(EmptyOperator(task_id="invalid_task"), run_id="not_this_run_id")
             ti.dag_id = "invalid_dag"
             session.add(ti)
         for i in [1, 2]:
@@ -486,7 +486,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
-            ti = TaskInstance(EmptyOperator(task_id=self.task_id), run_id=self.run_id)
+            ti = TaskInstance.from_task(EmptyOperator(task_id=self.task_id), run_id=self.run_id)
             ti.dag_id = self.dag_id
             session.add(ti)
 

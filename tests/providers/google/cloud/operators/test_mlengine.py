@@ -1048,7 +1048,7 @@ def create_context(task):
         execution_date=logical_date,
         run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
     )
-    task_instance = TaskInstance(task=task)
+    task_instance = TaskInstance.from_task(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
     task_instance.xcom_push = MagicMock()

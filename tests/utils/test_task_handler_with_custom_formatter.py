@@ -59,7 +59,7 @@ def task_instance():
     dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
     task = EmptyOperator(task_id=TASK_ID, dag=dag)
     dagrun = dag.create_dagrun(DagRunState.RUNNING, execution_date=DEFAULT_DATE, run_type=DagRunType.MANUAL)
-    ti = TaskInstance(task=task, run_id=dagrun.run_id)
+    ti = TaskInstance.from_task(task=task, run_id=dagrun.run_id)
     ti.log.disabled = False
     yield ti
     clear_db_runs()

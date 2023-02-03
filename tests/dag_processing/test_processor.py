@@ -122,7 +122,7 @@ class TestDagFileProcessor:
             default_args={"start_date": test_start_date, "sla": datetime.timedelta()},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(TaskInstance.from_task(task=task, execution_date=test_start_date, state="success"))
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
 
         mock_dagbag = mock.Mock()
@@ -154,7 +154,7 @@ class TestDagFileProcessor:
             default_args={"start_date": test_start_date, "sla": None},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(TaskInstance.from_task(task=task, execution_date=test_start_date, state="success"))
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
 
         mock_dagbag = mock.Mock()
@@ -186,7 +186,7 @@ class TestDagFileProcessor:
         )
 
         # Create a TaskInstance for two days ago
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(TaskInstance.from_task(task=task, execution_date=test_start_date, state="success"))
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(
@@ -230,7 +230,7 @@ class TestDagFileProcessor:
         dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
 
         # Create a TaskInstance for two days ago
-        ti = TaskInstance(task=task, execution_date=test_start_date, state="success")
+        ti = TaskInstance.from_task(task=task, execution_date=test_start_date, state="success")
         session.merge(ti)
         session.flush()
 
@@ -280,7 +280,7 @@ class TestDagFileProcessor:
 
         dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(TaskInstance.from_task(task=task, execution_date=test_start_date, state="success"))
         session.merge(
             SlaMiss(task_id=task.task_id, dag_id=dag.dag_id, execution_date=now - datetime.timedelta(days=2))
         )
@@ -331,7 +331,7 @@ class TestDagFileProcessor:
             )
             mock_stats_incr.reset_mock()
 
-            session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+            session.merge(TaskInstance.from_task(task=task, execution_date=test_start_date, state="Success"))
 
             # Create an SlaMiss where notification was sent, but email was not
             session.merge(
@@ -373,7 +373,7 @@ class TestDagFileProcessor:
             default_args={"start_date": test_start_date, "sla": datetime.timedelta(hours=1)},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+        session.merge(TaskInstance.from_task(task=task, execution_date=test_start_date, state="Success"))
 
         email2 = "test2@test.com"
         EmptyOperator(task_id="sla_not_missed", dag=dag, owner="airflow", email=email2)
@@ -417,7 +417,7 @@ class TestDagFileProcessor:
         )
         mock_stats_incr.reset_mock()
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+        session.merge(TaskInstance.from_task(task=task, execution_date=test_start_date, state="Success"))
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
@@ -452,7 +452,7 @@ class TestDagFileProcessor:
             default_args={"start_date": test_start_date, "sla": datetime.timedelta(hours=1)},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+        session.merge(TaskInstance.from_task(task=task, execution_date=test_start_date, state="Success"))
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(
@@ -481,7 +481,7 @@ class TestDagFileProcessor:
                 session=session,
             )
             task = dag.get_task(task_id="run_this_first")
-            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
+            ti = TaskInstance.from_task(task, run_id=dagrun.run_id, state=State.RUNNING)
             session.add(ti)
 
         requests = [
@@ -514,7 +514,7 @@ class TestDagFileProcessor:
                 session=session,
             )
             task = dag.get_task(task_id="run_this_first")
-            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.QUEUED)
+            ti = TaskInstance.from_task(task, run_id=dagrun.run_id, state=State.QUEUED)
             session.add(ti)
 
             if has_serialized_dag:
@@ -547,7 +547,7 @@ class TestDagFileProcessor:
                 run_type=DagRunType.SCHEDULED,
                 session=session,
             )
-            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
+            ti = TaskInstance.from_task(task, run_id=dagrun.run_id, state=State.RUNNING)
             ti.hostname = "test_hostname"
             session.add(ti)
 

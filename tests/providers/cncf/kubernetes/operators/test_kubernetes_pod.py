@@ -77,7 +77,7 @@ def create_context(task, persist_to_db=False, map_index=None):
         run_type=DagRunType.MANUAL,
         dag_id=dag.dag_id,
     )
-    task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
+    task_instance = TaskInstance.from_task(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
     if map_index is not None:
         task_instance.map_index = map_index

@@ -212,7 +212,9 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance.from_task(
+            mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS
+        )
         session.add(ti)
     session.flush()
 
@@ -254,7 +256,9 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
 
     for index in range(2):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance.from_task(
+            mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS
+        )
         session.add(ti)
     session.flush()
 
@@ -461,7 +465,9 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
 
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance.from_task(
+            mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS
+        )
         session.add(ti)
     session.flush()
 

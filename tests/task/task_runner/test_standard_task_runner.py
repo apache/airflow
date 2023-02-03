@@ -147,7 +147,7 @@ class TestStandardTaskRunner:
             state=State.RUNNING,
             start_date=DEFAULT_DATE,
         )
-        ti = TaskInstance(task=task, run_id="test")
+        ti = TaskInstance.from_task(task=task, run_id="test")
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         runner = StandardTaskRunner(job1)
         runner.start()
@@ -315,7 +315,7 @@ class TestStandardTaskRunner:
             state=State.RUNNING,
             start_date=DEFAULT_DATE,
         )
-        ti = TaskInstance(task=task, run_id="test")
+        ti = TaskInstance.from_task(task=task, run_id="test")
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         runner = StandardTaskRunner(job1)
         runner.start()
@@ -373,7 +373,7 @@ class TestStandardTaskRunner:
             state=State.RUNNING,
             start_date=DEFAULT_DATE,
         )
-        ti = TaskInstance(task=task, run_id="test")
+        ti = TaskInstance.from_task(task=task, run_id="test")
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         runner = StandardTaskRunner(job1)
         runner.start()

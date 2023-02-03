@@ -117,7 +117,7 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, session=session)
 
         task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
-        ti0 = TI(task=task0, run_id=dag_run.run_id)
+        ti0 = TI.from_task(task=task0, run_id=dag_run.run_id)
         ti0.run()
 
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
@@ -735,8 +735,8 @@ class TestDagRun:
             session=session,
         )
 
-        prev_ti = TI(task, run_id=dag_run_1.run_id)
-        ti = TI(task, run_id=dag_run_2.run_id)
+        prev_ti = TI.from_task(task, run_id=dag_run_1.run_id)
+        ti = TI.from_task(task, run_id=dag_run_2.run_id)
 
         prev_ti.set_state(prev_ti_state)
         ti.set_state(TaskInstanceState.QUEUED)
@@ -773,8 +773,8 @@ class TestDagRun:
             session=session,
         )
 
-        prev_ti_downstream = TI(task=downstream, run_id=dag_run_1.run_id)
-        ti = TI(task=upstream, run_id=dag_run_2.run_id)
+        prev_ti_downstream = TI.from_task(task=downstream, run_id=dag_run_1.run_id)
+        ti = TI.from_task(task=upstream, run_id=dag_run_2.run_id)
         prev_ti = ti.get_previous_ti()
         prev_ti.set_state(TaskInstanceState.SUCCESS)
         assert prev_ti.state == TaskInstanceState.SUCCESS
@@ -1327,7 +1327,7 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
     # We insert a faulty record
-    session.add(TaskInstance(dag.get_task("task_2"), dr.execution_date, dr.run_id))
+    session.add(TaskInstance.from_task(dag.get_task("task_2"), dr.execution_date, dr.run_id))
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions()
@@ -1904,9 +1904,9 @@ def test_schedule_tis_map_index(dag_maker, session):
         task = BaseOperator(task_id="task_1")
 
     dr = DagRun(dag_id="test", run_id="test", run_type=DagRunType.MANUAL)
-    ti0 = TI(task=task, run_id=dr.run_id, map_index=0, state=TaskInstanceState.SUCCESS)
-    ti1 = TI(task=task, run_id=dr.run_id, map_index=1, state=None)
-    ti2 = TI(task=task, run_id=dr.run_id, map_index=2, state=TaskInstanceState.SUCCESS)
+    ti0 = TI.from_task(task=task, run_id=dr.run_id, map_index=0, state=TaskInstanceState.SUCCESS)
+    ti1 = TI.from_task(task=task, run_id=dr.run_id, map_index=1, state=None)
+    ti2 = TI.from_task(task=task, run_id=dr.run_id, map_index=2, state=TaskInstanceState.SUCCESS)
     session.add_all((dr, ti0, ti1, ti2))
     session.flush()
 
@@ -2020,7 +2020,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
     ti.map_index = 0
     task = ti.task
     for map_index in range(1, 5):
-        ti = TI(task, run_id=dr.run_id, map_index=map_index)
+        ti = TI.from_task(task, run_id=dr.run_id, map_index=map_index)
         ti.dag_run = dr
         session.add(ti)
     session.flush()

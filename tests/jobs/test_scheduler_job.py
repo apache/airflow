@@ -510,7 +510,7 @@ class TestSchedulerJob:
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
 
-        ti1 = TaskInstance(task1, run_id=dr1.run_id)
+        ti1 = TaskInstance.from_task(task1, run_id=dr1.run_id)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
         session.merge(ti1)
@@ -944,8 +944,8 @@ class TestSchedulerJob:
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         session = settings.Session()
-        ti1 = TaskInstance(task1, run_id=dr1.run_id)
-        ti2 = TaskInstance(task1, run_id=dr2.run_id)
+        ti1 = TaskInstance.from_task(task1, run_id=dr1.run_id)
+        ti2 = TaskInstance.from_task(task1, run_id=dr2.run_id)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
         session.merge(ti1)
@@ -3887,7 +3887,7 @@ class TestSchedulerJob:
         self.scheduler_job.executor = MockExecutor(do_update=False)
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
-        ti = TaskInstance(task=task1, execution_date=DEFAULT_DATE)
+        ti = TaskInstance.from_task(task=task1, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         ti.state = State.SUCCESS
         session.merge(ti)
@@ -4190,7 +4190,7 @@ class TestSchedulerJob:
 
             for task_id in tasks_to_setup:
                 task = dag.get_task(task_id=task_id)
-                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+                ti = TaskInstance.from_task(task, run_id=dag_run.run_id, state=State.RUNNING)
                 ti.queued_by_job_id = 999
 
                 local_job = LocalTaskJob(ti)
@@ -4253,7 +4253,7 @@ class TestSchedulerJob:
 
             for task_id in tasks_to_setup:
                 task = dag.get_task(task_id=task_id)
-                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+                ti = TaskInstance.from_task(task, run_id=dag_run.run_id, state=State.RUNNING)
                 ti.queued_by_job_id = 999
 
                 local_job = LocalTaskJob(ti)
@@ -4314,7 +4314,7 @@ class TestSchedulerJob:
             )
             task = dag.get_task(task_id="run_this_last")
 
-            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            ti = TaskInstance.from_task(task, run_id=dag_run.run_id, state=State.RUNNING)
             local_job = LocalTaskJob(ti)
             local_job.state = State.SHUTDOWN
             session.add(local_job)

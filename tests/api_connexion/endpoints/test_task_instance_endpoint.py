@@ -159,7 +159,7 @@ class TestTaskInstanceEndpoint:
                     state=dag_run_state,
                 )
                 session.add(dr)
-            ti = TaskInstance(task=tasks[i], **self.ti_init)
+            ti = TaskInstance.from_task(task=tasks[i], **self.ti_init)
             ti.dag_run = dr
             ti.note = "placeholder-note"
 
@@ -385,7 +385,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         tis = self.create_task_instances(session)
         old_ti = tis[0]
         for idx in (1, 2):
-            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti = TaskInstance.from_task(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
                 setattr(ti, attr, getattr(old_ti, attr))
@@ -1697,7 +1697,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         NEW_STATE = "failed"
         map_index = 1
         tis = self.create_task_instances(session)
-        ti = TaskInstance(task=tis[0].task, run_id=tis[0].run_id, map_index=map_index)
+        ti = TaskInstance.from_task(task=tis[0].task, run_id=tis[0].run_id, map_index=map_index)
         ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
         session.add(ti)
         session.commit()
@@ -1871,7 +1871,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
         tis = self.create_task_instances(session)
         old_ti = tis[0]
         for idx in (1, 2):
-            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti = TaskInstance.from_task(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
                 setattr(ti, attr, getattr(old_ti, attr))

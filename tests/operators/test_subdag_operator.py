@@ -329,7 +329,7 @@ class TestSubDagOperator:
         subdag_task._get_dagrun = Mock(return_value=self.dag_run_success)
 
         mock_get_task_instance.side_effect = [
-            TaskInstance(task=task, run_id=dag_run.run_id, state=state)
+            TaskInstance.from_task(task=task, run_id=dag_run.run_id, state=state)
             for task, state in zip(dummy_subdag_tasks, states)
         ]
 

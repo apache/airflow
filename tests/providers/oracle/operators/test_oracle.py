@@ -98,7 +98,7 @@ class TestOracleStoredProcedureOperator:
                 procedure=procedure, oracle_conn_id=oracle_conn_id, parameters=parameters, task_id=task_id
             )
         dr = dag_maker.create_dagrun(run_id=task_id)
-        ti = TaskInstance(task=task, run_id=dr.run_id)
+        ti = TaskInstance.from_task(task=task, run_id=dr.run_id)
         with pytest.raises(oracledb.DatabaseError, match=re.escape(error)):
             ti.run()
         assert ti.xcom_pull(task_ids=task.task_id, key="ORA") == ora_exit_code

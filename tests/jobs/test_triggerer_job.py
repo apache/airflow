@@ -262,7 +262,9 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
 
     dag = DagModel(dag_id="test-dag")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
-    ti = TaskInstance(PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id)
+    ti = TaskInstance.from_task(
+        PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id
+    )
     ti.dag_id = dag.dag_id
     ti.trigger_id = 1
     session.add(dag)

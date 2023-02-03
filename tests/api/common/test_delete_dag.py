@@ -81,7 +81,7 @@ class TestDeleteDAGSuccessfulDelete:
         with create_session() as session:
             session.add(DM(dag_id=self.key, fileloc=self.dag_file_path, is_subdag=for_sub_dag))
             dr = DR(dag_id=self.key, run_type=DagRunType.MANUAL, run_id="test", execution_date=test_date)
-            ti = TI(task=task, state=State.SUCCESS)
+            ti = TI.from_task(task=task, state=State.SUCCESS)
             ti.dag_run = dr
             session.add_all((dr, ti))
             # flush to ensure task instance if written before

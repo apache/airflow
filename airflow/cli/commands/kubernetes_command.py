@@ -43,7 +43,7 @@ def generate_pod_yaml(args):
     dr = DagRun(dag.dag_id, execution_date=execution_date)
     kube_config = KubeConfig()
     for task in dag.tasks:
-        ti = TaskInstance(task, None)
+        ti = TaskInstance.from_task(task, None)
         ti.dag_run = dr
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,

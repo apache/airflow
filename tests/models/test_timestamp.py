@@ -40,7 +40,7 @@ def add_log(execdate, session, dag_maker, timezone_override=None):
     with dag_maker(dag_id="logging", default_args={"start_date": execdate}):
         task = EmptyOperator(task_id="dummy")
     dag_maker.create_dagrun()
-    task_instance = TaskInstance(task=task, execution_date=execdate, state="success")
+    task_instance = TaskInstance.from_task(task=task, execution_date=execdate, state="success")
     session.merge(task_instance)
     log = Log(State.RUNNING, task_instance)
     if timezone_override:

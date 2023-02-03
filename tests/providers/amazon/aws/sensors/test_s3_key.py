@@ -118,7 +118,7 @@ class TestS3KeySensor:
         )
 
         dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
-        ti = TaskInstance(task=op)
+        ti = TaskInstance.from_task(task=op)
         ti.dag_run = dag_run
         context = ti.get_template_context()
         ti.render_templates(context)
@@ -144,7 +144,7 @@ class TestS3KeySensor:
         )
 
         dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
-        ti = TaskInstance(task=op)
+        ti = TaskInstance.from_task(task=op)
         ti.dag_run = dag_run
         context = ti.get_template_context()
         ti.render_templates(context)

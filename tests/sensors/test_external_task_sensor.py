@@ -108,7 +108,7 @@ class TestExternalTaskSensor:
             SerializedDagModel.write_dag(dag)
 
         for idx, task in enumerate(task_group):
-            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+            ti = TaskInstance.from_task(task=task, execution_date=DEFAULT_DATE)
             ti.run(ignore_ti_state=True, mark_success=True)
             ti.set_state(target_states[idx])
 
@@ -1250,7 +1250,7 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
         )
         session.add(dagrun)
         for task in dag.tasks:
-            ti = TaskInstance(task=task)
+            ti = TaskInstance.from_task(task=task)
             dagrun.task_instances.append(ti)
             ti.state = TaskInstanceState.SUCCESS
     session.flush()
@@ -1335,11 +1335,11 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         for task in dag.tasks:
             if task.task_id == "dummy_task":
                 for map_index in range(5):
-                    ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
+                    ti = TaskInstance.from_task(task=task, run_id=dagrun.run_id, map_index=map_index)
                     ti.state = TaskInstanceState.SUCCESS
                     dagrun.task_instances.append(ti)
             else:
-                ti = TaskInstance(task=task, run_id=dagrun.run_id)
+                ti = TaskInstance.from_task(task=task, run_id=dagrun.run_id)
                 ti.state = TaskInstanceState.SUCCESS
                 dagrun.task_instances.append(ti)
     session.flush()

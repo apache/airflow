@@ -50,7 +50,7 @@ def test_is_single_threaded_default_value():
 
 def test_get_task_log():
     executor = BaseExecutor()
-    ti = TaskInstance(task=BaseOperator(task_id="dummy"))
+    ti = TaskInstance.from_task(task=BaseOperator(task_id="dummy"))
     assert executor.get_task_log(ti=ti) == ([], [])
 
 

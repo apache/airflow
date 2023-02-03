@@ -120,17 +120,23 @@ class TestMappedTaskInstanceEndpoint:
 
             index = 0
             for i in range(dags[dag_id]["success"]):
-                ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+                ti = TaskInstance.from_task(
+                    mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS
+                )
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
                 index += 1
             for i in range(dags[dag_id]["failed"]):
-                ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.FAILED)
+                ti = TaskInstance.from_task(
+                    mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.FAILED
+                )
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
                 index += 1
             for i in range(dags[dag_id]["running"]):
-                ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.RUNNING)
+                ti = TaskInstance.from_task(
+                    mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.RUNNING
+                )
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
                 index += 1

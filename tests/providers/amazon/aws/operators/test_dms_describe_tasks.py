@@ -86,7 +86,7 @@ class TestDmsDescribeTasksOperator:
         )
 
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
-        ti = TaskInstance(task=describe_task)
+        ti = TaskInstance.from_task(task=describe_task)
         ti.dag_run = dag_run
         marker, response = describe_task.execute(ti.get_template_context())
 

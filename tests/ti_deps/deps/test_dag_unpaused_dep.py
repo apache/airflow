@@ -30,7 +30,7 @@ class TestDagUnpausedDep:
         """
         dag = Mock(**{"get_is_paused.return_value": True})
         task = Mock(dag=dag)
-        ti = TaskInstance(task=task, execution_date=None)
+        ti = TaskInstance.from_task(task=task, execution_date=None)
 
         assert not DagUnpausedDep().is_met(ti=ti)
 
@@ -40,6 +40,6 @@ class TestDagUnpausedDep:
         """
         dag = Mock(**{"get_is_paused.return_value": False})
         task = Mock(dag=dag)
-        ti = TaskInstance(task=task, execution_date=None)
+        ti = TaskInstance.from_task(task=task, execution_date=None)
 
         assert DagUnpausedDep().is_met(ti=ti)
