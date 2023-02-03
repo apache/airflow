@@ -32,16 +32,16 @@ with DAG(
     start = DummyOperator(task_id="start")
 
     # [START howto_external_task_async_sensor]
-    wait_for_task = ExternalTaskAsyncSensor(
-        task_id="wait_for_task",
-        external_task_id="wait_for_task_child",
-        external_dag_id="wait_for_dag_child",
+    external_task_sensor = ExternalTaskAsyncSensor(
+        task_id="parent_task_sensor",
+        external_task_id="child_task",
+        external_dag_id="child_dag",
     )
     # [END howto_external_task_async_sensor]
 
-    external_task = TriggerDagRunOperator(
-        task_id="external_task",
-        trigger_dag_id="wait_for_dag_child",
+    trigger_child_task = TriggerDagRunOperator(
+        task_id="trigger_child_task",
+        trigger_dag_id="child_dag",
         allowed_states=["success", "failed", "skipped"],
         execution_date="{{execution_date}}",
         poke_interval=5,
@@ -51,7 +51,7 @@ with DAG(
 
     end = DummyOperator(task_id="end")
 
-    start >> [external_task, wait_for_task] >> end
+    start >> [trigger_child_task, external_task_sensor] >> end
 
     from tests.system.utils.watcher import watcher
 

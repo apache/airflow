@@ -19,19 +19,18 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.sensors.external_task import ExternalTaskMarker
+from airflow.operators.bash import BashOperator
 
 with DAG(
-    dag_id="wait_for_dag_child",
+    dag_id="child_dag",
     start_date=datetime(2022, 1, 1),
     schedule="@once",
     catchup=False,
     tags=["example", "async", "core"],
 ) as dag:
-    wait_for_task = ExternalTaskMarker(
-        task_id="wait_for_task",
-        external_dag_id="example_external_task",
-        external_task_id="wait_for_task",
+    dummy_task = BashOperator(
+        task_id="child_task",
+        bash_command="echo 1; sleep 1; echo 2; sleep 2; echo 3; sleep 3",
     )
 
 

@@ -33,11 +33,12 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
-from airflow.triggers.external_task import ExternalTaskTrigger
+from airflow.triggers.external_task import TaskStateTrigger
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import tuple_in_condition
+from airflow.utils.timezone import utcnow
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
@@ -484,6 +485,7 @@ class ExternalTaskAsyncSensor(ExternalTaskSensor):
 
     def __init__(
         self,
+        *,
         external_task_id: str | None = None,
         external_task_ids: Collection[str] | None = None,
         polling_interval_seconds: int = 10,
@@ -513,7 +515,16 @@ class ExternalTaskAsyncSensor(ExternalTaskSensor):
 
     def execute_complete(self, context, event=None):
         """Callback for when the trigger fires - returns immediately."""
-        return None
+        if event["status"] == "success":
+            self.log.info("External task %s has executed successfully", self.external_task_id)
+            return None
+        elif event["status"] == "timeout":
+            raise AirflowException("took longer then expected")
+        else:
+            raise AirflowException(
+                "Error occurred while trying to retrieve task status. Please, check the "
+                "name of executed task and Dag"
+            )
 
 
 class ExternalTaskMarker(EmptyOperator):
