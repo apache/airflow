@@ -305,9 +305,16 @@
           <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
             List Instances, all runs
           </a>
-          <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream">
-            Filter Upstream
-          </button>
+          <div class="dropdown" style="display: inline">
+            <button class="btn btn-sm dropdown-toggle" type="button" id="filterDropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Filter Tasks
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="filterDropdownMenuButton">
+              <li><a id="btn_filter_upstream" href="#">Filter Upstream</a></li>
+              <li><a id="btn_filter_downstream" href="#">Filter Downstream</a></li>
+              <li><a id="btn_filter_upstream_downstream" href="#">Filter Upstream & Downstream</a></li>
+            </ul>
+          </div>
           <hr>
           <div id="dag_dl_logs">
             <label style="display:inline">Download Log (by attempts):</label>
