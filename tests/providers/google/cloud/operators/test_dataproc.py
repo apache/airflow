@@ -57,7 +57,8 @@ from airflow.providers.google.cloud.operators.dataproc import (
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
     DataprocClusterTrigger,
-    DataprocSubmitTrigger, DataprocDeleteClusterTrigger,
+    DataprocDeleteClusterTrigger,
+    DataprocSubmitTrigger,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG

@@ -53,8 +53,8 @@ from airflow.providers.google.cloud.links.dataproc import (
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
     DataprocClusterTrigger,
-    DataprocSubmitTrigger,
     DataprocDeleteClusterTrigger,
+    DataprocSubmitTrigger,
 )
 from airflow.utils import timezone
 
@@ -866,9 +866,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = self._delete_cluster(hook)
         if not self.deferrable:
-            hook.wait_for_operation(
-                timeout=self.timeout, result_retry=self.retry, operation=operation
-            )
+            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
             self.log.info("Cluster deleted.")
         else:
             end_time: float = time.time() + self.timeout

@@ -250,7 +250,7 @@ class DataprocDeleteClusterTrigger(BaseTrigger):
         end_time: float,
         project_id: str | None = None,
         region: str | None = None,
-        metadata: Sequence[(str, str)] = (),
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         polling_interval: float = 5.0,
@@ -266,7 +266,7 @@ class DataprocDeleteClusterTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
         self.polling_interval = polling_interval
 
-    def serialize(self) -> (str, dict[str, Any]):
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes DataprocDeleteClusterTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocDeleteClusterTrigger",
