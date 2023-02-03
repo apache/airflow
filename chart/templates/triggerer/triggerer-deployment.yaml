@@ -20,6 +20,7 @@
 #################################
 {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
 {{- if .Values.triggerer.enabled }}
+{{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
 {{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
@@ -201,6 +202,7 @@ spec:
                   {{- else }}
                   {{- include "triggerer_liveness_check_command" . | nindent 16 }}
                   {{- end }}
+        {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
         {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
           ports:
             - name: triggerer-logs
