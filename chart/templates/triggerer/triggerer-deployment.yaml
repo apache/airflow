@@ -20,7 +20,7 @@
 #################################
 {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
 {{- if .Values.triggerer.enabled }}
-{{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}
+{{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}  # 2.6.0 is when triggerer logs serve introduced
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
@@ -201,9 +201,11 @@ spec:
                   {{- else }}
                   {{- include "triggerer_liveness_check_command" . | nindent 16 }}
                   {{- end }}
+        {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}  # 2.6.0 is when triggerer logs serve introduced
           ports:
             - name: triggerer-logs
               containerPort: {{ .Values.ports.triggererLogs }}
+        {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
