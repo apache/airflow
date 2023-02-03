@@ -56,9 +56,13 @@ from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+from airflow.www.decorators import action_logging
+
+RESOURCE_EVENT_PREFIX = "dag_run"
 
 
 @security.requires_access(
@@ -295,6 +299,12 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     ],
 )
 @provide_session
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_CREATE,
+    ),
+)
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
     dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
