@@ -33,7 +33,6 @@ from unittest.mock import sentinel
 
 import pendulum
 import pytest
-from parameterized import parameterized
 
 from airflow import DAG
 from airflow.cli import cli_parser

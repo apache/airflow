@@ -41,7 +41,6 @@ class TestCliPools:
         cls.session = Session
         cls._cleanup()
 
-
     def tearDown(self):
         self._cleanup()
 
