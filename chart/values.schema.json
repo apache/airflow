@@ -5200,6 +5200,18 @@
                     "type": "boolean",
                     "default": true
                 },
+                "images": {
+                    "description": "PostgreSQL image values.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "tag": {
+                            "description": "The PostgreSQL image tag.",
+                            "type": "string",
+                            "default": "11"
+                        }
+                    }
+                },
                 "auth": {
                     "description": "PostgreSQL authentication values.",
                     "type": "object",

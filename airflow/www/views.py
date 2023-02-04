@@ -1882,7 +1882,7 @@ class Airflow(AirflowBaseView):
             msg = f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
             return redirect_or_json(origin, msg, "error", 400)
 
-        executor.job_id = "manual"
+        executor.job_id = None
         executor.start()
         executor.queue_task_instance(
             ti,
@@ -1949,7 +1949,35 @@ class Airflow(AirflowBaseView):
         request_params = request.values.get("params")
         request_execution_date = request.values.get("execution_date", default=timezone.utcnow().isoformat())
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_orm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+        dag_orm: DagModel = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+
+        # Prepare form fields with param struct details to render a proper form with schema information
+        form_fields = {}
+        for k, v in dag.params.items():
+            form_fields[k] = v.dump()
+            # If no schema is provided, auto-detect on default values
+            if "schema" not in form_fields[k]:
+                form_fields[k]["schema"] = {}
+            if "type" not in form_fields[k]["schema"]:
+                if isinstance(form_fields[k]["value"], bool):
+                    form_fields[k]["schema"]["type"] = "boolean"
+                elif isinstance(form_fields[k]["value"], int):
+                    form_fields[k]["schema"]["type"] = ["integer", "null"]
+                elif isinstance(form_fields[k]["value"], list):
+                    form_fields[k]["schema"]["type"] = ["array", "null"]
+                elif isinstance(form_fields[k]["value"], dict):
+                    form_fields[k]["schema"]["type"] = ["object", "null"]
+            # Mark markup fields as safe
+            if (
+                "description_html" in form_fields[k]["schema"]
+                and form_fields[k]["schema"]["description_html"]
+            ):
+                form_fields[k]["description"] = Markup(form_fields[k]["schema"]["description_html"])
+            if "custom_html_form" in form_fields[k]["schema"]:
+                form_fields[k]["schema"]["custom_html_form"] = Markup(
+                    form_fields[k]["schema"]["custom_html_form"]
+                )
+
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
@@ -1959,7 +1987,9 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         recent_runs = (
-            session.query(DagRun.params, func.max(DagRun.execution_date))
+            session.query(
+                DagRun.params, func.max(DagRun.run_id).label("run_id"), func.max(DagRun.execution_date)
+            )
             .filter(
                 DagRun.dag_id == dag_id,
                 DagRun.run_type == DagRunType.MANUAL,
@@ -1971,8 +2001,11 @@ class Airflow(AirflowBaseView):
             .all()
         )
 
-        recent_params = [getattr(run, "params") for run in recent_runs]
-        recent_params = [params[0] for params in map(wwwutils.get_dag_run_params, recent_params) if params[1]]
+        recent_params = {}
+        for run in recent_runs:
+            recent_param = getattr(run, "params")
+            if isinstance(recent_param, dict) and any(recent_param):
+                recent_params[getattr(run, "run_id")] = json.dumps(recent_param)
 
         if request.method == "GET":
             # Populate params textarea with params requests parameter
@@ -1994,6 +2027,7 @@ class Airflow(AirflowBaseView):
                     flash("Could not pre-populate params field due to non-JSON-serializable data-types")
             return self.render_template(
                 "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 params=default_params,
@@ -2009,6 +2043,7 @@ class Airflow(AirflowBaseView):
             form = DateTimeForm(data={"execution_date": timezone.utcnow().isoformat()})
             return self.render_template(
                 "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 params=request_params,
@@ -2042,6 +2077,7 @@ class Airflow(AirflowBaseView):
                     form = DateTimeForm(data={"execution_date": execution_date})
                     return self.render_template(
                         "airflow/trigger.html",
+                        form_fields=form_fields,
                         dag_id=dag_id,
                         origin=origin,
                         params=request_params,
@@ -2053,6 +2089,7 @@ class Airflow(AirflowBaseView):
                 form = DateTimeForm(data={"execution_date": execution_date})
                 return self.render_template(
                     "airflow/trigger.html",
+                    form_fields=form_fields,
                     dag_id=dag_id,
                     origin=origin,
                     params=request_params,
@@ -2077,8 +2114,12 @@ class Airflow(AirflowBaseView):
         except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")
             form = DateTimeForm(data={"execution_date": execution_date})
+            # Take over "bad" submitted fields for new form display
+            for k, v in form_fields.items():
+                form_fields[k]["value"] = params[k]
             return self.render_template(
                 "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 params=request_params,
@@ -2914,7 +2955,11 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+            filter_upstream = True if request.args.get("filter_upstream") == "true" else False
+            filter_downstream = True if request.args.get("filter_downstream") == "true" else False
+            dag = dag.partial_subset(
+                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
+            )
         arrange = request.args.get("arrange", dag.orientation)
 
         nodes = task_group_to_dict(dag.task_group)

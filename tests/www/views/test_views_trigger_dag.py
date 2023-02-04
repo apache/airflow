@@ -102,7 +102,7 @@ def test_trigger_dag_params_not_dict(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"params": "string and not a dict"})
-    check_content_in_response("must be a dict", response)
+    check_content_in_response("Invalid JSON params", response)
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
@@ -197,7 +197,8 @@ def test_trigger_dag_params(admin_client, request_params, expected_params):
     expected_dag_params = json.dumps(expected_params, indent=4).replace('"', "&#34;")
 
     check_content_in_response(
-        f'<textarea class="form-control" name="params" id="json">{expected_dag_params}</textarea>',
+        f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_params}'
+        f"</textarea>",
         resp,
     )
 
@@ -232,7 +233,9 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
         resp = admin_client.get(f"trigger?dag_id={DAG_ID}")
 
     check_content_in_response(
-        f'<textarea class="form-control" name="params" id="json">{expected_dag_params}</textarea>', resp
+        f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_params}'
+        f"</textarea>",
+        resp,
     )
 
 

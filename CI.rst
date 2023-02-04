@@ -333,47 +333,82 @@ fails to build, it cancels other builds and the source ``Tests`` workflow run
 that triggered it.
 
 
+Differences for main and release branches
+-----------------------------------------
+
+There are a few differences of what kind of tests are run, depending on which version/branch the tests are executed for.
+While all our tests run for the "main" development branch to keep Airflow in check, only a subset of those tests is run
+in older branches when we are releasing patch-level releases. This is because we never use old branches to release
+providers and helm charts, we only use them to release Airflow and Airflow image.
+
+This behaviour is controlled by ``default-branch`` output of the build-info job. Whenever we create a branch for old version
+we update the ``AIRFLOW_BRANCH`` in ``airflow_breeze/branch_defaults.py`` to point to the new branch and there are a few
+places where selection of tests is based on whether this output is ``main``. They are marked as - in the "Release branches"
+column of the table below.
+
 Tests Workflow
 --------------
 
 This workflow is a regular workflow that performs all checks of Airflow code.
 
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Job                         | Description                                              | PR      | Canary   | Scheduled |
-+=============================+==========================================================+=========+==========+===========+
-| Build info                  | Prints detailed information about the build              | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Build CI/PROD images        | Builds images in-workflow (not in the build images one)  | -       | Yes      | Yes (1)   |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Push early cache & images   | Pushes early cache/images to GitHub Registry and test    | -       | Yes      | -         |
-|                             | speed of building breeze images from scratch             |         |          |           |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Test OpenAPI client gen     | Tests if OpenAPIClient continues to generate             | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| UI tests                    | React UI tests for new Airflow UI                        | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Test image building         | Tests if PROD image build examples work                  | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| CI Images                   | Waits for and verify CI Images (2)                       | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| (Basic) Static checks       | Performs static checks (full or basic)                   | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Build docs                  | Builds documentation                                     | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Tests                       | Run all the Pytest tests for Python code                 | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Tests provider packages     | Tests if provider packages work                          | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Upload coverage             | Uploads test coverage from all the tests                 | -       | Yes      | -         |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| PROD Images                 | Waits for and verify PROD Images (2)                     | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Tests Kubernetes            | Run Kubernetes test                                      | Yes     | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Constraints                 | Upgrade constraints to latest ones (3)                   | -       | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
-| Push cache & images         | Pushes cache/images to GitHub Registry (3)               | -       | Yes      | Yes       |
-+-----------------------------+----------------------------------------------------------+---------+----------+-----------+
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Job                             | Description                                              | PR       | Canary   | Scheduled | Release branches  |
++=================================+==========================================================+==========+==========+===========+===================+
+| Build info                      | Prints detailed information about the build              | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Build CI/PROD images            | Builds images in-workflow (not in the build images one)  | -        | Yes      | Yes (1)   | Yes (4)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Check that image builds quickly | Checks that image builds quickly without taking a lot of | -        | Yes      | -         | Yes               |
+|                                 | time for ``pip`` to figure out the right set of deps.    |          |          |           |                   |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Push early cache & images       | Pushes early cache/images to GitHub Registry and test    | -        | Yes      | -         | -                 |
+|                                 | speed of building breeze images from scratch             |          |          |           |                   |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Run breeze tests                | Run unit tests for Breeze                                | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Test OpenAPI client gen         | Tests if OpenAPIClient continues to generate             | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| React WWW tests                 | React UI tests for new Airflow UI                        | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Test image building             | Tests if PROD image build examples work                  | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Test git clone on Windows       | Tests if Git clone for for Windows                       | Yes (5)  | -        | -         | Yes (5)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Waits for CI Images             | Waits for and verify CI Images (2)                       | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Static checks                   | Performs full static checks                              | Yes (6)  | Yes      | Yes       | Yes (7)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Basic static checks             | Performs basic static checks                             | Yes (6)  | -        | -         | Yes (7)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Build docs                      | Builds documentation                                     | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Tests                           | Run the Pytest unit tests (Backend/Python matrix)        | Yes      | Yes      | Yes       | Yes (8)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Integration tests               | Runs integration tests (Postgres/Mysql)                  | Yes      | Yes      | Yes       | Yes (9)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Quarantined tests               | Runs quarantined tests (with flakiness and side-effects) | Yes      | Yes      | Yes       | Yes (8)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Tests provider packages         | Tests if provider packages can be built and released     | Yes      | Yes      | Yes       | -                 |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Test airflow packages           | Tests that Airflow package can be built and released     | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Helm tests                      | Run the Helm integration tests                           | Yes      | Yes      | Yes       | -                 |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Summarize warnings              | Summarizes warnings from all other tests                 | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Wait for PROD Images            | Waits for and verify PROD Images (2)                     | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Tests Kubernetes                | Run Kubernetes test                                      | Yes      | Yes      | Yes       | -                 |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Test docker-compose             | Tests if quick-start docker compose works                | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Constraints                     | Upgrade constraints to latest ones (3)                   | -        | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Push cache & images             | Pushes cache/images to GitHub Registry (3)               | -        | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Build CI ARM images             | Builds CI images for ARM to detect any problems which    | Yes (10) | -        | Yes       | Yes               |
+|                                 | would only appear if we install all dependencies on ARM  |          |          |           |                   |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 
 ``(1)`` Scheduled jobs builds images from scratch - to test if everything works properly for clean builds
 
@@ -382,6 +417,27 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 ``(3)`` PROD and CI cache & images are pushed as "latest" to GitHub Container registry and constraints are
 upgraded only if all tests are successful. The images are rebuilt in this step using constraints pushed
 in the previous step.
+
+``(4)`` In main, PROD image uses locally build providers using "latest" version of the provider code. In the
+non-main version of the build, the latest released providers from PyPI are used.
+
+``(5)`` Only runs those tests for the builds where public runners are used (so either when non-committer
+runs it or when ``use public runner`` label is assigned to the PR.
+
+``(6)`` Run full set of static checks when selective-checks determine that they are needed (basically, when
+Python code has been modified).
+
+``(7)`` On non-main builds some of the static checks that are related to Providers are skipped via selective checks
+(``skip-pre-commits`` check).
+
+``(8)`` On non-main builds the unit tests for providers are skipped via selective checks removing the
+"Providers" test type.
+
+``(9)`` On non-main builds the integration tests for providers are skipped via ``skip-provider-tests`` selective
+check output.
+
+``(10)`` Only run the builds in case dependencies are changed (``upgrade-to-newer-dependencies`` is set).
+
 
 CodeQL scan
 -----------
@@ -534,6 +590,8 @@ those via command line flags passed to ``breeze`` command.
 | ``SKIP_ENVIRONMENT_INITIALIZATION``     |   false\*   |    false\*   |   false\*  | Skip initialization of test environment         |
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | \* set to true in pre-commits                   |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``SKIP_PROVIDER_TESTS``                 |   false\*   |    false\*   |   false\*  | Skip running provider integration tests         |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``SKIP_SSH_SETUP``                      |   false\*   |    false\*   |   false\*  | Skip setting up SSH server for tests.           |
 |                                         |             |              |            |                                                 |

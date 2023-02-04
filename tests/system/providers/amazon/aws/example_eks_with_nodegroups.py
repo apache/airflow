@@ -95,6 +95,7 @@ with DAG(
         target_state=NodegroupStates.ACTIVE,
     )
     # [END howto_sensor_eks_nodegroup]
+    await_create_nodegroup.poke_interval = 10
 
     # [START howto_operator_eks_pod_operator]
     start_pod = EksPodOperator(
@@ -140,6 +141,7 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         target_state=ClusterStates.NONEXISTENT,
+        poke_interval=10,
     )
 
     chain(
