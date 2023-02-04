@@ -119,6 +119,7 @@ class TestCliDags:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
+            params=None,
             delay_on_limit_secs=1.0,
             donot_pickle=False,
             ignore_first_depends_on_past=True,
@@ -192,6 +193,7 @@ class TestCliDags:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
+            params=None,
             delay_on_limit_secs=1.0,
             donot_pickle=False,
             ignore_first_depends_on_past=True,
@@ -328,6 +330,7 @@ class TestCliDags:
             start_date=run_date,
             end_date=run_date,
             conf=None,
+            params=None,
             delay_on_limit_secs=1.0,
             donot_pickle=False,
             ignore_first_depends_on_past=True,
@@ -369,6 +372,7 @@ class TestCliDags:
             start_date=start_date,
             end_date=end_date,
             conf=None,
+            params=None,
             delay_on_limit_secs=1.0,
             donot_pickle=False,
             ignore_first_depends_on_past=True,
@@ -550,7 +554,7 @@ class TestCliDags:
                     "example_bash_operator",
                     "--run-id=test_trigger_dag",
                     "--exec-date=2021-06-04T09:00:00+08:00",
-                    '--conf={"foo": "bar"}',
+                    '--params={"example_key": "some_value"}',
                 ],
             ),
         )
@@ -560,7 +564,7 @@ class TestCliDags:
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
         assert dagrun.external_trigger
-        assert dagrun.conf == {"foo": "bar"}
+        assert dagrun.params == {"example_key": "some_value"}
 
         # Coerced to UTC.
         assert dagrun.execution_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
@@ -592,7 +596,7 @@ class TestCliDags:
         assert dagrun.external_trigger
         assert dagrun.execution_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
-    def test_trigger_dag_invalid_conf(self):
+    def test_trigger_dag_invalid_params(self):
         with pytest.raises(ValueError):
             dag_command.dag_trigger(
                 self.parser.parse_args(
@@ -602,7 +606,7 @@ class TestCliDags:
                         "example_bash_operator",
                         "--run-id",
                         "trigger_dag_xxx",
-                        "--conf",
+                        "--params",
                         "NOT JSON",
                     ]
                 ),
@@ -654,7 +658,10 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf=None,
+                    params=None,
+                    session=mock.ANY,
                 ),
             ]
         )
@@ -673,20 +680,20 @@ class TestCliDags:
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
-                mock.call().test(execution_date=mock.ANY, run_conf=None, session=mock.ANY),
+                mock.call().test(execution_date=mock.ANY, run_conf=None, params=None, session=mock.ANY),
             ]
         )
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
-    def test_dag_test_conf(self, mock_get_dag):
+    def test_dag_test_params(self, mock_get_dag):
         cli_args = self.parser.parse_args(
             [
                 "dags",
                 "test",
                 "example_bash_operator",
                 DEFAULT_DATE.isoformat(),
-                "-c",
-                '{"dag_run_conf_param": "param_value"}',
+                "-p",
+                '{"param": "param_value"}',
             ]
         )
         dag_command.dag_test(cli_args)
@@ -696,7 +703,8 @@ class TestCliDags:
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
                     execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
-                    run_conf={"dag_run_conf_param": "param_value"},
+                    run_conf=None,
+                    params={"param": "param_value"},
                     session=mock.ANY,
                 ),
             ]
@@ -717,7 +725,10 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf=None,
+                    params=None,
+                    session=mock.ANY,
                 ),
             ]
         )
