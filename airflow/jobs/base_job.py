@@ -249,6 +249,7 @@ class BaseJob(Base, LoggingMixin):
         """Starts the job."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         # Adding an entry in the DB
+        ret = None
         with create_session() as session:
             self.state = State.RUNNING
             session.add(self)
@@ -256,7 +257,7 @@ class BaseJob(Base, LoggingMixin):
             make_transient(self)
 
             try:
-                self._execute()
+                ret = self._execute()
                 # In case of max runs or max duration
                 self.state = State.SUCCESS
             except SystemExit:
@@ -272,6 +273,7 @@ class BaseJob(Base, LoggingMixin):
                 session.commit()
 
         Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
+        return ret
 
     def _execute(self):
         raise NotImplementedError("This method needs to be overridden")

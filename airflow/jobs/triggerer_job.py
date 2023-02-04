@@ -17,13 +17,17 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import signal
 import sys
 import threading
 import time
+import warnings
 from collections import deque
-from typing import Deque
+from copy import copy
+from queue import SimpleQueue
+from typing import TYPE_CHECKING, Deque
 
 from sqlalchemy import func
 
@@ -33,9 +37,198 @@ from airflow.models.trigger import Trigger
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.trigger_handler import (
+    DropTriggerLogsFilter,
+    LocalQueueHandler,
+    TriggererHandlerWrapper,
+    TriggerMetadataFilter,
+    ctx_indiv_trigger,
+    ctx_task_instance,
+    ctx_trigger_end,
+    ctx_trigger_id,
+)
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
+
+HANDLER_SUPPORTS_TRIGGERER = False
+"""
+If this value is true, root handler is configured to log individual trigger messages
+visible in task logs.
+
+:meta private:
+"""
+
+SEND_TRIGGER_END_MARKER = True
+"""
+If handler natively supports triggers, may want to disable sending trigger end marker.
+
+:meta private:
+"""
+
+logger = logging.getLogger(__name__)
+
+
+DISABLE_WRAPPER = conf.getboolean("logging", "disable_trigger_handler_wrapper", fallback=False)
+DISABLE_LISTENER = conf.getboolean("logging", "disable_trigger_handler_queue_listener", fallback=False)
+
+
+def configure_trigger_log_handler():
+    """
+    Configure logging such that each trigger logs to its own file and
+    can be exposed through the airflow webserver.
+
+    Generally speaking, we take the log handler configured for logger ``airflow.task``,
+    wrap it with TriggerHandlerWrapper, and set it as the handler for root logger.
+
+    If there already is a handler configured for the root logger
+    and it supports triggers, we wrap it instead.
+
+    :meta private:
+    """
+    global HANDLER_SUPPORTS_TRIGGERER
+
+    def should_wrap(handler):
+        return handler.__dict__.get("trigger_should_wrap", False) or handler.__class__.__dict__.get(
+            "trigger_should_wrap", False
+        )
+
+    def should_queue(handler):
+        return handler.__dict__.get("trigger_should_queue", True) or handler.__class__.__dict__.get(
+            "trigger_should_queue", True
+        )
+
+    def send_trigger_end_marker(handler):
+        val = handler.__dict__.get("trigger_send_end_marker", None)
+        if val is not None:
+            return val
+
+        val = handler.__class__.__dict__.get("trigger_send_end_marker", None)
+        if val is not None:
+            return val
+        return True
+
+    def supports_triggerer(handler):
+        return (
+            should_wrap(handler)
+            or handler.__dict__.get("trigger_supported", False)
+            or handler.__class__.__dict__.get("trigger_supported", False)
+        )
+
+    def get_task_handler_from_logger(logger_):
+        for h in logger_.handlers:
+            if isinstance(h, FileTaskHandler) and not supports_triggerer(h):
+                warnings.warn(
+                    f"Handler {h.__class__.__name__} does not support "
+                    "individual trigger logging. Please check the release notes "
+                    "for your provider to see if a newer version supports "
+                    "individual trigger logging."
+                )
+            if supports_triggerer(h):
+                return h
+
+    def find_suitable_task_handler():
+        # check root logger then check airflow.task to see if a handler
+        # suitable for use with TriggerHandlerWrapper (has trigger_should_wrap
+        # attr, likely inherits from FileTaskHandler)
+        h = get_task_handler_from_logger(root_logger)
+        if not h:
+            # try to use handler configured from airflow task
+            logger.debug("No task logger configured for root logger; trying `airflow.task`.")
+            h = get_task_handler_from_logger(logging.getLogger("airflow.task"))
+            if h:
+                logger.debug("Using logging configuration from `airflow.task`")
+        if not h:
+            warnings.warn("Could not find log handler suitable for individual trigger logging.")
+            return None
+        return h
+
+    def filter_trigger_logs_from_other_root_handlers(new_hdlr):
+        # we add context vars to log records emitted for individual triggerer logging
+        # we want these records to be processed by our special trigger handler wrapper
+        # but not by any other handlers, so we filter out these messages from
+        # other handlers by adding DropTriggerLogsFilter
+        # we could consider only adding this filter to the default console logger
+        # so as to leave other custom handlers alone
+        for h in root_logger.handlers:
+            if h is not new_hdlr:
+                h.addFilter(DropTriggerLogsFilter())
+
+    def add_handler_wrapper_to_root(base_handler):
+        # first make sure we remove from root logger if it happens to be there
+        # it could have come from root or airflow.task, but we only need
+        # to make sure we remove from root, since messages will not flow
+        # through airflow.task
+        if base_handler in root_logger.handlers:
+            root_logger.removeHandler(base_handler)
+
+        logger.info("Setting up TriggererHandlerWrapper with handler %s", base_handler)
+        h = TriggererHandlerWrapper(base_handler=base_handler, level=base_handler.level)
+        # just extra cautious, checking if user manually configured it there
+        if h not in root_logger.handlers:
+            root_logger.addHandler(h)
+        return h
+
+    root_logger = logging.getLogger()
+    task_handler = find_suitable_task_handler()
+    if not task_handler:
+        return None
+    if TYPE_CHECKING:
+        assert isinstance(task_handler, FileTaskHandler)
+    if should_wrap(task_handler):
+        trigger_handler = add_handler_wrapper_to_root(task_handler)
+    else:
+        trigger_handler = copy(task_handler)
+        root_logger.addHandler(trigger_handler)
+    filter_trigger_logs_from_other_root_handlers(trigger_handler)
+    if send_trigger_end_marker(trigger_handler) is False:
+        global SEND_TRIGGER_END_MARKER
+        SEND_TRIGGER_END_MARKER = False
+    HANDLER_SUPPORTS_TRIGGERER = True
+    return should_queue(trigger_handler)
+
+
+def setup_queue_listener():
+    """
+    Route log messages to a queue and process them with QueueListener.
+
+    Airflow task handlers make blocking I/O calls.
+    We replace trigger log handlers, with LocalQueueHandler,
+    which sends log records to a queue.
+    Then we start a QueueListener in a thread, which is configured
+    to consume the queue and pass the records to the handlers as
+    originally configured. This keeps the handler I/O out of the
+    async event loop.
+
+    :meta private:
+    """
+    queue = SimpleQueue()
+    root_logger = logging.getLogger()
+
+    handlers: list[logging.Handler] = []
+
+    queue_handler = LocalQueueHandler(queue)
+    queue_handler.addFilter(TriggerMetadataFilter())
+
+    root_logger.addHandler(queue_handler)
+    for h in root_logger.handlers[:]:
+        if h is not queue_handler and "pytest" not in h.__module__:
+            root_logger.removeHandler(h)
+            handlers.append(h)
+
+    this_logger = logging.getLogger(__name__)
+    if handlers:
+        this_logger.info("Setting up logging queue listener with handlers %s", handlers)
+        listener = logging.handlers.QueueListener(queue, *handlers, respect_handler_level=True)
+        listener.start()
+        return listener
+    else:
+        this_logger.warning("Unable to set up individual trigger logging")
+        return None
 
 
 class TriggererJob(BaseJob):
@@ -62,6 +255,24 @@ class TriggererJob(BaseJob):
         else:
             raise ValueError(f"Capacity number {capacity} is invalid")
 
+        should_queue = True
+        if DISABLE_WRAPPER:
+            self.log.warning(
+                "Skipping trigger log configuration; disabled by param "
+                "`disable_trigger_handler_wrapper=True`."
+            )
+        else:
+            should_queue = configure_trigger_log_handler()
+        self.listener = None
+        if DISABLE_LISTENER:
+            self.log.warning(
+                "Skipping trigger logger queue listener; disabled by param "
+                "`disable_trigger_handler_queue_listener=True`."
+            )
+        elif should_queue is False:
+            self.log.warning("Skipping trigger logger queue listener; disabled by handler setting.")
+        else:
+            self.listener = setup_queue_listener()
         # Set up runner async thread
         self.runner = TriggerRunner()
 
@@ -87,12 +298,19 @@ class TriggererJob(BaseJob):
         """
         self.runner.stop = True
 
+    def _kill_listener(self):
+        if self.listener:
+            for h in self.listener.handlers:
+                h.close()
+            self.listener.stop()
+
     def _exit_gracefully(self, signum, frame) -> None:
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         # The first time, try to exit nicely
         if not self.runner.stop:
             self.log.info("Exiting gracefully upon receiving signal %s", signum)
             self.runner.stop = True
+            self._kill_listener()
         else:
             self.log.warning("Forcing exit due to second exit signal %s", signum)
             sys.exit(os.EX_SOFTWARE)
@@ -100,6 +318,9 @@ class TriggererJob(BaseJob):
     def _execute(self) -> None:
         self.log.info("Starting the triggerer")
         try:
+            # set job_id so that it can be used in log file names
+            self.runner.job_id = self.id
+
             # Kick off runner thread
             self.runner.start()
             # Start our own DB loop in the main thread
@@ -224,6 +445,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         self.to_cancel = deque()
         self.events = deque()
         self.failed_triggers = deque()
+        self.job_id = None
 
     def run(self):
         """Sync entrypoint - just runs arun in an async loop."""
@@ -245,11 +467,10 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             await self.cleanup_finished_triggers()
             # Sleep for a bit
             await asyncio.sleep(1)
-            # Every minute, log status if at least one trigger is running.
+            # Every minute, log status
             if time.time() - last_status >= 60:
                 count = len(self.triggers)
-                if count > 0:
-                    self.log.info("%i triggers currently running", count)
+                self.log.info("%i triggers currently running", count)
                 last_status = time.time()
         # Wait for watchdog to complete
         await watchdog
@@ -349,15 +570,29 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    # Async trigger logic
+    @staticmethod
+    def set_individual_trigger_logging(trigger):
+        """
+        Setting these context vars allows log messages for individual triggers
+        to be routed to distinct files and filtered from triggerer stdout.
+        """
+        # set logging context vars for routing to appropriate handler
+        ctx_task_instance.set(trigger.task_instance)
+        ctx_trigger_id.set(trigger.trigger_id)
+        ctx_trigger_end.set(False)
+
+        # mark that we're in the context of an individual trigger so log records can be filtered
+        ctx_indiv_trigger.set(True)
 
     async def run_trigger(self, trigger_id, trigger):
         """
         Wrapper which runs an actual trigger (they are async generators)
         and pushes their events into our outbound event deque.
         """
-        self.log.info("Trigger %s starting", self.triggers[trigger_id]["name"])
+        name = self.triggers[trigger_id]["name"]
+        self.log.info("trigger %s starting", name)
         try:
+            self.set_individual_trigger_logging(trigger)
             async for event in trigger.run():
                 self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
                 self.triggers[trigger_id]["events"] += 1
@@ -368,8 +603,19 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # allow triggers a chance to cleanup, either in that case or if
             # they exit cleanly.
             trigger.cleanup()
+            if SEND_TRIGGER_END_MARKER:
+                self.mark_trigger_end(trigger)
 
-    # Main-thread sync API
+            # unsetting ctx_indiv_trigger var restores stdout logging
+            ctx_indiv_trigger.set(None)
+            self.log.info("trigger %s completed", name)
+
+    @staticmethod
+    def mark_trigger_end(trigger):
+        if not HANDLER_SUPPORTS_TRIGGERER:
+            return
+        ctx_trigger_end.set(True)
+        trigger.log.log(level=100, msg="trigger end")
 
     def update_triggers(self, requested_trigger_ids: set[int]):
         """
@@ -404,15 +650,33 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 continue
             # Resolve trigger record into an actual class instance
             try:
-                trigger_class = self.get_trigger_by_classpath(new_triggers[new_id].classpath)
+                new_trigger_orm = new_triggers[new_id]
+                trigger_class = self.get_trigger_by_classpath(new_trigger_orm.classpath)
             except BaseException as e:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
                 self.failed_triggers.append((new_id, e))
                 continue
-            self.to_create.append((new_id, trigger_class(**new_triggers[new_id].kwargs)))
+            new_trigger_instance = trigger_class(**new_trigger_orm.kwargs)
+            self.set_trigger_logging_metadata(new_trigger_orm.task_instance, new_id, new_trigger_instance)
+            self.to_create.append((new_id, new_trigger_instance))
         # Enqueue orphaned triggers for cancellation
         for old_id in cancel_trigger_ids:
             self.to_cancel.append(old_id)
+
+    def set_trigger_logging_metadata(self, ti: TaskInstance, trigger_id, trigger):
+        """
+        Set up logging for triggers
+
+        We want to ensure that each trigger logs to its own file and that the log messages are not
+        propagated to parent loggers.
+
+        :meta private:
+        """
+        if ti:  # can be None in tests
+            ti.is_trigger_log_context = True
+        trigger.task_instance = ti
+        trigger.triggerer_job_id = self.job_id
+        trigger.trigger_id = trigger_id
 
     def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """

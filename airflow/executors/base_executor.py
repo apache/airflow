@@ -355,7 +355,7 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def get_task_log(self, ti: TaskInstance, log: str = "") -> None | str | tuple[str, dict[str, bool]]:
+    def get_task_log(self, ti: TaskInstance) -> tuple[list[str], list[str]]:
         """
         This method can be implemented by any child class to return the task logs.
 
@@ -363,6 +363,7 @@ class BaseExecutor(LoggingMixin):
         :param log: log str
         :return: logs or tuple of logs and meta dict
         """
+        return [], []
 
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""
