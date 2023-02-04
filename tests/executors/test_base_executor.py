@@ -47,7 +47,7 @@ def test_is_local_default_value():
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=BaseOperator(task_id="dummy"))
-    assert executor.get_task_log(ti=ti) is None
+    assert executor.get_task_log(ti=ti) == ([], [])
 
 
 def test_serve_logs_default_value():
