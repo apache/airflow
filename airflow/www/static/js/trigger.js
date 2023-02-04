@@ -196,4 +196,6 @@ function setRecentConfig(e) {
   jsonForm.setValue(value);
 }
 
-recentConfigList.addEventListener('change', setRecentConfig);
+if (recentConfigList) {
+  recentConfigList.addEventListener('change', setRecentConfig);
+}
