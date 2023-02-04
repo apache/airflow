@@ -149,7 +149,9 @@ function initForm() {
 
     // Ensure layout is refreshed on generated JSON as well
     document.getElementById('generated_json_toggle').addEventListener('click', () => {
-      setTimeout(jsonForm.refresh, 300);
+      setTimeout(() => {
+        jsonForm.refresh();
+      }, 300);
     });
 
     // Update generated conf once
