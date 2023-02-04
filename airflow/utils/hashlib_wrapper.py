@@ -18,26 +18,21 @@
 from __future__ import annotations
 
 import hashlib
-import sys
 
-# Check if "usedforsecurity" is available for hashlib
-if sys.version_info >= (3, 9):
-    HAS_USEDFORSECURITY = True
-else:
-    HAS_USEDFORSECURITY = False
+from airflow import PY39
 
 
-def md5(data: bytes, usedforsecurity: bool | None = None):
+def md5(data: bytes, *, usedforsecurity: bool | None = None):
     """
     Safely allows calling the hashlib.md5 function with the "usedforsecurity" param.
 
     :param data: The data to hash.
-    :param used_for_security: The value to pass to the md5 function's "usedforsecurity" param.
+    :param usedforsecurity: The value to pass to the md5 function's "usedforsecurity" param.
         Defaults to None.
     :return: The hashed value.
     :rtype: _Hash
     """
-    if HAS_USEDFORSECURITY and usedforsecurity is not None:
+    if PY39 and usedforsecurity is not None:
         return hashlib.md5(data, usedforsecurity=usedforsecurity)  # type: ignore
     else:
         return hashlib.md5(data)
