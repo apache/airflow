@@ -2174,7 +2174,10 @@ my_postgres_conn:
 
     def test_validate_params_on_trigger_dag(self):
         dag = models.DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
-        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
+        with pytest.raises(
+            ParamValidationError,
+            match="You should provide a value for the required params without default value: param1",
+        ):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
@@ -2189,7 +2192,7 @@ my_postgres_conn:
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
                 execution_date=TEST_DATE,
-                conf={"param1": None},
+                params={"param1": None},
             )
 
         dag = models.DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
@@ -2197,7 +2200,7 @@ my_postgres_conn:
             run_id="test_dagrun_missing_param",
             state=State.RUNNING,
             execution_date=TEST_DATE,
-            conf={"param1": "hello"},
+            params={"param1": "hello"},
         )
 
     def test_return_date_range_with_num_method(self):

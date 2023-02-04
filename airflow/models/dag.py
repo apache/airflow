@@ -2550,13 +2550,15 @@ class DAG(LoggingMixin):
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
 
-    def _check_params(self, dag_run_params):
+    def _check_params(self, dag_run_params, dag_run_conf=None):
         """
         Validates & raise exception if there are any extra provided Params not defined in the dag, missing
         Params which don't have a default value in the dag, or invalid params
         """
         if dag_run_params is None:
             dag_run_params = {}
+        if conf.getboolean("core", "dag_run_conf_overrides_params") and dag_run_conf:
+            dag_run_params.update(**dag_run_conf)
         for k, param in self.params.items():
             # As type can be an array, we would check if `null` is an allowed type or not
             if not param.has_value and ("type" not in param.schema or "null" not in param.schema["type"]):
@@ -2668,7 +2670,7 @@ class DAG(LoggingMixin):
                 "dag_run conf is deprecated. Please use params instead", DeprecationWarning, stacklevel=2
             )
 
-        self._check_params(params)
+        self._check_params(params, conf)
 
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
