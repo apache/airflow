@@ -36,7 +36,6 @@ import { getDuration, formatDuration } from 'src/datetime_utils';
 import { finalStatesMap, getMetaValue, getTaskSummary } from 'src/utils';
 import { useGridData } from 'src/api';
 import Time from 'src/components/Time';
-import useOffsetHeight from 'src/utils/useOffsetHeight';
 import type { TaskState } from 'src/types';
 
 import { SimpleStatus } from '../StatusBox';
@@ -46,7 +45,6 @@ const dagDetailsUrl = getMetaValue('dag_details_url');
 const Dag = () => {
   const { data: { dagRuns, groups } } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
-  const offsetHeight = useOffsetHeight(detailsRef);
 
   const taskSummary = getTaskSummary({ task: groups });
   const numMap = finalStatesMap();
@@ -95,7 +93,6 @@ const Dag = () => {
       </Button>
       <Box
         height="100%"
-        maxHeight={offsetHeight}
         ref={detailsRef}
         overflowY="auto"
       >
