@@ -1919,6 +1919,19 @@ dags:
 
     extraVolumeMounts: []
     env: []
+     # Change permissions on the checked-out files to the specified mode.
+     # - name: GIT_SYNC_PERMISSION
+     #   value: "0755"
+     # The time to wait before retrying a failed --exechook-command.
+     # - name: GIT_SYNC_EXECHOOK_BACKOFF
+     #   value: "3s"
+     # An optional command to be executed after syncing a new hash of the remote repository.
+     # - name: GIT_SYNC_EXECHOOK_COMMAND
+     #   value: "./scripts/entrypoint.sh"
+     # The timeout for the --exechook-command.
+     # - name: GIT_SYNC_EXECHOOK_TIMEOUT
+     #   value: "30s"
+
     resources: {}
     #  limits:
     #   cpu: 100m
