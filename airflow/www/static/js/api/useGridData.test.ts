@@ -33,6 +33,8 @@ const commonDagRunParams = {
   endDate: null,
   lastSchedulingDecision: null,
   externalTrigger: false,
+  conf: null,
+  confIsJson: false,
   params: null,
   paramsIsJson: false,
   note: '',

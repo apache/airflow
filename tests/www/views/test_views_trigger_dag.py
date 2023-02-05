@@ -91,7 +91,7 @@ def test_trigger_dag_params_malformed(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"params": '{"a": "b"'})
-    check_content_in_response("Invalid JSON configuration", response)
+    check_content_in_response("Invalid JSON parameters", response)
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
@@ -102,7 +102,8 @@ def test_trigger_dag_params_not_dict(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"params": "string and not a dict"})
-    check_content_in_response("Invalid JSON params", response)
+    print(response.text)
+    check_content_in_response("Invalid JSON parameters", response)
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()

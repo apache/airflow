@@ -54,6 +54,10 @@ interface DagRun {
   endDate: string | null;
   lastSchedulingDecision: string | null;
   externalTrigger: boolean;
+
+  conf: string | null;
+
+  confIsJson: boolean;
   params: string | null;
   paramsIsJson: boolean;
   note: string | null;

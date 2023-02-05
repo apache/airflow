@@ -137,6 +137,7 @@ class DagRunEditForm(DynamicForm):
         lazy_gettext("Logical Date"),
         widget=AirflowDateTimePickerROWidget(),
     )
+    conf = TextAreaField(lazy_gettext("Conf"), widget=BS3TextAreaROWidget())
     params = TextAreaField(lazy_gettext("Params"), widget=BS3TextAreaROWidget())
     note = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
@@ -144,6 +145,8 @@ class DagRunEditForm(DynamicForm):
         """Populates the attributes of the passed obj with data from the form's fields."""
         super().populate_obj(item)
         item.run_type = DagRunType.from_run_id(item.run_id)
+        if item.conf:
+            item.conf = json.loads(item.conf)
         if item.params:
             item.params = json.loads(item.params)
 

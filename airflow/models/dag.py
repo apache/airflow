@@ -2558,7 +2558,7 @@ class DAG(LoggingMixin):
         if dag_run_params is None:
             dag_run_params = {}
         if conf.getboolean("core", "dag_run_conf_overrides_params") and dag_run_conf:
-            dag_run_params.update(**dag_run_conf)
+            dag_run_params.update(**{k: dag_run_conf[k] for k in self.params.keys()})
         for k, param in self.params.items():
             # As type can be an array, we would check if `null` is an allowed type or not
             if not param.has_value and ("type" not in param.schema or "null" not in param.schema["type"]):

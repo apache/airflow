@@ -24,9 +24,9 @@ const objectFields = new Map();
 const recentConfigList = document.getElementById('recent_configs');
 
 /**
- * Update the generated JSON DagRun.conf JSON field if any field changed
+ * Update the hidden textarea DagRun.params field if any field changed
  */
-function updateJSONconf() {
+function updateJSONparams() {
   const jsonStart = document.getElementById('json_start').value;
   const params = JSON.parse(jsonStart);
   const elements = document.getElementById('trigger_form');
@@ -104,12 +104,12 @@ function initForm() {
             gutters: ['CodeMirror-lint-markers'],
             lint: true,
           });
-          field.on('blur', updateJSONconf);
+          field.on('blur', updateJSONparams);
           objectFields.set(elements[i].name, field);
         } else if (elements[i].type === 'checkbox') {
-          elements[i].addEventListener('change', updateJSONconf);
+          elements[i].addEventListener('change', updateJSONparams);
         } else {
-          elements[i].addEventListener('blur', updateJSONconf);
+          elements[i].addEventListener('blur', updateJSONparams);
         }
       }
     }
@@ -131,7 +131,7 @@ function initForm() {
 
     // Validate JSON entry fields before submission
     elements.addEventListener('submit', (event) => {
-      updateJSONconf();
+      updateJSONparams();
       objectFields.forEach((cm) => {
         const textValue = cm.getValue();
         try {
@@ -147,18 +147,18 @@ function initForm() {
       });
     });
 
-    // Ensure layout is refreshed on generated JSON as well
-    document.getElementById('generated_json_toggle').addEventListener('click', () => {
-      setTimeout(jsonForm.refresh, 300);
-    });
+    // // Ensure layout is refreshed on generated JSON as well
+    // document.getElementById('generated_json_toggle').addEventListener('click', () => {
+    //   setTimeout(jsonForm.refresh, 300);
+    // });
 
     // Update generated conf once
-    setTimeout(updateJSONconf, 100);
+    setTimeout(updateJSONparams, 100);
   }
 }
 initForm();
 
-window.updateJSONconf = updateJSONconf;
+window.updateJSONparams = updateJSONparams;
 
 function setRecentConfig(e) {
   const dropdownValue = e.target.value;
