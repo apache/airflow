@@ -32,7 +32,6 @@ import {
 
 import { useGridData, useTaskInstance } from 'src/api';
 import { getMetaValue, getTask } from 'src/utils';
-import useOffsetHeight from 'src/utils/useOffsetHeight';
 import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
 import type { SelectionProps } from 'src/dag/useSelection';
 import NotesAccordion from 'src/dag/details/NotesAccordion';
@@ -63,8 +62,6 @@ const TaskInstance = ({
   const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
   const { data: { dagRuns, groups } } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
-  const offsetHeight = useOffsetHeight(detailsRef);
-
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
 
@@ -161,7 +158,6 @@ const TaskInstance = ({
           <TabPanel
             pt={isMapIndexDefined ? '0px' : undefined}
             height="100%"
-            maxHeight={offsetHeight}
             ref={detailsRef}
             overflowY="auto"
             py="4px"
