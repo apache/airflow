@@ -36,7 +36,7 @@ const useOffsetHeight = (
     const calculateHeight = debounce(() => {
       if (contentRef.current) {
         const topOffset = contentRef.current.offsetTop;
-        const newHeight = window.innerHeight - (topOffset + footerHeight);
+        const newHeight = (window.innerHeight - (topOffset + footerHeight)) * 2;
         setHeight(newHeight > minHeight ? newHeight : minHeight);
       }
     }, 25);
