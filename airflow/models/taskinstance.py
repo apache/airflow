@@ -801,7 +801,6 @@ class TaskInstance(Base, LoggingMixin):
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
     ) -> TI | None:
-        # TODO: need to convert SQLAlchemy objects to internal API objects
         query = session.query(TI).filter_by(
             dag_id=dag_id,
             run_id=run_id,
@@ -1839,9 +1838,9 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str,
         task_id: str,
         map_index: int,
-        error: None | str | Exception | KeyboardInterrupt,  # Is this serializable?
+        error: None | str | Exception | KeyboardInterrupt,
         test_mode: bool | None = None,
-        context: Context | None = None,  # Is this serializable?
+        context: Context | None = None,
         force_fail: bool = False,
         session: Session = NEW_SESSION,
     ):
@@ -1923,11 +1922,11 @@ class TaskInstance(Base, LoggingMixin):
             callbacks = task.on_retry_callback if task else None
 
         return {
-            "ti": ti,  # TODO: Need to convert this SQL Alchemy object to serializable object
-            "email_for_state": email_for_state,  # Is this serializable?
-            "task": task,  # Is this serializable?
-            "callbacks": callbacks,  # Is this serializable?
-            "context": context,  # Is this serializable?
+            "ti": ti,
+            "email_for_state": email_for_state,
+            "task": task,
+            "callbacks": callbacks,
+            "context": context,
         }
 
     @staticmethod

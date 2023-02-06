@@ -722,8 +722,6 @@ class DagFileProcessor(LoggingMixin):
         if not ti:
             return
 
-        # TODO: Need to convert back here internal API object to SQLAlchemy object
-
         task: Operator | None = None
 
         if dagbag and simple_ti.dag_id in dagbag.dags:
