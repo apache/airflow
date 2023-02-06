@@ -54,7 +54,7 @@ from airflow_breeze.global_constants import (
     SelectiveUnitTestTypes,
     all_selective_test_types,
 )
-from airflow_breeze.utils.console import get_stderr_console
+from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
@@ -298,16 +298,16 @@ class SelectiveChecks:
     @cached_property
     def full_tests_needed(self) -> bool:
         if not self._commit_ref:
-            get_stderr_console().print("[warning]Running everything as commit is missing[/]")
+            get_console().print("[warning]Running everything as commit is missing[/]")
             return True
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
-            get_stderr_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
+            get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
         if len(self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES)) > 0:
-            get_stderr_console().print("[warning]Running everything because env files changed[/]")
+            get_console().print("[warning]Running everything because env files changed[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
-            get_stderr_console().print(
+            get_console().print(
                 "[warning]Full tests needed because "
                 f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
             )
@@ -437,24 +437,24 @@ class SelectiveChecks:
         self._match_files_with_regexps(matched_files, regexps)
         count = len(matched_files)
         if count > 0:
-            get_stderr_console().print(f"[warning]{match_group} matched {count} files.[/]")
-            get_stderr_console().print(matched_files)
+            get_console().print(f"[warning]{match_group} matched {count} files.[/]")
+            get_console().print(matched_files)
         else:
-            get_stderr_console().print(f"[warning]{match_group} did not match any file.[/]")
+            get_console().print(f"[warning]{match_group} did not match any file.[/]")
         return matched_files
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
         if self.full_tests_needed:
-            get_stderr_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
+            get_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
             return True
         matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES)
         if len(matched_files) > 0:
-            get_stderr_console().print(
+            get_console().print(
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
             )
             return True
         else:
-            get_stderr_console().print(
+            get_console().print(
                 f"[warning]{source_area} disabled because it did not match any changed files[/]"
             )
             return False
@@ -506,7 +506,7 @@ class SelectiveChecks:
         count = len(matched_files)
         if count > 0:
             test_types.add(test_type.value)
-            get_stderr_console().print(f"[warning]{test_type} added because it matched {count} files[/]")
+            get_console().print(f"[warning]{test_type} added because it matched {count} files[/]")
         return matched_files
 
     def _get_test_types_to_run(self) -> list[str]:
@@ -534,11 +534,11 @@ class SelectiveChecks:
         )
         count_remaining_files = len(remaining_files)
         if count_remaining_files > 0:
-            get_stderr_console().print(
+            get_console().print(
                 f"[warning]We should run all tests. There are {count_remaining_files} changed "
                 "files that seems to fall into Core/Other category[/]"
             )
-            get_stderr_console().print(remaining_files)
+            get_console().print(remaining_files)
             candidate_test_types.update(all_selective_test_types())
         else:
             if "Providers" in candidate_test_types:
@@ -546,12 +546,12 @@ class SelectiveChecks:
                 if len(affected_providers) != 0:
                     candidate_test_types.remove("Providers")
                     candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-            get_stderr_console().print(
+            get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
         sorted_candidate_test_types = list(sorted(candidate_test_types))
-        get_stderr_console().print("[warning]Selected test type candidates to run:[/]")
-        get_stderr_console().print(sorted_candidate_test_types)
+        get_console().print("[warning]Selected test type candidates to run:[/]")
+        get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
     @cached_property
@@ -566,7 +566,7 @@ class SelectiveChecks:
             test_types_to_remove: set[str] = set()
             for test_type in current_test_types:
                 if test_type.startswith("Providers"):
-                    get_stderr_console().print(
+                    get_console().print(
                         f"[warning]Removing {test_type} because the target branch "
                         f"is {self._default_branch} and not main[/]"
                     )

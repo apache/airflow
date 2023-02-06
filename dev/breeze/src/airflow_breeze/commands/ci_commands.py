@@ -50,7 +50,7 @@ from airflow_breeze.utils.common_options import (
     option_verbose,
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import get_console, get_stderr_console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
@@ -179,14 +179,14 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     ]
     result = run_command(cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:
-        get_stderr_console().print(
+        get_console().print(
             f"[warning] Error when running diff-tree command [/]\n{result.stdout}\n{result.stderr}"
         )
         return ()
     changed_files = tuple(result.stdout.splitlines()) if result.stdout else ()
-    get_stderr_console().print("\n[info]Changed files:[/]\n")
-    get_stderr_console().print(changed_files)
-    get_stderr_console().print()
+    get_console().print("\n[info]Changed files:[/]\n")
+    get_console().print(changed_files)
+    get_console().print()
     return changed_files
 
 
@@ -250,7 +250,7 @@ def selective_check(
         pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
         github_event=github_event,
     )
-    print(str(sc), file=sys.stdout)
+    print(str(sc), file=sys.stderr)
 
 
 @ci_group.command(name="find-newer-dependencies", help="Finds which dependencies are being upgraded.")
