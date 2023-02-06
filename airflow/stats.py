@@ -378,7 +378,7 @@ class SafeStatsdLogger:
     @validate_stat
     def timer(
         self,
-        stat: str = None,
+        stat: str | None = None,
         *args,
         tags: dict[str, str] | None = None,
         **kwargs,
@@ -481,7 +481,7 @@ class SafeDogStatsdLogger:
     @validate_stat
     def timer(
         self,
-        stat: str = None,
+        stat: str | None = None,
         *args,
         tags: dict[str, str] | None = None,
         **kwargs,
