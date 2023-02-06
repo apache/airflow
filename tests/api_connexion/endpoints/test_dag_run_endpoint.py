@@ -35,6 +35,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.www import _check_last_log
 
 
 @pytest.fixture(scope="module")
@@ -1032,7 +1033,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             pytest.param(None, None, None, id="all-missing"),
         ],
     )
-    def test_should_respond_200(self, logical_date_field_name, dag_run_id, logical_date, note):
+    def test_should_respond_200(self, session, logical_date_field_name, dag_run_id, logical_date, note):
         self._create_dag("TEST_DAG_ID")
 
         # We'll patch airflow.utils.timezone.utcnow to always return this so we
@@ -1077,6 +1078,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "run_type": "manual",
             "note": note,
         }
+        _check_last_log(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""
