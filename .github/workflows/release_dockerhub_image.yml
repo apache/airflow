@@ -59,7 +59,7 @@ jobs:
         id: selective-checks
         env:
           VERBOSE: "false"
-        run: breeze ci selective-check >> ${GITHUB_OUTPUT}
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
