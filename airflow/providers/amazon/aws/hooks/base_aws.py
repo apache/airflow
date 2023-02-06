@@ -312,18 +312,34 @@ class BaseSessionFactory(LoggingMixin):
         base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
         federation = self.extra_config.get("assume_role_with_web_identity_federation")
-        if federation == "google":
-            web_identity_token_loader = self._get_google_identity_token_loader()
-        else:
-            raise AirflowException(
-                f'Unsupported federation: {federation}. Currently "google" only are supported.'
-            )
+
+        web_identity_token_loader = (
+            {
+                "file": self._get_file_token_loader,
+                "google": self._get_google_identity_token_loader,
+            }.get(federation)()
+            if type(federation) == str
+            else None
+        )
+
+        if not web_identity_token_loader:
+            raise AirflowException(f"Unsupported federation: {federation}.")
+
         return botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
             client_creator=client_creator,
             web_identity_token_loader=web_identity_token_loader,
             role_arn=self.role_arn,
             extra_args=self.conn.assume_role_kwargs,
         )
+
+    def _get_file_token_loader(self):
+        from botocore.credentials import AssumeRoleWithWebIdentityProvider, FileWebIdentityTokenLoader
+
+        token_file = self.extra_config.get("assume_role_with_web_identity_token_file") or os.getenv(
+            AssumeRoleWithWebIdentityProvider._CONFIG_TO_ENV_VAR["web_identity_token_file"]
+        )
+
+        return FileWebIdentityTokenLoader(token_file)
 
     def _get_google_identity_token_loader(self):
         from google.auth.transport import requests as requests_transport
