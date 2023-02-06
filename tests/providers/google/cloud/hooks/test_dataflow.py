@@ -18,20 +18,22 @@
 from __future__ import annotations
 
 import copy
+import re
 import shlex
-import unittest
+import sys
+from asyncio import Future
 from typing import Any
-from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from parameterized import parameterized
+from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import BeamCommandRunner, BeamHook
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
+    AsyncDataflowHook,
     DataflowHook,
     DataflowJobStatus,
     DataflowJobType,
@@ -39,6 +41,12 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     _fallback_to_project_id_from_variables,
     process_line_and_extract_dataflow_job_id_callback,
 )
+
+if sys.version_info < (3, 8):
+    from asynctest import mock
+else:
+    from unittest import mock
+
 
 DEFAULT_RUNNER = "DirectRunner"
 BEAM_STRING = "airflow.providers.apache.beam.hooks.beam.{}"
@@ -53,6 +61,7 @@ PARAMETERS = {
     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
     "output": "gs://test/output/my_output",
 }
+TEST_ENVIRONMENT = {}
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
 JOB_CLASS = "com.example.UnitTest"
@@ -119,7 +128,7 @@ TEST_SQL_JOB_ID = "test-job-id"
 DEFAULT_CANCEL_TIMEOUT = 5 * 60
 
 
-class TestFallbackToVariables(unittest.TestCase):
+class TestFallbackToVariables:
     def test_support_project_id_parameter(self):
         mock_instance = mock.MagicMock()
 
@@ -173,8 +182,8 @@ class TestFallbackToVariables(unittest.TestCase):
             FixtureFallback().test_fn({"project": "TEST"}, "TEST2")
 
 
-class TestDataflowHook(unittest.TestCase):
-    def setUp(self):
+class TestDataflowHook:
+    def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
         self.dataflow_hook.beam_hook = MagicMock()
 
@@ -197,7 +206,7 @@ class TestDataflowHook(unittest.TestCase):
         py_requirements = ["pandas", "numpy"]
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -242,7 +251,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
         passed_variables["region"] = TEST_LOCATION
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -286,7 +295,7 @@ class TestDataflowHook(unittest.TestCase):
 
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -332,7 +341,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
         passed_variables["extra-package"] = ["a.whl", "b.whl"]
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -363,26 +372,19 @@ class TestDataflowHook(unittest.TestCase):
             job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION
         )
 
-    @parameterized.expand(
-        [
-            ("python3",),
-            ("python2",),
-            ("python3",),
-            ("python3.6",),
-        ]
-    )
+    @pytest.mark.parametrize("py_interpreter", ["python3", "python2", "python3.6"])
     @mock.patch(DATAFLOW_STRING.format("uuid.uuid4"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.wait_for_done"))
     @mock.patch(DATAFLOW_STRING.format("process_line_and_extract_dataflow_job_id_callback"))
     def test_start_python_dataflow_with_custom_interpreter(
-        self, py_interpreter, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
+        self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid, py_interpreter
     ):
         mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
         mock_uuid.return_value = MOCK_UUID
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -412,30 +414,31 @@ class TestDataflowHook(unittest.TestCase):
             job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "current_py_requirements, current_py_system_site_packages",
         [
             (["foo-bar"], False),
             (["foo-bar"], True),
             ([], True),
-        ]
+        ],
     )
     @mock.patch(DATAFLOW_STRING.format("uuid.uuid4"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.wait_for_done"))
     @mock.patch(DATAFLOW_STRING.format("process_line_and_extract_dataflow_job_id_callback"))
     def test_start_python_dataflow_with_non_empty_py_requirements_and_without_system_packages(
         self,
-        current_py_requirements,
-        current_py_system_site_packages,
         mock_callback_on_job_id,
         mock_dataflow_wait_for_done,
         mock_uuid,
+        current_py_requirements,
+        current_py_system_site_packages,
     ):
         mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
         mock_uuid.return_value = MOCK_UUID
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -474,19 +477,17 @@ class TestDataflowHook(unittest.TestCase):
         self.dataflow_hook.beam_hook = BeamHook(runner="DataflowRunner")
         mock_uuid.return_value = MOCK_UUID
         on_new_job_id_callback = MagicMock()
-
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"), self.assertRaisesRegex(
-            AirflowException, "Invalid method invocation."
-        ):
-            self.dataflow_hook.start_python_dataflow(
-                job_name=JOB_NAME,
-                variables=DATAFLOW_VARIABLES_PY,
-                dataflow=PY_FILE,
-                py_options=PY_OPTIONS,
-                py_interpreter=DEFAULT_PY_INTERPRETER,
-                py_requirements=[],
-                on_new_job_id_callback=on_new_job_id_callback,
-            )
+        with pytest.raises(AirflowException, match=r"Invalid method invocation\."):
+            with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+                self.dataflow_hook.start_python_dataflow(
+                    job_name=JOB_NAME,
+                    variables=DATAFLOW_VARIABLES_PY,
+                    dataflow=PY_FILE,
+                    py_options=PY_OPTIONS,
+                    py_interpreter=DEFAULT_PY_INTERPRETER,
+                    py_requirements=[],
+                    on_new_job_id_callback=on_new_job_id_callback,
+                )
 
         mock_dataflow_wait_for_done.assert_not_called()
 
@@ -499,7 +500,7 @@ class TestDataflowHook(unittest.TestCase):
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_JAVA,
@@ -539,7 +540,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables: dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
         passed_variables["mock-option"] = ["a.whl", "b.whl"]
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -579,7 +580,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables: dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
         passed_variables["region"] = TEST_LOCATION
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -616,7 +617,7 @@ class TestDataflowHook(unittest.TestCase):
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_JAVA,
@@ -643,7 +644,8 @@ class TestDataflowHook(unittest.TestCase):
             job_id=mock.ANY, job_name=job_name, location=TEST_LOCATION, multiple_jobs=False
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "expected_result, job_name, append_job_name",
         [
             (JOB_NAME, JOB_NAME, False),
             ("test-example", "test_example", False),
@@ -653,24 +655,20 @@ class TestDataflowHook(unittest.TestCase):
             ("df-job", "df-job", False),
             ("dfjob", "dfjob", False),
             ("dfjob1", "dfjob1", False),
-        ]
+        ],
     )
     @mock.patch(DATAFLOW_STRING.format("uuid.uuid4"), return_value=MOCK_UUID)
-    def test_valid_dataflow_job_name(self, expected_result, job_name, append_job_name, mock_uuid4):
-        job_name = self.dataflow_hook.build_dataflow_job_name(
-            job_name=job_name, append_job_name=append_job_name
+    def test_valid_dataflow_job_name(self, _, expected_result, job_name, append_job_name):
+        assert (
+            self.dataflow_hook.build_dataflow_job_name(job_name=job_name, append_job_name=append_job_name)
+            == expected_result
         )
 
-        self.assertEqual(expected_result, job_name)
-
-    #
-    @parameterized.expand([("1dfjob@",), ("dfjob@",), ("df^jo",)])
+    @pytest.mark.parametrize("job_name", ["1dfjob@", "dfjob@", "df^jo"])
     def test_build_dataflow_job_name_with_invalid_value(self, job_name):
-        self.assertRaises(
-            ValueError, self.dataflow_hook.build_dataflow_job_name, job_name=job_name, append_job_name=False
-        )
+        with pytest.raises(ValueError, match=rf"Invalid job_name \({re.escape(job_name)}\);"):
+            self.dataflow_hook.build_dataflow_job_name(job_name=job_name, append_job_name=False)
 
-    #
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
     def test_get_job(self, mock_conn, mock_dataflowjob):
@@ -685,7 +683,6 @@ class TestDataflowHook(unittest.TestCase):
         )
         method_fetch_job_by_id.assert_called_once_with(TEST_JOB_ID)
 
-    #
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
     def test_fetch_job_metrics_by_id(self, mock_conn, mock_dataflowjob):
@@ -780,8 +777,8 @@ class TestDataflowHook(unittest.TestCase):
         method_wait_for_done.assert_called_once_with()
 
 
-class TestDataflowTemplateHook(unittest.TestCase):
-    def setUp(self):
+class TestDataflowTemplateHook:
+    def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
 
     @mock.patch(DATAFLOW_STRING.format("uuid.uuid4"), return_value=MOCK_UUID)
@@ -1127,8 +1124,8 @@ class TestDataflowTemplateHook(unittest.TestCase):
             )
 
 
-class TestDataflowJob(unittest.TestCase):
-    def setUp(self):
+class TestDataflowJob:
+    def setup_method(self):
         self.mock_dataflow = MagicMock()
 
     def test_dataflow_job_init_with_job_id(self):
@@ -1206,7 +1203,8 @@ class TestDataflowJob(unittest.TestCase):
 
         assert dataflow_job.get_jobs() == [job, job]
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "state, exception_regex",
         [
             (DataflowJobStatus.JOB_STATE_FAILED, "Google Cloud Dataflow job name-2 has failed\\."),
             (DataflowJobStatus.JOB_STATE_CANCELLED, "Google Cloud Dataflow job name-2 was cancelled\\."),
@@ -1216,7 +1214,7 @@ class TestDataflowJob(unittest.TestCase):
                 DataflowJobStatus.JOB_STATE_UNKNOWN,
                 "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN",
             ),
-        ]
+        ],
     )
     def test_dataflow_job_wait_for_multiple_jobs_and_one_in_terminal_state(self, state, exception_regex):
         # fmt: off
@@ -1373,24 +1371,25 @@ class TestDataflowJob(unittest.TestCase):
 
         assert result is False
 
-    # fmt: off
-    @parameterized.expand([
-        # RUNNING
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, None, False),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, None, True),
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, True, False),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, True, False),
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, False, True),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, False, True),
-        # AWAITING STATE
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, None, False),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, None, False),
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, True, False),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, True, False),
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, False, True),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, False, True),
-    ])
-    # fmt: on
+    @pytest.mark.parametrize(
+        "job_type, job_state, wait_until_finished, expected_result",
+        [
+            # RUNNING
+            (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, None, False),
+            (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, None, True),
+            (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, True, False),
+            (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, True, False),
+            (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING, False, True),
+            (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING, False, True),
+            # AWAITING STATE
+            (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, None, False),
+            (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, None, False),
+            (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, True, False),
+            (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, True, False),
+            (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_PENDING, False, True),
+            (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_PENDING, False, True),
+        ],
+    )
     def test_check_dataflow_job_state_wait_until_finished(
         self, job_type, job_state, wait_until_finished, expected_result
     ):
@@ -1409,18 +1408,19 @@ class TestDataflowJob(unittest.TestCase):
         result = dataflow_job._check_dataflow_job_state(job)
         assert result == expected_result
 
-    # fmt: off
-    @parameterized.expand([
-        # RUNNING
-        (DataflowJobStatus.JOB_STATE_RUNNING, None, False),
-        (DataflowJobStatus.JOB_STATE_RUNNING, True, False),
-        (DataflowJobStatus.JOB_STATE_RUNNING, False, True),
-        # AWAITING STATE
-        (DataflowJobStatus.JOB_STATE_PENDING, None, False),
-        (DataflowJobStatus.JOB_STATE_PENDING, True, False),
-        (DataflowJobStatus.JOB_STATE_PENDING, False, True),
-    ])
-    # fmt: on
+    @pytest.mark.parametrize(
+        "job_state, wait_until_finished, expected_result",
+        [
+            # RUNNING
+            (DataflowJobStatus.JOB_STATE_RUNNING, None, False),
+            (DataflowJobStatus.JOB_STATE_RUNNING, True, False),
+            (DataflowJobStatus.JOB_STATE_RUNNING, False, True),
+            # AWAITING STATE
+            (DataflowJobStatus.JOB_STATE_PENDING, None, False),
+            (DataflowJobStatus.JOB_STATE_PENDING, True, False),
+            (DataflowJobStatus.JOB_STATE_PENDING, False, True),
+        ],
+    )
     def test_check_dataflow_job_state_without_job_type(self, job_state, wait_until_finished, expected_result):
         job = {"id": "id-2", "name": "name-2", "currentState": job_state}
         dataflow_job = _DataflowJobsController(
@@ -1437,30 +1437,61 @@ class TestDataflowJob(unittest.TestCase):
         result = dataflow_job._check_dataflow_job_state(job)
         assert result == expected_result
 
-    # fmt: off
-    @parameterized.expand([
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_FAILED,
-            "Google Cloud Dataflow job name-2 has failed\\."),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_FAILED,
-         "Google Cloud Dataflow job name-2 has failed\\."),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_UNKNOWN,
-         "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN"),
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_UNKNOWN,
-         "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN"),
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_CANCELLED,
-            "Google Cloud Dataflow job name-2 was cancelled\\."),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_CANCELLED,
-         "Google Cloud Dataflow job name-2 was cancelled\\."),
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_DRAINED,
-            "Google Cloud Dataflow job name-2 was drained\\."),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_DRAINED,
-         "Google Cloud Dataflow job name-2 was drained\\."),
-        (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_UPDATED,
-            "Google Cloud Dataflow job name-2 was updated\\."),
-        (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_UPDATED,
-         "Google Cloud Dataflow job name-2 was updated\\."),
-    ])
-    # fmt: on
+    @pytest.mark.parametrize(
+        "job_type, job_state, exception_regex",
+        [
+            (
+                DataflowJobType.JOB_TYPE_BATCH,
+                DataflowJobStatus.JOB_STATE_FAILED,
+                "Google Cloud Dataflow job name-2 has failed\\.",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_STREAMING,
+                DataflowJobStatus.JOB_STATE_FAILED,
+                "Google Cloud Dataflow job name-2 has failed\\.",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_STREAMING,
+                DataflowJobStatus.JOB_STATE_UNKNOWN,
+                "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_BATCH,
+                DataflowJobStatus.JOB_STATE_UNKNOWN,
+                "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_BATCH,
+                DataflowJobStatus.JOB_STATE_CANCELLED,
+                "Google Cloud Dataflow job name-2 was cancelled\\.",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_STREAMING,
+                DataflowJobStatus.JOB_STATE_CANCELLED,
+                "Google Cloud Dataflow job name-2 was cancelled\\.",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_BATCH,
+                DataflowJobStatus.JOB_STATE_DRAINED,
+                "Google Cloud Dataflow job name-2 was drained\\.",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_STREAMING,
+                DataflowJobStatus.JOB_STATE_DRAINED,
+                "Google Cloud Dataflow job name-2 was drained\\.",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_BATCH,
+                DataflowJobStatus.JOB_STATE_UPDATED,
+                "Google Cloud Dataflow job name-2 was updated\\.",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_STREAMING,
+                DataflowJobStatus.JOB_STATE_UPDATED,
+                "Google Cloud Dataflow job name-2 was updated\\.",
+            ),
+        ],
+    )
     def test_check_dataflow_job_state_terminal_state(self, job_type, job_state, exception_regex):
         job = {"id": "id-2", "name": "name-2", "type": job_type, "currentState": job_state}
         dataflow_job = _DataflowJobsController(
@@ -1558,13 +1589,14 @@ class TestDataflowJob(unittest.TestCase):
             seconds=10, error_message="Canceling jobs failed due to timeout (10s): test-job-id"
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "drain_pipeline, job_type, requested_state",
         [
             (False, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
             (False, "JOB_TYPE_STREAMING", "JOB_STATE_CANCELLED"),
             (True, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
             (True, "JOB_TYPE_STREAMING", "JOB_STATE_DRAINED"),
-        ]
+        ],
     )
     def test_dataflow_job_cancel_or_drain_job(self, drain_pipeline, job_type, requested_state):
         job = {
@@ -1798,15 +1830,15 @@ navigate to https://console.cloud.google.com/dataflow/jobs/us-central1/{TEST_JOB
 """
 
 
-class TestDataflow(unittest.TestCase):
-    @parameterized.expand(
+class TestDataflow:
+    @pytest.mark.parametrize(
+        "log",
         [
-            (APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG,),
-            (APACHE_BEAM_V_2_22_0_JAVA_SDK_LOG,),
-            (APACHE_BEAM_V_2_14_0_PYTHON_SDK_LOG,),
-            (APACHE_BEAM_V_2_22_0_PYTHON_SDK_LOG,),
+            pytest.param(APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG, id="apache-beam-2.14.0-JDK"),
+            pytest.param(APACHE_BEAM_V_2_22_0_JAVA_SDK_LOG, id="apache-beam-2.22.0-JDK"),
+            pytest.param(APACHE_BEAM_V_2_14_0_PYTHON_SDK_LOG, id="apache-beam-2.14.0-Python"),
+            pytest.param(APACHE_BEAM_V_2_22_0_PYTHON_SDK_LOG, id="apache-beam-2.22.0-Python"),
         ],
-        name_func=lambda func, num, p: f"{func.__name__}_{num}",
     )
     def test_data_flow_valid_job_id(self, log):
         echos = ";".join(f"echo {shlex.quote(line)}" for line in log.split("\n"))
@@ -1820,7 +1852,7 @@ class TestDataflow(unittest.TestCase):
         BeamCommandRunner(
             cmd, process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback)
         ).wait_for_done()
-        self.assertEqual(found_job_id, TEST_JOB_ID)
+        assert found_job_id == TEST_JOB_ID
 
     def test_data_flow_missing_job_id(self):
         cmd = ["echo", "unit testing"]
@@ -1833,8 +1865,7 @@ class TestDataflow(unittest.TestCase):
         BeamCommandRunner(
             cmd, process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback)
         ).wait_for_done()
-
-        self.assertEqual(found_job_id, None)
+        assert found_job_id is None
 
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamCommandRunner.log")
     @mock.patch("subprocess.Popen")
@@ -1859,4 +1890,48 @@ class TestDataflow(unittest.TestCase):
         mock_popen.return_value = mock_proc
         dataflow = BeamCommandRunner(["test", "cmd"])
         mock_logging.info.assert_called_once_with("Running command: %s", "test cmd")
-        self.assertRaises(Exception, dataflow.wait_for_done)
+        with pytest.raises(Exception):
+            dataflow.wait_for_done()
+
+
+@pytest.fixture()
+def make_mock_awaitable():
+    def func(mock_obj, return_value):
+        f = Future()
+        f.set_result(return_value)
+        mock_obj.return_value = f
+
+    return func
+
+
+class TestAsyncHook:
+    @pytest.fixture
+    def hook(self):
+        return AsyncDataflowHook(
+            gcp_conn_id=TEST_PROJECT_ID,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.initialize_client")
+    async def test_get_job(self, initialize_client_mock, hook, make_mock_awaitable):
+        client = initialize_client_mock.return_value
+        make_mock_awaitable(client.get_job, None)
+
+        await hook.get_job(
+            project_id=TEST_PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            location=TEST_LOCATION,
+        )
+        request = GetJobRequest(
+            dict(
+                project_id=TEST_PROJECT_ID,
+                job_id=TEST_JOB_ID,
+                location=TEST_LOCATION,
+                view=JobView.JOB_VIEW_SUMMARY,
+            )
+        )
+
+        initialize_client_mock.assert_called_once()
+        client.get_job.assert_called_once_with(
+            request=request,
+        )

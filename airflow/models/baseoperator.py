@@ -65,6 +65,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_RETRY_DELAY,
     DEFAULT_TASK_EXECUTION_TIMEOUT,
     DEFAULT_TRIGGER_RULE,
+    DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     TaskStateChangeCallback,
@@ -84,6 +85,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
+from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -103,7 +105,7 @@ ScheduleInterval = Union[str, timedelta, relativedelta]
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
 
-T = TypeVar('T', bound=FunctionType)
+T = TypeVar("T", bound=FunctionType)
 
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
@@ -197,6 +199,7 @@ def partial(
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
     ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     wait_for_downstream: bool = False,
     retries: int | None = DEFAULT_RETRIES,
     queue: str = DEFAULT_QUEUE,
@@ -210,10 +213,10 @@ def partial(
     weight_rule: str = DEFAULT_WEIGHT_RULE,
     sla: timedelta | None = None,
     max_active_tis_per_dag: int | None = None,
-    on_execute_callback: TaskStateChangeCallback | None = None,
-    on_failure_callback: TaskStateChangeCallback | None = None,
-    on_success_callback: TaskStateChangeCallback | None = None,
-    on_retry_callback: TaskStateChangeCallback | None = None,
+    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
     run_as_user: str | None = None,
     executor_config: dict | None = None,
     inlets: Any | None = None,
@@ -256,6 +259,7 @@ def partial(
     partial_kwargs.setdefault("trigger_rule", trigger_rule)
     partial_kwargs.setdefault("depends_on_past", depends_on_past)
     partial_kwargs.setdefault("ignore_first_depends_on_past", ignore_first_depends_on_past)
+    partial_kwargs.setdefault("wait_for_past_depends_before_skipping", wait_for_past_depends_before_skipping)
     partial_kwargs.setdefault("wait_for_downstream", wait_for_downstream)
     partial_kwargs.setdefault("retries", retries)
     partial_kwargs.setdefault("queue", queue)
@@ -332,7 +336,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         non_variadic_params = {
             name: param
             for (name, param) in sig_cache.parameters.items()
-            if param.name != 'self' and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+            if param.name != "self" and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
         }
         non_optional_args = {
             name
@@ -340,25 +344,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             if param.default == param.empty and name != "task_id"
         }
 
-        class autostacklevel_warn:
-            def __init__(self):
-                self.warnings = __import__('warnings')
-
-            def __getattr__(self, name):
-                return getattr(self.warnings, name)
-
-            def __dir__(self):
-                return dir(self.warnings)
-
-            def warn(self, message, category=None, stacklevel=1, source=None):
-                self.warnings.warn(message, category, stacklevel + 2, source)
-
-        if func.__globals__.get('warnings') is sys.modules['warnings']:
-            # Yes, this is slightly hacky, but it _automatically_ sets the right
-            # stacklevel parameter to `warnings.warn` to ignore the decorator. Now
-            # that the decorator is applied automatically, this makes the needed
-            # stacklevel parameter less confusing.
-            func.__globals__['warnings'] = autostacklevel_warn()
+        fixup_decorator_warning_stack(func)
 
         @functools.wraps(func)
         def apply_defaults(self: BaseOperator, *args: Any, **kwargs: Any) -> Any:
@@ -373,8 +359,8 @@ class BaseOperatorMeta(abc.ABCMeta):
                 getattr(self, "_BaseOperator__from_mapped", False),
             )
 
-            dag: DAG | None = kwargs.get('dag') or DagContext.get_current_dag()
-            task_group: TaskGroup | None = kwargs.get('task_group')
+            dag: DAG | None = kwargs.get("dag") or DagContext.get_current_dag()
+            task_group: TaskGroup | None = kwargs.get("task_group")
             if dag and not task_group:
                 task_group = TaskGroupContext.get_current_task_group(dag)
 
@@ -399,12 +385,12 @@ class BaseOperatorMeta(abc.ABCMeta):
             if merged_params:
                 kwargs["params"] = merged_params
 
-            hook = getattr(self, '_hook_apply_defaults', None)
+            hook = getattr(self, "_hook_apply_defaults", None)
             if hook:
                 args, kwargs = hook(**kwargs, default_args=default_args)
-                default_args = kwargs.pop('default_args', {})
+                default_args = kwargs.pop("default_args", {})
 
-            if not hasattr(self, '_BaseOperator__init_kwargs'):
+            if not hasattr(self, "_BaseOperator__init_kwargs"):
                 self._BaseOperator__init_kwargs = {}
             self._BaseOperator__from_mapped = instantiated_from_mapped
 
@@ -430,8 +416,8 @@ class BaseOperatorMeta(abc.ABCMeta):
     def __new__(cls, name, bases, namespace, **kwargs):
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
-            # Update the partial descriptor with the class method so it call call the actual function (but let
-            # subclasses override it if they need to)
+            # Update the partial descriptor with the class method, so it calls the actual function
+            # (but let subclasses override it if they need to)
             partial_desc = vars(new_cls)["partial"]
             if isinstance(partial_desc, _PartialDescriptor):
                 partial_desc.class_method = classmethod(partial)
@@ -465,7 +451,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         (e.g. user/person/team/role name) to clarify ownership is recommended.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
-        comma or semi-colon separated string or by passing a list of strings.
+        comma or semicolon separated string or by passing a list of strings.
     :param email_on_retry: Indicates whether email alerts should be sent when a
         task is retried
     :param email_on_failure: Indicates whether email alerts should be sent when
@@ -500,6 +486,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param depends_on_past: when set to true, task instances will run
         sequentially and only if the previous instance has succeeded or has been skipped.
         The task instance for the start_date is allowed to run.
+    :param wait_for_past_depends_before_skipping: when set to true, if the task instance
+        should be marked as skipped, and depends_on_past is true, the ti will stay on None state
+        waiting the task of the previous run
     :param wait_for_downstream: when set to true, an instance of task
         X will wait for tasks immediately downstream of the previous instance
         of task X to finish successfully or be skipped before it runs. This is useful if the
@@ -555,7 +544,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         notification are sent once and only once for each task instance.
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
-    :param on_failure_callback: a function to be called when a task instance
+    :param on_failure_callback: a function or list of functions to be called when a task instance
         of this task fails. a context dictionary is passed as a single
         parameter to this function. Context contains references to related
         objects to the task instance and is documented under the macros
@@ -625,17 +614,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     template_fields_renderers: dict[str, str] = {}
 
     # Defines the color in the UI
-    ui_color: str = '#fff'
-    ui_fgcolor: str = '#000'
+    ui_color: str = "#fff"
+    ui_fgcolor: str = "#000"
 
     pool: str = ""
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: tuple[str, ...] = (
-        'user_defined_macros',
-        'user_defined_filters',
-        'params',
-        '_log',
+        "user_defined_macros",
+        "user_defined_filters",
+        "params",
+        "_log",
     )
 
     # each operator should override this class attr for shallow copy attrs.
@@ -650,26 +639,26 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
 
     _comps = {
-        'task_id',
-        'dag_id',
-        'owner',
-        'email',
-        'email_on_retry',
-        'retry_delay',
-        'retry_exponential_backoff',
-        'max_retry_delay',
-        'start_date',
-        'end_date',
-        'depends_on_past',
-        'wait_for_downstream',
-        'priority_weight',
-        'sla',
-        'execution_timeout',
-        'on_execute_callback',
-        'on_failure_callback',
-        'on_success_callback',
-        'on_retry_callback',
-        'do_xcom_push',
+        "task_id",
+        "dag_id",
+        "owner",
+        "email",
+        "email_on_retry",
+        "retry_delay",
+        "retry_exponential_backoff",
+        "max_retry_delay",
+        "start_date",
+        "end_date",
+        "depends_on_past",
+        "wait_for_downstream",
+        "priority_weight",
+        "sla",
+        "execution_timeout",
+        "on_execute_callback",
+        "on_failure_callback",
+        "on_success_callback",
+        "on_retry_callback",
+        "do_xcom_push",
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -702,8 +691,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_id: str,
         owner: str = DEFAULT_OWNER,
         email: str | Iterable[str] | None = None,
-        email_on_retry: bool = conf.getboolean('email', 'default_email_on_retry', fallback=True),
-        email_on_failure: bool = conf.getboolean('email', 'default_email_on_failure', fallback=True),
+        email_on_retry: bool = conf.getboolean("email", "default_email_on_retry", fallback=True),
+        email_on_failure: bool = conf.getboolean("email", "default_email_on_failure", fallback=True),
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: bool = False,
@@ -712,6 +701,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         end_date: datetime | None = None,
         depends_on_past: bool = False,
         ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+        wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
         dag: DAG | None = None,
         params: dict | None = None,
@@ -723,10 +713,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
-        on_execute_callback: TaskStateChangeCallback | None = None,
-        on_failure_callback: TaskStateChangeCallback | None = None,
-        on_success_callback: TaskStateChangeCallback | None = None,
-        on_retry_callback: TaskStateChangeCallback | None = None,
+        on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         pre_execute: TaskPreExecuteHook | None = None,
         post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
@@ -755,15 +745,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         kwargs.pop("_airflow_mapped_validation_only", None)
         if kwargs:
-            if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
+            if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
                 raise AirflowException(
                     f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
                     f"Invalid arguments were:\n**kwargs: {kwargs}",
                 )
             warnings.warn(
-                f'Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). '
-                'Support for passing such arguments will be dropped in future. '
-                f'Invalid arguments were:\n**kwargs: {kwargs}',
+                f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
+                "Support for passing such arguments will be dropped in future. "
+                f"Invalid arguments were:\n**kwargs: {kwargs}",
                 category=RemovedInAirflow3Warning,
                 stacklevel=3,
             )
@@ -783,7 +773,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if execution_timeout is not None and not isinstance(execution_timeout, timedelta):
             raise ValueError(
-                f'execution_timeout must be timedelta object but passed as type: {type(execution_timeout)}'
+                f"execution_timeout must be timedelta object but passed as type: {type(execution_timeout)}"
             )
         self.execution_timeout = execution_timeout
 
@@ -839,6 +829,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
+        self.wait_for_past_depends_before_skipping: bool = wait_for_past_depends_before_skipping
         self.wait_for_downstream: bool = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
@@ -949,7 +940,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __or__(self, other):
         """
         Called for [This Operator] | [Operator], The inlets of other
-        will be set to pickup the outlets from this operator. Other will
+        will be set to pick up the outlets from this operator. Other will
         be set as a downstream task of this operator.
         """
         if isinstance(other, BaseOperator):
@@ -1032,7 +1023,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if self._dag:
             return self._dag
         else:
-            raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
+            raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
 
     @dag.setter
     def dag(self, dag: DAG | None):
@@ -1046,7 +1037,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self._dag = None
             return
         if not isinstance(dag, DAG):
-            raise TypeError(f'Expected DAG; received {dag.__class__.__name__}')
+            raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(f"The DAG assigned to {self} can not be changed.")
 
@@ -1141,9 +1132,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def on_kill(self) -> None:
         """
-        Override this method to cleanup subprocesses when a task instance
+        Override this method to clean up subprocesses when a task instance
         gets killed. Any use of the threading, subprocess or multiprocessing
-        module within an operator needs to be cleaned up or it will leave
+        module within an operator needs to be cleaned up, or it will leave
         ghost processes behind.
         """
 
@@ -1171,7 +1162,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        del state['_log']
+        del state["_log"]
 
         return state
 
@@ -1189,7 +1180,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This mutates the attributes in-place and is irreversible.
 
         :param context: Context dict with values to apply on content.
-        :param jinja_env: Jinja environment to use for rendering.
+        :param jinja_env: Jinja's environment to use for rendering.
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
@@ -1258,6 +1249,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         ignore_first_depends_on_past: bool = True,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
@@ -1304,6 +1296,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             ti.run(
                 mark_success=mark_success,
                 ignore_depends_on_past=ignore_depends_on_past,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_ti_state=ignore_ti_state,
                 test_mode=test_mode,
                 session=session,
@@ -1311,7 +1304,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def dry_run(self) -> None:
         """Performs dry run for the operator - just render template fields."""
-        self.log.info('Dry run')
+        self.log.info("Dry run")
         for field in self.template_fields:
             try:
                 content = getattr(self, field)
@@ -1322,7 +1315,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 )
 
             if content and isinstance(content, str):
-                self.log.info('Rendering template for %s', field)
+                self.log.info("Rendering template for %s", field)
                 self.log.info(content)
 
     def get_direct_relatives(self, upstream: bool = False) -> Iterable[DAGNode]:
@@ -1390,7 +1383,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             this date. This can be used, for example, to send a message to a
             task on a future date without it being immediately visible.
         """
-        context['ti'].xcom_push(key=key, value=value, execution_date=execution_date)
+        context["ti"].xcom_push(key=key, value=value, execution_date=execution_date)
 
     @staticmethod
     def xcom_pull(
@@ -1426,7 +1419,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             execution_date are returned. If True, XComs from previous dates
             are returned as well.
         """
-        return context['ti'].xcom_pull(
+        return context["ti"].xcom_pull(
             key=key, task_ids=task_ids, dag_id=dag_id, include_prior_dates=include_prior_dates
         )
 
@@ -1442,29 +1435,29 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # Exception in SerializedDAG.serialize_dag() call.
             DagContext.push_context_managed_dag(None)
             cls.__serialized_fields = frozenset(
-                vars(BaseOperator(task_id='test')).keys()
+                vars(BaseOperator(task_id="test")).keys()
                 - {
-                    'upstream_task_ids',
-                    'default_args',
-                    'dag',
-                    '_dag',
-                    'label',
-                    '_BaseOperator__instantiated',
-                    '_BaseOperator__init_kwargs',
-                    '_BaseOperator__from_mapped',
+                    "upstream_task_ids",
+                    "default_args",
+                    "dag",
+                    "_dag",
+                    "label",
+                    "_BaseOperator__instantiated",
+                    "_BaseOperator__init_kwargs",
+                    "_BaseOperator__from_mapped",
                 }
                 | {  # Class level defaults need to be added to this list
-                    'start_date',
-                    'end_date',
-                    '_task_type',
-                    '_operator_name',
-                    'subdag',
-                    'ui_color',
-                    'ui_fgcolor',
-                    'template_ext',
-                    'template_fields',
-                    'template_fields_renderers',
-                    'params',
+                    "start_date",
+                    "end_date",
+                    "_task_type",
+                    "_operator_name",
+                    "subdag",
+                    "ui_color",
+                    "ui_fgcolor",
+                    "template_ext",
+                    "template_fields",
+                    "template_fields_renderers",
+                    "params",
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1475,15 +1468,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    is_mapped: ClassVar[bool] = False
-
     @property
     def inherits_from_empty_operator(self):
         """Used to determine if an Operator is inherited from EmptyOperator"""
         # This looks like `isinstance(self, EmptyOperator) would work, but this also
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
-        # of its sub-classes (which don't inherit from anything but BaseOperator).
-        return getattr(self, '_is_empty', False)
+        # of its subclasses (which don't inherit from anything but BaseOperator).
+        return getattr(self, "_is_empty", False)
 
     def defer(
         self,
@@ -1582,12 +1573,12 @@ def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
 
     .. code-block:: python
 
-        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, t2())
+        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, x3())
 
     is equivalent to::
 
           / "branch one" -> x1 \
-        t1                      -> t2 -> x3
+        t1                      -> task_group1 -> x3
           \ "branch two" -> x2 /
 
     .. code-block:: python
@@ -1628,13 +1619,13 @@ def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
-            raise TypeError(f'Chain not supported between instances of {type(up_task)} and {type(down_task)}')
+            raise TypeError(f"Chain not supported between instances of {type(up_task)} and {type(down_task)}")
         up_task_list = up_task
         down_task_list = down_task
         if len(up_task_list) != len(down_task_list):
             raise AirflowException(
-                f'Chain not supported for different length Iterable. '
-                f'Got {len(up_task_list)} and {len(down_task_list)}.'
+                f"Chain not supported for different length Iterable. "
+                f"Got {len(up_task_list)} and {len(down_task_list)}."
             )
         for up_t, down_t in zip(up_task_list, down_task_list):
             up_t.set_downstream(down_t)

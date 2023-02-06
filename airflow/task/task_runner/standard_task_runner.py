@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Standard task runner"""
+"""Standard task runner."""
 from __future__ import annotations
 
 import logging
@@ -24,6 +24,7 @@ import os
 import psutil
 from setproctitle import setproctitle
 
+from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
@@ -79,8 +80,8 @@ class StandardTaskRunner(BaseTaskRunner):
             # We prefer the job_id passed on the command-line because at this time, the
             # task instance may not have been updated.
             job_id = getattr(args, "job_id", self._task_instance.job_id)
-            self.log.info('Running: %s', self._command)
-            self.log.info('Job %s: Subtask %s', job_id, self._task_instance.task_id)
+            self.log.info("Running: %s", self._command)
+            self.log.info("Job %s: Subtask %s", job_id, self._task_instance.task_id)
 
             proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
             if job_id is not None:
@@ -92,8 +93,10 @@ class StandardTaskRunner(BaseTaskRunner):
                     dag_id=self._task_instance.dag_id,
                     task_id=self._task_instance.task_id,
                 ):
-                    args.func(args, dag=self.dag)
+                    ret = args.func(args, dag=self.dag)
                     return_code = 0
+                    if isinstance(ret, TaskReturnCode):
+                        return_code = ret.value
             except Exception as exc:
                 return_code = 1
 
@@ -166,6 +169,6 @@ class StandardTaskRunner(BaseTaskRunner):
             # If either we or psutil gives out a -9 return code, it likely means
             # an OOM happened
             self.log.error(
-                'Job %s was killed before it finished (likely due to running out of memory)',
+                "Job %s was killed before it finished (likely due to running out of memory)",
                 self._task_instance.job_id,
             )

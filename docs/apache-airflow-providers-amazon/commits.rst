@@ -28,14 +28,142 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.1.0
+.....
+
+Latest change: 2023-01-13
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`923bcd2865 <https://github.com/apache/airflow/commit/923bcd28656b0a1af52305ccb8e18329ff9d70e3>`_  2023-01-13   ``new operator to create a sagemaker experiment (#28837)``
+`3e4e5b1fdb <https://github.com/apache/airflow/commit/3e4e5b1fdba5e98ddafc89d47a92a5bbfa41ebe7>`_  2023-01-13   ``Add ''configuration_overrides'' to templated fields (#28920)``
+`9a643363e9 <https://github.com/apache/airflow/commit/9a643363e982b7c37d3c7f9015cd7869bc2935c2>`_  2023-01-12   ``Avoid circular import from S3HookUriParseFailure (#28908)``
+`ce858a5d71 <https://github.com/apache/airflow/commit/ce858a5d719fb1dff85ad7e4747f0777404d1f56>`_  2023-01-12   ``Switch to ruff for faster static checks (#28893)``
+`870ecd477a <https://github.com/apache/airflow/commit/870ecd477af3774546bd82bb71921a03914a2b64>`_  2023-01-11   ``Add a new SSM hook and use it in the System Test context builder (#28755)``
+`3baa40d72c <https://github.com/apache/airflow/commit/3baa40d72cf97e1c2770c6c2dd5a0b7c82f96c30>`_  2023-01-10   ``Use compat for cached_property in AWS Batch modules (#28835)``
+`3eee33ac8c <https://github.com/apache/airflow/commit/3eee33ac8cb74cfbb08bce9090e9c601cf98da44>`_  2023-01-06   ``Apply "unify bucket and key" before "provide bucket" (#28710)``
+`3a7cb66784 <https://github.com/apache/airflow/commit/3a7cb66784894b414a4c8d6e5020030fe90d8384>`_  2023-01-06   ``Update S3ToRedshiftOperator docs to inform users about multiple key functionality (#28705)``
+`a9493c1317 <https://github.com/apache/airflow/commit/a9493c13173f6108c02c42d2f4f60b82b5ccc71a>`_  2023-01-06   ``Add waiter config params to emr.add_job_flow_steps (#28464)``
+`ce188e5093 <https://github.com/apache/airflow/commit/ce188e509389737b3c0bdc282abea2425281c2b7>`_  2023-01-05   ``Refactor waiter function and improve unit tests (#28753)``
+`e8533d295e <https://github.com/apache/airflow/commit/e8533d295e6d25296e23d8e1b8c07a441df55964>`_  2023-01-05   ``Add AWS Sagemaker Auto ML operator and sensor (#28472)``
+`8c5ee5e3c1 <https://github.com/apache/airflow/commit/8c5ee5e3c10f24f4d9700dbb43480e836bc9984a>`_  2023-01-04   ``Better exception raised in case of numpy missing (#28722)``
+`9ab9c18d68 <https://github.com/apache/airflow/commit/9ab9c18d687b61a8b86bde2767369697288d8082>`_  2023-01-04   ``Don't call get_connection from provide_bucket_name (#28716)``
+=================================================================================================  ===========  ==============================================================================================
+
+7.0.0
+.....
+
+Latest change: 2023-01-02
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`3ce7cbbda1 <https://github.com/apache/airflow/commit/3ce7cbbda178799c6a07bed9ca695957affdff98>`_  2022-12-30   ``add description of breaking changes (#28582)``
+`297aa7480e <https://github.com/apache/airflow/commit/297aa7480e1ffd9bf1be1b89aea29b7e721cd64d>`_  2022-12-23   ``Add execution role parameter to AddStepsOperator (#28484)``
+`38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
+`d9ae90fc64 <https://github.com/apache/airflow/commit/d9ae90fc6478133767e29774920ed797175146bc>`_  2022-12-21   ``Make pandas dependency optional for Amazon Provider (#28505)``
+`39abd5e065 <https://github.com/apache/airflow/commit/39abd5e0652159607dcb9aed516d73131ce69d33>`_  2022-12-21   ``Add AWS SageMaker operator to register a model's version (#28024)``
+`fefcb1d567 <https://github.com/apache/airflow/commit/fefcb1d567d8d605f7ec9b7d408831d656736541>`_  2022-12-20   ``Add link for EMR Steps Sensor logs (#28180)``
+`e377e869da <https://github.com/apache/airflow/commit/e377e869da9f0e42ac1e0a615347cf7cd6565d54>`_  2022-12-19   ``Fix EmrAddStepsOperature wait_for_completion parameter is not working (#28052)``
+`21f0600f69 <https://github.com/apache/airflow/commit/21f0600f698e9763b6bceb27245bb5639a5d3a86>`_  2022-12-18   ``Correctly template Glue Jobs 'create_job_kwargs' arg (#28403)``
+`8e0df8881f <https://github.com/apache/airflow/commit/8e0df8881f22dd5c4c0ea71e7a9cd35b32889f47>`_  2022-12-17   ``Add Amazon Elastic Container Registry (ECR) Hook (#28279)``
+`29f574301a <https://github.com/apache/airflow/commit/29f574301aebc8752490ca4612b83a58215226a1>`_  2022-12-15   ``Add EMR Notebook operators (#28312)``
+`381160c0f6 <https://github.com/apache/airflow/commit/381160c0f63a15957a631da9db875f98bb8e9d64>`_  2022-12-14   ``Fix template rendered bucket_key in S3KeySensor (#28340)``
+`9d9b15989a <https://github.com/apache/airflow/commit/9d9b15989a02042a9041ff86bc7e304bb06caa15>`_  2022-12-14   ``Create 'LambdaCreateFunctionOperator' and sensor (#28241)``
+`27569a8b37 <https://github.com/apache/airflow/commit/27569a8b374a2f7a019f1f08b18a33be84d61693>`_  2022-12-13   ``Better support for Boto Waiters (#28236)``
+`fb5182bb2f <https://github.com/apache/airflow/commit/fb5182bb2f749119f471c3da35179afd3a584775>`_  2022-12-12   ``Fix S3KeySensor documentation (#28297)``
+`1eaedc8ae8 <https://github.com/apache/airflow/commit/1eaedc8ae85dbbfaaa402f9936304be51de98f88>`_  2022-12-08   ``Improve docstrings for 'AwsLambdaInvokeFunctionOperator' (#28233)``
+`a6315c2f4e <https://github.com/apache/airflow/commit/a6315c2f4ed68c822d0109f9609c1518e0bde94e>`_  2022-12-08   ``Amazon Provider Package user agent (#27823)``
+`0d90c62bac <https://github.com/apache/airflow/commit/0d90c62bac49de9aef6a31ee3e62d02e458b0d33>`_  2022-12-06   ``Fix Type Error while using DynamoDBToS3Operator (#28158)``
+`b609ab9001 <https://github.com/apache/airflow/commit/b609ab9001102b67a047b3078dc0b67fbafcc1e1>`_  2022-12-06   ``AWSGlueJobHook updates job configuration if it exists (#27893)``
+`3ee5c404b7 <https://github.com/apache/airflow/commit/3ee5c404b7a0284fc1f3474519b3833975aaa644>`_  2022-12-06   ``Fix GlueCrawlerOperature failure when using tags (#28005)``
+`0da004838f <https://github.com/apache/airflow/commit/0da004838ffdd3b74bc28837135d845f568ab2a1>`_  2022-12-06   ``Allow waiter to be configured via EmrServerless Operators (#27784)``
+`0ef8d934f2 <https://github.com/apache/airflow/commit/0ef8d934f2a62606090483dc72a9dd66e8348a0e>`_  2022-12-06   ``Add operators + sensor for aws sagemaker pipelines (#27786)``
+`7398853c86 <https://github.com/apache/airflow/commit/7398853c86f4972b0b7139a905e52d6ecc62fdec>`_  2022-12-06   ``Update RdsHook docstrings to match correct argument names (#28108)``
+`8f0265d0d9 <https://github.com/apache/airflow/commit/8f0265d0d9079a8abbd7b895ada418908d8b9909>`_  2022-12-05   ``AWS Secrets Manager Backend - major update (#27920)``
+`8cf6dca36b <https://github.com/apache/airflow/commit/8cf6dca36b0cfc16763cb1d4c96ab04d1fe5ec14>`_  2022-12-05   ``add some important log in aws athena hook (#27917)``
+`4a3a429658 <https://github.com/apache/airflow/commit/4a3a42965801823c39baaccfa96c5e4cffae4012>`_  2022-12-03   ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+`527b948856 <https://github.com/apache/airflow/commit/527b948856584320f74d385f58477af79506834d>`_  2022-12-03   ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+`0cd969c9c1 <https://github.com/apache/airflow/commit/0cd969c9c14179b7e79d34b61d7a43f2bfbdd93e>`_  2022-12-02   ``Lambda hook: make runtime and handler optional (#27778)``
+=================================================================================================  ===========  ===================================================================================
+
+6.2.0
+.....
+
+Latest change: 2022-11-26
+
+=================================================================================================  ===========  ===================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
+`2ab5c1fdf0 <https://github.com/apache/airflow/commit/2ab5c1fdf045f928148931ffddff094374e57173>`_  2022-11-26   ``Add retry option in RedshiftDeleteClusterOperator to retry when an operation is running in the cluster (#27820)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`336e065e6a <https://github.com/apache/airflow/commit/336e065e6ae497689ea8e198032257fcd7b44e4f>`_  2022-11-23   ``Correct job name matching in SagemakerProcessingOperator (#27634)``
+`239440df23 <https://github.com/apache/airflow/commit/239440df23210355dc02f71b6c5aea7734651055>`_  2022-11-17   ``System Test for EMR (AIP-47) (#27286)``
+`2bba98f109 <https://github.com/apache/airflow/commit/2bba98f109cc7737f4293a195e03a0cc21a624cb>`_  2022-11-17   ``Use Boto waiters instead of customer _await_status method for RDS Operators (#27410)``
+`2063e141e4 <https://github.com/apache/airflow/commit/2063e141e445d2567149154cdf90955a941e45b4>`_  2022-11-17   ``Handle transient state errors in 'RedshiftResumeClusterOperator' and 'RedshiftPauseClusterOperator' (#27276)``
+=================================================================================================  ===========  ===================================================================================================================
+
+6.1.0
+.....
+
+Latest change: 2022-11-15
+
+=================================================================================================  ===========  =============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
+`00af5c007e <https://github.com/apache/airflow/commit/00af5c007ef2200401b53c40236e664758e47f27>`_  2022-11-14   ``Replace urlparse with urlsplit (#27389)``
+`0a059eea67 <https://github.com/apache/airflow/commit/0a059eea6721cc8c8f33e288003dd4f9559774ae>`_  2022-11-11   ``sagemaker operators: mutualize init of aws_conn_id (#27579)``
+`c490a328f4 <https://github.com/apache/airflow/commit/c490a328f4d0073052d8b5205c7c4cab96c3d559>`_  2022-11-11   ``CloudWatch task handler doesn't fall back to local logs when Amazon CloudWatch logs aren't found (#27564)``
+`9f9ab30218 <https://github.com/apache/airflow/commit/9f9ab3021800b5cebbf9c7190716ab753a020dbe>`_  2022-11-11   ``SagemakerProcessingOperator stopped honoring 'existing_jobs_found' (#27456)``
+`f919abc918 <https://github.com/apache/airflow/commit/f919abc9183424ccb1c5a83a0cfa055c73845b6d>`_  2022-11-10   ``Fix backwards compatibility for RedshiftSQLOperator (#27602)``
+`a5c0aeb566 <https://github.com/apache/airflow/commit/a5c0aeb5668625fe2fdf236a742cb9dc81d2a746>`_  2022-11-10   ``Add info about JSON Connection format for AWS SSM Parameter Store Secrets Backend (#27134)``
+`2ef15c5da0 <https://github.com/apache/airflow/commit/2ef15c5da0261a8b519913db4a0d0c3773a91e96>`_  2022-11-10   ``Add default name to EMR Serverless jobs (#27458)``
+`4dc9b1c592 <https://github.com/apache/airflow/commit/4dc9b1c592497686dada05e45147b1364ec338ea>`_  2022-11-08   ``Sagemaker hook: remove extra call at the end when waiting for completion (#27551)``
+`d479b99388 <https://github.com/apache/airflow/commit/d479b9938884eaeb23f230ad11371243b40eb84e>`_  2022-11-07   ``Fix typo in redshift sql hook get_ui_field_behaviour (#27533)``
+`5cd78cf425 <https://github.com/apache/airflow/commit/5cd78cf425f6fedc380662ec9a9e37be51403ccb>`_  2022-11-06   ``Upgrade dependencies in order to avoid backtracking (#27531)``
+`531f2d2116 <https://github.com/apache/airflow/commit/531f2d211658e13583189b65470d164af81bc40a>`_  2022-11-04   ``Code quality improvements on sagemaker operators/hook (#27453)``
+`1bbd8fe3ef <https://github.com/apache/airflow/commit/1bbd8fe3ef4ca0362f033c99016f857329870dd1>`_  2022-10-28   ``Fix example_emr_serverless system test (#27149)``
+`9e2eac3b6c <https://github.com/apache/airflow/commit/9e2eac3b6ce351d0fa9973fddf8bf6fd3918fb08>`_  2022-10-28   ``Fix param in docstring RedshiftSQLHook get_table_primary_key method (#27330)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`6b2dc6f2cc <https://github.com/apache/airflow/commit/6b2dc6f2ccb8abeccd4decebbbbaeec0fb326116>`_  2022-10-27   ``System test for SQL to S3 Transfer (AIP-47) (#27097)``
+`777b57f0c6 <https://github.com/apache/airflow/commit/777b57f0c6a8ca16df2b96fd17c26eab56b3f268>`_  2022-10-26   ``Adding 'preserve_file_name' param to 'S3Hook.download_file' method (#26886)``
+`6a1a6f7bef <https://github.com/apache/airflow/commit/6a1a6f7befed1be95d84a6db64fb96eef63d02ac>`_  2022-10-26   ``Adds s3_key_prefix to template fields (#27207)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`737e50a02a <https://github.com/apache/airflow/commit/737e50a02a7031bf0123e57496a55e477cb61b8c>`_  2022-10-21   ``Fix assume role if user explicit set credentials (#26946)``
+`0e8dcdc4ff <https://github.com/apache/airflow/commit/0e8dcdc4ffbc33da5bc6864fdb16d2d01bdfdcaf>`_  2022-10-21   ``Add GlacierUploadArchiveOperator (#26652)``
+`a2413cf6ca <https://github.com/apache/airflow/commit/a2413cf6ca8b93e491a48af11d769cd13bce8884>`_  2022-10-19   ``Add RdsStopDbOperator and RdsStartDbOperator (#27076)``
+`d4bfccb3c9 <https://github.com/apache/airflow/commit/d4bfccb3c90d889863bb1d1500ad3158fc833aae>`_  2022-10-19   ``ECS Buglette (#26921)``
+`9fed22fc99 <https://github.com/apache/airflow/commit/9fed22fc99a3a959dab1acde51d87a996f3b6049>`_  2022-10-18   ``'GoogleApiToS3Operator' : add 'gcp_conn_id' to template fields (#27017)``
+`ecd4d6654f <https://github.com/apache/airflow/commit/ecd4d6654ff8e0da4a7b8f29fd23c37c9c219076>`_  2022-10-18   ``Add SQLExecuteQueryOperator (#25717)``
+`f8d7290178 <https://github.com/apache/airflow/commit/f8d7290178dba6b96ba0ec2cc28a5c4289902229>`_  2022-10-10   ``Improve testing AWS Connection response (#26953)``
+`66294de4e0 <https://github.com/apache/airflow/commit/66294de4e081e1c65731296c66824ae847bdca7d>`_  2022-10-10   ``Fix failure state in waiter call for EmrServerlessStartJobOperator. (#26853)``
+`62d5bab3b4 <https://github.com/apache/airflow/commit/62d5bab3b4cdb423c668b0f2e29d5c52b8ca0ca4>`_  2022-10-10   ``Convert emr_eks example dag to system test (#26723)``
+`e68c8b9d52 <https://github.com/apache/airflow/commit/e68c8b9d52399ed1470b2d54e6dd13f3380a7788>`_  2022-10-10   ``System test for Dynamo DB (#26729)``
+`f17abcc931 <https://github.com/apache/airflow/commit/f17abcc931382b8f3d3b777359b3d92f019fda38>`_  2022-10-09   ``ECS System Test (#26808)``
+`db02c29789 <https://github.com/apache/airflow/commit/db02c29789e82af674701c676531ee5343bf5e5f>`_  2022-10-09   ``RDS Instance System Tests (#26733)``
+`6dd4593829 <https://github.com/apache/airflow/commit/6dd4593829ffbd71b0f6c261233787caa5973178>`_  2022-10-07   ``Fix a bunch of deprecation warnings AWS tests (#26857)``
+`8a1bbcfcb3 <https://github.com/apache/airflow/commit/8a1bbcfcb31c1adf5c0ea2dff03b507f584ad1f3>`_  2022-10-06   ``Avoid circular imports in AWS Secrets Backends if obtain secrets from config (#26784)``
+`f3ad164aef <https://github.com/apache/airflow/commit/f3ad164aefb4915ce8c7725a43ddbcd61c830aa5>`_  2022-10-01   ``Add information about Amazon Elastic MapReduce Connection (#26687)``
+`9c59312fbc <https://github.com/apache/airflow/commit/9c59312fbcf113d56ee0a61e018dfd7cef725af7>`_  2022-10-01   ``Fix null strings bug in SqlToS3Operator in non parquet formats (#26676)``
+`677df10254 <https://github.com/apache/airflow/commit/677df102542ab85aab4efbbceb6318a3c7965e2b>`_  2022-09-30   ``Add BatchOperator template fields (#26805)``
+=================================================================================================  ===========  =============================================================================================================
+
 6.0.0
 .....
 
-Latest change: 2022-09-27
+Latest change: 2022-09-28
 
 =================================================================================================  ===========  ===========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================
+`ec1615b589 <https://github.com/apache/airflow/commit/ec1615b589d60416cac449bea5fa777a5eda4757>`_  2022-09-28   ``Fix errors in CHANGELOGS for slack and amazon (#26746)``
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `4970bccfa6 <https://github.com/apache/airflow/commit/4970bccfa6a0e4748061d3d1a6b25805d648f299>`_  2022-09-27   ``Change links to 'boto3' documentation (#26708)``
 `89e44c46ad <https://github.com/apache/airflow/commit/89e44c46add19b37e82d0769ce08d57885732856>`_  2022-09-27   ``Remove duplicated connection-type within the provider (#26628)``
 `9b232846b3 <https://github.com/apache/airflow/commit/9b232846b3aef2f5819e467e4cc582aa44883460>`_  2022-09-26   ``Redshift to S3 and S3 to Redshift System test (AIP-47) (#26613)``

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
 from airflow.models import Connection
@@ -33,7 +32,7 @@ TEST_PUB_KEY = "root:NAME AYZ root"
 TEST_PUB_KEY2 = "root:NAME MNJ root"
 
 
-class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
+class TestComputeEngineHookWithPassedProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")

@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/asana>
-    Operators <operators/asana>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1
@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-asana/2.0.0/tests/system/providers/asana/example_asana.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-asana/|version|/tests/system/providers/asana/example_asana.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-asana/>
     Installing from sources <installing-providers-from-sources>
 
@@ -65,7 +65,7 @@ Package apache-airflow-providers-asana
 `Asana <https://app.asana.com/>`__
 
 
-Release: 2.0.1
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -86,7 +86,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.3.0``
 ``asana``           ``>=0.10``
 ==================  ==================
 

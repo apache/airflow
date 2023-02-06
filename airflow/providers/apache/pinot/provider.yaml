@@ -22,6 +22,8 @@ description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 
 versions:
+  - 4.0.1
+  - 4.0.0
   - 3.2.1
   - 3.2.0
   - 3.1.0
@@ -36,7 +38,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
-  - apache-airflow-providers-common-sql>=1.2.0
+  - apache-airflow-providers-common-sql>=1.3.1
   - pinotdb>0.4.7
 
 integrations:
@@ -44,8 +46,14 @@ integrations:
     external-doc-url: https://pinot.apache.org/
     logo: /integration-logos/apache/pinot.png
     tags: [apache]
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-pinot/operators.rst
 
 hooks:
   - integration-name: Apache Pinot
     python-modules:
       - airflow.providers.apache.pinot.hooks.pinot
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.pinot.hooks.pinot.PinotHook
+    connection-type: pinot

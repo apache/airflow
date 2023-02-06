@@ -181,6 +181,22 @@ class TestCreateUserJob:
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "myvolume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+        assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -194,6 +210,36 @@ class TestCreateUserJob:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
+
+    def test_should_enable_custom_env(self):
+        docs = render_chart(
+            values={
+                "env": [
+                    {"name": "foo", "value": "bar"},
+                ],
+                "extraEnv": "- name: extraFoo\n  value: extraBar\n",
+                "createUserJob": {"applyCustomEnv": True},
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        envs = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {"name": "foo", "value": "bar"} in envs
+        assert {"name": "extraFoo", "value": "extraBar"} in envs
+
+    def test_should_disable_custom_env(self):
+        docs = render_chart(
+            values={
+                "env": [
+                    {"name": "foo", "value": "bar"},
+                ],
+                "extraEnv": "- name: extraFoo\n  value: extraBar\n",
+                "createUserJob": {"applyCustomEnv": False},
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        envs = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {"name": "foo", "value": "bar"} not in envs
+        assert {"name": "extraFoo", "value": "extraBar"} not in envs
 
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",
@@ -288,6 +334,25 @@ class TestCreateUserJob:
             "-p",
             "whereisjane?",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": None}, show_only=["templates/jobs/create-user-job.yaml"]
+        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
 
 class TestCreateUserJobServiceAccount:

@@ -26,6 +26,7 @@ from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Session, reconstructor, synonym
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
@@ -48,7 +49,7 @@ class Variable(Base, LoggingMixin):
 
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
-    _val = Column('val', Text().with_variant(MEDIUMTEXT, 'mysql'))
+    _val = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
     description = Column(Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
 
@@ -65,7 +66,7 @@ class Variable(Base, LoggingMixin):
 
     def __repr__(self):
         # Hiding the value
-        return f'{self.key} : {self._val}'
+        return f"{self.key} : {self._val}"
 
     def get_val(self):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
@@ -74,7 +75,7 @@ class Variable(Base, LoggingMixin):
         if self._val is not None and self.is_encrypted:
             try:
                 fernet = get_fernet()
-                return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
+                return fernet.decrypt(bytes(self._val, "utf-8")).decode()
             except InvalidFernetToken:
                 self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
@@ -88,13 +89,13 @@ class Variable(Base, LoggingMixin):
         """Encode the specified value with Fernet Key and store it in Variables Table."""
         if value is not None:
             fernet = get_fernet()
-            self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self._val = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
     def val(cls):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
-        return synonym('_val', descriptor=property(cls.get_val, cls.set_val))
+        return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
     def setdefault(cls, key, default, description=None, deserialize_json=False):
@@ -105,6 +106,7 @@ class Variable(Base, LoggingMixin):
         :param key: Dict key for this Variable
         :param default: Default value to set and return if the variable
             isn't already in the DB
+        :param description: Default value to set Description of the Variable
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
         :return: Mixed
@@ -115,7 +117,7 @@ class Variable(Base, LoggingMixin):
                 Variable.set(key, default, description=description, serialize_json=deserialize_json)
                 return default
             else:
-                raise ValueError('Default Value must be set')
+                raise ValueError("Default Value must be set")
         else:
             return obj
 
@@ -138,7 +140,7 @@ class Variable(Base, LoggingMixin):
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
             else:
-                raise KeyError(f'Variable {key} does not exist')
+                raise KeyError(f"Variable {key} does not exist")
         else:
             if deserialize_json:
                 obj = json.loads(var_val)
@@ -148,10 +150,10 @@ class Variable(Base, LoggingMixin):
                 mask_secret(var_val, key)
                 return var_val
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def set(
-        cls,
         key: str,
         value: Any,
         description: str | None = None,
@@ -168,8 +170,8 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
         """
-        # check if the secret exists in the custom secrets backend.
-        cls.check_for_write_conflict(key)
+        # check if the secret exists in the custom secrets' backend.
+        Variable.check_for_write_conflict(key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
@@ -179,10 +181,10 @@ class Variable(Base, LoggingMixin):
         session.add(Variable(key=key, val=stored_value, description=description))
         session.flush()
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def update(
-        cls,
         key: str,
         value: Any,
         serialize_json: bool = False,
@@ -196,33 +198,34 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Session
         """
-        cls.check_for_write_conflict(key)
+        Variable.check_for_write_conflict(key)
 
-        if cls.get_variable_from_secrets(key=key) is None:
-            raise KeyError(f'Variable {key} does not exist')
+        if Variable.get_variable_from_secrets(key=key) is None:
+            raise KeyError(f"Variable {key} does not exist")
 
-        obj = session.query(cls).filter(cls.key == key).first()
+        obj = session.query(Variable).filter(Variable.key == key).first()
         if obj is None:
-            raise AttributeError(f'Variable {key} does not exist in the Database and cannot be updated.')
+            raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 
-        cls.set(key, value, description=obj.description, serialize_json=serialize_json)
+        Variable.set(key, value, description=obj.description, serialize_json=serialize_json)
 
-    @classmethod
+    @staticmethod
     @provide_session
-    def delete(cls, key: str, session: Session = None) -> int:
+    @internal_api_call
+    def delete(key: str, session: Session = None) -> int:
         """
         Delete an Airflow Variable for a given key
 
         :param key: Variable Key
         :param session: SQL Alchemy Sessions
         """
-        return session.query(cls).filter(cls.key == key).delete()
+        return session.query(Variable).filter(Variable.key == key).delete()
 
     def rotate_fernet_key(self):
         """Rotate Fernet Key"""
         fernet = get_fernet()
         if self._val and self.is_encrypted:
-            self._val = fernet.rotate(self._val.encode('utf-8')).decode()
+            self._val = fernet.rotate(self._val.encode("utf-8")).decode()
 
     @staticmethod
     def check_for_write_conflict(key: str) -> None:
@@ -249,8 +252,8 @@ class Variable(Base, LoggingMixin):
                         return
                 except Exception:
                     log.exception(
-                        'Unable to retrieve variable from secrets backend (%s). '
-                        'Checking subsequent secrets backend.',
+                        "Unable to retrieve variable from secrets backend (%s). "
+                        "Checking subsequent secrets backend.",
                         type(secrets_backend).__name__,
                     )
             return None
@@ -270,8 +273,8 @@ class Variable(Base, LoggingMixin):
                     return var_val
             except Exception:
                 log.exception(
-                    'Unable to retrieve variable from secrets backend (%s). '
-                    'Checking subsequent secrets backend.',
+                    "Unable to retrieve variable from secrets backend (%s). "
+                    "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
                 )
         return None

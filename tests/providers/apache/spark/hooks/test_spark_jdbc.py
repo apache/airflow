@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.utils import db
 
 
-class TestSparkJDBCHook(unittest.TestCase):
+class TestSparkJDBCHook:
 
     _config = {
         "cmd_type": "spark_to_jdbc",
@@ -63,7 +61,7 @@ class TestSparkJDBCHook(unittest.TestCase):
         "comments VARCHAR(1024)",
     }
 
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="spark-default",

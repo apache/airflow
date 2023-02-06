@@ -21,7 +21,7 @@
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
 [![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
-[![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/main.svg)](https://codecov.io/github/apache/airflow?branch=main)
+[![Coverage Status](https://codecov.io/github/apache/airflow/coverage.svg?branch=main)](https://app.codecov.io/gh/apache/airflow/branch/main)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
@@ -86,15 +86,15 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)           | Stable version (2.4.2)       |
+|                     | Main version (dev)           | Stable version (2.5.1)       |
 |---------------------|------------------------------|------------------------------|
 | Python              | 3.7, 3.8, 3.9, 3.10          | 3.7, 3.8, 3.9, 3.10          |
 | Platform            | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
-| Kubernetes          | 1.21, 1.22, 1.23, 1.24, 1.25 | 1.21, 1.22, 1.23, 1.24, 1.25 |
-| PostgreSQL          | 10, 11, 12, 13, 14           | 10, 11, 12, 13, 14           |
+| Kubernetes          | 1.23, 1.24, 1.25, 1.26       | 1.21, 1.22, 1.23, 1.24, 1.25 |
+| PostgreSQL          | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15           |
 | MySQL               | 5.7, 8                       | 5.7, 8                       |
 | SQLite              | 3.15.0+                      | 3.15.0+                      |
-| MSSQL               | 2017(\*), 2019 (\*)          | 2017(\*), 2019 (\*)          |
+| MSSQL               | 2017(\*), 2019(\*)           | 2017(\*), 2019(\*)           |
 
 \* Experimental
 
@@ -158,15 +158,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.4.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.4.2/constraints-3.7.txt"
+pip install 'apache-airflow==2.5.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.1/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.4.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.4.2/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.5.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.1/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -259,8 +259,12 @@ packages:
   Chart to depend on minimal Airflow version.
 * **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR versions of Airflow.
   The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
-  all clients. The clients then can release their own PATCH releases with bugfixes,
-  independently of Airflow PATCH releases.
+  all clients. An airflow PATCH X.Y.Z release can be followed by a PATCH release of API clients, only
+  if this PATCH is relevant to the clients.
+  The clients then can release their own PATCH releases with bugfixes, independently of Airflow PATCH releases.
+  As a consequence, each API client will have its own PATCH version that may or may not be in sync with the Airflow
+  PATCH version. For a specific MAJOR/MINOR Airflow version, users should favor the latest PATCH version of clients
+  independently of their Airflow PATCH version.
 
 ## Version Life Cycle
 
@@ -271,7 +275,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.4.2                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.5.1                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -301,7 +305,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.4.2` images are Python 3.7 images. This means that default reference image will
+   and `apache/airflow:2.5.1` images are Python 3.7 images. This means that default reference image will
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 
@@ -317,7 +321,7 @@ we publish an Apache Airflow release. Those images contain:
 * Base OS with necessary packages to install Airflow (stable Debian OS)
 * Base Python installation in versions supported at the time of release for the MINOR version of
   Airflow released (so there could be different versions for 2.3 and 2.2 line for example)
-* Libraries required to connect to suppoerted Databases (again the set of databases supported depends
+* Libraries required to connect to supported Databases (again the set of databases supported depends
   on the MINOR version of Airflow.
 * Predefined set of popular providers (for details see the [Dockerfile](https://raw.githubusercontent.com/apache/airflow/main/Dockerfile)).
 * Possibility of building your own, custom image where the user can choose their own set of providers
@@ -392,7 +396,7 @@ The important dependencies are:
 
 ### Approach for dependencies in Airflow Providers and extras
 
-Those `extras` and `providers` dependencies are maintained in `setup.py`.
+Those `extras` and `providers` dependencies are maintained in `provider.yaml` of each provider.
 
 By default, we should not upper-bound dependencies for providers, however each provider's maintainer
 might decide to add additional limits (and justify them with comment)
@@ -410,6 +414,14 @@ first release for the MINOR version of Airflow.
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
 to 2.4.0 in the first Provider's release after 30th of April 2023. The 30th of April 2022 is the date when the
 first `PATCHLEVEL` of 2.3 (2.3.0) has been released.
+
+When we increase the minimum Airflow version, this is not a reason to bump `MAJOR` version of the providers
+(unless there are other breaking changes in the provider). The reason for that is that people who use
+older version of Airflow will not be able to use that provider (so it is not a breaking change for them)
+and for people who are using supported version of Airflow this is not a breaking change on its own - they
+will be able to use the new version without breaking their workflows. When we upgraded min-version to
+2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump `MINOR` version of the
+provider when we increase minimum Airflow version.
 
 Providers are often connected with some stakeholders that are vitally interested in maintaining backwards
 compatibilities in their integrations (for example cloud providers, or specific service providers). But,

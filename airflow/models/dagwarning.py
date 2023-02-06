@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -48,10 +49,10 @@ class DagWarning(Base):
     __tablename__ = "dag_warning"
     __table_args__ = (
         ForeignKeyConstraint(
-            ('dag_id',),
-            ['dag.dag_id'],
-            name='dcw_dag_id_fkey',
-            ondelete='CASCADE',
+            ("dag_id",),
+            ["dag.dag_id"],
+            name="dcw_dag_id_fkey",
+            ondelete="CASCADE",
         ),
     )
 
@@ -75,9 +76,14 @@ class DagWarning(Base):
 
         :return: None
         """
+        cls._purge_inactive_dag_warnings_with_retry(session)
+
+    @classmethod
+    @retry_db_transaction
+    def _purge_inactive_dag_warnings_with_retry(cls, session: Session) -> None:
         from airflow.models.dag import DagModel
 
-        if session.get_bind().dialect.name == 'sqlite':
+        if session.get_bind().dialect.name == "sqlite":
             dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_active == false())
             query = session.query(cls).filter(cls.dag_id.in_(dag_ids))
         else:
@@ -112,4 +118,4 @@ class DagWarningType(str, Enum):
     in the DagWarning model.
     """
 
-    NONEXISTENT_POOL = 'non-existent pool'
+    NONEXISTENT_POOL = "non-existent pool"

@@ -29,15 +29,7 @@ from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
-
-try:
-    from airflow.utils.operator_helpers import DEFAULT_FORMAT_PREFIX
-except ImportError:
-    # This is from airflow.utils.operator_helpers,
-    # For the sake of provider backward compatibility, this is hardcoded if import fails
-    # https://github.com/apache/airflow/pull/22416#issuecomment-1075531290
-    DEFAULT_FORMAT_PREFIX = "airflow.ctx."
+from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
 
 
 def generate_presto_client_info() -> str:
@@ -224,3 +216,15 @@ class PrestoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every)
+
+    @staticmethod
+    def _serialize_cell(cell: Any, conn: Connection | None = None) -> Any:
+        """
+        Presto will adapt all arguments to the execute() method internally,
+        hence we return cell without any conversion.
+
+        :param cell: The cell to insert into the table
+        :param conn: The database connection
+        :return: The cell
+        """
+        return cell

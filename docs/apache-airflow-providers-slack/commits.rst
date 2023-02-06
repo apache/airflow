@@ -28,14 +28,67 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.2.0
+.....
+
+Latest change: 2023-01-04
+
+=================================================================================================  ===========  ===========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================
+`a7e1cb2fbf <https://github.com/apache/airflow/commit/a7e1cb2fbfc684508f4b832527ae2371f99ad37d>`_  2023-01-04   ``Add general-purpose "notifier" concept to DAGs (#28569)``
+=================================================================================================  ===========  ===========================================================
+
+7.1.1
+.....
+
+Latest change: 2023-01-02
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`527b948856 <https://github.com/apache/airflow/commit/527b948856584320f74d385f58477af79506834d>`_  2022-12-03   ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+=================================================================================================  ===========  ===================================================================================
+
+7.1.0
+.....
+
+Latest change: 2022-11-26
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+`c609477260 <https://github.com/apache/airflow/commit/c60947726082905f7b369a90e8d37fcdb873149f>`_  2022-11-16   ``Implements SqlToSlackApiFileOperator (#26374)``
+=================================================================================================  ===========  ================================================================
+
+7.0.0
+.....
+
+Latest change: 2022-11-15
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
+`00af5c007e <https://github.com/apache/airflow/commit/00af5c007ef2200401b53c40236e664758e47f27>`_  2022-11-14   ``Replace urlparse with urlsplit (#27389)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`cc44bae412 <https://github.com/apache/airflow/commit/cc44bae412412bec088ccee569dcc5f4aae810d1>`_  2022-10-22   ``Allow and prefer non-prefixed extra fields for slack hooks (#27070)``
+=================================================================================================  ===========  =========================================================================
+
 6.0.0
 .....
 
-Latest change: 2022-10-03
+Latest change: 2022-10-04
 
 =================================================================================================  ===========  ==============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================
+`403ed7163f <https://github.com/apache/airflow/commit/403ed7163f3431deb7fc21108e1743385e139907>`_  2022-10-04   ``Add docs for Google/Slack RC providers (#26860)``
 `7b183071a3 <https://github.com/apache/airflow/commit/7b183071a398cbe340853f357bc6c029d551b4d1>`_  2022-10-03   ``Fix Slack Connections created in the UI (#26845)``
 `ec1615b589 <https://github.com/apache/airflow/commit/ec1615b589d60416cac449bea5fa777a5eda4757>`_  2022-09-28   ``Fix errors in CHANGELOGS for slack and amazon (#26746)``
 `f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``

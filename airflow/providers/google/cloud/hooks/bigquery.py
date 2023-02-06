@@ -57,6 +57,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 from airflow.utils.helpers import convert_camel_to_snake
@@ -96,6 +97,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -424,7 +429,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
         """
-        dataset_reference = dataset_reference or {"datasetReference": {}}
+        dataset_reference = dataset_reference or {}
+
+        if "datasetReference" not in dataset_reference:
+            dataset_reference["datasetReference"] = {}
 
         for param, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
             specified_param = dataset_reference["datasetReference"].get(param)
@@ -1768,6 +1776,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "nullMarker",
                 "quote",
                 "encoding",
+                "preserveAsciiControlCharacters",
             ],
             "DATASTORE_BACKUP": ["projectionFields"],
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],
@@ -2740,7 +2749,7 @@ class BigQueryCursor(BigQueryBaseCursor):
                 rows = query_results["rows"]
 
                 for dict_row in rows:
-                    typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
+                    typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                     self.buffer.append(typed_row)
 
                 if not self.page_token:
@@ -2843,25 +2852,6 @@ def _escape(s: str) -> str:
     e = e.replace("'", "\\'")
     e = e.replace('"', '\\"')
     return e
-
-
-def _bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
-    """
-    Helper method that casts a BigQuery row to the appropriate data types.
-    This is useful because BigQuery returns all fields as strings.
-    """
-    if string_field is None:
-        return None
-    elif bq_type == "INTEGER":
-        return int(string_field)
-    elif bq_type in ("FLOAT", "TIMESTAMP"):
-        return float(string_field)
-    elif bq_type == "BOOLEAN":
-        if string_field not in ["true", "false"]:
-            raise ValueError(f"{string_field} must have value 'true' or 'false'")
-        return string_field == "true"
-    else:
-        return string_field
 
 
 def split_tablename(
@@ -3070,7 +3060,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             fields = query_results["schema"]["fields"]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
-                typed_row = [_bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
+                typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
                 buffer.append(typed_row)
         return buffer
 

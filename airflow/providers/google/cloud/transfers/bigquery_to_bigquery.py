@@ -58,7 +58,11 @@ class BigQueryToBigQueryOperator(BaseOperator):
             encryption_configuration = {
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
-    :param location: The location used for the operation.
+    :param location: The geographic location of the job. You must specify the location to run the job if
+        the location to run a job is not in the US or the EU multi-regional location or
+        the location is in a single region (for example, us-central1).
+        For more details check:
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -101,6 +105,10 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.write_disposition = write_disposition
         self.create_disposition = create_disposition
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.labels = labels
         self.encryption_configuration = encryption_configuration
@@ -131,7 +139,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                 encryption_configuration=self.encryption_configuration,
             )
 
-            job = hook.get_job(job_id=job_id).to_api_repr()
+            job = hook.get_job(job_id=job_id, location=self.location).to_api_repr()
             conf = job["configuration"]["copy"]["destinationTable"]
             BigQueryTableLink.persist(
                 context=context,

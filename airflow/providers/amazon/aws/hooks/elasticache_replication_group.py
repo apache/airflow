@@ -25,7 +25,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class ElastiCacheReplicationGroupHook(AwsBaseHook):
     """
-    Interact with AWS ElastiCache
+    Interact with Amazon ElastiCache.
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("elasticache") <ElastiCache.Client>`.
 
     :param max_retries: Max retries for checking availability of and deleting replication group
             If this is not supplied then this is defaulted to 10
@@ -33,6 +34,12 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
             If this is not supplied then this is defaulted to 1
     :param initial_poke_interval: Initial sleep time in seconds
             If this is not supplied then this is defaulted to 60 seconds
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     TERMINAL_STATES = frozenset({"available", "create-failed", "deleting"})
@@ -54,7 +61,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def create_replication_group(self, config: dict) -> dict:
         """
-        Call ElastiCache API for creating a replication group
+        Creates a Redis (cluster mode disabled) or a Redis (cluster mode enabled) replication group.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ElastiCache.Client.create_replication_group`
 
         :param config: Configuration for creating the replication group
         :return: Response from ElastiCache create replication group API
@@ -63,7 +73,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def delete_replication_group(self, replication_group_id: str) -> dict:
         """
-        Call ElastiCache API for deleting a replication group
+        Deletes an existing replication group.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ElastiCache.Client.delete_replication_group`
 
         :param replication_group_id: ID of replication group to delete
         :return: Response from ElastiCache delete replication group API
@@ -72,7 +85,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def describe_replication_group(self, replication_group_id: str) -> dict:
         """
-        Call ElastiCache API for describing a replication group
+        Get information about a particular replication group.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ElastiCache.Client.describe_replication_groups`
 
         :param replication_group_id: ID of replication group to describe
         :return: Response from ElastiCache describe replication group API
@@ -81,7 +97,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def get_replication_group_status(self, replication_group_id: str) -> str:
         """
-        Get current status of replication group
+        Get current status of replication group.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ElastiCache.Client.describe_replication_groups`
 
         :param replication_group_id: ID of replication group to check for status
         :return: Current status of replication group

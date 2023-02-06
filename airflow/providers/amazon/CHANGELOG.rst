@@ -24,6 +24,170 @@
 Changelog
 ---------
 
+7.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ''configuration_overrides'' to templated fields (#28920)``
+* ``Add a new SSM hook and use it in the System Test context builder (#28755)``
+* ``Add waiter config params to emr.add_job_flow_steps (#28464)``
+* ``Add AWS Sagemaker Auto ML operator and sensor (#28472)``
+* ``new operator to create a sagemaker experiment (#28837)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid circular import from S3HookUriParseFailure (#28908)``
+* ``Use compat for cached_property in AWS Batch modules (#28835)``
+* ``Apply "unify bucket and key" before "provide bucket" (#28710)``
+
+Misc
+~~~~
+
+* ``Update S3ToRedshiftOperator docs to inform users about multiple key functionality (#28705)``
+* ``Refactor waiter function and improve unit tests (#28753)``
+* ``Better exception raised in case of numpy missing (#28722)``
+* ``Don't call get_connection from provide_bucket_name (#28716)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
+
+7.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+JSON secrets in the 'SecretsManagerBackend' are never interpreted as urlencoded. In ``5.x`` and ``6.x``, the
+code would infer whether the JSON secret values were urlencoded based on context clues; now the unaltered
+values are *always* used to construct ``Connection`` objects.
+
+Pandas is now an optional dependency of the provider. The ``SqlToS3Operator`` and ``HiveToDynamoDBOperator``
+require Pandas to be installed (you can install it automatically by adding ``[pandas]`` extra when installing
+the provider.
+
+* ``Make pandas dependency optional for Amazon Provider (#28505)``
+
+Features
+~~~~~~~~
+
+* ``Deprecate 'full_url_mode' for SecretsManagerBackend; whether a secret is a JSON or URL is inferred (#27920)``
+* ``Add execution role parameter to AddStepsOperator (#28484)``
+* ``Add AWS SageMaker operator to register a model's version (#28024)``
+* ``Add link for EMR Steps Sensor logs (#28180)``
+* ``Add Amazon Elastic Container Registry (ECR) Hook (#28279)``
+* ``Add EMR Notebook operators (#28312)``
+* ``Create 'LambdaCreateFunctionOperator' and sensor (#28241)``
+* ``Better support for Boto Waiters (#28236)``
+* ``Amazon Provider Package user agent (#27823)``
+* ``Allow waiter to be configured via EmrServerless Operators (#27784)``
+* ``Add operators + sensor for aws sagemaker pipelines (#27786)``
+* ``Update RdsHook docstrings to match correct argument names (#28108)``
+* ``add some important log in aws athena hook (#27917)``
+* ``Lambda hook: make runtime and handler optional (#27778)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EmrAddStepsOperature wait_for_completion parameter is not working (#28052)``
+* ``Correctly template Glue Jobs 'create_job_kwargs' arg (#28403)``
+* ``Fix template rendered bucket_key in S3KeySensor (#28340)``
+* ``Fix Type Error while using DynamoDBToS3Operator (#28158)``
+* ``AWSGlueJobHook updates job configuration if it exists (#27893)``
+* ``Fix GlueCrawlerOperature failure when using tags (#28005)``
+
+Misc
+~~~~
+
+* ``Fix S3KeySensor documentation (#28297)``
+* ``Improve docstrings for 'AwsLambdaInvokeFunctionOperator' (#28233)``
+* ``Remove outdated compat imports/code from providers (#28507)``
+* ``add description of breaking changes (#28582)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+* ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use Boto waiters instead of customer _await_status method for RDS Operators (#27410)``
+* ``Handle transient state errors in 'RedshiftResumeClusterOperator' and 'RedshiftPauseClusterOperator' (#27276)``
+* ``Add retry option in RedshiftDeleteClusterOperator to retry when an operation is running in the cluster (#27820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Correct job name matching in SagemakerProcessingOperator (#27634)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``System Test for EMR (AIP-47) (#27286)``
+   * ``Prepare for follow-up release for November providers (#27774)``
+
+6.1.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Replace urlparse with urlsplit (#27389)``
+
+Features
+~~~~~~~~
+
+* ``Add info about JSON Connection format for AWS SSM Parameter Store Secrets Backend (#27134)``
+* ``Add default name to EMR Serverless jobs (#27458)``
+* ``Adding 'preserve_file_name' param to 'S3Hook.download_file' method (#26886)``
+* ``Add GlacierUploadArchiveOperator (#26652)``
+* ``Add RdsStopDbOperator and RdsStartDbOperator (#27076)``
+* ``'GoogleApiToS3Operator' : add 'gcp_conn_id' to template fields (#27017)``
+* ``Add SQLExecuteQueryOperator (#25717)``
+* ``Add information about Amazon Elastic MapReduce Connection (#26687)``
+* ``Add BatchOperator template fields (#26805)``
+* ``Improve testing AWS Connection response (#26953)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``SagemakerProcessingOperator stopped honoring 'existing_jobs_found' (#27456)``
+* ``CloudWatch task handler doesn't fall back to local logs when Amazon CloudWatch logs aren't found (#27564)``
+* ``Fix backwards compatibility for RedshiftSQLOperator (#27602)``
+* ``Fix typo in redshift sql hook get_ui_field_behaviour (#27533)``
+* ``Fix example_emr_serverless system test (#27149)``
+* ``Fix param in docstring RedshiftSQLHook get_table_primary_key method (#27330)``
+* ``Adds s3_key_prefix to template fields (#27207)``
+* ``Fix assume role if user explicit set credentials (#26946)``
+* ``Fix failure state in waiter call for EmrServerlessStartJobOperator. (#26853)``
+* ``Fix a bunch of deprecation warnings AWS tests (#26857)``
+* ``Fix null strings bug in SqlToS3Operator in non parquet formats (#26676)``
+* ``Sagemaker hook: remove extra call at the end when waiting for completion (#27551)``
+* ``ECS Buglette (#26921)``
+* ``Avoid circular imports in AWS Secrets Backends if obtain secrets from config (#26784)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``sagemaker operators: mutualize init of aws_conn_id (#27579)``
+   * ``Upgrade dependencies in order to avoid backtracking (#27531)``
+   * ``Code quality improvements on sagemaker operators/hook (#27453)``
+   * ``Update old style typing (#26872)``
+   * ``System test for SQL to S3 Transfer (AIP-47) (#27097)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+   * ``Convert emr_eks example dag to system test (#26723)``
+   * ``System test for Dynamo DB (#26729)``
+   * ``ECS System Test (#26808)``
+   * ``RDS Instance System Tests (#26733)``
+
 6.0.0
 .....
 

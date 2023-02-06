@@ -21,7 +21,16 @@ import os
 import re
 from pathlib import Path
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
+AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
+AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
+
+
+def filter_out_providers_on_non_main_branch(files: list[str]) -> list[str]:
+    """When running build on non-main branch do not take providers into account"""
+    default_branch = os.environ.get("DEFAULT_BRANCH")
+    if not default_branch or default_branch == "main":
+        return files
+    return [file for file in files if not file.startswith(f"airflow{os.sep}providers")]
 
 
 def insert_documentation(file_path: Path, content: list[str], header: str, footer: str):

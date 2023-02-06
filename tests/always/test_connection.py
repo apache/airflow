@@ -681,7 +681,7 @@ class TestConnection(unittest.TestCase):
 
             self.mask_secret.reset_mock()
 
-            from_db = session.query(Connection).get(conn.id)
+            from_db = session.get(Connection, conn.id)
             from_db.extra_dejson
 
             assert self.mask_secret.mock_calls == [
@@ -735,3 +735,11 @@ class TestConnection(unittest.TestCase):
     def test_extra_warnings_non_dict_json(self):
         with pytest.warns(DeprecationWarning, match="not parse as a dictionary"):
             Connection(conn_id="test_extra", conn_type="none", extra='"hi"')
+
+    def test_get_uri_no_conn_type(self):
+        # no conn type --> scheme-relative URI
+        assert Connection().get_uri() == "//"
+        # with host, still works
+        assert Connection(host="abc").get_uri() == "//abc"
+        # parsing back as conn still works
+        assert Connection(uri="//abc").host == "abc"

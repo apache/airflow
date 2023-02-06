@@ -325,7 +325,7 @@ def build_docs(
 ):
     """Build documentation in the container."""
     if for_production and not clean_build:
-        get_console().print("\n[warning]When building docs for production, clan-build is forced\n")
+        get_console().print("\n[warning]When building docs for production, clean-build is forced\n")
         clean_build = True
     perform_environment_checks()
     cleanup_python_generated_files()
@@ -373,9 +373,9 @@ def build_docs(
 @click.option(
     "-t",
     "--type",
-    help="Type(s) of the static checks to run (multiple can be added).",
+    "type_",
+    help="Type(s) of the static checks to run.",
     type=BetterChoice(PRE_COMMIT_LIST),
-    multiple=True,
 )
 @click.option("-a", "--all-files", help="Run checks on all files.", is_flag=True)
 @click.option("-f", "--file", help="List of files to run the checks on.", type=click.Path(), multiple=True)
@@ -404,7 +404,7 @@ def static_checks(
     show_diff_on_failure: bool,
     last_commit: bool,
     commit_ref: str,
-    type: tuple[str],
+    type_: str,
     file: Iterable[str],
     precommit_args: tuple,
     github_repository: str,
@@ -415,8 +415,8 @@ def static_checks(
     if last_commit and commit_ref:
         get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")
         sys.exit(1)
-    for single_check in type:
-        command_to_execute.append(single_check)
+    if type_:
+        command_to_execute.append(type_)
     if all_files:
         command_to_execute.append("--all-files")
     if show_diff_on_failure:
@@ -485,6 +485,9 @@ def stop(preserve_volumes: bool):
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, env=env_variables)
+    if not preserve_volumes:
+        command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute, env=env_variables)
 
 
 @main.command(name="exec", help="Joins the interactive shell of running airflow container.")
@@ -549,7 +552,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
             sys.exit(1)
         if shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
-            return 1
+            sys.exit(1)
     command_result = run_command(
         cmd, env=env_variables, text=True, check=False, output_outside_the_group=True
     )

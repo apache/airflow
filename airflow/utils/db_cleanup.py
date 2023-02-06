@@ -20,18 +20,21 @@ This module took inspiration from the community maintenance dag
 """
 from __future__ import annotations
 
+import csv
 import logging
+import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
 from pendulum import DateTime
-from sqlalchemy import and_, column, false, func, table, text
+from sqlalchemy import and_, column, false, func, inspect, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Query, Session, aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
+from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
 from airflow.models import Base
 from airflow.utils import timezone
@@ -39,6 +42,8 @@ from airflow.utils.db import reflect_tables
 from airflow.utils.session import NEW_SESSION, provide_session
 
 logger = logging.getLogger(__file__)
+
+ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
 
 
 @dataclass
@@ -84,28 +89,27 @@ class _TableConfig:
 
 
 config_list: list[_TableConfig] = [
-    _TableConfig(table_name='job', recency_column_name='latest_heartbeat'),
-    _TableConfig(table_name='dag', recency_column_name='last_parsed_time'),
+    _TableConfig(table_name="job", recency_column_name="latest_heartbeat"),
+    _TableConfig(table_name="dag", recency_column_name="last_parsed_time"),
     _TableConfig(
-        table_name='dag_run',
-        recency_column_name='start_date',
-        extra_columns=['dag_id', 'external_trigger'],
+        table_name="dag_run",
+        recency_column_name="start_date",
+        extra_columns=["dag_id", "external_trigger"],
         keep_last=True,
-        keep_last_filters=[column('external_trigger') == false()],
-        keep_last_group_by=['dag_id'],
+        keep_last_filters=[column("external_trigger") == false()],
+        keep_last_group_by=["dag_id"],
     ),
-    _TableConfig(table_name='dataset_event', recency_column_name='created_at'),
-    _TableConfig(table_name='import_error', recency_column_name='timestamp'),
-    _TableConfig(table_name='log', recency_column_name='dttm'),
-    _TableConfig(table_name='rendered_task_instance_fields', recency_column_name='execution_date'),
-    _TableConfig(table_name='sla_miss', recency_column_name='timestamp'),
-    _TableConfig(table_name='task_fail', recency_column_name='start_date'),
-    _TableConfig(table_name='task_instance', recency_column_name='start_date'),
-    _TableConfig(table_name='task_reschedule', recency_column_name='start_date'),
-    _TableConfig(table_name='xcom', recency_column_name='timestamp'),
-    _TableConfig(table_name='callback_request', recency_column_name='created_at'),
-    _TableConfig(table_name='celery_taskmeta', recency_column_name='date_done'),
-    _TableConfig(table_name='celery_tasksetmeta', recency_column_name='date_done'),
+    _TableConfig(table_name="dataset_event", recency_column_name="timestamp"),
+    _TableConfig(table_name="import_error", recency_column_name="timestamp"),
+    _TableConfig(table_name="log", recency_column_name="dttm"),
+    _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
+    _TableConfig(table_name="task_fail", recency_column_name="start_date"),
+    _TableConfig(table_name="task_instance", recency_column_name="start_date"),
+    _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
+    _TableConfig(table_name="xcom", recency_column_name="timestamp"),
+    _TableConfig(table_name="callback_request", recency_column_name="created_at"),
+    _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
+    _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
 ]
 
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
@@ -124,6 +128,17 @@ def _check_for_rows(*, query: Query, print_rows=False):
     return num_entities
 
 
+def _dump_table_to_file(*, target_table, file_path, export_format, session):
+    if export_format == "csv":
+        with open(file_path, "w") as f:
+            csv_writer = csv.writer(f)
+            cursor = session.execute(text(f"SELECT * FROM {target_table}"))
+            csv_writer.writerow(cursor.keys())
+            csv_writer.writerows(cursor.fetchall())
+    else:
+        raise AirflowException(f"Export format {export_format} is not supported.")
+
+
 def _do_delete(*, query, orm_model, skip_archive, session):
     import re
     from datetime import datetime
@@ -131,8 +146,8 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     print("Performing Delete...")
     # using bulk delete
     # create a new table and copy the rows there
-    timestamp_str = re.sub(r'[^\d]', '', datetime.utcnow().isoformat())[:14]
-    target_table_name = f'_airflow_deleted__{orm_model.name}__{timestamp_str}'
+    timestamp_str = re.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
+    target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     stmt = CreateTableAs(target_table_name, query.selectable)
     logger.debug("ctas query:\n%s", stmt.compile())
@@ -146,7 +161,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     logger.debug("rows moved; purging from %s", source_table.name)
     bind = session.get_bind()
     dialect_name = bind.dialect.name
-    if dialect_name == 'sqlite':
+    if dialect_name == "sqlite":
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(
             tuple_(*pk_cols).in_(
@@ -176,7 +191,7 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, 
     if group_by_columns is not None:
         subquery = subquery.group_by(*group_by_columns)
 
-    return subquery.subquery(name='latest')
+    return subquery.subquery(name="latest")
 
 
 class CreateTableAs(Executable, ClauseElement):
@@ -192,7 +207,7 @@ def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
 
 
-@compiles(CreateTableAs, 'mssql')
+@compiles(CreateTableAs, "mssql")
 def _compile_create_table_as__mssql(element, compiler, **kw):
     return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
 
@@ -208,13 +223,13 @@ def _build_query(
     session,
     **kwargs,
 ):
-    base_table_alias = 'base'
+    base_table_alias = "base"
     base_table = aliased(orm_model, name=base_table_alias)
     query = session.query(base_table).with_entities(text(f"{base_table_alias}.*"))
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
     if keep_last:
-        max_date_col_name = 'max_date_per_group'
+        max_date_col_name = "max_date_per_group"
         group_by_columns = [column(x) for x in keep_last_group_by]
         subquery = _subquery_keep_last(
             recency_column=recency_column,
@@ -246,7 +261,7 @@ def _cleanup_table(
     dry_run=True,
     verbose=False,
     skip_archive=False,
-    session=None,
+    session,
     **kwargs,
 ):
     print()
@@ -272,7 +287,7 @@ def _cleanup_table(
 
 
 def _confirm_delete(*, date: DateTime, tables: list[str]):
-    for_tables = f" for tables {tables!r}" if tables else ''
+    for_tables = f" for tables {tables!r}" if tables else ""
     question = (
         f"You have requested that we purge all data prior to {date}{for_tables}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
@@ -281,7 +296,19 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
     )
     print(question)
     answer = input().strip()
-    if not answer == 'delete rows':
+    if not answer == "delete rows":
+        raise SystemExit("User did not confirm; exiting.")
+
+
+def _confirm_drop_archives(*, tables: list[str]):
+    question = (
+        f"You have requested that we drop archived records for tables {tables!r}.\n"
+        f"This is irreversible.  Consider backing up the tables first \n"
+        f"Enter 'drop archived tables' (without quotes) to proceed."
+    )
+    print(question)
+    answer = input().strip()
+    if not answer == "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -302,8 +329,22 @@ def _suppress_with_logging(table, session):
         logger.warning("Encountered error when attempting to clean table '%s'. ", table)
         logger.debug("Traceback for table '%s'", table, exc_info=True)
         if session.is_active:
-            logger.debug('Rolling back transaction')
+            logger.debug("Rolling back transaction")
             session.rollback()
+
+
+def _effective_table_names(*, table_names: list[str] | None):
+    desired_table_names = set(table_names or config_dict)
+    effective_config_dict = {k: v for k, v in config_dict.items() if k in desired_table_names}
+    effective_table_names = set(effective_config_dict)
+    if desired_table_names != effective_table_names:
+        outliers = desired_table_names - effective_table_names
+        logger.warning(
+            "The following table(s) are not valid choices and will be skipped: %s", sorted(outliers)
+        )
+    if not effective_table_names:
+        raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
+    return effective_table_names, effective_config_dict
 
 
 @provide_session
@@ -337,17 +378,16 @@ def run_cleanup(
     :param session: Session representing connection to the metadata database.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
-    effective_table_names = table_names if table_names else list(config_dict.keys())
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
+    effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
     if dry_run:
-        print('Performing dry run for db cleanup.')
+        print("Performing dry run for db cleanup.")
         print(
             f"Data prior to {clean_before_timestamp} would be purged "
             f"from tables {effective_table_names} with the following config:\n"
         )
         _print_config(configs=effective_config_dict)
     if not dry_run and confirm:
-        _confirm_delete(date=clean_before_timestamp, tables=list(effective_config_dict.keys()))
+        _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
     for table_name, table_config in effective_config_dict.items():
         if table_name not in existing_tables:
@@ -363,3 +403,33 @@ def run_cleanup(
                 session=session,
             )
             session.commit()
+
+
+@provide_session
+def export_cleaned_records(
+    export_format, output_path, table_names=None, drop_archives=False, session: Session = NEW_SESSION
+):
+    """Export cleaned data to the given output path in the given format."""
+    effective_table_names, _ = _effective_table_names(table_names=table_names)
+    if drop_archives:
+        _confirm_drop_archives(tables=sorted(effective_table_names))
+    inspector = inspect(session.bind)
+    db_table_names = [x for x in inspector.get_table_names() if x.startswith(ARCHIVE_TABLE_PREFIX)]
+    export_count = 0
+    dropped_count = 0
+    for table_name in db_table_names:
+        if not any("__" + x + "__" in table_name for x in effective_table_names):
+            continue
+        logger.info("Exporting table %s", table_name)
+        _dump_table_to_file(
+            target_table=table_name,
+            file_path=os.path.join(output_path, f"{table_name}.{export_format}"),
+            export_format=export_format,
+            session=session,
+        )
+        export_count += 1
+        if drop_archives:
+            logger.info("Dropping archived table %s", table_name)
+            session.execute(text(f"DROP TABLE {table_name}"))
+            dropped_count += 1
+    logger.info("Total exported tables: %s, Total dropped tables: %s", export_count, dropped_count)

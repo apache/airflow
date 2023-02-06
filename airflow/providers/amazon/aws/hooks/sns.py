@@ -40,12 +40,13 @@ def _get_message_attribute(o):
 class SnsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Notification Service.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("sns") <SNS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs):
@@ -59,7 +60,10 @@ class SnsHook(AwsBaseHook):
         message_attributes: dict | None = None,
     ):
         """
-        Publish a message to a topic or an endpoint.
+        Publish a message to a SNS topic or an endpoint.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SNS.Client.publish`
 
         :param target_arn: either a TopicArn or an EndpointArn
         :param message: the default message you want to send

@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.4.2"
+defaultAirflowTag: "2.5.1"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.4.2"
+airflowVersion: "2.5.1"
 
 # Images
 images:
@@ -68,6 +68,10 @@ images:
   # timeout (in seconds) for airflow-migrations to complete
   migrationsWaitTimeout: 60
   pod_template:
+    # Note that `images.pod_template.repository` and `images.pod_template.tag` parameters
+    # can be overridden in `config.kubernetes` section. So for these parameters to have effect
+    # `config.kubernetes.worker_container_repository` and `config.kubernetes.worker_container_tag`
+    # must be not set .
     repository: ~
     tag: ~
     pullPolicy: IfNotPresent
@@ -93,7 +97,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
-    tag: v3.4.0
+    tag: v3.6.3
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -242,6 +246,12 @@ allowPodLaunching: true
 env: []
 # - name: ""
 #   value: ""
+
+# Volumes for all airflow containers
+volumes: []
+
+# VolumeMounts for all airflow containers
+volumeMounts: []
 
 # Secrets for all airflow containers
 secret: []
@@ -594,12 +604,17 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  # annotations for the worker resource
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to workers objects and pods
   labels: {}
 
   logGroomerSidecar:
+    # Whether to deploy the Airflow worker log groomer sidecar.
+    enabled: true
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
     # Args to use when running the Airflow worker log groomer sidecar (templated).
@@ -710,6 +725,9 @@ scheduler:
 
   priorityClassName: ~
 
+  # annotations for scheduler deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to scheduler objects and pods
@@ -804,6 +822,8 @@ createUserJob:
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
+  applyCustomEnv: true
+
   env: []
 
   resources: {}
@@ -872,6 +892,7 @@ migrateDatabaseJob:
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
+  applyCustomEnv: true
 
 # Airflow webserver settings
 webserver:
@@ -965,8 +986,10 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
+  # This string (can be templated) will be mounted into the Airflow Webserver
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
@@ -976,6 +999,7 @@ webserver:
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
+  webserverConfigConfigMapName: ~
 
   service:
     type: ClusterIP
@@ -1016,6 +1040,9 @@ webserver:
   tolerations: []
   topologySpreadConstraints: []
 
+  # annotations for webserver deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific webserver app
@@ -1041,7 +1068,9 @@ triggerer:
   # Args to use when running Airflow triggerer (templated).
   args: ["bash", "-c", "exec airflow triggerer"]
 
-  # Update Strategy for triggerers
+  # Update Strategy when triggerer is deployed as a StatefulSet
+  updateStrategy: ~
+  # Update Strategy when triggerer is deployed as a Deployment
   strategy:
     rollingUpdate:
       maxSurge: "100%"
@@ -1072,6 +1101,20 @@ triggerer:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  persistence:
+    # Enable persistent volumes
+    enabled: true
+    # Volume size for triggerer StatefulSet
+    size: 100Gi
+    # If using a custom storageClass, pass name ref to all statefulSets here
+    storageClassName:
+    # Execute init container to chown log directory.
+    # This is currently only needed in kind, due to usage
+    # of local-path provisioner.
+    fixPermissions: false
+    # Annotations to add to triggerer volumes
+    annotations: {}
 
   resources: {}
   #  limits:
@@ -1113,6 +1156,9 @@ triggerer:
   topologySpreadConstraints: []
 
   priorityClassName: ~
+
+  # annotations for the triggerer deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -1211,6 +1257,9 @@ dagProcessor:
   topologySpreadConstraints: []
 
   priorityClassName: ~
+
+  # annotations for the dag processor deployment
+  annotations: {}
 
   podAnnotations: {}
 
@@ -1314,6 +1363,9 @@ flower:
 
   priorityClassName: ~
 
+  # annotations for the flower deployment
+  annotations: {}
+
   podAnnotations: {}
 
   # Labels specific to flower objects and pods
@@ -1325,6 +1377,9 @@ statsd:
   enabled: true
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
+
+  # Arguments for StatsD exporter command.
+  args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
 
   # Create ServiceAccount
   serviceAccount:
@@ -1391,6 +1446,9 @@ pgbouncer:
   args: ~
   auth_type: md5
   auth_file: /etc/pgbouncer/users.txt
+
+  # annotations to be added to the PgBouncer deployment
+  annotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1592,6 +1650,7 @@ ports:
   flowerUI: 5555
   airflowUI: 8080
   workerLogs: 8793
+  triggererLogs: 8794
   redisDB: 6379
   statsdIngest: 9125
   statsdScrape: 9102
@@ -1660,8 +1719,13 @@ cleanup:
 # Not recommended for production
 postgresql:
   enabled: true
-  postgresqlPassword: postgres
-  postgresqlUsername: postgres
+  image:
+    tag: "11"
+  auth:
+    enablePostgresUser: true
+    postgresPassword: postgres
+    username: ~
+    password: ~
 
 # Config settings to go into the mounted airflow.cfg
 #
@@ -1778,8 +1842,7 @@ dags:
     enabled: false
 
     # git repo clone url
-    # ssh examples ssh://git@github.com/apache/airflow.git
-    # git@github.com:apache/airflow.git
+    # ssh example: git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
     branch: v2-2-stable
@@ -1824,8 +1887,11 @@ dags:
     # knownHosts: |
     #    <host1>,<ip1> <key1>
     #    <host2>,<ip2> <key2>
+
     # interval between git sync attempts in seconds
-    wait: 60
+    # high values are more likely to cause DAGs to become out of sync between different components
+    # low values cause more traffic to the remote git repository
+    wait: 5
     containerName: git-sync
     uid: 65533
 

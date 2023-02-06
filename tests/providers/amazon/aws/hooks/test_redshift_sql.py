@@ -17,19 +17,16 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 
 
-class TestRedshiftSQLHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestRedshiftSQLHookConn:
+    def setup_method(self):
         self.connection = Connection(
             conn_type="redshift", login="login", password="password", host="host", port=5439, schema="dev"
         )
@@ -71,7 +68,8 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
             iam=True,
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "conn_params, conn_extra, expected_call_args",
         [
             ({}, {}, {}),
             ({"login": "test"}, {}, {"user": "test"}),
@@ -81,7 +79,7 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
-    def test_get_conn_overrides_correctly(self, conn_params, conn_extra, expected_call_args, mock_connect):
+    def test_get_conn_overrides_correctly(self, mock_connect, conn_params, conn_extra, expected_call_args):
         with mock.patch(
             "airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.conn",
             Connection(conn_type="redshift", extra=conn_extra, **conn_params),

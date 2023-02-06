@@ -29,25 +29,25 @@ from airflow.utils.process_utils import execute_in_subprocess
 
 
 def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
-    cmd = [sys.executable, '-m', 'virtualenv', tmp_dir]
+    cmd = [sys.executable, "-m", "virtualenv", tmp_dir]
     if system_site_packages:
-        cmd.append('--system-site-packages')
+        cmd.append("--system-site-packages")
     if python_bin is not None:
-        cmd.append(f'--python={python_bin}')
+        cmd.append(f"--python={python_bin}")
     return cmd
 
 
 def _generate_pip_install_cmd_from_file(
     tmp_dir: str, requirements_file_path: str, pip_install_options: list[str]
 ) -> list[str]:
-    cmd = [f'{tmp_dir}/bin/pip', 'install'] + pip_install_options + ['-r']
+    cmd = [f"{tmp_dir}/bin/pip", "install"] + pip_install_options + ["-r"]
     return cmd + [requirements_file_path]
 
 
 def _generate_pip_install_cmd_from_list(
     tmp_dir: str, requirements: list[str], pip_install_options: list[str]
 ) -> list[str]:
-    cmd = [f'{tmp_dir}/bin/pip', 'install'] + pip_install_options
+    cmd = [f"{tmp_dir}/bin/pip", "install"] + pip_install_options
     return cmd + requirements
 
 
@@ -98,7 +98,7 @@ def prepare_virtualenv(
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
 
-    return f'{venv_directory}/bin/python'
+    return f"{venv_directory}/bin/python"
 
 
 def write_python_script(
@@ -123,5 +123,5 @@ def write_python_script(
         )
     else:
         template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
-    template = template_env.get_template('python_virtualenv_script.jinja2')
+    template = template_env.get_template("python_virtualenv_script.jinja2")
     template.stream(**jinja_context).dump(filename)

@@ -21,6 +21,7 @@ import collections.abc
 import contextlib
 import datetime
 import inspect
+import itertools
 import json
 import logging
 import pickle
@@ -45,12 +46,14 @@ from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one, is_container
+from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -60,7 +63,7 @@ log = logging.getLogger(__name__)
 # MAX XCOM Size is 48KB
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
 MAX_XCOM_SIZE = 49344
-XCOM_RETURN_KEY = 'return_value'
+XCOM_RETURN_KEY = "return_value"
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -258,10 +261,10 @@ class BaseXCom(Base, LoggingMixin):
         session.add(new)
         session.flush()
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def get_value(
-        cls,
         *,
         ti_key: TaskInstanceKey,
         key: str | None = None,
@@ -282,7 +285,7 @@ class BaseXCom(Base, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-        return cls.get_one(
+        return BaseXCom.get_one(
             key=key,
             task_id=ti_key.task_id,
             dag_id=ti_key.dag_id,
@@ -292,9 +295,9 @@ class BaseXCom(Base, LoggingMixin):
         )
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def get_one(
-        cls,
         *,
         key: str | None = None,
         dag_id: str | None = None,
@@ -335,9 +338,9 @@ class BaseXCom(Base, LoggingMixin):
         """
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def get_one(
-        cls,
         execution_date: datetime.datetime,
         key: str | None = None,
         task_id: str | None = None,
@@ -347,10 +350,10 @@ class BaseXCom(Base, LoggingMixin):
     ) -> Any | None:
         """:sphinx-autoapi-skip:"""
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def get_one(
-        cls,
         execution_date: datetime.datetime | None = None,
         key: str | None = None,
         task_id: str | None = None,
@@ -366,7 +369,7 @@ class BaseXCom(Base, LoggingMixin):
             raise ValueError("Exactly one of ti_key, run_id, or execution_date must be passed")
 
         if run_id:
-            query = cls.get_many(
+            query = BaseXCom.get_many(
                 run_id=run_id,
                 key=key,
                 task_ids=task_id,
@@ -382,7 +385,7 @@ class BaseXCom(Base, LoggingMixin):
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-                query = cls.get_many(
+                query = BaseXCom.get_many(
                     execution_date=execution_date,
                     key=key,
                     task_ids=task_id,
@@ -395,15 +398,14 @@ class BaseXCom(Base, LoggingMixin):
         else:
             raise RuntimeError("Should not happen?")
 
-        result = query.with_entities(cls.value).first()
+        result = query.with_entities(BaseXCom.value).first()
         if result:
-            return cls.deserialize_value(result)
+            return BaseXCom.deserialize_value(result)
         return None
 
     @overload
-    @classmethod
+    @staticmethod
     def get_many(
-        cls,
         *,
         run_id: str,
         key: str | None = None,
@@ -436,12 +438,13 @@ class BaseXCom(Base, LoggingMixin):
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.
+        :param limit: Limiting returning XComs
         """
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def get_many(
-        cls,
         execution_date: datetime.datetime,
         key: str | None = None,
         task_ids: str | Iterable[str] | None = None,
@@ -453,10 +456,10 @@ class BaseXCom(Base, LoggingMixin):
     ) -> Query:
         """:sphinx-autoapi-skip:"""
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def get_many(
-        cls,
         execution_date: datetime.datetime | None = None,
         key: str | None = None,
         task_ids: str | Iterable[str] | None = None,
@@ -480,38 +483,42 @@ class BaseXCom(Base, LoggingMixin):
             message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
 
-        query = session.query(cls).join(cls.dag_run)
+        query = session.query(BaseXCom).join(BaseXCom.dag_run)
 
         if key:
-            query = query.filter(cls.key == key)
+            query = query.filter(BaseXCom.key == key)
 
         if is_container(task_ids):
-            query = query.filter(cls.task_id.in_(task_ids))
+            query = query.filter(BaseXCom.task_id.in_(task_ids))
         elif task_ids is not None:
-            query = query.filter(cls.task_id == task_ids)
+            query = query.filter(BaseXCom.task_id == task_ids)
 
         if is_container(dag_ids):
-            query = query.filter(cls.dag_id.in_(dag_ids))
+            query = query.filter(BaseXCom.dag_id.in_(dag_ids))
         elif dag_ids is not None:
-            query = query.filter(cls.dag_id == dag_ids)
+            query = query.filter(BaseXCom.dag_id == dag_ids)
 
-        if is_container(map_indexes):
-            query = query.filter(cls.map_index.in_(map_indexes))
+        if isinstance(map_indexes, range) and map_indexes.step == 1:
+            query = query.filter(
+                BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
+            )
+        elif is_container(map_indexes):
+            query = query.filter(BaseXCom.map_index.in_(map_indexes))
         elif map_indexes is not None:
-            query = query.filter(cls.map_index == map_indexes)
+            query = query.filter(BaseXCom.map_index == map_indexes)
 
         if include_prior_dates:
             if execution_date is not None:
                 query = query.filter(DagRun.execution_date <= execution_date)
             else:
                 dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
-                query = query.filter(cls.execution_date <= dr.c.execution_date)
+                query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
         elif execution_date is not None:
             query = query.filter(DagRun.execution_date == execution_date)
         else:
-            query = query.filter(cls.run_id == run_id)
+            query = query.filter(BaseXCom.run_id == run_id)
 
-        query = query.order_by(DagRun.execution_date.desc(), cls.timestamp.desc())
+        query = query.order_by(DagRun.execution_date.desc(), BaseXCom.timestamp.desc())
         if limit:
             return query.limit(limit)
         return query
@@ -524,14 +531,14 @@ class BaseXCom(Base, LoggingMixin):
             xcoms = [xcoms]
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
-                raise TypeError(f'Expected XCom; received {xcom.__class__.__name__}')
+                raise TypeError(f"Expected XCom; received {xcom.__class__.__name__}")
             session.delete(xcom)
         session.commit()
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def clear(
-        cls,
         *,
         dag_id: str,
         task_id: str,
@@ -554,9 +561,9 @@ class BaseXCom(Base, LoggingMixin):
         """
 
     @overload
-    @classmethod
+    @staticmethod
+    @internal_api_call
     def clear(
-        cls,
         execution_date: pendulum.DateTime,
         dag_id: str,
         task_id: str,
@@ -564,10 +571,10 @@ class BaseXCom(Base, LoggingMixin):
     ) -> None:
         """:sphinx-autoapi-skip:"""
 
-    @classmethod
+    @staticmethod
     @provide_session
+    @internal_api_call
     def clear(
-        cls,
         execution_date: pendulum.DateTime | None = None,
         dag_id: str | None = None,
         task_id: str | None = None,
@@ -601,7 +608,7 @@ class BaseXCom(Base, LoggingMixin):
                 .scalar()
             )
 
-        query = session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
             query = query.filter_by(map_index=map_index)
         query.delete()
@@ -617,34 +624,44 @@ class BaseXCom(Base, LoggingMixin):
         map_index: int | None = None,
     ) -> Any:
         """Serialize XCom value to str or pickled object."""
-        if conf.getboolean('core', 'enable_xcom_pickling'):
+        if conf.getboolean("core", "enable_xcom_pickling"):
             return pickle.dumps(value)
         try:
-            return json.dumps(value).encode('UTF-8')
-        except (ValueError, TypeError):
+            return json.dumps(value, cls=XComEncoder).encode("UTF-8")
+        except (ValueError, TypeError) as ex:
             log.error(
-                "Could not serialize the XCom value into JSON."
+                "%s."
                 " If you are using pickle instead of JSON for XCom,"
                 " then you need to enable pickle support for XCom"
-                " in your airflow config."
+                " in your airflow config or make sure to decorate your"
+                " object with attr.",
+                ex,
             )
             raise
 
     @staticmethod
-    def deserialize_value(result: XCom) -> Any:
-        """Deserialize XCom value from str or pickle object"""
+    def _deserialize_value(result: XCom, orm: bool) -> Any:
+        object_hook = None
+        if orm:
+            object_hook = XComDecoder.orm_object_hook
+
         if result.value is None:
             return None
-        if conf.getboolean('core', 'enable_xcom_pickling'):
+        if conf.getboolean("core", "enable_xcom_pickling"):
             try:
                 return pickle.loads(result.value)
             except pickle.UnpicklingError:
-                return json.loads(result.value.decode('UTF-8'))
+                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
         else:
             try:
-                return json.loads(result.value.decode('UTF-8'))
+                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return pickle.loads(result.value)
+
+    @staticmethod
+    def deserialize_value(result: XCom) -> Any:
+        """Deserialize XCom value from str or pickle object"""
+        return BaseXCom._deserialize_value(result, False)
 
     def orm_deserialize_value(self) -> Any:
         """
@@ -655,7 +672,7 @@ class BaseXCom(Base, LoggingMixin):
         creating XCom orm model. This is used when viewing XCom listing
         in the webserver, for example.
         """
-        return BaseXCom.deserialize_value(self)
+        return BaseXCom._deserialize_value(self, True)
 
 
 class _LazyXComAccessIterator(collections.abc.Iterator):
@@ -686,30 +703,48 @@ class LazyXComAccess(collections.abc.Sequence):
     Note that since the session bound to the parent query may have died when we
     actually access the sequence's content, we must create a new session
     for every function call with ``with_session()``.
+
+    :meta private:
     """
 
-    dag_id: str
-    run_id: str
-    task_id: str
-    _query: Query = attr.ib(repr=False)
-    _len: int | None = attr.ib(init=False, repr=False, default=None)
+    _query: Query
+    _len: int | None = attr.ib(init=False, default=None)
 
     @classmethod
-    def build_from_single_xcom(cls, first: XCom, query: Query) -> LazyXComAccess:
-        return cls(
-            dag_id=first.dag_id,
-            run_id=first.run_id,
-            task_id=first.task_id,
-            query=query.with_entities(XCom.value)
-            .filter(
-                XCom.run_id == first.run_id,
-                XCom.task_id == first.task_id,
-                XCom.dag_id == first.dag_id,
-                XCom.map_index >= 0,
+    def build_from_xcom_query(cls, query: Query) -> LazyXComAccess:
+        return cls(query=query.with_entities(XCom.value))
+
+    def __repr__(self) -> str:
+        return f"LazyXComAccess([{len(self)} items])"
+
+    def __str__(self) -> str:
+        return str(list(self))
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, (list, LazyXComAccess)):
+            z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
+            return all(x == y for x, y in z)
+        return NotImplemented
+
+    def __getstate__(self) -> Any:
+        # We don't want to go to the trouble of serializing the entire Query
+        # object, including its filters, hints, etc. (plus SQLAlchemy does not
+        # provide a public API to inspect a query's contents). Converting the
+        # query into a SQL string is the best we can get. Theoratically we can
+        # do the same for count(), but I think it should be performant enough to
+        # calculate only that eagerly.
+        with self._get_bound_query() as query:
+            statement = query.statement.compile(
+                query.session.get_bind(),
+                # This inlines all the values into the SQL string to simplify
+                # cross-process commuinication as much as possible.
+                compile_kwargs={"literal_binds": True},
             )
-            .order_by(None)
-            .order_by(XCom.map_index.asc()),
-        )
+            return (str(statement), query.count())
+
+    def __setstate__(self, state: Any) -> None:
+        statement, self._len = state
+        self._query = Query(XCom.value).from_statement(text(statement))
 
     def __len__(self):
         if self._len is None:

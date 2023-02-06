@@ -75,7 +75,7 @@ the user have also "group write" access for group ``0`` - they will be writable 
 folder will have a "group write" access and ``GID=0``, so that execution with another, arbitrary user
 will still continue to work, even if such directory is mounted by another arbitrary user later.
 
-The ``umask`` setting however only works for runtime of the container - it is not used during building of
+The ``umask`` setting, however, only works for runtime of the container - it is not used during building of
 the image. If you would like to extend the image and add your own packages, you should remember to add
 ``umask 0002`` in front of your docker command - this way the directories created by any installation
 that need group access will also be writable for the group. This can be done for example this way:
@@ -132,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.5.0.dev0-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.6.0.dev0-python3.6 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -144,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.5.0.dev0-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.6.0.dev0-python3.6 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -152,13 +152,13 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.5.0.dev0-python3.6 airflow webserver
+   docker run -it apache/airflow:2.6.0.dev0-python3.6 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.5.0.dev0-python3.6 help
+  > docker run -it apache/airflow:2.6.0.dev0-python3.6 help
     usage: airflow [-h] GROUP_OR_COMMAND ...
 
     positional arguments:
@@ -199,14 +199,14 @@ Execute custom code before the Airflow entrypoint
 
 If you want to execute some custom code before Airflow's entrypoint you can by using
 a custom script and calling Airflow's entrypoint as the
-last ``exec`` instruction in your custom one. However you have to remember to use ``dumb-init`` in the same
+last ``exec`` instruction in your custom one. However, you have to remember to use ``dumb-init`` in the same
 way as it is used with Airflow's entrypoint, otherwise you might have problems with proper signal
 propagation (See the next chapter).
 
 
 .. code-block:: Dockerfile
 
-    FROM airflow:2.5.0.dev0
+    FROM airflow:2.6.0.dev0
     COPY my_entrypoint.sh /
     ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
 
@@ -250,7 +250,7 @@ Similarly to custom entrypoint, it can be added to the image by extending it.
 
 .. code-block:: Dockerfile
 
-    FROM airflow:2.5.0.dev0
+    FROM airflow:2.6.0.dev0
     COPY my_after_entrypoint_script.sh /
 
 Build your image and then you can run this script by running the command:
@@ -363,7 +363,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
-      apache/airflow:2.5.0.dev0-python3.8 webserver
+      apache/airflow:2.6.0.dev0-python3.8 webserver
 
 
 .. code-block:: bash
@@ -372,7 +372,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:2.5.0.dev0-python3.8 webserver
+      apache/airflow:2.6.0.dev0-python3.8 webserver
 
 The commands above perform initialization of the SQLite database, create admin user with admin password
 and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
@@ -412,6 +412,6 @@ Example:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:2.5.0.dev0-python3.8 webserver
+      apache/airflow:2.6.0.dev0-python3.8 webserver
 
 This method is only available starting from Docker image of Airflow 2.1.1 and above.

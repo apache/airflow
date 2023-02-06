@@ -27,6 +27,55 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+You can no longer pass "local_infile" as extra in the connection. You should pass it instead as
+hook's "local_infile" parameter when you create the MySqlHook (either directly or via hook_params).
+
+* ``Move local_infile option from extra to hook parameter (#28811)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow SSL mode in MySQL provider (#27717)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
+3.3.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add SQLExecuteQueryOperator (#25717)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 3.2.1
 .....
 

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from contextlib import closing
+from contextlib import closing, contextmanager
 from functools import wraps
 from io import StringIO
 from pathlib import Path
@@ -32,7 +32,7 @@ from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.utils.strings import to_boolean
 
 
@@ -74,7 +74,7 @@ class SnowflakeHook(DbApiHook):
     """
     A client to interact with Snowflake.
 
-    This hook requires the snowflake_conn_id connection. The snowflake host, login,
+    This hook requires the snowflake_conn_id connection. The snowflake account, login,
     and, password field must be setup in the connection. Other inputs can be defined
     in the connection or hook instantiation.
 
@@ -143,7 +143,7 @@ class SnowflakeHook(DbApiHook):
         import json
 
         return {
-            "hidden_fields": ["port"],
+            "hidden_fields": ["port", "host"],
             "relabeling": {},
             "placeholders": {
                 "extra": json.dumps(
@@ -329,6 +329,7 @@ class SnowflakeHook(DbApiHook):
         handler: Callable | None = None,
         split_statements: bool = True,
         return_last: bool = True,
+        return_dictionaries: bool = False,
     ) -> Any | list[Any] | None:
         """
         Runs a command or a list of commands. Pass a list of sql
@@ -346,35 +347,45 @@ class SnowflakeHook(DbApiHook):
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
         :param return_last: Whether to return result for only last statement or for all after split
+        :param return_dictionaries: Whether to return dictionaries rather than regular DBApi sequences
+            as rows in the result. The dictionaries are of form:
+            ``{ 'column1_name': value1, 'column2_name': value2 ... }``.
         :return: return only result of the LAST SQL expression if handler was provided.
         """
         self.query_ids = []
 
-        scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 split_statements_tuple = util_text.split_statements(StringIO(sql))
-                sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+                sql_list: Iterable[str] = [
+                    sql_string for sql_string, _ in split_statements_tuple if sql_string
+                ]
             else:
-                sql = [self.strip_sql_string(sql)]
+                sql_list = [self.strip_sql_string(sql)]
+        else:
+            sql_list = sql
 
-        if sql:
-            self.log.debug("Executing following statements against Snowflake DB: %s", list(sql))
+        if sql_list:
+            self.log.debug("Executing following statements against Snowflake DB: %s", sql_list)
         else:
             raise ValueError("List of SQL statements is empty")
 
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
 
-            # SnowflakeCursor does not extend ContextManager, so we have to ignore mypy error here
-            with closing(conn.cursor(DictCursor)) as cur:  # type: ignore[type-var]
+            with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
-                for sql_statement in sql:
+                for sql_statement in sql_list:
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
                         result = handler(cur)
-                        results.append(result)
+                        if return_single_query_results(sql, return_last, split_statements):
+                            _last_result = result
+                            _last_description = cur.description
+                        else:
+                            results.append(result)
+                            self.descriptions.append(cur.description)
 
                     query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)
@@ -387,7 +398,21 @@ class SnowflakeHook(DbApiHook):
 
         if handler is None:
             return None
-        elif scalar_return_last:
-            return results[-1]
+        if return_single_query_results(sql, return_last, split_statements):
+            self.descriptions = [_last_description]
+            return _last_result
         else:
             return results
+
+    @contextmanager
+    def _get_cursor(self, conn: Any, return_dictionaries: bool):
+        cursor = None
+        try:
+            if return_dictionaries:
+                cursor = conn.cursor(DictCursor)
+            else:
+                cursor = conn.cursor()
+            yield cursor
+        finally:
+            if cursor is not None:
+                cursor.close()

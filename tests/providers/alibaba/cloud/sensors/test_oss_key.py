@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -33,8 +32,8 @@ MOCK_KEYS = ["mock_key1", "mock_key_2", "mock_key3"]
 MOCK_CONTENT = "mock_content"
 
 
-class TestOSSKeySensor(unittest.TestCase):
-    def setUp(self):
+class TestOSSKeySensor:
+    def setup_method(self):
         self.sensor = OSSKeySensor(
             bucket_key=MOCK_KEY,
             oss_conn_id=MOCK_OSS_CONN_ID,

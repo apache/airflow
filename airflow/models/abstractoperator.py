@@ -21,15 +21,17 @@ import datetime
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from airflow.compat.functools import cached_property
+from airflow.compat.functools import cache, cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskmixin import DAGNode
+from airflow.template.templater import Templater
 from airflow.utils.context import Context
-from airflow.utils.helpers import render_template_as_native, render_template_to_string
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import skip_locked, with_row_locks
+from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -52,10 +54,13 @@ DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
     "scheduler", "ignore_first_depends_on_past_by_default"
 )
+DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING: bool = False
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
 )
+MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
+
 DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
@@ -65,7 +70,11 @@ DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
 )
 
 
-class AbstractOperator(LoggingMixin, DAGNode):
+class NotMapped(Exception):
+    """Raise if a task is neither mapped nor has any parent mapped groups."""
+
+
+class AbstractOperator(Templater, DAGNode):
     """Common implementation for operators, including unmapped and mapped.
 
     This base class is more about sharing implementations, not defining a common
@@ -85,10 +94,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     # Defines the operator level extra links.
     operator_extra_links: Collection[BaseOperatorLink]
-    # For derived classes to define which fields will get jinjaified.
-    template_fields: Collection[str]
-    # Defines which files extensions to look for in the templated fields.
-    template_ext: Sequence[str]
 
     owner: str
     task_id: str
@@ -98,20 +103,20 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
-            'log',
-            'dag',  # We show dag_id, don't need to show this too
-            'node_id',  # Duplicates task_id
-            'task_group',  # Doesn't have a useful repr, no point showing in UI
-            'inherits_from_empty_operator',  # impl detail
+            "log",
+            "dag",  # We show dag_id, don't need to show this too
+            "node_id",  # Duplicates task_id
+            "task_group",  # Doesn't have a useful repr, no point showing in UI
+            "inherits_from_empty_operator",  # impl detail
             # For compatibility with TG, for operators these are just the current task, no point showing
-            'roots',
-            'leaves',
+            "roots",
+            "leaves",
             # These lists are already shown via *_task_ids
-            'upstream_list',
-            'downstream_list',
+            "upstream_list",
+            "downstream_list",
             # Not useful, implementation detail, already shown elsewhere
-            'global_operator_extra_link_dict',
-            'operator_extra_link_dict',
+            "global_operator_extra_link_dict",
+            "operator_extra_link_dict",
         )
     )
 
@@ -141,48 +146,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
     @property
     def node_id(self) -> str:
         return self.task_id
-
-    def get_template_env(self) -> jinja2.Environment:
-        """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
-        # This is imported locally since Jinja2 is heavy and we don't need it
-        # for most of the functionalities. It is imported by get_template_env()
-        # though, so we don't need to put this after the 'if dag' check.
-        from airflow.templates import SandboxedEnvironment
-
-        dag = self.get_dag()
-        if dag:
-            return dag.get_template_env(force_sandboxed=False)
-        return SandboxedEnvironment(cache_size=0)
-
-    def prepare_template(self) -> None:
-        """Hook triggered after the templated fields get replaced by their content.
-
-        If you need your operator to alter the content of the file before the
-        template is rendered, it should override this method to do so.
-        """
-
-    def resolve_template_files(self) -> None:
-        """Getting the content of files for template_field / template_ext."""
-        if self.template_ext:
-            for field in self.template_fields:
-                content = getattr(self, field, None)
-                if content is None:
-                    continue
-                elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
-                    env = self.get_template_env()
-                    try:
-                        setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore
-                    except Exception:
-                        self.log.exception("Failed to resolve template field %r", field)
-                elif isinstance(content, list):
-                    env = self.get_template_env()
-                    for i, item in enumerate(content):
-                        if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
-                            try:
-                                content[i] = env.loader.get_source(env, item)[0]  # type: ignore
-                            except Exception:
-                                self.log.exception("Failed to get source %s", item)
-        self.prepare_template()
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
         """Get direct relative IDs to the current task, upstream or downstream."""
@@ -222,7 +185,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
             return set()
         return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
 
-    def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator]:
+    def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
 
         For now, this walks the entire DAG to find mapped nodes that has this
@@ -257,12 +220,12 @@ class AbstractOperator(LoggingMixin, DAGNode):
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
-            if not isinstance(child, MappedOperator):
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
                 continue
             if self.node_id in child.upstream_task_ids:
                 yield child
 
-    def iter_mapped_dependants(self) -> Iterator[MappedOperator]:
+    def iter_mapped_dependants(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that depend on the current task the expansion.
 
         For now, this walks the entire DAG to find mapped nodes that has this
@@ -275,6 +238,23 @@ class AbstractOperator(LoggingMixin, DAGNode):
             for downstream in self._iter_all_mapped_downstreams()
             if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
         )
+
+    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
+        """Return mapped task groups this task belongs to.
+
+        Groups are returned from the closest to the outmost.
+
+        :meta private:
+        """
+        parent = self.task_group
+        while parent is not None:
+            if isinstance(parent, MappedTaskGroup):
+                yield parent
+            parent = parent.task_group
+
+    def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
+        """:meta private:"""
+        return next(self.iter_mapped_task_groups(), None)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from current abstract operator.
@@ -370,6 +350,172 @@ class AbstractOperator(LoggingMixin, DAGNode):
             return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
         return link.get_link(self.unmap(None), ti_key=ti.key)
 
+    @cache
+    def get_parse_time_mapped_ti_count(self) -> int:
+        """Number of mapped task instances that can be created on DAG run creation.
+
+        This only considers literal mapped arguments, and would return *None*
+        when any non-literal values are used for mapping.
+
+        :raise NotFullyPopulated: If non-literal mapped arguments are encountered.
+        :raise NotMapped: If the operator is neither mapped, nor has any parent
+            mapped task groups.
+        :return: Total number of mapped TIs this task should have.
+        """
+        group = self.get_closest_mapped_task_group()
+        if group is None:
+            raise NotMapped
+        return group.get_parse_time_mapped_ti_count()
+
+    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+        """Number of mapped TaskInstances that can be created at run time.
+
+        This considers both literal and non-literal mapped arguments, and the
+        result is therefore available when all depended tasks have finished. The
+        return value should be identical to ``parse_time_mapped_ti_count`` if
+        all mapped arguments are literal.
+
+        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+        :raise NotMapped: If the operator is neither mapped, nor has any parent
+            mapped task groups.
+        :return: Total number of mapped TIs this task should have.
+        """
+        group = self.get_closest_mapped_task_group()
+        if group is None:
+            raise NotMapped
+        return group.get_mapped_ti_count(run_id, session=session)
+
+    def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+        """Create the mapped task instances for mapped task.
+
+        :raise NotMapped: If this task does not need expansion.
+        :return: The newly created mapped task instances (if any) in ascending
+            order by map index, and the maximum map index value.
+        """
+        from sqlalchemy import func, or_
+
+        from airflow.models.baseoperator import BaseOperator
+        from airflow.models.mappedoperator import MappedOperator
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.settings import task_instance_mutation_hook
+
+        if not isinstance(self, (BaseOperator, MappedOperator)):
+            raise RuntimeError(f"cannot expand unrecognized operator type {type(self).__name__}")
+
+        try:
+            total_length: int | None = self.get_mapped_ti_count(run_id, session=session)
+        except NotFullyPopulated as e:
+            # It's possible that the upstream tasks are not yet done, but we
+            # don't have upstream of upstreams in partial DAGs (possible in the
+            # mini-scheduler), so we ignore this exception.
+            if not self.dag or not self.dag.partial:
+                self.log.error(
+                    "Cannot expand %r for run %s; missing upstream values: %s",
+                    self,
+                    run_id,
+                    sorted(e.missing),
+                )
+            total_length = None
+
+        state: TaskInstanceState | None = None
+        unmapped_ti: TaskInstance | None = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.map_index == -1,
+                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
+            )
+            .one_or_none()
+        )
+
+        all_expanded_tis: list[TaskInstance] = []
+
+        if unmapped_ti:
+            # The unmapped task instance still exists and is unfinished, i.e. we
+            # haven't tried to run it before.
+            if total_length is None:
+                # If the DAG is partial, it's likely that the upstream tasks
+                # are not done yet, so the task can't fail yet.
+                if not self.dag or not self.dag.partial:
+                    unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
+            elif total_length < 1:
+                # If the upstream maps this to a zero-length value, simply mark
+                # the unmapped task instance as SKIPPED (if needed).
+                self.log.info(
+                    "Marking %s as SKIPPED since the map has %d values to expand",
+                    unmapped_ti,
+                    total_length,
+                )
+                unmapped_ti.state = TaskInstanceState.SKIPPED
+            else:
+                zero_index_ti_exists = (
+                    session.query(TaskInstance)
+                    .filter(
+                        TaskInstance.dag_id == self.dag_id,
+                        TaskInstance.task_id == self.task_id,
+                        TaskInstance.run_id == run_id,
+                        TaskInstance.map_index == 0,
+                    )
+                    .count()
+                    > 0
+                )
+                if not zero_index_ti_exists:
+                    # Otherwise convert this into the first mapped index, and create
+                    # TaskInstance for other indexes.
+                    unmapped_ti.map_index = 0
+                    self.log.debug("Updated in place to become %s", unmapped_ti)
+                    all_expanded_tis.append(unmapped_ti)
+                    session.flush()
+                else:
+                    self.log.debug("Deleting the original task instance: %s", unmapped_ti)
+                    session.delete(unmapped_ti)
+                state = unmapped_ti.state
+
+        if total_length is None or total_length < 1:
+            # Nothing to fixup.
+            indexes_to_map: Iterable[int] = ()
+        else:
+            # Only create "missing" ones.
+            current_max_mapping = (
+                session.query(func.max(TaskInstance.map_index))
+                .filter(
+                    TaskInstance.dag_id == self.dag_id,
+                    TaskInstance.task_id == self.task_id,
+                    TaskInstance.run_id == run_id,
+                )
+                .scalar()
+            )
+            indexes_to_map = range(current_max_mapping + 1, total_length)
+
+        for index in indexes_to_map:
+            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
+            ti = TaskInstance(self, run_id=run_id, map_index=index, state=state)
+            self.log.debug("Expanding TIs upserted %s", ti)
+            task_instance_mutation_hook(ti)
+            ti = session.merge(ti)
+            ti.refresh_from_task(self)  # session.merge() loses task information.
+            all_expanded_tis.append(ti)
+
+        # Coerce the None case to 0 -- these two are almost treated identically,
+        # except the unmapped ti (if exists) is marked to different states.
+        total_expanded_ti_count = total_length or 0
+
+        # Any (old) task instances with inapplicable indexes (>= the total
+        # number we need) are set to "REMOVED".
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.map_index >= total_expanded_ti_count,
+        )
+        to_update = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        for ti in to_update:
+            ti.state = TaskInstanceState.REMOVED
+        session.flush()
+        return all_expanded_tis, total_expanded_ti_count - 1
+
     def render_template_fields(
         self,
         context: Context,
@@ -386,6 +532,17 @@ class AbstractOperator(LoggingMixin, DAGNode):
         """
         raise NotImplementedError()
 
+    def _render(self, template, context, dag: DAG | None = None):
+        if dag is None:
+            dag = self.get_dag()
+        return super()._render(template, context, dag=dag)
+
+    def get_template_env(self, dag: DAG | None = None) -> jinja2.Environment:
+        """Get the template environment for rendering templates."""
+        if dag is None:
+            dag = self.get_dag()
+        return super().get_template_env(dag=dag)
+
     @provide_session
     def _do_render_template_fields(
         self,
@@ -397,6 +554,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         *,
         session: Session = NEW_SESSION,
     ) -> None:
+        """Override the base to use custom error logging."""
         for attr_name in template_fields:
             try:
                 value = getattr(parent, attr_name)
@@ -424,85 +582,3 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 raise
             else:
                 setattr(parent, attr_name, rendered_content)
-
-    def render_template(
-        self,
-        content: Any,
-        context: Context,
-        jinja_env: jinja2.Environment | None = None,
-        seen_oids: set[int] | None = None,
-    ) -> Any:
-        """Render a templated string.
-
-        If *content* is a collection holding multiple templated strings, strings
-        in the collection will be templated recursively.
-
-        :param content: Content to template. Only strings can be templated (may
-            be inside a collection).
-        :param context: Dict with values to apply on templated content
-        :param jinja_env: Jinja environment. Can be provided to avoid
-            re-creating Jinja environments during recursion.
-        :param seen_oids: template fields already rendered (to avoid
-            *RecursionError* on circular dependencies)
-        :return: Templated content
-        """
-        # "content" is a bad name, but we're stuck to it being public API.
-        value = content
-        del content
-
-        if seen_oids is not None:
-            oids = seen_oids
-        else:
-            oids = set()
-
-        if id(value) in oids:
-            return value
-
-        if not jinja_env:
-            jinja_env = self.get_template_env()
-
-        if isinstance(value, str):
-            if any(value.endswith(ext) for ext in self.template_ext):  # A filepath.
-                template = jinja_env.get_template(value)
-            else:
-                template = jinja_env.from_string(value)
-            dag = self.get_dag()
-            if dag and dag.render_template_as_native_obj:
-                return render_template_as_native(template, context)
-            return render_template_to_string(template, context)
-
-        if isinstance(value, ResolveMixin):
-            return value.resolve(context)
-
-        # Fast path for common built-in collections.
-        if value.__class__ is tuple:
-            return tuple(self.render_template(element, context, jinja_env, oids) for element in value)
-        elif isinstance(value, tuple):  # Special case for named tuples.
-            return value.__class__(*(self.render_template(el, context, jinja_env, oids) for el in value))
-        elif isinstance(value, list):
-            return [self.render_template(element, context, jinja_env, oids) for element in value]
-        elif isinstance(value, dict):
-            return {k: self.render_template(v, context, jinja_env, oids) for k, v in value.items()}
-        elif isinstance(value, set):
-            return {self.render_template(element, context, jinja_env, oids) for element in value}
-
-        # More complex collections.
-        self._render_nested_template_fields(value, context, jinja_env, oids)
-        return value
-
-    def _render_nested_template_fields(
-        self,
-        value: Any,
-        context: Context,
-        jinja_env: jinja2.Environment,
-        seen_oids: set[int],
-    ) -> None:
-        if id(value) in seen_oids:
-            return
-        seen_oids.add(id(value))
-        try:
-            nested_template_fields = value.template_fields
-        except AttributeError:
-            # content has no inner template fields
-            return
-        self._do_render_template_fields(value, nested_template_fields, context, jinja_env, seen_oids)

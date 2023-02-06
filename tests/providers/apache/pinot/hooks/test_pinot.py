@@ -20,7 +20,6 @@ from __future__ import annotations
 import io
 import os
 import subprocess
-import unittest
 from unittest import mock
 
 import pytest
@@ -29,13 +28,12 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbApiHook
 
 
-class TestPinotAdminHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestPinotAdminHook:
+    def setup_method(self):
         self.conn = conn = mock.MagicMock()
         self.conn.host = "host"
         self.conn.port = "1000"
-        self.conn.extra_dejson = {"cmd_path": "./pinot-admin.sh"}
+        self.conn.extra_dejson = {}
 
         class PinotAdminHookTest(PinotAdminHook):
             def get_connection(self, conn_id):
@@ -165,7 +163,7 @@ class TestPinotAdminHook(unittest.TestCase):
 
         params = ["foo", "bar", "baz"]
         self.db_hook.run_cli(params)
-        params.insert(0, self.conn.extra_dejson.get("cmd_path"))
+        params.insert(0, "pinot-admin.sh")
         mock_popen.assert_called_once_with(
             params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=None
         )
@@ -180,7 +178,7 @@ class TestPinotAdminHook(unittest.TestCase):
         params = ["foo", "bar", "baz"]
         with pytest.raises(AirflowException):
             self.db_hook.run_cli(params)
-        params.insert(0, self.conn.extra_dejson.get("cmd_path"))
+        params.insert(0, "pinot-admin.sh")
         mock_popen.assert_called_once_with(
             params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=None
         )
@@ -196,7 +194,7 @@ class TestPinotAdminHook(unittest.TestCase):
         params = ["foo", "bar", "baz"]
         with pytest.raises(AirflowException):
             self.db_hook.run_cli(params)
-        params.insert(0, self.conn.extra_dejson.get("cmd_path"))
+        params.insert(0, "pinot-admin.sh")
         env = os.environ.copy()
         env.update({"JAVA_OPTS": "-Dpinot.admin.system.exit=true "})
         mock_popen.assert_called_once_with(
@@ -204,9 +202,17 @@ class TestPinotAdminHook(unittest.TestCase):
         )
 
 
-class TestPinotDbApiHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestPinotAdminHookCreation:
+    def test_exception_when_overriding_cmd_path(self):
+        with pytest.raises(RuntimeError):
+            PinotAdminHook(cmd_path="some_path.sh")
+
+    def test_exception_when_keeping_cmd_path(self):
+        PinotAdminHook(cmd_path="pinot-admin.sh")
+
+
+class TestPinotDbApiHook:
+    def setup_method(self):
         self.conn = conn = mock.MagicMock()
         self.conn.host = "host"
         self.conn.port = "1000"
@@ -265,13 +271,3 @@ class TestPinotDbApiHook(unittest.TestCase):
         assert column == df.columns[0]
         for i, item in enumerate(result_sets):
             assert item[0] == df.values.tolist()[i][0]
-
-
-class TestPinotDbApiHookIntegration(unittest.TestCase):
-    @pytest.mark.integration("pinot")
-    @mock.patch.dict("os.environ", AIRFLOW_CONN_PINOT_BROKER_DEFAULT="pinot://pinot:8000/")
-    def test_should_return_records(self):
-        hook = PinotDbApiHook()
-        sql = "select playerName from baseballStats  ORDER BY playerName limit 5"
-        records = hook.get_records(sql)
-        assert [["A. Harry"], ["A. Harry"], ["Aaron"], ["Aaron Albert"], ["Aaron Albert"]] == records

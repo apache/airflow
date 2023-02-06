@@ -26,12 +26,21 @@ from typing import Any
 import dateutil  # noqa
 from pendulum import DateTime
 
-from airflow.macros import hive  # noqa
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "hive": {
+        "closest_ds_partition": "airflow.providers.apache.hive.macros.hive.closest_ds_partition",
+        "max_partition": "airflow.providers.apache.hive.macros.hive.max_partition",
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)
 
 
 def ds_add(ds: str, days: int) -> str:
     """
-    Add or subtract days from a YYYY-MM-DD
+    Add or subtract days from a YYYY-MM-DD.
 
     :param ds: anchor date in ``YYYY-MM-DD`` format to add to
     :param days: number of days to add to the ds, you can use negative values
@@ -49,8 +58,7 @@ def ds_add(ds: str, days: int) -> str:
 
 def ds_format(ds: str, input_format: str, output_format: str) -> str:
     """
-    Takes an input string and outputs another string
-    as specified in the output format
+    Output datetime string in a given format.
 
     :param ds: input string which contains a date
     :param input_format: input string format. E.g. %Y-%m-%d
@@ -66,8 +74,9 @@ def ds_format(ds: str, input_format: str, output_format: str) -> str:
 
 def datetime_diff_for_humans(dt: Any, since: DateTime | None = None) -> str:
     """
-    Return a human-readable/approximate difference between two datetimes, or
-    one and now.
+    Return a human-readable/approximate difference between datetimes.
+
+    When only one datetime is provided, the comparison will be based on now.
 
     :param dt: The datetime to display the diff for
     :param since: When to display the date from. If ``None`` then the diff is

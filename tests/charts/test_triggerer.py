@@ -134,6 +134,20 @@ class TestTriggerer:
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -348,7 +362,10 @@ class TestTriggerer:
     )
     def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
         docs = render_chart(
-            values={"logs": {"persistence": log_persistence_values}},
+            values={
+                "triggerer": {"persistence": {"enabled": False}},
+                "logs": {"persistence": log_persistence_values},
+            },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
@@ -393,20 +410,44 @@ class TestTriggerer:
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
-        "strategy, expected_strategy",
+        "persistence, update_strategy, expected_update_strategy",
         [
-            (None, None),
+            (False, None, None),
+            (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            (True, None, None),
+        ],
+    )
+    def test_update_strategy(self, persistence, update_strategy, expected_update_strategy):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.6.0",
+                "executor": "CeleryExecutor",
+                "triggerer": {
+                    "persistence": {"enabled": persistence},
+                    "updateStrategy": update_strategy,
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
+
+    @pytest.mark.parametrize(
+        "persistence, strategy, expected_strategy",
+        [
+            (True, None, None),
             (
+                False,
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
+            (False, None, None),
         ],
     )
-    def test_strategy(self, strategy, expected_strategy):
-        """strategy should be used when we aren't using both LocalExecutor and workers.persistence"""
+    def test_strategy(self, persistence, strategy, expected_strategy):
         docs = render_chart(
             values={
-                "triggerer": {"strategy": strategy},
+                "triggerer": {"persistence": {"enabled": persistence}, "strategy": strategy},
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
@@ -469,6 +510,41 @@ class TestTriggerer:
         assert "git-sync-init" not in [
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
+
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": None}, show_only=["templates/triggerer/triggerer-deployment.yaml"]
+        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts_init)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        volume_mount = {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
+
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
 
 class TestTriggererServiceAccount:

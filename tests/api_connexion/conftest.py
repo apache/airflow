@@ -34,6 +34,7 @@ def minimal_app_for_api():
             "init_api_experimental_auth",
             "init_api_connexion",
             "init_airflow_session_interface",
+            "init_appbuilder_views",
         ]
     )
     def factory():
@@ -51,7 +52,7 @@ def session():
         yield session
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dagbag():
     from airflow.models import DagBag
 

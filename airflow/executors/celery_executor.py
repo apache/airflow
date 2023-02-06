@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""CeleryExecutor
+"""CeleryExecutor.
 
 .. seealso::
     For more information on how the CeleryExecutor works, take a look at the guide:
@@ -63,23 +63,23 @@ from airflow.utils.timezone import utcnow
 log = logging.getLogger(__name__)
 
 # Make it constant for unit test.
-CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
+CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
-CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
+CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
-OPERATION_TIMEOUT = conf.getfloat('celery', 'operation_timeout', fallback=1.0)
+OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout", fallback=1.0)
 
-'''
+"""
 To start the celery worker, run the command:
 airflow celery worker
-'''
+"""
 
-if conf.has_option('celery', 'celery_config_options'):
-    celery_configuration = conf.getimport('celery', 'celery_config_options')
+if conf.has_option("celery", "celery_config_options"):
+    celery_configuration = conf.getimport("celery", "celery_config_options")
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
-app = Celery(conf.get('celery', 'CELERY_APP_NAME'), config_source=celery_configuration)
+app = Celery(conf.get("celery", "CELERY_APP_NAME"), config_source=celery_configuration)
 
 
 @app.task
@@ -107,7 +107,7 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         if ret == 0:
             return
 
-        msg = f'Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id}'
+        msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id}"
         raise AirflowException(msg)
 
     from airflow.sentry import Sentry
@@ -145,9 +145,9 @@ def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | N
     try:
         subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
     except subprocess.CalledProcessError as e:
-        log.exception('[%s] execute_command encountered a CalledProcessError', celery_task_id)
+        log.exception("[%s] execute_command encountered a CalledProcessError", celery_task_id)
         log.error(e.output)
-        msg = f'Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id}'
+        msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id}"
         raise AirflowException(msg)
 
 
@@ -187,8 +187,7 @@ def send_task_to_executor(
 @celery_import_modules.connect
 def on_celery_import_modules(*args, **kwargs):
     """
-    Preload some "expensive" airflow modules so that every task process doesn't have to import it again and
-    again.
+    Preload some "expensive" airflow modules once, so other task processes won't have to import it again.
 
     Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
     doesn't matter, but for short tasks this starts to be a noticeable impact.
@@ -219,8 +218,9 @@ class _CeleryPendingTaskTimeoutType(Enum):
 
 class CeleryExecutor(BaseExecutor):
     """
-    CeleryExecutor is recommended for production use of Airflow. It allows
-    distributing the execution of task instances to multiple worker nodes.
+    CeleryExecutor is recommended for production use of Airflow.
+
+    It allows distributing the execution of task instances to multiple worker nodes.
 
     Celery is a simple, flexible and reliable distributed system to process
     vast amounts of messages, while providing operations with the tools
@@ -228,6 +228,7 @@ class CeleryExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_sentry: bool = True
 
     def __init__(self):
         super().__init__()
@@ -235,25 +236,25 @@ class CeleryExecutor(BaseExecutor):
         # Celery doesn't support bulk sending the tasks (which can become a bottleneck on bigger clusters)
         # so we use a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = conf.getint('celery', 'SYNC_PARALLELISM')
+        self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM")
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
         self.stalled_task_timeouts: dict[TaskInstanceKey, datetime.datetime] = {}
         self.stalled_task_timeout = datetime.timedelta(
-            seconds=conf.getint('celery', 'stalled_task_timeout', fallback=0)
+            seconds=conf.getint("celery", "stalled_task_timeout", fallback=0)
         )
         self.adopted_task_timeouts: dict[TaskInstanceKey, datetime.datetime] = {}
         self.task_adoption_timeout = (
-            datetime.timedelta(seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600))
+            datetime.timedelta(seconds=conf.getint("celery", "task_adoption_timeout", fallback=600))
             or self.stalled_task_timeout
         )
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = conf.getint('celery', 'task_publish_max_retries', fallback=3)
+        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries", fallback=3)
 
     def start(self) -> None:
-        self.log.debug('Starting Celery Executor using %s processes for syncing', self._sync_parallelism)
+        self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
 
     def _num_tasks_per_send_process(self, to_send_count: int) -> int:
         """
@@ -272,7 +273,7 @@ class CeleryExecutor(BaseExecutor):
         cached_celery_backend = first_task.backend
 
         key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
-        self.log.debug('Sent all tasks.')
+        self.log.debug("Sent all tasks.")
 
         for key, _, result in key_and_async_results:
             if isinstance(result, ExceptionWithTraceback) and isinstance(
@@ -306,7 +307,7 @@ class CeleryExecutor(BaseExecutor):
                 self.event_buffer[key] = (State.QUEUED, result.task_id)
 
                 # If the task runs _really quickly_ we may already have a result!
-                self.update_task_state(key, result.state, getattr(result, 'info', None))
+                self.update_task_state(key, result.state, getattr(result, "info", None))
 
     def _send_tasks_to_celery(self, task_tuples_to_send: list[TaskInstanceInCelery]):
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
@@ -358,13 +359,14 @@ class CeleryExecutor(BaseExecutor):
         self, task_timeouts: dict[TaskInstanceKey, datetime.datetime]
     ) -> list[TaskInstanceKey]:
         """
-        These timeouts exist to check to see if any of our tasks have not progressed
-        in the expected time. This can happen for few different reasons, usually related
-        to race conditions while shutting down schedulers and celery workers.
+        Evaluate whether other tasks have stalled during the expected time.
+
+        This can happen for few different reasons,
+        usually related to race conditions while shutting down schedulers and celery workers.
 
         It is, of course, always possible that these tasks are not actually
         stalled - they could just be waiting in a long celery queue.
-        Unfortunately there's no way for us to know for sure, so we'll just
+        Unfortunately, there's no way for us to know for sure, so we'll just
         reschedule them and let the normal scheduler loop requeue them.
         """
         now = utcnow()
@@ -421,7 +423,7 @@ class CeleryExecutor(BaseExecutor):
                     self.log.error("Error revoking task instance %s from celery: %s", key, ex)
 
     def debug_dump(self) -> None:
-        """Called in response to SIGUSR2 by the scheduler"""
+        """Called in response to SIGUSR2 by the scheduler."""
         super().debug_dump()
         self.log.info(
             "executor.tasks (%d)\n\t%s", len(self.tasks), "\n\t".join(map(repr, self.tasks.items()))
@@ -529,7 +531,7 @@ class CeleryExecutor(BaseExecutor):
             adopted.append(f"{ti} in state {state}")
 
         if adopted:
-            task_instance_str = '\n\t'.join(adopted)
+            task_instance_str = "\n\t".join(adopted)
             self.log.info(
                 "Adopted the following %d tasks from a dead executor\n\t%s", len(adopted), task_instance_str
             )
@@ -540,6 +542,8 @@ class CeleryExecutor(BaseExecutor):
         self, key: TaskInstanceKey, timeout_type: _CeleryPendingTaskTimeoutType | None
     ) -> None:
         """
+        Set pending task timeout.
+
         We use the fact that dicts maintain insertion order, and the the timeout for a
         task is always "now + delta" to maintain the property that oldest item = first to
         time out.
@@ -554,8 +558,9 @@ class CeleryExecutor(BaseExecutor):
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
     """
-    Fetch and return the state of the given celery task. The scope of this function is
-    global so that it can be called by subprocesses in the pool.
+    Fetch and return the state of the given celery task.
+
+    The scope of this function is global so that it can be called by subprocesses in the pool.
 
     :param async_result: a tuple of the Celery task key and the async Celery object used
         to fetch the task's state
@@ -566,7 +571,7 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
         with timeout(seconds=OPERATION_TIMEOUT):
             # Accessing state property of celery task will make actual network request
             # to get the current state of the task
-            info = async_result.info if hasattr(async_result, 'info') else None
+            info = async_result.info if hasattr(async_result, "info") else None
             return async_result.task_id, async_result.state, info
     except Exception as e:
         exception_traceback = f"Celery Task ID: {async_result}\n{traceback.format_exc()}"
@@ -575,7 +580,7 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
 
 class BulkStateFetcher(LoggingMixin):
     """
-    Gets status for many Celery tasks using the best method available
+    Gets status for many Celery tasks using the best method available.
 
     If BaseKeyValueStoreBackend is used as result backend, the mget method is used.
     If DatabaseBackend is used as result backend, the SELECT ...WHERE task_id IN (...) query is used

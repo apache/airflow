@@ -44,6 +44,7 @@ const mockGridData = {
             state: 'success',
             taskId: 'group_1',
             tryNumber: 1,
+            note: 'abc',
           },
         ],
         children: [
@@ -59,6 +60,7 @@ const mockGridData = {
                 state: 'success',
                 taskId: 'group_1.task_1',
                 tryNumber: 1,
+                note: 'abc',
               },
             ],
             children: [
@@ -75,6 +77,7 @@ const mockGridData = {
                     state: 'success',
                     taskId: 'group_1.task_1.sub_task_1',
                     tryNumber: 1,
+                    note: 'abc',
                   },
                 ],
               },
@@ -97,6 +100,7 @@ const mockGridData = {
       runType: 'scheduled',
       executionDate: '2021-11-08T21:14:19.704433+00:00',
       lastSchedulingDecision: '2021-11-08T21:14:19.704433+00:00',
+      note: 'myCoolDagRun',
       externalTrigger: false,
       conf: null,
       confIsJson: false,
@@ -140,7 +144,7 @@ describe('Test ToggleGroups', () => {
 
     expect(getAllByTestId('task-instance')).toHaveLength(1);
     expect(groupName).toBeInTheDocument();
-    expect(getByTestId('closed-group')).toBeInTheDocument();
+    expect(getByTestId('open-group')).toBeInTheDocument();
   });
 
   test('Buttons are disabled if all groups are expanded or collapsed', () => {
@@ -175,21 +179,21 @@ describe('Test ToggleGroups', () => {
     expect(queryAllByTestId('task-instance')).toHaveLength(3);
     expect(groupName).toBeInTheDocument();
 
-    expect(queryAllByTestId('open-group')).toHaveLength(2);
-    expect(queryAllByTestId('closed-group')).toHaveLength(0);
+    expect(queryAllByTestId('close-group')).toHaveLength(2);
+    expect(queryAllByTestId('open-group')).toHaveLength(0);
 
     fireEvent.click(collapseButton);
 
     await waitFor(() => expect(queryAllByTestId('task-instance')).toHaveLength(1));
-    expect(queryAllByTestId('open-group')).toHaveLength(0);
+    expect(queryAllByTestId('close-group')).toHaveLength(0);
     // Since the groups are nested, only the parent row is rendered
-    expect(queryAllByTestId('closed-group')).toHaveLength(1);
+    expect(queryAllByTestId('open-group')).toHaveLength(1);
 
     fireEvent.click(expandButton);
 
     await waitFor(() => expect(queryAllByTestId('task-instance')).toHaveLength(3));
-    expect(queryAllByTestId('open-group')).toHaveLength(2);
-    expect(queryAllByTestId('closed-group')).toHaveLength(0);
+    expect(queryAllByTestId('close-group')).toHaveLength(2);
+    expect(queryAllByTestId('open-group')).toHaveLength(0);
   });
 
   test('Hovered effect on task state', async () => {

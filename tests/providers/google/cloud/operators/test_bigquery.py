@@ -21,6 +21,7 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
@@ -31,6 +32,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
+    BigQueryColumnCheckOperator,
     BigQueryConsoleIndexableLink,
     BigQueryConsoleLink,
     BigQueryCreateEmptyDatasetOperator,
@@ -237,7 +239,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
                     "autodetect": True,
                     "compression": "NONE",
                     "csvOptions": {
-                        "fieldDelimeter": ",",
+                        "fieldDelimiter": ",",
                         "skipLeadingRows": 0,
                         "quote": None,
                         "allowQuotedNewlines": False,
@@ -1123,7 +1125,7 @@ class TestBigQueryInsertJobOperator:
 def test_bigquery_insert_job_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryInsertJobTrigger will be fired
-    when the BigQueryInsertJobAsyncOperator is executed.
+    when the BigQueryInsertJobOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1370,7 +1372,7 @@ def test_execute_force_rerun_async(mock_hook):
 def test_bigquery_check_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryCheckTrigger will be fired
-    when the BigQueryCheckAsyncOperator is executed.
+    when the BigQueryCheckOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1495,7 +1497,7 @@ def test_bigquery_interval_check_operator_execute_failure():
 def test_bigquery_interval_check_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryIntervalCheckTrigger will be fired
-    when the BigQueryIntervalCheckAsyncOperator is executed.
+    when the BigQueryIntervalCheckOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1523,7 +1525,7 @@ def test_bigquery_interval_check_operator_async(mock_hook):
 def test_bigquery_get_data_operator_async_with_selected_fields(mock_hook):
     """
     Asserts that a task is deferred and a BigQuerygetDataTrigger will be fired
-    when the BigQueryGetDataAsyncOperator is executed.
+    when the BigQueryGetDataOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1550,7 +1552,7 @@ def test_bigquery_get_data_operator_async_with_selected_fields(mock_hook):
 def test_bigquery_get_data_operator_async_without_selected_fields(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryGetDataTrigger will be fired
-    when the BigQueryGetDataAsyncOperator is executed.
+    when the BigQueryGetDataOperator is executed with deferrable=True.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1676,3 +1678,64 @@ def test_bigquery_value_check_empty():
     with pytest.raises(AirflowException) as missing_param:
         BigQueryValueCheckOperator(deferrable=True, kwargs={})
     assert (missing_param.value.args[0] == expected) or (missing_param.value.args[0] == expected1)
+
+
+@pytest.mark.parametrize(
+    "check_type, check_value, check_result",
+    [
+        ("equal_to", 0, 0),
+        ("greater_than", 0, 1),
+        ("less_than", 0, -1),
+        ("geq_to", 0, 1),
+        ("geq_to", 0, 0),
+        ("leq_to", 0, 0),
+        ("leq_to", 0, -1),
+    ],
+)
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
+def test_bigquery_column_check_operator_succeeds(mock_job, mock_hook, check_type, check_value, check_result):
+    mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
+        {"col_name": ["col1"], "check_type": ["min"], "check_result": [check_result]}
+    )
+    mock_hook.return_value.insert_job.return_value = mock_job
+
+    op = BigQueryColumnCheckOperator(
+        task_id="check_column_succeeds",
+        table=TEST_TABLE_ID,
+        use_legacy_sql=False,
+        column_mapping={
+            "col1": {"min": {check_type: check_value}},
+        },
+    )
+    op.execute(create_context(op))
+
+
+@pytest.mark.parametrize(
+    "check_type, check_value, check_result",
+    [
+        ("equal_to", 0, 1),
+        ("greater_than", 0, -1),
+        ("less_than", 0, 1),
+        ("geq_to", 0, -1),
+        ("leq_to", 0, 1),
+    ],
+)
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
+def test_bigquery_column_check_operator_fails(mock_job, mock_hook, check_type, check_value, check_result):
+    mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
+        {"col_name": ["col1"], "check_type": ["min"], "check_result": [check_result]}
+    )
+    mock_hook.return_value.insert_job.return_value = mock_job
+
+    op = BigQueryColumnCheckOperator(
+        task_id="check_column_fails",
+        table=TEST_TABLE_ID,
+        use_legacy_sql=False,
+        column_mapping={
+            "col1": {"min": {check_type: check_value}},
+        },
+    )
+    with pytest.raises(AirflowException):
+        op.execute(create_context(op))

@@ -48,6 +48,8 @@ coverage:
           - v2-3-test
           - v2-4-stable
           - v2-4-test
+          - v2-5-stable
+          - v2-5-test
         if_not_found: success
         if_ci_failed: error
         informational: true
@@ -71,18 +73,21 @@ coverage:
           - v2-3-test
           - v2-4-stable
           - v2-4-test
+          - v2-5-stable
+          - v2-5-test
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error
         only_pulls: false
         paths:
           - "airflow"
-parsers:
-  gcov:
-    branch_detection:
-      conditional: true
-      loop: true
-      method: false
-      macro: false
+
+ignore:
+  - "airflow/_vendor"
+  - "airflow/contrib"
+  - "airflow/example_dags"
+  - "airflow/migrations"
+  - "airflow/providers/**/example_dags"
+  - "airflow/www/node_modules"
 
 comment: false

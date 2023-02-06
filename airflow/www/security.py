@@ -22,7 +22,7 @@ from typing import Sequence
 
 from flask import g
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
@@ -49,11 +49,11 @@ from airflow.www.fab_security.views import (
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
-    'Admin',
-    'Viewer',
-    'User',
-    'Op',
-    'Public',
+    "Admin",
+    "Viewer",
+    "User",
+    "Op",
+    "Public",
 }
 
 
@@ -159,19 +159,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ###########################################################################
 
     ROLE_CONFIGS = [
-        {'role': 'Public', 'perms': []},
-        {'role': 'Viewer', 'perms': VIEWER_PERMISSIONS},
+        {"role": "Public", "perms": []},
+        {"role": "Viewer", "perms": VIEWER_PERMISSIONS},
         {
-            'role': 'User',
-            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS,
+            "role": "User",
+            "perms": VIEWER_PERMISSIONS + USER_PERMISSIONS,
         },
         {
-            'role': 'Op',
-            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,
+            "role": "Op",
+            "perms": VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,
         },
         {
-            'role': 'Admin',
-            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,
+            "role": "Admin",
+            "perms": VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,
         },
     ]
 
@@ -196,16 +196,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # This is needed to support the "hack" where we had to edit
         # FieldConverter.conversion_table in place in airflow.www.utils
         for attr in dir(self):
-            if not attr.endswith('view'):
+            if not attr.endswith("view"):
                 continue
             view = getattr(self, attr, None)
-            if not view or not getattr(view, 'datamodel', None):
+            if not view or not getattr(view, "datamodel", None):
                 continue
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
     def _get_root_dag_id(self, dag_id):
-        if '.' in dag_id:
+        if "." in dag_id:
             dm = (
                 self.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
                 .filter(DagModel.dag_id == dag_id)
@@ -226,7 +226,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
-        self.bulk_sync_roles([{'role': role_name, 'perms': perms}])
+        self.bulk_sync_roles([{"role": role_name, "perms": perms}])
 
     def bulk_sync_roles(self, roles):
         """Sync the provided roles and permissions."""
@@ -234,8 +234,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         non_dag_perms = self._get_all_non_dag_permissions()
 
         for config in roles:
-            role_name = config['role']
-            perms = config['perms']
+            role_name = config["role"]
+            perms = config["perms"]
             role = existing_roles.get(role_name) or self.add_role(role_name)
 
             for action_name, resource_name in perms:
@@ -322,6 +322,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user.is_anonymous:
             roles = user.roles
         else:
+            if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user)) or (
+                permissions.ACTION_CAN_READ in user_actions and self.can_read_all_dags(user)
+            ):
+                return {dag.dag_id for dag in session.query(DagModel.dag_id)}
             user_query = (
                 session.query(User)
                 .options(
@@ -353,7 +357,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
         """Checks if user has read or write access to some dags."""
-        if dag_id and dag_id != '~':
+        if dag_id and dag_id != "~":
             root_dag_id = self._get_root_dag_id(dag_id)
             return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
 
@@ -436,14 +440,22 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not user:
             user = g.user
         return (
-            self._has_role(['Admin', 'Viewer', 'Op', 'User'], user)
-            or self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
-            or self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
+            self._has_role(["Admin", "Viewer", "Op", "User"], user)
+            or self.can_read_all_dags(user)
+            or self.can_edit_all_dags(user)
         )
+
+    def can_edit_all_dags(self, user=None):
+        """Has can_edit action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
+
+    def can_read_all_dags(self, user=None):
+        """Has can_read action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
 
     def clean_perms(self):
         """FAB leaves faulty permissions that need to be cleaned up"""
-        self.log.debug('Cleaning faulty perms')
+        self.log.debug("Cleaning faulty perms")
         sesh = self.get_session
         perms = sesh.query(Permission).filter(
             or_(
@@ -461,7 +473,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             deleted_count += 1
         sesh.commit()
         if deleted_count:
-            self.log.info('Deleted %s faulty permissions', deleted_count)
+            self.log.info("Deleted %s faulty permissions", deleted_count)
 
     def _merge_perm(self, action_name, resource_name):
         """
@@ -576,7 +588,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         perms = [p for p in perms if p.action and p.resource]
 
-        admin = self.find_role('Admin')
+        admin = self.find_role("Admin")
         admin.permissions = list(set(admin.permissions) | set(perms))
 
         self.get_session.commit()
@@ -648,7 +660,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         def _revoke_stale_permissions(resource: Resource):
             existing_dag_perms = self.get_resource_permissions(resource)
             for perm in existing_dag_perms:
-                non_admin_roles = [role for role in perm.role if role.name != 'Admin']
+                non_admin_roles = [role for role in perm.role if role.name != "Admin"]
                 for role in non_admin_roles:
                     target_perms_for_role = access_control.get(role.name, {})
                     if perm.action.name not in target_perms_for_role:
@@ -724,7 +736,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 class ApplessAirflowSecurityManager(AirflowSecurityManager):
     """Security Manager that doesn't need the whole flask app"""
 
-    def __init__(self, session=None):
+    def __init__(self, session: Session | None = None):
         self.session = session
 
     @property

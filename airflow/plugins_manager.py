@@ -38,7 +38,7 @@ from types import ModuleType
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
-from airflow.utils.module_loading import as_importable_string
+from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
@@ -67,7 +67,8 @@ operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
 registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
-"""Mapping of class names to class of OperatorLinks registered by plugins.
+"""
+Mapping of class names to class of OperatorLinks registered by plugins.
 
 Used by the DAG serialization code to only allow specific classes to be created
 during deserialization
@@ -115,7 +116,7 @@ class EntryPointSource(AirflowPluginSource):
     """Class used to define Plugins loaded from entrypoint."""
 
     def __init__(self, entrypoint: importlib_metadata.EntryPoint, dist: importlib_metadata.Distribution):
-        self.dist = dist.metadata['Name']
+        self.dist = dist.metadata["Name"]
         self.version = dist.version
         self.entrypoint = str(entrypoint)
 
@@ -184,8 +185,7 @@ class AirflowPlugin:
 
 def is_valid_plugin(plugin_obj):
     """
-    Check whether a potential object is a subclass of
-    the AirflowPlugin class.
+    Check whether a potential object is a subclass of the AirflowPlugin class.
 
     :param plugin_obj: potential subclass of AirflowPlugin
     :return: Whether or not the obj is a valid subclass of
@@ -205,7 +205,7 @@ def is_valid_plugin(plugin_obj):
 
 def register_plugin(plugin_instance):
     """
-    Start plugin load and register it after success initialization
+    Start plugin load and register it after success initialization.
 
     :param plugin_instance: subclass of AirflowPlugin
     """
@@ -223,8 +223,8 @@ def load_entrypoint_plugins():
 
     log.debug("Loading plugins from entrypoints")
 
-    for entry_point, dist in entry_points_with_dist('airflow.plugins'):
-        log.debug('Importing entry_point plugin %s', entry_point.name)
+    for entry_point, dist in entry_points_with_dist("airflow.plugins"):
+        log.debug("Importing entry_point plugin %s", entry_point.name)
         try:
             plugin_class = entry_point.load()
             if not is_valid_plugin(plugin_class):
@@ -239,7 +239,7 @@ def load_entrypoint_plugins():
 
 
 def load_plugins_from_plugin_directory():
-    """Load and register Airflow Plugins from plugins directory"""
+    """Load and register Airflow Plugins from plugins directory."""
     global import_errors
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
@@ -247,7 +247,7 @@ def load_plugins_from_plugin_directory():
         if not os.path.isfile(file_path):
             continue
         mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-        if file_ext != '.py':
+        if file_ext != ".py":
             continue
 
         try:
@@ -256,14 +256,14 @@ def load_plugins_from_plugin_directory():
             mod = importlib.util.module_from_spec(spec)
             sys.modules[spec.name] = mod
             loader.exec_module(mod)
-            log.debug('Importing plugin module %s', file_path)
+            log.debug("Importing plugin module %s", file_path)
 
             for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
                 plugin_instance = mod_attr_value()
                 plugin_instance.source = PluginsDirectorySource(file_path)
                 register_plugin(plugin_instance)
         except Exception as e:
-            log.exception('Failed to import plugin %s', file_path)
+            log.exception("Failed to import plugin %s", file_path)
             import_errors[file_path] = str(e)
 
 
@@ -271,10 +271,10 @@ def make_module(name: str, objects: list[Any]):
     """Creates new module."""
     if not objects:
         return None
-    log.debug('Creating module %s', name)
+    log.debug("Creating module %s", name)
     name = name.lower()
     module = types.ModuleType(name)
-    module._name = name.split('.')[-1]  # type: ignore
+    module._name = name.split(".")[-1]  # type: ignore
     module._objects = objects  # type: ignore
     module.__dict__.update((o.__name__, o) for o in objects)
     return module
@@ -317,7 +317,7 @@ def ensure_plugins_loaded():
 
 
 def initialize_web_ui_plugins():
-    """Collect extension points for WEB UI"""
+    """Collect extension points for WEB UI."""
     global plugins
     global flask_blueprints
     global flask_appbuilder_views
@@ -344,20 +344,20 @@ def initialize_web_ui_plugins():
     for plugin in plugins:
         flask_appbuilder_views.extend(plugin.appbuilder_views)
         flask_appbuilder_menu_links.extend(plugin.appbuilder_menu_items)
-        flask_blueprints.extend([{'name': plugin.name, 'blueprint': bp} for bp in plugin.flask_blueprints])
+        flask_blueprints.extend([{"name": plugin.name, "blueprint": bp} for bp in plugin.flask_blueprints])
 
         if (plugin.admin_views and not plugin.appbuilder_views) or (
             plugin.menu_links and not plugin.appbuilder_menu_items
         ):
             log.warning(
-                "Plugin \'%s\' may not be compatible with the current Airflow version. "
+                "Plugin '%s' may not be compatible with the current Airflow version. "
                 "Please contact the author of the plugin.",
                 plugin.name,
             )
 
 
 def initialize_ti_deps_plugins():
-    """Creates modules for loaded extension from custom task instance dependency rule plugins"""
+    """Create modules for loaded extension from custom task instance dependency rule plugins."""
     global registered_ti_dep_classes
     if registered_ti_dep_classes is not None:
         return
@@ -373,12 +373,12 @@ def initialize_ti_deps_plugins():
 
     for plugin in plugins:
         registered_ti_dep_classes.update(
-            {as_importable_string(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
+            {qualname(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
         )
 
 
 def initialize_extra_operators_links_plugins():
-    """Creates modules for loaded extension from extra operators links plugins"""
+    """Create modules for loaded extension from extra operators links plugins."""
     global global_operator_extra_links
     global operator_extra_links
     global registered_operator_link_classes
@@ -406,7 +406,7 @@ def initialize_extra_operators_links_plugins():
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
         registered_operator_link_classes.update(
-            {as_importable_string(link.__class__): link.__class__ for link in plugin.operator_extra_links}
+            {qualname(link.__class__): link.__class__ for link in plugin.operator_extra_links}
         )
 
 
@@ -425,7 +425,7 @@ def initialize_timetables_plugins():
     log.debug("Initialize extra timetables plugins")
 
     timetable_classes = {
-        as_importable_string(timetable_class): timetable_class
+        qualname(timetable_class): timetable_class
         for plugin in plugins
         for timetable_class in plugin.timetables
     }
@@ -452,7 +452,7 @@ def integrate_executor_plugins() -> None:
             raise AirflowPluginException("Invalid plugin name")
         plugin_name: str = plugin.name
 
-        executors_module = make_module('airflow.executors.' + plugin_name, plugin.executors)
+        executors_module = make_module("airflow.executors." + plugin_name, plugin.executors)
         if executors_module:
             executors_modules.append(executors_module)
             sys.modules[executors_module.__name__] = executors_module
@@ -481,7 +481,7 @@ def integrate_macros_plugins() -> None:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
-        macros_module = make_module(f'airflow.macros.{plugin.name}', plugin.macros)
+        macros_module = make_module(f"airflow.macros.{plugin.name}", plugin.macros)
 
         if macros_module:
             macros_modules.append(macros_module)
@@ -492,6 +492,7 @@ def integrate_macros_plugins() -> None:
 
 
 def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
+    """Add listeners from plugins."""
     global plugins
 
     ensure_plugins_loaded()
@@ -507,7 +508,7 @@ def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
 
 def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str, Any]]:
     """
-    Dump plugins attributes
+    Dump plugins attributes.
 
     :param attrs_to_dump: A list of plugin attributes to dump
     """
@@ -523,26 +524,21 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
         for plugin in plugins:
             info: dict[str, Any] = {"name": plugin.name}
             for attr in attrs_to_dump:
-                if attr in ('global_operator_extra_links', 'operator_extra_links'):
-                    info[attr] = [
-                        f'<{as_importable_string(d.__class__)} object>' for d in getattr(plugin, attr)
-                    ]
-                elif attr in ('macros', 'timetables', 'hooks', 'executors'):
-                    info[attr] = [as_importable_string(d) for d in getattr(plugin, attr)]
-                elif attr == 'listeners':
+                if attr in ("global_operator_extra_links", "operator_extra_links"):
+                    info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
+                elif attr in ("macros", "timetables", "hooks", "executors"):
+                    info[attr] = [qualname(d) for d in getattr(plugin, attr)]
+                elif attr == "listeners":
                     # listeners are always modules
                     info[attr] = [d.__name__ for d in getattr(plugin, attr)]
-                elif attr == 'appbuilder_views':
+                elif attr == "appbuilder_views":
                     info[attr] = [
-                        {**d, 'view': as_importable_string(d['view'].__class__) if 'view' in d else None}
+                        {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
                         for d in getattr(plugin, attr)
                     ]
-                elif attr == 'flask_blueprints':
+                elif attr == "flask_blueprints":
                     info[attr] = [
-                        (
-                            f"<{as_importable_string(d.__class__)}: "
-                            f"name={d.name!r} import_name={d.import_name!r}>"
-                        )
+                        f"<{qualname(d.__class__)}: name={d.name!r} import_name={d.import_name!r}>"
                         for d in getattr(plugin, attr)
                     ]
                 else:

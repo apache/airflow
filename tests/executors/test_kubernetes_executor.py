@@ -21,7 +21,6 @@ import random
 import re
 import string
 import sys
-import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -35,6 +34,7 @@ from airflow import AirflowException
 from airflow.exceptions import PodReconciliationError
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
@@ -92,13 +92,17 @@ class TestAirflowKubernetesScheduler:
         regex = r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$"
         return len(value) <= 63 and re.match(regex, value)
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
             pod_name = PodGenerator.make_unique_pod_id(create_pod_id(dag_id, task_id))
             assert self._is_valid_pod_id(pod_name)
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.kubernetes.pod_generator.PodGenerator")
     @mock.patch("airflow.executors.kubernetes_executor.KubeConfig")
     def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator):
@@ -148,7 +152,9 @@ class TestAirflowKubernetesScheduler:
 
         assert datetime_obj == new_datetime_obj
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     @mock.patch("airflow.executors.kubernetes_executor.client")
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
@@ -160,13 +166,17 @@ class TestAirflowKubernetesScheduler:
         mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespace
 
         kube_executor = KubernetesExecutor()
-        kube_executor.job_id = "test-job-id"
+        kube_executor.job_id = 1
         kube_executor.start()
-        kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
+        try:
+            kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
+            mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
+        finally:
+            kube_executor.end()
 
-        mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
-
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     @mock.patch("airflow.executors.kubernetes_executor.client")
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
@@ -180,14 +190,16 @@ class TestAirflowKubernetesScheduler:
         # ApiException is raised because status is not 404
         mock_kube_client.return_value.delete_namespaced_pod.side_effect = ApiException(status=400)
         kube_executor = KubernetesExecutor()
-        kube_executor.job_id = "test-job-id"
+        kube_executor.job_id = 1
         kube_executor.start()
 
         with pytest.raises(ApiException):
             kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
             mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     @mock.patch("airflow.executors.kubernetes_executor.client")
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
@@ -201,11 +213,13 @@ class TestAirflowKubernetesScheduler:
         # ApiException not raised because the status is 404
         mock_kube_client.return_value.delete_namespaced_pod.side_effect = ApiException(status=404)
         kube_executor = KubernetesExecutor()
-        kube_executor.job_id = "test-job-id"
+        kube_executor.job_id = 1
         kube_executor.start()
-
-        kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
-        mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
+        try:
+            kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
+            mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
+        finally:
+            kube_executor.end()
 
 
 class TestKubernetesExecutor:
@@ -266,7 +280,55 @@ class TestKubernetesExecutor:
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
             kubernetes_executor.start()
-            # Execute a task while the Api Throws errors
+            try:
+                # Execute a task while the Api Throws errors
+                try_number = 1
+                task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
+                kubernetes_executor.execute_async(
+                    key=task_instance_key,
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "some_parameter"],
+                )
+                kubernetes_executor.sync()
+
+                assert mock_kube_client.create_namespaced_pod.call_count == 1
+
+                if should_requeue:
+                    assert not kubernetes_executor.task_queue.empty()
+
+                    # Disable the ApiException
+                    mock_kube_client.create_namespaced_pod.side_effect = None
+
+                    # Execute the task without errors should empty the queue
+                    mock_kube_client.create_namespaced_pod.reset_mock()
+                    kubernetes_executor.sync()
+                    assert mock_kube_client.create_namespaced_pod.called
+                    assert kubernetes_executor.task_queue.empty()
+                else:
+                    assert kubernetes_executor.task_queue.empty()
+                    assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+            finally:
+                kubernetes_executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch("airflow.settings.pod_mutation_hook")
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_run_next_pmh_error(self, mock_get_kube_client, mock_pmh):
+        """
+        Exception during Pod Mutation Hook execution should be handled gracefully.
+        """
+        exception_in_pmh = Exception("Purposely generate error for test")
+        mock_pmh.side_effect = exception_in_pmh
+
+        mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
+        mock_kube_client.create_namespaced_pod = mock.MagicMock()
+        mock_get_kube_client.return_value = mock_kube_client
+
+        kubernetes_executor = self.kubernetes_executor
+        kubernetes_executor.start()
+        try:
             try_number = 1
             task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
             kubernetes_executor.execute_async(
@@ -276,22 +338,16 @@ class TestKubernetesExecutor:
             )
             kubernetes_executor.sync()
 
-            assert mock_kube_client.create_namespaced_pod.call_count == 1
-
-            if should_requeue:
-                assert not kubernetes_executor.task_queue.empty()
-
-                # Disable the ApiException
-                mock_kube_client.create_namespaced_pod.side_effect = None
-
-                # Execute the task without errors should empty the queue
-                mock_kube_client.create_namespaced_pod.reset_mock()
-                kubernetes_executor.sync()
-                assert mock_kube_client.create_namespaced_pod.called
-                assert kubernetes_executor.task_queue.empty()
-            else:
-                assert kubernetes_executor.task_queue.empty()
-                assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+            # The pod_mutation_hook should have been called once.
+            assert mock_pmh.call_count == 1
+            # There should be no pod creation request sent
+            assert mock_kube_client.create_namespaced_pod.call_count == 0
+            # The task is not re-queued and there is the failed record in event_buffer
+            assert kubernetes_executor.task_queue.empty()
+            assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+            assert kubernetes_executor.event_buffer[task_instance_key][1].__cause__ == exception_in_pmh
+        finally:
+            kubernetes_executor.end()
 
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
@@ -315,19 +371,22 @@ class TestKubernetesExecutor:
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
             kubernetes_executor.start()
-            # Execute a task while the Api Throws errors
-            try_number = 1
-            task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
-            kubernetes_executor.execute_async(
-                key=task_instance_key,
-                queue=None,
-                command=["airflow", "tasks", "run", "true", "some_parameter"],
-            )
-            kubernetes_executor.sync()
+            try:
+                # Execute a task while the Api Throws errors
+                try_number = 1
+                task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
+                kubernetes_executor.execute_async(
+                    key=task_instance_key,
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "some_parameter"],
+                )
+                kubernetes_executor.sync()
 
-            assert kubernetes_executor.task_queue.empty()
-            assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
-            assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == fail_msg
+                assert kubernetes_executor.task_queue.empty()
+                assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+                assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == fail_msg
+            finally:
+                kubernetes_executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubeConfig")
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.sync")
@@ -348,20 +407,22 @@ class TestKubernetesExecutor:
     def test_invalid_executor_config(self, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
+        try:
+            assert executor.event_buffer == {}
+            executor.execute_async(
+                key=("dag", "task", datetime.utcnow(), 1),
+                queue=None,
+                command=["airflow", "tasks", "run", "true", "some_parameter"],
+                executor_config=k8s.V1Pod(
+                    spec=k8s.V1PodSpec(
+                        containers=[k8s.V1Container(name="base", image="myimage", image_pull_policy="Always")]
+                    )
+                ),
+            )
 
-        assert executor.event_buffer == {}
-        executor.execute_async(
-            key=("dag", "task", datetime.utcnow(), 1),
-            queue=None,
-            command=["airflow", "tasks", "run", "true", "some_parameter"],
-            executor_config=k8s.V1Pod(
-                spec=k8s.V1PodSpec(
-                    containers=[k8s.V1Container(name="base", image="myimage", image_pull_policy="Always")]
-                )
-            ),
-        )
-
-        assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
+            assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
+        finally:
+            executor.end()
 
     @pytest.mark.execution_timeout(10)
     @pytest.mark.skipif(
@@ -381,83 +442,90 @@ class TestKubernetesExecutor:
         with conf_vars({("kubernetes", "pod_template_file"): ""}):
             executor = self.kubernetes_executor
             executor.start()
+            try:
+                assert executor.event_buffer == {}
+                assert executor.task_queue.empty()
 
-            assert executor.event_buffer == {}
-            assert executor.task_queue.empty()
-
-            executor.execute_async(
-                key=TaskInstanceKey("dag", "task", "run_id", 1),
-                queue=None,
-                command=["airflow", "tasks", "run", "true", "some_parameter"],
-                executor_config={
-                    "pod_template_file": template_file,
-                    "pod_override": k8s.V1Pod(
-                        metadata=k8s.V1ObjectMeta(labels={"release": "stable"}),
-                        spec=k8s.V1PodSpec(
-                            containers=[k8s.V1Container(name="base", image="airflow:3.6")],
+                executor.execute_async(
+                    key=TaskInstanceKey("dag", "task", "run_id", 1),
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "some_parameter"],
+                    executor_config={
+                        "pod_template_file": template_file,
+                        "pod_override": k8s.V1Pod(
+                            metadata=k8s.V1ObjectMeta(labels={"release": "stable"}),
+                            spec=k8s.V1PodSpec(
+                                containers=[k8s.V1Container(name="base", image="airflow:3.6")],
+                            ),
                         ),
-                    ),
-                },
-            )
-
-            assert not executor.task_queue.empty()
-            task = executor.task_queue.get_nowait()
-            _, _, expected_executor_config, expected_pod_template_file = task
-
-            # Test that the correct values have been put to queue
-            assert expected_executor_config.metadata.labels == {"release": "stable"}
-            assert expected_pod_template_file == template_file
-
-            self.kubernetes_executor.kube_scheduler.run_next(task)
-            mock_run_pod_async.assert_called_once_with(
-                k8s.V1Pod(
-                    api_version="v1",
-                    kind="Pod",
-                    metadata=k8s.V1ObjectMeta(
-                        name=mock.ANY,
-                        namespace="default",
-                        annotations={
-                            "dag_id": "dag",
-                            "run_id": "run_id",
-                            "task_id": "task",
-                            "try_number": "1",
-                        },
-                        labels={
-                            "airflow-worker": "5",
-                            "airflow_version": mock.ANY,
-                            "dag_id": "dag",
-                            "run_id": "run_id",
-                            "kubernetes_executor": "True",
-                            "mylabel": "foo",
-                            "release": "stable",
-                            "task_id": "task",
-                            "try_number": "1",
-                        },
-                    ),
-                    spec=k8s.V1PodSpec(
-                        containers=[
-                            k8s.V1Container(
-                                name="base",
-                                image="airflow:3.6",
-                                args=["airflow", "tasks", "run", "true", "some_parameter"],
-                                env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
-                            )
-                        ],
-                        image_pull_secrets=[k8s.V1LocalObjectReference(name="airflow-registry")],
-                        scheduler_name="default-scheduler",
-                        security_context=k8s.V1PodSecurityContext(fs_group=50000, run_as_user=50000),
-                    ),
+                    },
                 )
-            )
+
+                assert not executor.task_queue.empty()
+                task = executor.task_queue.get_nowait()
+                _, _, expected_executor_config, expected_pod_template_file = task
+                executor.task_queue.task_done()
+                # Test that the correct values have been put to queue
+                assert expected_executor_config.metadata.labels == {"release": "stable"}
+                assert expected_pod_template_file == template_file
+
+                self.kubernetes_executor.kube_scheduler.run_next(task)
+                mock_run_pod_async.assert_called_once_with(
+                    k8s.V1Pod(
+                        api_version="v1",
+                        kind="Pod",
+                        metadata=k8s.V1ObjectMeta(
+                            name=mock.ANY,
+                            namespace="default",
+                            annotations={
+                                "dag_id": "dag",
+                                "run_id": "run_id",
+                                "task_id": "task",
+                                "try_number": "1",
+                            },
+                            labels={
+                                "airflow-worker": "5",
+                                "airflow_version": mock.ANY,
+                                "dag_id": "dag",
+                                "run_id": "run_id",
+                                "kubernetes_executor": "True",
+                                "mylabel": "foo",
+                                "release": "stable",
+                                "task_id": "task",
+                                "try_number": "1",
+                            },
+                        ),
+                        spec=k8s.V1PodSpec(
+                            containers=[
+                                k8s.V1Container(
+                                    name="base",
+                                    image="airflow:3.6",
+                                    args=["airflow", "tasks", "run", "true", "some_parameter"],
+                                    env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
+                                )
+                            ],
+                            image_pull_secrets=[k8s.V1LocalObjectReference(name="airflow-registry")],
+                            scheduler_name="default-scheduler",
+                            security_context=k8s.V1PodSecurityContext(fs_group=50000, run_as_user=50000),
+                        ),
+                    )
+                )
+            finally:
+                executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_change_state_running(self, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
-        key = ("dag_id", "task_id", "run_id", "try_number1")
-        executor._change_state(key, State.RUNNING, "pod_id", "default")
-        assert executor.event_buffer[key][0] == State.RUNNING
+        try:
+            key = ("dag_id", "task_id", "run_id", "try_number1")
+            executor.running = {key}
+            executor._change_state(key, State.RUNNING, "pod_id", "default")
+            assert executor.event_buffer[key][0] == State.RUNNING
+            assert executor.running == {key}
+        finally:
+            executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
@@ -465,56 +533,108 @@ class TestKubernetesExecutor:
     def test_change_state_success(self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
-        key = ("dag_id", "task_id", "run_id", "try_number2")
-        executor._change_state(key, State.SUCCESS, "pod_id", "default")
-        assert executor.event_buffer[key][0] == State.SUCCESS
-        mock_delete_pod.assert_called_once_with("pod_id", "default")
+        try:
+            key = ("dag_id", "task_id", "run_id", "try_number2")
+            executor.running = {key}
+            executor._change_state(key, State.SUCCESS, "pod_id", "default")
+            assert executor.event_buffer[key][0] == State.SUCCESS
+            assert executor.running == set()
+            mock_delete_pod.assert_called_once_with("pod_id", "default")
+        finally:
+            executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
     def test_change_state_failed_no_deletion(
-        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods = False
         executor.kube_config.delete_worker_pods_on_failure = False
         executor.start()
-        key = ("dag_id", "task_id", "run_id", "try_number3")
-        executor._change_state(key, State.FAILED, "pod_id", "default")
-        assert executor.event_buffer[key][0] == State.FAILED
-        mock_delete_pod.assert_not_called()
+        try:
+            key = ("dag_id", "task_id", "run_id", "try_number3")
+            executor.running = {key}
+            executor._change_state(key, State.FAILED, "pod_id", "test-namespace")
+            assert executor.event_buffer[key][0] == State.FAILED
+            assert executor.running == set()
+            mock_delete_pod.assert_not_called()
+            mock_patch_pod.assert_called_once_with(pod_name="pod_id", namespace="test-namespace")
+        finally:
+            executor.end()
+
+    @pytest.mark.parametrize(
+        "multi_namespace_mode_namespace_list, watchers_keys",
+        [
+            pytest.param(["A", "B", "C"], ["A", "B", "C"]),
+            pytest.param(None, ["ALL_NAMESPACES"]),
+        ],
+    )
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_watchers_under_multi_namespace_mode(
+        self, mock_get_kube_client, multi_namespace_mode_namespace_list, watchers_keys
+    ):
+        executor = self.kubernetes_executor
+        executor.kube_config.multi_namespace_mode = True
+        executor.kube_config.multi_namespace_mode_namespace_list = multi_namespace_mode_namespace_list
+        executor.start()
+        try:
+            assert list(executor.kube_scheduler.kube_watchers.keys()) == watchers_keys
+            assert all(
+                isinstance(v, KubernetesJobWatcher) for v in executor.kube_scheduler.kube_watchers.values()
+            )
+        finally:
+            executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
     def test_change_state_skip_pod_deletion(
-        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods = False
         executor.kube_config.delete_worker_pods_on_failure = False
 
         executor.start()
-        key = ("dag_id", "task_id", "run_id", "try_number2")
-        executor._change_state(key, State.SUCCESS, "pod_id", "default")
-        assert executor.event_buffer[key][0] == State.SUCCESS
-        mock_delete_pod.assert_not_called()
+        try:
+            key = ("dag_id", "task_id", "run_id", "try_number2")
+            executor.running = {key}
+            executor._change_state(key, State.SUCCESS, "pod_id", "test-namespace")
+            assert executor.event_buffer[key][0] == State.SUCCESS
+            assert executor.running == set()
+            mock_delete_pod.assert_not_called()
+            mock_patch_pod.assert_called_once_with(pod_name="pod_id", namespace="test-namespace")
+        finally:
+            executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
     def test_change_state_failed_pod_deletion(
-        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods_on_failure = True
 
         executor.start()
-        key = ("dag_id", "task_id", "run_id", "try_number2")
-        executor._change_state(key, State.FAILED, "pod_id", "test-namespace")
-        assert executor.event_buffer[key][0] == State.FAILED
-        mock_delete_pod.assert_called_once_with("pod_id", "test-namespace")
+        try:
+            key = ("dag_id", "task_id", "run_id", "try_number2")
+            executor.running = {key}
+            executor._change_state(key, State.FAILED, "pod_id", "test-namespace")
+            assert executor.event_buffer[key][0] == State.FAILED
+            assert executor.running == set()
+            mock_delete_pod.assert_called_once_with("pod_id", "test-namespace")
+            mock_patch_pod.assert_not_called()
+        finally:
+            executor.end()
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.adopt_launched_task")
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods")
@@ -538,7 +658,9 @@ class TestKubernetesExecutor:
         # First adoption
         reset_tis = executor.try_adopt_task_instances([mock_ti])
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="default", label_selector="airflow-worker=1"
+            namespace="default",
+            field_selector="status.phase!=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker=1,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once_with(mock_kube_client, pod, {ti_key: mock_ti})
         mock_adopt_completed_pods.assert_called_once()
@@ -556,7 +678,9 @@ class TestKubernetesExecutor:
 
         reset_tis = executor.try_adopt_task_instances([mock_ti])
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="default", label_selector="airflow-worker=10"
+            namespace="default",
+            field_selector="status.phase!=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once()  # Won't check args this time around as they get mutated
         mock_adopt_completed_pods.assert_called_once()
@@ -579,8 +703,16 @@ class TestKubernetesExecutor:
         assert mock_kube_client.list_namespaced_pod.call_count == 2
         mock_kube_client.list_namespaced_pod.assert_has_calls(
             [
-                mock.call(namespace="default", label_selector="airflow-worker=10"),
-                mock.call(namespace="default", label_selector="airflow-worker=40"),
+                mock.call(
+                    namespace="default",
+                    field_selector="status.phase!=Succeeded",
+                    label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
+                ),
+                mock.call(
+                    namespace="default",
+                    field_selector="status.phase!=Succeeded",
+                    label_selector="kubernetes_executor=True,airflow-worker=40,airflow_executor_done!=True",
+                ),
             ],
             any_order=True,
         )
@@ -618,19 +750,88 @@ class TestKubernetesExecutor:
         pod_ids = {ti_key: {}}
 
         executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
-        assert mock_kube_client.patch_namespaced_pod.call_args[1] == {
-            "body": {
-                "metadata": {
-                    "labels": {"airflow-worker": "modified"},
-                    "annotations": annotations,
-                    "name": "foo",
-                }
-            },
-            "name": "foo",
-            "namespace": None,
-        }
+        mock_kube_client.patch_namespaced_pod.assert_called_once_with(
+            body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+            name="foo",
+            namespace=None,
+        )
         assert pod_ids == {}
         assert executor.running == {ti_key}
+
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_adopt_launched_task_api_exception(self, mock_kube_client):
+        """We shouldn't think we are running the task if aren't able to patch the pod"""
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        annotations = {
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        }
+        ti_key = annotations_to_key(annotations)
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo", annotations=annotations))
+        pod_ids = {ti_key: {}}
+
+        mock_kube_client.patch_namespaced_pod.side_effect = ApiException(status=400)
+        executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
+        mock_kube_client.patch_namespaced_pod.assert_called_once_with(
+            body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+            name="foo",
+            namespace=None,
+        )
+        assert pod_ids == {ti_key: {}}
+        assert executor.running == set()
+
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_adopt_completed_pods(self, mock_kube_client):
+        """We should adopt all completed pods from other schedulers"""
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        executor.kube_client = mock_kube_client
+        executor.kube_config.kube_namespace = "somens"
+        pod_names = ["one", "two"]
+
+        def get_annotations(pod_name):
+            return {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": pod_name,
+                "try_number": "1",
+            }
+
+        mock_kube_client.list_namespaced_pod.return_value.items = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name=pod_name,
+                    labels={"airflow-worker": pod_name},
+                    annotations=get_annotations(pod_name),
+                    namespace="somens",
+                )
+            )
+            for pod_name in pod_names
+        ]
+        expected_running_ti_keys = {annotations_to_key(get_annotations(pod_name)) for pod_name in pod_names}
+
+        executor._adopt_completed_pods(mock_kube_client)
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            namespace="somens",
+            field_selector="status.phase=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker!=modified,airflow_executor_done!=True",
+        )
+        assert len(pod_names) == mock_kube_client.patch_namespaced_pod.call_count
+        mock_kube_client.patch_namespaced_pod.assert_has_calls(
+            [
+                mock.call(
+                    body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+                    name=pod_name,
+                    namespace="somens",
+                )
+                for pod_name in pod_names
+            ],
+            any_order=True,
+        )
+        assert executor.running == expected_running_ti_keys
 
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):
@@ -657,6 +858,27 @@ class TestKubernetesExecutor:
         executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
         assert not mock_kube_client.patch_namespaced_pod.called
         assert pod_ids == {"foobar": {}}
+
+    @pytest.mark.parametrize(
+        "raw_multi_namespace_mode, raw_value_namespace_list, expected_value_in_kube_config",
+        [
+            pytest.param("true", "A,B,C", ["A", "B", "C"]),
+            pytest.param("true", "", None),
+            pytest.param("false", "A,B,C", None),
+            pytest.param("false", "", None),
+        ],
+    )
+    def test_kube_config_get_namespace_list(
+        self, raw_multi_namespace_mode, raw_value_namespace_list, expected_value_in_kube_config
+    ):
+        config = {
+            ("kubernetes", "multi_namespace_mode"): raw_multi_namespace_mode,
+            ("kubernetes", "multi_namespace_mode_namespace_list"): raw_value_namespace_list,
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+
+        assert executor.kube_config.multi_namespace_mode_namespace_list == expected_value_in_kube_config
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
@@ -693,13 +915,16 @@ class TestKubernetesExecutor:
         }
         with conf_vars(config):
             executor = KubernetesExecutor()
-            executor.job_id = "123"
+            executor.job_id = 123
             executor.start()
-            assert 2 == len(executor.event_scheduler.queue)
-            executor._check_worker_pods_pending_timeout()
+            try:
+                assert 2 == len(executor.event_scheduler.queue)
+                executor._check_worker_pods_pending_timeout()
+            finally:
+                executor.end()
 
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            "mynamespace",
+            namespace="mynamespace",
             field_selector="status.phase=Pending",
             label_selector="airflow-worker=123",
             limit=5,
@@ -735,9 +960,12 @@ class TestKubernetesExecutor:
         }
         with conf_vars(config):
             executor = KubernetesExecutor()
-            executor.job_id = "123"
+            executor.job_id = 123
             executor.start()
-            executor._check_worker_pods_pending_timeout()
+            try:
+                executor._check_worker_pods_pending_timeout()
+            finally:
+                executor.end()
 
         mock_kube_client.list_pod_for_all_namespaces.assert_called_once_with(
             field_selector="status.phase=Pending",
@@ -746,6 +974,67 @@ class TestKubernetesExecutor:
             sentinel="foo",
         )
         mock_delete_pod.assert_called_once_with("foo90", "anothernamespace")
+
+    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
+    def test_pending_pod_timeout_multi_namespace_mode_limited_namespaces(
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_kube_client = mock_get_kube_client.return_value
+        now = timezone.utcnow()
+        pending_pods = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name="foo90",
+                    labels={"airflow-worker": "123"},
+                    creation_timestamp=now - timedelta(seconds=500),
+                    namespace="namespace-2",
+                )
+            ),
+        ]
+
+        def list_namespaced_pod(namespace, *args, **kwargs):
+            if namespace == "namespace-2":
+                return k8s.V1PodList(items=pending_pods)
+            else:
+                return k8s.V1PodList(items=[])
+
+        mock_kube_client.list_namespaced_pod.side_effect = list_namespaced_pod
+
+        config = {
+            ("kubernetes", "namespace"): "mynamespace",
+            ("kubernetes", "multi_namespace_mode"): "true",
+            ("kubernetes", "multi_namespace_mode_namespace_list"): "namespace-1,namespace-2,namespace-3",
+            ("kubernetes", "kube_client_request_args"): '{"sentinel": "foo"}',
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = "123"
+            executor.start()
+            try:
+                executor._check_worker_pods_pending_timeout()
+            finally:
+                executor.end()
+
+        assert mock_kube_client.list_namespaced_pod.call_count == 3
+        mock_kube_client.list_namespaced_pod.assert_has_calls(
+            [
+                mock.call(
+                    namespace=namespace,
+                    field_selector="status.phase=Pending",
+                    label_selector="airflow-worker=123",
+                    limit=100,
+                    sentinel="foo",
+                )
+                for namespace in ["namespace-1", "namespace-2", "namespace-3"]
+            ]
+        )
+
+        mock_delete_pod.assert_called_once_with("foo90", "namespace-2")
+        # mock_delete_pod should only be called once in total
+        mock_delete_pod.assert_called_once()
 
     def test_clear_not_launched_queued_tasks_not_launched(self, dag_maker, create_dummy_dag, session):
         """If a pod isn't found for a TI, reset the state to scheduled"""
@@ -761,6 +1050,7 @@ class TestKubernetesExecutor:
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.job_id = 1
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
 
@@ -768,12 +1058,12 @@ class TestKubernetesExecutor:
         assert ti.state == State.SCHEDULED
         assert mock_kube_client.list_namespaced_pod.call_count == 2
         mock_kube_client.list_namespaced_pod.assert_any_call(
-            "default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+            namespace="default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
         )
         # also check that we fall back to execution_date if we didn't find the pod with run_id
         execution_date_label = pod_generator.datetime_to_label_safe_datestring(ti.execution_date)
         mock_kube_client.list_namespaced_pod.assert_called_with(
-            "default",
+            namespace="default",
             label_selector=(
                 f"dag_id=test_clear,task_id=task1,airflow-worker=1,execution_date={execution_date_label}"
             ),
@@ -804,6 +1094,7 @@ class TestKubernetesExecutor:
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.job_id = 1
         executor.kubernetes_queue = kubernetes_queue
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
@@ -811,7 +1102,7 @@ class TestKubernetesExecutor:
         ti.refresh_from_db()
         assert ti.state == State.QUEUED
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            "default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+            namespace="default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
         )
 
     def test_clear_not_launched_queued_tasks_mapped_task(self, dag_maker, session):
@@ -841,6 +1132,7 @@ class TestKubernetesExecutor:
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.job_id = 1
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
 
@@ -854,15 +1146,15 @@ class TestKubernetesExecutor:
         mock_kube_client.list_namespaced_pod.assert_has_calls(
             [
                 mock.call(
-                    "default",
+                    namespace="default",
                     label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=0,run_id=test",
                 ),
                 mock.call(
-                    "default",
+                    namespace="default",
                     label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,run_id=test",
                 ),
                 mock.call(
-                    "default",
+                    namespace="default",
                     label_selector=f"dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,"
                     f"execution_date={execution_date_label}",
                 ),
@@ -886,7 +1178,9 @@ class TestKubernetesExecutor:
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.job_id = 1
         executor.kubernetes_queue = "kubernetes"
+
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
 
@@ -894,12 +1188,78 @@ class TestKubernetesExecutor:
         assert ti.state == State.QUEUED
         assert mock_kube_client.list_namespaced_pod.call_count == 0
 
+    def test_clear_not_launched_queued_tasks_clear_only_by_job_id(self, dag_maker, create_dummy_dag, session):
+        """clear only not launched queued  tasks which are queued by the same executor job"""
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=[])
+
+        create_dummy_dag(dag_id="test_clear_0", task_id="task0", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+
+        ti0 = dag_run.task_instances[0]
+        ti0.state = State.QUEUED
+        ti0.queued_by_job_id = 1
+        session.flush()
+
+        create_dummy_dag(dag_id="test_clear_1", task_id="task1", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+
+        ti1 = dag_run.task_instances[0]
+        ti1.state = State.QUEUED
+        ti1.queued_by_job_id = 2
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.job_id = 1
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti0.refresh_from_db()
+        ti1.refresh_from_db()
+        assert ti0.state == State.SCHEDULED
+        assert ti1.state == State.QUEUED
+
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_get_task_log(self, mock_get_kube_client, create_task_instance_of_operator):
+        """fetch task log from pod"""
+        mock_kube_client = mock_get_kube_client.return_value
+
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_", b"b_", b"c_"]
+        mock_pod = mock.Mock()
+        mock_pod.metadata.name = "x"
+        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
+
+        executor = KubernetesExecutor()
+        messages, logs = executor.get_task_log(ti=ti)
+
+        mock_kube_client.read_namespaced_pod_log.assert_called_once()
+        assert "Trying to get logs (last 100 lines) from worker pod " in messages
+        assert logs[0] == "a_\nb_\nc_"
+
+        mock_kube_client.reset_mock()
+        mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
+
+        messages, logs = executor.get_task_log(ti=ti)
+        assert logs == [""]
+        assert messages == [
+            "Trying to get logs (last 100 lines) from worker pod ",
+            "Reading from k8s pod logs failed: error_fetching_pod_log",
+        ]
+
+    def test_supports_pickling(self):
+        assert KubernetesExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert not KubernetesExecutor.supports_sentry
+
 
 class TestKubernetesJobWatcher:
+    test_namespace = "airflow"
+
     def setup_method(self):
         self.watcher = KubernetesJobWatcher(
-            namespace="airflow",
-            multi_namespace_mode=False,
+            namespace=self.test_namespace,
             watcher_queue=mock.MagicMock(),
             resource_version="0",
             scheduler_job_id="123",
@@ -970,7 +1330,7 @@ class TestKubernetesJobWatcher:
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
         self._run()
-        self.assert_watcher_queue_called_once_with_state(None)
+        self.assert_watcher_queue_called_once_with_state(State.SUCCESS)
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"
@@ -1033,12 +1393,13 @@ class TestKubernetesJobWatcher:
             try:
                 # self.watcher._run() is mocked and return "500" as last resource_version
                 self.watcher.run()
+                assert False, "Should have raised Exception"
             except Exception as e:
                 assert e.args == ("sentinel",)
 
-            # both  resource_version should be 0 after _run raises and exception
+            # both resource_version should be 0 after _run raises an exception
             assert self.watcher.resource_version == "0"
-            assert ResourceVersion().resource_version == "0"
+            assert ResourceVersion().resource_version[self.test_namespace] == "0"
 
             # check that in the next run, _run is invoked with resource_version = 0
             mock_underscore_run.reset_mock()

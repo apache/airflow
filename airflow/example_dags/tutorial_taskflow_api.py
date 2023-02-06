@@ -25,6 +25,7 @@ import pendulum
 
 from airflow.decorators import dag, task
 
+
 # [END import_module]
 
 
@@ -33,7 +34,7 @@ from airflow.decorators import dag, task
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 )
 def tutorial_taskflow_api():
     """

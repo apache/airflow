@@ -115,6 +115,20 @@ class TestWorker:
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -451,18 +465,22 @@ class TestWorker:
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
+        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={"airflowLocalSettings": "# Well hello!"},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert {
+        volume_mount = {
             "name": "config",
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        }
+        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     def test_airflow_local_settings_kerberos_sidecar(self):
         docs = render_chart(
@@ -522,6 +540,23 @@ class TestWorker:
 
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_log_groomer_collector_default_enabled(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert "worker-log-groomer" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
+
+    def test_log_groomer_collector_can_be_disabled(self):
+        docs = render_chart(
+            values={"workers": {"logGroomerSidecar": {"enabled": False}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert "worker-log-groomer" not in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
 
     def test_log_groomer_default_command_and_args(self):
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
@@ -645,6 +680,18 @@ class TestWorker:
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestWorkerKedaAutoScaler:
     def test_should_add_component_specific_labels(self):
@@ -711,3 +758,33 @@ class TestWorkerServiceAccount:
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    @pytest.mark.parametrize(
+        "executor, creates_service_account",
+        [
+            ("LocalExecutor", False),
+            ("CeleryExecutor", True),
+            ("CeleryKubernetesExecutor", True),
+            ("KubernetesExecutor", True),
+            ("LocalKubernetesExecutor", True),
+        ],
+    )
+    def test_should_create_worker_service_account_for_specific_executors(
+        self, executor, creates_service_account
+    ):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        if creates_service_account:
+            assert jmespath.search("kind", docs[0]) == "ServiceAccount"
+            assert "test_label" in jmespath.search("metadata.labels", docs[0])
+            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        else:
+            assert docs == []

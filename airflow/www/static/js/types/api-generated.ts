@@ -92,6 +92,44 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/setNote": {
+    /**
+     * Update the manual user note of a non-mapped Task Instance.
+     *
+     * *New in version 2.5.0*
+     */
+    patch: operations["set_task_instance_note"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote": {
+    /**
+     * Update the manual user note of a mapped Task Instance.
+     *
+     * *New in version 2.5.0*
+     */
+    patch: operations["set_mapped_task_instance_note"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+  };
   "/dags/{dag_id}/updateTaskInstancesState": {
     /** Updates the state for multiple task instances simultaneously. */
     post: operations["post_set_task_instances_state"];
@@ -158,6 +196,22 @@ export interface paths {
      * *New in version 2.4.0*
      */
     get: operations["get_upstream_dataset_events"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+      };
+    };
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/setNote": {
+    /**
+     * Update the manual user note of a DagRun.
+     *
+     * *New in version 2.5.0*
+     */
+    patch: operations["set_dag_run_note"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -262,6 +316,22 @@ export interface paths {
          * This can be combined with start_date_gte parameter to receive only the selected period.
          */
         end_date_lte?: components["parameters"]["FilterEndDateLTE"];
+        /**
+         * Returns objects greater or equal the specified date.
+         *
+         * This can be combined with updated_at_lte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_gte?: components["parameters"]["FilterUpdatedAtGTE"];
+        /**
+         * Returns objects less or equal the specified date.
+         *
+         * This can be combined with updated_at_gte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_lte?: components["parameters"]["FilterUpdatedAtLTE"];
         /**
          * Returns objects greater than or equal to the specified values.
          *
@@ -984,6 +1054,12 @@ export interface components {
        * field of an existing object, the request fails with an BAD_REQUEST error.
        */
       conf?: { [key: string]: unknown };
+      /**
+       * @description Contains manually entered notes by the user about the DagRun.
+       *
+       * *New in version 2.5.0*
+       */
+      note?: string | null;
     };
     /**
      * @description Modify the state of a DAG run.
@@ -1022,6 +1098,10 @@ export interface components {
     DagWarningCollection: {
       import_errors?: components["schemas"]["DagWarning"][];
     } & components["schemas"]["CollectionInfo"];
+    SetDagRunNote: {
+      /** @description Custom notes left by users for this Dag Run. */
+      note?: string;
+    };
     /** @description Log of user operations via CLI or Web UI. */
     EventLog: {
       /** @description The event log ID */
@@ -1220,6 +1300,12 @@ export interface components {
       rendered_fields?: { [key: string]: unknown };
       trigger?: components["schemas"]["Trigger"] | null;
       triggerer_job?: components["schemas"]["Job"] | null;
+      /**
+       * @description Contains manually entered notes by the user about the TaskInstance.
+       *
+       * *New in version 2.5.0*
+       */
+      note?: string | null;
     };
     /**
      * @description Collection of task instances.
@@ -1757,6 +1843,10 @@ export interface components {
        */
       new_state?: "success" | "failed";
     };
+    SetTaskInstanceNote: {
+      /** @description The custom note to set for this Task Instance. */
+      note: string;
+    };
     ListDagRunsForm: {
       /**
        * @description The name of the field to order the results by. Prefix a field name
@@ -1966,7 +2056,10 @@ export interface components {
     };
     /** @description Metadata about collection. */
     CollectionInfo: {
-      /** @description Count of objects in the current result set. */
+      /**
+       * @description Count of total objects in the current result set before pagination parameters
+       * (limit, offset) are applied.
+       */
       total_entries?: number;
     };
     /**
@@ -2215,6 +2308,28 @@ export interface components {
      */
     OnlyActive: boolean;
     /**
+     * @description Returns objects less or equal the specified date.
+     *
+     * This can be combined with updated_at_gte parameter to receive only the selected period.
+     *
+     * *New in version 2.6.0*
+     */
+    FilterUpdatedAtLTE: string;
+    /**
+     * @description Returns objects greater or equal the specified date.
+     *
+     * This can be combined with updated_at_lte parameter to receive only the selected period.
+     *
+     * *New in version 2.6.0*
+     */
+    FilterUpdatedAtGTE: string;
+    /**
+     * @description Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
+     *
+     * *New in version 2.6.0*
+     */
+    Paused: boolean;
+    /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
      * extensibility, because the format of encrypted data may change.
@@ -2397,6 +2512,12 @@ export interface operations {
          * *New in version 2.1.1*
          */
         only_active?: components["parameters"]["OnlyActive"];
+        /**
+         * Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
+         *
+         * *New in version 2.6.0*
+         */
+        paused?: components["parameters"]["Paused"];
         /** If set, only return DAGs with dag_ids matching this pattern. */
         dag_id_pattern?: string;
       };
@@ -2564,6 +2685,78 @@ export interface operations {
       };
     };
   };
+  /**
+   * Update the manual user note of a non-mapped Task Instance.
+   *
+   * *New in version 2.5.0*
+   */
+  set_task_instance_note: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of set Task Instance note. */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetTaskInstanceNote"];
+      };
+    };
+  };
+  /**
+   * Update the manual user note of a mapped Task Instance.
+   *
+   * *New in version 2.5.0*
+   */
+  set_mapped_task_instance_note: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of set Task Instance note. */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetTaskInstanceNote"];
+      };
+    };
+  };
   /** Updates the state for multiple task instances simultaneously. */
   post_set_task_instances_state: {
     parameters: {
@@ -2638,6 +2831,22 @@ export interface operations {
          * This can be combined with start_date_gte parameter to receive only the selected period.
          */
         end_date_lte?: components["parameters"]["FilterEndDateLTE"];
+        /**
+         * Returns objects greater or equal the specified date.
+         *
+         * This can be combined with updated_at_lte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_gte?: components["parameters"]["FilterUpdatedAtGTE"];
+        /**
+         * Returns objects less or equal the specified date.
+         *
+         * This can be combined with updated_at_gte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_lte?: components["parameters"]["FilterUpdatedAtLTE"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         state?: components["parameters"]["FilterState"];
         /**
@@ -2831,6 +3040,39 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Update the manual user note of a DagRun.
+   *
+   * *New in version 2.5.0*
+   */
+  set_dag_run_note: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DAGRun"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    /** Parameters of set DagRun note. */
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetDagRunNote"];
+      };
     };
   };
   /** List log entries from event log. */
@@ -3104,6 +3346,22 @@ export interface operations {
          */
         end_date_lte?: components["parameters"]["FilterEndDateLTE"];
         /**
+         * Returns objects greater or equal the specified date.
+         *
+         * This can be combined with updated_at_lte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_gte?: components["parameters"]["FilterUpdatedAtGTE"];
+        /**
+         * Returns objects less or equal the specified date.
+         *
+         * This can be combined with updated_at_gte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_lte?: components["parameters"]["FilterUpdatedAtLTE"];
+        /**
          * Returns objects greater than or equal to the specified values.
          *
          * This can be combined with duration_lte parameter to receive only the selected period.
@@ -3315,6 +3573,22 @@ export interface operations {
          * This can be combined with start_date_gte parameter to receive only the selected period.
          */
         end_date_lte?: components["parameters"]["FilterEndDateLTE"];
+        /**
+         * Returns objects greater or equal the specified date.
+         *
+         * This can be combined with updated_at_lte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_gte?: components["parameters"]["FilterUpdatedAtGTE"];
+        /**
+         * Returns objects less or equal the specified date.
+         *
+         * This can be combined with updated_at_gte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_lte?: components["parameters"]["FilterUpdatedAtLTE"];
         /**
          * Returns objects greater than or equal to the specified values.
          *
@@ -4242,6 +4516,7 @@ export type UpdateDagRunState = CamelCasedPropertiesDeep<components['schemas']['
 export type DAGRunCollection = CamelCasedPropertiesDeep<components['schemas']['DAGRunCollection']>;
 export type DagWarning = CamelCasedPropertiesDeep<components['schemas']['DagWarning']>;
 export type DagWarningCollection = CamelCasedPropertiesDeep<components['schemas']['DagWarningCollection']>;
+export type SetDagRunNote = CamelCasedPropertiesDeep<components['schemas']['SetDagRunNote']>;
 export type EventLog = CamelCasedPropertiesDeep<components['schemas']['EventLog']>;
 export type EventLogCollection = CamelCasedPropertiesDeep<components['schemas']['EventLogCollection']>;
 export type ImportError = CamelCasedPropertiesDeep<components['schemas']['ImportError']>;
@@ -4294,6 +4569,7 @@ export type ClearDagRun = CamelCasedPropertiesDeep<components['schemas']['ClearD
 export type ClearTaskInstances = CamelCasedPropertiesDeep<components['schemas']['ClearTaskInstances']>;
 export type UpdateTaskInstancesState = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstancesState']>;
 export type UpdateTaskInstance = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstance']>;
+export type SetTaskInstanceNote = CamelCasedPropertiesDeep<components['schemas']['SetTaskInstanceNote']>;
 export type ListDagRunsForm = CamelCasedPropertiesDeep<components['schemas']['ListDagRunsForm']>;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<components['schemas']['ListTaskInstanceForm']>;
 export type ScheduleInterval = CamelCasedPropertiesDeep<components['schemas']['ScheduleInterval']>;
@@ -4328,6 +4604,8 @@ export type GetDagVariables = CamelCasedPropertiesDeep<operations['get_dag']['pa
 export type DeleteDagVariables = CamelCasedPropertiesDeep<operations['delete_dag']['parameters']['path']>;
 export type PatchDagVariables = CamelCasedPropertiesDeep<operations['patch_dag']['parameters']['path'] & operations['patch_dag']['parameters']['query'] & operations['patch_dag']['requestBody']['content']['application/json']>;
 export type PostClearTaskInstancesVariables = CamelCasedPropertiesDeep<operations['post_clear_task_instances']['parameters']['path'] & operations['post_clear_task_instances']['requestBody']['content']['application/json']>;
+export type SetTaskInstanceNoteVariables = CamelCasedPropertiesDeep<operations['set_task_instance_note']['parameters']['path'] & operations['set_task_instance_note']['requestBody']['content']['application/json']>;
+export type SetMappedTaskInstanceNoteVariables = CamelCasedPropertiesDeep<operations['set_mapped_task_instance_note']['parameters']['path'] & operations['set_mapped_task_instance_note']['requestBody']['content']['application/json']>;
 export type PostSetTaskInstancesStateVariables = CamelCasedPropertiesDeep<operations['post_set_task_instances_state']['parameters']['path'] & operations['post_set_task_instances_state']['requestBody']['content']['application/json']>;
 export type GetDagRunsVariables = CamelCasedPropertiesDeep<operations['get_dag_runs']['parameters']['path'] & operations['get_dag_runs']['parameters']['query']>;
 export type PostDagRunVariables = CamelCasedPropertiesDeep<operations['post_dag_run']['parameters']['path'] & operations['post_dag_run']['requestBody']['content']['application/json']>;
@@ -4337,6 +4615,7 @@ export type DeleteDagRunVariables = CamelCasedPropertiesDeep<operations['delete_
 export type UpdateDagRunStateVariables = CamelCasedPropertiesDeep<operations['update_dag_run_state']['parameters']['path'] & operations['update_dag_run_state']['requestBody']['content']['application/json']>;
 export type ClearDagRunVariables = CamelCasedPropertiesDeep<operations['clear_dag_run']['parameters']['path'] & operations['clear_dag_run']['requestBody']['content']['application/json']>;
 export type GetUpstreamDatasetEventsVariables = CamelCasedPropertiesDeep<operations['get_upstream_dataset_events']['parameters']['path']>;
+export type SetDagRunNoteVariables = CamelCasedPropertiesDeep<operations['set_dag_run_note']['parameters']['path'] & operations['set_dag_run_note']['requestBody']['content']['application/json']>;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<operations['get_event_logs']['parameters']['query']>;
 export type GetEventLogVariables = CamelCasedPropertiesDeep<operations['get_event_log']['parameters']['path']>;
 export type GetImportErrorsVariables = CamelCasedPropertiesDeep<operations['get_import_errors']['parameters']['query']>;

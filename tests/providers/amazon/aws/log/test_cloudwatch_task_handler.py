@@ -51,7 +51,7 @@ def logmock():
 class TestCloudwatchTaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
-    def setup(self, create_log_template, tmp_path_factory):
+    def setup_tests(self, create_log_template, tmp_path_factory):
         self.remote_log_group = "log_group_name"
         self.region_name = "us-west-2"
         self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
@@ -151,50 +151,6 @@ class TestCloudwatchTaskHandler:
         )
         assert self.cloudwatch_task_handler.read(self.ti) == (
             [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, events))]],
-            [{"end_of_log": True}],
-        )
-
-    def test_read_wrong_log_stream(self):
-        generate_log_events(
-            self.conn,
-            self.remote_log_group,
-            "alternate_log_stream",
-            [
-                {"timestamp": 10000, "message": "First"},
-                {"timestamp": 20000, "message": "Second"},
-                {"timestamp": 30000, "message": "Third"},
-            ],
-        )
-
-        msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
-        error_msg = (
-            "Could not read remote logs from log_group: "
-            f"{self.remote_log_group} log_stream: {self.remote_log_stream}."
-        )
-        assert self.cloudwatch_task_handler.read(self.ti) == (
-            [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg))]],
-            [{"end_of_log": True}],
-        )
-
-    def test_read_wrong_log_group(self):
-        generate_log_events(
-            self.conn,
-            "alternate_log_group",
-            self.remote_log_stream,
-            [
-                {"timestamp": 10000, "message": "First"},
-                {"timestamp": 20000, "message": "Second"},
-                {"timestamp": 30000, "message": "Third"},
-            ],
-        )
-
-        msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
-        error_msg = (
-            f"Could not read remote logs from log_group: "
-            f"{self.remote_log_group} log_stream: {self.remote_log_stream}."
-        )
-        assert self.cloudwatch_task_handler.read(self.ti) == (
-            [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg))]],
             [{"end_of_log": True}],
         )
 

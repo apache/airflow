@@ -22,14 +22,15 @@ import json
 import re
 import unittest.mock
 import urllib.parse
-from datetime import timedelta
+from getpass import getuser
 
-import freezegun
 import pytest
+import time_machine
 
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.celery_executor import CeleryExecutor
+from airflow.executors.local_executor import LocalExecutor
 from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
@@ -61,7 +62,7 @@ def reset_dagruns():
 
 @pytest.fixture(autouse=True)
 def init_dagruns(app, reset_dagruns):
-    with freezegun.freeze_time(DEFAULT_DATE):
+    with time_machine.travel(DEFAULT_DATE, tick=False):
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
@@ -550,7 +551,7 @@ def test_run_with_runnable_states(_, admin_client, session, state):
     "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
     return_value=_ForceHeartbeatCeleryExecutor(),
 )
-def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
+def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session, time_machine):
     task_id = "runme_0"
     session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
         {"state": State.SCHEDULED, "queued_dttm": None}
@@ -566,15 +567,13 @@ def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
         dag_run_id=DEFAULT_DAGRUN,
         origin="/home",
     )
+    now = timezone.utcnow()
+
+    time_machine.move_to(now, tick=False)
     resp = admin_client.post("run", data=form, follow_redirects=True)
 
     assert resp.status_code == 200
-    # We cannot use freezegun here as it does not play well with Flask 2.2 and SqlAlchemy
-    # Unlike real datetime, when FakeDatetime is used, it coerces to
-    # '2020-08-06 09:00:00+00:00' which is rejected by MySQL for EXPIRY Column
-    assert timezone.utcnow() - session.query(TaskInstance.queued_dttm).filter(
-        TaskInstance.task_id == task_id
-    ).scalar() < timedelta(minutes=5)
+    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).scalar() == now
 
 
 @pytest.mark.parametrize("state", QUEUEABLE_STATES)
@@ -603,6 +602,35 @@ def test_run_with_not_runnable_states(_, admin_client, session, state):
     check_content_in_response("", resp)
 
     msg = f"Task is in the &#39;{state}&#39; state."
+    assert re.search(msg, resp.get_data(as_text=True))
+
+
+@pytest.mark.parametrize("state", QUEUEABLE_STATES)
+@unittest.mock.patch(
+    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
+    return_value=LocalExecutor(),
+)
+def test_run_with_the_unsupported_executor(_, admin_client, session, state):
+    assert state not in RUNNABLE_STATES
+
+    task_id = "runme_0"
+    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
+        {"state": state, "end_date": timezone.utcnow()}
+    )
+    session.commit()
+
+    form = dict(
+        task_id=task_id,
+        dag_id="example_bash_operator",
+        ignore_all_deps="false",
+        ignore_ti_state="false",
+        dag_run_id=DEFAULT_DAGRUN,
+        origin="/home",
+    )
+    resp = admin_client.post("run", data=form, follow_redirects=True)
+    check_content_in_response("", resp)
+
+    msg = "LocalExecutor does not support ad hoc task runs"
     assert re.search(msg, resp.get_data(as_text=True))
 
 
@@ -753,10 +781,10 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
 
     Example usage::
 
-        >>> from airflow.www.views import TaskInstanceModelView
-        >>> ti = session.Query(TaskInstance).filter(...).one()
-        >>> pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
-        >>> client.post("...", data={"action": "...", "rowid": pk})
+        from airflow.www.views import TaskInstanceModelView
+        ti = session.Query(TaskInstance).filter(...).one()
+        pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
+        client.post("...", data={"action": "...", "rowid": pk})
     """
     pk_value = model_view_cls.datamodel.get_pk_value(instance)
     return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
@@ -978,7 +1006,7 @@ def test_task_fail_duration(app, admin_client, dag_maker, session):
 
 def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
     """Test that the graph view doesn't fail on a recursion error."""
-    from airflow.utils.helpers import chain
+    from airflow.models.baseoperator import chain
 
     with dag_maker("test_fails_with_recursion") as dag:
 
@@ -1032,7 +1060,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_after_loop": {
@@ -1062,7 +1090,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_this_last": {
@@ -1092,7 +1120,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_0": {
@@ -1122,7 +1150,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_1": {
@@ -1152,7 +1180,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_2": {
@@ -1182,7 +1210,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "this_will_skip": {
@@ -1212,7 +1240,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
     }

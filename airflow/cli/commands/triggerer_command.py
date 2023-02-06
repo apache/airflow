@@ -14,23 +14,44 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Triggerer command"""
+"""Triggerer command."""
 from __future__ import annotations
 
 import signal
+from contextlib import contextmanager
+from functools import partial
+from multiprocessing import Process
+from typing import Generator
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
+from airflow.configuration import conf
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.serve_logs import serve_logs
+
+
+@contextmanager
+def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
+    """Starts serve_logs sub-process"""
+    sub_proc = None
+    if skip_serve_logs is False:
+        port = conf.getint("logging", "trigger_log_server_port", fallback=8794)
+        sub_proc = Process(target=partial(serve_logs, port=port))
+        sub_proc.start()
+    try:
+        yield
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
 
 
 @cli_utils.action_cli
 def triggerer(args):
-    """Starts Airflow Triggerer"""
+    """Starts Airflow Triggerer."""
     settings.MASK_SECRETS_IN_LOGS = True
     print(settings.HEADER)
     job = TriggererJob(capacity=args.capacity)
@@ -40,22 +61,22 @@ def triggerer(args):
             "triggerer", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 
-            ctx = daemon.DaemonContext(
+            daemon_context = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
                 stderr=stderr_handle,
                 umask=int(settings.DAEMON_UMASK, 8),
             )
-            with ctx:
+            with daemon_context, _serve_logs(args.skip_serve_logs):
                 job.run()
-
     else:
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
-        job.run()
+        with _serve_logs(args.skip_serve_logs):
+            job.run()

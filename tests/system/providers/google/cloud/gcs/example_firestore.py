@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -66,7 +66,7 @@ FIRESTORE_PROJECT_ID = os.environ.get("G_FIRESTORE_PROJECT_ID", "example-firebas
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 EXPORT_DESTINATION_URL = os.environ.get("GCP_FIRESTORE_ARCHIVE_URL", "gs://INVALID BUCKET NAME/namespace/")
-EXPORT_PREFIX = urlparse(EXPORT_DESTINATION_URL).path
+EXPORT_PREFIX = urlsplit(EXPORT_DESTINATION_URL).path
 EXPORT_COLLECTION_ID = os.environ.get("GCP_FIRESTORE_COLLECTION_ID", "firestore_collection_id")
 DATASET_LOCATION = os.environ.get("GCP_FIRESTORE_DATASET_LOCATION", "EU")
 

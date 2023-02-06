@@ -24,6 +24,47 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Beginning with version 2.0.0, users could specify single-tenant dbt Cloud domains via the ``schema`` parameter
+in an Airflow connection. Subsequently in version 2.3.1, users could also connect to the dbt Cloud instances
+outside of the US region as well as private instances by using the ``host`` parameter of their Airflow
+connection to specify the entire tenant domain. Backwards compatibility for using ``schema`` was left in
+place. Version 3.0.0 removes support for using ``schema`` to specify the tenant domain of a dbt Cloud
+instance. If you wish to connect to a single-tenant, instance outside of the US, or a private instance, you
+must use the ``host`` parameter to specify the _entire_ tenant domain name in your Airflow connection.
+
+* ``Drop Connection.schema use in DbtCloudHook  (#29166)``
+
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Use entire tenant domain name in dbt Cloud connection (#28890)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.3.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 2.2.0
 .....
 

@@ -32,26 +32,26 @@ from alembic import op
 from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
-revision = 'ee8d93fcc81e'
-down_revision = 'e07f49787c9d'
+revision = "ee8d93fcc81e"
+down_revision = "e07f49787c9d"
 branch_labels = None
 depends_on = None
-airflow_version = '2.5.0'
+airflow_version = "2.5.0"
 
 
 def upgrade():
     """Apply add updated_at column to DagRun and TaskInstance"""
-    with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.add_column(sa.Column('updated_at', TIMESTAMP, default=sa.func.now))
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.add_column(sa.Column("updated_at", TIMESTAMP, default=sa.func.now))
 
-    with op.batch_alter_table('dag_run') as batch_op:
-        batch_op.add_column(sa.Column('updated_at', TIMESTAMP, default=sa.func.now))
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.add_column(sa.Column("updated_at", TIMESTAMP, default=sa.func.now))
 
 
 def downgrade():
     """Unapply add updated_at column to DagRun and TaskInstance"""
-    with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.drop_column('updated_at')
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.drop_column("updated_at")
 
-    with op.batch_alter_table('dag_run') as batch_op:
-        batch_op.drop_column('updated_at')
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.drop_column("updated_at")

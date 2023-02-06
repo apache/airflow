@@ -28,14 +28,58 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.5.0
+.....
+
+Latest change: 2023-01-18
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`3a7bfce601 <https://github.com/apache/airflow/commit/3a7bfce6017207218889b66976dbee1ed84292dc>`_  2023-01-18   ``Skip DockerOperator task when it returns a provided exit code (#28996)``
+`cd637c223f <https://github.com/apache/airflow/commit/cd637c223f93c4306743921e85777d2eff7ae54b>`_  2023-01-16   ``Fix label name for 'reauth' field in Docker Connection (#28974)``
+`911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+`af2c22a00a <https://github.com/apache/airflow/commit/af2c22a00afdd9302cbcda1de63fc1804b2cd2e5>`_  2023-01-03   ``Add correct widgets in Docker Hook (#28700)``
+`57a889de35 <https://github.com/apache/airflow/commit/57a889de357b269ae104b721e2a4bb78b929cea9>`_  2023-01-03   ``Make docker operators always use 'DockerHook' for API calls (#28363)``
+=================================================================================================  ===========  ==========================================================================
+
+3.4.0
+.....
+
+Latest change: 2023-01-02
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`ea08989db1 <https://github.com/apache/airflow/commit/ea08989db11ada7f5244f3bdec9d2697e9b4b3b8>`_  2022-12-30   ``Move min airflow version down for Docker Provider to 2.3.0 (#28648)``
+`1aa3da543a <https://github.com/apache/airflow/commit/1aa3da543a3f9229527a5de2807053e15b2bfea7>`_  2022-11-29   ``add hostname argument to DockerOperator (#27822)``
+=================================================================================================  ===========  =======================================================================
+
+3.3.0
+.....
+
+Latest change: 2022-11-15
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
+`a504a8267d <https://github.com/apache/airflow/commit/a504a8267dd5530923bbe2c8ec4d1b409f909d83>`_  2022-11-10   ``Add ipc_mode for DockerOperator (#27553)``
+`1add2f7c41 <https://github.com/apache/airflow/commit/1add2f7c413dd776170c98d0bf98f8bcdbc4889f>`_  2022-10-28   ``Add env-file parameter to Docker Operator (#26951)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+=================================================================================================  ===========  =========================================================================
+
 3.2.0
 .....
 
-Latest change: 2022-09-27
+Latest change: 2022-09-28
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `19d6f54704 <https://github.com/apache/airflow/commit/19d6f54704949d017b028e644bbcf45f5b53120b>`_  2022-09-27   ``Add logging options to docker operator (#26653)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 `55928b9da6 <https://github.com/apache/airflow/commit/55928b9da60cab415adba90831e14c5b77b52714>`_  2022-09-06   ``Implement ExternalPythonOperator (#25780)``

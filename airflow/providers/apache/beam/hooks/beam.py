@@ -18,6 +18,8 @@
 """This module contains a Apache Beam Hook."""
 from __future__ import annotations
 
+import contextlib
+import copy
 import json
 import os
 import select
@@ -27,6 +29,8 @@ import subprocess
 import textwrap
 from tempfile import TemporaryDirectory
 from typing import Callable
+
+from packaging.version import Version
 
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
@@ -226,37 +230,47 @@ class BeamHook(BaseHook):
         if "labels" in variables:
             variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
 
-        if py_requirements is not None:
-            if not py_requirements and not py_system_site_packages:
-                warning_invalid_environment = textwrap.dedent(
-                    """\
-                    Invalid method invocation. You have disabled inclusion of system packages and empty list
-                    required for installation, so it is not possible to create a valid virtual environment.
-                    In the virtual environment, apache-beam package must be installed for your job to be \
-                    executed. To fix this problem:
-                    * install apache-beam on the system, then set parameter py_system_site_packages to True,
-                    * add apache-beam to the list of required packages in parameter py_requirements.
-                    """
-                )
-                raise AirflowException(warning_invalid_environment)
+        with contextlib.ExitStack() as exit_stack:
+            if py_requirements is not None:
+                if not py_requirements and not py_system_site_packages:
+                    warning_invalid_environment = textwrap.dedent(
+                        """\
+                        Invalid method invocation. You have disabled inclusion of system packages and empty
+                        list required for installation, so it is not possible to create a valid virtual
+                        environment. In the virtual environment, apache-beam package must be installed for
+                        your job to be executed.
 
-            with TemporaryDirectory(prefix="apache-beam-venv") as tmp_dir:
+                        To fix this problem:
+                        * install apache-beam on the system, then set parameter py_system_site_packages
+                          to True,
+                        * add apache-beam to the list of required packages in parameter py_requirements.
+                        """
+                    )
+                    raise AirflowException(warning_invalid_environment)
+                tmp_dir = exit_stack.enter_context(TemporaryDirectory(prefix="apache-beam-venv"))
                 py_interpreter = prepare_virtualenv(
                     venv_directory=tmp_dir,
                     python_bin=py_interpreter,
                     system_site_packages=py_system_site_packages,
                     requirements=py_requirements,
                 )
-                command_prefix = [py_interpreter] + py_options + [py_file]
 
-                self._start_pipeline(
-                    variables=variables,
-                    command_prefix=command_prefix,
-                    process_line_callback=process_line_callback,
-                )
-        else:
             command_prefix = [py_interpreter] + py_options + [py_file]
 
+            beam_version = (
+                subprocess.check_output(
+                    [py_interpreter, "-c", "import apache_beam; print(apache_beam.__version__)"]
+                )
+                .decode()
+                .strip()
+            )
+            self.log.info("Beam version: %s", beam_version)
+            impersonate_service_account = variables.get("impersonate_service_account")
+            if impersonate_service_account:
+                if Version(beam_version) < Version("2.39.0") or True:
+                    raise AirflowException(
+                        "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
+                    )
             self._start_pipeline(
                 variables=variables,
                 command_prefix=command_prefix,
@@ -297,11 +311,10 @@ class BeamHook(BaseHook):
         should_init_module: bool = False,
     ) -> None:
         """
-        Starts Apache Beam Go pipeline.
+        Starts Apache Beam Go pipeline with a source file.
 
         :param variables: Variables passed to the job.
         :param go_file: Path to the Go file with your beam pipeline.
-        :param go_file:
         :param process_line_callback: (optional) Callback that can be used to process each line of
             the stdout and stderr file descriptors.
         :param should_init_module: If False (default), will just execute a `go run` command. If True, will
@@ -332,4 +345,35 @@ class BeamHook(BaseHook):
             command_prefix=command_prefix,
             process_line_callback=process_line_callback,
             working_directory=working_directory,
+        )
+
+    def start_go_pipeline_with_binary(
+        self,
+        variables: dict,
+        launcher_binary: str,
+        worker_binary: str,
+        process_line_callback: Callable[[str], None] | None = None,
+    ) -> None:
+        """
+        Starts Apache Beam Go pipeline with an executable binary.
+
+        :param variables: Variables passed to the job.
+        :param launcher_binary: Path to the binary compiled for the launching platform.
+        :param worker_binary: Path to the binary compiled for the worker platform.
+        :param process_line_callback: (optional) Callback that can be used to process each line of
+            the stdout and stderr file descriptors.
+        """
+        job_variables = copy.deepcopy(variables)
+
+        if "labels" in job_variables:
+            job_variables["labels"] = json.dumps(job_variables["labels"], separators=(",", ":"))
+
+        job_variables["worker_binary"] = worker_binary
+
+        command_prefix = [launcher_binary]
+
+        self._start_pipeline(
+            variables=job_variables,
+            command_prefix=command_prefix,
+            process_line_callback=process_line_callback,
         )

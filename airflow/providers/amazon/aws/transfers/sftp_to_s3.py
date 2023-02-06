@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -76,7 +76,7 @@ class SFTPToS3Operator(BaseOperator):
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
         """This parses the correct format for S3 keys regardless of how the S3 url is passed."""
-        parsed_s3_key = urlparse(s3_key)
+        parsed_s3_key = urlsplit(s3_key)
         return parsed_s3_key.path.lstrip("/")
 
     def execute(self, context: Context) -> None:

@@ -24,6 +24,80 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Move local_infile option from extra to hook parameter (#28811)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+The ``apache.hive`` provider provides now hive macros that used to be provided by Airflow. As of 5.1.0 version
+of ``apache.hive`` the hive macros are provided by the Provider.
+
+* ``Move Hive macros to the provider (#28538)``
+* ``Make pandas dependency optional for Amazon Provider (#28505)``
+
+.. Review and move the new changes to one of the sections above:
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``hive_cli_params`` from connection were moved to the Hook. If you have extra parameters defined in your
+connections as ``hive_cli_params`` extra, you should move them to the DAG where your HiveOperator is used.
+
+* ``Move hive_cli_params to hook parameters (#28101)``
+
+Features
+~~~~~~~~
+
+* ``Improve filtering for invalid schemas in Hive hook (#27808)``
+
+
+4.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
+4.1.0
+.....
+
+This release of provider is only available for Airflow 2.3+ as explained in the
+`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Filter out invalid schemas in Hive hook (#27647)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 4.0.1
 .....
 
@@ -52,12 +126,6 @@ Breaking Changes
 * ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
 * ``Remove Smart Sensors (#25507)``
 
-Bug Fixes
-~~~~~~~~~
-
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
 
 3.1.0
 .....

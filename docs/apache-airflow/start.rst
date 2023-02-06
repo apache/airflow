@@ -24,7 +24,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
-   Successful installation requires a Python 3 environment.
+   Successful installation requires a Python 3 environment. Starting with Airflow 2.3.0, Airflow is tested with Python 3.7, 3.8, 3.9, 3.10. Note that
+   Python 3.11 is not yet supported.
 
    Only ``pip`` installation is currently officially supported.
 
@@ -36,7 +37,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
-The installation of Airflow is painless if you are following the instructions below. Airflow uses
+The installation of Airflow is painless if you follow the instructions below. Airflow uses
 constraint files to enable reproducible installation, so using ``pip`` and constraint files is recommended.
 
 .. code-block:: bash
@@ -60,7 +61,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
     # Visit localhost:8080 in the browser and use the admin account details
     # shown on the terminal to login.
-    # Enable the example_bash_operator dag in the home page
+    # Enable the example_bash_operator DAG in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.
@@ -80,7 +81,7 @@ command line utilities.
 
 As you grow and deploy Airflow to production, you will also want to move away
 from the ``standalone`` command we use here to running the components
-separately. You can read more in :doc:`/production-deployment`.
+separately. You can read more in :doc:`/administration-and-deployment/production-deployment`.
 
 Here are a few commands that will trigger a few task instances. You should
 be able to see the status of the jobs change in the ``example_bash_operator`` DAG as you
@@ -89,7 +90,7 @@ run the commands below.
 .. code-block:: bash
 
     # run your first task instance
-    airflow tasks run example_bash_operator runme_0 2015-01-01
+    airflow tasks test example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
     airflow dags backfill example_bash_operator \
         --start-date 2015-01-01 \

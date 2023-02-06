@@ -65,7 +65,7 @@ def get_dag_details(*, dag_id: str) -> APIResponse:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def get_dags(
     *,
@@ -74,16 +74,20 @@ def get_dags(
     tags: Collection[str] | None = None,
     dag_id_pattern: str | None = None,
     only_active: bool = True,
+    paused: bool | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get all DAGs."""
+    dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
     if only_active:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
-    else:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
-
+        dags_query = dags_query.filter(DagModel.is_active)
+    if paused is not None:
+        if paused:
+            dags_query = dags_query.filter(DagModel.is_paused)
+        else:
+            dags_query = dags_query.filter(~DagModel.is_paused)
     if dag_id_pattern:
-        dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
+        dags_query = dags_query.filter(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
     readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
 
@@ -102,27 +106,27 @@ def get_dags(
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
 @provide_session
 def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
-    """Update the specific DAG"""
+    """Update the specific DAG."""
     try:
         patch_body = dag_schema.load(request.json, session=session)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     if update_mask:
         patch_body_ = {}
-        if update_mask != ['is_paused']:
+        if update_mask != ["is_paused"]:
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         patch_body_[update_mask[0]] = patch_body[update_mask[0]]
         patch_body = patch_body_
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
     if not dag:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
-    dag.is_paused = patch_body['is_paused']
+    dag.is_paused = patch_body["is_paused"]
     session.flush()
     return dag_schema.dump(dag)
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
     """Patch multiple DAGs."""
@@ -132,7 +136,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
         raise BadRequest(detail=str(err.messages))
     if update_mask:
         patch_body_ = {}
-        if update_mask != ['is_paused']:
+        if update_mask != ["is_paused"]:
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         update_mask = update_mask[0]
         patch_body_[update_mask] = patch_body[update_mask]
@@ -142,9 +146,9 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     else:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
 
-    if dag_id_pattern == '~':
-        dag_id_pattern = '%'
-    dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
+    if dag_id_pattern == "~":
+        dag_id_pattern = "%"
+    dags_query = dags_query.filter(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
     editable_dags = get_airflow_app().appbuilder.sm.get_editable_dag_ids(g.user)
 
     dags_query = dags_query.filter(DagModel.dag_id.in_(editable_dags))
@@ -158,7 +162,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
 
     dags_to_update = {dag.dag_id for dag in dags}
     session.query(DagModel).filter(DagModel.dag_id.in_(dags_to_update)).update(
-        {DagModel.is_paused: patch_body['is_paused']}, synchronize_session='fetch'
+        {DagModel.is_paused: patch_body["is_paused"]}, synchronize_session="fetch"
     )
 
     session.flush()

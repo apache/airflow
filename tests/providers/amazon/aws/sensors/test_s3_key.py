@@ -17,11 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
@@ -30,7 +28,7 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from airflow.utils import timezone
 
 
-class TestS3KeySensor(unittest.TestCase):
+class TestS3KeySensor:
     def test_bucket_name_none_and_bucket_key_as_relative_path(self):
         """
         Test if exception is raised when bucket_name is None
@@ -81,14 +79,16 @@ class TestS3KeySensor(unittest.TestCase):
         with pytest.raises(TypeError):
             op.poke(None)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "key, bucket, parsed_key, parsed_bucket",
         [
-            ["s3://bucket/key", None, "key", "bucket"],
-            ["key", "bucket", "key", "bucket"],
-        ]
+            pytest.param("s3://bucket/key", None, "key", "bucket", id="key as s3url"),
+            pytest.param("key", "bucket", "key", "bucket", id="separate bucket and key"),
+        ],
     )
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_bucket_key(self, key, bucket, parsed_key, parsed_bucket, mock_head_object):
+    def test_parse_bucket_key(self, mock_head_object, key, bucket, parsed_key, parsed_bucket):
+        print(key, bucket, parsed_key, parsed_bucket)
         mock_head_object.return_value = None
 
         op = S3KeySensor(
@@ -125,6 +125,33 @@ class TestS3KeySensor(unittest.TestCase):
         op.poke(None)
 
         mock_head_object.assert_called_once_with("key", "bucket")
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
+    def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object):
+        mock_head_object.return_value = None
+        mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
+
+        Variable.set("test_bucket_key", ["s3://bucket/file1", "s3://bucket/file2"])
+
+        execution_date = timezone.datetime(2020, 1, 1)
+
+        dag = DAG("test_s3_key", start_date=execution_date, render_template_as_native_obj=True)
+        op = S3KeySensor(
+            task_id="s3_key_sensor",
+            bucket_key="{{ var.value.test_bucket_key }}",
+            bucket_name=None,
+            dag=dag,
+        )
+
+        dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
+        ti = TaskInstance(task=op)
+        ti.dag_run = dag_run
+        context = ti.get_template_context()
+        ti.render_templates(context)
+        op.poke(None)
+
+        mock_head_object.assert_any_call("file1", "bucket")
+        mock_head_object.assert_any_call("file2", "bucket")
 
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
     def test_poke(self, mock_head_object):

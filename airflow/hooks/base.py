@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Base class for all hooks"""
+"""Base class for all hooks."""
 from __future__ import annotations
 
 import logging
@@ -34,7 +34,9 @@ log = logging.getLogger(__name__)
 
 class BaseHook(LoggingMixin):
     """
-    Abstract base class for hooks, hooks are meant as an interface to
+    Abstract base class for hooks.
+
+    Hooks are meant as an interface to
     interact with external systems. MySqlHook, HiveHook, PigHook return
     object that can handle the connection and interaction to specific
     instances of these systems, and expose consistent methods to interact
@@ -79,8 +81,6 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: default hook for this connection
         """
-        # TODO: set method return type to BaseHook class when on 3.7+.
-        #  See https://stackoverflow.com/a/33533514/3066428
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
 
@@ -160,6 +160,8 @@ class DiscoverableHook(Protocol):
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """
+        Attributes of the UI field.
+
         Returns dictionary describing customizations to implement in javascript handling the
         connection form. Should be compliant with airflow/customized_form_field_behaviours.schema.json'
 

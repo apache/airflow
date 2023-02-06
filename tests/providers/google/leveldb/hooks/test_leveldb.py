@@ -17,15 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
 
-from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBHookException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBHookException
+except AirflowOptionalProviderFeatureException:
+    pytest.skip("LevelDB not available", allow_module_level=True)
 
 
-class TestLevelDBHook(unittest.TestCase):
+class TestLevelDBHook:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_get_conn_db_is_not_none(self):
         """Test get_conn method of hook"""
