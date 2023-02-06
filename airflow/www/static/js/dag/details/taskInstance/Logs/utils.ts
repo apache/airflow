@@ -53,7 +53,6 @@ export const parseLogs = (
   try {
     lines = data.split('\n');
   } catch (err) {
-    console.error(err);
     warning = 'Unable to show logs. There was an error parsing logs.';
     return { warning };
   }
