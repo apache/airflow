@@ -58,13 +58,20 @@ class DateTimeTrigger(BaseTrigger):
         "the number of seconds until the time" in case the system clock changes
         unexpectedly, or handles a DST change poorly.
         """
-        # Sleep an hour at a time while it's more than 2 hours away
-        while (self.moment - timezone.utcnow()).total_seconds() > 2 * 3600:
-            await asyncio.sleep(3600)
+        # Sleep in successively smaller increments starting from 1 hour down to 10 seconds at a time
+        self.log.info("trigger starting")
+        for step in 3600, 60, 10:
+            seconds_remaining = (self.moment - timezone.utcnow()).total_seconds()
+            while seconds_remaining > 2 * step:
+                self.log.info(f"{int(seconds_remaining)} seconds remaining; sleeping {step} seconds")
+                await asyncio.sleep(step)
+                seconds_remaining = (self.moment - timezone.utcnow()).total_seconds()
         # Sleep a second at a time otherwise
         while self.moment > timezone.utcnow():
+            self.log.info("sleeping 1 second...")
             await asyncio.sleep(1)
         # Send our single event and then we're done
+        self.log.info("yielding event with payload %r", self.moment)
         yield TriggerEvent(self.moment)
 
 

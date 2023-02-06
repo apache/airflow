@@ -83,6 +83,22 @@ class TestLocalKubernetesExecutor:
 
         assert k8s_executor_mock.kubernetes_queue == conf.get("local_kubernetes_executor", "kubernetes_queue")
 
+    def test_log_is_fetched_from_k8s_executor_only_for_k8s_queue(self):
+        local_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+        local_k8s_exec = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+        simple_task_instance = mock.MagicMock()
+        simple_task_instance.queue = conf.get("local_kubernetes_executor", "kubernetes_queue")
+        local_k8s_exec.get_task_log(ti=simple_task_instance)
+        k8s_executor_mock.get_task_log.assert_called_once_with(ti=simple_task_instance)
+        k8s_executor_mock.reset_mock()
+        simple_task_instance.queue = "test-queue"
+        messages, logs = local_k8s_exec.get_task_log(ti=simple_task_instance)
+        k8s_executor_mock.get_task_log.assert_not_called()
+        assert logs == []
+        assert messages == []
+
     def test_send_callback(self):
         local_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()

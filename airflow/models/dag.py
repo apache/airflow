@@ -62,6 +62,7 @@ from sqlalchemy.sql import expression
 
 import airflow.templates
 from airflow import settings, utils
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
 from airflow.exceptions import (
@@ -307,8 +308,7 @@ class DAG(LoggingMixin):
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
     :param dagrun_timeout: specify how long a DagRun should be up before
-        timing out / failing, so that new DagRuns can be created. The timeout
-        is only enforced for scheduled DagRuns.
+        timing out / failing, so that new DagRuns can be created.
     :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
@@ -1327,7 +1327,9 @@ class DAG(LoggingMixin):
                     callback(context)
                 except Exception:
                     self.log.exception("failed to invoke dag state update callback")
-                    Stats.incr("dag.callback_exceptions")
+                    Stats.incr(
+                        "dag.callback_exceptions", tags={"dag_id": dagrun.dag_id, "run_id": dagrun.run_id}
+                    )
 
     def get_active_runs(self):
         """
@@ -3241,7 +3243,11 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=NEW_SESSION):
-        return session.query(DagModel).options(joinedload(DagModel.parent_dag)).get(dag_id)
+        return session.get(
+            DagModel,
+            dag_id,
+            options=[joinedload(DagModel.parent_dag)],
+        )
 
     @classmethod
     @provide_session
@@ -3259,6 +3265,7 @@ class DagModel(Base):
         return self.is_paused
 
     @staticmethod
+    @internal_api_call
     @provide_session
     def get_paused_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
         """

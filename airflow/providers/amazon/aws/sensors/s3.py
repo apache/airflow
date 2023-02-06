@@ -23,6 +23,8 @@ import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Sequence
 
+from deprecated import deprecated
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -91,7 +93,6 @@ class S3KeySensor(BaseSensorOperator):
         self.check_fn = check_fn
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.hook: S3Hook | None = None
 
     def _check_key(self, key):
         bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
@@ -106,7 +107,7 @@ class S3KeySensor(BaseSensorOperator):
         """
         if self.wildcard_match:
             prefix = re.split(r"[\[\*\?]", key, 1)[0]
-            keys = self.get_hook().get_file_metadata(prefix, bucket_name)
+            keys = self.hook.get_file_metadata(prefix, bucket_name)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
             if len(key_matches) == 0:
                 return False
@@ -114,7 +115,7 @@ class S3KeySensor(BaseSensorOperator):
             # Reduce the set of metadata to size only
             files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
         else:
-            obj = self.get_hook().head_object(key, bucket_name)
+            obj = self.hook.head_object(key, bucket_name)
             if obj is None:
                 return False
             files = [{"Size": obj["ContentLength"]}]
@@ -130,13 +131,14 @@ class S3KeySensor(BaseSensorOperator):
         else:
             return all(self._check_key(key) for key in self.bucket_key)
 
+    @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> S3Hook:
         """Create and return an S3Hook"""
-        if self.hook:
-            return self.hook
-
-        self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return self.hook
+
+    @cached_property
+    def hook(self) -> S3Hook:
+        return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
 
 @poke_mode_only

@@ -47,3 +47,9 @@ def test_get_extra_docker_flags_skip():
     flags = get_extra_docker_flags(MOUNT_SKIP)
     assert "/empty," not in "".join(flags)
     assert len(flags) < 10
+
+
+def test_get_no_unknown_common_options():
+    flags = get_extra_docker_flags(MOUNT_SKIP)
+    assert "/empty," not in "".join(flags)
+    assert len(flags) < 10
