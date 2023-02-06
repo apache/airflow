@@ -22,6 +22,7 @@ import subprocess
 import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
@@ -40,11 +41,15 @@ os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/air
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
+from tests.test_utils.db import clear_all  # noqa: E402
 
 from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
     trace_queries,
 )
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 @pytest.fixture()
@@ -192,6 +197,12 @@ def pytest_addoption(parser):
         ),
         metavar="COLUMNS",
     )
+    group.addoption(
+        "--no-db-cleanup",
+        action="store_false",
+        dest="db_cleanup",
+        help="Disable DB clear before each test module.",
+    )
 
 
 def initial_db_init():
@@ -287,7 +298,7 @@ def skip_if_not_marked_with_backend(selected_backend, item):
         if selected_backend in backend_names:
             return
     pytest.skip(
-        f"The test is skipped because it does not have the right backend marker "
+        f"The test is skipped because it does not have the right backend marker. "
         f"Only tests marked with pytest.mark.backend('{selected_backend}') are run: {item}"
     )
 
@@ -521,7 +532,7 @@ def dag_maker(request):
 
             dag.clear(session=self.session)
             dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
-            self.dag_model = self.session.query(DagModel).get(dag.dag_id)
+            self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
                 self.serialized_model = SerializedDagModel(
@@ -741,7 +752,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_type=None,
         data_interval=None,
         **kwargs,
-    ):
+    ) -> TaskInstance:
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -775,7 +786,7 @@ def create_task_instance_of_operator(dag_maker):
         execution_date=None,
         session=None,
         **operator_kwargs,
-    ):
+    ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, session=session):
             operator_class(**operator_kwargs)
         if execution_date is None:
@@ -852,3 +863,24 @@ def reset_logging_config():
 
     logging_config = import_string(settings.LOGGING_CLASS_PATH)
     logging.config.dictConfig(logging_config)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _clear_db(request):
+    """Clear DB before each test module run."""
+    if not request.config.option.db_cleanup:
+        return
+    dist_option = getattr(request.config.option, "dist", "no")
+    if dist_option != "no" or hasattr(request.config, "workerinput"):
+        # Skip if pytest-xdist detected (controller or worker)
+        return
+
+    try:
+        clear_all()
+    except Exception as ex:
+        exc_name_parts = [type(ex).__name__]
+        exc_module = type(ex).__module__
+        if exc_module != "builtins":
+            exc_name_parts.insert(0, exc_module)
+        extra_msg = "" if request.config.option.db_init else ", try to run with flag --with-db-init"
+        pytest.exit(f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}")

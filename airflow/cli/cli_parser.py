@@ -142,7 +142,16 @@ class Arg:
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser."""
+        if "metavar" in self.kwargs and "type" not in self.kwargs:
+            if self.kwargs["metavar"] == "DIRPATH":
+                type = lambda x: self._is_valid_directory(parser, x)
+                self.kwargs["type"] = type
         parser.add_argument(*self.flags, **self.kwargs)
+
+    def _is_valid_directory(self, parser, arg):
+        if not os.path.isdir(arg):
+            parser.error(f"The directory '{arg}' does not exist!")
+        return arg
 
 
 def positive_int(*, allow_zero):
@@ -468,7 +477,23 @@ ARG_DB_SKIP_ARCHIVE = Arg(
     help="Don't preserve purged records in an archive table.",
     action="store_true",
 )
-
+ARG_DB_EXPORT_FORMAT = Arg(
+    ("--export-format",),
+    help="The file format to export the cleaned data",
+    choices=("csv",),
+    default="csv",
+)
+ARG_DB_OUTPUT_PATH = Arg(
+    ("--output-path",),
+    metavar="DIRPATH",
+    help="The path to the output directory to export the cleaned data. This directory must exist.",
+    required=True,
+)
+ARG_DB_DROP_ARCHIVES = Arg(
+    ("--drop-archives",),
+    help="Drop the archive tables after exporting. Use with caution.",
+    action="store_true",
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -540,8 +565,19 @@ ARG_IGNORE_DEPENDENCIES = Arg(
 )
 ARG_IGNORE_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-depends-on-past"),
-    help="Ignore depends_on_past dependencies (but respect upstream dependencies)",
+    help="Deprecated -- use `--depends-on-past ignore` instead. "
+    "Ignore depends_on_past dependencies (but respect upstream dependencies)",
     action="store_true",
+)
+ARG_DEPENDS_ON_PAST = Arg(
+    ("-d", "--depends-on-past"),
+    help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
+    "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
+    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
+    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
+    "skipping the task",
+    choices={"check", "ignore", "wait"},
+    default="check",
 )
 ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
@@ -654,7 +690,7 @@ ARG_DEBUG = Arg(
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get("webserver", "ACCESS_LOGFILE"),
-    help="The logfile to store the webserver access log. Use '-' to print to stderr",
+    help="The logfile to store the webserver access log. Use '-' to print to stdout",
 )
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
@@ -664,6 +700,50 @@ ARG_ERROR_LOGFILE = Arg(
 ARG_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     default=conf.get("webserver", "ACCESS_LOGFORMAT"),
+    help="The access log format for gunicorn logs",
+)
+
+
+# internal-api
+ARG_INTERNAL_API_PORT = Arg(
+    ("-p", "--port"),
+    default=9080,
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_INTERNAL_API_WORKERS = Arg(
+    ("-w", "--workers"),
+    default=4,
+    type=int,
+    help="Number of workers to run the Internal API-on",
+)
+ARG_INTERNAL_API_WORKERCLASS = Arg(
+    ("-k", "--workerclass"),
+    default="sync",
+    choices=["sync", "eventlet", "gevent", "tornado"],
+    help="The worker class to use for Gunicorn",
+)
+ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
+    ("-t", "--worker-timeout"),
+    default=120,
+    type=int,
+    help="The timeout for waiting on Internal API workers",
+)
+ARG_INTERNAL_API_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default="0.0.0.0",
+    help="Set the hostname on which to run the web server",
+)
+ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
+    ("-A", "--access-logfile"),
+    help="The logfile to store the access log. Use '-' to print to stdout",
+)
+ARG_INTERNAL_API_ERROR_LOGFILE = Arg(
+    ("-E", "--error-logfile"),
+    help="The logfile to store the error log. Use '-' to print to stderr",
+)
+ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
 
@@ -804,6 +884,12 @@ ARG_CONN_SERIALIZATION_FORMAT = Arg(
     choices=["json", "uri"],
 )
 ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
+ARG_CONN_OVERWRITE = Arg(
+    ("--overwrite",),
+    help="Overwrite existing entries if a conflict occurs",
+    required=False,
+    action="store_true",
+)
 
 # providers
 ARG_PROVIDER_NAME = Arg(
@@ -1326,6 +1412,7 @@ TASKS_COMMANDS = (
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_IGNORE_DEPENDS_ON_PAST,
+            ARG_DEPENDS_ON_PAST,
             ARG_SHIP_DAG,
             ARG_PICKLE,
             ARG_JOB_ID,
@@ -1527,6 +1614,17 @@ DB_COMMANDS = (
             ARG_DB_SKIP_ARCHIVE,
         ),
     ),
+    ActionCommand(
+        name="export-cleaned",
+        help="Export cleaned data from the archive tables",
+        func=lazy_load_command("airflow.cli.commands.db_command.export_cleaned"),
+        args=(
+            ARG_DB_EXPORT_FORMAT,
+            ARG_DB_OUTPUT_PATH,
+            ARG_DB_DROP_ARCHIVES,
+            ARG_DB_TABLES,
+        ),
+    ),
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
@@ -1590,6 +1688,7 @@ CONNECTIONS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_import"),
         args=(
             ARG_CONN_IMPORT,
+            ARG_CONN_OVERWRITE,
             ARG_VERBOSE,
         ),
     ),
@@ -1950,6 +2049,29 @@ airflow_commands: list[CLICommand] = [
         ),
     ),
     ActionCommand(
+        name="internal-api",
+        help="Start a Airflow Internal API instance",
+        func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
+        args=(
+            ARG_INTERNAL_API_PORT,
+            ARG_INTERNAL_API_WORKERS,
+            ARG_INTERNAL_API_WORKERCLASS,
+            ARG_INTERNAL_API_WORKER_TIMEOUT,
+            ARG_INTERNAL_API_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_INTERNAL_API_ACCESS_LOGFILE,
+            ARG_INTERNAL_API_ERROR_LOGFILE,
+            ARG_INTERNAL_API_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
+        ),
+    ),
+    ActionCommand(
         name="scheduler",
         help="Start a scheduler instance",
         func=lazy_load_command("airflow.cli.commands.scheduler_command.scheduler"),
@@ -1986,6 +2108,7 @@ airflow_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_CAPACITY,
             ARG_VERBOSE,
+            ARG_SKIP_SERVE_LOGS,
         ),
     ),
     ActionCommand(

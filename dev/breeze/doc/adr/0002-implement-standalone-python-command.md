@@ -127,7 +127,7 @@ The main decision is:
 **Vast majority of both Breeze and our CI scripts should be Python-based**
 
 There are likely a number of scripts that will remain in Bash, but they should contain no sophisticated
-logic, they should not haave common code in form of libraries and only used to execute simple tasks inside
+logic, they should not have common code in form of libraries and only used to execute simple tasks inside
 Docker containers. No Bash should ever be used in the host environment.
 
 There are a few properties of Breeze/CI scripts that should be maintained though

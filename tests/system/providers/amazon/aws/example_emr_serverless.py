@@ -88,6 +88,7 @@ with DAG(
         application_id=emr_serverless_app_id,
     )
     # [END howto_sensor_emr_serverless_application]
+    wait_for_app_creation.poke_interval = 1
 
     # [START howto_operator_emr_serverless_start_job]
     start_job = EmrServerlessStartJobOperator(
@@ -98,6 +99,7 @@ with DAG(
         configuration_overrides=SPARK_CONFIGURATION_OVERRIDES,
     )
     # [END howto_operator_emr_serverless_start_job]
+    start_job.waiter_check_interval_seconds = 10
 
     # [START howto_sensor_emr_serverless_job]
     wait_for_job = EmrServerlessJobSensor(
@@ -113,6 +115,7 @@ with DAG(
         application_id=emr_serverless_app_id,
     )
     # [END howto_operator_emr_serverless_delete_application]
+    delete_app.waiter_check_interval_seconds = 1
     delete_app.trigger_rule = TriggerRule.ALL_DONE
 
     delete_s3_bucket = S3DeleteBucketOperator(

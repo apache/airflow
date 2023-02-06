@@ -35,7 +35,6 @@ from airflow.exceptions import (
     PoolNotFound,
     TaskConcurrencyLimitReached,
 )
-from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle
@@ -165,7 +164,7 @@ class BackfillJob(BaseJob):
         self.disable_retry = disable_retry
         super().__init__(*args, **kwargs)
 
-    def _update_counters(self, ti_status, session=None):
+    def _update_counters(self, ti_status, session):
         """
         Updates the counters per state of the tasks that were running.
 
@@ -407,14 +406,14 @@ class BackfillJob(BaseJob):
 
         self.log.debug("Finished dag run loop iteration. Remaining tasks %s", ti_status.to_run.values())
 
-    @provide_session
     def _process_backfill_task_instances(
         self,
         ti_status,
         executor,
         pickle_id,
         start_date=None,
-        session=None,
+        *,
+        session: Session,
     ) -> list:
         """
         Process a set of task instances from a set of DAG runs.
@@ -441,7 +440,7 @@ class BackfillJob(BaseJob):
             # or leaf to root, as otherwise tasks might be
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
-            def _per_task_process(key, ti: TaskInstance, session=None):
+            def _per_task_process(key, ti: TaskInstance, session):
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
@@ -494,6 +493,7 @@ class BackfillJob(BaseJob):
                     deps=BACKFILL_QUEUED_DEPS,
                     ignore_depends_on_past=ignore_depends_on_past,
                     ignore_task_deps=self.ignore_task_deps,
+                    wait_for_past_depends_before_skipping=False,
                     flag_upstream_failed=True,
                 )
 
@@ -533,6 +533,7 @@ class BackfillJob(BaseJob):
                             pickle_id=pickle_id,
                             ignore_task_deps=self.ignore_task_deps,
                             ignore_depends_on_past=ignore_depends_on_past,
+                            wait_for_past_depends_before_skipping=False,
                             pool=self.pool,
                             cfg_path=cfg_path,
                         )
@@ -843,11 +844,9 @@ class BackfillJob(BaseJob):
         # picklin'
         pickle_id = None
 
-        if not self.donot_pickle and self.executor_class not in (
-            executor_constants.LOCAL_EXECUTOR,
-            executor_constants.SEQUENTIAL_EXECUTOR,
-            executor_constants.DASK_EXECUTOR,
-        ):
+        executor_class, _ = ExecutorLoader.import_default_executor_cls()
+
+        if not self.donot_pickle and executor_class.supports_pickling:
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()

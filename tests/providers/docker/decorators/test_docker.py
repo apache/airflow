@@ -16,16 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.decorators import task
+from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 
 class TestDockerDecorator:
     def test_basic_docker_operator(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f():
             import random
 
@@ -40,7 +44,7 @@ class TestDockerDecorator:
         assert len(ti.xcom_pull()) == 100
 
     def test_basic_docker_operator_with_param(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f(num_results):
             import random
 
@@ -57,10 +61,7 @@ class TestDockerDecorator:
         assert len(result) == 50
 
     def test_basic_docker_operator_multiple_output(self, dag_maker):
-        @task.docker(
-            image="python:3.9-slim",
-            multiple_outputs=True,
-        )
+        @task.docker(image="python:3.9-slim", multiple_outputs=True, auto_remove="force")
         def return_dict(number: int):
             return {"number": number + 1, "43": 43}
 
@@ -77,7 +78,7 @@ class TestDockerDecorator:
         assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
 
     def test_no_return(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f():
             pass
 
@@ -92,11 +93,7 @@ class TestDockerDecorator:
     def test_call_decorated_multiple_times(self):
         """Test calling decorated function 21 times in a DAG"""
 
-        @task.docker(
-            image="python:3.9-slim",
-            network_mode="bridge",
-            api_version="auto",
-        )
+        @task.docker(image="python:3.9-slim", network_mode="bridge", api_version="auto", auto_remove="force")
         def do_run():
             return 4
 
@@ -107,3 +104,29 @@ class TestDockerDecorator:
 
         assert len(dag.task_ids) == 21
         assert dag.task_ids[-1] == "do_run__20"
+
+    @pytest.mark.parametrize(
+        "extra_kwargs, actual_exit_code, expected_state",
+        [
+            (None, 99, TaskInstanceState.FAILED),
+            ({"skip_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+        ],
+    )
+    def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs if extra_kwargs else {}))
+        def f(exit_code):
+            raise SystemExit(exit_code)
+
+        with dag_maker():
+            ret = f(actual_exit_code)
+
+        dr = dag_maker.create_dagrun()
+        if expected_state == TaskInstanceState.FAILED:
+            with pytest.raises(AirflowException):
+                ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        else:
+            ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+            ti = dr.get_task_instances()[0]
+            assert ti.state == expected_state

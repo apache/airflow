@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-- name: providers_google
+providers_google:
   description: Options for google provider
   options:
-    - name: verbose_logging
+    verbose_logging:
       description: |
         Sets verbose logging for google provider
       version_added: 2.0.0

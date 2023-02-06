@@ -74,9 +74,9 @@ from airflow_breeze.utils.run_utils import (
 VOLUMES_FOR_SELECTED_MOUNTS = [
     (".bash_aliases", "/root/.bash_aliases"),
     (".bash_history", "/root/.bash_history"),
+    (".build", "/opt/airflow/.build"),
     (".coveragerc", "/opt/airflow/.coveragerc"),
     (".dockerignore", "/opt/airflow/.dockerignore"),
-    (".flake8", "/opt/airflow/.flake8"),
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),
@@ -104,7 +104,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
-    ("metastore_browser", "/opt/airflow/metastore_browser"),
 ]
 
 
@@ -439,7 +438,7 @@ def prepare_docker_build_cache_command(
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=tty"])
+    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=auto"])
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -476,7 +475,7 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
                 "build",
                 "--builder",
                 image_params.builder,
-                "--progress=tty",
+                "--progress=auto",
                 "--push" if image_params.push else "--load",
             ]
         )
@@ -614,6 +613,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
+    set_value_to_default_if_not_set(env, "SKIP_PROVIDER_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
     set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
@@ -656,6 +656,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "PYTHON_MAJOR_MINOR_VERSION": "python",
     "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
+    "SKIP_PROVIDER_TESS": "skip_provider_tests",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
     "USE_AIRFLOW_VERSION": "use_airflow_version",

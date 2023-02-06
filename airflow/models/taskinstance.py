@@ -28,7 +28,9 @@ import signal
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import partial
+from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
 from urllib.parse import quote
@@ -83,6 +85,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -104,6 +107,7 @@ from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor,
 from airflow.utils.email import send_email
 from airflow.utils.helpers import render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
@@ -133,6 +137,20 @@ if TYPE_CHECKING:
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
     from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+
+
+PAST_DEPENDS_MET = "past_depends_met"
+
+
+class TaskReturnCode(Enum):
+    """
+    Enum to signal manner of exit for task run command.
+
+    :meta private:
+    """
+
+    DEFERRED = 100
+    """When task exits with deferral to trigger."""
 
 
 @contextlib.contextmanager
@@ -435,7 +453,7 @@ class TaskInstance(Base, LoggingMixin):
         viewonly=True,
     )
 
-    trigger = relationship("Trigger", uselist=False)
+    trigger = relationship("Trigger", uselist=False, back_populates="task_instance")
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
@@ -443,6 +461,12 @@ class TaskInstance(Base, LoggingMixin):
     task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
+
+    is_trigger_log_context: bool = False
+    """Indicate to FileTaskHandler that logging context should be set up for trigger logging.
+
+    :meta private:
+    """
 
     def __init__(
         self,
@@ -546,7 +570,7 @@ class TaskInstance(Base, LoggingMixin):
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        if self.state in State.running:
+        if self.state == State.RUNNING:
             return self._try_number
         return self._try_number + 1
 
@@ -578,6 +602,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_all_deps=False,
         ignore_task_deps=False,
         ignore_depends_on_past=False,
+        wait_for_past_depends_before_skipping=False,
         ignore_ti_state=False,
         local=False,
         pickle_id=None,
@@ -593,15 +618,17 @@ class TaskInstance(Base, LoggingMixin):
         """
         dag: DAG | DagModel
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
-        if hasattr(self, "task") and hasattr(self.task, "dag"):
+        if hasattr(self, "task") and hasattr(self.task, "dag") and self.task.dag is not None:
             dag = self.task.dag
         else:
             dag = self.dag_model
 
         should_pass_filepath = not pickle_id and dag
-        path = None
+        path: PurePath | None = None
         if should_pass_filepath:
             if dag.is_subdag:
+                if TYPE_CHECKING:
+                    assert dag.parent_dag is not None
                 path = dag.parent_dag.relative_fileloc
             else:
                 path = dag.relative_fileloc
@@ -609,7 +636,6 @@ class TaskInstance(Base, LoggingMixin):
             if path:
                 if not path.is_absolute():
                     path = "DAGS_FOLDER" / path
-                path = str(path)
 
         return TaskInstance.generate_command(
             self.dag_id,
@@ -619,6 +645,7 @@ class TaskInstance(Base, LoggingMixin):
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
             ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
             pickle_id=pickle_id,
@@ -638,11 +665,12 @@ class TaskInstance(Base, LoggingMixin):
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
         pickle_id: int | None = None,
-        file_path: str | None = None,
+        file_path: PurePath | str | None = None,
         raw: bool = False,
         job_id: str | None = None,
         pool: str | None = None,
@@ -660,6 +688,7 @@ class TaskInstance(Base, LoggingMixin):
             Overrides the other ignore_* parameters.
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
             (e.g. for Backfills)
+        :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
         :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
             and trigger rule
         :param ignore_ti_state: Ignore the task instance's previous failure/success
@@ -685,7 +714,9 @@ class TaskInstance(Base, LoggingMixin):
         if ignore_task_deps:
             cmd.extend(["--ignore-dependencies"])
         if ignore_depends_on_past:
-            cmd.extend(["--ignore-depends-on-past"])
+            cmd.extend(["--depends-on-past", "ignore"])
+        elif wait_for_past_depends_before_skipping:
+            cmd.extend(["--depends-on-past", "wait"])
         if ignore_ti_state:
             cmd.extend(["--force"])
         if local:
@@ -695,7 +726,7 @@ class TaskInstance(Base, LoggingMixin):
         if raw:
             cmd.extend(["--raw"])
         if file_path:
-            cmd.extend(["--subdir", file_path])
+            cmd.extend(["--subdir", os.fspath(file_path)])
         if cfg_path:
             cmd.extend(["--cfg-path", cfg_path])
         if map_index != -1:
@@ -1080,7 +1111,7 @@ class TaskInstance(Base, LoggingMixin):
         if failed:
             return False
 
-        verbose_aware_logger("Dependencies all met for %s", self)
+        verbose_aware_logger("Dependencies all met for dep_context=%s ti=%s", dep_context.description, self)
         return True
 
     @provide_session
@@ -1182,6 +1213,7 @@ class TaskInstance(Base, LoggingMixin):
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
@@ -1199,6 +1231,7 @@ class TaskInstance(Base, LoggingMixin):
         :param verbose: whether to turn on more verbose logging
         :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
         :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
+        :param wait_for_past_depends_before_skipping: Wait for past depends before mark the ti as skipped
         :param ignore_task_deps: Don't check the dependencies of this TaskInstance's task
         :param ignore_ti_state: Disregards previous task instance state
         :param mark_success: Don't run the task, mark its state as success
@@ -1218,10 +1251,12 @@ class TaskInstance(Base, LoggingMixin):
         self.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
-            Stats.incr("previously_succeeded", 1, 1)
-
-        # TODO: Logging needs cleanup, not clear what is being printed
-        hr_line_break = "\n" + ("-" * 80)  # Line break
+            Stats.incr(
+                "previously_succeeded",
+                1,
+                1,
+                tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id},
+            )
 
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
@@ -1231,7 +1266,9 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_all_deps=ignore_all_deps,
                 ignore_ti_state=ignore_ti_state,
                 ignore_depends_on_past=ignore_depends_on_past,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_task_deps=ignore_task_deps,
+                description="non-requeueable deps",
             )
             if not self.are_dependencies_met(
                 dep_context=non_requeueable_dep_context, session=session, verbose=True
@@ -1258,12 +1295,13 @@ class TaskInstance(Base, LoggingMixin):
                 deps=REQUEUEABLE_DEPS,
                 ignore_all_deps=ignore_all_deps,
                 ignore_depends_on_past=ignore_depends_on_past,
+                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
                 ignore_task_deps=ignore_task_deps,
                 ignore_ti_state=ignore_ti_state,
+                description="requeueable deps",
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
                 self.state = State.NONE
-                self.log.warning(hr_line_break)
                 self.log.warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
@@ -1271,16 +1309,15 @@ class TaskInstance(Base, LoggingMixin):
                     self.try_number,
                     self.max_tries + 1,
                 )
-                self.log.warning(hr_line_break)
                 self.queued_dttm = timezone.utcnow()
                 session.merge(self)
                 session.commit()
                 return False
 
-        # print status message
-        self.log.info(hr_line_break)
-        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
-        self.log.info(hr_line_break)
+        if self.next_kwargs is not None:
+            self.log.info("Resuming after deferral")
+        else:
+            self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
         self._try_number += 1
 
         if not test_mode:
@@ -1342,7 +1379,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> TaskReturnCode | None:
         """
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
@@ -1371,6 +1408,12 @@ class TaskInstance(Base, LoggingMixin):
 
         self.task = self.task.prepare_for_execution()
         context = self.get_template_context(ignore_param_exceptions=False)
+
+        # We lose previous state because it's changed in other process in LocalTaskJob.
+        # We could probably pass it through here though...
+        get_listener_manager().hook.on_task_instance_running(
+            previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
+        )
         try:
             if not mark_success:
                 self._execute_task_with_callbacks(context, test_mode)
@@ -1392,7 +1435,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self)
                 session.commit()
-            return
+            return TaskReturnCode.DEFERRED
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
@@ -1404,7 +1447,7 @@ class TaskInstance(Base, LoggingMixin):
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             session.commit()
-            return
+            return None
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
             # If a sensor in reschedule mode reaches timeout, task should not retry.
@@ -1421,7 +1464,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.clear_next_method_args()
                 session.merge(self)
                 session.commit()
-                return
+                return None
             else:
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
@@ -1449,7 +1492,12 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(self).task = self.task
             if self.state == TaskInstanceState.SUCCESS:
                 self._register_dataset_changes(session=session)
+                get_listener_manager().hook.on_task_instance_success(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
+                )
+
             session.commit()
+        return None
 
     def _register_dataset_changes(self, *, session: Session) -> None:
         for obj in self.task.outlets or []:
@@ -1507,8 +1555,8 @@ class TaskInstance(Base, LoggingMixin):
             # case there's no need to log these again).
             if not self.next_method:
                 self.log.info(
-                    "Exporting the following env vars:\n%s",
-                    "\n".join(f"{k}={v}" for k, v in airflow_context_vars.items()),
+                    "Exporting env vars: %s",
+                    " ".join(f"{k}={v!r}" for k, v in airflow_context_vars.items()),
                 )
 
             # Run pre_execute callback
@@ -1525,17 +1573,27 @@ class TaskInstance(Base, LoggingMixin):
             self.task.post_execute(context=context, result=result)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", 1, 1)
-        Stats.incr("ti_successes")
+        Stats.incr(
+            "ti_successes", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}
+        )
 
     def _run_finished_callback(
-        self, callback: TaskStateChangeCallback | None, context: Context, callback_type: str
+        self,
+        callbacks: None | TaskStateChangeCallback | list[TaskStateChangeCallback],
+        context: Context,
+        callback_type: str,
     ) -> None:
         """Run callback after task finishes"""
-        try:
-            if callback:
-                callback(context)
-        except Exception:  # pylint: disable=broad-except
-            self.log.exception(f"Error when executing {callback_type} callback")
+        if callbacks:
+            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+            for callback in callbacks:
+                try:
+                    callback(context)
+                except Exception:
+                    callback_name = qualname(callback).split(".")[-1]
+                    self.log.exception(
+                        f"Error when executing {callback_name} callback"  # type: ignore[attr-defined]
+                    )
 
     def _execute_task(self, context, task_orig):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
@@ -1632,11 +1690,14 @@ class TaskInstance(Base, LoggingMixin):
 
     def _run_execute_callback(self, context: Context, task: Operator) -> None:
         """Functions that need to be run before a Task is executed"""
-        try:
-            if task.on_execute_callback:
-                task.on_execute_callback(context)
-        except Exception:
-            self.log.exception("Failed when executing execute callback")
+        callbacks = task.on_execute_callback
+        if callbacks:
+            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+            for callback in callbacks:
+                try:
+                    callback(context)
+                except Exception:
+                    self.log.exception("Failed when executing execute callback")
 
     @provide_session
     def run(
@@ -1644,6 +1705,7 @@ class TaskInstance(Base, LoggingMixin):
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
@@ -1657,6 +1719,7 @@ class TaskInstance(Base, LoggingMixin):
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
             mark_success=mark_success,
@@ -1764,6 +1827,10 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode is None:
             test_mode = self.test_mode
 
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
+        )
+
         if error:
             if isinstance(error, BaseException):
                 tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
@@ -1776,7 +1843,9 @@ class TaskInstance(Base, LoggingMixin):
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f"operator_failures_{self.operator}")
-        Stats.incr("ti_failures")
+        Stats.incr(
+            "ti_failures", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}
+        )
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
@@ -1814,7 +1883,7 @@ class TaskInstance(Base, LoggingMixin):
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
-            callback = task.on_failure_callback if task else None
+            callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
         else:
             if self.state == State.QUEUED:
@@ -1822,7 +1891,7 @@ class TaskInstance(Base, LoggingMixin):
                 self._try_number += 1
             self.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
-            callback = task.on_retry_callback if task else None
+            callbacks = task.on_retry_callback if task else None
             callback_type = "on_retry"
 
         self._log_state("Immediate failure requested. " if force_fail else "")
@@ -1832,8 +1901,8 @@ class TaskInstance(Base, LoggingMixin):
             except Exception:
                 self.log.exception("Failed to send email to: %s", task.email)
 
-        if callback and context:
-            self._run_finished_callback(callback, context, callback_type)
+        if callbacks and context:
+            self._run_finished_callback(callbacks, context, callback_type)
 
         if not test_mode:
             session.merge(self)
@@ -1852,7 +1921,9 @@ class TaskInstance(Base, LoggingMixin):
         return self.task.retries and self.try_number <= self.max_tries
 
     def get_template_context(
-        self, session: Session = NEW_SESSION, ignore_param_exceptions: bool = True
+        self,
+        session: Session | None = None,
+        ignore_param_exceptions: bool = True,
     ) -> Context:
         """Return TI Context"""
         # Do not use provide_session here -- it expunges everything on exit!
@@ -1976,9 +2047,13 @@ class TaskInstance(Base, LoggingMixin):
             return prev_ds.replace("-", "")
 
         def get_triggering_events() -> dict[str, list[DatasetEvent]]:
+            if TYPE_CHECKING:
+                assert session is not None
+
+            # The dag_run may not be attached to the session anymore since the
+            # code base is over-zealous with use of session.expunge_all().
+            # Re-attach it if we get called.
             nonlocal dag_run
-            # The dag_run may not be attached to the session anymore (code base is over-zealous with use of
-            # `session.expunge_all()`) so re-attach it if we get called
             if dag_run not in session:
                 dag_run = session.merge(dag_run, load=False)
 
@@ -2141,8 +2216,8 @@ class TaskInstance(Base, LoggingMixin):
             scheduler_job_id="0",
             namespace=kube_config.executor_namespace,
             base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+            with_mutation_hook=True,
         )
-        settings.pod_mutation_hook(pod)
         sanitized_pod = ApiClient().sanitize_for_serialization(pod)
         return sanitized_pod
 

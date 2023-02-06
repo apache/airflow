@@ -714,14 +714,14 @@ class TestSageMakerHook:
 
     @mock_sagemaker
     def test_delete_model(self):
-        hook = SageMakerHook(aws_conn_id="aws_default")
+        hook = SageMakerHook()
         with patch.object(hook.conn, "delete_model") as mock_delete:
             hook.delete_model(model_name="test")
         mock_delete.assert_called_once_with(ModelName="test")
 
     @mock_sagemaker
     def test_delete_model_when_not_exist(self):
-        hook = SageMakerHook(aws_conn_id="aws_default")
+        hook = SageMakerHook()
         with pytest.raises(ClientError) as raised_exception:
             hook.delete_model(model_name="test")
         ex = raised_exception.value
@@ -793,7 +793,9 @@ class TestSageMakerHook:
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_stop_pipeline_waits_for_completion_even_when_already_stopped(self, mock_conn):
         mock_conn().stop_pipeline_execution.side_effect = ClientError(
-            error_response={"Error": {"Message": "Only pipelines with 'Executing' status can be stopped"}},
+            error_response={
+                "Error": {"Message": "Only pipelines with 'Executing' status can be stopped", "Code": "0"}
+            },
             operation_name="empty",
         )
         mock_conn().describe_pipeline_execution.side_effect = [
@@ -811,7 +813,9 @@ class TestSageMakerHook:
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_stop_pipeline_raises_when_already_stopped_if_specified(self, mock_conn):
         error = ClientError(
-            error_response={"Error": {"Message": "Only pipelines with 'Executing' status can be stopped"}},
+            error_response={
+                "Error": {"Message": "Only pipelines with 'Executing' status can be stopped", "Code": "0"}
+            },
             operation_name="empty",
         )
         mock_conn().stop_pipeline_execution.side_effect = error
@@ -822,3 +826,109 @@ class TestSageMakerHook:
             hook.stop_pipeline(pipeline_exec_arn="test", fail_if_not_running=True)
 
         assert raised_exception.value == error
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_pipeline_retries_on_conflict(self, mock_conn):
+        conflict_error = ClientError(
+            error_response={"Error": {"Code": "ConflictException"}},
+            operation_name="empty",
+        )
+        mock_conn().stop_pipeline_execution.side_effect = [
+            conflict_error,
+            conflict_error,
+            None,
+        ]
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        hook.stop_pipeline(pipeline_exec_arn="test")
+
+        assert mock_conn().stop_pipeline_execution.call_count == 3
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_pipeline_fails_if_all_retries_error(self, mock_conn):
+        conflict_error = ClientError(
+            error_response={"Error": {"Message": "blah", "Code": "ConflictException"}},
+            operation_name="empty",
+        )
+        mock_conn().stop_pipeline_execution.side_effect = conflict_error
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+        with pytest.raises(ClientError) as raised_exception:
+            hook.stop_pipeline(pipeline_exec_arn="test")
+
+        assert mock_conn().stop_pipeline_execution.call_count == 3
+        assert raised_exception.value == conflict_error
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_create_model_package_group(self, mock_conn):
+        created = SageMakerHook().create_model_package_group("group-name")
+
+        mock_conn().create_model_package_group.assert_called_once_with(
+            ModelPackageGroupName="group-name",
+            ModelPackageGroupDescription="",
+        )
+        assert created
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_create_model_package_group_returns_false_if_exists(self, mock_conn):
+        mock_conn().create_model_package_group.side_effect = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "ValidationException",
+                    "Message": "Model Package Group already exists: arn:aws:sagemaker:foo:bar",
+                }
+            },
+            operation_name="empty",
+        )
+        hook = SageMakerHook()
+
+        created = hook.create_model_package_group("group-name")
+
+        assert created is False
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_create_auto_ml_parameter_structure(self, conn_mock):
+        hook = SageMakerHook()
+
+        hook.create_auto_ml_job(
+            job_name="a",
+            s3_input="b",
+            target_attribute="c",
+            s3_output="d",
+            role_arn="e",
+            compressed_input=True,
+            time_limit=30,
+            wait_for_completion=False,
+        )
+
+        assert conn_mock().create_auto_ml_job.call_args[1] == {
+            "AutoMLJobConfig": {"CompletionCriteria": {"MaxAutoMLJobRuntimeInSeconds": 30}},
+            "AutoMLJobName": "a",
+            "InputDataConfig": [
+                {
+                    "CompressionType": "Gzip",
+                    "DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "b"}},
+                    "TargetAttributeName": "c",
+                }
+            ],
+            "OutputDataConfig": {"S3OutputPath": "d"},
+            "RoleArn": "e",
+        }
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_create_auto_ml_waits_for_completion(self, conn_mock):
+        hook = SageMakerHook()
+        conn_mock().describe_auto_ml_job.side_effect = [
+            {"AutoMLJobStatus": "InProgress", "AutoMLJobSecondaryStatus": "a"},
+            {"AutoMLJobStatus": "InProgress", "AutoMLJobSecondaryStatus": "b"},
+            {
+                "AutoMLJobStatus": "Completed",
+                "AutoMLJobSecondaryStatus": "c",
+                "BestCandidate": {"name": "me"},
+            },
+        ]
+
+        ret = hook.create_auto_ml_job("a", "b", "c", "d", "e", check_interval=0)
+
+        assert conn_mock().describe_auto_ml_job.call_count == 3
+        assert ret == {"name": "me"}

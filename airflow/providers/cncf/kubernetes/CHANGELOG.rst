@@ -24,6 +24,48 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Incorrect 'await_container_completion' (#28771)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Flink on K8s Operator  (#28512)``
+* ``Add volume-related nested template fields for KPO (#27719)``
+* ``Allow longer pod names for k8s executor / KPO (#27736)``
+* ``Use labels instead of pod name for pod log read in k8s exec (#28546)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Patch "checked" when pod not successful (#27845)``
+* ``Keep pod name for k8s executor under 63 characters (#28237)``
+
+Misc
+~~~~
+
+* ``Remove outdated compat imports/code from providers (#28507)``
+* ``Restructure Docs  (#27235)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updated docs for RC3 wave of providers (#27937)``
+   * ``Prepare for follow-up relase for November providers (#27774)``
+
+.. Review and move the new changes to one of the sections above:
+
 5.0.0
 .....
 
@@ -374,7 +416,7 @@ Notes on changes KubernetesPodOperator and PodLauncher
 Overview
 ''''''''
 
-Generally speaking if you did not subclass ``KubernetesPodOperator`` and you didn't use the ``PodLauncher`` class directly,
+Generally speaking if you did not subclass ``KubernetesPodOperator`` and you did not use the ``PodLauncher`` class directly,
 then you don't need to worry about this change.  If however you have subclassed ``KubernetesPodOperator``, what
 follows are some notes on the changes in this release.
 

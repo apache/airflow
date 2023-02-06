@@ -32,7 +32,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
 )
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_lambda"
 
@@ -66,15 +66,6 @@ def delete_lambda(function_name: str):
     )
 
 
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_logs(function_name: str) -> None:
-    generated_log_groups: list[tuple[str, str | None]] = [
-        (f"/aws/lambda/{function_name}", None),
-    ]
-
-    purge_logs(test_logs=generated_log_groups, force_delete=True, retry=True)
-
-
 with models.DAG(
     DAG_ID,
     schedule="@once",
@@ -106,6 +97,7 @@ with models.DAG(
         function_name=lambda_function_name,
     )
     # [END howto_sensor_lambda_function_state]
+    wait_lambda_function_state.poke_interval = 1
 
     # [START howto_operator_invoke_lambda_function]
     invoke_lambda_function = AwsLambdaInvokeFunctionOperator(
@@ -114,6 +106,15 @@ with models.DAG(
         payload=json.dumps({"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}),
     )
     # [END howto_operator_invoke_lambda_function]
+
+    log_cleanup = prune_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            (f"/aws/lambda/{lambda_function_name}", None),
+        ],
+        force_delete=True,
+        retry=True,
+    )
 
     chain(
         # TEST SETUP
@@ -124,7 +125,7 @@ with models.DAG(
         invoke_lambda_function,
         # TEST TEARDOWN
         delete_lambda(lambda_function_name),
-        delete_logs(lambda_function_name),
+        log_cleanup,
     )
 
     from tests.system.utils.watcher import watcher

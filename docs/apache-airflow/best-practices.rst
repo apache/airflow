@@ -82,7 +82,7 @@ it difficult to check the logs of that Task from the Webserver. If that is not d
 Communication
 --------------
 
-Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`.
+Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor </core-concepts/executor/kubernetes>` or :doc:`Celery executor </core-concepts/executor/celery>`.
 Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in DAG.
@@ -92,7 +92,7 @@ For example, if we have a task that stores processed data in S3 that task can pu
 and the downstream tasks can pull the path from XCom and use it to read the data.
 
 The tasks should also not store any authentication parameters such as passwords or token inside them.
-Where at all possible, use :doc:`Connections </concepts/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
+Where at all possible, use :doc:`Connections </authoring-and-scheduling/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 .. _best_practices/top_level_code:
 
@@ -185,7 +185,7 @@ Avoiding excessive processing at the top level code described in the previous ch
 in case of dynamic DAG configuration, which can be configured essentially in one of those ways:
 
 * via `environment variables <https://wiki.archlinux.org/title/environment_variables>`_ (not to be mistaken
-  with the :doc:`Airflow Variables </concepts/variables>`)
+  with the :doc:`Airflow Variables </core-concepts/variables>`)
 * via externally provided, generated Python code, containing meta-data in the DAG folder
 * via externally provided, generated configuration meta-data file in the DAG folder
 
@@ -252,7 +252,7 @@ Good example:
 
   @task
   def my_task():
-      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan dags.
+      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan DAGs.
       print(var)
 
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
@@ -404,8 +404,8 @@ your DAG "less complex" - since this is a Python code, it's the DAG writer who c
 their code.
 
 There are no "metrics" for DAG complexity, especially, there are no metrics that can tell you
-whether your DAG is "simple enough". However - as with any Python code you can definitely tell that
-your code is "simpler" or "faster" when you optimize it, the same can be said about DAG code. If you
+whether your DAG is "simple enough". However, as with any Python code, you can definitely tell that
+your DAG code is "simpler" or "faster" when it is optimized. If you
 want to optimize your DAGs there are the following actions you can take:
 
 * Make your DAG load faster. This is a single improvement advice that might be implemented in various ways
@@ -712,9 +712,9 @@ and the dependencies basically conflict between those tasks.
 If you are using pre-defined Airflow Operators to talk to external services, there is not much choice, but usually those
 operators will have dependencies that are not conflicting with basic Airflow dependencies. Airflow uses constraints mechanism
 which means that you have a "fixed" set of dependencies that the community guarantees that Airflow can be installed with
-(including all community providers) without triggering conflicts. However you can upgrade the providers
-independently and their constraints do not limit you so the chance of a conflicting dependency is lower (you still have
-to test those dependencies). Therefore when you are using pre-defined operators, chance is that you will have
+(including all community providers) without triggering conflicts. However, you can upgrade the providers
+independently and their constraints do not limit you, so the chance of a conflicting dependency is lower (you still have
+to test those dependencies). Therefore, when you are using pre-defined operators, chance is that you will have
 little, to no problems with conflicting dependencies.
 
 However, when you are approaching Airflow in a more "modern way", where you use TaskFlow Api and most of
@@ -784,7 +784,7 @@ There are certain limitations and overhead introduced by this operator:
   a victim of "supply chain" attack where new version of a dependency might become malicious
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.operators.python.PythonVirtualenvOperator` in
 :ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`
@@ -799,7 +799,7 @@ A bit more involved but with significantly less overhead, security, stability pr
 :class:`airflow.operators.python.ExternalPythonOperator``. In the modern
 TaskFlow approach described in :doc:`/tutorial/taskflow`. this also can be done with decorating
 your callable with ``@task.external_python`` decorator (recommended way of using the operator).
-It requires however that you have a pre-existing, immutable Python environment, that is prepared upfront.
+It requires, however, that you have a pre-existing, immutable Python environment, that is prepared upfront.
 Unlike in :class:`airflow.operators.python.PythonVirtualenvOperator` you cannot add new dependencies
 to such pre-existing environment. All dependencies you need should be added upfront in your environment
 and available in all the workers in case your Airflow runs in a distributed environment.
@@ -928,7 +928,7 @@ Using multiple Docker Images and Celery Queues
 
 There is a possibility (though it requires a deep knowledge of Airflow deployment) to run Airflow tasks
 using multiple, independent Docker images. This can be achieved via allocating different tasks to different
-Queues and configuring your Celery workers to use different images for different Queues. This however
+Queues and configuring your Celery workers to use different images for different Queues. This, however,
 (at least currently) requires a lot of manual deployment configuration and intrinsic knowledge of how
 Airflow, Celery and Kubernetes works. Also it introduces quite some overhead for running the tasks - there
 are less chances for resource reuse and it's much more difficult to fine-tune such a deployment for

@@ -829,7 +829,7 @@ class TestDag:
         dag.clear()
         DAG.bulk_write_to_db([dag], session=session)
 
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
 
         assert model.next_dagrun == DEFAULT_DATE
         assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
@@ -843,12 +843,12 @@ class TestDag:
         assert dr is not None
         DAG.bulk_write_to_db([dag])
 
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
         # We signal "at max active runs" by saying this run is never eligible to be created
         assert model.next_dagrun_create_after is None
         # test that bulk_write_to_db again doesn't update next_dagrun_create_after
         DAG.bulk_write_to_db([dag])
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
         assert model.next_dagrun_create_after is None
 
     def test_bulk_write_to_db_has_import_error(self):
@@ -863,7 +863,7 @@ class TestDag:
         dag.clear()
         DAG.bulk_write_to_db([dag], session=session)
 
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
 
         assert not model.has_import_errors
 
@@ -871,13 +871,13 @@ class TestDag:
         model.has_import_errors = True
         session.merge(model)
         session.flush()
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
         # assert
         assert model.has_import_errors
         # parse
         DAG.bulk_write_to_db([dag])
 
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
         # assert that has_import_error is now false
         assert not model.has_import_errors
         session.close()
@@ -1324,7 +1324,10 @@ class TestDag:
             dag.handle_callback(dag_run, success=False)
             dag.handle_callback(dag_run, success=True)
 
-        mock_stats.incr.assert_called_with("dag.callback_exceptions")
+        mock_stats.incr.assert_called_with(
+            "dag.callback_exceptions",
+            tags={"dag_id": "test_dag_callback_crash", "run_id": "manual__2015-01-02T00:00:00+00:00"},
+        )
 
         dag.clear()
         self._clean_up(dag_id)
@@ -1347,7 +1350,7 @@ class TestDag:
         )
         dag.sync_to_db()
         with create_session() as session:
-            model = session.query(DagModel).get((dag.dag_id,))
+            model = session.get(DagModel, dag.dag_id)
 
         # Even though there is a run for this date already, it is marked as manual/external, so we should
         # create a scheduled one anyway!
@@ -1374,7 +1377,7 @@ class TestDag:
         # Then sync again after creating the dag run -- this should update next_dagrun
         dag.sync_to_db()
         with create_session() as session:
-            model = session.query(DagModel).get((dag.dag_id,))
+            model = session.get(DagModel, dag.dag_id)
 
         assert model.next_dagrun is None
         assert model.next_dagrun_create_after is None
@@ -3147,3 +3150,23 @@ def test_dag_uses_timetable_for_run_id(session):
     )
 
     assert dag_run.run_id == "abc"
+
+
+@pytest.mark.parametrize(
+    "run_id_type",
+    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.DATASET_TRIGGERED],
+)
+def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
+    dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
+    run_id = run_id_type.generate_run_id(DEFAULT_DATE)
+    with pytest.raises(ValueError) as ctx:
+        dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=DagRunState.QUEUED,
+        )
+    assert str(ctx.value) == (
+        f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
+    )
