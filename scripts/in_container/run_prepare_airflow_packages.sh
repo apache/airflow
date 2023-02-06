@@ -78,7 +78,14 @@ function prepare_airflow_packages() {
     echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
 }
 
+function mark_directory_as_safe() {
+    git config --global --unset-all safe.directory || true
+    git config --global --add safe.directory /opt/airflow
+}
+
 install_supported_pip_version
+
+mark_directory_as_safe
 
 prepare_airflow_packages
 
