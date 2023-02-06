@@ -28,7 +28,7 @@ from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (
@@ -65,6 +65,15 @@ class BigQueryUIColors(enum.Enum):
     QUERY = "#A1BBFF"
     TABLE = "#81A0FF"
     DATASET = "#5F86FF"
+
+
+class IfExistAction(enum.Enum):
+    """Action to take if the resource exist"""
+
+    IGNORE = "ignore"
+    LOG = "log"
+    FAIL = "fail"
+    SKIP = "skip"
 
 
 class BigQueryConsoleLink(BaseOperatorLink):
@@ -247,7 +256,9 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         if not records:
             raise AirflowException("The query returned empty results")
         elif not all(bool(r) for r in records):
-            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            self._raise_exception(  # type: ignore[attr-defined]
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
+            )
         self.log.info("Record: %s", event["records"])
         self.log.info("Success.")
 
@@ -1252,7 +1263,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
+    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
+    :param if_exists: What should Airflow do if the table exists. If set to `log`, the TI will be passed to
+        success and an error message will be logged. Set to `ignore` to ignore the error, set to `fail` to
+        fail the TI, and set to `skip` to skip it.
     """
 
     template_fields: Sequence[str] = (
@@ -1291,7 +1305,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         location: str | None = None,
         cluster_fields: list[str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        exists_ok: bool = False,
+        exists_ok: bool | None = None,
+        if_exists: str = "log",
         **kwargs,
     ) -> None:
         if bigquery_conn_id:
@@ -1325,7 +1340,11 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.cluster_fields = cluster_fields
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
-        self.exists_ok = exists_ok
+        if exists_ok is not None:
+            warnings.warn("`exists_ok` parameter is deprecated, please use `if_exists`", DeprecationWarning)
+            self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
+        else:
+            self.if_exists = IfExistAction(if_exists)
 
     def execute(self, context: Context) -> None:
         bq_hook = BigQueryHook(
@@ -1361,7 +1380,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 materialized_view=self.materialized_view,
                 encryption_configuration=self.encryption_configuration,
                 table_resource=self.table_resource,
-                exists_ok=self.exists_ok,
+                exists_ok=self.if_exists == IfExistAction.IGNORE,
             )
             BigQueryTableLink.persist(
                 context=context,
@@ -1374,7 +1393,13 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 "Table %s.%s.%s created successfully", table.project, table.dataset_id, table.table_id
             )
         except Conflict:
-            self.log.info("Table %s.%s already exists.", self.dataset_id, self.table_id)
+            error_msg = f"Table {self.dataset_id}.{self.table_id} already exists."
+            if self.if_exists == IfExistAction.LOG:
+                self.log.info(error_msg)
+            elif self.if_exists == IfExistAction.FAIL:
+                raise AirflowException(error_msg)
+            else:
+                raise AirflowSkipException(error_msg)
 
 
 class BigQueryCreateExternalTableOperator(BaseOperator):
@@ -1778,7 +1803,10 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
+    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
+    :param if_exists: What should Airflow do if the dataset exists. If set to `log`, the TI will be passed to
+        success and an error message will be logged. Set to `ignore` to ignore the error, set to `fail` to
+        fail the TI, and set to `skip` to skip it.
         **Example**: ::
 
             create_new_dataset = BigQueryCreateEmptyDatasetOperator(
@@ -1810,7 +1838,8 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        exists_ok: bool = False,
+        exists_ok: bool | None = None,
+        if_exists: str = "log",
         **kwargs,
     ) -> None:
 
@@ -1825,7 +1854,11 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
             )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.exists_ok = exists_ok
+        if exists_ok is not None:
+            warnings.warn("`exists_ok` parameter is deprecated, please use `if_exists`", DeprecationWarning)
+            self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
+        else:
+            self.if_exists = IfExistAction(if_exists)
 
         super().__init__(**kwargs)
 
@@ -1843,7 +1876,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 dataset_id=self.dataset_id,
                 dataset_reference=self.dataset_reference,
                 location=self.location,
-                exists_ok=self.exists_ok,
+                exists_ok=self.if_exists == IfExistAction.IGNORE,
             )
             BigQueryDatasetLink.persist(
                 context=context,
@@ -1853,7 +1886,13 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
             )
         except Conflict:
             dataset_id = self.dataset_reference.get("datasetReference", {}).get("datasetId", self.dataset_id)
-            self.log.info("Dataset %s already exists.", dataset_id)
+            error_msg = f"Dataset {dataset_id} already exists."
+            if self.if_exists == IfExistAction.LOG:
+                self.log.info(error_msg)
+            elif self.if_exists == IfExistAction.FAIL:
+                raise AirflowException(error_msg)
+            else:
+                raise AirflowSkipException(error_msg)
 
 
 class BigQueryGetDatasetOperator(BaseOperator):
