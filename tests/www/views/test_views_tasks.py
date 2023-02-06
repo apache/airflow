@@ -22,6 +22,7 @@ import json
 import re
 import unittest.mock
 import urllib.parse
+from getpass import getuser
 
 import pytest
 import time_machine
@@ -780,10 +781,10 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
 
     Example usage::
 
-        >>> from airflow.www.views import TaskInstanceModelView
-        >>> ti = session.Query(TaskInstance).filter(...).one()
-        >>> pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
-        >>> client.post("...", data={"action": "...", "rowid": pk})
+        from airflow.www.views import TaskInstanceModelView
+        ti = session.Query(TaskInstance).filter(...).one()
+        pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
+        client.post("...", data={"action": "...", "rowid": pk})
     """
     pk_value = model_view_cls.datamodel.get_pk_value(instance)
     return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
@@ -1059,7 +1060,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_after_loop": {
@@ -1089,7 +1090,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_this_last": {
@@ -1119,7 +1120,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_0": {
@@ -1149,7 +1150,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_1": {
@@ -1179,7 +1180,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_2": {
@@ -1209,7 +1210,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "this_will_skip": {
@@ -1239,7 +1240,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
     }
