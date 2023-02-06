@@ -24,6 +24,7 @@ from datetime import datetime
 import click
 from click import IntRange
 
+from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES, all_selective_test_types
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -394,6 +395,7 @@ def tests(
         forward_ports=False,
         test_type=test_type,
     )
+    rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()
     if run_in_parallel:
         run_tests_in_parallel(

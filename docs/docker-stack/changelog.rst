@@ -29,10 +29,10 @@ the Airflow team.
 
 :note: The Changelog below concerns only the convenience production images released at
        `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_ . The images that are released
-       there, are usually built using the ``Dockerfile`` released together with Airflow. However You are
+       there are usually built using the ``Dockerfile`` released together with Airflow. However, you are
        free to take latest released ``Dockerfile`` from Airflow and use it to build an image for
-       any Airflow version from the ``Airflow 2`` line. There is no guarantee that it works, but if it does,
-       then you can use latest features from that image to build the previous Airflow versions.
+       any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
+       then you can use latest features from that image to build images for previous Airflow versions.
 
 Changes after publishing the images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -88,8 +88,8 @@ Airflow 2.3
 * 2.3.0
 
   * Airflow 2.3 ``Dockerfile`` is now better optimized for caching and "standalone" which means that you
-    can copy **just** the ``Dockerfile`` to any folder and start building custom images. This
-    however requires `Buildkit <https://docs.docker.com/develop/develop-images/build_enhancements/>`_
+    can copy **just** the ``Dockerfile`` to any folder and start building custom images. This,
+    however, requires `Buildkit <https://docs.docker.com/develop/develop-images/build_enhancements/>`_
     to build the image because we started using features that are only available in ``Buildkit``.
     This can be done by setting ``DOCKER_BUILDKIT=1`` as an environment variable
     or by installing `the buildx plugin <https://docs.docker.com/buildx/working-with-buildx/>`_

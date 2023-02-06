@@ -788,6 +788,24 @@ logging:
       type: string
       example: ~
       default: "8793"
+    trigger_log_server_port:
+      description: |
+        Port to serve logs from for triggerer.  See worker_log_server_port description
+        for more info.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "8794"
+    interleave_timestamp_parser:
+      description: |
+        We must parse timestamps to interleave logs between trigger and task.  To do so,
+        we need to parse timestamps in log files. In case your log format is non-standard,
+        you may provide import path to callable which takes a string log line and returns
+        the timestamp (datetime.datetime compatible).
+      version_added: 2.6.0
+      type: string
+      example: path.to.my_func
+      default: ~
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -1769,8 +1787,10 @@ celery:
     worker_enable_remote_control:
       description: |
         Specify if remote control of the workers is enabled.
-        When using Amazon SQS as the broker, Celery creates lots of ``.*reply-celery-pidbox`` queues. You can
-        prevent this by setting this to false. However, with this disabled Flower won't work.
+        In some cases when the broker does not support remote control, Celery creates lots of
+        ``.*reply-celery-pidbox`` queues. You can prevent this by setting this to false.
+        However, with this disabled Flower won't work.
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview
       version_added: 2.3.0
       type: boolean
       example: ~
