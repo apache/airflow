@@ -347,6 +347,14 @@ class HttpAsyncHook(BaseHook):
                 request_func = session.post
             elif self.method == "PATCH":
                 request_func = session.patch
+            elif self.method == "HEAD":
+                request_func = session.head
+            elif self.method == "PUT":
+                request_func = session.put
+            elif self.method == "DELETE":
+                request_func = session.delete
+            elif self.method == "OPTIONS":
+                request_func = session.options
             else:
                 raise AirflowException(f"Unexpected HTTP Method: {self.method}")
 
@@ -374,7 +382,7 @@ class HttpAsyncHook(BaseHook):
                         self.log.exception("HTTP error with status: %s", e.status)
                         # In this case, the user probably made a mistake.
                         # Don't retry.
-                        raise AirflowException(f"{e.status}:{e.message}"
+                        raise AirflowException(f"{e.status}:{e.message}")
 
                 attempt_num += 1
                 await asyncio.sleep(self.retry_delay)
@@ -391,4 +399,11 @@ class HttpAsyncHook(BaseHook):
 
         Most retryable errors are covered by status code >= 500.
         """
+        if exception.status == 429:
+            # don't retry for too Many Requests
+            return False
+        if exception.status == 413:
+            # don't retry for payload Too Large
+            return False
+
         return exception.status >= 500
