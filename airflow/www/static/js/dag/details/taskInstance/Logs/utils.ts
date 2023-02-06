@@ -47,12 +47,17 @@ export const parseLogs = (
     return {};
   }
   let lines;
+
+  let errorParsingLogs = false;
+
   try {
     lines = data.split('\n');
   } catch (err) {
     console.error(err);
-    return {};
+    return { errorParsingLogs };
   }
+
+  let truncatedContent = false;
 
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
@@ -87,5 +92,17 @@ export const parseLogs = (
     }
   });
 
-  return { parsedLogs: parsedLines.map((l) => l.slice(0, 1000000)).join('\n'), fileSources: Array.from(fileSources).sort() };
+  return {
+    parsedLogs: parsedLines
+      .map((l) => {
+        if (l.length >= 1000000) {
+          truncatedContent = true;
+          return `${l.slice(0, 1000000)}...`;
+        }
+        return l;
+      })
+      .join('\n'),
+    fileSources: Array.from(fileSources).sort(),
+    truncatedContent,
+  };
 };

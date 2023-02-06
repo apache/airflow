@@ -27,7 +27,9 @@ import {
   Divider,
   Button,
   Checkbox,
+  Icon,
 } from '@chakra-ui/react';
+import { MdWarning } from 'react-icons/md';
 
 import { getMetaValue } from 'src/utils';
 import useTaskLog from 'src/api/useTaskLog';
@@ -102,6 +104,7 @@ const Logs = ({
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedTryNumber, setSelectedTryNumber] = useState<number | undefined>();
+  const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const [wrap, setWrap] = useState(getMetaValue('default_wrap') === 'True');
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
@@ -114,6 +117,7 @@ const Logs = ({
     taskId,
     mapIndex,
     taskTryNumber,
+    fullContent: shouldRequestFullContent,
     state,
   });
 
@@ -126,7 +130,7 @@ const Logs = ({
     params.append('map_index', mapIndex.toString());
   }
 
-  const { parsedLogs, fileSources = [] } = useMemo(
+  const { parsedLogs, fileSources = [], truncatedContent, errorParsingLogs } = useMemo(
     () => parseLogs(
       data,
       timezone,
@@ -220,6 +224,13 @@ const Logs = ({
                 >
                   <Text as="strong">Wrap</Text>
                 </Checkbox>
+                <Checkbox
+                  onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
+                  px={4}
+                  data-testid="full-content-checkbox"
+                >
+                  <Text as="strong" whiteSpace="nowrap">Full Logs</Text>
+                </Checkbox>
                 <LogLink
                   dagId={dagId}
                   taskId={taskId}
@@ -236,6 +247,19 @@ const Logs = ({
               </Flex>
             </Flex>
           </Box>
+          {(truncatedContent || errorParsingLogs) && (
+            <Flex bg="yellow.200" borderRadius={2} borderColor="gray.400" alignItems="center" p={2}>
+              <Icon as={MdWarning} color="yellow.500" mr={2} />
+              <Text fontSize="sm">
+                {truncatedContent && (
+                  <>Large log file. Some lines have been truncated. Download logs in order to see everything.</>
+                )}
+                {errorParsingLogs && (
+                  <>Unable to show logs. There was an error parsing logs.</>
+                )}
+              </Text>
+            </Flex>
+          )}
           {!!parsedLogs && (
             <LogBlock
               parsedLogs={parsedLogs}
