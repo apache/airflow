@@ -41,6 +41,10 @@ def waiter(
     Will call get_state_callable until it reaches the desired_state or the failure_states.
     It will also time out if it waits longer than countdown seconds.
 
+    PLEASE NOTE:  While not yet deprecated, we are moving away from this method
+                  and encourage using the custom boto waiters as explained in
+                  https://github.com/apache/airflow/tree/main/airflow/providers/amazon/aws/waiters
+
     :param get_state_callable: A callable to run until it returns True
     :param get_state_args: Arguments to pass to get_state_callable
     :param parse_response: Dictionary keys to extract state from response of get_state_callable
