@@ -71,7 +71,7 @@ class TestCallbackRequest:
                 ),
                 SlaCallbackRequest,
             ),
-        ]
+        ],
     )
     def test_from_json(self, input, request_class):
         json_str = input.to_json()
