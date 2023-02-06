@@ -32,7 +32,7 @@ interface Props extends API.GetLogVariables {
 }
 
 const useTaskLog = ({
-  dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent, state,
+  dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent = false, state,
 }: Props) => {
   let url: string = '';
   const [isPreviousStatePending, setPrevState] = useState(true);
