@@ -710,10 +710,8 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
             if verbose:
                 console.print(f"Running command: '{' '.join(remote_add_command)}'")
             try:
-                subprocess.check_output(
+                subprocess.check_call(
                     remote_add_command,
-                    stderr=subprocess.STDOUT,
-                    text=True,
                 )
             except subprocess.CalledProcessError as ex:
                 console.print("[red]Error: when adding remote:[/]", ex)
