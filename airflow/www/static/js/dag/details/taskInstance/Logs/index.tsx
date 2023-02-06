@@ -130,7 +130,11 @@ const Logs = ({
     params.append('map_index', mapIndex.toString());
   }
 
-  const { parsedLogs, fileSources = [], truncatedContent, errorParsingLogs } = useMemo(
+  const {
+    parsedLogs,
+    fileSources = [],
+    warning,
+  } = useMemo(
     () => parseLogs(
       data,
       timezone,
@@ -247,16 +251,11 @@ const Logs = ({
               </Flex>
             </Flex>
           </Box>
-          {(truncatedContent || errorParsingLogs) && (
+          {!!warning && (
             <Flex bg="yellow.200" borderRadius={2} borderColor="gray.400" alignItems="center" p={2}>
               <Icon as={MdWarning} color="yellow.500" mr={2} />
               <Text fontSize="sm">
-                {truncatedContent && (
-                  <>Large log file. Some lines have been truncated. Download logs in order to see everything.</>
-                )}
-                {errorParsingLogs && (
-                  <>Unable to show logs. There was an error parsing logs.</>
-                )}
+                {warning}
               </Text>
             </Flex>
           )}

@@ -48,16 +48,15 @@ export const parseLogs = (
   }
   let lines;
 
-  let errorParsingLogs = false;
+  let warning;
 
   try {
     lines = data.split('\n');
   } catch (err) {
     console.error(err);
-    return { errorParsingLogs };
+    warning = 'Unable to show logs. There was an error parsing logs.';
+    return { warning };
   }
-
-  let truncatedContent = false;
 
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
@@ -96,13 +95,13 @@ export const parseLogs = (
     parsedLogs: parsedLines
       .map((l) => {
         if (l.length >= 1000000) {
-          truncatedContent = true;
+          warning = 'Large log file. Some lines have been truncated. Download logs in order to see everything.';
           return `${l.slice(0, 1000000)}...`;
         }
         return l;
       })
       .join('\n'),
     fileSources: Array.from(fileSources).sort(),
-    truncatedContent,
+    warning,
   };
 };
