@@ -207,6 +207,7 @@ repos:
         exclude: ^airflow/_vendor/
       - id: detect-private-key
         name: Detect if private key is added to the repository
+        exclude: ^docs/apache-airflow-providers-ssh/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
         exclude: ^airflow/_vendor/|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
