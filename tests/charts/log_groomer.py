@@ -25,6 +25,13 @@ from tests.charts.helm_template_generator import render_chart
 class LogGroomerTestBase:
     obj_name: str = ""
 
+    def test_log_groomer_collector_default_enabled(self):
+        docs = render_chart(show_only=[f"templates/workers/{self.obj_name}-deployment.yaml"])
+        assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert f"{self.obj_name}-log-groomer" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
+
     def test_log_groomer_collector_can_be_disabled(self):
         docs = render_chart(
             values={f"{self.obj_name}": {"logGroomerSidecar": {"enabled": False}}},
@@ -73,13 +80,7 @@ class LogGroomerTestBase:
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
-    @pytest.mark.parametrize(
-        "retention_days, retention_result",
-        [
-            (None, None),
-            (30, "30"),
-        ],
-    )
+    @pytest.mark.parametrize("retention_days, retention_result", [(None, None), (30, "30")])
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         docs = render_chart(
             values={f"{self.obj_name}": {"logGroomerSidecar": {"retentionDays": retention_days}}},
