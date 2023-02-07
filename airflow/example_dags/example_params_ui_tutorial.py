@@ -80,7 +80,7 @@ with DAG(
         ),
         # Dates and Times are also supported
         "date_time": Param(
-            f"{datetime.date.today()} {datetime.time(hour=12, minute=17, second=00)}",
+            f"{datetime.date.today()}T{datetime.time(hour=12, minute=17, second=00)}+00:00",
             type="string",
             format="date-time",
             title="Date-Time Picker",
