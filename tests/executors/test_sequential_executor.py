@@ -35,6 +35,9 @@ class TestSequentialExecutor:
     def test_serve_logs_default_value(self):
         assert SequentialExecutor.serve_logs
 
+    def test_is_single_threaded_default_value(self):
+        assert SequentialExecutor.is_single_threaded
+
     @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
     @mock.patch("airflow.executors.base_executor.Stats.gauge")

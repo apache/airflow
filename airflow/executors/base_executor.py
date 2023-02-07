@@ -113,6 +113,7 @@ class BaseExecutor(LoggingMixin):
     callback_sink: BaseCallbackSink | None = None
 
     is_local: bool = False
+    is_single_threaded: bool = False
     change_sensor_mode_to_reschedule: bool = False
 
     serve_logs: bool = False
