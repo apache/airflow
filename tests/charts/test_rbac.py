@@ -52,6 +52,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Secret", "test-rbac-webserver-secret-key"),
     ("Job", "test-rbac-create-user"),
     ("Job", "test-rbac-run-airflow-migrations"),
+    ("Job", "test-rbac-import-pools"),
     ("CronJob", "test-rbac-cleanup"),
 ]
 
@@ -74,6 +75,7 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
     ("ServiceAccount", "test-rbac-flower"),
     ("ServiceAccount", "test-rbac-statsd"),
     ("ServiceAccount", "test-rbac-create-user-job"),
+    ("ServiceAccount", "test-rbac-import-pools-job"),
     ("ServiceAccount", "test-rbac-migrate-database-job"),
     ("ServiceAccount", "test-rbac-redis"),
 ]
@@ -89,6 +91,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     CUSTOM_STATSD_NAME,
     CUSTOM_CREATE_USER_JOBS_NAME,
     CUSTOM_MIGRATE_DATABASE_JOBS_NAME,
+    CUSTOM_IMPORT_POOLS_JOBS_NAME,
     CUSTOM_REDIS_NAME,
     CUSTOM_POSTGRESQL_NAME,
 ) = (
@@ -102,6 +105,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     "TestStatsd",
     "TestCreateUserJob",
     "TestMigrateDatabaseJob",
+    "TestImportPoolsJob",
     "TestRedis",
     "TestPostgresql",
 )
@@ -153,6 +157,7 @@ class TestRBAC:
                     "statsd": {"serviceAccount": {"create": False}},
                     "createUserJob": {"serviceAccount": {"create": False}},
                     "migrateDatabaseJob": {"serviceAccount": {"create": False}},
+                    "importPoolsJob": {"serviceAccount": {"create": False}},
                     "flower": {"enabled": True, "serviceAccount": {"create": False}},
                 },
                 version=version,
@@ -212,6 +217,7 @@ class TestRBAC:
                     },
                     "createUserJob": {"serviceAccount": {"create": False}},
                     "migrateDatabaseJob": {"serviceAccount": {"create": False}},
+                    "importPoolsJob": {"serviceAccount": {"create": False}},
                 },
                 version=version,
             ),
@@ -271,6 +277,7 @@ class TestRBAC:
                 },
                 "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
                 "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
+                "importPoolsJob": {"serviceAccount": {"name": CUSTOM_IMPORT_POOLS_JOBS_NAME}},
             },
         )
         list_of_sa_names = [
@@ -307,6 +314,7 @@ class TestRBAC:
                 },
                 "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
                 "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
+                "importPoolsJob": {"serviceAccount": {"name": CUSTOM_IMPORT_POOLS_JOBS_NAME}},
             },
         )
         list_of_sa_names_in_objects = []
@@ -348,5 +356,6 @@ class TestRBAC:
             "test-rbac-webserver",
             "test-rbac-triggerer",
             "test-rbac-migrate-database-job",
+            "test-rbac-import-pools-job",
         ]
         assert sorted(list_of_sa_names) == sorted(service_account_names)

@@ -1,0 +1,129 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+################################
+## Airflow Import Pools Job
+#################################
+{{- if .Values.importPoolsJob.enabled }}
+{{- $nodeSelector := or .Values.importPoolsJob.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.importPoolsJob.affinity .Values.affinity }}
+{{- $tolerations := or .Values.importPoolsJob.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.importPoolsJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $securityContext := include "airflowSecurityContext" (list . .Values.importPoolsJob) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-import-pools
+  labels:
+    tier: airflow
+    component: import-pools-job
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+  {{- $annotations := dict }}
+  {{- if .Values.importPoolsJob.useHelmHooks }}
+    {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
+    {{- $_ := set $annotations "helm.sh/hook-weight" "2" }}
+    {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
+  {{- end }}
+  {{- with $annotations := merge $annotations .Values.importPoolsJob.jobAnnotations }}
+  annotations:
+    {{- $annotations | toYaml | nindent 4 }}
+  {{- end }}
+spec:
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: import-pools-job
+        release: {{ .Release.Name }}
+{{- if or (.Values.labels) (.Values.importPoolsJob.labels) }}
+{{- mustMerge .Values.importPoolsJob.labels .Values.labels | toYaml | nindent 8 }}
+{{- end }}
+      {{- if or .Values.airflowPodAnnotations .Values.importPoolsJob.annotations }}
+      annotations:
+        {{- if .Values.airflowPodAnnotations }}
+        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+        {{- end }}
+        {{- if .Values.importPoolsJob.annotations }}
+        {{- toYaml .Values.importPoolsJob.annotations | nindent 8 }}
+        {{- end }}
+      {{- end }}
+    spec:
+      securityContext: {{ $securityContext | nindent 8 }}
+      restartPolicy: OnFailure
+      nodeSelector:
+{{ toYaml $nodeSelector | indent 8 }}
+      affinity:
+{{ toYaml $affinity | indent 8 }}
+      tolerations:
+{{ toYaml $tolerations | indent 8 }}
+      topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 8 }}
+      serviceAccountName: {{ include "importPoolsJob.serviceAccountName" . }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      containers:
+        - name: import-pools
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.importPoolsJob.command }}
+          command: {{ tpl (toYaml .Values.importPoolsJob.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.importPoolsJob.args }}
+          args: {{ tpl (toYaml .Values.importPoolsJob.args) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.importPoolsJob.applyCustomEnv }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{ else }}
+          env:
+          {{- end }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.importPoolsJob.env) | indent 10 }}
+          resources:
+{{ toYaml .Values.importPoolsJob.resources | indent 12 }}
+          volumeMounts:
+{{- include "airflow_config_mount" . | nindent 12 }}
+{{- include "airflow_pools_mount" . | nindent 12 }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
+{{- if .Values.importPoolsJob.extraVolumeMounts }}
+{{ toYaml .Values.importPoolsJob.extraVolumeMounts | nindent 12 }}
+{{- end }}
+{{- if .Values.importPoolsJob.extraContainers }}
+{{- toYaml .Values.importPoolsJob.extraContainers | nindent 8 }}
+{{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "airflow_config" . }}
+{{- if .Values.volumes }}
+{{- toYaml .Values.volumes | nindent 8 }}
+{{- end }}
+{{- if .Values.importPoolsJob.extraVolumes }}
+{{ toYaml .Values.importPoolsJob.extraVolumes | nindent 8 }}
+{{- end }}
+{{- end }}

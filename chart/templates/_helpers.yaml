@@ -439,6 +439,10 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{ (printf "%s/airflow.cfg" .Values.airflowHome) | quote }}
 {{- end }}
 
+{{ define "airflow_pools_path" -}}
+{{ (printf "%s/pools.json" .Values.airflowHome) | quote }}
+{{- end }}
+
 {{ define "airflow_webserver_config_path" -}}
 {{ (printf "%s/webserver_config.py" .Values.airflowHome) | quote }}
 {{- end }}
@@ -473,6 +477,13 @@ server_tls_key_file = /etc/pgbouncer/server.key
   subPath: airflow_local_settings.py
   readOnly: true
   {{- end }}
+{{- end -}}
+
+{{ define "airflow_pools_mount" -}}
+- name: config
+  mountPath: {{ template "airflow_pools_path" . }}
+  subPath: pools.json
+  readOnly: true
 {{- end -}}
 
 {{/*
@@ -527,6 +538,17 @@ Create the name of the StatsD service account to use
     {{ default (printf "%s-statsd" (include "airflow.fullname" .)) .Values.statsd.serviceAccount.name }}
 {{- else -}}
     {{ default "default" .Values.statsd.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the import pools job service account to use
+*/}}
+{{- define "importPoolsJob.serviceAccountName" -}}
+{{- if .Values.importPoolsJob.serviceAccount.create -}}
+    {{ default (printf "%s-import-pools-job" (include "airflow.fullname" .)) .Values.importPoolsJob.serviceAccount.name }}
+{{- else -}}
+    {{ default "default" .Values.importPoolsJob.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
 

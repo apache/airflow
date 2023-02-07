@@ -54,6 +54,7 @@ data:
   known_hosts: |
     {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
 {{- end }}
+  pools.json: {{ .Values.airflowPools | toJson | quote }}
 {{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
 {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
   pod_template_file.yaml: |-

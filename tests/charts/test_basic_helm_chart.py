@@ -27,7 +27,7 @@ import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 37
 
 
 class TestBaseChartTest:
@@ -64,6 +64,7 @@ class TestBaseChartTest:
         }
         expected = {
             ("ServiceAccount", "test-basic-create-user-job"),
+            ("ServiceAccount", "test-basic-import-pools-job"),
             ("ServiceAccount", "test-basic-migrate-database-job"),
             ("ServiceAccount", "test-basic-redis"),
             ("ServiceAccount", "test-basic-scheduler"),
@@ -98,6 +99,7 @@ class TestBaseChartTest:
             ("StatefulSet", "test-basic-worker"),
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
+            ("Job", "test-basic-import-pools"),
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-airflow-result-backend"))
@@ -142,6 +144,7 @@ class TestBaseChartTest:
         }
         expected = {
             ("ServiceAccount", "test-basic-create-user-job"),
+            ("ServiceAccount", "test-basic-import-pools-job"),
             ("ServiceAccount", "test-basic-migrate-database-job"),
             ("ServiceAccount", "test-basic-redis"),
             ("ServiceAccount", "test-basic-scheduler"),
@@ -178,6 +181,7 @@ class TestBaseChartTest:
             ("StatefulSet", "test-basic-worker"),
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
+            ("Job", "test-basic-import-pools"),
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-airflow-result-backend"))
