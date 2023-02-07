@@ -92,7 +92,7 @@ Extra (optional)
 
     .. code-block:: bash
 
-        export AIRFLOW_CONN_SSH_SERVER='ssh://127.0.0.1?private_key=-----BEGIN+RSA+PRIVATE+KEY-----%0AMII.....jBV50%0D%0A-----END+RSA+PRIVATE+KEY-----%0A'
+        export AIRFLOW_CONN_SSH_SERVER='ssh://127.0.0.1?private_key=-----BEGIN+RSA+PRIVATE+KEY-----%0D%0AMII.....jBV50%0D%0A-----END+RSA+PRIVATE+KEY-----'
 
     To configure a private key in the extras in the Airflow UI, you can replace newlines by literal ``\n``:
 
