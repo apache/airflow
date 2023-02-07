@@ -2565,7 +2565,7 @@ class TestDagDecorator:
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "noop_pipeline"
+        assert dag.dag_id == "noop_pipeline"
         assert dag.fileloc == __file__
 
     def test_set_dag_id(self):
@@ -2573,50 +2573,41 @@ class TestDagDecorator:
 
         @dag_decorator("test", default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(4)
+            ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "test"
+        assert dag.dag_id == "test"
 
     def test_default_dag_id(self):
         """Test that @dag uses function name as default dag id."""
 
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(4)
+            ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "noop_pipeline"
+        assert dag.dag_id == "noop_pipeline"
 
-    def test_documentation_added(self):
-        """Test that @dag uses function docs as doc_md for DAG object"""
+    @pytest.mark.parametrize(
+        argnames=["dag_doc_md", "expected_doc_md"],
+        argvalues=[
+            pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
+            pytest.param(None, "Regular DAG documentation", id="use_dag_docstring"),
+        ],
+    )
+    def test_documentation_added(self, dag_doc_md, expected_doc_md):
+        """Test that @dag uses function docs as doc_md for DAG object if doc_md is not explicitly set."""
 
-        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        @dag_decorator(default_args=self.DEFAULT_ARGS, doc_md=dag_doc_md)
         def noop_pipeline():
-            """
-            Regular DAG documentation
-            """
-
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(4)
+            """Regular DAG documentation"""
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "test"
-        assert dag.doc_md.strip(), "Regular DAG documentation"
+        assert dag.dag_id == "noop_pipeline"
+        assert dag.doc_md == expected_doc_md
 
     def test_documentation_template_rendered(self):
         """Test that @dag uses function docs as doc_md for DAG object"""
@@ -2629,16 +2620,10 @@ class TestDagDecorator:
             {% endif %}
             """
 
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(4)
-
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "test"
-        assert dag.doc_md.strip(), "Regular DAG documentation"
+        assert dag.dag_id == "noop_pipeline"
+        assert "Regular DAG documentation" in dag.doc_md
 
     def test_resolve_documentation_template_file_rendered(self):
         """Test that @dag uses function docs as doc_md for DAG object"""
@@ -2652,16 +2637,19 @@ class TestDagDecorator:
             """
             )
             f.flush()
+            template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
 
-            with DAG("test-dag", start_date=DEFAULT_DATE, doc_md=template_file) as dag:
-                task = EmptyOperator(task_id="op1")
+            @dag_decorator(
+                "test-dag", start_date=DEFAULT_DATE, template_searchpath=template_dir, doc_md=template_file
+            )
+            def markdown_docs():
+                ...
 
-                task
-
-                assert isinstance(dag, DAG)
-                assert dag.dag_id, "test"
-                assert dag.doc_md.strip(), "External Markdown DAG documentation"
+            dag = markdown_docs()
+            assert isinstance(dag, DAG)
+            assert dag.dag_id == "test-dag"
+            assert dag.doc_md.strip() == "External Markdown DAG documentation"
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""
@@ -2731,7 +2719,7 @@ class TestDagDecorator:
 
         self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
         ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(), new_value
+        assert ti.xcom_pull() == new_value
 
     @pytest.mark.parametrize("value", [VALUE, 0])
     def test_set_params_for_dag(self, value):
