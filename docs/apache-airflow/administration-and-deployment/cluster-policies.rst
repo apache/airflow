@@ -57,11 +57,50 @@ There are two ways to configure cluster policies:
    under your $AIRFLOW_HOME is a good "default" location) and then add callables to the file matching one or more
    of the cluster policy names above (e.g. ``dag_policy``).
 
-2. By using a setuptools entrypoint in a custom module
+2. By using a
+   `setuptools entrypoint <https://packaging.python.org/guides/creating-and-discovering-plugins/#using-package-metadata>`_
+   in a custom module using the `Pluggy <https://pluggy.readthedocs.io/en/stable/>`_ interface.
 
    .. versionadded:: 2.6
 
    .. note:: |experimental|
+
+   This method is more advanced for for people who are already comfortable with python packaging.
+
+   First create your policy function in a module:
+
+   .. code-block:: python
+
+    from airflow.policies import hookimpl
+
+
+    @hookimpl
+    def task_policy(task) -> None:
+        # Mutate task in place
+        # ...
+        print(f"Hello from {__file__}")
+
+   And then add the entrypoint to your project specification. For example, using ``pyproject.toml`` and ``setuptools``:
+
+   .. code-block:: toml
+
+    [build-system]
+    requires = ["setuptools", "wheel"]
+    build-backend = "setuptools.build_meta"
+
+    [project]
+    name = "my-airflow-plugin"
+    version = "0.0.1"
+    # ...
+
+    dependencies = ["apache-airflow>=2.6"]
+    [project.entry-points.'airflow.policy']
+    _ = 'my_airflow_plugin.policies'
+
+   The entrypoint group must be ``airflow.policy``, and the name is ignored. The value should be your module (or class) decorated with the ``@hookimpl`` marker
+
+   One you have done that, and you have installed your distribution into your Airflow env the policy functions will get called by the various Airflow components. (The exact call order is undefined, so don't rely on any particular calling order if you have multiple plugins).
+
 
 One important thing to note (for either means of defining policy functions) is that the argument names must
 exactly match as documented below.
