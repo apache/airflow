@@ -43,7 +43,6 @@ import { ClipboardText } from 'src/components/Clipboard';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import Time from 'src/components/Time';
 import RunTypeIcon from 'src/components/RunTypeIcon';
-import useOffsetHeight from 'src/utils/useOffsetHeight';
 
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import NotesAccordion from 'src/dag/details/NotesAccordion';
@@ -64,7 +63,6 @@ interface Props {
 const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
-  const offsetHeight = useOffsetHeight(detailsRef);
   const run = dagRuns.find((dr) => dr.runId === runId);
   const { onCopy, hasCopied } = useClipboard(run?.conf || '');
   if (!run) return null;
@@ -108,7 +106,6 @@ const DagRun = ({ runId }: Props) => {
       </Box>
       <Box
         height="100%"
-        maxHeight={offsetHeight}
         ref={detailsRef}
         overflowY="auto"
         pb={4}

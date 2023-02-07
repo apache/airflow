@@ -2689,20 +2689,6 @@ class Airflow(AirflowBaseView):
         kwargs = {**sanitize_args(request.args), "dag_id": dag_id}
         return redirect(url_for("Airflow.grid", **kwargs))
 
-    @expose("/legacy_tree")
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
-        ]
-    )
-    @gzipped
-    @action_logging
-    def legacy_tree(self):
-        """Redirect to the replacement - grid view."""
-        return redirect(url_for("Airflow.grid", **sanitize_args(request.args)))
-
     @expose("/tree")
     @auth.has_access(
         [
@@ -2713,7 +2699,7 @@ class Airflow(AirflowBaseView):
     )
     @gzipped
     @action_logging
-    def tree(self):
+    def legacy_tree(self):
         """Redirect to the replacement - grid view. Kept for backwards compatibility."""
         return redirect(url_for("Airflow.grid", **sanitize_args(request.args)))
 
