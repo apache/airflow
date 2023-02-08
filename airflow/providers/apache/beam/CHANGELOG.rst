@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for running a Beam Go pipeline with an executable binary (#28764)``
+
+Misc
+~~~~
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
 4.1.1
 .....
 

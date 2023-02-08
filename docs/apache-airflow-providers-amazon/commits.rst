@@ -28,14 +28,43 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.2.0
+.....
+
+Latest change: 2023-02-03
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`1b18a501fe <https://github.com/apache/airflow/commit/1b18a501fe818079e535838fa4f232b03365fc75>`_  2023-02-03   ``Enable individual trigger logging (#27758)``
+`cb0c90bd66 <https://github.com/apache/airflow/commit/cb0c90bd661fbd1519df8125f09c12b1d8dd0db0>`_  2023-02-02   ``Decrypt SecureString value obtained by SsmHook (#29142)``
+`efc8857d55 <https://github.com/apache/airflow/commit/efc8857d55b96f1fdb6cf4fd767276f5c541e038>`_  2023-02-01   ``log the observed status in redshift sensor (#29274)``
+`a671561b8e <https://github.com/apache/airflow/commit/a671561b8e738faefd8e6d5569e0c1a287a249b7>`_  2023-01-31   ``shorten other wait times in sys tests (#29254)``
+`aacf4da7e8 <https://github.com/apache/airflow/commit/aacf4da7e8581541fe861803c3995278f35e0519>`_  2023-01-30   ``Use thin/passthrough hook instead of one-liner hook method (#29252)``
+`62825678b3 <https://github.com/apache/airflow/commit/62825678b3100b0e0ea3b4e14419d259a36ba074>`_  2023-01-30   ``Move imports in AWS SqlToS3Operator transfer to callable function (#29045)``
+`5490102a41 <https://github.com/apache/airflow/commit/5490102a417e23f3a99cc7a390819373cd205b93>`_  2023-01-30   ``Add option to wait for completion on the EmrCreateJobFlowOperator (#28827)``
+`44024564cb <https://github.com/apache/airflow/commit/44024564cb3dd6835b0375d61e682efc1acd7d2c>`_  2023-01-27   ``fix: 'num_of_dpus' typehints- GlueJobHook/Operator (#29176)``
+`e1a14ae9ee <https://github.com/apache/airflow/commit/e1a14ae9ee6ba819763776156a49e9df3fe80ee9>`_  2023-01-27   ``Fix false-positive spellcheck failure (#29190)``
+`2493476a7e <https://github.com/apache/airflow/commit/2493476a7e445dbc90dcf785394d3b41bc47318d>`_  2023-01-26   ``introduce base class for EKS sensors (#29053)``
+`2c4928da40 <https://github.com/apache/airflow/commit/2c4928da40667cd4d52030b8b79419175948cb85>`_  2023-01-24   ``introduce a method to convert dictionaries to boto-style key-value lists (#28816)``
+`efaed34213 <https://github.com/apache/airflow/commit/efaed34213ad4416e2f4834d0cd2f60c41814507>`_  2023-01-23   ``Add transfer operator S3 to (generic) SQL (#29085)``
+`6190e34388 <https://github.com/apache/airflow/commit/6190e34388394b0f8b0bc01c66d56a0e8277fe6c>`_  2023-01-23   ``add retries to stop_pipeline on conflict (#29077)``
+`17e8bb7f9e <https://github.com/apache/airflow/commit/17e8bb7f9e320c97fd737f8786a6b16515f4810e>`_  2023-01-19   ``Update provide_bucket_name() decorator to handle new conn_type (#28706)``
+`1ab7ea81a1 <https://github.com/apache/airflow/commit/1ab7ea81a11073010749103acc97ea92e97dd80a>`_  2023-01-19   ``uniformize getting hook through cached property in aws sensors (#29001)``
+`395b731b94 <https://github.com/apache/airflow/commit/395b731b947d2a1329df6ad34f2b1ae9aeb3d1af>`_  2023-01-18   ``Add log for AWS Glue Job Console URL (#28925)``
+`3a3adfb8e6 <https://github.com/apache/airflow/commit/3a3adfb8e618a7cea376cb5d187fa3e486a9c9ad>`_  2023-01-15   ``Fix typo in DataSyncHook boto3 methods for create location in NFS and EFS (#28948)``
+`198e96aca1 <https://github.com/apache/airflow/commit/198e96aca1c7f99ae19ad9e104d5c82894be770f>`_  2023-01-14   ``Use boto3 intersphinx inventory in documentation/docstrings. (#28945)``
+=================================================================================================  ===========  ======================================================================================
+
 7.1.0
 .....
 
-Latest change: 2023-01-13
+Latest change: 2023-01-14
 
 =================================================================================================  ===========  ==============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================
+`911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
 `923bcd2865 <https://github.com/apache/airflow/commit/923bcd28656b0a1af52305ccb8e18329ff9d70e3>`_  2023-01-13   ``new operator to create a sagemaker experiment (#28837)``
 `3e4e5b1fdb <https://github.com/apache/airflow/commit/3e4e5b1fdba5e98ddafc89d47a92a5bbfa41ebe7>`_  2023-01-13   ``Add ''configuration_overrides'' to templated fields (#28920)``
 `9a643363e9 <https://github.com/apache/airflow/commit/9a643363e982b7c37d3c7f9015cd7869bc2935c2>`_  2023-01-12   ``Avoid circular import from S3HookUriParseFailure (#28908)``

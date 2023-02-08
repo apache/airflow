@@ -69,7 +69,7 @@ Package apache-airflow-providers-dbt-cloud
 `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
 
-Release: 2.3.1
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -92,6 +92,8 @@ PIP package                        Version required
 =================================  ==================
 ``apache-airflow``                 ``>=2.3.0``
 ``apache-airflow-providers-http``
+``asgiref``
+``aiohttp``
 =================================  ==================
 
 Cross provider package dependencies
@@ -119,7 +121,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-dbt-cloud 2.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-2.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-2.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-2.3.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-dbt-cloud 2.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-2.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-2.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-2.3.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-dbt-cloud 3.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-dbt-cloud-3.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-dbt-cloud 3.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.0.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/dbt/cloud/CHANGELOG.rst

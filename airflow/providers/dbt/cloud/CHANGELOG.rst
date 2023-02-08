@@ -40,6 +40,18 @@ must use the ``host`` parameter to specify the _entire_ tenant domain name in yo
 
 * ``Drop Connection.schema use in DbtCloudHook  (#29166)``
 
+Features
+~~~~~~~~
+
+* ``Allow downloading of dbt Cloud artifacts to non-existent paths (#29048)``
+* ``Add deferrable mode to 'DbtCloudRunJobOperator' (#29014)``
+
+Misc
+~~~~
+
+* ``Provide more context for 'trigger_reason' in DbtCloudRunJobOperator (#28994)``
+
+
 2.3.1
 .....
 
