@@ -24,9 +24,10 @@ from tests.charts.helm_template_generator import render_chart
 
 class LogGroomerTestBase:
     obj_name: str = ""
+    folder: str = ""
 
     def test_log_groomer_collector_default_enabled(self):
-        docs = render_chart(show_only=[f"templates/workers/{self.obj_name}-deployment.yaml"])
+        docs = render_chart(show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"])
         assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
         assert f"{self.obj_name}-log-groomer" in [
             c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
@@ -35,18 +36,18 @@ class LogGroomerTestBase:
     def test_log_groomer_collector_can_be_disabled(self):
         docs = render_chart(
             values={f"{self.obj_name}": {"logGroomerSidecar": {"enabled": False}}},
-            show_only=[f"templates/{self.obj_name}/{self.obj_name}-deployment.yaml"],
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
         assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
 
     def test_log_groomer_collector_default_command_and_args(self):
-        docs = render_chart(show_only=[f"templates/{self.obj_name}/{self.obj_name}-deployment.yaml"])
+        docs = render_chart(show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"])
 
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
         assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
     def test_log_groomer_collector_default_retention_days(self):
-        docs = render_chart(show_only=[f"templates/{self.obj_name}/{self.obj_name}-deployment.yaml"])
+        docs = render_chart(show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"])
 
         assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
             "spec.template.spec.containers[1].env[0].name", docs[0]
@@ -58,7 +59,7 @@ class LogGroomerTestBase:
     def test_log_groomer_command_and_args_overrides(self, command, args):
         docs = render_chart(
             values={f"{self.obj_name}": {"logGroomerSidecar": {"command": command, "args": args}}},
-            show_only=[f"templates/{self.obj_name}/{self.obj_name}-deployment.yaml"],
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
         assert command == jmespath.search("spec.template.spec.containers[1].command", docs[0])
@@ -74,7 +75,7 @@ class LogGroomerTestBase:
                     }
                 }
             },
-            show_only=[f"templates/{self.obj_name}/{self.obj_name}-deployment.yaml"],
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
         assert ["release-name"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
@@ -84,7 +85,7 @@ class LogGroomerTestBase:
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         docs = render_chart(
             values={f"{self.obj_name}": {"logGroomerSidecar": {"retentionDays": retention_days}}},
-            show_only=[f"templates/{self.obj_name}/{self.obj_name}-deployment.yaml"],
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
         if retention_result:
@@ -109,7 +110,7 @@ class LogGroomerTestBase:
                     }
                 }
             },
-            show_only=[f"templates/{self.obj_name}/{self.obj_name}-deployment.yaml"],
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
         assert {

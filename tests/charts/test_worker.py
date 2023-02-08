@@ -589,6 +589,7 @@ class TestWorker:
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     obj_name = "worker"
+    folder = "workers"
 
 
 class TestWorkerKedaAutoScaler:

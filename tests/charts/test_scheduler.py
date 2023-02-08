@@ -642,6 +642,7 @@ class TestSchedulerNetworkPolicy:
 
 class TestSchedulerLogGroomer(LogGroomerTestBase):
     obj_name = "scheduler"
+    folder = "scheduler"
 
 
 class TestSchedulerService:

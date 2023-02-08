@@ -566,3 +566,4 @@ class TestTriggererServiceAccount:
 
 class TestTriggererLogGroomer(LogGroomerTestBase):
     obj_name = "triggerer"
+    folder = "triggerer"
