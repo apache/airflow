@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import NamedTuple, Dict, Any
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -112,6 +112,12 @@ class BasicDAGRunSchema(SQLAlchemySchema):
     data_interval_end = auto_field(dump_only=True)
 
 
+class ExternalDatasetChangeSchema(Schema):
+
+    dataset_uri = fields.String()
+    extra = JsonObjectField()
+
+
 class DatasetEventSchema(SQLAlchemySchema):
     """Dataset Event DB schema."""
 
@@ -146,5 +152,6 @@ class DatasetEventCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
+dataset_change_schema = ExternalDatasetChangeSchema()
 dataset_event_schema = DatasetEventSchema()
 dataset_event_collection_schema = DatasetEventCollectionSchema()

@@ -1921,6 +1921,32 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+    post:
+      summary: Post dataset event
+      description: Post dataset events
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: post_dataset_event
+      tags: [ Dataset ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalDatasetChange'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEvent'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 
   /config:
     get:
@@ -3980,6 +4006,22 @@ components:
               items:
                 $ref: '#/components/schemas/DatasetEvent'
         - $ref: '#/components/schemas/CollectionInfo'
+    ExternalDatasetChange:
+      description: |
+        A external dataset change that should create a DatasetEvent
+
+        *New in version 2.6.0*
+      type: object
+      properties:
+        dataset_uri:
+          type: string
+          description: The URI of the dataset
+          nullable: false
+        extra:
+          type: object
+          description: The dataset event extra
+          nullable: true
+
 
 
     # Configuration

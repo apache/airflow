@@ -16,23 +16,31 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, subqueryload
+from sqlalchemy import func
 
+from airflow import Dataset
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.types import APIResponse
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
     DatasetEventCollection,
     dataset_collection_schema,
     dataset_event_collection_schema,
     dataset_schema,
+    dataset_change_schema,
+    dataset_event_schema,
 )
-from airflow.api_connexion.types import APIResponse
 from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.datasets.manager import dataset_manager
+
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
+
+from marshmallow import ValidationError
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
@@ -119,4 +127,30 @@ def get_dataset_events(
     events = query.offset(offset).limit(limit).all()
     return dataset_event_collection_schema.dump(
         DatasetEventCollection(dataset_events=events, total_entries=total_entries)
+    )
+
+
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET)])
+@provide_session
+def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
+    """Create connection entry."""
+    try:
+        json_body = dataset_change_schema.load(get_json_request_dict())
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
+    uri = json_body["dataset_uri"]
+    extra = json_body["extra"]
+    dataset_event = dataset_manager.register_dataset_change(
+        dataset=Dataset(uri), extra=extra, session=session
+    )
+
+    if dataset_event:
+        event_json = dataset_event_schema.dump(dataset_event)
+        # removing created_dagruns, since they will be created asynchronously in the scheduler
+        event_json.pop("created_dagruns")
+        return event_json
+
+    raise BadRequest(
+        "Dataset not found",
+        detail=f"The Dataset with uri: `{uri}` was not found",
     )
