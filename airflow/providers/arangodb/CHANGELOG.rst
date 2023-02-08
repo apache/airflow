@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Fix ArangoDB static checks (#28820)``
+
 2.1.0
 .....
 
