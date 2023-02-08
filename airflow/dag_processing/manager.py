@@ -764,13 +764,9 @@ class DagFileProcessorManager(LoggingMixin):
                 else:
                     dag_filelocs.append(fileloc)
 
-            processor_subdir = None
-            if self.standalone_dag_processor:
-                processor_subdir = self.get_dag_directory()
-
             SerializedDagModel.remove_deleted_dags(
                 alive_dag_filelocs=dag_filelocs,
-                processor_subdir=processor_subdir,
+                processor_subdir=self.get_dag_directory(),
             )
             DagModel.deactivate_deleted_dags(self._file_paths)
 
