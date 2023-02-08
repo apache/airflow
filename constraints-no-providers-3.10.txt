@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-02T23:18:35Z
+# This constraints file was automatically generated on 2023-02-08T01:21:26Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -37,7 +37,7 @@ Werkzeug==2.2.2
 adal==1.2.7
 aiohttp==3.8.3
 aiosignal==1.3.1
-alembic==1.9.2
+alembic==1.9.3
 amqp==5.1.1
 anyio==3.6.2
 apispec==3.3.2
@@ -95,7 +95,7 @@ gunicorn==20.1.0
 h11==0.14.0
 httpcore==0.16.3
 httpx==0.23.3
-humanize==4.5.0
+humanize==4.6.0
 idna==3.4
 inflection==0.5.1
 itsdangerous==2.1.2
@@ -118,14 +118,14 @@ mdit-py-plugins==0.3.3
 mdurl==0.1.2
 msgpack==1.0.4
 multidict==6.0.4
-numpy==1.24.1
+numpy==1.24.2
 oauthlib==3.2.2
 packaging==23.0
 pandas==1.5.3
 partd==1.3.0
 pathspec==0.9.0
 pendulum==2.1.2
-platformdirs==2.6.2
+platformdirs==3.0.0
 pluggy==1.0.0
 plyvel==1.5.0
 prison==0.2.1
@@ -151,10 +151,11 @@ pytzdata==2020.1
 requests-kerberos==0.14.0
 requests-oauthlib==1.3.1
 requests==2.28.2
+rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich==13.3.1
 rsa==4.9
-sentry-sdk==1.14.0
+sentry-sdk==1.15.0
 setproctitle==1.3.2
 six==1.16.0
 sniffio==1.3.0
@@ -174,9 +175,9 @@ uc-micro-py==1.0.1
 unicodecsv==0.14.1
 urllib3==1.26.14
 vine==5.0.0
-virtualenv==20.17.1
+virtualenv==20.19.0
 wcwidth==0.2.6
-websocket-client==1.5.0
+websocket-client==1.5.1
 wrapt==1.14.1
 yarl==1.8.2
 zict==2.2.0
