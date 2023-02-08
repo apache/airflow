@@ -467,6 +467,103 @@ class TaskInstance(Base, LoggingMixin):
     :meta private:
     """
 
+    def __init__(
+        self,
+        task: Operator | None = None,
+        execution_date: datetime | None = None,
+        run_id: str | None = None,
+        state: str | None = None,
+        map_index: int = -1,
+        ti_dict: dict[str, Any] | None = None,
+    ):
+        """
+        Constructs TaskInstance object.
+
+        Deprecated, prefer to use "from_task" or "from_dict" static methods.
+        """
+        if ti_dict is not None:
+            self._init_from_dict(ti_dict)
+            return
+        if task is not None:
+            self._init_from_task(task, execution_date, run_id, state, map_index)
+        raise AirflowException("Either task or ti_dict must be provided to construct TaskInstance.")
+
+    def _init_from_task(
+        self,
+        task: Operator,
+        execution_date: datetime | None,
+        run_id: str | None,
+        state: str | None,
+        map_index: int = -1,
+    ):
+        """
+        Create TaskInstance from task operator.
+
+        :param task: task's Operator object.
+        :param execution_date: Optional execution time of the task.
+        :param run_id: Optional DAG run ID for the task.
+        :param state: Optional state of the task.
+        :param map_index: Optional map index. Defaults to -1 (non-mapped task).
+        """
+        self.dag_id = task.dag_id
+        self.task_id = task.task_id
+        self.map_index = map_index
+        self.refresh_from_task(task)
+        # init_on_load will config the log
+        self.init_on_load()
+
+        if run_id is None and execution_date is not None:
+            from airflow.models.dagrun import DagRun  # Avoid circular import
+
+            warnings.warn(
+                "Passing an execution_date to `TaskInstance()` is deprecated in favour of passing a run_id",
+                RemovedInAirflow3Warning,
+                # Stack level is 4 because SQLA adds some wrappers around the constructor
+                stacklevel=4,
+            )
+            # make sure we have a localized execution_date stored in UTC
+            if execution_date and not timezone.is_localized(execution_date):
+                self.log.warning(
+                    "execution date %s has no timezone information. Using default from dag or system",
+                    execution_date,
+                )
+                if self.task.has_dag():
+                    if TYPE_CHECKING:
+                        assert self.task.dag
+                    execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
+                else:
+                    execution_date = timezone.make_aware(execution_date)
+
+                execution_date = timezone.convert_to_utc(execution_date)
+            with create_session() as session:
+                run_id = (
+                    session.query(DagRun.run_id)
+                    .filter_by(dag_id=self.dag_id, execution_date=execution_date)
+                    .scalar()
+                )
+                if run_id is None:
+                    raise DagRunNotFound(
+                        f"DagRun for {self.dag_id!r} with date {execution_date} not found"
+                    ) from None
+
+        self.run_id = run_id
+
+        self.try_number = 0
+        self.max_tries = self.task.retries
+        self.unixname = getuser()
+        if state:
+            self.state = state
+        self.hostname = ""
+        # Is this TaskInstance being currently running within `airflow tasks run --raw`.
+        # Not persisted to the database so only valid for the current process
+        self.raw = False
+        # can be changed when calling 'run'
+        self.test_mode = False
+
+    def _init_from_dict(self, ti_dict: dict[str, Any]):
+        self.__dict__ = ti_dict.copy()
+        self.init_on_load()
+
     @staticmethod
     def from_task(
         task: Operator,
@@ -484,72 +581,14 @@ class TaskInstance(Base, LoggingMixin):
         :param state: Optional state of the task.
         :param map_index: Optional map index. Defaults to -1 (non-mapped task).
         """
-        ti = TaskInstance()
-        ti.dag_id = task.dag_id
-        ti.task_id = task.task_id
-        ti.map_index = map_index
-        ti.refresh_from_task(task)
-        # init_on_load will config the log
-        ti.init_on_load()
-
-        if run_id is None and execution_date is not None:
-            from airflow.models.dagrun import DagRun  # Avoid circular import
-
-            warnings.warn(
-                "Passing an execution_date to `TaskInstance()` is deprecated in favour of passing a run_id",
-                RemovedInAirflow3Warning,
-                # Stack level is 4 because SQLA adds some wrappers around the constructor
-                stacklevel=4,
-            )
-            # make sure we have a localized execution_date stored in UTC
-            if execution_date and not timezone.is_localized(execution_date):
-                ti.log.warning(
-                    "execution date %s has no timezone information. Using default from dag or system",
-                    execution_date,
-                )
-                if ti.task.has_dag():
-                    if TYPE_CHECKING:
-                        assert ti.task.dag
-                    execution_date = timezone.make_aware(execution_date, ti.task.dag.timezone)
-                else:
-                    execution_date = timezone.make_aware(execution_date)
-
-                execution_date = timezone.convert_to_utc(execution_date)
-            with create_session() as session:
-                run_id = (
-                    session.query(DagRun.run_id)
-                    .filter_by(dag_id=ti.dag_id, execution_date=execution_date)
-                    .scalar()
-                )
-                if run_id is None:
-                    raise DagRunNotFound(
-                        f"DagRun for {ti.dag_id!r} with date {execution_date} not found"
-                    ) from None
-
-        ti.run_id = run_id
-
-        ti.try_number = 0
-        ti.max_tries = ti.task.retries
-        ti.unixname = getuser()
-        if state:
-            ti.state = state
-        ti.hostname = ""
-        # Is this TaskInstance being currently running within `airflow tasks run --raw`.
-        # Not persisted to the database so only valid for the current process
-        ti.raw = False
-        # can be changed when calling 'run'
-        ti.test_mode = False
-        return ti
+        return TaskInstance(task, execution_date, run_id, state, map_index)
 
     @staticmethod
-    def from_dict(ti_dict: dict[str, Any]) -> TaskInstance:
+    def deserialize(ti_dict: dict[str, Any]) -> TaskInstance:
         """Create TaskInstance from dictionary."""
-        ti = TaskInstance()
-        ti.__dict__ = ti_dict.copy()
-        ti.init_on_load()
-        return ti
+        return TaskInstance(ti_dict=ti_dict)
 
-    def to_dict(self) -> dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         ti_dict = self.__dict__.copy()
         ti_dict.pop("_log", None)
         ti_dict.pop("test_mode", None)

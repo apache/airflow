@@ -449,7 +449,7 @@ class BaseSerialization:
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(cls.serialize(var.__dict__, strict=strict), type_=DAT.SIMPLE_TASK_INSTANCE)
         elif isinstance(var, TaskInstance):
-            return cls._encode(cls.serialize(var.to_dict(), strict=strict), type_=DAT.TASK_INSTANCE)
+            return cls._encode(cls.serialize(var.serialize(), strict=strict), type_=DAT.TASK_INSTANCE)
         else:
             log.debug("Cast type %s to str in serialization.", type(var))
             if strict:
@@ -505,7 +505,7 @@ class BaseSerialization:
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.TASK_INSTANCE:
-            return TaskInstance.from_dict(cls.deserialize(var))
+            return TaskInstance.deserialize(cls.deserialize(var))
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
