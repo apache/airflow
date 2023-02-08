@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import exc
 from sqlalchemy.orm.session import Session
@@ -44,8 +44,8 @@ class DatasetManager(LoggingMixin):
         super().__init__(**kwargs)
 
     def register_dataset_change(
-        self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
-    ) -> None:
+        self, *, dataset: Dataset, task_instance: TaskInstance=None, extra=None, session: Session, **kwargs
+    ) -> Optional[DatasetEvent]:
         """
         Register dataset related changes.
 
@@ -55,9 +55,10 @@ class DatasetManager(LoggingMixin):
         dataset_model = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset)
-            return
-        session.add(
-            DatasetEvent(
+            return None
+
+        if task_instance:
+            dataset_event = DatasetEvent(
                 dataset_id=dataset_model.id,
                 source_task_id=task_instance.task_id,
                 source_dag_id=task_instance.dag_id,
@@ -65,12 +66,19 @@ class DatasetManager(LoggingMixin):
                 source_map_index=task_instance.map_index,
                 extra=extra,
             )
-        )
+        else:
+            dataset_event = DatasetEvent(
+                dataset_id=dataset_model.id,
+                extra=extra,
+            )
+        session.add(dataset_event)
         session.flush()
         Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()
+
+        return dataset_event
 
     def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually
