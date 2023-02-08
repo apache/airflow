@@ -36,11 +36,10 @@
 # _AIRFLOW_WWW_USER_PASSWORD   - Password for the administrator account (if requested).
 #                                Default: airflow
 # _PIP_ADDITIONAL_REQUIREMENTS - Additional PIP requirements to add when starting all containers.
-#                                This option ONLY for a quick checks. Adding requirements at container
-#                                startup is fragile and is done EVERY TIME when service,
-#                                which is use default Airflow entrypoint script, started.
-#                                Instead, build a custom image or extend official image as described in
-#                                https://airflow.apache.org/docs/docker-stack/build.html
+#                                Use this option ONLY for quick checks. Installing requirements at container
+#                                startup is done EVERY TIME the service is started.
+#                                A better way is to build a custom image or extend the official image as described in
+#                                https://airflow.apache.org/docs/docker-stack/build.html.
 #                                Default: ''
 #
 # Feel free to modify this file to suit your needs.
