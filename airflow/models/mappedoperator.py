@@ -687,7 +687,7 @@ class MappedOperator(AbstractOperator):
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 
-        self._do_render_template_fields(
+        unmapped_task._do_render_template_fields(
             parent=unmapped_task,
             template_fields=self.template_fields,
             context=context,
