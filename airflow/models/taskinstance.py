@@ -140,6 +140,13 @@ if TYPE_CHECKING:
 
 
 PAST_DEPENDS_MET = "past_depends_met"
+# List of fields which should be excluded from serialization.
+TASK_INSTANCE_SERIALIZE_EXCLUDES = [
+    "_log",
+    "_sa_instance_state",
+    "dag_run",
+    "test_mode",
+]
 
 
 class TaskReturnCode(Enum):
@@ -480,12 +487,14 @@ class TaskInstance(Base, LoggingMixin):
         """
         Constructs TaskInstance object.
 
-        Deprecated, prefer to use "from_task" or "from_dict" static methods.
+        Deprecated, prefer to use "from_task" or "deserialize" static methods.
         """
         if ti_dict is not None:
+            # Should only be used by deserialize method.
             return
         if task is not None:
             self._init_from_task(task, execution_date, run_id, state, map_index)
+            return
         raise AirflowException("Either task or ti_dict must be provided to construct TaskInstance.")
 
     def _init_from_task(
@@ -591,10 +600,8 @@ class TaskInstance(Base, LoggingMixin):
 
     def serialize(self) -> dict[str, Any]:
         ti_dict = self.__dict__.copy()
-        ti_dict.pop("_log", None)
-        ti_dict.pop("test_mode", None)
-        ti_dict.pop("dag_run", None)
-        ti_dict.pop("_sa_instance_state", None)
+        for field in TASK_INSTANCE_SERIALIZE_EXCLUDES:
+            ti_dict.pop(field, None)
         return ti_dict
 
     @staticmethod

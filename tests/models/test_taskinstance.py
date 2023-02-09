@@ -26,7 +26,7 @@ import signal
 import sys
 import urllib
 from traceback import format_exception
-from typing import cast
+from typing import Callable, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
 from uuid import uuid4
@@ -259,6 +259,47 @@ class TestTaskInstance:
         # ensure log is correctly created for ORM ti
         assert ti.log.name == "airflow.task"
         assert not ti.test_mode
+
+    def test_serialize_dict(self, create_task_instance: Callable[[], TaskInstance]):
+        expected_fields = [
+            "_try_number",
+            "dag_id",
+            "duration",
+            "end_date",
+            "executor_config",
+            "external_executor_id",
+            "hostname",
+            "job_id",
+            "map_index",
+            "max_tries",
+            "next_kwargs",
+            "next_method",
+            "operator",
+            "pid",
+            "pool_slots",
+            "pool",
+            "priority_weight",
+            "queue",
+            "queued_by_job_id",
+            "queued_dttm",
+            "rendered_task_instance_fields",
+            "run_as_user",
+            "run_id",
+            "start_date",
+            "state",
+            "task_id",
+            "task",
+            "trigger_id",
+            "trigger_timeout",
+            "unixname",
+            "updated_at",
+        ]
+        ti = create_task_instance()
+        # ensure log is correctly created for ORM ti
+        serialized_dict = ti.serialize()
+        print(serialized_dict.keys())
+        for key in serialized_dict:
+            assert key in expected_fields
 
     @patch.object(DAG, "get_concurrency_reached")
     def test_requeue_over_dag_concurrency(self, mock_concurrency_reached, create_task_instance):
