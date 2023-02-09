@@ -155,12 +155,12 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         # partition_sql = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE {partitions} LIMIT 1"
         return self._sql_sensor(partition_sql)
 
-    def _get_results(self) -> bool:
+    def _get_results(self, context: Context) -> bool:
         result = self._check_table_partitions()
         self.log.debug("Partition sensor result: %s", result)
         if len(result) < 1:
             raise AirflowException("Databricks SQL partition sensor failed.")
         return True
 
-    def poke(self, context: Context):
-        return self._get_results()
+    def poke(self, context: Context) -> bool:
+        return self._get_results(context=context)
