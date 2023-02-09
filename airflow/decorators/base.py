@@ -299,6 +299,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
         except TypeError:  # Can't evaluate return type.
             return False
+        except NameError:  # A typing import is not defined; probably behind TYPE_CHECKING.
+            return_type = self.function.__annotations__.get("return", Any)
+            # If using PEP 563, the return annotation value is stringified. Need to transform to a type to
+            # properly check against dict type.
+            if isinstance(return_type, str):
+                return_type = eval(return_type)
         ttype = getattr(return_type, "__origin__", return_type)
         return ttype == dict or ttype == Dict
 
