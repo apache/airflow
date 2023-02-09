@@ -23,6 +23,37 @@
 Changelog
 ---------
 
+8.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable capability to existing ''DataprocDeleteClusterOperator'' (#29349)``
+* ``Add deferrable mode to dataflow operators (#27776)``
+* ``Add deferrable mode to DataprocCreateBatchOperator (#28457)``
+* ``Add deferrable mode to DataprocCreateClusterOperator and DataprocUpdateClusterOperator (#28529)``
+* ``Add deferrable mode to MLEngineStartTrainingJobOperator (#27405)``
+* ``Add deferrable mode to DataFusionStartPipelineOperator (#28690)``
+* ``Add deferrable mode for Big Query Transfer operator (#27833)``
+* ``Add support for write_on_empty in BaseSQLToGCSOperator (#28959)``
+* ``Add DataprocCancelOperationOperator (#28456)``
+* ``Enable individual trigger logging (#27758)``
+* ``Auto ML assets (#25466)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GoogleDriveHook writing files to trashed folders on upload v2 (#29119)``
+* ``fix Google provider CHANGELOG.rst (#29122)``
+* ``fix Google provider CHANGELOG.rst (#29114)``
+* ``Keyfile dict can be dict not str (#29135)``
+* ``GCSTaskHandler may use remote log conn id (#29117)``
+
+Misc
+~~~~
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
 8.8.0
 .....
 
@@ -70,6 +101,7 @@ Bug Fixes
 
 Misc
 ~~~~
+
 * ``Remove 'pylint' messages control instructions (#28555)``
 * ``Remove deprecated AIPlatformConsoleLinkk from google/provider.yaml (#28449)``
 * ``Use object instead of array in config.yml for config template (#28417)``
