@@ -45,9 +45,9 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         it could be specified in the Databricks connection's extra parameters., defaults to None
     :param http_headers: An optional list of (k, v) pairs
         that will be set as HTTP headers on every request. (templated).
-    :param catalog: An optional initial catalog to use.
+    :param _catalog: An optional initial catalog to use.
         Requires DBR version 9.0+ (templated), defaults to ""
-    :param schema: An optional initial schema to use.
+    :param _schema: An optional initial schema to use.
         Requires DBR version 9.0+ (templated), defaults to "default"
     :param table_name: Table name to generate the SQL query, defaults to ""
     :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
@@ -56,7 +56,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         defaults to datetime.now()-timedelta(days=7)
     """
 
-    template_fields: Sequence[str] = ("databricks_conn_id", "catalog", "schema", "table_name", "timestamp")
+    template_fields: Sequence[str] = ("databricks_conn_id", "_catalog", "_schema", "table_name", "timestamp")
 
     def __init__(
         self,
@@ -79,8 +79,8 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             self._sql_endpoint_name,
             self.session_config,
             self.http_headers,
-            self.catalog,
-            self.schema,
+            self._catalog,
+            self._schema,
             self.caller,
             **self.client_parameters,
             **self.hook_params,
