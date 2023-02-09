@@ -112,7 +112,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         return result
 
     def _get_results(self, context: Context) -> bool:
-        complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
+        complete_table_name = str(self._catalog + "." + self._schema + "." + self.table_name)
         self.log.debug("Table name generated from arguments: %s", complete_table_name)
 
         prev_version = -1

@@ -25,8 +25,8 @@ from typing import Sequence
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
-from airflow.utils.context import Context
 from airflow.providers.databricks.utils.databricks import ParamEscaper
+from airflow.utils.context import Context
 
 
 class DatabricksPartitionSensor(DatabricksSqlSensor):

@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Iterable
+
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
-from typing import Iterable
 
 
 def normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict:
@@ -70,11 +71,12 @@ def validate_trigger_event(event: dict):
     except Exception:
         raise AirflowException(f'Run state returned by the Trigger is incorrect: {event["run_state"]}')
 
+
 # Taken from PyHive
 class ParamEscaper:
     _DATE_FORMAT = "%Y-%m-%d"
     _TIME_FORMAT = "%H:%M:%S.%f"
-    _DATETIME_FORMAT = "{} {}".format(_DATE_FORMAT, _TIME_FORMAT)
+    _DATETIME_FORMAT = f"{_DATE_FORMAT} {_TIME_FORMAT}"
 
     def escape_args(self, parameters):
         if isinstance(parameters, dict):
@@ -82,9 +84,7 @@ class ParamEscaper:
         elif isinstance(parameters, (list, tuple)):
             return tuple(self.escape_item(x) for x in parameters)
         else:
-            raise exc.ProgrammingError(
-                "Unsupported param format: {}".format(parameters)
-            )
+            raise exc.ProgrammingError(f"Unsupported param format: {parameters}")
 
     def escape_number(self, item):
         return item
@@ -108,7 +108,7 @@ class ParamEscaper:
     def escape_datetime(self, item, format, cutoff=0):
         dt_str = item.strftime(format)
         formatted = dt_str[:-cutoff] if cutoff and format.endswith(".%f") else dt_str
-        return "'{}'".format(formatted)
+        return f"'{formatted}'"
 
     def escape_item(self, item):
         if item is None:
@@ -124,4 +124,4 @@ class ParamEscaper:
         elif isinstance(item, datetime.date):
             return self.escape_datetime(item, self._DATE_FORMAT)
         else:
-            raise exc.ProgrammingError("Unsupported object {}".format(item))
+            raise exc.ProgrammingError(f"Unsupported object {item}")
