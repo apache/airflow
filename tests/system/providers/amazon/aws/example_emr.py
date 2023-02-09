@@ -91,6 +91,16 @@ JOB_FLOW_OVERRIDES = {
 
 
 @task
+def get_ami_id():
+    """
+    Returns an AL2 AMI compatible with EMR
+    """
+    return boto3.client("ssm").get_parameter(
+        Name="/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs",
+    )["Parameter"]["Value"]
+
+
+@task
 def configure_security_config(config_name: str):
     boto3.client("emr").create_security_configuration(
         Name=config_name,
@@ -119,6 +129,7 @@ with DAG(
     config_name = f"{CONFIG_NAME}-{env_id}"
     execution_role_arn = test_context[EXECUTION_ROLE_ARN_KEY]
     JOB_FLOW_OVERRIDES["SecurityConfiguration"] = config_name
+    JOB_FLOW_OVERRIDES["Instances"]["InstanceGroups"][0]["CustomAmiId"] = get_ami_id()
 
     create_security_configuration = configure_security_config(config_name)
 
