@@ -1923,10 +1923,10 @@ paths:
           $ref: '#/components/responses/NotFound'
     post:
       summary: Post dataset event
-      description: Post dataset events
+      description: Post dataset event
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
       operationId: post_dataset_event
-      tags: [ Dataset ]
+      tags: [Dataset]
       requestBody:
         required: true
         content:

@@ -133,7 +133,7 @@ def get_dataset_events(
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET)])
 @provide_session
 def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
-    """Create connection entry."""
+    """Create a dataset event"""
     try:
         json_body = dataset_change_schema.load(get_json_request_dict())
     except ValidationError as err:
