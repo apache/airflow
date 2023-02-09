@@ -2121,7 +2121,7 @@ scheduler:
       version_added: 2.6.0
       type: integer
       example: ~
-      default: "30"
+      default: "50"
     dag_dir_list_interval:
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
