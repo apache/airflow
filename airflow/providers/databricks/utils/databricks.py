@@ -80,7 +80,8 @@ class ParamEscaper:
 
     :param item: Input value.
     :return: transformed item.
-    """    
+    """
+
     _DATE_FORMAT = "%Y-%m-%d"
     _TIME_FORMAT = "%H:%M:%S.%f"
     _DATETIME_FORMAT = f"{_DATE_FORMAT} {_TIME_FORMAT}"
@@ -109,8 +110,8 @@ class ParamEscaper:
         return "'{}'".format(item.replace("'", "''"))
 
     def escape_sequence(self, item):
-        l = map(str, map(self.escape_item, item))
-        return "(" + ",".join(l) + ")"
+        val = map(str, map(self.escape_item, item))
+        return "(" + ",".join(val) + ")"
 
     def escape_datetime(self, item, format, cutoff=0):
         dt_str = item.strftime(format)

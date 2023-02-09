@@ -139,5 +139,5 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             self.log.debug("Result: %s", result)
             return result
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context):
         return self._get_results(context=context)

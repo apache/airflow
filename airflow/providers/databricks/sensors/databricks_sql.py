@@ -115,5 +115,5 @@ class DatabricksSqlSensor(BaseSensorOperator):
         else:
             return False
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context):
         return self._get_results()

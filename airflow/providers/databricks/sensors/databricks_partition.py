@@ -162,5 +162,5 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
             raise AirflowException("Databricks SQL partition sensor failed.")
         return True
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context):
         return self._get_results()
