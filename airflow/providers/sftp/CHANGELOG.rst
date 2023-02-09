@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+4.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SFTP operator's template fields processing (#29068)``
+* ``FTP operator has logic in __init__ (#29073)``
+
 4.2.1
 .....
 
