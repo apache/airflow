@@ -86,7 +86,6 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
-from airflow.jobs.scheduler_job import TI
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.log import Log
@@ -800,8 +799,8 @@ class TaskInstance(Base, LoggingMixin):
         map_index: int,
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
-    ) -> TI | None:
-        query = session.query(TI).filter_by(
+    ) -> TaskInstance | None:
+        query = session.query(*TaskInstance.__table__.columns).filter_by(
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
@@ -1859,7 +1858,7 @@ class TaskInstance(Base, LoggingMixin):
             )
 
         get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, session=session
         )
 
         if error:
@@ -1933,7 +1932,6 @@ class TaskInstance(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     def save_to_db(ti: TaskInstance, session: Session = NEW_SESSION):
-        # TODO: Need to convert TaskInstance SQL Alchemy object to serializable object
         session.merge(ti)
         session.flush()
 

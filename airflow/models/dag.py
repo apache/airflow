@@ -1298,8 +1298,9 @@ class DAG(LoggingMixin):
         return _schedule_interval
 
     @staticmethod
+    @internal_api_call
     @provide_session
-    def _fetch_callback(dag: DAG, dagrun: DagRun, success=True, reason=None, session=NEW_SESSION):
+    def fetch_callback(dag: DAG, dagrun: DagRun, success=True, reason=None, session=NEW_SESSION):
         """
         Fetch the appropriate callbacks depending on the value of success, namely the
         on_failure_callback or on_success_callback. This method gets the context of a
@@ -1321,23 +1322,6 @@ class DAG(LoggingMixin):
             context.update({"reason": reason})
             return callbacks, context
 
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def fetch_callback(dag_id: str, run_id: str, success=True, reason=None, session=NEW_SESSION):
-        """
-        Get DAG and DagRun objects before calling _fetch_callback method
-
-        :param dag_id: The dag_id of the DAG to find.
-        :param run_id: The run_id of the DagRun to find.
-        :param success: Flag to specify if failure or success callback should be called
-        :param reason: Completion reason
-        :param session: Database session
-        """
-        dag = DagModel.get_dagmodel(dag_id=dag_id, session=session)
-        dagrun = DAG._fetch_dagrun(dag_id=dag_id, run_id=run_id, session=session)
-        return DAG._fetch_callback(dag=dag, dagrun=dagrun, success=success, reason=reason, session=session)
-
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=NEW_SESSION):
         """
@@ -1354,7 +1338,7 @@ class DAG(LoggingMixin):
         :param reason: Completion reason
         :param session: Database session
         """
-        callbacks, context = DAG._fetch_callback(
+        callbacks, context = DAG.fetch_callback(
             dag=self, dagrun=dagrun, success=success, reason=reason, session=session
         )
         DAG.execute_callback(callbacks, context, self.dag_id, dagrun.run_id)
@@ -1416,8 +1400,9 @@ class DAG(LoggingMixin):
         return query.scalar()
 
     @staticmethod
+    @internal_api_call
     @provide_session
-    def _fetch_dagrun(
+    def fetch_dagrun(
         dag_id: str,
         execution_date: datetime | None = None,
         run_id: str | None = None,
@@ -1449,7 +1434,7 @@ class DAG(LoggingMixin):
         run_id: str | None = None,
         session: Session = NEW_SESSION,
     ):
-        return DAG._fetch_dagrun(
+        return DAG.fetch_dagrun(
             dag_id=self.dag_id, execution_date=execution_date, run_id=run_id, session=session
         )
 
