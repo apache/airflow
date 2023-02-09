@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 from typing import Sequence
+import datetime
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
@@ -124,7 +125,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
-                    if isinstance(partition_value, str):
+                    if isinstance(partition_value, (str, datetime.date)):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
@@ -133,6 +134,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
                     raise AirflowException(
                         "Column %s not part of table partitions: %s", partition_col, partition_columns
                     )
+        self.log.debug("Formatted options: %s", formatted_opts)
         formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
 
         return formatted_opts.strip()
@@ -152,7 +154,6 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
             table_name=_fully_qualified_table_name,
             escape_key=False,
         )
-        # partition_sql = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE {partitions} LIMIT 1"
         return self._sql_sensor(partition_sql)
 
     def _get_results(self, context: Context) -> bool:

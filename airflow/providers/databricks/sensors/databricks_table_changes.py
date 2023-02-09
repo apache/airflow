@@ -94,6 +94,20 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         )
         return sql_result
 
+    def _generate_query(
+        self,
+        prefix: str,
+        suffix: str,
+        joiner_val: str,
+        table_name: str,
+        time_range: str,
+    ) -> str:
+        formatted_opts = ""
+        formatted_opts = f"{prefix} {table_name}{suffix} {joiner_val} '{time_range}'"
+        self.log.debug("Formatted options: %s", formatted_opts)
+
+        return formatted_opts.strip()
+
     @staticmethod
     def get_previous_version(context: Context, lookup_key):
         return context["ti"].xcom_pull(key=lookup_key, include_prior_dates=True)
@@ -103,12 +117,18 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         context["ti"].xcom_push(key=lookup_key, value=version)
 
     def get_current_table_version(self, table_name, time_range, operator):
-        change_sql = (
-            f"SELECT COUNT(version) as versions from "
-            f"(DESCRIBE HISTORY {table_name}) "
-            f"WHERE timestamp {operator} '{time_range}'"
+        _count_describe_literal = "SELECT COUNT(version) AS versions FROM (DESCRIBE HISTORY"
+        _filter_predicate_literal = ") WHERE timestamp"
+        query = self._generate_query(
+            prefix=_count_describe_literal,
+            suffix=_filter_predicate_literal,
+            time_range=time_range,
+            joiner_val=operator,
+            table_name=table_name,
         )
-        result = self._sql_sensor(change_sql)[0][0]
+        self.log.debug("Query to be executed: %s", query)
+        result = self._sql_sensor(query)[0][0]
+        self.log.debug("Query result: %s", result)
         return result
 
     def _get_results(self, context: Context) -> bool:
