@@ -523,7 +523,7 @@ class ExternalTaskAsyncSensor(ExternalTaskSensor):
         else:
             raise AirflowException(
                 "Error occurred while trying to retrieve task status. Please, check the "
-                "name of executed task and Dag"
+                "name of executed task and Dag."
             )
 
 
