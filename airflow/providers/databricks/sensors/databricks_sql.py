@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
@@ -49,7 +50,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
     template_fields: Sequence[str] = (
         "databricks_conn_id",
         "sql",
-        "catalog",
+        "_catalog",
         "http_headers",
     )
 
@@ -66,10 +67,9 @@ class DatabricksSqlSensor(BaseSensorOperator):
         http_headers: list[tuple[str, str]] | None = None,
         catalog: str = "hive_metastore",
         schema: str = "default",
-        table_name: str = "",
+        sql: str | None = None,
         handler: Callable[[Any], Any] = fetch_all_handler,
         client_parameters: dict[str, Any] | None = None,
-        sql: str = "",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -78,9 +78,8 @@ class DatabricksSqlSensor(BaseSensorOperator):
         self._sql_endpoint_name = sql_endpoint_name
         self.session_config = session_configuration
         self.http_headers = http_headers
-        self.catalog = catalog
-        self.schema = schema
-        self.table_name = table_name
+        self._catalog = catalog
+        self._schema = schema
         self.sql = sql
         self.caller = "DatabricksSqlSensor"
         self.client_parameters = client_parameters or {}
@@ -94,8 +93,8 @@ class DatabricksSqlSensor(BaseSensorOperator):
             self._sql_endpoint_name,
             self.session_config,
             self.http_headers,
-            self.catalog,
-            self.schema,
+            self._catalog,
+            self._schema,
             self.caller,
             **self.client_parameters,
             **self.hook_params,
@@ -109,10 +108,13 @@ class DatabricksSqlSensor(BaseSensorOperator):
         )
         return sql_result
 
-    def poke(self, context: Context) -> bool:
+    def _get_results(self) -> bool:
         result = self._sql_sensor(self.sql)
         self.log.debug("SQL result: %s", result)
         if isinstance(result, list):
             return len(result) > 0
         else:
             return False
+
+    def poke(self, context: Context) -> bool:
+        return self._get_results()

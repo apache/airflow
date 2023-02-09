@@ -60,6 +60,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
 
     def __init__(
         self,
+        table_name: str,
         timestamp: datetime = datetime.now() - timedelta(days=7),
         change_filter_operator: str = "=",
         *args,
@@ -69,6 +70,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         self.timestamp = timestamp
         self.caller = "DatabricksTableChangesSensor"
         self.change_filter_operator = change_filter_operator
+        self.table_name = table_name
 
     def _get_hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
@@ -109,7 +111,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         result = self._sql_sensor(change_sql)[0][0]
         return result
 
-    def _check_table_changes(self, context: Context) -> bool:
+    def _get_results(self, context: Context) -> bool:
         complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
         self.log.debug("Table name generated from arguments: %s", complete_table_name)
 
@@ -138,5 +140,4 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             return result
 
     def poke(self, context: Context) -> bool:
-        result = self._check_table_changes(context=context)
-        return result
+        return self._get_results(context=context)
