@@ -505,7 +505,7 @@ class BaseSerialization:
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.TASK_INSTANCE:
-            return TaskInstance.deserialize(cls.deserialize(var))
+            return TaskInstance.deserialize(ti_dict=cls.deserialize(var), version=1)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 

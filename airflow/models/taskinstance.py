@@ -32,7 +32,7 @@ from enum import Enum
 from functools import partial
 from pathlib import PurePath
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Generator, Iterable, NamedTuple, Tuple
 from urllib.parse import quote
 
 import dill
@@ -374,6 +374,7 @@ class TaskInstance(Base, LoggingMixin):
     a TI with mapped tasks that expanded to an empty list (state=skipped).
     """
 
+    __version__: ClassVar[int] = 1
     __tablename__ = "task_instance"
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
@@ -482,7 +483,6 @@ class TaskInstance(Base, LoggingMixin):
         Deprecated, prefer to use "from_task" or "from_dict" static methods.
         """
         if ti_dict is not None:
-            self._init_from_dict(ti_dict)
             return
         if task is not None:
             self._init_from_task(task, execution_date, run_id, state, map_index)
@@ -560,10 +560,6 @@ class TaskInstance(Base, LoggingMixin):
         # can be changed when calling 'run'
         self.test_mode = False
 
-    def _init_from_dict(self, ti_dict: dict[str, Any]):
-        self.__dict__ = ti_dict.copy()
-        self.init_on_load()
-
     @staticmethod
     def from_task(
         task: Operator,
@@ -584,9 +580,14 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstance(task, execution_date, run_id, state, map_index)
 
     @staticmethod
-    def deserialize(ti_dict: dict[str, Any]) -> TaskInstance:
-        """Create TaskInstance from dictionary."""
-        return TaskInstance(ti_dict=ti_dict)
+    def deserialize(ti_dict: dict[str, Any], version: int) -> TaskInstance:
+        """Deserialize TaskInstance from dictionary."""
+        if version > TaskInstance.__version__:
+            raise TypeError("version too big, dont know hot to deserialize")
+        ti = TaskInstance()
+        ti.__dict__ = ti_dict.copy()
+        ti.init_on_load()
+        return ti
 
     def serialize(self) -> dict[str, Any]:
         ti_dict = self.__dict__.copy()
