@@ -39,6 +39,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.models import Base
 from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
+from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
 
 logger = logging.getLogger(__file__)
@@ -301,13 +302,21 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
 
 
 def _confirm_drop_archives(*, tables: list[str]):
+    # if length of tables is greater than 3, show the total count
+    if len(tables) > 3:
+        text_ = f"{len(tables)} archived tables prefixed with {ARCHIVE_TABLE_PREFIX}"
+    else:
+        text_ = f"the following archived tables {tables}"
     question = (
-        f"You have requested that we drop archived records for tables {tables!r}.\n"
-        f"This is irreversible.  Consider backing up the tables first \n"
-        f"Enter 'drop archived tables' (without quotes) to proceed."
+        f"You have requested that we drop {text_}.\n"
+        f"This is irreversible. Consider backing up the tables first \n"
     )
     print(question)
-    answer = input().strip()
+    if len(tables) > 3:
+        show_tables = ask_yesno("Show tables? (y/n): ")
+        if show_tables:
+            print(tables, "\n")
+    answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
     if not answer == "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
 
@@ -345,6 +354,19 @@ def _effective_table_names(*, table_names: list[str] | None):
     if not effective_table_names:
         raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
     return effective_table_names, effective_config_dict
+
+
+def _get_archived_table_names(table_names, session):
+    inspector = inspect(session.bind)
+    db_table_names = [x for x in inspector.get_table_names() if x.startswith(ARCHIVE_TABLE_PREFIX)]
+    effective_table_names, _ = _effective_table_names(table_names=table_names)
+    # Filter out tables that don't start with the archive prefix
+    archived_table_names = [
+        table_name
+        for table_name in db_table_names
+        if any("__" + x + "__" in table_name for x in effective_table_names)
+    ]
+    return archived_table_names
 
 
 @provide_session
@@ -410,16 +432,14 @@ def export_cleaned_records(
     export_format, output_path, table_names=None, drop_archives=False, session: Session = NEW_SESSION
 ):
     """Export cleaned data to the given output path in the given format."""
-    effective_table_names, _ = _effective_table_names(table_names=table_names)
-    if drop_archives:
-        _confirm_drop_archives(tables=sorted(effective_table_names))
-    inspector = inspect(session.bind)
-    db_table_names = [x for x in inspector.get_table_names() if x.startswith(ARCHIVE_TABLE_PREFIX)]
+    archived_table_names = _get_archived_table_names(table_names, session)
+    # If user chose to drop archives, check there are archive tables that exists
+    # before asking for confirmation
+    if drop_archives and archived_table_names:
+        _confirm_drop_archives(tables=sorted(archived_table_names))
     export_count = 0
     dropped_count = 0
-    for table_name in db_table_names:
-        if not any("__" + x + "__" in table_name for x in effective_table_names):
-            continue
+    for table_name in archived_table_names:
         logger.info("Exporting table %s", table_name)
         _dump_table_to_file(
             target_table=table_name,
@@ -433,3 +453,17 @@ def export_cleaned_records(
             session.execute(text(f"DROP TABLE {table_name}"))
             dropped_count += 1
     logger.info("Total exported tables: %s, Total dropped tables: %s", export_count, dropped_count)
+
+
+@provide_session
+def drop_archived_tables(table_names, needs_confirm, session):
+    """Drop archived tables."""
+    archived_table_names = _get_archived_table_names(table_names, session)
+    if needs_confirm and archived_table_names:
+        _confirm_drop_archives(tables=sorted(archived_table_names))
+    dropped_count = 0
+    for table_name in archived_table_names:
+        logger.info("Dropping archived table %s", table_name)
+        session.execute(text(f"DROP TABLE {table_name}"))
+        dropped_count += 1
+    logger.info("Total dropped tables: %s", dropped_count)
