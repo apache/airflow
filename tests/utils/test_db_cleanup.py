@@ -42,6 +42,7 @@ from airflow.utils.db_cleanup import (
     _confirm_drop_archives,
     _dump_table_to_file,
     config_dict,
+    drop_archived_tables,
     export_cleaned_records,
     run_cleanup,
 )
@@ -336,27 +337,53 @@ class TestDBCleanup:
         "drop_archive",
         [True, False],
     )
+    @patch("airflow.utils.db_cleanup._dump_table_to_file")
     @patch("airflow.utils.db_cleanup._confirm_drop_archives")
-    def test_confirm_drop_called_when_drop_archives_is_true(self, confirm_drop_mock, drop_archive):
+    @patch("airflow.utils.db_cleanup.inspect")
+    def test_confirm_drop_called_when_drop_archives_is_true_and_archive_exists(
+        self, inspect_mock, confirm_drop_mock, _dump_table_to_file_mock, drop_archive
+    ):
         """test that drop confirmation input is called when appropriate"""
-        export_cleaned_records(export_format="csv", output_path="path", drop_archives=drop_archive)
+        inspector = inspect_mock.return_value
+        inspector.get_table_names.return_value = [f"{ARCHIVE_TABLE_PREFIX}dag_run__233"]
+        export_cleaned_records(
+            export_format="csv", output_path="path", drop_archives=drop_archive, session=MagicMock()
+        )
         if drop_archive:
             confirm_drop_mock.assert_called()
         else:
             confirm_drop_mock.assert_not_called()
 
-    def test_confirm_drop_archives(self):
-        tables = ["table1", "table2"]
+    @pytest.mark.parametrize(
+        "tables",
+        [
+            ["table1", "table2"],
+            ["table1", "table2", "table3"],
+            ["table1", "table2", "table3", "table4"],
+        ],
+    )
+    @patch("airflow.utils.db_cleanup.ask_yesno")
+    def test_confirm_drop_archives(self, mock_ask_yesno, tables):
+        expected = (
+            f"You have requested that we drop the following archived tables {tables}.\n"
+            "This is irreversible. Consider backing up the tables first"
+        )
+        if len(tables) > 3:
+            expected = (
+                f"You have requested that we drop {len(tables)} archived tables prefixed with "
+                f"_airflow_deleted__.\n"
+                "This is irreversible. Consider backing up the tables first \n"
+                "\n"
+                f"{tables}"
+            )
+
+        mock_ask_yesno.return_value = True
         with patch("sys.stdout", new=StringIO()) as fake_out, patch(
             "builtins.input", side_effect=["drop archived tables"]
         ):
             _confirm_drop_archives(tables=tables)
             output = fake_out.getvalue().strip()
-            expected = (
-                f"You have requested that we drop archived records for tables {tables}.\n"
-                "This is irreversible.  Consider backing up the tables first \n"
-                "Enter 'drop archived tables' (without quotes) to proceed."
-            )
+
         assert output == expected
 
     def test_user_did_not_confirm(self):
@@ -394,6 +421,26 @@ class TestDBCleanup:
         else:
             assert "Total exported tables: 1, Total dropped tables: 0" in caplog.text
 
+    @pytest.mark.parametrize("drop_archive", [True, False])
+    @patch("airflow.utils.db_cleanup._dump_table_to_file")
+    @patch("airflow.utils.db_cleanup.inspect")
+    @patch("airflow.utils.db_cleanup._confirm_drop_archives")
+    @patch("builtins.input", side_effect=["drop archived tables"])
+    def test_export_cleaned_no_confirm_if_no_tables(
+        self, mock_input, mock_confirm, inspect_mock, dump_mock, caplog, drop_archive
+    ):
+        """Test no confirmation if no archived tables found"""
+        session_mock = MagicMock()
+        inspector = inspect_mock.return_value
+        # No tables with the archive prefix
+        inspector.get_table_names.return_value = ["dag_run", "task_instance"]
+        export_cleaned_records(
+            export_format="csv", output_path="path", drop_archives=drop_archive, session=session_mock
+        )
+        mock_confirm.assert_not_called()
+        dump_mock.assert_not_called()
+        assert "Total exported tables: 0, Total dropped tables: 0" in caplog.text
+
     @patch("airflow.utils.db_cleanup.csv")
     def test_dump_table_to_file_function_for_csv(self, mock_csv):
         mockopen = mock_open()
@@ -416,6 +463,41 @@ class TestDBCleanup:
                 session=MagicMock(),
             )
         assert "Export format json is not supported" in str(exc_info.value)
+
+    @pytest.mark.parametrize("tables", [["log", "dag"], ["dag_run", "task_instance"]])
+    @patch("airflow.utils.db_cleanup._confirm_drop_archives")
+    @patch("airflow.utils.db_cleanup.inspect")
+    def test_drop_archived_tables_no_confirm_if_no_archived_tables(
+        self, inspect_mock, mock_confirm, tables, caplog
+    ):
+        """
+        Test no confirmation if no archived tables found.
+        Archived tables starts with a prefix defined in ARCHIVE_TABLE_PREFIX.
+        """
+        inspector = inspect_mock.return_value
+        inspector.get_table_names.return_value = tables
+        drop_archived_tables(tables, needs_confirm=True, session=MagicMock())
+        mock_confirm.assert_not_called()
+        assert "Total dropped tables: 0" in caplog.text
+
+    @pytest.mark.parametrize("confirm", [True, False])
+    @patch("airflow.utils.db_cleanup.inspect")
+    @patch("airflow.utils.db_cleanup._confirm_drop_archives")
+    @patch("builtins.input", side_effect=["drop archived tables"])
+    def test_drop_archived_tables(self, mock_input, confirm_mock, inspect_mock, caplog, confirm):
+        """Test drop_archived_tables"""
+        archived_table = f"{ARCHIVE_TABLE_PREFIX}dag_run__233"
+        normal_table = "dag_run"
+        inspector = inspect_mock.return_value
+        inspector.get_table_names.return_value = [archived_table, normal_table]
+        drop_archived_tables([normal_table], needs_confirm=confirm, session=MagicMock())
+        assert f"Dropping archived table {archived_table}" in caplog.text
+        assert f"Dropping archived table {normal_table}" not in caplog.text
+        assert "Total dropped tables: 1" in caplog.text
+        if confirm:
+            confirm_mock.assert_called()
+        else:
+            confirm_mock.assert_not_called()
 
 
 def create_tis(base_date, num_tis, external_trigger=False):
