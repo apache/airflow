@@ -20,8 +20,8 @@
 
 from __future__ import annotations
 
-from typing import Sequence
 import datetime
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
