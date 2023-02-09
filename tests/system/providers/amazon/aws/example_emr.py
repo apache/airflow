@@ -95,9 +95,9 @@ def get_ami_id():
     """
     Returns an AL2 AMI compatible with EMR
     """
-    return boto3.client("ssm").get_parameter(
-        Name="/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs",
-    )["Parameter"]["Value"]
+    return SsmHook(aws_conn_id=None).get_parameter_value(
+        "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"
+    )
 
 
 @task
