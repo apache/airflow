@@ -3715,7 +3715,6 @@ class Airflow(AirflowBaseView):
                     DatasetEvent,
                     and_(
                         DatasetEvent.dataset_id == DatasetModel.id,
-                        DatasetEvent.timestamp > DatasetDagRunQueue.created_at,
                     ),
                     isouter=True,
                 )
