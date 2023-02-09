@@ -800,7 +800,7 @@ class TaskInstance(Base, LoggingMixin):
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
-        query = session.query(*TaskInstance.__table__.columns).filter_by(
+        query = session.query(TaskInstance).filter_by(
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
