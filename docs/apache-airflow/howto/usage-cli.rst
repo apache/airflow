@@ -232,6 +232,16 @@ location must exist.
 Other options include: ``--tables`` to specify the tables to export, ``--drop-archives`` to drop the archive tables after
 exporting.
 
+Dropping the archived tables
+----------------------------
+
+If during the ``db clean`` process, you did not use the ``--skip-archive`` option which drops the archived table, you can
+still drop the archive tables using the ``db drop-archived`` command. This operation is irreversible and you are encouraged
+to use the ``db export-cleaned`` command to backup the tables to disk before dropping them.
+
+You can specify the tables to drop using the ``--tables`` option. If no tables are specified, all archive tables will be
+dropped.
+
 Beware cascading deletes
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
