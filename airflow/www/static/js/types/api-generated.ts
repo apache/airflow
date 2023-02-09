@@ -4479,7 +4479,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["User"];
+          "application/json": components["schemas"]["UserCollectionItem"];
         };
       };
       400: components["responses"]["BadRequest"];
