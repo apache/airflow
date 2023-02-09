@@ -432,7 +432,7 @@ class DagFileProcessorManager(LoggingMixin):
         self.last_deactivate_stale_dags_time = timezone.make_aware(datetime.fromtimestamp(0))
         # How often to check for DAGs which are no longer in files
         self.parsing_cleanup_interval = conf.getint("scheduler", "parsing_cleanup_interval")
-        # How long to wait for a DAG to be reparsed after it's file has been parsed before disabling
+        # How long to wait for a DAG to be reparsed after its file has been parsed before disabling
         self.stale_dag_threshold = conf.getboolean("scheduler", "stale_dag_threshold")
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
@@ -528,7 +528,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         for dag in dags_parsed:
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
-            # last_parsed_time is thg processor_timeout. Longer than that indicates that the DAG is
+            # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
             if (
