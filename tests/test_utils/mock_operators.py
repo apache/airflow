@@ -27,22 +27,33 @@ from airflow.models.xcom import XCom
 from airflow.utils.context import Context
 
 
+class MockOperator(BaseOperator):
+    """Operator for testing purposes."""
+
+    template_fields: Sequence[str] = ("arg1", "arg2")
+
+    def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+        self.arg2 = arg2
+
+    def execute(self, context: Context):
+        pass
+
+
 class NestedFields:
     def __init__(self, field_1, field_2):
         self.field_1 = field_1
         self.field_2 = field_2
 
 
-class MockOperator(BaseOperator):
-    """Operator for testing purposes."""
+class MockOperatorWithNestedFields(BaseOperator):
+    template_fields: Sequence[str] = ("arg1", "arg2")
 
-    template_fields: Sequence[str] = ("arg1", "arg2", "arg3")
-
-    def __init__(self, arg1: str = "", arg2: str = "", arg3: NestedFields | None = None, **kwargs):
+    def __init__(self, arg1: str = "", arg2: NestedFields | None = None, **kwargs):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
-        self.arg3 = arg3
 
     def _render_nested_template_fields(
         self,
