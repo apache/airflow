@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import Iterable
+import datetime
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
@@ -124,4 +125,4 @@ class ParamEscaper:
         elif isinstance(item, datetime.date):
             return self.escape_datetime(item, self._DATE_FORMAT)
         else:
-            raise exc.ProgrammingError(f"Unsupported object {item}")
+            raise Exception(f"Unsupported object {item}")
