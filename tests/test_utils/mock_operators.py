@@ -17,24 +17,52 @@
 from __future__ import annotations
 
 import warnings
-from typing import Sequence
+from typing import Any, Sequence
 
 import attr
+import jinja2
 
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.utils.context import Context
 
 
+class NestedFields:
+    def __init__(self, field_1, field_2):
+        self.field_1 = field_1
+        self.field_2 = field_2
+
+
 class MockOperator(BaseOperator):
     """Operator for testing purposes."""
 
-    template_fields: Sequence[str] = ("arg1", "arg2")
+    template_fields: Sequence[str] = ("arg1", "arg2", "arg3")
 
-    def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
+    def __init__(self, arg1: str = "", arg2: str = "", arg3: NestedFields | None = None, **kwargs):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
+        self.arg3 = arg3
+
+    def _render_nested_template_fields(
+        self,
+        content: Any,
+        context: Context,
+        jinja_env: jinja2.Environment,
+        seen_oids: set,
+    ) -> None:
+        if id(content) not in seen_oids:
+            template_fields: tuple | None = None
+
+            if isinstance(content, NestedFields):
+                template_fields = ("field_1", "field_2")
+
+            if template_fields:
+                seen_oids.add(id(content))
+                self._do_render_template_fields(content, template_fields, context, jinja_env, seen_oids)
+                return
+
+        super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
     def execute(self, context: Context):
         pass
