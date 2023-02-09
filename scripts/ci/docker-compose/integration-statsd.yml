@@ -39,8 +39,9 @@ services:
     image: grafana/grafana:8.2.4
     container_name: "breeze-grafana"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: password
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_ANONYMOUS_ORG_NAME: "Main Org."
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
       GF_PATHS_PROVISIONING: /grafana/provisioning
     ports:
       - "23000:3000"
