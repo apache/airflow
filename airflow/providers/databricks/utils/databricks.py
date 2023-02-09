@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
 import datetime
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
@@ -75,6 +75,12 @@ def validate_trigger_event(event: dict):
 
 # Taken from PyHive
 class ParamEscaper:
+    """
+    Class to escape different input items.
+
+    :param item: Input value.
+    :return: transformed item.
+    """    
     _DATE_FORMAT = "%Y-%m-%d"
     _TIME_FORMAT = "%H:%M:%S.%f"
     _DATETIME_FORMAT = f"{_DATE_FORMAT} {_TIME_FORMAT}"
@@ -85,7 +91,7 @@ class ParamEscaper:
         elif isinstance(parameters, (list, tuple)):
             return tuple(self.escape_item(x) for x in parameters)
         else:
-            raise exc.ProgrammingError(f"Unsupported param format: {parameters}")
+            raise Exception(f"Unsupported param format: {parameters}")
 
     def escape_number(self, item):
         return item
