@@ -782,11 +782,12 @@ createUserJob:
     - "{{ .Values.webserver.defaultUser.lastName }}"
     - "-p"
     - "{{ .Values.webserver.defaultUser.password }}"
-
   # Annotations on the create user job pod
   annotations: {}
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
+  # Number of seconds to wait until the job is eligible for deletion (Kubernetes 1.23+)
+  ttlSecondsAfterFinished: 300
 
   # Labels specific to createUserJob objects and pods
   labels: {}
@@ -869,6 +870,9 @@ migrateDatabaseJob:
 
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
+
+  # Number of seconds to wait until the job is eligible for deletion (Kubernetes 1.23+)
+  ttlSecondsAfterFinished: 300
 
   resources: {}
   #  limits:

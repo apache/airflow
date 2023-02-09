@@ -48,6 +48,9 @@ metadata:
     {{- $annotations | toYaml | nindent 4 }}
   {{- end }}
 spec:
+  {{- if semverCompare ">= 1.23.x" (include "kubeVersion" .) }}
+  ttlSecondsAfterFinished: {{ .Values.migrateDatabaseJob.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       labels:

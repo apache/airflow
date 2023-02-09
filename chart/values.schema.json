@@ -2894,6 +2894,11 @@
                         }
                     }
                 },
+                "ttlSecondsAfterFinished": {
+                    "description": "Number of seconds to wait until the job is eligible for deletion (Kubernetes 1.23+)",
+                    "type": "integer",
+                    "default": 300
+                },
                 "extraContainers": {
                     "description": "Launch additional containers for the create user job pod",
                     "type": "array",
@@ -3111,6 +3116,11 @@
                             }
                         }
                     ]
+                },
+                "ttlSecondsAfterFinished": {
+                    "description": "Number of seconds to wait until the job is eligible for deletion (Kubernetes 1.23+)",
+                    "type": "integer",
+                    "default": 300
                 },
                 "extraContainers": {
                     "description": "Launch additional containers for the migrate database job pod",
