@@ -3320,16 +3320,9 @@ class DagModel(Base):
         )
         session.commit()
 
-        dag = DagBag().get_dag(self.dag_id)
-        toggle_state_str = 'OFF' if is_paused else 'ON'
-        to_email_address = dag.default_args.get('email', None)
-        if to_email_address:
-            email_subject = 'Airflow DAG {} Toggled {}'.format(self.dag_id, toggle_state_str)
-            email_content = (
-                'This is a notification that Airflow DAG: <b>{}</b> has been toggled {}.<br>'
-                'If this was intentional, feel free to ignore this email.'
-            ).format(self.dag_id, toggle_state_str)
-            send_email(to_email_address, email_subject, email_content)
+        toggle_dag_hook = conf.getimport("affirm", "toggle_dag_hook")
+        if toggle_dag_hook:
+            toggle_dag_hook(self.dag_id, is_paused)
 
     @classmethod
     @provide_session
