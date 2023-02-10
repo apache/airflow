@@ -56,7 +56,7 @@ try:
     from airflow.typing_compat import ParamSpec
 except ImportError:
     try:
-        from typing import ParamSpec  # type: ignore[no-redef,attr-defined]
+        from typing import ParamSpec  # type: ignore[no-redef, attr-defined]
     except ImportError:
         from typing_extensions import ParamSpec
 
@@ -88,7 +88,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
     def _wrapper(func: Callable[FParams, RT]) -> Callable[FParams, RT]:
         @functools.wraps(func)
-        def _inner_wrapper(self: GCSHook, *args, **kwargs) -> RT:
+        def _inner_wrapper(self, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional"
@@ -127,7 +127,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
                     f"'{bucket_name_keyword_arg_name}'"
                 )
 
-            return func(self, *args, **kwargs)  # type: ignore
+            return func(self, *args, **kwargs)
 
         return cast(Callable[FParams, RT], _inner_wrapper)
 

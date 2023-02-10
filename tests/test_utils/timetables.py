@@ -50,9 +50,6 @@ class CustomSerializationTimetable(Timetable):
     def summary(self):
         return f"{type(self).__name__}({self.value!r})"
 
-    def validate(self) -> None:
-        pass
-
     def infer_manual_data_interval(self, *, run_after):
         raise DataInterval.exact(run_after)
 
