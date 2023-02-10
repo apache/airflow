@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from airflow import settings
-from airflow.timetables.base import Timetable
+from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 
 
@@ -54,7 +54,7 @@ class CustomSerializationTimetable(Timetable):
         pass
 
     def infer_manual_data_interval(self, *, run_after):
-        raise NotImplementedError()
+        raise DataInterval.exact(run_after)
 
     def next_dagrun_info(self, *, last_automated_data_interval, restriction):
-        raise NotImplementedError()
+        return None
