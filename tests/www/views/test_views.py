@@ -449,7 +449,7 @@ def test_mark_task_instance_state_failed_downstream_clear(test_app, downstream, 
         session.commit()
 
     assert dagrun.get_state() == State.SUCCESS
-    test_app.dag_bag = DagBag(dag_folder='/dev/null', include_examples=False)
+    test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
     test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     with test_app.test_request_context():
